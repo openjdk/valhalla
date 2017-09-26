@@ -57,6 +57,7 @@ private:
 
   ciField(ciInstanceKlass* klass, int index);
   ciField(fieldDescriptor* fd);
+  ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final);
 
   // shared constructor code
   void initialize_from(fieldDescriptor* fd);

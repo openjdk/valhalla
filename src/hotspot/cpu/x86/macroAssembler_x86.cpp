@@ -2617,6 +2617,10 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0, Register 
   call_VM_leaf(entry_point, 3);
 }
 
+void MacroAssembler::super_call_VM_leaf(address entry_point) {
+  MacroAssembler::call_VM_leaf_base(entry_point, 1);
+}
+
 void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0) {
   pass_arg0(this, arg_0);
   MacroAssembler::call_VM_leaf_base(entry_point, 1);
@@ -6076,7 +6080,11 @@ void MacroAssembler::cmov32(Condition cc, Register dst, Register src) {
 }
 
 void MacroAssembler::verify_oop(Register reg, const char* s) {
-  if (!VerifyOops) return;
+  if (!VerifyOops || VerifyAdapterSharing) {
+    // Below address of the code string confuses VerifyAdapterSharing
+    // because it may differ between otherwise equivalent adapters.
+    return;
+  }
 
   // Pass register number to verify_oop_subroutine
   const char* b = NULL;
@@ -6166,7 +6174,11 @@ Address MacroAssembler::argument_address(RegisterOrConstant arg_slot,
 
 
 void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
-  if (!VerifyOops) return;
+  if (!VerifyOops || VerifyAdapterSharing) {
+    // Below address of the code string confuses VerifyAdapterSharing
+    // because it may differ between otherwise equivalent adapters.
+    return;
+  }
 
   // Address adjust(addr.base(), addr.index(), addr.scale(), addr.disp() + BytesPerWord);
   // Pass register number to verify_oop_subroutine

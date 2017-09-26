@@ -27,10 +27,12 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
+#include "memory/vtBuffer.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markOop.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -344,6 +346,7 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
   const Address val_addr(rcx, JvmtiThreadState::earlyret_value_offset());
 #ifdef _LP64
   switch (state) {
+    case qtos: // fall through
     case atos: movptr(rax, oop_addr);
                movptr(oop_addr, (int32_t)NULL_WORD);
                verify_oop(rax, state);              break;
@@ -365,6 +368,7 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
   const Address val_addr1(rcx, JvmtiThreadState::earlyret_value_offset()
                              + in_ByteSize(wordSize));
   switch (state) {
+    case qtos: // fall through
     case atos: movptr(rax, oop_addr);
                movptr(oop_addr, NULL_WORD);
                verify_oop(rax, state);                break;
@@ -625,6 +629,8 @@ void InterpreterMacroAssembler::push_l(Register r) {
 
 void InterpreterMacroAssembler::pop(TosState state) {
   switch (state) {
+  case ptos: // Fall through
+  case qtos: // Fall through
   case atos: pop_ptr();                 break;
   case btos:
   case ztos:
@@ -643,6 +649,7 @@ void InterpreterMacroAssembler::pop(TosState state) {
 void InterpreterMacroAssembler::push(TosState state) {
   verify_oop(rax, state);
   switch (state) {
+  case qtos: // Fall through
   case atos: push_ptr();                break;
   case btos:
   case ztos:
@@ -679,6 +686,7 @@ void InterpreterMacroAssembler::pop_d() {
 
 void InterpreterMacroAssembler::pop(TosState state) {
   switch (state) {
+    case qtos:                                               // fall through
     case atos: pop_ptr(rax);                                 break;
     case btos:                                               // fall through
     case ztos:                                               // fall through
@@ -728,6 +736,7 @@ void InterpreterMacroAssembler::push_d() {
 void InterpreterMacroAssembler::push(TosState state) {
   verify_oop(rax, state);
   switch (state) {
+    case qtos:                                               // fall through
     case atos: push_ptr(rax); break;
     case btos:                                               // fall through
     case ztos:                                               // fall through
@@ -927,7 +936,8 @@ void InterpreterMacroAssembler::remove_activation(
         Register ret_addr,
         bool throw_monitor_exception,
         bool install_monitor_exception,
-        bool notify_jvmdi) {
+        bool notify_jvmdi,
+        bool load_values) {
   // Note: Registers rdx xmm0 may be in use for the
   // result check if synchronized method
   Label unlocked, unlock, no_unlock;
@@ -1069,6 +1079,28 @@ void InterpreterMacroAssembler::remove_activation(
     notify_method_exit(state, SkipNotifyJVMTI); // preserve TOSCA
   }
 
+  Label vtbuffer_slow, vtbuffer_done;
+  const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
+  const uintptr_t chunk_mask = VTBufferChunk::chunk_mask();
+  movptr(rbx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
+  NOT_LP64(get_thread(thread1));
+  movptr(rcx, Address(thread1, JavaThread::vt_alloc_ptr_offset()));
+  cmpptr(rbx, rcx);
+  jcc(Assembler::equal, vtbuffer_done);
+  andptr(rbx, chunk_mask);
+  andptr(rcx, chunk_mask);
+  cmpptr(rbx, rcx);
+  jcc(Assembler::notEqual, vtbuffer_slow);
+  movptr(rbx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
+  movptr(Address(thread1, JavaThread::vt_alloc_ptr_offset()), rbx);
+  jmp(vtbuffer_done);
+  bind(vtbuffer_slow);
+  push(state);
+  call_VM(noreg, CAST_FROM_FN_PTR(address,
+                                  InterpreterRuntime::recycle_vtbuffer));
+  pop(state);
+  bind(vtbuffer_done);
+
   // remove activation
   // get sender sp
   movptr(rbx,
@@ -1093,6 +1125,27 @@ void InterpreterMacroAssembler::remove_activation(
     should_not_reach_here();
 
     bind(no_reserved_zone_enabling);
+  }
+  if (load_values) {
+    // We are returning a value type, load its fields into registers
+#ifndef _LP64
+    super_call_VM_leaf(StubRoutines::load_value_type_fields_in_regs());
+#else
+    load_klass(rdi, rax);
+    movptr(rdi, Address(rdi, ValueKlass::unpack_handler_offset()));
+
+    Label skip;
+    testptr(rdi, rdi);
+    jcc(Assembler::equal, skip);
+
+    // Load fields from a buffered value with a value class specific
+    // handler
+    call(rdi);
+
+    bind(skip);
+#endif
+    // call above kills the value in rbx. Reload it.
+    movptr(rbx, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
   }
   leave();                           // remove frame anchor
   pop(ret_addr);                     // get return address

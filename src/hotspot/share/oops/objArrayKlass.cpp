@@ -33,6 +33,7 @@
 #include "memory/iterator.inline.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/arrayKlass.inline.hpp"
@@ -63,6 +64,9 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
   Klass* super_klass = NULL;
   if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
     Klass* element_super = element_klass->super();
+    if (element_super == SystemDictionary::___Value_klass()) {
+      element_super = NULL;
+    }
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
       super_klass = element_super->array_klass_or_null();
@@ -100,31 +104,7 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
   }
 
   // Create type name for klass.
-  Symbol* name = NULL;
-  if (!element_klass->is_instance_klass() ||
-      (name = InstanceKlass::cast(element_klass)->array_name()) == NULL) {
-
-    ResourceMark rm(THREAD);
-    char *name_str = element_klass->name()->as_C_string();
-    int len = element_klass->name()->utf8_length();
-    char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
-    int idx = 0;
-    new_str[idx++] = '[';
-    if (element_klass->is_instance_klass()) { // it could be an array or simple type
-      new_str[idx++] = 'L';
-    }
-    memcpy(&new_str[idx], name_str, len * sizeof(char));
-    idx += len;
-    if (element_klass->is_instance_klass()) {
-      new_str[idx++] = ';';
-    }
-    new_str[idx++] = '\0';
-    name = SymbolTable::new_permanent_symbol(new_str, CHECK_0);
-    if (element_klass->is_instance_klass()) {
-      InstanceKlass* ik = InstanceKlass::cast(element_klass);
-      ik->set_array_name(name);
-    }
-  }
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
   ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_0);
@@ -157,7 +137,9 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   } else {
     bk = element_klass;
   }
-  assert(bk != NULL && (bk->is_instance_klass() || bk->is_typeArray_klass()), "invalid bottom klass");
+  assert(bk != NULL && (bk->is_instance_klass()
+      || bk->is_typeArray_klass()
+      || bk->is_valueArray_klass()), "invalid bottom klass");
   this->set_bottom_klass(bk);
   this->set_class_loader_data(bk->class_loader_data());
 
@@ -190,28 +172,30 @@ static int multi_alloc_counter = 0;
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
+  if (rank == 1) { // last dim may be valueArray
+    return oopFactory::new_array(element_klass(), length, CHECK_NULL);
+  }
+  guarantee(rank > 1, "Rank below 1");
   // Call to lower_dimension uses this pointer, so most be called before a
   // possible GC
   Klass* ld_klass = lower_dimension();
   // If length < 0 allocate will throw an exception.
   objArrayOop array = allocate(length, CHECK_NULL);
   objArrayHandle h_array (THREAD, array);
-  if (rank > 1) {
-    if (length != 0) {
-      for (int index = 0; index < length; index++) {
-        ArrayKlass* ak = ArrayKlass::cast(ld_klass);
-        oop sub_array = ak->multi_allocate(rank-1, &sizes[1], CHECK_NULL);
-        h_array->obj_at_put(index, sub_array);
-      }
-    } else {
-      // Since this array dimension has zero length, nothing will be
-      // allocated, however the lower dimension values must be checked
-      // for illegal values.
-      for (int i = 0; i < rank - 1; ++i) {
-        sizes += 1;
-        if (*sizes < 0) {
-          THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
-        }
+  if (length != 0) {
+    for (int index = 0; index < length; index++) {
+      ArrayKlass* ak = ArrayKlass::cast(ld_klass);
+      oop sub_array = ak->multi_allocate(rank-1, &sizes[1], CHECK_NULL);
+      h_array->obj_at_put(index, sub_array);
+    }
+  } else {
+    // Since this array dimension has zero length, nothing will be
+    // allocated, however the lower dimension values must be checked
+    // for illegal values.
+    for (int i = 0; i < rank - 1; ++i) {
+      sizes += 1;
+      if (*sizes < 0) {
+        THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
       }
     }
   }
@@ -436,7 +420,7 @@ PackageEntry* ObjArrayKlass::package() const {
 void ObjArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   Klass::print_on(st);
-  st->print(" - instance klass: ");
+  st->print(" - element klass: ");
   element_klass()->print_value_on(st);
   st->cr();
 #endif //PRODUCT
@@ -490,7 +474,8 @@ void ObjArrayKlass::verify_on(outputStream* st) {
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
   Klass* bk = bottom_klass();
-  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass(),  "invalid bottom klass");
+  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass() || bk->is_valueArray_klass(),
+            "invalid bottom klass");
 }
 
 void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {

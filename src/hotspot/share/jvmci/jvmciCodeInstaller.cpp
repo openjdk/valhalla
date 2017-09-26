@@ -1096,7 +1096,7 @@ void CodeInstaller::record_scope(jint pc_offset, Handle position, ScopeMode scop
     throw_exception = BytecodeFrame::rethrowException(frame) == JNI_TRUE;
   }
 
-  _debug_recorder->describe_scope(pc_offset, method, NULL, bci, reexecute, throw_exception, false, return_oop,
+  _debug_recorder->describe_scope(pc_offset, method, NULL, bci, reexecute, throw_exception, false, return_oop, false,
                                   locals_token, expressions_token, monitors_token);
 }
 

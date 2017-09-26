@@ -91,7 +91,8 @@ class PSPromotionManager;
 // ftos: 6
 // dtos: 7
 // atos: 8
-// vtos: 9
+// qtos: 9
+// vtos: 10
 //
 // Entry specific: field entries:
 // _indices = get (b1 section) and put (b2 section) bytecodes, original constant pool index
@@ -315,6 +316,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
       case Bytecodes::_invokeinterface : return 1;
       case Bytecodes::_putstatic       :    // fall through
       case Bytecodes::_putfield        :    // fall through
+      case Bytecodes::_vwithfield      :    // fall through
       case Bytecodes::_invokevirtual   : return 2;
       default                          : break;
     }
@@ -347,6 +349,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   bool      is_f1_null() const                   { Metadata* f1 = f1_ord(); return f1 == NULL; }  // classifies a CPC entry as unbound
   int       f2_as_index() const                  { assert(!is_vfinal(), ""); return (int) _f2; }
   Method*   f2_as_vfinal_method() const          { assert(is_vfinal(), ""); return (Method*)_f2; }
+  int       f2_as_offset() const                 { assert(is_field_entry(),  ""); return (int)_f2; }
   int  field_index() const                       { assert(is_field_entry(),  ""); return (_flags & field_index_mask); }
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
@@ -359,6 +362,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   bool is_field_entry() const                    { return (_flags & (1 << is_field_entry_shift))    != 0; }
   bool is_long() const                           { return flag_state() == ltos; }
   bool is_double() const                         { return flag_state() == dtos; }
+  bool is_valuetype() const                      { return flag_state() == qtos; }
   TosState flag_state() const                    { assert((uint)number_of_states <= (uint)tos_state_mask+1, "");
                                                    return (TosState)((_flags >> tos_state_shift) & tos_state_mask); }
 

@@ -44,7 +44,7 @@ public:
   virtual uint hash() const { return NO_HASH; }  // CFG nodes do not hash
   virtual bool depends_only_on_test() const { return false; }
   virtual const RegMask &out_RegMask() const;
-  virtual Node *match( const ProjNode *proj, const Matcher *m );
+  virtual Node *match(const ProjNode *proj, const Matcher *m, const RegMask* mask);
   virtual uint ideal_reg() const { return NotAMachineReg; }
   ProjNode* proj_out(uint which_proj) const; // Get a named projection
 

@@ -66,13 +66,39 @@ bool FieldType::is_valid_array_signature(Symbol* sig) {
       // If it is an array, the type is the last character
       return (i + 1 == len);
     case 'L':
-      // If it is an object, the last character must be a ';'
+    case 'Q':
+      // If it is an object or a value type, the last character must be a ';'
       return sig->byte_at(len - 1) == ';';
   }
 
   return false;
 }
 
+static const char dvt_postfix[] = "$Value";
+static const int dvt_postfix_len = 6;
+
+bool FieldType::is_dvt_postfix(Symbol* signature) {
+  assert(strlen(dvt_postfix) == dvt_postfix_len, "Invariant");
+  int sig_length = signature->utf8_length();
+  int pos = sig_length - dvt_postfix_len;
+  if (pos <= 0) {
+    return false;
+  }
+  for (int i = 0; i < dvt_postfix_len; i++) {
+    if (signature->byte_at(pos) != dvt_postfix[i]) {
+      return false;
+    }
+    pos++;
+  }
+  return true;
+}
+
+char* FieldType::dvt_unmangle_vcc(Symbol* signature) {
+  assert(is_dvt_postfix(signature), "Unmangle that which is not managled");
+  char* str = signature->as_C_string();
+  str[signature->utf8_length() -dvt_postfix_len] = '\0';
+  return str;
+}
 
 BasicType FieldType::get_array_info(Symbol* signature, FieldArrayInfo& fd, TRAPS) {
   assert(basic_type(signature) == T_ARRAY, "must be array");
@@ -87,7 +113,7 @@ BasicType FieldType::get_array_info(Symbol* signature, FieldArrayInfo& fd, TRAPS
   ResourceMark rm;
   char *element = signature->as_C_string() + index;
   BasicType element_type = char2type(element[0]);
-  if (element_type == T_OBJECT) {
+  if (element_type == T_OBJECT || element_type == T_VALUETYPE) {
     int len = (int)strlen(element);
     assert(element[len-1] == ';', "last char should be a semicolon");
     element[len-1] = '\0';        // chop off semicolon

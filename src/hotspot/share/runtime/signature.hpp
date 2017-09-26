@@ -78,7 +78,8 @@ class SignatureIterator: public ResourceObj {
       float_parm           = 7,
       double_parm          = 8,
       obj_parm             = 9,
-      done_parm            = 10,  // marker for end of parameters
+      valuetype_parm       = 10,
+      done_parm            = 11,  // marker for end of parameters
 
     // max parameters is wordsize minus
     //    The sign bit, termination field, the result and static bit fields
@@ -115,6 +116,7 @@ class SignatureIterator: public ResourceObj {
   // Object types (begin indexes the first character of the entry, end indexes the first character after the entry)
   virtual void do_object(int begin, int end) = 0;
   virtual void do_array (int begin, int end) = 0;
+  virtual void do_valuetype(int begin, int end) = 0;
 
   static bool is_static(uint64_t fingerprint) {
     assert(fingerprint != (uint64_t)CONST64(-1), "invalid fingerprint");
@@ -144,6 +146,7 @@ class SignatureTypeNames : public SignatureIterator {
   void do_void()                       { type_name("void"    ); }
   void do_object(int begin, int end)   { type_name("jobject" ); }
   void do_array (int begin, int end)   { type_name("jobject" ); }
+  void do_valuetype(int begin, int end){ type_name("jvaluetype"); }
 
  public:
   SignatureTypeNames(Symbol* signature) : SignatureIterator(signature) {}
@@ -172,6 +175,7 @@ class SignatureInfo: public SignatureIterator {
   void do_void  ()                     { set(T_VOID_size   , T_VOID   ); }
   void do_object(int begin, int end)   { set(T_OBJECT_size , T_OBJECT ); }
   void do_array (int begin, int end)   { set(T_ARRAY_size  , T_ARRAY  ); }
+  void do_valuetype(int begin, int end){ set(T_VALUETYPE_size, T_VALUETYPE); }
 
  public:
   SignatureInfo(Symbol* signature) : SignatureIterator(signature) {
@@ -238,6 +242,7 @@ class Fingerprinter: public SignatureIterator {
 
   void do_object(int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
   void do_array (int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
+  void do_valuetype(int begin, int end) { _fingerprint |= (((uint64_t)valuetype_parm) << _shift_count); _shift_count += parameter_feature_size; }
 
   void do_void()    { ShouldNotReachHere(); }
 
@@ -302,6 +307,7 @@ class NativeSignatureIterator: public SignatureIterator {
   void do_void  ()                     { ShouldNotReachHere();                               }
   void do_object(int begin, int end)   { pass_object(); _jni_offset++; _offset++;        }
   void do_array (int begin, int end)   { pass_object(); _jni_offset++; _offset++;        }
+  void do_valuetype(int begin, int end){ pass_valuetype();  _jni_offset++; _offset++;        }
 
  public:
   methodHandle method() const          { return _method; }
@@ -312,6 +318,7 @@ class NativeSignatureIterator: public SignatureIterator {
   virtual void pass_int()              = 0;
   virtual void pass_long()             = 0;
   virtual void pass_object()           = 0;
+  virtual void pass_valuetype()        = 0;
   virtual void pass_float()            = 0;
 #ifdef _LP64
   virtual void pass_double()           = 0;
@@ -427,6 +434,49 @@ class SignatureVerifier : public StackObj {
 
     static ssize_t is_valid_type(const char*, ssize_t);
     static bool invalid_name_char(char);
+};
+
+// Used for adapter generation. One SigEntry is used per element of
+// the signature of the method. Value type arguments are treated
+// specially. See comment for ValueKlass::collect_fields().
+class SigEntry VALUE_OBJ_CLASS_SPEC {
+ public:
+  BasicType _bt;
+  int _offset;
+    
+  SigEntry()
+    : _bt(T_ILLEGAL), _offset(-1) {
+  }
+  SigEntry(BasicType bt, int offset)
+    : _bt(bt), _offset(offset) {}
+
+  SigEntry(BasicType bt)
+    : _bt(bt), _offset(-1) {}
+  
+  static int compare(SigEntry* e1, SigEntry* e2) {
+    if (e1->_offset != e2->_offset) {
+      return e1->_offset - e2->_offset;
+    }
+    assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
+           (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
+           e1->_bt == T_VALUETYPE || e2->_bt == T_VALUETYPE || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
+    if (e1->_bt == e2->_bt) {
+      assert(e1->_bt == T_VALUETYPE || e1->_bt == T_VOID, "only ones with duplicate offsets");
+      return 0;
+    }
+    if (e1->_bt == T_VOID ||
+        e2->_bt == T_VALUETYPE) {
+      return 1;
+    }
+    if (e1->_bt == T_VALUETYPE ||
+        e2->_bt == T_VOID) {
+      return -1;
+    }
+    ShouldNotReachHere();
+    return 0;
+  }
+  static int count_fields(const GrowableArray<SigEntry>& sig_extended);
+  static void fill_sig_bt(const GrowableArray<SigEntry>& sig_extended, BasicType* sig_bt_cc, int total_args_passed_cc, bool skip_vt);
 };
 
 #endif // SHARE_VM_RUNTIME_SIGNATURE_HPP

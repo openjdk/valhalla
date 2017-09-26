@@ -25,8 +25,10 @@
 #ifndef SHARE_VM_OPTO_TYPE_HPP
 #define SHARE_VM_OPTO_TYPE_HPP
 
+#include "ci/ciValueKlass.hpp"
 #include "opto/adlcVMDeps.hpp"
 #include "runtime/handles.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -52,6 +54,7 @@ class     TypeNarrowOop;
 class     TypeNarrowKlass;
 class   TypeAry;
 class   TypeTuple;
+class   TypeValueType;
 class   TypeVect;
 class     TypeVectS;
 class     TypeVectD;
@@ -63,6 +66,7 @@ class     TypeRawPtr;
 class     TypeOopPtr;
 class       TypeInstPtr;
 class       TypeAryPtr;
+class       TypeValueTypePtr;
 class     TypeKlassPtr;
 class     TypeMetadataPtr;
 
@@ -92,11 +96,13 @@ public:
     VectorX,                    // 128bit Vector types
     VectorY,                    // 256bit Vector types
     VectorZ,                    // 512bit Vector types
+    ValueType,                  // Value type
 
     AnyPtr,                     // Any old raw, klass, inst, or array pointer
     RawPtr,                     // Raw (non-oop) pointers
     OopPtr,                     // Any and all Java heap entities
     InstPtr,                    // Instance pointers (non-array objects)
+    ValueTypePtr,               // Oop to heap allocated value type
     AryPtr,                     // Array pointers
     // (Ptr order matters:  See is_ptr, isa_ptr, is_oopptr, isa_oopptr.)
 
@@ -121,6 +127,30 @@ public:
   enum OFFSET_SIGNALS {
     OffsetTop = -2000000000,    // undefined offset
     OffsetBot = -2000000001     // any possible offset
+  };
+
+  class Offset {
+  private:
+    const int _offset;
+
+  public:
+    explicit Offset(int offset) : _offset(offset) {}
+
+    const Offset meet(const Offset other) const;
+    const Offset dual() const;
+    const Offset add(intptr_t offset) const;
+    bool operator==(const Offset& other) const {
+      return _offset == other._offset;
+    }
+    bool operator!=(const Offset& other) const {
+      return _offset != other._offset;
+    }
+    int get() const { return _offset; }
+
+    void dump2(outputStream *st) const;
+
+    static const Offset top;
+    static const Offset bottom;
   };
 
   // Min and max WIDEN values.
@@ -308,6 +338,10 @@ public:
   const TypeInstPtr  *is_instptr() const;        // Instance
   const TypeAryPtr   *isa_aryptr() const;        // Returns NULL if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
+  const TypeValueType* isa_valuetype() const;    // Returns NULL if not Value Type
+  const TypeValueType* is_valuetype() const;     // Value Type
+  const TypeValueTypePtr* isa_valuetypeptr() const; // Value Type Pointer
+  const TypeValueTypePtr* is_valuetypeptr() const;  // Returns NULL if not Value Type Pointer
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns NULL if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
@@ -659,8 +693,9 @@ public:
   }
 
   static const TypeTuple *make( uint cnt, const Type **fields );
-  static const TypeTuple *make_range(ciSignature *sig);
-  static const TypeTuple *make_domain(ciInstanceKlass* recv, ciSignature *sig);
+  static const TypeTuple *make_range(ciSignature *sig, bool ret_vt_fields = false);
+  static const TypeTuple *make_range(ciType *ret_type, bool ret_vt_fields = false);
+  static const TypeTuple *make_domain(ciInstanceKlass* recv, ciSignature *sig, bool vt_fields_as_args = false);
 
   // Subroutine call type with space allocated for argument types
   // Memory for Control, I_O, Memory, FramePtr, and ReturnAdr is allocated implicitly
@@ -717,6 +752,33 @@ public:
 #endif
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint, outputStream *st  ) const; // Specialized per-Type dumping
+#endif
+};
+
+
+//------------------------------TypeValue---------------------------------------
+// Class of Value Type Types
+class TypeValueType : public Type {
+private:
+  ciValueKlass* _vk;
+
+protected:
+  TypeValueType(ciValueKlass* vk) : Type(ValueType) { _vk = vk; }
+
+public:
+  static const TypeValueType* make(ciValueKlass* vk);
+  ciValueKlass* value_klass() const { return _vk; }
+
+  virtual bool eq(const Type* t) const;
+  virtual int  hash() const;             // Type specific hashing
+  virtual bool singleton(void) const;    // TRUE if type is a singleton
+  virtual bool empty(void) const;        // TRUE if type is vacuous
+
+  virtual const Type* xmeet(const Type* t) const;
+  virtual const Type* xdual() const;     // Compute dual right now.
+
+#ifndef PRODUCT
+  virtual void dump2(Dict &d, uint, outputStream* st) const; // Specialized per-Type dumping
 #endif
 };
 
@@ -799,7 +861,7 @@ class TypePtr : public Type {
 public:
   enum PTR { TopPTR, AnyNull, Constant, Null, NotNull, BotPTR, lastPTR };
 protected:
-  TypePtr(TYPES t, PTR ptr, int offset,
+  TypePtr(TYPES t, PTR ptr, Offset offset,
           const TypePtr* speculative = NULL,
           int inline_depth = InlineDepthBottom) :
     Type(t), _ptr(ptr), _offset(offset), _speculative(speculative),
@@ -842,13 +904,13 @@ protected:
 #endif
 
 public:
-  const int _offset;            // Offset into oop, with TOP & BOT
+  const Offset _offset;         // Offset into oop, with TOP & BOT
   const PTR _ptr;               // Pointer equivalence class
 
-  const int offset() const { return _offset; }
+  const int offset() const { return _offset.get(); }
   const PTR ptr()    const { return _ptr; }
 
-  static const TypePtr *make(TYPES t, PTR ptr, int offset,
+  static const TypePtr* make(TYPES t, PTR ptr, Offset offset,
                              const TypePtr* speculative = NULL,
                              int inline_depth = InlineDepthBottom);
 
@@ -857,7 +919,7 @@ public:
 
   virtual intptr_t get_con() const;
 
-  int xadd_offset( intptr_t offset ) const;
+  Offset xadd_offset(intptr_t offset) const;
   virtual const TypePtr *add_offset( intptr_t offset ) const;
   virtual bool eq(const Type *t) const;
   virtual int  hash() const;             // Type specific hashing
@@ -866,8 +928,8 @@ public:
   virtual bool empty(void) const;        // TRUE if type is vacuous
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xmeet_helper( const Type *t ) const;
-  int meet_offset( int offset ) const;
-  int dual_offset( ) const;
+  Offset meet_offset(int offset) const;
+  Offset dual_offset() const;
   virtual const Type *xdual() const;    // Compute dual right now.
 
   // meet, dual and join over pointer equivalence sets
@@ -912,7 +974,7 @@ public:
 // include the stack pointer, top of heap, card-marking area, handles, etc.
 class TypeRawPtr : public TypePtr {
 protected:
-  TypeRawPtr( PTR ptr, address bits ) : TypePtr(RawPtr,ptr,0), _bits(bits){}
+  TypeRawPtr(PTR ptr, address bits) : TypePtr(RawPtr,ptr,Offset(0)), _bits(bits){}
 public:
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;     // Type specific hashing
@@ -943,8 +1005,8 @@ public:
 // Some kind of oop (Java pointer), either instance or array.
 class TypeOopPtr : public TypePtr {
 protected:
-  TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, int offset, int instance_id,
-             const TypePtr* speculative, int inline_depth);
+  TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, Offset field_offset,
+             int instance_id, const TypePtr* speculative, int inline_depth);
 public:
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
@@ -1003,7 +1065,7 @@ public:
                                               bool require_constant = false);
 
   // Make a generic (unclassed) pointer to an oop.
-  static const TypeOopPtr* make(PTR ptr, int offset, int instance_id,
+  static const TypeOopPtr* make(PTR ptr, Offset offset, int instance_id,
                                 const TypePtr* speculative = NULL,
                                 int inline_depth = InlineDepthBottom);
 
@@ -1018,7 +1080,7 @@ public:
   bool is_ptr_to_boxed_value()   const { return _is_ptr_to_boxed_value; }
   bool is_known_instance()       const { return _instance_id > 0; }
   int  instance_id()             const { return _instance_id; }
-  bool is_known_instance_field() const { return is_known_instance() && _offset >= 0; }
+  bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
   virtual intptr_t get_con() const;
 
@@ -1054,7 +1116,7 @@ public:
 // Class of Java object pointers, pointing either to non-array Java instances
 // or to a Klass* (including array klasses).
 class TypeInstPtr : public TypeOopPtr {
-  TypeInstPtr(PTR ptr, ciKlass* k, bool xk, ciObject* o, int offset, int instance_id,
+  TypeInstPtr(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, int instance_id,
               const TypePtr* speculative, int inline_depth);
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
@@ -1068,30 +1130,30 @@ class TypeInstPtr : public TypeOopPtr {
 
   // Make a pointer to a constant oop.
   static const TypeInstPtr *make(ciObject* o) {
-    return make(TypePtr::Constant, o->klass(), true, o, 0, InstanceBot);
+    return make(TypePtr::Constant, o->klass(), true, o, Offset(0), InstanceBot);
   }
   // Make a pointer to a constant oop with offset.
-  static const TypeInstPtr *make(ciObject* o, int offset) {
+  static const TypeInstPtr* make(ciObject* o, Offset offset) {
     return make(TypePtr::Constant, o->klass(), true, o, offset, InstanceBot);
   }
 
   // Make a pointer to some value of type klass.
   static const TypeInstPtr *make(PTR ptr, ciKlass* klass) {
-    return make(ptr, klass, false, NULL, 0, InstanceBot);
+    return make(ptr, klass, false, NULL, Offset(0), InstanceBot);
   }
 
   // Make a pointer to some non-polymorphic value of exactly type klass.
   static const TypeInstPtr *make_exact(PTR ptr, ciKlass* klass) {
-    return make(ptr, klass, true, NULL, 0, InstanceBot);
+    return make(ptr, klass, true, NULL, Offset(0), InstanceBot);
   }
 
   // Make a pointer to some value of type klass with offset.
-  static const TypeInstPtr *make(PTR ptr, ciKlass* klass, int offset) {
+  static const TypeInstPtr *make(PTR ptr, ciKlass* klass, Offset offset) {
     return make(ptr, klass, false, NULL, offset, InstanceBot);
   }
 
   // Make a pointer to an oop.
-  static const TypeInstPtr *make(PTR ptr, ciKlass* k, bool xk, ciObject* o, int offset,
+  static const TypeInstPtr* make(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset,
                                  int instance_id = InstanceBot,
                                  const TypePtr* speculative = NULL,
                                  int inline_depth = InlineDepthBottom);
@@ -1135,12 +1197,13 @@ class TypeInstPtr : public TypeOopPtr {
 //------------------------------TypeAryPtr-------------------------------------
 // Class of Java array pointers
 class TypeAryPtr : public TypeOopPtr {
-  TypeAryPtr( PTR ptr, ciObject* o, const TypeAry *ary, ciKlass* k, bool xk,
-              int offset, int instance_id, bool is_autobox_cache,
-              const TypePtr* speculative, int inline_depth)
-    : TypeOopPtr(AryPtr,ptr,k,xk,o,offset, instance_id, speculative, inline_depth),
+  TypeAryPtr(PTR ptr, ciObject* o, const TypeAry *ary, ciKlass* k, bool xk,
+             Offset offset, Offset field_offset, int instance_id, bool is_autobox_cache,
+             const TypePtr* speculative, int inline_depth)
+    : TypeOopPtr(AryPtr, ptr, k, xk, o, offset, field_offset, instance_id, speculative, inline_depth),
     _ary(ary),
-    _is_autobox_cache(is_autobox_cache)
+    _is_autobox_cache(is_autobox_cache),
+    _field_offset(field_offset)
  {
 #ifdef ASSERT
     if (k != NULL) {
@@ -1163,6 +1226,12 @@ class TypeAryPtr : public TypeOopPtr {
   virtual int hash() const;     // Type specific hashing
   const TypeAry *_ary;          // Array we point into
   const bool     _is_autobox_cache;
+  // For flattened value type arrays, each field of the value type in
+  // the array has its own memory slice so we need to keep track of
+  // which field is accessed
+  const Offset _field_offset;
+  Offset meet_field_offset(const Type::Offset offset) const;
+  Offset dual_field_offset() const;
 
   ciKlass* compute_klass(DEBUG_ONLY(bool verify = false)) const;
 
@@ -1176,15 +1245,18 @@ public:
 
   bool is_autobox_cache() const { return _is_autobox_cache; }
 
-  static const TypeAryPtr *make(PTR ptr, const TypeAry *ary, ciKlass* k, bool xk, int offset,
+  static const TypeAryPtr* make(PTR ptr, const TypeAry *ary, ciKlass* k, bool xk, Offset offset,
+                                Offset field_offset = Offset::bottom,
                                 int instance_id = InstanceBot,
                                 const TypePtr* speculative = NULL,
                                 int inline_depth = InlineDepthBottom);
   // Constant pointer to array
-  static const TypeAryPtr *make(PTR ptr, ciObject* o, const TypeAry *ary, ciKlass* k, bool xk, int offset,
+  static const TypeAryPtr* make(PTR ptr, ciObject* o, const TypeAry *ary, ciKlass* k, bool xk, Offset offset,
+                                Offset field_offset = Offset::bottom,
                                 int instance_id = InstanceBot,
                                 const TypePtr* speculative = NULL,
-                                int inline_depth = InlineDepthBottom, bool is_autobox_cache = false);
+                                int inline_depth = InlineDepthBottom,
+                                bool is_autobox_cache = false);
 
   // Return a 'ptr' version of this type
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
@@ -1211,6 +1283,10 @@ public:
   int stable_dimension() const;
 
   const TypeAryPtr* cast_to_autobox_cache(bool cache) const;
+
+  const Offset field_offset() const { return _field_offset; }
+  const TypeAryPtr* with_field_offset(int offset) const;
+  const TypePtr* with_field_offset_and_offset(intptr_t offset) const;
 
   // Convenience common pre-built types.
   static const TypeAryPtr *RANGE;
@@ -1239,11 +1315,51 @@ public:
 #endif
 };
 
+//------------------------------TypeValueTypePtr-------------------------------------
+// Class of value type pointers
+class TypeValueTypePtr : public TypeOopPtr {
+  TypeValueTypePtr(const TypeValueType* vt, PTR ptr, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth)
+    : TypeOopPtr(ValueTypePtr, ptr, vt->value_klass(), true, o, offset, Offset::bottom, instance_id, speculative, inline_depth) {
+    _vt = vt;
+  }
+
+  const TypeValueType* _vt;    // Value type we point to
+
+public:
+  // Make a pointer to a value type
+  static const TypeValueTypePtr* make(const TypeValueType* vt, PTR ptr = TypePtr::BotPTR, ciObject* o = NULL, Offset offset = Offset(0),
+                                      int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom);
+  // Make a pointer to a value type
+  static const TypeValueTypePtr* make(PTR ptr, ciValueKlass* vk, ciObject* o = NULL) { return make(TypeValueType::make(vk), ptr, o); }
+  // Make a pointer to a constant value type
+  static const TypeValueTypePtr* make(ciObject* o) { return make(TypePtr::Constant, o->klass()->as_value_klass(), o);  }
+
+  const TypeValueType* value_type() const { return _vt; }
+
+  virtual const TypePtr* add_offset(intptr_t offset) const;
+
+  virtual const Type* cast_to_ptr_type(PTR ptr) const;
+  virtual const TypeOopPtr* cast_to_instance_id(int instance_id) const;
+
+  virtual bool eq(const Type* t) const;
+  virtual int  hash() const;             // Type specific hashing
+  virtual bool empty(void) const;        // TRUE if type is vacuous
+
+  virtual const Type* xmeet_helper(const Type* t) const;
+  virtual const Type* xdual() const;
+
+  static const TypeValueTypePtr* NOTNULL;
+
+#ifndef PRODUCT
+  virtual void dump2(Dict &d, uint depth, outputStream* st) const; // Specialized per-Type dumping
+#endif
+};
+
 //------------------------------TypeMetadataPtr-------------------------------------
 // Some kind of metadata, either Method*, MethodData* or CPCacheOop
 class TypeMetadataPtr : public TypePtr {
 protected:
-  TypeMetadataPtr(PTR ptr, ciMetadata* metadata, int offset);
+  TypeMetadataPtr(PTR ptr, ciMetadata* metadata, Offset offset);
   // Do not allow interface-vs.-noninterface joins to collapse to top.
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
 public:
@@ -1255,7 +1371,7 @@ private:
   ciMetadata*   _metadata;
 
 public:
-  static const TypeMetadataPtr* make(PTR ptr, ciMetadata* m, int offset);
+  static const TypeMetadataPtr* make(PTR ptr, ciMetadata* m, Offset offset);
 
   static const TypeMetadataPtr* make(ciMethod* m);
   static const TypeMetadataPtr* make(ciMethodData* m);
@@ -1282,7 +1398,7 @@ public:
 //------------------------------TypeKlassPtr-----------------------------------
 // Class of Java Klass pointers
 class TypeKlassPtr : public TypePtr {
-  TypeKlassPtr( PTR ptr, ciKlass* klass, int offset );
+  TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset);
 
 protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
@@ -1292,47 +1408,23 @@ protected:
   virtual bool singleton(void) const;    // TRUE if type is a singleton
  private:
 
-  static const TypeKlassPtr* make_from_klass_common(ciKlass* klass, bool klass_change, bool try_for_exact);
-
   ciKlass* _klass;
 
   // Does the type exclude subclasses of the klass?  (Inexact == polymorphic.)
   bool          _klass_is_exact;
 
 public:
-  ciSymbol* name()  const { return klass()->name(); }
-
   ciKlass* klass() const { return  _klass; }
   bool klass_is_exact()    const { return _klass_is_exact; }
 
-  bool  is_loaded() const { return klass()->is_loaded(); }
-
-  // Creates a type given a klass. Correctly handles multi-dimensional arrays
-  // Respects UseUniqueSubclasses.
-  // If the klass is final, the resulting type will be exact.
-  static const TypeKlassPtr* make_from_klass(ciKlass* klass) {
-    return make_from_klass_common(klass, true, false);
-  }
-  // Same as before, but will produce an exact type, even if
-  // the klass is not final, as long as it has exactly one implementation.
-  static const TypeKlassPtr* make_from_klass_unique(ciKlass* klass) {
-    return make_from_klass_common(klass, true, true);
-  }
-  // Same as before, but does not respects UseUniqueSubclasses.
-  // Use this only for creating array element types.
-  static const TypeKlassPtr* make_from_klass_raw(ciKlass* klass) {
-    return make_from_klass_common(klass, false, false);
-  }
-
-  // Make a generic (unclassed) pointer to metadata.
-  static const TypeKlassPtr* make(PTR ptr, int offset);
+  bool  is_loaded() const { return klass() != NULL && klass()->is_loaded(); }
 
   // ptr to klass 'k'
-  static const TypeKlassPtr *make( ciKlass* k ) { return make( TypePtr::Constant, k, 0); }
+  static const TypeKlassPtr* make(ciKlass* k) { return make( TypePtr::Constant, k, Offset(0)); }
   // ptr to klass 'k' with offset
-  static const TypeKlassPtr *make( ciKlass* k, int offset ) { return make( TypePtr::Constant, k, offset); }
+  static const TypeKlassPtr* make(ciKlass* k, Offset offset) { return make( TypePtr::Constant, k, offset); }
   // ptr to klass 'k' or sub-klass
-  static const TypeKlassPtr *make( PTR ptr, ciKlass* k, int offset);
+  static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset);
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 
@@ -1350,6 +1442,8 @@ public:
   // Convenience common pre-built types.
   static const TypeKlassPtr* OBJECT; // Not-null object klass or below
   static const TypeKlassPtr* OBJECT_OR_NULL; // Maybe-null version of same
+  static const TypeKlassPtr* VALUE;
+  static const TypeKlassPtr* BOTTOM;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping
 #endif
@@ -1479,14 +1573,26 @@ public:
 //------------------------------TypeFunc---------------------------------------
 // Class of Array Types
 class TypeFunc : public Type {
-  TypeFunc( const TypeTuple *domain, const TypeTuple *range ) : Type(Function),  _domain(domain), _range(range) {}
+  TypeFunc(const TypeTuple *domain_sig, const TypeTuple *domain_cc, const TypeTuple *range_sig, const TypeTuple *range_cc)
+    : Type(Function), _domain_sig(domain_sig), _domain_cc(domain_cc), _range_sig(range_sig), _range_cc(range_cc) {}
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
   virtual bool singleton(void) const;    // TRUE if type is a singleton
   virtual bool empty(void) const;        // TRUE if type is vacuous
 
-  const TypeTuple* const _domain;     // Domain of inputs
-  const TypeTuple* const _range;      // Range of results
+  // Domains of inputs: value type arguments are not passed by
+  // reference, instead each field of the value type is passed as an
+  // argument. We maintain 2 views of the argument list here: one
+  // based on the signature (with a value type argument as a single
+  // slot), one based on the actual calling convention (with a value
+  // type argument as a list of its fields).
+  const TypeTuple* const _domain_sig;
+  const TypeTuple* const _domain_cc;
+  // Range of results. Similar to domains: a value type result can be
+  // returned in registers in which case range_cc lists all fields and
+  // is the actual calling convention.
+  const TypeTuple* const _range_sig;
+  const TypeTuple* const _range_cc;
 
 public:
   // Constants are shared among ADLC and VM
@@ -1500,17 +1606,23 @@ public:
 
 
   // Accessors:
-  const TypeTuple* domain() const { return _domain; }
-  const TypeTuple* range()  const { return _range; }
+  const TypeTuple* domain_sig() const { return _domain_sig; }
+  const TypeTuple* domain_cc() const { return _domain_cc; }
+  const TypeTuple* range_sig()  const { return _range_sig; }
+  const TypeTuple* range_cc()  const { return _range_cc; }
 
   static const TypeFunc *make(ciMethod* method);
   static const TypeFunc *make(ciSignature signature, const Type* extra);
+  static const TypeFunc *make(const TypeTuple* domain_sig, const TypeTuple* domain_cc,
+                              const TypeTuple* range_sig, const TypeTuple* range_cc);
   static const TypeFunc *make(const TypeTuple* domain, const TypeTuple* range);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
 
   BasicType return_type() const;
+
+  bool returns_value_type_as_fields() const { return range_sig() != range_cc(); }
 
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping
@@ -1659,6 +1771,24 @@ inline const TypeAryPtr *Type::isa_aryptr() const {
 inline const TypeAryPtr *Type::is_aryptr() const {
   assert( _base == AryPtr, "Not an array pointer" );
   return (TypeAryPtr*)this;
+}
+
+inline const TypeValueType* Type::isa_valuetype() const {
+  return (_base == ValueType) ? (TypeValueType*)this : NULL;
+}
+
+inline const TypeValueType* Type::is_valuetype() const {
+  assert(_base == ValueType, "Not a value type");
+  return (TypeValueType*)this;
+}
+
+inline const TypeValueTypePtr* Type::isa_valuetypeptr() const {
+  return (_base == ValueTypePtr) ? (TypeValueTypePtr*)this : NULL;
+}
+
+inline const TypeValueTypePtr* Type::is_valuetypeptr() const {
+  assert(_base == ValueTypePtr, "Not a value type pointer");
+  return (TypeValueTypePtr*)this;
 }
 
 inline const TypeNarrowOop *Type::is_narrowoop() const {

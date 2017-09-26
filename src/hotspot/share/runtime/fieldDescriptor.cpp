@@ -31,6 +31,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
+#include "oops/valueKlass.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
@@ -146,8 +147,10 @@ void fieldDescriptor::print_on(outputStream* st) const {
 }
 
 void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
-  print_on(st);
   BasicType ft = field_type();
+  if (ft != T_VALUETYPE) {
+    print_on(st);
+  }
   jint as_int = 0;
   switch (ft) {
     case T_BYTE:
@@ -195,6 +198,26 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       NOT_LP64(as_int = obj->int_field(offset()));
       obj->obj_field(offset())->print_value_on(st);
       break;
+    case T_VALUETYPE:
+      {
+        // Resolve klass of flattened value type field
+        Thread* THREAD = Thread::current();
+        ResourceMark rm(THREAD);
+        SignatureStream ss(signature(), false);
+        Klass* k = ss.as_klass(Handle(THREAD, field_holder()->class_loader()),
+            Handle(THREAD, field_holder()->protection_domain()),
+            SignatureStream::ReturnNull, THREAD);
+        assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
+        ValueKlass* vk = ValueKlass::cast(k);
+        int field_offset = offset() - vk->first_field_offset();
+        obj = (oop)((address)obj + field_offset);
+        // Print flattened fields of the value type field
+        st->print_cr("Flattened value type '%s':", vk->name()->as_C_string());
+        FieldPrinter print_field(st, obj);
+        vk->do_nonstatic_fields(&print_field);
+        return; // Do not print underlying representation
+        break;
+      }
     default:
       ShouldNotReachHere();
       break;
@@ -206,6 +229,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
   } else if (as_int < 0 || as_int > 9) {
     st->print(" (%x)", as_int);
   }
+  st->cr();
 }
 
 #endif /* PRODUCT */

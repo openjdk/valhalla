@@ -40,7 +40,7 @@ const RegMask &MultiNode::out_RegMask() const {
   return RegMask::Empty;
 }
 
-Node *MultiNode::match( const ProjNode *proj, const Matcher *m ) { return proj->clone(); }
+Node *MultiNode::match(const ProjNode *proj, const Matcher *m, const RegMask* mask) { return proj->clone(); }
 
 //------------------------------proj_out---------------------------------------
 // Get a named projection

@@ -23,15 +23,18 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/valueArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 //------------------------------make_dtrace_method_entry_exit ----------------
@@ -137,7 +140,7 @@ void Parse::do_instanceof() {
 
 //------------------------------array_store_check------------------------------
 // pull array from stack and check that the store is valid
-void Parse::array_store_check() {
+void Parse::array_store_check(bool target_is_valuetypearray) {
 
   // Shorthand access to array store elements without popping them.
   Node *obj = peek(0);
@@ -221,7 +224,8 @@ void Parse::array_store_check() {
   // Come here for polymorphic array klasses
 
   // Extract the array element class
-  int element_klass_offset = in_bytes(ObjArrayKlass::element_klass_offset());
+  int element_klass_offset = in_bytes(ArrayKlass::element_klass_offset());
+
   Node *p2 = basic_plus_adr(array_klass, array_klass, element_klass_offset);
   // We are allowed to use the constant type only if cast succeeded. If always_see_exact_class is true,
   // we must set a control edge from the IfTrue node created by the uncommon_trap above to the
@@ -229,9 +233,22 @@ void Parse::array_store_check() {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
-  // Check (the hard way) and throw if not a subklass.
-  // Result is ignored, we just need the CFG effects.
-  gen_checkcast(obj, a_e_klass);
+  if (target_is_valuetypearray) {
+    ciKlass* target_elem_klass = gvn().type(a_e_klass)->is_klassptr()->klass();
+    ciKlass* source_klass = gvn().type(obj)->is_valuetype()->value_klass();
+    if (!target_elem_klass->equals(source_klass)) {
+      Node* slow_ctl = type_check(a_e_klass, TypeKlassPtr::make(source_klass), 1.0);
+      {
+        PreserveJVMState pjvms(this);
+        set_control(slow_ctl);
+        builtin_throw(Deoptimization::Reason_class_check);
+      }
+    }
+  } else {
+    // Check (the hard way) and throw if not a subklass.
+    // Result is ignored, we just need the CFG effects.
+    gen_checkcast(obj, a_e_klass);
+  }
 }
 
 
@@ -314,6 +331,41 @@ void Parse::do_new() {
   if (C->eliminate_boxing() && klass->is_box_klass()) {
     C->set_has_boxed_value(true);
   }
+}
+
+//------------------------------do_vdefault-------------------------------------
+void Parse::do_vdefault() {
+  // Fixme additional checks needed?
+  bool will_link;
+  ciValueKlass* vk = iter().get_klass(will_link)->as_value_klass();
+  assert(will_link, "vdefault: typeflow responsibility");
+
+  // Create a new ValueTypeNode
+  Node* vt = ValueTypeNode::make_default(_gvn, vk);
+
+  push(_gvn.transform(vt));
+}
+
+//------------------------------do_vwithfield-----------------------------------
+void Parse::do_vwithfield() {
+  // Fixme additional checks needed?
+  bool will_link;
+  ciField* field = iter().get_field(will_link);
+  assert(will_link, "vdefault: typeflow responsibility");
+  BasicType bt = field->layout_type();
+  Node* val = type2size[bt] == 1 ? pop() : pop_pair();
+  Node* vt = pop();
+  assert(vt->is_ValueType(), "value type expected here");
+
+  ValueTypeNode* new_vt = vt->clone()->as_ValueType();
+  new_vt->set_oop(_gvn.zerocon(T_VALUETYPE));
+  int offset = field->offset();
+  uint i = 0;
+  for (; i < new_vt->field_count() && new_vt->field_offset(i) != offset; i++) {}
+  assert(i < new_vt->field_count(), "where's the field");
+  new_vt->set_field_value(i, val);
+
+  push(_gvn.transform(new_vt));
 }
 
 #ifndef PRODUCT

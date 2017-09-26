@@ -445,6 +445,16 @@ void frame::interpreter_frame_set_mdp(address mdp) {
   *interpreter_frame_mdp_addr() = (intptr_t)mdp;
 }
 
+intptr_t* frame::interpreter_frame_vt_alloc_ptr() const {
+  assert(is_interpreted_frame(), "interpreted frame expected");
+  return (intptr_t*)*interpreter_frame_vt_alloc_ptr_addr();
+}
+
+void frame::interpreter_frame_set_vt_alloc_ptr(intptr_t* ptr) {
+  assert(is_interpreted_frame(), "interpreted frame expected");
+  *interpreter_frame_vt_alloc_ptr_addr() = ptr;
+}
+
 BasicObjectLock* frame::next_monitor_in_interpreter_frame(BasicObjectLock* current) const {
   assert(is_interpreted_frame(), "Not an interpreted frame");
 #ifdef ASSERT
@@ -749,16 +759,18 @@ class InterpreterFrameClosure : public OffsetClosure {
  private:
   frame* _fr;
   OopClosure* _f;
+  BufferedValueClosure* _bvt_f;
   int    _max_locals;
   int    _max_stack;
 
  public:
   InterpreterFrameClosure(frame* fr, int max_locals, int max_stack,
-                          OopClosure* f) {
+                          OopClosure* f, BufferedValueClosure* bvt_f) {
     _fr         = fr;
     _max_locals = max_locals;
     _max_stack  = max_stack;
     _f          = f;
+    _bvt_f      = bvt_f;
   }
 
   void offset_do(int offset) {
@@ -766,7 +778,19 @@ class InterpreterFrameClosure : public OffsetClosure {
     if (offset < _max_locals) {
       addr = (oop*) _fr->interpreter_frame_local_at(offset);
       assert((intptr_t*)addr >= _fr->sp(), "must be inside the frame");
-      _f->do_oop(addr);
+      if (Universe::heap()->is_in_reserved_or_null(*addr)) {
+        if (_f != NULL) {
+          _f->do_oop(addr);
+        }
+      } else { // Buffered value types case
+        if (_f != NULL) {
+          oop* addr_mirror = (oop*)(*addr)->mark_addr();
+          _f->do_oop(addr_mirror);
+        }
+        if (_bvt_f != NULL) {
+          _bvt_f->do_buffered_value(addr);
+        }
+      }
     } else {
       addr = (oop*) _fr->interpreter_frame_expression_stack_at((offset - _max_locals));
       // In case of exceptions, the expression stack is invalid and the esp will be reset to express
@@ -778,7 +802,19 @@ class InterpreterFrameClosure : public OffsetClosure {
         in_stack = (intptr_t*)addr >= _fr->interpreter_frame_tos_address();
       }
       if (in_stack) {
-        _f->do_oop(addr);
+        if (Universe::heap()->is_in_reserved_or_null(*addr)) {
+          if (_f != NULL) {
+            _f->do_oop(addr);
+          }
+        } else { // Buffered value types case
+          if (_f != NULL) {
+            oop* addr_mirror = (oop*)(*addr)->mark_addr();
+            _f->do_oop(addr_mirror);
+          }
+          if (_bvt_f != NULL) {
+            _bvt_f->do_buffered_value(addr);
+          }
+        }
       }
     }
   }
@@ -797,7 +833,7 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
 
   void set(int size, BasicType type) {
     _offset -= size;
-    if (type == T_OBJECT || type == T_ARRAY) oop_offset_do();
+    if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) oop_offset_do();
   }
 
   void oop_offset_do() {
@@ -850,7 +886,7 @@ class EntryFrameOopFinder: public SignatureInfo {
 
   void set(int size, BasicType type) {
     assert (_offset >= 0, "illegal offset");
-    if (type == T_OBJECT || type == T_ARRAY) oop_at_offset_do(_offset);
+    if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) oop_at_offset_do(_offset);
     _offset -= size;
   }
 
@@ -951,7 +987,7 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
     }
   }
 
-  InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f);
+  InterpreterFrameClosure blk(this, max_locals, m->max_stack(), f, NULL);
 
   // process locals & expression stack
   InterpreterOopMap mask;
@@ -963,6 +999,23 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
   mask.iterate_oop(&blk);
 }
 
+void frame::buffered_values_interpreted_do(BufferedValueClosure* f) {
+  assert(is_interpreted_frame(), "Not an interpreted frame");
+  Thread *thread = Thread::current();
+  methodHandle m (thread, interpreter_frame_method());
+  jint      bci = interpreter_frame_bci();
+
+  assert(m->is_method(), "checking frame value");
+  assert(!m->is_native() && bci >= 0 && bci < m->code_size(),
+         "invalid bci value");
+
+  InterpreterFrameClosure blk(this, m->max_locals(), m->max_stack(), NULL, f);
+
+  // process locals & expression stack
+  InterpreterOopMap mask;
+  m->mask_for(bci, &mask);
+  mask.iterate_oop(&blk);
+}
 
 void frame::oops_interpreted_arguments_do(Symbol* signature, bool has_receiver, OopClosure* f) {
   InterpretedArgumentOopFinder finder(signature, has_receiver, this, f);
@@ -1001,20 +1054,21 @@ class CompiledArgumentOopFinder: public SignatureInfo {
   VMRegPair*      _regs;        // VMReg list of arguments
 
   void set(int size, BasicType type) {
-    if (type == T_OBJECT || type == T_ARRAY) handle_oop_offset();
+    if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) handle_oop_offset();
     _offset += size;
   }
 
   virtual void handle_oop_offset() {
     // Extract low order register number from register array.
     // In LP64-land, the high-order bits are valid but unhelpful.
+    assert(_offset < _arg_size, "out of bounds");
     VMReg reg = _regs[_offset].first();
     oop *loc = _fr.oopmapreg_to_location(reg, _reg_map);
     _f->do_oop(loc);
   }
 
  public:
-  CompiledArgumentOopFinder(Symbol* signature, bool has_receiver, bool has_appendix, OopClosure* f, frame fr,  const RegisterMap* reg_map)
+  CompiledArgumentOopFinder(Symbol* signature, bool has_receiver, bool has_appendix, OopClosure* f, frame fr, const RegisterMap* reg_map)
     : SignatureInfo(signature) {
 
     // initialize CompiledArgumentOopFinder
@@ -1024,11 +1078,7 @@ class CompiledArgumentOopFinder: public SignatureInfo {
     _has_appendix = has_appendix;
     _fr        = fr;
     _reg_map   = (RegisterMap*)reg_map;
-    _arg_size  = ArgumentSizeComputer(signature).size() + (has_receiver ? 1 : 0) + (has_appendix ? 1 : 0);
-
-    int arg_size;
-    _regs = SharedRuntime::find_callee_arguments(signature, has_receiver, has_appendix, &arg_size);
-    assert(arg_size == _arg_size, "wrong arg size");
+    _regs = SharedRuntime::find_callee_arguments(signature, has_receiver, has_appendix, &_arg_size);
   }
 
   void oops_do() {

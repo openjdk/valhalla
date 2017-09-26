@@ -37,6 +37,7 @@ class AdapterHandlerEntry;
 class AdapterHandlerTable;
 class AdapterFingerPrint;
 class vframeStream;
+class SigEntry;
 
 // Runtime is the base class for various runtime interfaces
 // (InterpreterRuntime, CompilerRuntime, etc.). It provides
@@ -81,7 +82,7 @@ class SharedRuntime: AllStatic {
   enum { POLL_AT_RETURN,  POLL_AT_LOOP, POLL_AT_VECTOR_LOOP };
   static SafepointBlob* generate_handler_blob(address call_ptr, int poll_type);
   static RuntimeStub*   generate_resolve_blob(address destination, const char* name);
-
+  static RuntimeStub*   generate_return_value_blob(address destination, const char* name);
  public:
   static void generate_stubs(void);
 
@@ -373,6 +374,9 @@ class SharedRuntime: AllStatic {
   // will be just above it. (
   // return value is the maximum number of VMReg stack slots the convention will use.
   static int java_calling_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed, int is_outgoing);
+  static int java_return_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed);
+  static const uint java_return_convention_max_int;
+  static const uint java_return_convention_max_float;
 
   static void check_member_name_argument_is_last_argument(const methodHandle& method,
                                                           const BasicType* sig_bt,
@@ -420,17 +424,16 @@ class SharedRuntime: AllStatic {
   // pointer as needed. This means the i2c adapter code doesn't need any special
   // handshaking path with compiled code to keep the stack walking correct.
 
-  static AdapterHandlerEntry* generate_i2c2i_adapters(MacroAssembler *_masm,
-                                                      int total_args_passed,
-                                                      int max_arg,
-                                                      const BasicType *sig_bt,
+  static AdapterHandlerEntry* generate_i2c2i_adapters(MacroAssembler *masm,
+                                                      int comp_args_on_stack,
+                                                      const GrowableArray<SigEntry>& sig_extended,
                                                       const VMRegPair *regs,
-                                                      AdapterFingerPrint* fingerprint);
+                                                      AdapterFingerPrint* fingerprint,
+                                                      AdapterBlob*& new_adapter);
 
   static void gen_i2c_adapter(MacroAssembler *_masm,
-                              int total_args_passed,
                               int comp_args_on_stack,
-                              const BasicType *sig_bt,
+                              const GrowableArray<SigEntry>& sig_extended,
                               const VMRegPair *regs);
 
   // OSR support
@@ -502,6 +505,9 @@ class SharedRuntime: AllStatic {
   static address resolve_virtual_call_C    (JavaThread *thread);
   static address resolve_opt_virtual_call_C(JavaThread *thread);
 
+  static void load_value_type_fields_in_regs(JavaThread *thread, oopDesc* res);
+  static void store_value_type_fields_to_buf(JavaThread *thread, intptr_t res);
+
   // arraycopy, the non-leaf version.  (See StubRoutines for all the leaf calls.)
   static void slow_arraycopy_C(oopDesc* src,  jint src_pos,
                                oopDesc* dest, jint dest_pos,
@@ -512,9 +518,12 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method(JavaThread* thread);
   static address handle_wrong_method_abstract(JavaThread* thread);
   static address handle_wrong_method_ic_miss(JavaThread* thread);
+  static void allocate_value_types(JavaThread* thread, Method* callee);
+  static void apply_post_barriers(JavaThread* thread, objArrayOopDesc* array);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 
+  static BufferedValueTypeBlob* generate_buffered_value_type_adapter(const ValueKlass* vk);
 #ifndef PRODUCT
 
   // Collect and print inline cache miss statistics
@@ -630,6 +639,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address _i2c_entry;
   address _c2i_entry;
   address _c2i_unverified_entry;
+  Symbol* _sig_extended;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -638,11 +648,12 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry) {
+  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry, Symbol* sig_extended) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
+    _sig_extended = sig_extended;
 #ifdef ASSERT
     _saved_code = NULL;
     _saved_code_length = 0;
@@ -658,6 +669,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address get_i2c_entry()            const { return _i2c_entry; }
   address get_c2i_entry()            const { return _c2i_entry; }
   address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
+  Symbol* get_sig_extended()         const { return _sig_extended; }
   address base_address();
   void relocate(address new_base);
 
@@ -698,14 +710,15 @@ class AdapterHandlerLibrary: public AllStatic {
   static AdapterHandlerEntry* _abstract_method_handler;
   static BufferBlob* buffer_blob();
   static void initialize();
-  static AdapterHandlerEntry* get_adapter0(const methodHandle& method);
+  static AdapterHandlerEntry* get_adapter0(const methodHandle& method, TRAPS);
 
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
-                                        address i2c_entry, address c2i_entry, address c2i_unverified_entry);
+                                        address i2c_entry, address c2i_entry, address c2i_unverified_entry,
+                                        Symbol* sig_extended = NULL);
   static void create_native_wrapper(const methodHandle& method);
-  static AdapterHandlerEntry* get_adapter(const methodHandle& method);
+  static AdapterHandlerEntry* get_adapter(const methodHandle& method, TRAPS);
 
   static void print_handler(const CodeBlob* b) { print_handler_on(tty, b); }
   static void print_handler_on(outputStream* st, const CodeBlob* b);

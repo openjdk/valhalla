@@ -41,12 +41,14 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/vtBuffer.hpp"
 #include "oops/constMethod.hpp"
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
@@ -105,6 +107,8 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
     clear_native_function();
     set_signature_handler(NULL);
   }
+
+  initialize_max_vt_buffer();
 
   NOT_PRODUCT(set_compiled_invocation_count(0);)
 }
@@ -466,6 +470,27 @@ BasicType Method::result_type() const {
   return rtf.type();
 }
 
+#ifdef ASSERT
+// ValueKlass the method is declared to return. This must not
+// safepoint as it is called with references live on the stack at
+// locations the GC is unaware of.
+ValueKlass* Method::returned_value_type(Thread* thread) const {
+  assert(is_returning_vt(), "method return type should be value type");
+  SignatureStream ss(signature());
+  while (!ss.at_return_type()) {
+    ss.next();
+  }
+  Handle class_loader(thread, method_holder()->class_loader());
+  Handle protection_domain(thread, method_holder()->protection_domain());
+  Klass* k = NULL;
+  {
+    NoSafepointVerifier nsv;
+    k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, thread);
+  }
+  assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
+  return ValueKlass::cast(k);
+}
+#endif
 
 bool Method::is_empty_method() const {
   return  code_size() == 1
@@ -718,7 +743,8 @@ int Method::line_number_from_bci(int bci) const {
 
 
 bool Method::is_klass_loaded_by_klass_index(int klass_index) const {
-  if( constants()->tag_at(klass_index).is_unresolved_klass() ) {
+  if( constants()->tag_at(klass_index).is_unresolved_klass() ||
+      constants()->tag_at(klass_index).is_unresolved_value_type() ) {
     Thread *thread = Thread::current();
     Symbol* klass_name = constants()->klass_name_at(klass_index);
     Handle loader(thread, method_holder()->class_loader());
@@ -734,7 +760,10 @@ bool Method::is_klass_loaded(int refinfo_index, bool must_be_resolved) const {
   int klass_index = constants()->klass_ref_index_at(refinfo_index);
   if (must_be_resolved) {
     // Make sure klass is resolved in constantpool.
-    if (constants()->tag_at(klass_index).is_unresolved_klass()) return false;
+    if (constants()->tag_at(klass_index).is_unresolved_klass() ||
+        constants()->tag_at(klass_index).is_unresolved_value_type()) {
+      return false;
+    }
   }
   return is_klass_loaded_by_klass_index(klass_index);
 }
@@ -1075,7 +1104,7 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   // Adapters for compiled code are made eagerly here.  They are fairly
   // small (generally < 100 bytes) and quick to make (and cached and shared)
   // so making them eagerly shouldn't be too expensive.
-  AdapterHandlerEntry* adapter = AdapterHandlerLibrary::get_adapter(mh);
+  AdapterHandlerEntry* adapter = AdapterHandlerLibrary::get_adapter(mh, CHECK_0);
   if (adapter == NULL ) {
     if (!is_init_completed()) {
       // Don't throw exceptions during VM initialization because java.lang.* classes
@@ -1849,6 +1878,14 @@ int Method::backedge_count() {
   }
 }
 
+void Method::initialize_max_vt_buffer() {
+  long long max_entries = constMethod()->max_locals() + constMethod()->max_stack();
+  max_entries *= 2; // Add margin for loops
+  long long max_size = max_entries * (BigValueTypeThreshold + 8); // 8 -> header size
+  int max_chunks = (int)(max_size / VTBufferChunk::max_alloc_size()) + 1;
+  set_max_vt_buffer(MAX2(MinimumVTBufferChunkPerFrame, max_chunks));
+}
+
 int Method::highest_comp_level() const {
   const MethodCounters* mcs = method_counters();
   if (mcs != NULL) {
@@ -2219,6 +2256,8 @@ void Method::print_on(outputStream* st) const {
   if (highest_comp_level() != CompLevel_none)
     st->print_cr(" - highest level:     %d", highest_comp_level());
   st->print_cr(" - vtable index:      %d",   _vtable_index);
+  if (valid_itable_index())
+    st->print_cr(" - itable index:      %d",   itable_index());
   st->print_cr(" - i2i entry:         " INTPTR_FORMAT, p2i(interpreter_entry()));
   st->print(   " - adapters:          ");
   AdapterHandlerEntry* a = ((Method*)this)->adapter();
@@ -2296,6 +2335,7 @@ void Method::print_value_on(outputStream* st) const {
   st->print("%s", internal_name());
   print_address_on(st);
   st->print(" ");
+  if (WizardMode) access_flags().print_on(st);
   name()->print_value_on(st);
   st->print(" ");
   signature()->print_value_on(st);

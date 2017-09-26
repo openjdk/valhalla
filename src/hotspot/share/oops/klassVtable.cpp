@@ -95,13 +95,14 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
     vtable_length += *num_new_mirandas * vtableEntry::size();
   }
 
-  if (Universe::is_bootstrapping() && vtable_length == 0) {
+  if (Universe::is_bootstrapping() && vtable_length == 0 && classname != vmSymbols::java_lang____Value()) {
     // array classes don't have their superclass set correctly during
     // bootstrapping
     vtable_length = Universe::base_vtable_size();
   }
 
-  if (super == NULL && vtable_length != Universe::base_vtable_size()) {
+  if (super == NULL && vtable_length != Universe::base_vtable_size()
+      && !class_flags.is_value_type()) {
     if (Universe::is_bootstrapping()) {
       // Someone is attempting to override java.lang.Object incorrectly on the
       // bootclasspath.  The JVM cannot recover from this error including throwing
@@ -117,7 +118,8 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
     }
   }
   assert(vtable_length % vtableEntry::size() == 0, "bad vtable length");
-  assert(vtable_length >= Universe::base_vtable_size(), "vtable too small");
+  assert(vtable_length >= Universe::base_vtable_size()
+         || class_flags.is_value_type(), "vtable too small");
 
   *vtable_length_ret = vtable_length;
 }
@@ -1329,6 +1331,18 @@ class InterfaceVisiterClosure : public StackObj {
   virtual void doit(Klass* intf, int method_count) = 0;
 };
 
+int count_interface_methods_needing_itable_index(Array<Method*>* methods) {
+  int method_count = 0;
+  if (methods->length() > 0) {
+    for (int i = methods->length(); --i >= 0; ) {
+      if (interface_method_needs_itable_index(methods->at(i))) {
+        method_count++;
+      }
+    }
+  }
+  return method_count;
+}
+
 // Visit all interfaces with at least one itable method
 void visit_all_interfaces(Array<Klass*>* transitive_intf, InterfaceVisiterClosure *blk) {
   // Handle array argument
@@ -1395,7 +1409,7 @@ int klassItable::compute_itable_size(Array<Klass*>* transitive_interfaces) {
   CountInterfacesClosure cic;
   visit_all_interfaces(transitive_interfaces, &cic);
 
-  // There's alway an extra itable entry so we can null-terminate it.
+  // There's always an extra itable entry so we can null-terminate it.
   int itable_size = calc_itable_size(cic.nof_interfaces() + 1, cic.nof_methods());
 
   // Statistics

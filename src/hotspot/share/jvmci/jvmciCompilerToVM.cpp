@@ -1421,7 +1421,7 @@ C2V_VMENTRY(jobject, getNextStackFrame, (JNIEnv*, jobject compilerToVM, jobject 
             // native wrappers do not have a scope
             if (scope != NULL && scope->objects() != NULL) {
               bool realloc_failures = Deoptimization::realloc_objects(thread, fst.current(), scope->objects(), CHECK_NULL);
-              Deoptimization::reassign_fields(fst.current(), fst.register_map(), scope->objects(), realloc_failures, false);
+              Deoptimization::reassign_fields(fst.current(), fst.register_map(), scope->objects(), realloc_failures, false, THREAD);
 
               GrowableArray<ScopeValue*>* local_values = scope->locals();
               typeArrayOop array_oop = oopFactory::new_boolArray(local_values->length(), CHECK_NULL);
@@ -1602,7 +1602,7 @@ C2V_VMENTRY(void, materializeVirtualObjects, (JNIEnv*, jobject, jobject hs_frame
   }
 
   bool realloc_failures = Deoptimization::realloc_objects(thread, fstAfterDeopt.current(), objects, CHECK);
-  Deoptimization::reassign_fields(fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, realloc_failures, false);
+  Deoptimization::reassign_fields(fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, realloc_failures, false, THREAD);
 
   for (int frame_index = 0; frame_index < virtualFrames->length(); frame_index++) {
     compiledVFrame* cvf = virtualFrames->at(frame_index);

@@ -202,6 +202,7 @@ class JavaArgumentUnboxer : public SignatureIterator {
 
   inline void do_object() { _jca->push_oop(next_arg(T_OBJECT)); }
   inline void do_object(int begin, int end) { if (!is_return_type()) _jca->push_oop(next_arg(T_OBJECT)); }
+  inline void do_valuetype(int begin, int end) { if (!is_return_type()) _jca->push_oop(next_arg(T_VALUETYPE)); }
   inline void do_array(int begin, int end)  { if (!is_return_type()) _jca->push_oop(next_arg(T_OBJECT)); }
   inline void do_void()                     { }
 };

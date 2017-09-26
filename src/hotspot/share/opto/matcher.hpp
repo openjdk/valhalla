@@ -254,6 +254,8 @@ public:
   // Helper for match
   OptoReg::Name warp_incoming_stk_arg( VMReg reg );
 
+  RegMask* return_values_mask(const TypeTuple *range);
+
   // Transform, then walk.  Does implicit DCE while walking.
   // Name changed from "transform" to avoid it being virtual.
   Node *xform( Node *old_space_node, int Nodes );
@@ -379,7 +381,7 @@ public:
   // Return value register.  On Intel it is EAX.  On Sparc i0/o0.
   static OptoRegPair   return_value(uint ideal_reg, bool is_outgoing);
   static OptoRegPair c_return_value(uint ideal_reg, bool is_outgoing);
-  RegMask                     _return_value_mask;
+  RegMask*             _return_values_mask;
   // Inline Cache Register
   static OptoReg::Name  inline_cache_reg();
   static int            inline_cache_reg_encode();

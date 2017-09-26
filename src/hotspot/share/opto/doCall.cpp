@@ -38,6 +38,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
+#include "opto/valuetypenode.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -656,6 +657,23 @@ void Parse::do_call() {
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               push(cast_obj);
             }
+          }
+        } else if (rt == T_VALUETYPE) {
+          assert(ct == T_VALUETYPE, "value type expected but got rt=%s, ct=%s", type2name(rt), type2name(ct));
+          if (rtype == C->env()->___Value_klass()) {
+            const Type* sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
+            Node* retnode = pop();
+            Node* cast = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
+            Node* vt = ValueTypeNode::make(_gvn, merged_memory(), cast);
+            push(vt);
+          } else {
+            assert(ctype == C->env()->___Value_klass(), "unexpected value type klass");
+            Node* retnode = pop();
+            assert(retnode->is_ValueType(), "inconsistent");
+            ValueTypeNode* vt = retnode->as_ValueType();
+            Node* alloc = vt->allocate(this);
+            Node* vtptr = _gvn.transform(new ValueTypePtrNode(vt, alloc, C));
+            push(vtptr);
           }
         } else {
           assert(rt == ct, "unexpected mismatch: rt=%s, ct=%s", type2name(rt), type2name(ct));

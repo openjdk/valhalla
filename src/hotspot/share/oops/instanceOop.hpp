@@ -44,8 +44,12 @@ class instanceOopDesc : public oopDesc {
              sizeof(instanceOopDesc);
   }
 
-  static bool contains_field_offset(int offset, int nonstatic_field_size) {
+  static bool contains_field_offset(int offset, int nonstatic_field_size, bool is_value) {
     int base_in_bytes = base_offset_in_bytes();
+    if (is_value) {
+      // The first field of value types is aligned on a long boundary
+      base_in_bytes = align_up(base_in_bytes, BytesPerLong);
+    }
     return (offset >= base_in_bytes &&
             (offset-base_in_bytes) < nonstatic_field_size * heapOopSize);
   }

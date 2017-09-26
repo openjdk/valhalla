@@ -195,6 +195,10 @@ private:
     if (o == NULL) return NULL;
     return get_object(o)->as_instance();
   }
+  ciValueArrayKlass* get_value_array_klass(Klass* o) {
+    if (o == NULL) return NULL;
+    return get_metadata(o)->as_value_array_klass();
+  }
   ciObjArrayKlass* get_obj_array_klass(Klass* o) {
     if (o == NULL) return NULL;
     return get_metadata(o)->as_obj_array_klass();

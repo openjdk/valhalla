@@ -1421,6 +1421,9 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (cast != NULL && cast->has_range_check()) {
         C->remove_range_check_cast(cast);
       }
+      if (dead->is_ValueTypePtr()) {
+        C->remove_value_type_ptr(dead->as_ValueTypePtr());
+      }
     }
   } // while (_stack.is_nonempty())
 }
@@ -1478,6 +1481,17 @@ void PhaseIterGVN::subsume_node( Node *old, Node *nn ) {
 #endif
   _worklist.remove(temp);   // this can be necessary
   temp->destruct();         // reuse the _idx of this little guy
+}
+
+void PhaseIterGVN::replace_in_uses(Node* n, Node* m) {
+  for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+    Node* u = n->fast_out(i);
+    if (u != n) {
+      rehash_node_delayed(u);
+      int nb = u->replace_edge(n, m);
+      --i, imax -= nb;
+    }
+  }
 }
 
 //------------------------------add_users_to_worklist--------------------------
@@ -1625,6 +1639,14 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       Node* imem = use->as_Initialize()->proj_out(TypeFunc::Memory);
       if (imem != NULL)  add_users_to_worklist0(imem);
     }
+    if (use_op == Op_CastP2X) {
+      for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
+        Node* u = use->fast_out(i2);
+        if (u->Opcode() == Op_AndX) {
+          _worklist.push(u);
+        }
+      }
+    }
   }
 }
 
@@ -1758,6 +1780,14 @@ void PhaseCCP::analyze() {
           PhiNode* phi = countedloop_phi_from_cmp((CmpINode*)m, n);
           if (phi != NULL) {
             worklist.push(phi);
+          }
+        }
+        if (m_op == Op_CastP2X) {
+          for (DUIterator_Fast i2max, i2 = m->fast_outs(i2max); i2 < i2max; i2++) {
+            Node* u = m->fast_out(i2);
+            if (u->Opcode() == Op_AndX) {
+              worklist.push(u);
+            }
           }
         }
       }

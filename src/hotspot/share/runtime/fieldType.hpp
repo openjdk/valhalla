@@ -69,6 +69,18 @@ class FieldType: public AllStatic {
              (signature->byte_at(sig_length - 1) == ';'));
   }
 
+  static bool is_valuetype(Symbol* signature) {
+    int sig_length = signature->utf8_length();
+    // Must start with 'Q' and end with ';'
+    return (sig_length >= 2 &&
+        (signature->byte_at(0) == 'Q') &&
+        (signature->byte_at(sig_length - 1) == ';'));
+  }
+
+  // MVT name mangling, VM derived value type naming Foo->Foo$Value
+  static bool is_dvt_postfix(Symbol* signature);
+  static char* dvt_unmangle_vcc(Symbol* signature);
+
   // Parse field and extract array information. Works for T_ARRAY only.
   static BasicType get_array_info(Symbol* signature, FieldArrayInfo& ai, TRAPS);
 };

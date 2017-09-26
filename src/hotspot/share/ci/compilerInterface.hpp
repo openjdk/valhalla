@@ -46,6 +46,7 @@
 #include "ci/ciSymbol.hpp"
 #include "ci/ciTypeArray.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
+#include "ci/ciValueArrayKlass.hpp"
 
 // This is a dummy file used for including the complete
 // compiler interface.

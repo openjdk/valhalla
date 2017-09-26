@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
+#include "oops/array.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -387,6 +388,12 @@ template<class E> class GrowableArray : public GenericGrowableArray {
   void appendAll(const GrowableArray<E>* l) {
     for (int i = 0; i < l->_len; i++) {
       raw_at_put_grow(_len, l->_data[i], E());
+    }
+  }
+
+  void appendAll(const Array<E>* l) {
+    for (int i = 0; i < l->length(); i++) {
+      raw_at_put_grow(_len, l->at(i), E());
     }
   }
 

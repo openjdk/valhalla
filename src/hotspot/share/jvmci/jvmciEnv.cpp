@@ -150,7 +150,7 @@ Klass* JVMCIEnv::get_klass_by_name_impl(Klass* accessing_klass,
   if (found_klass == NULL && !cpool.is_null() && cpool->has_preresolution()) {
     // Look inside the constant pool for pre-resolved class entries.
     for (int i = cpool->length() - 1; i >= 1; i--) {
-      if (cpool->tag_at(i).is_klass()) {
+      if (cpool->tag_at(i).is_klass() || cpool->tag_at(i).is_value_type()) {
         Klass*  kls = cpool->resolved_klass_at(i);
         if (kls->name() == sym) {
           return kls;

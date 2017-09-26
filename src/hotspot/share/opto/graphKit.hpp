@@ -869,6 +869,7 @@ class GraphKit : public Phase {
   // (Caller is responsible for doing replace_in_map.)
   Node* type_check_receiver(Node* receiver, ciKlass* klass, float prob,
                             Node* *casted_receiver);
+  Node* type_check(Node* recv_klass, const TypeKlassPtr* tklass, float prob);
 
   // implementation of object creation
   Node* set_output_for_allocation(AllocateNode* alloc,
@@ -878,10 +879,12 @@ class GraphKit : public Phase {
   Node* new_instance(Node* klass_node,
                      Node* slow_test = NULL,
                      Node* *return_size_val = NULL,
-                     bool deoptimize_on_exception = false);
+                     bool deoptimize_on_exception = false,
+                     ValueTypeNode* value_node = NULL);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);
+  void initialize_value_type_array(Node* array, Node* length, ciValueKlass* vk, int nargs);
 
   // java.lang.String helpers
   Node* load_String_length(Node* ctrl, Node* str);

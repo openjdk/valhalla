@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,6 +108,9 @@ final class HotSpotConstantPool implements ConstantPool, MetaspaceWrapperObject 
         Class(config().jvmConstantClass),
         UnresolvedClass(config().jvmConstantUnresolvedClass),
         UnresolvedClassInError(config().jvmConstantUnresolvedClassInError),
+        Value(config().jvmConstantValue),
+        UnresolvedValue(config().jvmConstantUnresolvedValue),
+        UnresolvedValueInError(config().jvmConstantUnresolvedValueInError),
         String(config().jvmConstantString),
         Fieldref(config().jvmConstantFieldref),
         MethodRef(config().jvmConstantMethodref),
@@ -506,6 +509,9 @@ final class HotSpotConstantPool implements ConstantPool, MetaspaceWrapperObject 
             case Class:
             case UnresolvedClass:
             case UnresolvedClassInError:
+            case Value:
+            case UnresolvedValue:
+            case UnresolvedValueInError:
                 final int opcode = -1;  // opcode is not used
                 return lookupType(cpi, opcode);
             case String:
@@ -684,11 +690,15 @@ final class HotSpotConstantPool implements ConstantPool, MetaspaceWrapperObject 
                 index = getUncachedKlassRefIndexAt(index);
                 // Read the tag only once because it could change between multiple reads.
                 final JVM_CONSTANT klassTag = getTagAt(index);
-                assert klassTag == JVM_CONSTANT.Class || klassTag == JVM_CONSTANT.UnresolvedClass || klassTag == JVM_CONSTANT.UnresolvedClassInError : klassTag;
+                assert klassTag == JVM_CONSTANT.Class || klassTag == JVM_CONSTANT.UnresolvedClass || klassTag == JVM_CONSTANT.UnresolvedClassInError ||
+                       klassTag == JVM_CONSTANT.Value || klassTag == JVM_CONSTANT.UnresolvedValue || klassTag == JVM_CONSTANT.UnresolvedValueInError : klassTag;
                 // fall through
             case Class:
             case UnresolvedClass:
             case UnresolvedClassInError:
+            case Value:
+            case UnresolvedValue:
+            case UnresolvedValueInError:
                 final HotSpotResolvedObjectTypeImpl type = compilerToVM().resolveTypeInPool(this, index);
                 Class<?> klass = type.mirror();
                 if (!klass.isPrimitive() && !klass.isArray()) {

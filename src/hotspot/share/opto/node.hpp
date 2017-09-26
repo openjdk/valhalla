@@ -141,6 +141,8 @@ class SubNode;
 class Type;
 class TypeNode;
 class UnlockNode;
+class ValueTypeNode;
+class ValueTypeBaseNode;
 class VectorNode;
 class LoadVectorNode;
 class StoreVectorNode;
@@ -663,6 +665,9 @@ public:
       DEFINE_CLASS_ID(EncodeNarrowPtr, Type, 6)
         DEFINE_CLASS_ID(EncodeP, EncodeNarrowPtr, 0)
         DEFINE_CLASS_ID(EncodePKlass, EncodeNarrowPtr, 1)
+      DEFINE_CLASS_ID(ValueTypeBase, Type, 7)
+        DEFINE_CLASS_ID(ValueType, ValueTypeBase, 0)
+        DEFINE_CLASS_ID(ValueTypePtr, ValueTypeBase, 1)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -853,6 +858,9 @@ public:
   DEFINE_CLASS_QUERY(Store)
   DEFINE_CLASS_QUERY(Sub)
   DEFINE_CLASS_QUERY(Type)
+  DEFINE_CLASS_QUERY(ValueType)
+  DEFINE_CLASS_QUERY(ValueTypeBase)
+  DEFINE_CLASS_QUERY(ValueTypePtr)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(LoadVector)
   DEFINE_CLASS_QUERY(StoreVector)

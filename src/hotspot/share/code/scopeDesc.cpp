@@ -30,23 +30,25 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 
-ScopeDesc::ScopeDesc(const CompiledMethod* code, int decode_offset, int obj_decode_offset, bool reexecute, bool rethrow_exception, bool return_oop) {
+ScopeDesc::ScopeDesc(const CompiledMethod* code, int decode_offset, int obj_decode_offset, bool reexecute, bool rethrow_exception, bool return_oop, bool return_vt) {
   _code          = code;
   _decode_offset = decode_offset;
   _objects       = decode_object_values(obj_decode_offset);
   _reexecute     = reexecute;
   _rethrow_exception = rethrow_exception;
   _return_oop    = return_oop;
+  _return_vt     = return_vt;
   decode_body();
 }
 
-ScopeDesc::ScopeDesc(const CompiledMethod* code, int decode_offset, bool reexecute, bool rethrow_exception, bool return_oop) {
+ScopeDesc::ScopeDesc(const CompiledMethod* code, int decode_offset, bool reexecute, bool rethrow_exception, bool return_oop, bool return_vt) {
   _code          = code;
   _decode_offset = decode_offset;
   _objects       = decode_object_values(DebugInformationRecorder::serialized_null);
   _reexecute     = reexecute;
   _rethrow_exception = rethrow_exception;
   _return_oop    = return_oop;
+  _return_vt     = return_vt;
   decode_body();
 }
 
@@ -58,6 +60,7 @@ ScopeDesc::ScopeDesc(const ScopeDesc* parent) {
   _reexecute     = false; //reexecute only applies to the first scope
   _rethrow_exception = false;
   _return_oop    = false;
+  _return_vt     = false;
   decode_body();
 }
 

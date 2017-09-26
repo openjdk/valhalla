@@ -895,6 +895,7 @@ class JNI_ArgumentPusher : public SignatureIterator {
   virtual void get_float  () = 0;
   virtual void get_double () = 0;
   virtual void get_object () = 0;
+  virtual void get_valuetype() = 0;
 
   JNI_ArgumentPusher(Symbol* signature) : SignatureIterator(signature) {
     this->_return_type = T_ILLEGAL;
@@ -915,6 +916,7 @@ class JNI_ArgumentPusher : public SignatureIterator {
   inline void do_float()                    { if (!is_return_type()) get_float();  }
   inline void do_double()                   { if (!is_return_type()) get_double(); }
   inline void do_object(int begin, int end) { if (!is_return_type()) get_object(); }
+  inline void do_valuetype(int begin, int end) { if (!is_return_type()) get_valuetype();  }
   inline void do_array(int begin, int end)  { if (!is_return_type()) get_object(); } // do_array uses get_object -- there is no get_array
   inline void do_void()                     { }
 
@@ -946,6 +948,7 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
   inline void get_float()  { _arguments->push_float((jfloat)va_arg(_ap, jdouble)); } // float is coerced to double w/ va_arg
   inline void get_double() { _arguments->push_double(va_arg(_ap, jdouble)); }
   inline void get_object() { _arguments->push_jobject(va_arg(_ap, jobject)); }
+  inline void get_valuetype() { _arguments->push_jobject(va_arg(_ap, jobject)); }
 
   inline void set_ap(va_list rap) {
     va_copy(_ap, rap);
@@ -991,6 +994,9 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
           case obj_parm:
             get_object();
             break;
+          case valuetype_parm:
+            get_valuetype();
+            break;
           case long_parm:
             get_long();
             break;
@@ -1035,6 +1041,8 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
   inline void get_float()  { _arguments->push_float((_ap++)->f); }
   inline void get_double() { _arguments->push_double((_ap++)->d);}
   inline void get_object() { _arguments->push_jobject((_ap++)->l); }
+  // value types are implemented with oops too
+  inline void get_valuetype() { _arguments->push_jobject((_ap++)->l); }
 
   inline void set_ap(const jvalue *rap) { _ap = rap; }
 
@@ -1076,6 +1084,9 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
             break;
           case obj_parm:
             get_object();
+            break;
+          case valuetype_parm:
+            get_valuetype();
             break;
           case long_parm:
             get_long();

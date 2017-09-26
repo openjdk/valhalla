@@ -100,8 +100,10 @@ static uintx chunk_oops_do(OopClosure* f, Chunk* chunk, char* chunk_top) {
     // This test can be moved up but for now check every oop.
 
     assert(oopDesc::is_oop(*bottom), "handle should point to oop");
-
-    f->do_oop(bottom++);
+    if (Universe::heap()->is_in_reserved_or_null(*bottom)) {
+      f->do_oop(bottom);
+    }
+    bottom++;
   }
   return handles_visited;
 }

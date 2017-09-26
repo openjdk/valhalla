@@ -49,6 +49,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valueArrayKlass.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -262,7 +263,12 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   // Scavenge and allocate an instance.
   oop result;
 
-  if (array_type->is_typeArray_klass()) {
+  if (array_type->is_valueArray_klass()) {
+    // TODO refactor all these checks, is_typeArray_klass should not be true for a value type array
+    // TODO use oopFactory::new_array
+    Klass* elem_type = ValueArrayKlass::cast(array_type)->element_klass();
+    result = oopFactory::new_valueArray(elem_type, len, THREAD);
+  } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
     BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
@@ -617,7 +623,7 @@ const TypeFunc *OptoRuntime::complete_monitor_enter_Type() {
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
 
-  return TypeFunc::make(domain,range);
+  return TypeFunc::make(domain, range);
 }
 
 
@@ -1204,7 +1210,7 @@ const TypeFunc* OptoRuntime::profile_receiver_type_Type() {
   fields = TypeTuple::fields(1);
   fields[TypeFunc::Parms+0] = NULL; // void
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms, fields);
-  return TypeFunc::make(domain,range);
+  return TypeFunc::make(domain, range);
 }
 
 JRT_LEAF(void, OptoRuntime::profile_receiver_type_C(DataLayout* data, oopDesc* receiver))
@@ -1523,7 +1529,7 @@ const TypeFunc *OptoRuntime::register_finalizer_Type() {
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
 
-  return TypeFunc::make(domain,range);
+  return TypeFunc::make(domain, range);
 }
 
 
@@ -1541,7 +1547,7 @@ const TypeFunc *OptoRuntime::dtrace_method_entry_exit_Type() {
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
 
-  return TypeFunc::make(domain,range);
+  return TypeFunc::make(domain, range);
 }
 
 const TypeFunc *OptoRuntime::dtrace_object_alloc_Type() {
@@ -1557,7 +1563,7 @@ const TypeFunc *OptoRuntime::dtrace_object_alloc_Type() {
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
 
-  return TypeFunc::make(domain,range);
+  return TypeFunc::make(domain, range);
 }
 
 
@@ -1683,4 +1689,59 @@ static void trace_exception(outputStream* st, oop exception_oop, address excepti
   tempst.print("]");
 
   st->print_raw_cr(tempst.as_string());
+}
+
+const TypeFunc *OptoRuntime::store_value_type_fields_Type() {
+  // create input type (domain)
+  uint total = SharedRuntime::java_return_convention_max_int + SharedRuntime::java_return_convention_max_float*2;
+  const Type **fields = TypeTuple::fields(total);
+  // We don't know the number of returned values and their
+  // types. Assume all registers available to the return convention
+  // are used.
+  fields[TypeFunc::Parms] = TypePtr::BOTTOM;
+  uint i = 1;
+  for (; i < SharedRuntime::java_return_convention_max_int; i++) {
+    fields[TypeFunc::Parms+i] = TypeInt::INT;
+  }
+  for (; i < total; i+=2) {
+    fields[TypeFunc::Parms+i] = Type::DOUBLE;
+    fields[TypeFunc::Parms+i+1] = Type::HALF;
+  }
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + total, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeValueTypePtr::NOTNULL;
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+const TypeFunc *OptoRuntime::pack_value_type_Type() {
+  // create input type (domain)
+  uint total = 1 + SharedRuntime::java_return_convention_max_int + SharedRuntime::java_return_convention_max_float*2;
+  const Type **fields = TypeTuple::fields(total);
+  // We don't know the number of returned values and their
+  // types. Assume all registers available to the return convention
+  // are used.
+  fields[TypeFunc::Parms] = TypeRawPtr::BOTTOM;
+  fields[TypeFunc::Parms+1] = TypeRawPtr::BOTTOM;
+  uint i = 2;
+  for (; i < SharedRuntime::java_return_convention_max_int+1; i++) {
+    fields[TypeFunc::Parms+i] = TypeInt::INT;
+  }
+  for (; i < total; i+=2) {
+    fields[TypeFunc::Parms+i] = Type::DOUBLE;
+    fields[TypeFunc::Parms+i+1] = Type::HALF;
+  }
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + total, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeValueTypePtr::NOTNULL;
+
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
+
+  return TypeFunc::make(domain, range);
 }

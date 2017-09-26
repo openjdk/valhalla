@@ -418,7 +418,7 @@ class Parse : public GraphKit {
   SafePointNode* create_entry_map();
 
   // OSR helpers
-  Node *fetch_interpreter_state(int index, BasicType bt, Node *local_addrs, Node *local_addrs_base);
+  Node* fetch_interpreter_state(int index, const Type* type, Node* local_addrs, Node* local_addrs_base);
   Node* check_interpreter_type(Node* l, const Type* type, SafePointNode* &bad_type_exit);
   void  load_interpreter_state(Node* osr_buf);
 
@@ -464,7 +464,7 @@ class Parse : public GraphKit {
   void do_one_bytecode();
 
   // helper function to generate array store check
-  void array_store_check();
+  void array_store_check(bool target_is_valuetypearray = false);
   // Helper function to generate array load
   void array_load(BasicType etype);
   // Helper function to generate array store
@@ -529,10 +529,15 @@ class Parse : public GraphKit {
   // implementation of object creation bytecodes
   void emit_guard_for_new(ciInstanceKlass* klass);
   void do_new();
+  void do_vdefault();
+  void do_vwithfield();
   void do_newarray(BasicType elemtype);
-  void do_anewarray();
+  void do_newarray();
   void do_multianewarray();
   Node* expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, int ndimensions, int nargs);
+
+  void do_vbox();
+  void do_vunbox();
 
   // implementation of jsr/ret
   void do_jsr();

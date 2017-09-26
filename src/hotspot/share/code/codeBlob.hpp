@@ -121,6 +121,7 @@ public:
   virtual bool is_method_handles_adapter_blob() const { return false; }
   virtual bool is_aot() const                         { return false; }
   virtual bool is_compiled() const                    { return false; }
+  virtual bool is_buffered_value_type_blob() const    { return false; }
 
   inline bool is_compiled_by_c1() const    { return _type == compiler_c1; };
   inline bool is_compiled_by_c2() const    { return _type == compiler_c2; };
@@ -361,12 +362,14 @@ class BufferBlob: public RuntimeBlob {
   friend class VMStructs;
   friend class AdapterBlob;
   friend class MethodHandlesAdapterBlob;
+  friend class BufferedValueTypeBlob;
   friend class WhiteBox;
 
  private:
   // Creation support
   BufferBlob(const char* name, int size);
   BufferBlob(const char* name, int size, CodeBuffer* cb);
+  BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps);
 
   void* operator new(size_t s, unsigned size) throw();
 
@@ -395,14 +398,19 @@ class BufferBlob: public RuntimeBlob {
 
 class AdapterBlob: public BufferBlob {
 private:
-  AdapterBlob(int size, CodeBuffer* cb);
+  AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps);
 
 public:
   // Creation
-  static AdapterBlob* create(CodeBuffer* cb);
+  static AdapterBlob* create(CodeBuffer* cb,
+                             int frame_complete,
+                             int frame_size,
+                             OopMapSet* oop_maps);
 
   // Typing
   virtual bool is_adapter_blob() const { return true; }
+
+  bool caller_must_gc_arguments(JavaThread* thread) const { return true; }
 };
 
 
@@ -421,6 +429,26 @@ public:
   virtual bool is_method_handles_adapter_blob() const { return true; }
 };
 
+//----------------------------------------------------------------------------------------------------
+// BufferedValueTypeBlob : used for pack/unpack handlers
+
+class BufferedValueTypeBlob: public BufferBlob {
+private:
+  const int _pack_fields_off;
+  const int _unpack_fields_off;
+
+  BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int unpack_fields_off);
+
+public:
+  // Creation
+  static BufferedValueTypeBlob* create(CodeBuffer* cb, int pack_fields_off, int unpack_fields_off);
+
+  address pack_fields() const { return code_begin() + _pack_fields_off; }
+  address unpack_fields() const { return code_begin() + _unpack_fields_off; }
+
+  // Typing
+  virtual bool is_buffered_value_type_blob() const { return true; }
+};
 
 //----------------------------------------------------------------------------------------------------
 // RuntimeStub: describes stubs used by compiled code to call a (static) C++ runtime routine

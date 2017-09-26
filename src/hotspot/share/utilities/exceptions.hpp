@@ -232,6 +232,8 @@ class Exceptions {
 // with a TRAPS argument.
 
 #define THREAD_AND_LOCATION                      THREAD, __FILE__, __LINE__
+#define THREAD_AND_LOCATION_DECL                 TRAPS, const char* file, int line
+#define THREAD_AND_LOCATION_ARGS                 THREAD, file, line
 
 #define THROW_OOP(e)                                \
   { Exceptions::_throw_oop(THREAD_AND_LOCATION, e);                             return;  }

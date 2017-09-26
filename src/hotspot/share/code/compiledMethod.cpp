@@ -31,6 +31,7 @@
 #include "interpreter/bytecode.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments)
   : CodeBlob(name, type, layout, frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
@@ -206,7 +207,7 @@ ScopeDesc* CompiledMethod::scope_desc_at(address pc) {
   guarantee(pd != NULL, "scope must be present");
   return new ScopeDesc(this, pd->scope_decode_offset(),
                        pd->obj_decode_offset(), pd->should_reexecute(), pd->rethrow_exception(),
-                       pd->return_oop());
+                       pd->return_oop(), pd->return_vt());
 }
 
 ScopeDesc* CompiledMethod::scope_desc_near(address pc) {
@@ -214,7 +215,7 @@ ScopeDesc* CompiledMethod::scope_desc_near(address pc) {
   guarantee(pd != NULL, "scope must be present");
   return new ScopeDesc(this, pd->scope_decode_offset(),
                        pd->obj_decode_offset(), pd->should_reexecute(), pd->rethrow_exception(),
-                       pd->return_oop());
+                       pd->return_oop(), pd->return_vt());
 }
 
 void CompiledMethod::cleanup_inline_caches(bool clean_all/*=false*/) {
@@ -310,6 +311,29 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
       has_receiver = !(callee->access_flags().is_static());
       has_appendix = false;
       signature = callee->signature();
+    }
+
+    // If value types are passed as fields, use the extended signature
+    // which contains the types of all (oop) fields of the value type.
+    if (ValueTypePassFieldsAsArgs && callee != NULL) {
+      // Get the extended signature from the callee's adapter through the attached method
+      Symbol* sig_ext = callee->adapter()->get_sig_extended();
+#ifdef ASSERT
+      // Check if receiver or one of the arguments is a value type
+      bool has_value_receiver = has_receiver && callee->method_holder()->is_value();
+      bool has_value_argument = has_value_receiver;
+      for (SignatureStream ss(signature); !has_value_argument && !ss.at_return_type(); ss.next()) {
+        if (ss.type() == T_VALUETYPE) {
+          has_value_argument = true;
+          break;
+        }
+      }
+      assert(has_value_argument == (sig_ext != NULL), "Signature is inconsistent");
+#endif
+      if (sig_ext != NULL) {
+        signature = sig_ext;
+        has_receiver = false; // The extended signature contains the receiver type
+      }
     }
 
     fr.oops_compiled_arguments_do(signature, has_receiver, has_appendix, reg_map, f);

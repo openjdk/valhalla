@@ -34,6 +34,7 @@
 #include "oops/instanceRefKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/typeArrayKlass.inline.hpp"
+#include "oops/valueArrayKlass.inline.hpp"
 #include "utilities/debug.hpp"
 
 inline void MetadataAwareOopClosure::do_cld_nv(ClassLoaderData* cld) {
@@ -113,6 +114,7 @@ bool Devirtualizer<false>::do_metadata(OopClosureType* closure) {
   ALL_INSTANCE_MIRROR_KLASS_OOP_OOP_ITERATE_DEFN(      OopClosureType, nv_suffix)  \
   ALL_INSTANCE_CLASS_LOADER_KLASS_OOP_OOP_ITERATE_DEFN(OopClosureType, nv_suffix)  \
   ALL_OBJ_ARRAY_KLASS_OOP_OOP_ITERATE_DEFN(            OopClosureType, nv_suffix)  \
-  ALL_TYPE_ARRAY_KLASS_OOP_OOP_ITERATE_DEFN(           OopClosureType, nv_suffix)
+  ALL_TYPE_ARRAY_KLASS_OOP_OOP_ITERATE_DEFN(           OopClosureType, nv_suffix)  \
+  ALL_VALUE_ARRAY_KLASS_OOP_OOP_ITERATE_DEFN(          OopClosureType, nv_suffix)
 
 #endif // SHARE_VM_MEMORY_ITERATOR_INLINE_HPP

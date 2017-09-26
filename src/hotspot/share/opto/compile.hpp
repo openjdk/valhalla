@@ -47,6 +47,7 @@
 class AddPNode;
 class Block;
 class Bundle;
+class CallNode;
 class C2Compiler;
 class CallGenerator;
 class CloneMap;
@@ -82,6 +83,7 @@ class TypeInt;
 class TypePtr;
 class TypeOopPtr;
 class TypeFunc;
+class ValueTypePtrNode;
 class Unique_Node_List;
 class nmethod;
 class WarmCallInfo;
@@ -414,6 +416,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
+  GrowableArray<ValueTypePtrNode*>* _value_type_ptr_nodes; // List of ValueTypePtr nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -805,6 +808,17 @@ class Compile : public Phase {
   int   range_check_cast_count()       const { return _range_check_casts->length(); }
   // Remove all range check dependent CastIINodes.
   void  remove_range_check_casts(PhaseIterGVN &igvn);
+
+  void add_value_type_ptr(ValueTypePtrNode* n);
+  void remove_value_type_ptr(ValueTypePtrNode* n) {
+    if (_value_type_ptr_nodes->contains(n)) {
+      _value_type_ptr_nodes->remove(n);
+    }
+  }
+  ValueTypePtrNode* value_type_ptr(int idx) const { return _value_type_ptr_nodes->at(idx);  }
+  int   value_type_ptr_count()       const { return _value_type_ptr_nodes->length(); }
+  void  process_value_type_ptr_nodes(PhaseIterGVN &igvn);
+  bool can_add_value_type_ptr() const { return _value_type_ptr_nodes != NULL; }
 
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
@@ -1335,6 +1349,7 @@ class Compile : public Phase {
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
 
+  void add_safepoint_edges(SafePointNode* call, JVMState* youngest_jvms, bool can_prune_locals = false, uint stack_slots_not_pruned = 0);
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP

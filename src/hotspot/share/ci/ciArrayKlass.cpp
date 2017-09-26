@@ -27,6 +27,8 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
+#include "ci/ciValueArrayKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 
 // ciArrayKlass
 //
@@ -59,7 +61,7 @@ ciType* ciArrayKlass::element_type() {
   if (is_type_array_klass()) {
     return ciType::make(as_type_array_klass()->element_type());
   } else {
-    return as_obj_array_klass()->element_klass()->as_klass();
+    return element_klass()->as_klass();
   }
 }
 
@@ -71,12 +73,14 @@ ciType* ciArrayKlass::element_type() {
 ciType* ciArrayKlass::base_element_type() {
   if (is_type_array_klass()) {
     return ciType::make(as_type_array_klass()->element_type());
-  } else {
+  } else if (is_obj_array_klass()) {
     ciKlass* ek = as_obj_array_klass()->base_element_klass();
     if (ek->is_type_array_klass()) {
       return ciType::make(ek->as_type_array_klass()->element_type());
     }
     return ek;
+  } else {
+    return as_value_array_klass()->base_element_klass();
   }
 }
 
@@ -99,6 +103,8 @@ bool ciArrayKlass::is_leaf_type() {
 ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
+  } else if (element_type->is_valuetype() && element_type->as_value_klass()->flatten_array()) {
+    return ciValueArrayKlass::make(element_type->as_klass());
   } else {
     return ciObjArrayKlass::make(element_type->as_klass());
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -247,6 +247,12 @@ public:
   bool is_unresolved_klass() const {
     constantTag tag = get_constant_pool_tag(get_klass_index());
     return tag.is_unresolved_klass();
+  }
+
+  // True if the klass-using bytecode points to an unresolved value type
+  bool is_unresolved_value_type() const {
+    constantTag tag = get_constant_pool_tag(get_klass_index());
+    return tag.is_unresolved_value_type();
   }
 
   // If this bytecode is one of get_field, get_static, put_field,

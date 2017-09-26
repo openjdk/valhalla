@@ -159,6 +159,7 @@ void SharkDecacher::end_frame() {
     true,
     false,
     false,
+    false,
     debug_info()->create_scope_values(locarray()),
     debug_info()->create_scope_values(exparray()),
     debug_info()->create_monitor_values(monarray()));

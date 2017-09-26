@@ -228,6 +228,9 @@ class StubRoutines: AllStatic {
   static address _safefetchN_fault_pc;
   static address _safefetchN_continuation_pc;
 
+  static address _load_value_type_fields_in_regs;
+  static address _store_value_type_fields_to_buf;
+
  public:
   // Initialization/Testing
   static void    initialize1();                            // must happen before universe::genesis
@@ -455,6 +458,9 @@ class StubRoutines: AllStatic {
   static void arrayof_jlong_copy     (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy       (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count);
+
+  static address load_value_type_fields_in_regs() { return _load_value_type_fields_in_regs; }
+  static address store_value_type_fields_to_buf() { return _store_value_type_fields_to_buf; }
 };
 
 // Safefetch allows to load a value from a location that's not known

@@ -872,6 +872,7 @@ public:
 
   // Similar to cousin class CallNode::returns_pointer
   bool returns_pointer() const;
+  bool returns_vt() const;
 
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;

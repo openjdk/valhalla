@@ -65,7 +65,12 @@ private:
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
   GrowableArray<ciField*>* _nonstatic_fields;
+  int                    _nof_declared_nonstatic_fields; // Number of nonstatic fields declared in the bytecode
+                                                         // i.e., without value types flattened into the instance.
+
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
+
+  ciInstanceKlass*       _vcc_klass; // points to the value-capable class corresponding to the current derived value type class.
 
   // The possible values of the _implementor fall into following three cases:
   //   NULL: no implementor.
@@ -185,6 +190,7 @@ public:
 
   ciInstanceKlass* get_canonical_holder(int offset);
   ciField* get_field_by_offset(int field_offset, bool is_static);
+  ciType*  get_field_type_by_offset(int field_offset);
   ciField* get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static);
 
   // total number of nonstatic fields (including inherited):
@@ -193,6 +199,14 @@ public:
       return compute_nonstatic_fields();
     else
       return _nonstatic_fields->length();
+  }
+
+  int nof_declared_nonstatic_fields() {
+    if (_nonstatic_fields == NULL) {
+      compute_nonstatic_fields();
+    }
+    assert(_nof_declared_nonstatic_fields >= 0, "after lazy initialization _nof_declared_nonstatic_fields must be at least 0");
+    return _nof_declared_nonstatic_fields;
   }
 
   bool has_injected_fields() {
@@ -212,7 +226,7 @@ public:
   bool has_finalizable_subclass();
 
   bool contains_field_offset(int offset) {
-    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size());
+    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size(), is_valuetype());
   }
 
   // Get the instance of java.lang.Class corresponding to
@@ -233,6 +247,7 @@ public:
 
   bool is_leaf_type();
   ciInstanceKlass* implementor();
+  ciInstanceKlass* vcc_klass();
 
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;

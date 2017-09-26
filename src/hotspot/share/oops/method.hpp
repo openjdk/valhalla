@@ -106,6 +106,7 @@ class Method : public Metadata {
   // NULL only at safepoints (because of a de-opt).
   CompiledMethod* volatile _code;                       // Points to the corresponding piece of native code
   volatile address           _from_interpreted_entry; // Cache of _code ? _adapter->i2c_entry() : _i2i_entry
+  int _max_vt_buffer; // max number of VT buffer chunk to use before recycling
 
 #if INCLUDE_AOT && defined(TIERED)
   CompiledMethod* _aot_code;
@@ -265,6 +266,12 @@ class Method : public Metadata {
   // max locals
   int  max_locals() const                        { return constMethod()->max_locals(); }
   void set_max_locals(int size)                  { constMethod()->set_max_locals(size); }
+
+  // value type buffering
+  void initialize_max_vt_buffer();
+  int max_vt_buffer() const                      { return _max_vt_buffer; }
+  void set_max_vt_buffer(int size)               { _max_vt_buffer = size; }
+
 
   int highest_comp_level() const;
   void set_highest_comp_level(int level);
@@ -577,7 +584,11 @@ class Method : public Metadata {
   Symbol* klass_name() const;                    // returns the name of the method holder
   BasicType result_type() const;                 // type of the method result
   bool is_returning_oop() const                  { BasicType r = result_type(); return (r == T_OBJECT || r == T_ARRAY); }
+  bool is_returning_vt() const                   { BasicType r = result_type(); return r == T_VALUETYPE; }
   bool is_returning_fp() const                   { BasicType r = result_type(); return (r == T_FLOAT || r == T_DOUBLE); }
+#ifdef ASSERT
+  ValueKlass* returned_value_type(Thread* thread) const;
+#endif
 
   // Checked exceptions thrown by this method (resolved to mirrors)
   objArrayHandle resolved_checked_exceptions(TRAPS) { return resolved_checked_exceptions_impl(this, THREAD); }
@@ -706,6 +717,8 @@ class Method : public Metadata {
   static int method_data_offset_in_bytes()       { return offset_of(Method, _method_data); }
   static int intrinsic_id_offset_in_bytes()      { return offset_of(Method, _intrinsic_id); }
   static int intrinsic_id_size_in_bytes()        { return sizeof(u2); }
+
+  static ByteSize max_vt_buffer_offset()         { return byte_offset_of(Method, _max_vt_buffer); }
 
   // Static methods that are used to implement member methods where an exposed this pointer
   // is needed due to possible GCs

@@ -64,8 +64,9 @@ class CPSlot VALUE_OBJ_CLASS_SPEC {
   }
 };
 
-// This represents a JVM_CONSTANT_Class, JVM_CONSTANT_UnresolvedClass, or
-// JVM_CONSTANT_UnresolvedClassInError slot in the constant pool.
+// This represents a (JVM_CONSTANT_Class, JVM_CONSTANT_UnresolvedClass or JVM_CONSTANT_UnresolvedClassInError) or
+//                   (JVM_CONSTANT_Value, JVM_CONSTANT_UnresolvedValue or JVM_CONSTANT_UnresolvedValueInError)
+// slot in the constant pool.
 class CPKlassSlot VALUE_OBJ_CLASS_SPEC {
   // cp->symbol_at(_name_index) gives the name of the class.
   int _name_index;
@@ -143,7 +144,8 @@ class ConstantPool : public Metadata {
 
   CPSlot slot_at(int which) const {
     assert(is_within_bounds(which), "index out of bounds");
-    assert(!tag_at(which).is_unresolved_klass() && !tag_at(which).is_unresolved_klass_in_error(), "Corrupted constant pool");
+    assert(!tag_at(which).is_unresolved_klass() && !tag_at(which).is_unresolved_klass_in_error() &&
+           !tag_at(which).is_unresolved_value_type() && !tag_at(which).is_unresolved_value_type_in_error(), "Corrupted constant pool");
     // Uses volatile because the klass slot changes without a lock.
     volatile intptr_t adr = (intptr_t)OrderAccess::load_ptr_acquire(obj_at_addr_raw(which));
     assert(adr != 0 || which == 0, "cp entry for klass should not be zero");
@@ -266,9 +268,15 @@ class ConstantPool : public Metadata {
 
   // Storing constants
 
-  // For temporary use while constructing constant pool
+  // For temporary use while constructing constant pool. Used during a retransform/class redefinition as well.
   void klass_index_at_put(int which, int name_index) {
     tag_at_put(which, JVM_CONSTANT_ClassIndex);
+    *int_at_addr(which) = name_index;
+  }
+
+  // For temporary use while constructing constant pool. Used during a retransform/class redefinition as well.
+  void value_type_index_at_put(int which, int name_index) {
+    tag_at_put(which, JVM_CONSTANT_ValueIndex);
     *int_at_addr(which) = name_index;
   }
 
@@ -278,6 +286,15 @@ class ConstantPool : public Metadata {
 
   void unresolved_klass_at_put(int which, int name_index, int resolved_klass_index) {
     release_tag_at_put(which, JVM_CONSTANT_UnresolvedClass);
+
+    assert((name_index & 0xffff0000) == 0, "must be");
+    assert((resolved_klass_index & 0xffff0000) == 0, "must be");
+    *int_at_addr(which) =
+      build_int_from_shorts((jushort)resolved_klass_index, (jushort)name_index);
+  }
+
+  void unresolved_value_type_at_put(int which, int name_index, int resolved_klass_index) {
+    release_tag_at_put(which, JVM_CONSTANT_UnresolvedValue);
 
     assert((name_index & 0xffff0000) == 0, "must be");
     assert((resolved_klass_index & 0xffff0000) == 0, "must be");
@@ -385,7 +402,8 @@ class ConstantPool : public Metadata {
   }
 
   CPKlassSlot klass_slot_at(int which) const {
-    assert(tag_at(which).is_unresolved_klass() || tag_at(which).is_klass(),
+    assert(tag_at(which).is_unresolved_klass() || tag_at(which).is_klass() ||
+           tag_at(which).is_unresolved_value_type() || tag_at(which).is_value_type(),
            "Corrupted constant pool");
     int value = *int_at_addr(which);
     int name_index = extract_high_short_from_int(value);
@@ -399,7 +417,7 @@ class ConstantPool : public Metadata {
   }
 
   Klass* resolved_klass_at(int which) const {  // Used by Compiler
-    guarantee(tag_at(which).is_klass(), "Corrupted constant pool");
+    guarantee(tag_at(which).is_klass() || tag_at(which).is_value_type(), "Corrupted constant pool");
     // Must do an acquire here in case another thread resolved the klass
     // behind our back, lest we later load stale values thru the oop.
     CPKlassSlot kslot = klass_slot_at(which);
@@ -415,6 +433,11 @@ class ConstantPool : public Metadata {
     // Used only during constant pool merging for class redefinition. The resolved klass index
     // will be initialized later by a call to initialize_unresolved_klasses().
     unresolved_klass_at_put(which, name_index, CPKlassSlot::_temp_resolved_klass_index);
+  }
+  void temp_unresolved_value_type_at_put(int which, int name_index) {
+    // Used only during constant pool merging for class redefinition. The resolved klass index
+    // will be initialized later by a call to initialize_unresolved_klasses().
+    unresolved_value_type_at_put(which, name_index, CPKlassSlot::_temp_resolved_klass_index);
   }
 
   jint int_at(int which) {
@@ -838,6 +861,11 @@ class ConstantPool : public Metadata {
   // Used while constructing constant pool (only by ClassFileParser)
   jint klass_index_at(int which) {
     assert(tag_at(which).is_klass_index(), "Corrupted constant pool");
+    return *int_at_addr(which);
+  }
+
+  jint value_type_index_at(int which) {
+    assert(tag_at(which).is_value_type_index(), "Corrupted constant pool");
     return *int_at_addr(which);
   }
 

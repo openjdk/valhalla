@@ -2131,7 +2131,8 @@ void GraphBuilder::new_instance(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
   assert(klass->is_instance_klass(), "must be an instance klass");
-  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass());
+  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before,
+                                              stream()->is_unresolved_klass() || stream()->is_unresolved_value_type());
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
 }

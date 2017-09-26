@@ -329,6 +329,9 @@ private:
   static const TypeFunc* dtrace_method_entry_exit_Type();
   static const TypeFunc* dtrace_object_alloc_Type();
 
+  static const TypeFunc* store_value_type_fields_Type();
+  static const TypeFunc* pack_value_type_Type();
+
  private:
  static NamedCounter * volatile _named_counters;
 

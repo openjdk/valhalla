@@ -27,6 +27,7 @@
 
 #include "gc/shared/threadLocalAllocBuffer.hpp"
 #include "memory/allocation.hpp"
+#include "memory/vtBuffer.hpp"
 #include "oops/oop.hpp"
 #include "prims/jni.h"
 #include "prims/jvmtiExport.hpp"
@@ -996,6 +997,18 @@ class JavaThread: public Thread {
   // failed reallocations.
   int _frames_to_pop_failed_realloc;
 
+  // Buffered value types support
+  void* _vt_alloc_ptr;
+  void* _vt_alloc_limit;
+  VTBufferChunk* _local_free_chunk;
+  // Next 4 fields are used to monitor VT buffer memory consumption
+  // We may want to not support them in PRODUCT builds
+  jint _vtchunk_in_use;
+  jint _vtchunk_max;
+  jint _vtchunk_total_returned;
+  jint _vtchunk_total_failed;
+  jlong _vtchunk_total_memory_buffered;
+
 #ifndef PRODUCT
   int _jmp_ring_index;
   struct {
@@ -1674,6 +1687,7 @@ class JavaThread: public Thread {
   void print_thread_state() const                      PRODUCT_RETURN;
   void print_on_error(outputStream* st, char* buf, int buflen) const;
   void print_name_on_error(outputStream* st, char* buf, int buflen) const;
+  void print_vt_buffer_stats_on(outputStream* st) const;
   void verify();
   const char* get_thread_name() const;
  private:
@@ -1857,6 +1871,37 @@ class JavaThread: public Thread {
   static inline void set_stack_size_at_create(size_t value) {
     _stack_size_at_create = value;
   }
+
+  void* vt_alloc_ptr() const { return _vt_alloc_ptr; }
+  void set_vt_alloc_ptr(void* ptr) { _vt_alloc_ptr = ptr; }
+  void* vt_alloc_limit() const { return _vt_alloc_limit; }
+  void set_vt_alloc_limit(void* ptr) { _vt_alloc_limit = ptr; }
+  VTBufferChunk* local_free_chunk() const { return _local_free_chunk; }
+  void set_local_free_chunk(VTBufferChunk* chunk) { _local_free_chunk = chunk; }
+  VTBufferChunk* current_chunk() {
+    if (_vt_alloc_ptr == NULL) return NULL;
+    VTBufferChunk* chunk = VTBufferChunk::chunk(_vt_alloc_ptr);
+    assert(chunk->owner() == this, "Sanity check");
+    return chunk;
+    // return _vt_alloc_ptr == NULL ? NULL : VTBufferChunk::chunk(_vt_alloc_ptr);
+  }
+
+  void increment_vtchunk_in_use() {
+    _vtchunk_in_use++;
+    if (_vtchunk_in_use > _vtchunk_max) _vtchunk_max = _vtchunk_in_use;
+  }
+  void decrement_vtchunk_in_use() { _vtchunk_in_use--; }
+  jint vtchunk_in_use() const { return _vtchunk_in_use; }
+  jint vtchunk_max() const { return _vtchunk_max; }
+  void increment_vtchunk_returned() { _vtchunk_total_returned++; }
+  jint vtchunk_total_returned() const { return _vtchunk_total_returned; }
+  void increment_vtchunk_failed() { _vtchunk_total_failed++; }
+  jint vtchunk_total_failed() const { return _vtchunk_total_failed; }
+  void increment_vtchunk_total_memory_buffered(jlong size) { _vtchunk_total_memory_buffered += size; }
+  jlong vtchunk_total_memory_buffered() const { return _vtchunk_total_memory_buffered; }
+
+  static ByteSize vt_alloc_ptr_offset() { return byte_offset_of(JavaThread, _vt_alloc_ptr); }
+
 
 #if INCLUDE_ALL_GCS
   // SATB marking queue support
@@ -2123,6 +2168,7 @@ class Threads: AllStatic {
   static void print_on_error(Thread* this_thread, outputStream* st, Thread* current, char* buf,
                              int buflen, bool* found_current);
   static void print_threads_compiling(outputStream* st, char* buf, int buflen);
+  static void print_vt_buffer_stats_on(outputStream* st);
 
   // Get Java threads that are waiting to enter a monitor. If doLock
   // is true, then Threads_lock is grabbed as needed. Otherwise, the

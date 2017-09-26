@@ -1295,6 +1295,24 @@ public:
   notproduct(bool, PrintFieldLayout, false,                                 \
           "Print field layout for each class")                              \
                                                                             \
+  notproduct(bool, PrintValueLayout, false,                                 \
+          "Print field layout for each value type")                         \
+                                                                            \
+  notproduct(bool, PrintValueArrayLayout, false,                            \
+          "Print array layout for each value type array")                   \
+                                                                            \
+  product(bool, ValueArrayFlatten, true,                                    \
+          "Flatten value array elements, if possible")                      \
+                                                                            \
+  product(intx, ValueArrayElemMaxFlatSize, -1,                              \
+          "Max size for flattening value array elements, <0 no limit")      \
+                                                                            \
+  product(intx, ValueArrayElemMaxFlatOops, 4,                               \
+          "Max nof embedded object references in a value type to flatten, <0 no limit")  \
+                                                                            \
+  product(bool, ValueArrayAtomicAccess, false,                              \
+          "Atomic value array accesses by-default, for all value arrays")   \
+                                                                            \
   /* Need to limit the extent of the padding to reasonable size.          */\
   /* 8K is well beyond the reasonable HW cache line size, even with       */\
   /* aggressive prefetching, while still leaving the room for segregating */\
@@ -4077,7 +4095,39 @@ public:
   diagnostic(bool, CompilerDirectivesPrint, false,                          \
              "Print compiler directives on installation.")                  \
   diagnostic(int,  CompilerDirectivesLimit, 50,                             \
-             "Limit on number of compiler directives.")
+             "Limit on number of compiler directives.")                     \
+                                                                            \
+  product(bool, EnableValhalla, false,                                      \
+          "Enable experimental Valhalla features")                          \
+                                                                            \
+  product(bool, EnableMVT, false,                                           \
+          "Enable experimental Minimal Value Types")                        \
+                                                                            \
+  product_pd(bool, ValueTypePassFieldsAsArgs,                               \
+             "Pass each value type field as an argument at calls")          \
+                                                                            \
+  product_pd(bool, ValueTypeReturnedAsFields,                               \
+            "return fields instead of a value type reference")              \
+                                                                            \
+  product(size_t, BigValueTypeThreshold, 4 * BytesPerLong,                  \
+          "Max value type size for buffering")                              \
+                                                                            \
+  product(intx, ValueTypesBufferMaxMemory, 0,                               \
+          "Max memory used for value types buffers (in pages)")             \
+                                                                            \
+  product(bool, ValueTypesThreadLocalRecycling, true,                       \
+          "Enable Thread local recycling of buffered values")               \
+                                                                            \
+  product(bool, ReportVTBufferRecyclingTimes, false,                        \
+          "Print duration of each VBuffer recycling")                       \
+                                                                            \
+  product(int, MinimumVTBufferChunkPerFrame, 2,                             \
+          "Minimum number of VT buffer chunk allowed per frame")            \
+                                                                            \
+  develop(bool, StressValueTypeReturnedAsFields, false,                     \
+          "stress return of fields instead of a value type reference")      \
+
+
 
 
 /*

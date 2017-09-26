@@ -510,6 +510,15 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
   return align_up(stack, 2);
 }
 
+const uint SharedRuntime::java_return_convention_max_int = 1;
+const uint SharedRuntime::java_return_convention_max_float = 1;
+int SharedRuntime::java_return_convention(const BasicType *sig_bt,
+                                          VMRegPair *regs,
+                                          int total_args_passed) {
+  Unimplemented();
+  return 0;
+}
+
 // Patch the callers callsite with entry to compiled code if it exists.
 static void patch_callers_callsite(MacroAssembler *masm) {
   Label L;
@@ -571,11 +580,13 @@ static void move_c2i_double(MacroAssembler *masm, XMMRegister r, int st_off) {
 }
 
 static void gen_c2i_adapter(MacroAssembler *masm,
-                            int total_args_passed,
-                            int comp_args_on_stack,
-                            const BasicType *sig_bt,
+                            const GrowableArray<SigEntry>& sig_extended,
                             const VMRegPair *regs,
-                            Label& skip_fixup) {
+                            Label& skip_fixup,
+                            address start,
+                            OopMapSet*& oop_maps,
+                            int& frame_complete,
+                            int& frame_size_in_words) {
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -597,7 +608,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // Since all args are passed on the stack, total_args_passed * interpreter_
   // stack_element_size  is the
   // space we need.
-  int extraspace = total_args_passed * Interpreter::stackElementSize;
+  int extraspace = sig_extended.length() * Interpreter::stackElementSize;
 
   // Get return address
   __ pop(rax);
@@ -608,14 +619,14 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   __ subptr(rsp, extraspace);
 
   // Now write the args into the outgoing interpreter space
-  for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
+  for (int i = 0; i < sig_extended.length(); i++) {
+    if (sig_extended.at(i)._bt == T_VOID) {
+      assert(i > 0 && (sig_extended.at(i-1)._bt == T_LONG || sig_extended.at(i-1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
     // st_off points to lowest address on stack.
-    int st_off = ((total_args_passed - 1) - i) * Interpreter::stackElementSize;
+    int st_off = ((sig_extended.length() - 1) - i) * Interpreter::stackElementSize;
     int next_off = st_off - Interpreter::stackElementSize;
 
     // Say 4 args:
@@ -665,7 +676,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         NOT_LP64(ShouldNotReachHere());
         // Two VMRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
         // T_DOUBLE and T_LONG use two slots in the interpreter
-        if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
+        if (sig_extended.at(i)._bt == T_LONG || sig_extended.at(i)._bt == T_DOUBLE) {
           // long/double in gpr
 #ifdef ASSERT
           // Overwrite the unused slot with known junk
@@ -682,7 +693,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       if (!r_2->is_valid()) {
         __ movflt(Address(rsp, st_off), r_1->as_XMMRegister());
       } else {
-        assert(sig_bt[i] == T_DOUBLE || sig_bt[i] == T_LONG, "wrong type");
+        assert(sig_extended.at(i)._bt == T_DOUBLE || sig_extended.at(i)._bt == T_LONG, "wrong type");
         move_c2i_double(masm, r_1->as_XMMRegister(), st_off);
       }
     }
@@ -715,10 +726,10 @@ static void range_check(MacroAssembler* masm, Register pc_reg, Register temp_reg
 }
 
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
-                                    int total_args_passed,
                                     int comp_args_on_stack,
-                                    const BasicType *sig_bt,
+                                    const GrowableArray<SigEntry>& sig_extended,
                                     const VMRegPair *regs) {
+
   // Note: rsi contains the senderSP on entry. We must preserve it since
   // we may do a i2c -> c2i transition if we lose a race where compiled
   // code goes non-entrant while we get args ready.
@@ -807,11 +818,11 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Now generate the shuffle code.  Pick up all register args and move the
   // rest through the floating point stack top.
-  for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
+  for (int i = 0; i < sig_extended.length(); i++) {
+    if (sig_extended.at(i)._bt == T_VOID) {
       // Longs and doubles are passed in native word order, but misaligned
       // in the 32-bit build.
-      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
+      assert(i > 0 && (sig_extended.at(i-1)._bt == T_LONG || sig_extended.at(i-1)._bt == T_DOUBLE), "missing half");
       continue;
     }
 
@@ -820,7 +831,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
     assert(!regs[i].second()->is_valid() || regs[i].first()->next() == regs[i].second(),
             "scrambled load targets?");
     // Load in argument order going down.
-    int ld_off = (total_args_passed - i) * Interpreter::stackElementSize;
+    int ld_off = (sig_extended.length() - i) * Interpreter::stackElementSize;
     // Point to interpreter value (vs. tag)
     int next_off = ld_off - Interpreter::stackElementSize;
     //
@@ -861,7 +872,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // are accessed as negative so LSW is at LOW address
 
         // ld_off is MSW so get LSW
-        const int offset = (NOT_LP64(true ||) sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
+        const int offset = (NOT_LP64(true ||) sig_extended.at(i)._bt==T_LONG||sig_extended.at(i)._bt==T_DOUBLE)?
                            next_off : ld_off;
         __ movptr(rsi, Address(saved_sp, offset));
         __ movptr(Address(rsp, st_off), rsi);
@@ -879,7 +890,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
         // the interpreter allocates two slots but only uses one for thr T_LONG or T_DOUBLE case
         // So we must adjust where to pick up the data to match the interpreter.
 
-        const int offset = (NOT_LP64(true ||) sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
+        const int offset = (NOT_LP64(true ||) sig_extended.at(i)._bt==T_LONG||sig_extended.at(i)._bt==T_DOUBLE)?
                            next_off : ld_off;
 
         // this can be a misaligned move
@@ -927,14 +938,14 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                                            int total_args_passed,
                                                             int comp_args_on_stack,
-                                                            const BasicType *sig_bt,
+                                                            const GrowableArray<SigEntry>& sig_extended,
                                                             const VMRegPair *regs,
-                                                            AdapterFingerPrint* fingerprint) {
+                                                            AdapterFingerPrint* fingerprint,
+                                                            AdapterBlob*& new_adapter) {
   address i2c_entry = __ pc();
 
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, comp_args_on_stack, sig_extended, regs);
 
   // -------------------------------------------------------------------------
   // Generate a C2I adapter.  On entry we know rbx, holds the Method* during calls
@@ -971,9 +982,13 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   address c2i_entry = __ pc();
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  OopMapSet* oop_maps = NULL;
+  int frame_complete = CodeOffsets::frame_never_safe;
+  int frame_size_in_words = 0;
+  gen_c2i_adapter(masm, sig_extended, regs, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
 
   __ flush();
+  new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps);
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
 }
 
@@ -3130,4 +3145,9 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   // return the  blob
   // frame_size_words or bytes??
   return RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_words, oop_maps, true);
+}
+
+BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
+  Unimplemented();
+  return NULL;
 }

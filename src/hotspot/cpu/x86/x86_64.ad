@@ -12148,8 +12148,24 @@ instruct CallLeafDirect(method meth)
 %}
 
 // Call runtime without safepoint
+// entry point is null, target holds the address to call
+instruct CallLeafNoFPInDirect(rRegP target)
+%{
+  predicate(n->as_Call()->entry_point() == NULL);
+  match(CallLeafNoFP target);
+
+  ins_cost(300);
+  format %{ "call_leaf_nofp,runtime indirect " %}
+  ins_encode %{
+     __ call($target$$Register);
+  %}
+
+  ins_pipe(pipe_slow);
+%}
+
 instruct CallLeafNoFPDirect(method meth)
 %{
+  predicate(n->as_Call()->entry_point() != NULL);
   match(CallLeafNoFP);
   effect(USE meth);
 

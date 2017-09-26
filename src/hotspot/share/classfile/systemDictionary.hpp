@@ -188,6 +188,9 @@ class GCTimer;
   do_klass(CodeSource_klass,                            java_security_CodeSource,                  Pre                 ) \
   do_klass(ParseUtil_klass,                             sun_net_www_ParseUtil,                     Pre                 ) \
                                                                                                                          \
+  /* support for valhalla "shady" value type bytecode transformer */                                                     \
+  do_klass(Valhalla_MVT1_0_klass,                       valhalla_shady_MVT1_0,                     MVTClasses          ) \
+                                                                                                                         \
   do_klass(StackTraceElement_klass,                     java_lang_StackTraceElement,               Opt                 ) \
                                                                                                                          \
   /* It's okay if this turns out to be NULL in non-1.4 JDKs. */                                                          \
@@ -208,6 +211,8 @@ class GCTimer;
   do_klass(Short_klass,                                 java_lang_Short,                           Pre                 ) \
   do_klass(Integer_klass,                               java_lang_Integer,                         Pre                 ) \
   do_klass(Long_klass,                                  java_lang_Long,                            Pre                 ) \
+                                                                                                                         \
+  do_klass(___Value_klass,                              java_lang____Value,                        ValhallaClasses     ) \
                                                                                                                          \
   /* Extensions */                                                                                                       \
   WK_KLASSES_DO_EXT(do_klass)                                                                                            \
@@ -250,8 +255,10 @@ class SystemDictionary : AllStatic {
 #if INCLUDE_JVMCI
     Jvmci,                      // preload tried; error if not present if JVMCI enabled
 #endif
+    ValhallaClasses,            // loaded if Valhalla enabled
+    MVTClasses,                 // loaded if MVT enabled
     OPTION_LIMIT,
-    CEIL_LG_OPTION_LIMIT = 2    // OPTION_LIMIT <= (1<<CEIL_LG_OPTION_LIMIT)
+    CEIL_LG_OPTION_LIMIT = 3    // OPTION_LIMIT <= (1<<CEIL_LG_OPTION_LIMIT)
   };
 
 
@@ -419,6 +426,8 @@ public:
 
   static InstanceKlass* check_klass_Pre(InstanceKlass* k) { return check_klass(k); }
   static InstanceKlass* check_klass_Opt(InstanceKlass* k) { return k; }
+  static InstanceKlass* check_klass_ValhallaClasses(InstanceKlass* k) { return k; }
+  static InstanceKlass* check_klass_MVTClasses(InstanceKlass* k) { return k; }
 
   JVMCI_ONLY(static InstanceKlass* check_klass_Jvmci(InstanceKlass* k) { return k; })
 
@@ -615,7 +624,9 @@ protected:
 
   // Basic loading operations
   static Klass* resolve_instance_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
+  static Klass* do_resolve_instance_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static Klass* resolve_array_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
+  static Klass* resolve_dvt_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static InstanceKlass* handle_parallel_super_load(Symbol* class_name, Symbol* supername, Handle class_loader, Handle protection_domain, Handle lockObject, TRAPS);
   // Wait on SystemDictionary_lock; unlocks lockObject before
   // waiting; relocks lockObject with correct recursion count

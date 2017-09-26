@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -331,10 +331,12 @@ void BytecodePrinter::print_constant(int i, outputStream* st) {
   } else if (tag.is_string()) {
     const char* string = constants->string_at_noresolve(i);
     st->print_cr(" %s", string);
-  } else if (tag.is_klass()) {
+  } else if (tag.is_klass() || tag.is_value_type()) {
     st->print_cr(" %s", constants->resolved_klass_at(i)->external_name());
   } else if (tag.is_unresolved_klass()) {
     st->print_cr(" <unresolved klass at %d>", i);
+  } else if (tag.is_unresolved_value_type()) {
+    st->print_cr(" <unresolved value type at %d>", i);
   } else if (tag.is_method_type()) {
     int i2 = constants->method_type_index_at(i);
     st->print(" <MethodType> %d", i2);
@@ -432,11 +434,13 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_fload:
     case Bytecodes::_dload:
     case Bytecodes::_aload:
+    case Bytecodes::_vload:
     case Bytecodes::_istore:
     case Bytecodes::_lstore:
     case Bytecodes::_fstore:
     case Bytecodes::_dstore:
     case Bytecodes::_astore:
+    case Bytecodes::_vstore:
       st->print_cr(" #%d", get_index_special());
       break;
 
@@ -545,6 +549,7 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_getstatic:
     case Bytecodes::_putfield:
     case Bytecodes::_getfield:
+    case Bytecodes::_vwithfield:
       print_field_or_method(get_index_u2_cpcache(), st);
       break;
 
@@ -569,6 +574,9 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_new:
     case Bytecodes::_checkcast:
     case Bytecodes::_instanceof:
+    case Bytecodes::_vbox:
+    case Bytecodes::_vunbox:
+    case Bytecodes::_vdefault:
       { int i = get_index_u2();
         ConstantPool* constants = method()->constants();
         Symbol* name = constants->klass_name_at(i);

@@ -45,6 +45,7 @@
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 
@@ -72,8 +73,8 @@ int PhaseMacroExpand::replace_input(Node *use, Node *oldref, Node *newref) {
 
 void PhaseMacroExpand::copy_call_debug_info(CallNode *oldcall, CallNode * newcall) {
   // Copy debug information and adjust JVMState information
-  uint old_dbg_start = oldcall->tf()->domain()->cnt();
-  uint new_dbg_start = newcall->tf()->domain()->cnt();
+  uint old_dbg_start = oldcall->tf()->domain_sig()->cnt();
+  uint new_dbg_start = newcall->tf()->domain_sig()->cnt();
   int jvms_adj  = new_dbg_start - old_dbg_start;
   assert (new_dbg_start == newcall->req(), "argument count mismatch");
 
@@ -407,7 +408,7 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
         return NULL;
       }
       mem = mem->in(MemNode::Memory);
-   } else if (mem->Opcode() == Op_StrInflatedCopy) {
+    } else if (mem->Opcode() == Op_StrInflatedCopy) {
       Node* adr = mem->in(3); // Destination array
       const TypePtr* atype = adr->bottom_type()->is_ptr();
       int adr_idx = phase->C->get_alias_index(atype);
@@ -570,6 +571,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
 // Search the last value stored into the object's field.
 Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc) {
   assert(adr_t->is_known_instance_field(), "instance required");
+  assert(ft != T_VALUETYPE, "should not be used for value type fields");
   int instance_id = adr_t->instance_id();
   assert((uint)instance_id == alloc->_idx, "wrong allocation");
 
@@ -580,7 +582,6 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
   Arena *a = Thread::current()->resource_area();
   VectorSet visited(a);
-
 
   bool done = sfpt_mem == alloc_mem;
   Node *mem = sfpt_mem;
@@ -594,7 +595,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
     } else if (mem->is_Initialize()) {
       mem = mem->as_Initialize()->find_captured_store(offset, type2aelembytes(ft), &_igvn);
       if (mem == NULL) {
-        done = true; // Something go wrong.
+        done = true; // Something went wrong.
       } else if (mem->is_Store()) {
         const TypePtr* atype = mem->as_Store()->adr_type();
         assert(C->get_alias_index(atype) == Compile::AliasIdxRaw, "store is correct memory slice");
@@ -664,8 +665,30 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       return make_arraycopy_load(mem->as_ArrayCopy(), offset, ctl, m, ft, ftype, alloc);
     }
   }
-  // Something go wrong.
+  // Something went wrong.
   return NULL;
+}
+
+// Search the last value stored into the value type's fields.
+Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
+  // Subtract the offset of the first field to account for the missing oop header
+  offset -= vk->first_field_offset();
+  // Create a new ValueTypeNode and retrieve the field values from memory
+  ValueTypeNode* vt = ValueTypeNode::make(_igvn, vk)->as_ValueType();
+  for (int i = 0; i < vk->field_count(); ++i) {
+    ciType* field_type = vt->field_type(i);
+    int field_offset = offset + vt->field_offset(i);
+    // Each value type field has its own memory slice
+    adr_type = adr_type->with_field_offset(field_offset);
+    Node* value = NULL;
+    if (field_type->basic_type() == T_VALUETYPE) {
+      value = value_type_from_mem(mem, ctl, field_type->as_value_klass(), adr_type, field_offset, alloc);
+    } else {
+      value = value_from_mem(mem, ctl, field_type->basic_type(), Type::get_const_type(field_type), adr_type, alloc);
+    }
+    vt->set_field_value(i, value);
+  }
+  return vt;
 }
 
 // Check the possibility of scalar replacement.
@@ -722,7 +745,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
             if (n->is_Load() || n->is_LoadStore()) {
               NOT_PRODUCT(fail_eliminate = "Field load";)
             } else {
-              NOT_PRODUCT(fail_eliminate = "Not store field referrence";)
+              NOT_PRODUCT(fail_eliminate = "Not store field reference";)
             }
             can_eliminate = false;
           }
@@ -760,7 +783,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         } else {
           if (use->Opcode() == Op_Return) {
             NOT_PRODUCT(fail_eliminate = "Object is return value";)
-          }else {
+          } else {
             NOT_PRODUCT(fail_eliminate = "Object is referenced by node";)
           }
           DEBUG_ONLY(disq_node = use;)
@@ -817,7 +840,8 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
   if (res != NULL) {
     klass = res_type->klass();
-    if (res_type->isa_instptr()) {
+    // Value types are only allocated on demand
+    if (res_type->isa_instptr() || res_type->isa_valuetypeptr()) {
       // find the fields of the class which will be needed for safepoint debug information
       assert(klass->is_instance_klass(), "must be an instance klass.");
       iklass = klass->as_instance_klass();
@@ -861,6 +885,8 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         offset = field->offset();
         elem_type = field->type();
         basic_elem_type = field->layout_type();
+        // Value type fields should not have safepoint uses
+        assert(basic_elem_type != T_VALUETYPE, "value type fields are flattened");
       } else {
         offset = array_base + j * (intptr_t)element_size;
       }
@@ -888,9 +914,15 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         field_type = Type::get_const_basic_type(basic_elem_type);
       }
 
-      const TypeOopPtr *field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-
-      Node *field_val = value_from_mem(mem, ctl, basic_elem_type, field_type, field_addr_type, alloc);
+      Node* field_val = NULL;
+      const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
+      if (klass->is_value_array_klass()) {
+        ciValueKlass* vk = elem_type->as_value_klass();
+        assert(vk->flatten_array(), "must be flattened");
+        field_val = value_type_from_mem(mem, ctl, vk, field_addr_type->isa_aryptr(), 0, alloc);
+      } else {
+        field_val = value_from_mem(mem, ctl, basic_elem_type, field_type, field_addr_type, alloc);
+      }
       if (field_val == NULL) {
         // We weren't able to find a value for this field,
         // give up on eliminating this allocation.
@@ -1205,7 +1237,7 @@ bool PhaseMacroExpand::eliminate_boxing_node(CallStaticJavaNode *boxing) {
 
   extract_call_projections(boxing);
 
-  const TypeTuple* r = boxing->tf()->range();
+  const TypeTuple* r = boxing->tf()->range_sig();
   assert(r->cnt() > TypeFunc::Parms, "sanity");
   const TypeInstPtr* t = r->field_at(TypeFunc::Parms)->isa_instptr();
   assert(t != NULL, "sanity");
@@ -2606,6 +2638,216 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   _igvn.replace_node(_memproj_fallthrough, mem_phi);
 }
 
+// A value type is returned from the call but we don't know its
+// type. Either we get a buffered value (and nothing needs to be done)
+// or one of the values being returned is the klass of the value type
+// and we need to allocate a value type instance of that type and
+// initialize it with other values being returned. In that case, we
+// first try a fast path allocation and initialize the value with the
+// value klass's pack handler or we fall back to a runtime call.
+void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
+  Node* ret = call->proj_out(TypeFunc::Parms);
+  if (ret == NULL) {
+    return;
+  }
+  assert(ret->bottom_type()->is_valuetypeptr()->klass() == C->env()->___Value_klass(), "unexpected return type from MH intrinsic");
+  const TypeFunc* tf = call->_tf;
+  const TypeTuple* domain = OptoRuntime::store_value_type_fields_Type()->domain_cc();
+  const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
+  call->_tf = new_tf;
+  // Make sure the change of type is applied before projections are
+  // processed by igvn
+  _igvn.set_type(call, call->Value(&_igvn));
+  _igvn.set_type(ret, ret->Value(&_igvn));
+
+  // Before any new projection is added:
+  CallProjections projs;
+  call->extract_projections(&projs, true, true);
+
+  Node* ctl = new Node(1);
+  Node* mem = new Node(1);
+  Node* io = new Node(1);
+  Node* ex_ctl = new Node(1);
+  Node* ex_mem = new Node(1);
+  Node* ex_io = new Node(1);
+  Node* res = new Node(1);
+
+  Node* cast = transform_later(new CastP2XNode(ctl, res));
+  Node* mask = MakeConX(0x1);
+  Node* masked = transform_later(new AndXNode(cast, mask));
+  Node* cmp = transform_later(new CmpXNode(masked, mask));
+  Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+  IfNode* allocation_iff = new IfNode(ctl, bol, PROB_MAX, COUNT_UNKNOWN);
+  transform_later(allocation_iff);
+  Node* allocation_ctl = transform_later(new IfTrueNode(allocation_iff));
+  Node* no_allocation_ctl = transform_later(new IfFalseNode(allocation_iff));
+
+  Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeValueTypePtr::NOTNULL));
+
+  Node* mask2 = MakeConX(-2);
+  Node* masked2 = transform_later(new AndXNode(cast, mask2));
+  Node* rawklassptr = transform_later(new CastX2PNode(masked2));
+  Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::VALUE));
+
+  Node* top_adr;
+  Node* end_adr;
+
+  Node* slowpath_bol = NULL;
+  Node* old_top = NULL;
+  Node* new_top = NULL;
+  if (UseTLAB) {
+    set_eden_pointers(top_adr, end_adr);
+    Node* end = make_load(ctl, mem, end_adr, 0, TypeRawPtr::BOTTOM, T_ADDRESS);
+    old_top = new LoadPNode(ctl, mem, top_adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM, MemNode::unordered);
+    transform_later(old_top);
+    Node* layout_val = make_load(NULL, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
+    Node* size_in_bytes = ConvI2X(layout_val);
+    new_top = new AddPNode(top(), old_top, size_in_bytes);
+    transform_later(new_top);
+    Node* slowpath_cmp = new CmpPNode(new_top, end);
+    transform_later(slowpath_cmp);
+    slowpath_bol = new BoolNode(slowpath_cmp, BoolTest::ge);
+    transform_later(slowpath_bol);
+  } else {
+    slowpath_bol = intcon(1);
+    old_top = top();
+    new_top = top();
+  }
+  IfNode* slowpath_iff = new IfNode(allocation_ctl, slowpath_bol, PROB_UNLIKELY_MAG(4), COUNT_UNKNOWN);
+  transform_later(slowpath_iff);
+
+  Node* slowpath_true = new IfTrueNode(slowpath_iff);
+  transform_later(slowpath_true);
+
+
+  CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_value_type_fields_Type(),
+                                                         StubRoutines::store_value_type_fields_to_buf(),
+                                                         "store_value_type_fields",
+                                                         call->jvms()->bci(),
+                                                         TypePtr::BOTTOM);
+  slow_call->init_req(TypeFunc::Control, slowpath_true);
+  slow_call->init_req(TypeFunc::Memory, mem);
+  slow_call->init_req(TypeFunc::I_O, io);
+  slow_call->init_req(TypeFunc::FramePtr, call->in(TypeFunc::FramePtr));
+  slow_call->init_req(TypeFunc::ReturnAdr, call->in(TypeFunc::ReturnAdr));
+  slow_call->init_req(TypeFunc::Parms, res);
+
+  Node* slow_ctl = transform_later(new ProjNode(slow_call, TypeFunc::Control));
+  Node* slow_mem = transform_later(new ProjNode(slow_call, TypeFunc::Memory));
+  Node* slow_io = transform_later(new ProjNode(slow_call, TypeFunc::I_O));
+  Node* slow_res = transform_later(new ProjNode(slow_call, TypeFunc::Parms));
+  Node* slow_catc = transform_later(new CatchNode(slow_ctl, slow_io, 2));
+  Node* slow_norm = transform_later(new CatchProjNode(slow_catc, CatchProjNode::fall_through_index, CatchProjNode::no_handler_bci));
+  Node* slow_excp = transform_later(new CatchProjNode(slow_catc, CatchProjNode::catch_all_index,    CatchProjNode::no_handler_bci));
+
+  Node* ex_r = new RegionNode(3);
+  Node* ex_mem_phi = new PhiNode(ex_r, Type::MEMORY, TypePtr::BOTTOM);
+  Node* ex_io_phi = new PhiNode(ex_r, Type::ABIO);
+  ex_r->init_req(1, slow_excp);
+  ex_mem_phi->init_req(1, slow_mem);
+  ex_io_phi->init_req(1, slow_io);
+  ex_r->init_req(2, ex_ctl);
+  ex_mem_phi->init_req(2, ex_mem);
+  ex_io_phi->init_req(2, ex_io);
+
+  transform_later(ex_r);
+  transform_later(ex_mem_phi);
+  transform_later(ex_io_phi);
+
+  Node* slowpath_false = new IfFalseNode(slowpath_iff);
+  transform_later(slowpath_false);
+  Node* rawmem = new StorePNode(slowpath_false, mem, top_adr, TypeRawPtr::BOTTOM, new_top, MemNode::unordered);
+  transform_later(rawmem);
+  Node* mark_node = NULL;
+  // For now only enable fast locking for non-array types
+  if (UseBiasedLocking) {
+    mark_node = make_load(slowpath_false, rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+  } else {
+    mark_node = makecon(TypeRawPtr::make((address)markOopDesc::prototype()));
+  }
+  rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
+  rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+  rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+  Node* pack_handler = make_load(slowpath_false, rawmem, klass_node, in_bytes(ValueKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+
+  CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_value_type_Type(),
+                                                        NULL,
+                                                        "pack handler",
+                                                        TypeRawPtr::BOTTOM);
+  handler_call->init_req(TypeFunc::Control, slowpath_false);
+  handler_call->init_req(TypeFunc::Memory, rawmem);
+  handler_call->init_req(TypeFunc::I_O, top());
+  handler_call->init_req(TypeFunc::FramePtr, call->in(TypeFunc::FramePtr));
+  handler_call->init_req(TypeFunc::ReturnAdr, top());
+  handler_call->init_req(TypeFunc::Parms, pack_handler);
+  handler_call->init_req(TypeFunc::Parms+1, old_top);
+
+  // We don't know how many values are returned. This assumes the
+  // worst case, that all available registers are used.
+  for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
+    if (domain->field_at(i) == Type::HALF) {
+      slow_call->init_req(i, top());
+      handler_call->init_req(i+1, top());
+      continue;
+    }
+    Node* proj = transform_later(new ProjNode(call, i));
+    slow_call->init_req(i, proj);
+    handler_call->init_req(i+1, proj);
+  }
+
+  // We can safepoint at that new call
+  C->add_safepoint_edges(slow_call, call->jvms());
+  transform_later(slow_call);
+  transform_later(handler_call);
+
+  Node* handler_ctl = transform_later(new ProjNode(handler_call, TypeFunc::Control));
+  rawmem = transform_later(new ProjNode(handler_call, TypeFunc::Memory));
+  Node* slowpath_false_res = transform_later(new ProjNode(handler_call, TypeFunc::Parms));
+
+  MergeMemNode* slowpath_false_mem = MergeMemNode::make(mem);
+  slowpath_false_mem->set_memory_at(Compile::AliasIdxRaw, rawmem);
+  transform_later(slowpath_false_mem);
+
+  Node* r = new RegionNode(4);
+  Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
+  Node* io_phi = new PhiNode(r, Type::ABIO);
+  Node* res_phi = new PhiNode(r, ret->bottom_type());
+
+  r->init_req(1, no_allocation_ctl);
+  mem_phi->init_req(1, mem);
+  io_phi->init_req(1, io);
+  res_phi->init_req(1, no_allocation_res);
+  r->init_req(2, slow_norm);
+  mem_phi->init_req(2, slow_mem);
+  io_phi->init_req(2, slow_io);
+  res_phi->init_req(2, slow_res);
+  r->init_req(3, handler_ctl);
+  mem_phi->init_req(3, slowpath_false_mem);
+  io_phi->init_req(3, io);
+  res_phi->init_req(3, slowpath_false_res);
+
+  transform_later(r);
+  transform_later(mem_phi);
+  transform_later(io_phi);
+  transform_later(res_phi);
+
+  _igvn.replace_in_uses(projs.fallthrough_catchproj, r);
+  _igvn.replace_in_uses(projs.fallthrough_memproj, mem_phi);
+  _igvn.replace_in_uses(projs.fallthrough_ioproj, io_phi);
+  _igvn.replace_in_uses(projs.resproj, res_phi);
+  _igvn.replace_in_uses(projs.catchall_catchproj, ex_r);
+  _igvn.replace_in_uses(projs.catchall_memproj, ex_mem_phi);
+  _igvn.replace_in_uses(projs.catchall_ioproj, ex_io_phi);
+
+  _igvn.replace_node(ctl, projs.fallthrough_catchproj);
+  _igvn.replace_node(mem, projs.fallthrough_memproj);
+  _igvn.replace_node(io, projs.fallthrough_ioproj);
+  _igvn.replace_node(res, projs.resproj);
+  _igvn.replace_node(ex_ctl, projs.catchall_catchproj);
+  _igvn.replace_node(ex_mem, projs.catchall_memproj);
+  _igvn.replace_node(ex_io, projs.catchall_ioproj);
+ }
+
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
 void PhaseMacroExpand::eliminate_macro_nodes() {
@@ -2650,9 +2892,13 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       case Node::Class_AllocateArray:
         success = eliminate_allocate_node(n->as_Allocate());
         break;
-      case Node::Class_CallStaticJava:
-        success = eliminate_boxing_node(n->as_CallStaticJava());
+      case Node::Class_CallStaticJava: {
+        CallStaticJavaNode* call = n->as_CallStaticJava();
+        if (!call->method()->is_method_handle_intrinsic()) {
+          success = eliminate_boxing_node(n->as_CallStaticJava());
+        }
         break;
+      }
       case Node::Class_Lock:
       case Node::Class_Unlock:
         assert(!n->as_AbstractLock()->is_eliminated(), "sanity");
@@ -2699,10 +2945,13 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         _igvn._worklist.push(n);
         success = true;
       } else if (n->Opcode() == Op_CallStaticJava) {
-        // Remove it from macro list and put on IGVN worklist to optimize.
-        C->remove_macro_node(n);
-        _igvn._worklist.push(n);
-        success = true;
+        CallStaticJavaNode* call = n->as_CallStaticJava();
+        if (!call->method()->is_method_handle_intrinsic()) {
+          // Remove it from macro list and put on IGVN worklist to optimize.
+          C->remove_macro_node(n);
+          _igvn._worklist.push(n);
+          success = true;
+        }
       } else if (n->Opcode() == Op_Opaque1 || n->Opcode() == Op_Opaque2) {
         _igvn.replace_node(n, n->in(1));
         success = true;
@@ -2781,6 +3030,10 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       break;
     case Node::Class_Unlock:
       expand_unlock_node(n->as_Unlock());
+      break;
+    case Node::Class_CallStaticJava:
+      expand_mh_intrinsic_return(n->as_CallStaticJava());
+      C->remove_macro_node(n);
       break;
     default:
       assert(false, "unknown node type in macro list");

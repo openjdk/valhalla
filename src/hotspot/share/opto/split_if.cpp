@@ -195,6 +195,7 @@ bool PhaseIdealLoop::split_up( Node *n, Node *blk1, Node *blk2 ) {
   }
 
   // Now actually split-up this guy.  One copy per control path merging.
+  assert(!n->is_ValueType(), "value types should not be split through phis");
   Node *phi = PhiNode::make_blank(blk1, n);
   for( uint j = 1; j < blk1->req(); j++ ) {
     Node *x = n->clone();

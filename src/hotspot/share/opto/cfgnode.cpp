@@ -41,6 +41,7 @@
 #include "opto/regmask.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
+#include "opto/valuetypenode.hpp"
 #include "utilities/vmError.hpp"
 
 // Portions of code courtesy of Clifford Click
@@ -944,15 +945,10 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   const TypeInstPtr* ttip = (ttp != NULL) ? ttp->isa_instptr() : NULL;
   const TypeKlassPtr* ttkp = (ttp != NULL) ? ttp->isa_klassptr() : NULL;
   bool is_intf = false;
-  if (ttip != NULL) {
-    ciKlass* k = ttip->klass();
-    if (k->is_loaded() && k->is_interface())
-      is_intf = true;
-  }
-  if (ttkp != NULL) {
-    ciKlass* k = ttkp->klass();
-    if (k->is_loaded() && k->is_interface())
-      is_intf = true;
+  if (ttip != NULL && ttip->is_loaded() && ttip->klass()->is_interface()) {
+    is_intf = true;
+  } else if (ttkp != NULL && ttkp->is_loaded() && ttkp->klass()->is_interface()) {
+    is_intf = true;
   }
 
   // Default case: merge all inputs
@@ -1009,9 +1005,9 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
     // be 'I' or 'j/l/O'.  Thus we'll pick 'j/l/O'.  If this then flows
     // into a Phi which "knows" it's an Interface type we'll have to
     // uplift the type.
-    if (!t->empty() && ttip && ttip->is_loaded() && ttip->klass()->is_interface()) {
+    if (!t->empty() && ttip != NULL && ttip->is_loaded() && ttip->klass()->is_interface()) {
       assert(ft == _type, ""); // Uplift to interface
-    } else if (!t->empty() && ttkp && ttkp->is_loaded() && ttkp->klass()->is_interface()) {
+    } else if (!t->empty() && ttkp != NULL && ttkp->is_loaded() && ttkp->klass()->is_interface()) {
       assert(ft == _type, ""); // Uplift to interface
     } else {
       // We also have to handle 'evil cases' of interface- vs. class-arrays
@@ -1630,6 +1626,72 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // This means we have to use type_or_null to defend against untyped regions.
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return NULL;                // No change
+
+  // If all inputs are value types, push the value type node down through the
+  // phi because value type nodes should be merged through their input values.
+  if (req() > 2 && in(1) != NULL && in(1)->is_ValueTypeBase() && (can_reshape || in(1)->is_ValueType())) {
+    int opcode = in(1)->Opcode();
+    uint i = 2;
+    for (; i < req() && in(i) && in(i)->is_ValueTypeBase(); i++) {
+      assert(in(i)->Opcode() == opcode, "mixing pointers and values?");
+    }
+    if (i == req()) {
+      ValueTypeBaseNode* vt = in(1)->as_ValueTypeBase()->clone_with_phis(phase, in(0));
+      for (uint i = 2; i < req(); ++i) {
+        vt->merge_with(phase, in(i)->as_ValueTypeBase(), i, i == (req()-1));
+      }
+      return vt;
+    }
+  }
+
+  if (type()->isa_valuetypeptr() && can_reshape) {
+    // If the Phi merges the result from a mix of constant and non
+    // constant method handles, only some of its inputs are
+    // ValueTypePtr nodes and we can't push the ValueTypePtr node down
+    // to remove the need for allocations. This if fixed by transforming:
+    //
+    // (Phi ValueTypePtr#1 Node#2) to (Phi ValueTypePtr#1 CheckCastPP#2)
+    //
+    // Then pushing the CheckCastPP up through Phis until it reaches
+    // the non constant method handle call. The type of the return
+    // value is then known from the type of the CheckCastPP. A
+    // ValueTypePtr can be created by adding projections to the call
+    // for all values being returned. See
+    // CheckCastPPNode::Ideal(). That ValueTypePtr node can then be
+    // pushed down through Phis.
+    const TypeValueTypePtr* vtptr = NULL;
+    for (uint i = 1; i < req(); i++) {
+      if (in(i) != NULL && in(i)->is_ValueTypePtr()) {
+        const TypeValueTypePtr* t = phase->type(in(i))->is_valuetypeptr();
+        if (vtptr == NULL) {
+          vtptr = t;
+        } else {
+          assert(vtptr == t, "Phi should merge identical value types");
+        }
+      } else {
+        assert(in(i) == NULL || vtptr == NULL || phase->type(in(i))->higher_equal(vtptr) || phase->type(in(i)) == Type::TOP ||
+               phase->type(in(i))->is_valuetypeptr()->value_type()->value_klass() == phase->C->env()->___Value_klass(), "bad type");
+      }
+    }
+    if (vtptr != NULL) {
+      // One input is a value type. All inputs must have the same type.
+      bool progress = false;
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      for (uint i = 1; i < req(); i++) {
+        if (in(i) != NULL && !phase->type(in(i))->higher_equal(vtptr)) {
+          // Can't transform because CheckCastPPNode::Identity can
+          // push the cast up through another Phi and cause this same
+          // transformation to run again, indefinitely
+          Node* cast = igvn->register_new_node_with_optimizer(new CheckCastPPNode(NULL, in(i), vtptr));
+          set_req(i, cast);
+          progress = true;
+        }
+      }
+      if (progress) {
+        return this;
+      }
+    }
+  }
 
   Node *top = phase->C->top();
   bool new_phi = (outcnt() == 0); // transforming new Phi
@@ -2333,6 +2395,12 @@ Node* CreateExNode::Identity(PhaseGVN* phase) {
   // We only come from CatchProj, unless the CatchProj goes away.
   // If the CatchProj is optimized away, then we just carry the
   // exception oop through.
+
+  // CheckCastPPNode::Ideal() for value types reuses the exception
+  // paths of a call to perform an allocation: we can see a Phi here.
+  if (in(1)->is_Phi()) {
+    return this;
+  }
   CallNode *call = in(1)->in(0)->as_Call();
 
   return ( in(0)->is_CatchProj() && in(0)->in(0)->in(1) == in(1) )

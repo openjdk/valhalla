@@ -67,6 +67,12 @@ class oopFactory: AllStatic {
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
 
+  // Value arrays
+  static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
+
+  // Object/Value array for klass
+  static arrayOop        new_array(Klass* klass, int length, TRAPS);
+
   // Helpers that return handles
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
   static typeArrayHandle new_byteArray_handle(int length, TRAPS);

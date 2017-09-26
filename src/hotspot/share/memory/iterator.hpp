@@ -128,6 +128,11 @@ class NoHeaderExtendedOopClosure : public ExtendedOopClosure {
                                  _wrapped_closure->do_oop(p);}
 };
 
+class BufferedValueClosure : public Closure {
+public:
+  virtual void do_buffered_value(oop* p) = 0;
+};
+
 class KlassClosure : public Closure {
  public:
   virtual void do_klass(Klass* k) = 0;

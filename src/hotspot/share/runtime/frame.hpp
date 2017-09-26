@@ -325,6 +325,10 @@ class frame VALUE_OBJ_CLASS_SPEC {
   ConstantPoolCache** interpreter_frame_cache_addr() const;
   oop* interpreter_frame_mirror_addr() const;
 
+  intptr_t* interpreter_frame_vt_alloc_ptr() const;
+  intptr_t** interpreter_frame_vt_alloc_ptr_addr() const;
+  void interpreter_frame_set_vt_alloc_ptr(intptr_t* ptr);
+
   void interpreter_frame_set_mirror(oop mirror);
 
  public:
@@ -393,6 +397,7 @@ class frame VALUE_OBJ_CLASS_SPEC {
   // Oops-do's
   void oops_compiled_arguments_do(Symbol* signature, bool has_receiver, bool has_appendix, const RegisterMap* reg_map, OopClosure* f);
   void oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool query_oop_map_cache = true);
+  void buffered_values_interpreted_do(BufferedValueClosure* f);
 
  private:
   void oops_interpreted_arguments_do(Symbol* signature, bool has_receiver, OopClosure* f);

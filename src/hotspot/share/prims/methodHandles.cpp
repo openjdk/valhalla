@@ -458,6 +458,9 @@ Symbol* MethodHandles::lookup_signature(oop type_str, bool intern_if_not_found, 
 static const char OBJ_SIG[] = "Ljava/lang/Object;";
 enum { OBJ_SIG_LEN = 18 };
 
+static const char VAL_SIG[] = "Qjava/lang/__Value;";
+enum { VAL_SIG_LEN = 19 };
+
 bool MethodHandles::is_basic_type_signature(Symbol* sig) {
   assert(vmSymbols::object_signature()->utf8_length() == (int)OBJ_SIG_LEN, "");
   assert(vmSymbols::object_signature()->equals(OBJ_SIG), "");
@@ -469,6 +472,12 @@ bool MethodHandles::is_basic_type_signature(Symbol* sig) {
       if (sig->index_of_at(i, OBJ_SIG, OBJ_SIG_LEN) != i)
         return false;
       i += OBJ_SIG_LEN-1;  //-1 because of i++ in loop
+      continue;
+    case 'Q' :
+      // only java/lang/__Value is valid here
+      if (sig->index_of_at(i, VAL_SIG, VAL_SIG_LEN) != i)
+        return false;
+      i += VAL_SIG_LEN-1;  //-1 because of i++ in loop
       continue;
     case '(': case ')': case 'V':
     case 'I': case 'J': case 'F': case 'D':
@@ -515,6 +524,8 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
                      (int)   ss.raw_length());
       } else if (bt == T_OBJECT || bt == T_ARRAY) {
         buffer.write(OBJ_SIG, OBJ_SIG_LEN);
+      } else if (bt == T_VALUETYPE) {
+        buffer.write(VAL_SIG, VAL_SIG_LEN);
       } else {
         if (is_subword_type(bt))
           bt = T_INT;

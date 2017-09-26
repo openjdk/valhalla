@@ -2164,7 +2164,7 @@ void nmethod::verify_interrupt_point(address call_site) {
   assert(pd != NULL, "PcDesc must exist");
   for (ScopeDesc* sd = new ScopeDesc(this, pd->scope_decode_offset(),
                                      pd->obj_decode_offset(), pd->should_reexecute(), pd->rethrow_exception(),
-                                     pd->return_oop());
+                                     pd->return_oop(), pd->return_vt());
        !sd->is_top(); sd = sd->sender()) {
     sd->verify();
   }
@@ -2510,7 +2510,7 @@ ScopeDesc* nmethod::scope_desc_in(address begin, address end) {
   if (p != NULL && p->real_pc(this) <= end) {
     return new ScopeDesc(this, p->scope_decode_offset(),
                          p->obj_decode_offset(), p->should_reexecute(), p->rethrow_exception(),
-                         p->return_oop());
+                         p->return_oop(), p->return_vt());
   }
   return NULL;
 }
@@ -2536,32 +2536,35 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
     }
     if (m.not_null() && !is_osr_method()) {
       ResourceMark rm;
-      int sizeargs = m->size_of_parameters();
-      BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sizeargs);
-      VMRegPair* regs   = NEW_RESOURCE_ARRAY(VMRegPair, sizeargs);
-      {
-        int sig_index = 0;
-        if (!m->is_static())
-          sig_bt[sig_index++] = T_OBJECT; // 'this'
-        for (SignatureStream ss(m->signature()); !ss.at_return_type(); ss.next()) {
-          BasicType t = ss.type();
-          sig_bt[sig_index++] = t;
-          if (type2size[t] == 2) {
-            sig_bt[sig_index++] = T_VOID;
-          } else {
-            assert(type2size[t] == 1, "size is 1 or 2");
-          }
+      int sizeargs = 0;
+      BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
+      VMRegPair* regs   = NEW_RESOURCE_ARRAY(VMRegPair, 256);
+      Symbol* sig = m->signature();
+      bool has_value_arg = false;
+      if (ValueTypePassFieldsAsArgs && m->adapter()->get_sig_extended() != NULL) {
+        // Use extended signature if value type arguments are passed as fields
+        sig = m->adapter()->get_sig_extended();
+        has_value_arg = true;
+      } else if (!m->is_static()) {
+        sig_bt[sizeargs++] = T_OBJECT; // 'this'
+      }
+      for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
+        BasicType t = ss.type();
+        sig_bt[sizeargs++] = t;
+        if (type2size[t] == 2) {
+          sig_bt[sizeargs++] = T_VOID;
+        } else {
+          assert(type2size[t] == 1, "size is 1 or 2");
         }
-        assert(sig_index == sizeargs, "");
       }
       const char* spname = "sp"; // make arch-specific?
       intptr_t out_preserve = SharedRuntime::java_calling_convention(sig_bt, regs, sizeargs, false);
       int stack_slot_offset = this->frame_size() * wordSize;
       int tab1 = 14, tab2 = 24;
       int sig_index = 0;
-      int arg_index = (m->is_static() ? 0 : -1);
+      int arg_index = ((m->is_static() || has_value_arg) ? 0 : -1);
       bool did_old_sp = false;
-      for (SignatureStream ss(m->signature()); !ss.at_return_type(); ) {
+      for (SignatureStream ss(sig); !ss.at_return_type(); ) {
         bool at_this = (arg_index == -1);
         bool at_old_sp = false;
         BasicType t = (at_this ? T_OBJECT : ss.type());
@@ -2688,7 +2691,7 @@ void nmethod::print_code_comment_on(outputStream* st, int column, u_char* begin,
           break;
         }
       }
-      st->print(" {reexecute=%d rethrow=%d return_oop=%d}", sd->should_reexecute(), sd->rethrow_exception(), sd->return_oop());
+      st->print(" {reexecute=%d rethrow=%d return_oop=%d return_vt=%d}", sd->should_reexecute(), sd->rethrow_exception(), sd->return_oop(), sd->return_vt());
     }
 
     // Print all scopes

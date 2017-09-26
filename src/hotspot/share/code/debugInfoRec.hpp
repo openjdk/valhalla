@@ -105,6 +105,7 @@ class DebugInformationRecorder: public ResourceObj {
                       bool        rethrow_exception = false,
                       bool        is_method_handle_invoke = false,
                       bool        return_oop = false,
+                      bool        return_vt  = false,
                       DebugToken* locals      = NULL,
                       DebugToken* expressions = NULL,
                       DebugToken* monitors    = NULL);

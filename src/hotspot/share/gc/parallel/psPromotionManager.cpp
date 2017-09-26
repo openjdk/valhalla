@@ -42,6 +42,7 @@
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueArrayKlass.inline.hpp"
 
 PaddedEnd<PSPromotionManager>* PSPromotionManager::_manager_array = NULL;
 OopStarTaskQueueSet*           PSPromotionManager::_stack_array_depth = NULL;
@@ -481,6 +482,14 @@ void ObjArrayKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
 void TypeArrayKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
   assert(obj->is_typeArray(),"must be a type array");
   ShouldNotReachHere();
+}
+
+void ValueArrayKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
+  assert(obj->is_valueArray(),"must be a value array");
+  if (contains_oops()) {
+    PushContentsClosure cl(pm);
+    oop_oop_iterate_elements<true>(valueArrayOop(obj), &cl);
+  }
 }
 
 oop PSPromotionManager::oop_promotion_failed(oop obj, markOop obj_mark) {

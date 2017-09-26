@@ -42,6 +42,7 @@
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/runtime.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -55,7 +56,16 @@ void Parse::array_load(BasicType elem_type) {
   const Type* elem = Type::TOP;
   Node* adr = array_addressing(elem_type, 0, &elem);
   if (stopped())  return;     // guaranteed null or range check
-  dec_sp(2);                  // Pop array and index
+  Node* idx   = pop();   // Get from stack without popping
+  Node* ary   = pop();   // in case of exception
+  //dec_sp(2);                  // Pop array and index
+  const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
+  if (arytype->klass()->is_value_array_klass()) {
+    ciValueArrayKlass* vak = arytype->klass()->as_value_array_klass();
+    Node* vt = ValueTypeNode::make(gvn(), vak->element_klass()->as_value_klass(), map()->memory(), ary, adr);
+    push(vt);
+    return;
+  }
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
   Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
   push(ld);
@@ -1517,6 +1527,7 @@ void Parse::do_one_bytecode() {
     push( local(3) );
     break;
   case Bytecodes::_aload:
+  case Bytecodes::_vload:
     push( local(iter().get_index()) );
     break;
 
@@ -1594,6 +1605,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_fstore:
   case Bytecodes::_istore:
   case Bytecodes::_astore:
+  case Bytecodes::_vstore:
     set_local( iter().get_index(), pop() );
     break;
   // long stores
@@ -1712,6 +1724,7 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_iaload: array_load(T_INT);    break;
   case Bytecodes::_saload: array_load(T_SHORT);  break;
   case Bytecodes::_faload: array_load(T_FLOAT);  break;
+  case Bytecodes::_vaload: array_load(T_VALUETYPE); break;
   case Bytecodes::_aaload: array_load(T_OBJECT); break;
   case Bytecodes::_laload: {
     a = array_addressing(T_LONG, 0);
@@ -1732,6 +1745,27 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_iastore: array_store(T_INT);   break;
   case Bytecodes::_sastore: array_store(T_SHORT); break;
   case Bytecodes::_fastore: array_store(T_FLOAT); break;
+  case Bytecodes::_vastore: {
+    d = array_addressing(T_OBJECT, 1);
+    if (stopped())  return;     // guaranteed null or range check
+    array_store_check(true);
+    c = pop();                  // Oop to store
+    b = pop();                  // index (already used)
+    a = pop();                  // the array itself
+    const TypeAryPtr* arytype = _gvn.type(a)->is_aryptr();
+    const Type* elemtype = arytype->elem();
+
+    if (elemtype->isa_valuetype()) {
+      c->as_ValueType()->store_flattened(this, a, d);
+      break;
+    }
+
+    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
+    Node* oop = c->as_ValueType()->allocate(this);
+    Node* store = store_oop_to_array(control(), a, d, adr_type, oop, elemtype->make_oopptr(), T_OBJECT,
+                                     StoreNode::release_if_reference(T_OBJECT));
+    break;
+  }
   case Bytecodes::_aastore: {
     d = array_addressing(T_OBJECT, 1);
     if (stopped())  return;     // guaranteed null or range check
@@ -1762,6 +1796,7 @@ void Parse::do_one_bytecode() {
     store_to_memory(control(), a, c, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered);
     break;
   }
+
   case Bytecodes::_getfield:
     do_getfield();
     break;
@@ -2215,6 +2250,7 @@ void Parse::do_one_bytecode() {
 
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
+  case Bytecodes::_vreturn:
   case Bytecodes::_freturn:
     return_current(pop());
     break;
@@ -2358,7 +2394,7 @@ void Parse::do_one_bytecode() {
     do_instanceof();
     break;
   case Bytecodes::_anewarray:
-    do_anewarray();
+    do_newarray();
     break;
   case Bytecodes::_newarray:
     do_newarray((BasicType)iter().get_index());
@@ -2368,6 +2404,12 @@ void Parse::do_one_bytecode() {
     break;
   case Bytecodes::_new:
     do_new();
+    break;
+  case Bytecodes::_vdefault:
+    do_vdefault();
+    break;
+  case Bytecodes::_vwithfield:
+    do_vwithfield();
     break;
 
   case Bytecodes::_jsr:
@@ -2386,6 +2428,14 @@ void Parse::do_one_bytecode() {
 
   case Bytecodes::_monitorexit:
     do_monitor_exit();
+    break;
+
+  case Bytecodes::_vunbox:
+    do_vunbox();
+    break;
+
+  case Bytecodes::_vbox:
+    do_vbox();
     break;
 
   case Bytecodes::_breakpoint:

@@ -44,6 +44,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/objArrayOop.inline.hpp"
 #include "prims/wbtestmethods/parserTests.hpp"
 #include "prims/whitebox.hpp"
 #include "runtime/arguments.hpp"
@@ -1612,6 +1613,100 @@ WB_ENTRY(jint, WB_ConstantPoolEncodeIndyIndex(JNIEnv* env, jobject wb, jint inde
   return ConstantPool::encode_invokedynamic_index(index);
 WB_END
 
+WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, jobject thing))
+  oop aoop = JNIHandles::resolve(thing);
+  if (!aoop->is_instance()) {
+    return NULL;
+  }
+  instanceHandle ih(THREAD, (instanceOop) aoop);
+  InstanceKlass* klass = InstanceKlass::cast(aoop->klass());
+  if (klass->nonstatic_oop_map_count() == 0) {
+    return NULL;
+  }
+  const OopMapBlock* map = klass->start_of_nonstatic_oop_maps();
+  const OopMapBlock* const end = map + klass->nonstatic_oop_map_count();
+  int oop_count = 0;
+  while (map < end) {
+    oop_count += map->count();
+    map++;
+  }
+
+  objArrayOop result_array =
+      oopFactory::new_objArray(SystemDictionary::Object_klass(), oop_count, CHECK_NULL);
+  map = klass->start_of_nonstatic_oop_maps();
+  instanceOop ioop = ih();
+  int index = 0;
+  while (map < end) {
+    int offset = map->offset();
+    for (unsigned int j = 0; j < map->count(); j++) {
+      result_array->obj_at_put(index++, ioop->obj_field(offset));
+      offset += heapOopSize;
+    }
+    map++;
+  }
+  return (jobjectArray)JNIHandles::make_local(env, result_array);
+WB_END
+
+class CollectOops : public OopClosure {
+ public:
+  GrowableArray<Handle>* array;
+
+  objArrayOop create_results(TRAPS) {
+    objArrayOop result_array =
+        oopFactory::new_objArray(SystemDictionary::Object_klass(), array->length(), CHECK_NULL);
+    for (int i = 0 ; i < array->length(); i++) {
+      result_array->obj_at_put(i, array->at(i)());
+    }
+    return result_array;
+  }
+
+  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
+    return (jobjectArray)JNIHandles::make_local(env, create_results(THREAD));
+  }
+
+  void add_oop(oop o) {
+    // Value might be oop, but JLS can't see as Object, just iterate through it...
+    if (o != NULL && o->is_value()) {
+      NoHeaderExtendedOopClosure wrapClosure(this);
+      o->oop_iterate(&wrapClosure);
+    } else {
+      array->append(Handle(Thread::current(), o));
+    }
+  }
+
+  void do_oop(oop* o) { add_oop(*o); }
+  void do_oop(narrowOop* v) { add_oop(oopDesc::load_decode_heap_oop(v)); }
+};
+
+
+WB_ENTRY(jobjectArray, WB_getObjectsViaOopIterator(JNIEnv* env, jobject wb, jobject thing))
+  ResourceMark rm(THREAD);
+  GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
+  CollectOops collectOops;
+  collectOops.array = array;
+
+  NoHeaderExtendedOopClosure wrapClosure(&collectOops);
+  JNIHandles::resolve(thing)->oop_iterate(&wrapClosure);
+
+  return collectOops.create_jni_result(env, THREAD);
+WB_END
+
+WB_ENTRY(jobjectArray, WB_getObjectsViaFrameOopIterator(JNIEnv* env, jobject wb, jint depth))
+  ResourceMark rm(THREAD);
+  GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
+  CollectOops collectOops;
+  collectOops.array = array;
+  StackFrameStream sfs(thread);
+  while (depth > 0) { // Skip the native WB API frame
+    sfs.next();
+    frame* f = sfs.current();
+    f->oops_do(&collectOops, NULL, sfs.register_map());
+    depth--;
+  }
+  return collectOops.create_jni_result(env, THREAD);
+WB_END
+
+
 WB_ENTRY(void, WB_ClearInlineCaches(JNIEnv* env, jobject wb, jboolean preserve_static_stubs))
   VM_ClearICs clear_ics(preserve_static_stubs == JNI_TRUE);
   VMThread::execute(&clear_ics);
@@ -1995,6 +2090,12 @@ static JNINativeMethod methods[] = {
       CC"(Ljava/lang/Class;I)I",                      (void*)&WB_ConstantPoolRemapInstructionOperandFromCache},
   {CC"encodeConstantPoolIndyIndex0",
       CC"(I)I",                      (void*)&WB_ConstantPoolEncodeIndyIndex},
+  {CC"getObjectsViaKlassOopMaps0",
+      CC"(Ljava/lang/Object;)[Ljava/lang/Object;",    (void*)&WB_getObjectsViaKlassOopMaps},
+  {CC"getObjectsViaOopIterator0",
+          CC"(Ljava/lang/Object;)[Ljava/lang/Object;",(void*)&WB_getObjectsViaOopIterator},
+  {CC"getObjectsViaFrameOopIterator",
+      CC"(I)[Ljava/lang/Object;",                     (void*)&WB_getObjectsViaFrameOopIterator},
   {CC"getMethodBooleanOption",
       CC"(Ljava/lang/reflect/Executable;Ljava/lang/String;)Ljava/lang/Boolean;",
                                                       (void*)&WB_GetMethodBooleaneOption},

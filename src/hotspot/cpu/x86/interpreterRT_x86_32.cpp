@@ -56,6 +56,10 @@ void InterpreterRuntime::SignatureHandlerGenerator::pass_object() {
   box (offset(), jni_offset() + 1);
 }
 
+void InterpreterRuntime::SignatureHandlerGenerator::pass_valuetype() {
+  box (offset(), jni_offset() + 1);
+}
+
 void InterpreterRuntime::SignatureHandlerGenerator::move(int from_offset, int to_offset) {
   __ movl(temp(), Address(from(), Interpreter::local_offset_in_bytes(from_offset)));
   __ movl(Address(to(), to_offset * wordSize), temp());
@@ -117,6 +121,13 @@ class SlowSignatureHandler: public NativeSignatureIterator {
   }
 
   virtual void pass_object() {
+    // pass address of from
+    intptr_t from_addr = (intptr_t)(_from + Interpreter::local_offset_in_bytes(0));
+    *_to++ = (*(intptr_t*)from_addr == 0) ? NULL_WORD : from_addr;
+    _from -= Interpreter::stackElementSize;
+   }
+
+  virtual void pass_valuetype() {
     // pass address of from
     intptr_t from_addr = (intptr_t)(_from + Interpreter::local_offset_in_bytes(0));
     *_to++ = (*(intptr_t*)from_addr == 0) ? NULL_WORD : from_addr;

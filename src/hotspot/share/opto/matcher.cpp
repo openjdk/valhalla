@@ -169,6 +169,52 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
 }
 #endif
 
+// Array of RegMask, one per returned values (value type instances can
+// be returned as multiple return values, one per field)
+RegMask* Matcher::return_values_mask(const TypeTuple *range) {
+  uint cnt = range->cnt() - TypeFunc::Parms;
+  if (cnt == 0) {
+    return NULL;
+  }
+  RegMask* mask = NEW_RESOURCE_ARRAY(RegMask, cnt);
+
+  if (!ValueTypeReturnedAsFields) {
+    // Get ideal-register return type
+    uint ireg = range->field_at(TypeFunc::Parms)->ideal_reg();
+    // Get machine return register
+    OptoRegPair regs = return_value(ireg, false);
+
+    // And mask for same
+    mask[0].Clear();
+    mask[0].Insert(regs.first());
+    if (OptoReg::is_valid(regs.second())) {
+      mask[0].Insert(regs.second());
+    }
+  } else {
+    BasicType *sig_bt = NEW_RESOURCE_ARRAY(BasicType, cnt);
+    VMRegPair *vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
+
+    for (uint i = 0; i < cnt; i++) {
+      sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();
+    }
+
+    int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
+    assert(regs > 0, "should have been tested during graph construction");
+    for (uint i = 0; i < cnt; i++) {
+      mask[i].Clear();
+
+      OptoReg::Name reg1 = OptoReg::as_OptoReg(vm_parm_regs[i].first());
+      if (OptoReg::is_valid(reg1)) {
+        mask[i].Insert(reg1);
+      }
+      OptoReg::Name reg2 = OptoReg::as_OptoReg(vm_parm_regs[i].second());
+      if (OptoReg::is_valid(reg2)) {
+        mask[i].Insert(reg2);
+      }
+    }
+  }
+  return mask;
+}
 
 //---------------------------match---------------------------------------------
 void Matcher::match( ) {
@@ -184,21 +230,10 @@ void Matcher::match( ) {
   _return_addr_mask.Insert(OptoReg::add(return_addr(),1));
 #endif
 
-  // Map a Java-signature return type into return register-value
-  // machine registers for 0, 1 and 2 returned values.
-  const TypeTuple *range = C->tf()->range();
-  if( range->cnt() > TypeFunc::Parms ) { // If not a void function
-    // Get ideal-register return type
-    uint ireg = range->field_at(TypeFunc::Parms)->ideal_reg();
-    // Get machine return register
-    uint sop = C->start()->Opcode();
-    OptoRegPair regs = return_value(ireg, false);
-
-    // And mask for same
-    _return_value_mask = RegMask(regs.first());
-    if( OptoReg::is_valid(regs.second()) )
-      _return_value_mask.Insert(regs.second());
-  }
+  // Map Java-signature return types into return register-value
+  // machine registers.
+  const TypeTuple *range = C->tf()->range_cc();
+  _return_values_mask = return_values_mask(range);
 
   // ---------------
   // Frame Layout
@@ -206,7 +241,7 @@ void Matcher::match( ) {
   // Need the method signature to determine the incoming argument types,
   // because the types determine which registers the incoming arguments are
   // in, and this affects the matched code.
-  const TypeTuple *domain = C->tf()->domain();
+  const TypeTuple *domain = C->tf()->domain_cc();
   uint             argcnt = domain->cnt() - TypeFunc::Parms;
   BasicType *sig_bt        = NEW_RESOURCE_ARRAY( BasicType, argcnt );
   VMRegPair *vm_parm_regs  = NEW_RESOURCE_ARRAY( VMRegPair, argcnt );
@@ -652,12 +687,11 @@ void Matcher::Fixup_Save_On_Entry( ) {
   // Input RegMask array shared by all Returns.
   // The type for doubles and longs has a count of 2, but
   // there is only 1 returned value
-  uint ret_edge_cnt = TypeFunc::Parms + ((C->tf()->range()->cnt() == TypeFunc::Parms) ? 0 : 1);
+  uint ret_edge_cnt = C->tf()->range_cc()->cnt();
   RegMask *ret_rms  = init_input_masks( ret_edge_cnt + soe_cnt, _return_addr_mask, c_frame_ptr_mask );
-  // Returns have 0 or 1 returned values depending on call signature.
-  // Return register is specified by return_value in the AD file.
-  if (ret_edge_cnt > TypeFunc::Parms)
-    ret_rms[TypeFunc::Parms+0] = _return_value_mask;
+  for (i = TypeFunc::Parms; i < ret_edge_cnt; i++) {
+    ret_rms[i] = _return_values_mask[i-TypeFunc::Parms];
+  }
 
   // Input RegMask array shared by all Rethrows.
   uint reth_edge_cnt = TypeFunc::Parms+1;
@@ -724,7 +758,7 @@ void Matcher::Fixup_Save_On_Entry( ) {
   }
 
   // Next unused projection number from Start.
-  int proj_cnt = C->tf()->domain()->cnt();
+  int proj_cnt = C->tf()->domain_cc()->cnt();
 
   // Do all the save-on-entry registers.  Make projections from Start for
   // them, and give them a use at the exit points.  To the allocator, they
@@ -1002,7 +1036,11 @@ Node *Matcher::xform( Node *n, int max_stack ) {
           } else {                  // Nothing the matcher cares about
             if (n->is_Proj() && n->in(0) != NULL && n->in(0)->is_Multi()) {       // Projections?
               // Convert to machine-dependent projection
-              m = n->in(0)->as_Multi()->match( n->as_Proj(), this );
+              RegMask* mask = NULL;
+              if (n->in(0)->is_Call()) {
+                mask = return_values_mask(n->in(0)->as_Call()->tf()->range_cc());
+              }
+              m = n->in(0)->as_Multi()->match(n->as_Proj(), this, mask);
 #ifdef ASSERT
               _new2old_map.map(m->_idx, n);
 #endif
@@ -1147,7 +1185,7 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
   bool             is_method_handle_invoke = false;  // for special kill effects
   if( sfpt->is_Call() ) {
     call = sfpt->as_Call();
-    domain = call->tf()->domain();
+    domain = call->tf()->domain_cc();
     cnt = domain->cnt();
 
     // Match just the call, nothing else
@@ -1221,13 +1259,16 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
 
 
   // Do the normal argument list (parameters) register masks
-  int argcnt = cnt - TypeFunc::Parms;
+  // Null entry point is a special cast where the target of the call
+  // is in a register.
+  int adj = (call != NULL && call->entry_point() == NULL) ? 1 : 0;
+  int argcnt = cnt - TypeFunc::Parms - adj;
   if( argcnt > 0 ) {          // Skip it all if we have no args
     BasicType *sig_bt  = NEW_RESOURCE_ARRAY( BasicType, argcnt );
     VMRegPair *parm_regs = NEW_RESOURCE_ARRAY( VMRegPair, argcnt );
     int i;
     for( i = 0; i < argcnt; i++ ) {
-      sig_bt[i] = domain->field_at(i+TypeFunc::Parms)->basic_type();
+      sig_bt[i] = domain->field_at(i+TypeFunc::Parms+adj)->basic_type();
     }
     // V-call to pick proper calling convention
     call->calling_convention( sig_bt, parm_regs, argcnt );
@@ -1268,19 +1309,21 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
     // and over the entire method.
     for( i = 0; i < argcnt; i++ ) {
       // Address of incoming argument mask to fill in
-      RegMask *rm = &mcall->_in_rms[i+TypeFunc::Parms];
+      RegMask *rm = &mcall->_in_rms[i+TypeFunc::Parms+adj];
       if( !parm_regs[i].first()->is_valid() &&
           !parm_regs[i].second()->is_valid() ) {
         continue;               // Avoid Halves
       }
       // Grab first register, adjust stack slots and insert in mask.
       OptoReg::Name reg1 = warp_outgoing_stk_arg(parm_regs[i].first(), begin_out_arg_area, out_arg_limit_per_call );
-      if (OptoReg::is_valid(reg1))
+      if (OptoReg::is_valid(reg1)) {
         rm->Insert( reg1 );
+      }
       // Grab second register (if any), adjust stack slots and insert in mask.
       OptoReg::Name reg2 = warp_outgoing_stk_arg(parm_regs[i].second(), begin_out_arg_area, out_arg_limit_per_call );
-      if (OptoReg::is_valid(reg2))
+      if (OptoReg::is_valid(reg2)) {
         rm->Insert( reg2 );
+      }
     } // End of for all arguments
 
     // Compute number of stack slots needed to restore stack in case of
@@ -1300,7 +1343,7 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
     // Since the max-per-method covers the max-per-call-site and debug info
     // is excluded on the max-per-method basis, debug info cannot land in
     // this killed area.
-    uint r_cnt = mcall->tf()->range()->cnt();
+    uint r_cnt = mcall->tf()->range_sig()->cnt();
     MachProjNode *proj = new MachProjNode( mcall, r_cnt+10000, RegMask::Empty, MachProjNode::fat_proj );
     if (!RegMask::can_represent_arg(OptoReg::Name(out_arg_limit_per_call-1))) {
       C->record_method_not_compilable("unsupported outgoing calling sequence");
@@ -1321,7 +1364,7 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
 
   // Debug inputs begin just after the last incoming parameter
   assert((mcall == NULL) || (mcall->jvms() == NULL) ||
-         (mcall->jvms()->debug_start() + mcall->_jvmadj == mcall->tf()->domain()->cnt()), "");
+         (mcall->jvms()->debug_start() + mcall->_jvmadj == mcall->tf()->domain_cc()->cnt()), "");
 
   // Move the OopMap
   msfpt->_oop_map = sfpt->_oop_map;

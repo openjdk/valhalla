@@ -39,6 +39,9 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
+#include "oops/valueArrayKlass.hpp"
+#include "oops/valueArrayOop.hpp"
+#include "oops/valueKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvm.h"
 #include "prims/jvmtiThreadState.hpp"
@@ -211,26 +214,47 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
       // is set during method compilation (see Compile::Process_OopMap_Node()).
       // If the previous frame was popped or if we are dispatching an exception,
       // we don't have an oop result.
-      bool save_oop_result = chunk->at(0)->scope()->return_oop() && !thread->popframe_forcing_deopt_reexecution() && (exec_mode == Unpack_deopt);
-      Handle return_value;
+      ScopeDesc* scope = chunk->at(0)->scope();
+      bool save_oop_result = scope->return_oop() && !thread->popframe_forcing_deopt_reexecution() && (exec_mode == Unpack_deopt);
+      // In case of the return of multiple values, we must take care
+      // of all oop return values.
+      GrowableArray<Handle> return_oops;
+      ValueKlass* vk = NULL;
+      if (save_oop_result) {
+        if (scope->return_vt()) {
+          vk = ValueKlass::returned_value_type(map);
+          if (vk != NULL) {
+            bool success = vk->save_oop_results(map, return_oops);
+            assert(success, "found klass ptr being returned: saving oops can't fail");
+            save_oop_result = false;
+          } else {
+            vk = NULL;
+          }
+        }
+      }
       if (save_oop_result) {
         // Reallocation may trigger GC. If deoptimization happened on return from
         // call which returns oop we need to save it since it is not in oopmap.
         oop result = deoptee.saved_oop_result(&map);
         assert(oopDesc::is_oop_or_null(result), "must be oop");
-        return_value = Handle(thread, result);
+        return_oops.push(Handle(thread, result));
         assert(Universe::heap()->is_in_or_null(result), "must be heap pointer");
         if (TraceDeoptimization) {
           ttyLocker ttyl;
           tty->print_cr("SAVED OOP RESULT " INTPTR_FORMAT " in thread " INTPTR_FORMAT, p2i(result), p2i(thread));
         }
       }
-      if (objects != NULL) {
-        JRT_BLOCK
-          realloc_failures = realloc_objects(thread, &deoptee, objects, THREAD);
-        JRT_END
+      if (objects != NULL || vk != NULL) {
         bool skip_internal = (cm != NULL) && !cm->is_compiled_by_jvmci();
-        reassign_fields(&deoptee, &map, objects, realloc_failures, skip_internal);
+        JRT_BLOCK
+          if (vk != NULL) {
+            realloc_failures = realloc_value_type_result(vk, map, return_oops, THREAD);
+          }
+          if (objects != NULL) {
+            realloc_failures = realloc_failures || realloc_objects(thread, &deoptee, objects, THREAD);
+            reassign_fields(&deoptee, &map, objects, realloc_failures, skip_internal, THREAD);
+          }
+        JRT_END
 #ifndef PRODUCT
         if (TraceDeoptimization) {
           ttyLocker ttyl;
@@ -239,9 +263,10 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
         }
 #endif
       }
-      if (save_oop_result) {
+      if (save_oop_result || vk != NULL) {
         // Restore result.
-        deoptee.set_saved_oop_result(&map, return_value());
+        assert(return_oops.length() == 1, "no value type");
+        deoptee.set_saved_oop_result(&map, return_oops.pop()());
       }
 #ifndef INCLUDE_JVMCI
     }
@@ -817,6 +842,10 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, GrowableArra
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       obj = ik->allocate_instance(THREAD);
+    } else if (k->is_valueArray_klass()) {
+      ValueArrayKlass* ak = ValueArrayKlass::cast(k);
+      // Value type array must be zeroed because not all memory is reassigned
+      obj = ak->allocate(sv->field_size(), true, THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");
@@ -844,6 +873,21 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, GrowableArra
   }
 
   return failures;
+}
+
+// We're deoptimizing at the return of a call, value type fields are
+// in registers. When we go back to the interpreter, it will expect a
+// reference to a value type instance. Allocate and initialize it from
+// the register values here.
+bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
+  oop new_vt = vk->realloc_result(map, return_oops, false, THREAD);
+  if (new_vt == NULL) {
+    CLEAR_PENDING_EXCEPTION;
+    THROW_OOP_(Universe::out_of_memory_error_realloc_objects(), true);
+  }
+  return_oops.clear();
+  return_oops.push(Handle(THREAD, new_vt));
+  return false;
 }
 
 // restore elements of an eliminated type array
@@ -956,10 +1000,12 @@ class ReassignedField {
 public:
   int _offset;
   BasicType _type;
+  InstanceKlass* _klass;
 public:
   ReassignedField() {
     _offset = 0;
     _type = T_ILLEGAL;
+    _klass = NULL;
   }
 };
 
@@ -969,9 +1015,9 @@ int compare(ReassignedField* left, ReassignedField* right) {
 
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
-static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal) {
+static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
   if (klass->superklass() != NULL) {
-    svIndex = reassign_fields_by_klass(klass->superklass(), fr, reg_map, sv, svIndex, obj, skip_internal);
+    svIndex = reassign_fields_by_klass(klass->superklass(), fr, reg_map, sv, svIndex, obj, skip_internal, 0, CHECK_0);
   }
 
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
@@ -980,6 +1026,14 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       ReassignedField field;
       field._offset = fs.offset();
       field._type = FieldType::basic_type(fs.signature());
+      if (field._type == T_VALUETYPE) {
+        // Resolve klass of flattened value type field
+        SignatureStream ss(fs.signature(), false);
+        Klass* vk = ss.as_klass(Handle(THREAD, klass->class_loader()), Handle(THREAD, klass->protection_domain()), SignatureStream::NCDFError, THREAD);
+        guarantee(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
+        assert(vk->is_value(), "must be a ValueKlass");
+        field._klass = InstanceKlass::cast(vk);
+      }
       fields->append(field);
     }
   }
@@ -988,13 +1042,22 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     intptr_t val;
     ScopeValue* scope_field = sv->field_at(svIndex);
     StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
-    int offset = fields->at(i)._offset;
+    int offset = base_offset + fields->at(i)._offset;
     BasicType type = fields->at(i)._type;
     switch (type) {
       case T_OBJECT: case T_ARRAY:
         assert(value->type() == T_OBJECT, "Agreement.");
         obj->obj_field_put(offset, value->get_obj()());
         break;
+
+      case T_VALUETYPE: {
+        // Recursively re-assign flattened value type fields
+        InstanceKlass* vk = fields->at(i)._klass;
+        assert(vk != NULL, "must be resolved");
+        offset -= ValueKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+        svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
+        continue; // Continue because we don't need to increment svIndex
+      }
 
       // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
       case T_INT: case T_FLOAT: { // 4 bytes.
@@ -1076,8 +1139,22 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   return svIndex;
 }
 
+// restore fields of an eliminated value type array
+void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS) {
+  ValueKlass* vk = vak->element_klass();
+  assert(vk->flatten_array(), "should only be used for flattened value type arrays");
+  // Adjust offset to omit oop header
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_VALUETYPE) - ValueKlass::cast(vk)->first_field_offset();
+  // Initialize all elements of the flattened value type array
+  for (int i = 0; i < sv->field_size(); i++) {
+    ScopeValue* val = sv->field_at(i);
+    int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
+    reassign_fields_by_klass(vk, fr, reg_map, val->as_ObjectValue(), 0, (oop)obj, false /* skip_internal */, offset, CHECK);
+  }
+}
+
 // restore fields of all eliminated objects and arrays
-void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal) {
+void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal, TRAPS) {
   for (int i = 0; i < objects->length(); i++) {
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
@@ -1092,7 +1169,10 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
 
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal);
+      reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
+    } else if (k->is_valueArray_klass()) {
+      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+      reassign_value_array_elements(fr, reg_map, sv, (valueArrayOop) obj(), vak, CHECK);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());
@@ -1452,7 +1532,8 @@ Deoptimization::get_method_data(JavaThread* thread, const methodHandle& m,
 #if defined(COMPILER2) || defined(SHARK) || INCLUDE_JVMCI
 void Deoptimization::load_class_by_index(const constantPoolHandle& constant_pool, int index, TRAPS) {
   // in case of an unresolved klass entry, load the class.
-  if (constant_pool->tag_at(index).is_unresolved_klass()) {
+  if (constant_pool->tag_at(index).is_unresolved_klass() ||
+      constant_pool->tag_at(index).is_unresolved_value_type()) {
     Klass* tk = constant_pool->klass_at_ignore_error(index, CHECK);
     return;
   }
@@ -1641,7 +1722,8 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
       bool unresolved = false;
       if (unloaded_class_index >= 0) {
         constantPoolHandle constants (THREAD, trap_method->constants());
-        if (constants->tag_at(unloaded_class_index).is_unresolved_klass()) {
+        if (constants->tag_at(unloaded_class_index).is_unresolved_klass() ||
+            constants->tag_at(unloaded_class_index).is_unresolved_value_type()) {
           class_name = constants->klass_name_at(unloaded_class_index);
           unresolved = true;
           if (xtty != NULL)

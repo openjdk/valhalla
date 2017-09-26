@@ -64,8 +64,8 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
 
   // Instruction generation
   void generate_and_dispatch (Template* t, TosState tos_out = ilgl);
-  void set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
-  void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep);
+  void set_vtos_entry_points (Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& qep, address& vep);
+  void set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& qep, address& vep);
   void set_wide_entry_point  (Template* t, address& wep);
 
   void set_entry_points(Bytecodes::Code code);

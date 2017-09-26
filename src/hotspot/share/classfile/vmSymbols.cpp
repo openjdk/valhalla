@@ -207,7 +207,11 @@ BasicType vmSymbols::signature_type(const Symbol* s) {
       return (BasicType)i;
     }
   }
-  return T_OBJECT;
+  if (s->byte_at(0) =='Q') {
+    return T_VALUETYPE;
+  } else {
+    return T_OBJECT;
+  }
 }
 
 

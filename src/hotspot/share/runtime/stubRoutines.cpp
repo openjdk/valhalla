@@ -175,6 +175,9 @@ address StubRoutines::_safefetchN_entry                  = NULL;
 address StubRoutines::_safefetchN_fault_pc               = NULL;
 address StubRoutines::_safefetchN_continuation_pc        = NULL;
 
+address StubRoutines::_load_value_type_fields_in_regs = NULL;
+address StubRoutines::_store_value_type_fields_to_buf = NULL;
+
 // Initialization
 //
 // Note: to break cycle with universe initialization, stubs are generated in two phases.

@@ -582,6 +582,7 @@ class SignatureChekker : public SignatureIterator {
   void do_long()                       { check_long(T_LONG);         }
   void do_void()                       { check_return_type(T_VOID);  }
   void do_object(int begin, int end)   { check_obj(T_OBJECT);        }
+  void do_valuetype(int begin, int end){ check_obj(T_VALUETYPE);     }
   void do_array(int begin, int end)    { check_obj(T_OBJECT);        }
 };
 

@@ -918,11 +918,13 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
                                  TRAPS) {
   assert(byte == Bytecodes::_getstatic || byte == Bytecodes::_putstatic ||
          byte == Bytecodes::_getfield  || byte == Bytecodes::_putfield  ||
+         byte == Bytecodes::_vwithfield ||
          byte == Bytecodes::_nofast_getfield  || byte == Bytecodes::_nofast_putfield  ||
          (byte == Bytecodes::_nop && !link_info.check_access()), "bad field access bytecode");
 
   bool is_static = (byte == Bytecodes::_getstatic || byte == Bytecodes::_putstatic);
-  bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic || byte == Bytecodes::_nofast_putfield);
+  bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic || byte == Bytecodes::_nofast_putfield
+                    || byte == Bytecodes::_vwithfield);
   // Check if there's a resolved klass containing the field
   Klass* resolved_klass = link_info.resolved_klass();
   Symbol* field = link_info.name();
@@ -966,6 +968,22 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
     stringStream ss;
 
     if (sel_klass != current_klass) {
+      // For Minimal Value Types check if the current class is an anonymous
+      // class whose host class is the Derived Value Type class (selected class)
+      // or the Value Capable Class (VCC)
+      if (byte == Bytecodes::_vwithfield) {
+        assert(sel_klass->is_value(), "Expected Value Type");
+        if (current_klass->is_instance_klass() && InstanceKlass::cast(current_klass)->is_anonymous()) {
+          Klass* host_klass = InstanceKlass::cast(current_klass)->host_klass(); // Is host VCC of DVT ?
+
+          if (sel_klass == host_klass  || // Is DVT
+              (host_klass->is_instance_klass() && // Is VCC
+               InstanceKlass::cast(sel_klass)->get_vcc_klass() == host_klass)) {
+            return;
+          }
+        }
+      }
+
       ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
                 is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
                 current_klass->external_name());

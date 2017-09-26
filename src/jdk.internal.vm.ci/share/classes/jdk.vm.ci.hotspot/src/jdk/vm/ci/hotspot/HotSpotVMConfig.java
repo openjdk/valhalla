@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -220,6 +220,9 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int jvmConstantClass = getConstant("JVM_CONSTANT_Class", Integer.class);
     final int jvmConstantUnresolvedClass = getConstant("JVM_CONSTANT_UnresolvedClass", Integer.class);
     final int jvmConstantUnresolvedClassInError = getConstant("JVM_CONSTANT_UnresolvedClassInError", Integer.class);
+    final int jvmConstantValue = getConstant("JVM_CONSTANT_Value", Integer.class);
+    final int jvmConstantUnresolvedValue = getConstant("JVM_CONSTANT_UnresolvedValue", Integer.class);
+    final int jvmConstantUnresolvedValueInError = getConstant("JVM_CONSTANT_UnresolvedValueInError", Integer.class);
     final int jvmConstantString = getConstant("JVM_CONSTANT_String", Integer.class);
     final int jvmConstantFieldref = getConstant("JVM_CONSTANT_Fieldref", Integer.class);
     final int jvmConstantMethodref = getConstant("JVM_CONSTANT_Methodref", Integer.class);

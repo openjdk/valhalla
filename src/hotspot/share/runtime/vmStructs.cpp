@@ -256,6 +256,7 @@ typedef RehashableHashtable<Symbol*, mtSymbol>   RehashableSymbolHashtable;
   nonstatic_field(InstanceKlass,               _static_oop_field_count,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _nonstatic_oop_map_size,                       int)                                   \
   nonstatic_field(InstanceKlass,               _is_marked_dependent,                          bool)                                  \
+  nonstatic_field(InstanceKlass,               _extra_flags,                                  u1)                                    \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u2)                                    \
   nonstatic_field(InstanceKlass,               _minor_version,                                u2)                                    \
   nonstatic_field(InstanceKlass,               _major_version,                                u2)                                    \
@@ -2327,10 +2328,14 @@ typedef RehashableHashtable<Symbol*, mtSymbol>   RehashableSymbolHashtable;
   declare_constant(JVM_CONSTANT_InternalMin)                              \
   declare_constant(JVM_CONSTANT_UnresolvedClass)                          \
   declare_constant(JVM_CONSTANT_ClassIndex)                               \
+  declare_constant(JVM_CONSTANT_ValueIndex)                               \
   declare_constant(JVM_CONSTANT_StringIndex)                              \
   declare_constant(JVM_CONSTANT_UnresolvedClassInError)                   \
   declare_constant(JVM_CONSTANT_MethodHandleInError)                      \
   declare_constant(JVM_CONSTANT_MethodTypeInError)                        \
+  declare_constant(JVM_CONSTANT_Value)                                    \
+  declare_constant(JVM_CONSTANT_UnresolvedValue)                          \
+  declare_constant(JVM_CONSTANT_UnresolvedValueInError)                   \
   declare_constant(JVM_CONSTANT_InternalMax)                              \
                                                                           \
   /*****************************/                                         \

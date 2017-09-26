@@ -2360,12 +2360,15 @@ run:
             }
 
           case JVM_CONSTANT_Class:
+          case JVM_CONSTANT_Value:
             VERIFY_OOP(constants->resolved_klass_at(index)->java_mirror());
             SET_STACK_OBJECT(constants->resolved_klass_at(index)->java_mirror(), 0);
             break;
 
           case JVM_CONSTANT_UnresolvedClass:
           case JVM_CONSTANT_UnresolvedClassInError:
+          case JVM_CONSTANT_UnresolvedValue:
+          case JVM_CONSTANT_UnresolvedValueInError:
             CALL_VM(InterpreterRuntime::ldc(THREAD, wide), handle_exception);
             SET_STACK_OBJECT(THREAD->vm_result(), 0);
             THREAD->set_vm_result(NULL);

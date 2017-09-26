@@ -90,7 +90,7 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
 
   // If the field is a pointer type, get the klass of the
   // field.
-  if (field_type == T_OBJECT || field_type == T_ARRAY) {
+  if (field_type == T_OBJECT || field_type == T_ARRAY || field_type == T_VALUETYPE) {
     bool ignore;
     // This is not really a class reference; the index always refers to the
     // field's type signature, as a symbol.  Linkage checks do not apply.
@@ -187,7 +187,7 @@ ciField::ciField(fieldDescriptor *fd) :
 
   // If the field is a pointer type, get the klass of the
   // field.
-  if (field_type == T_OBJECT || field_type == T_ARRAY) {
+  if (field_type == T_OBJECT || field_type == T_ARRAY || field_type == T_VALUETYPE) {
     _type = NULL;  // must call compute_type on first access
   } else {
     _type = ciType::make(field_type);
@@ -198,6 +198,26 @@ ciField::ciField(fieldDescriptor *fd) :
   // Either (a) it is marked shared, or else (b) we are done bootstrapping.
   assert(is_shared() || ciObjectFactory::is_initialized(),
          "bootstrap classes must not create & cache unshared fields");
+}
+
+// Special copy constructor used to flatten value type fields by
+// copying the fields of the value type to a new holder klass.
+ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) {
+  assert(field->holder()->is_valuetype(), "should only be used for value type field flattening");
+  // Set the is_final flag
+  jint final = is_final ? JVM_ACC_FINAL : ~JVM_ACC_FINAL;
+  AccessFlags flags(field->flags().as_int() & final);
+  _flags = ciFlags(flags);
+  _holder = holder;
+  _offset = offset;
+  // Copy remaining fields
+  _name = field->_name;
+  _signature = field->_signature;
+  _type = field->_type;
+  _is_constant = field->_is_constant;
+  _known_to_link_with_put = field->_known_to_link_with_put;
+  _known_to_link_with_get = field->_known_to_link_with_get;
+  _constant_value = field->_constant_value;
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -347,8 +367,8 @@ bool ciField::will_link(ciMethod* accessing_method,
                         Bytecodes::Code bc) {
   VM_ENTRY_MARK;
   assert(bc == Bytecodes::_getstatic || bc == Bytecodes::_putstatic ||
-         bc == Bytecodes::_getfield  || bc == Bytecodes::_putfield,
-         "unexpected bytecode");
+         bc == Bytecodes::_getfield  || bc == Bytecodes::_putfield  ||
+         bc == Bytecodes::_vwithfield, "unexpected bytecode");
 
   if (_offset == -1) {
     // at creation we couldn't link to our holder so we need to

@@ -841,6 +841,17 @@ void Thread::print_value_on(outputStream* st) const {
   st->print(INTPTR_FORMAT, p2i(this));   // print address
 }
 
+void JavaThread::print_vt_buffer_stats_on(outputStream* st) const {
+  st->print_cr("%s:", this->name());
+  st->print_cr("\tChunks in use       : %d", vtchunk_in_use());
+  st->print_cr("\tCached chunk        : %d", local_free_chunk() == NULL ? 0 : 1);
+  st->print_cr("\tMax chunks          : %d", vtchunk_max());
+  st->print_cr("\tReturned chunks     : %d", vtchunk_total_returned());
+  st->print_cr("\tFailed chunk allocs : %d", vtchunk_total_failed());
+  st->print_cr("\tMemory buffered     : " JLONG_FORMAT, vtchunk_total_memory_buffered());
+  st->print_cr("");
+}
+
 #ifdef ASSERT
 void Thread::print_owned_locks_on(outputStream* st) const {
   Monitor *cur = _owned_locks;
@@ -1493,6 +1504,17 @@ void JavaThread::initialize() {
   _popframe_preserved_args = NULL;
   _popframe_preserved_args_size = 0;
   _frames_to_pop_failed_realloc = 0;
+
+  // Buffered value types support
+  _vt_alloc_ptr = NULL;
+  _vt_alloc_limit = NULL;
+  _local_free_chunk = NULL;
+  // Buffered value types instrumentation support
+  _vtchunk_in_use = 0;
+  _vtchunk_max = 0;
+  _vtchunk_total_returned = 0;
+  _vtchunk_total_failed = 0;
+  _vtchunk_total_memory_buffered = 0;
 
   pd_initialize();
 }
@@ -2793,7 +2815,10 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   // Traverse instance variables at the end since the GC may be moving things
   // around using this function
   f->do_oop((oop*) &_threadObj);
-  f->do_oop((oop*) &_vm_result);
+  // if (Universe::heap()->is_in_reserved_or_null((void*)_vm_result)) {
+    if (!VTBufferChunk::check_buffered(&_vm_result)) {
+    f->do_oop((oop*) &_vm_result);
+  }
   f->do_oop((oop*) &_exception_oop);
   f->do_oop((oop*) &_pending_async_exception);
 
@@ -4861,4 +4886,10 @@ void Threads::verify() {
   }
   VMThread* thread = VMThread::vm_thread();
   if (thread != NULL) thread->verify();
+}
+
+void Threads::print_vt_buffer_stats_on(outputStream* st) {
+  ALL_JAVA_THREADS(p) {
+    p->print_vt_buffer_stats_on(st);
+  }
 }

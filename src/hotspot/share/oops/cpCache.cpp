@@ -252,11 +252,12 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
       // Otherwise, the method needs to be reresolved with caller for each
       // interface call.
       if (method->is_public()) set_bytecode_1(invoke_code);
+      invoke_code = Bytecodes::_invokevirtual;
     } else {
       assert(invoke_code == Bytecodes::_invokevirtual, "");
     }
     // set up for invokevirtual, even if linking for invokeinterface also:
-    set_bytecode_2(Bytecodes::_invokevirtual);
+    set_bytecode_2(invoke_code);
   } else {
     ShouldNotReachHere();
   }

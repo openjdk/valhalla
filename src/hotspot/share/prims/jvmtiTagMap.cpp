@@ -2892,7 +2892,7 @@ inline bool VM_HeapWalkOperation::iterate_over_class(oop java_class) {
       ConstantPool* pool = ik->constants();
       for (int i = 1; i < pool->length(); i++) {
         constantTag tag = pool->tag_at(i).value();
-        if (tag.is_string() || tag.is_klass()) {
+        if (tag.is_string() || tag.is_klass() || tag.is_value_type()) {
           oop entry;
           if (tag.is_string()) {
             entry = pool->resolved_string_at(i);

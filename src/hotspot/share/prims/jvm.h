@@ -655,6 +655,22 @@ JNIEXPORT jobject JNICALL
 JVM_AssertionStatusDirectives(JNIEnv *env, jclass unused);
 
 /*
+  * java.util.Arrays
+  */
+
+ /*
+  * Query whether access to the given array is atomic
+  */
+ JNIEXPORT jboolean JNICALL
+ JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject array);
+
+ /*
+  * Return an array whose loads and stores will always be atomic
+  */
+ JNIEXPORT jobject JNICALL
+ JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array);
+
+/*
  * java.util.concurrent.atomic.AtomicLong
  */
 JNIEXPORT jboolean JNICALL
@@ -964,6 +980,7 @@ JVM_IsSameClassPackage(JNIEnv *env, jclass class1, jclass class2);
 #define JVM_ACC_TRANSIENT     0x0080  /* not persistent */
 #define JVM_ACC_VARARGS       0x0080  /* method declared with variable number of args */
 #define JVM_ACC_NATIVE        0x0100  /* implemented in C */
+#define JVM_ACC_VALUE         0x0100  /* value type class */
 #define JVM_ACC_INTERFACE     0x0200  /* class is an interface */
 #define JVM_ACC_ABSTRACT      0x0400  /* no definition provided */
 #define JVM_ACC_STRICT        0x0800  /* strict floating point */
@@ -1042,6 +1059,7 @@ enum {
 #define JVM_SIGNATURE_BYTE              'B'
 #define JVM_SIGNATURE_CHAR              'C'
 #define JVM_SIGNATURE_CLASS             'L'
+#define JVM_SIGNATURE_VALUE_CLASS       'Q'
 #define JVM_SIGNATURE_ENDCLASS          ';'
 #define JVM_SIGNATURE_ENUM              'E'
 #define JVM_SIGNATURE_FLOAT             'F'

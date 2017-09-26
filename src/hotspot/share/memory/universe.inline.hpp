@@ -32,7 +32,7 @@
 // strongly.
 
 inline bool Universe::element_type_should_be_aligned(BasicType type) {
-  return type == T_DOUBLE || type == T_LONG;
+  return type == T_DOUBLE || type == T_LONG  || type == T_VALUETYPE;
 }
 
 // Check whether an object field (static/non-static) of the given type must be aligned 0 mod 8.

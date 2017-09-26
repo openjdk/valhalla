@@ -45,7 +45,7 @@ class arrayOopDesc : public oopDesc {
   friend class arrayOopDescTest;
 
   // Interpreter/Compiler offsets
-
+protected:
   // Header size computation.
   // The header is considered the oop part of this type plus the length.
   // Returns the aligned header_size_in_bytes.  This is not equivalent to
@@ -102,6 +102,21 @@ class arrayOopDesc : public oopDesc {
     return (int)(Universe::element_type_should_be_aligned(type)
       ? align_object_offset(typesize_in_bytes/HeapWordSize)
       : typesize_in_bytes/HeapWordSize);
+  }
+
+  static int32_t max_array_length(int header_size, int elembytes) {
+    const size_t max_element_words_per_size_t =
+        align_down((SIZE_MAX/HeapWordSize - header_size), MinObjAlignment);
+    const size_t max_elements_per_size_t =
+        HeapWordSize * max_element_words_per_size_t / elembytes;
+    if ((size_t)max_jint < max_elements_per_size_t) {
+      // It should be ok to return max_jint here, but parts of the code
+      // (CollectedHeap, Klass::oop_oop_iterate(), and more) uses an int for
+      // passing around the size (in words) of an object. So, we need to avoid
+      // overflowing an int when we add the header. See CRs 4718400 and 7110613.
+      return align_down(max_jint - header_size, MinObjAlignment);
+    }
+    return (int32_t)max_elements_per_size_t;
   }
 
   // Return the maximum length of an array of BasicType.  The length can passed

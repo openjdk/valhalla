@@ -272,9 +272,9 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
           tptr = base->bottom_type()->is_ptr();
         }
         // Give up if offset is not a compile-time constant.
-        if (offset == Type::OffsetBot || tptr->_offset == Type::OffsetBot)
+        if (offset == Type::OffsetBot || tptr->offset() == Type::OffsetBot)
           continue;
-        offset += tptr->_offset; // correct if base is offseted
+        offset += tptr->offset(); // correct if base is offseted
         // Give up if reference is beyond page size.
         if (MacroAssembler::needs_explicit_null_check(offset))
           continue;
@@ -839,7 +839,7 @@ uint PhaseCFG::sched_call(Block* block, uint node_cnt, Node_List& worklist, Grow
   regs.Insert(_matcher.c_frame_pointer());
 
   // Set all registers killed and not already defined by the call.
-  uint r_cnt = mcall->tf()->range()->cnt();
+  uint r_cnt = mcall->tf()->range_cc()->cnt();
   int op = mcall->ideal_Opcode();
   MachProjNode *proj = new MachProjNode( mcall, r_cnt+1, RegMask::Empty, MachProjNode::fat_proj );
   map_node_to_block(proj, block);

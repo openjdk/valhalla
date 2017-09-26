@@ -29,8 +29,10 @@
 #include "opto/connode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/phaseX.hpp"
+#include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
+#include "opto/valuetypenode.hpp"
 
 //=============================================================================
 // If input is already higher or equal to cast type, then this is an identity.
@@ -283,6 +285,26 @@ void CastIINode::dump_spec(outputStream* st) const {
 //------------------------------Identity---------------------------------------
 // If input is already higher or equal to cast type, then this is an identity.
 Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
+  // This is a value type, its input is a phi. That phi is also a
+  // value type of that same type and its inputs are value types of
+  // the same type: push the cast through the phi.
+  if (phase->is_IterGVN() &&
+      in(0) == NULL &&
+      type()->isa_valuetypeptr() &&
+      in(1) != NULL &&
+      in(1)->is_Phi()) {
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    Node* phi = in(1);
+    const Type* vtptr = type();
+    for (uint i = 1; i < phi->req(); i++) {
+      if (phi->in(i) != NULL && !phase->type(phi->in(i))->higher_equal(vtptr)) {
+        Node* cast = phase->transform(new CheckCastPPNode(NULL, phi->in(i), vtptr));
+        igvn->replace_input_of(phi, i, cast);
+      }
+    }
+    return phi;
+  }
+
   Node* dom = dominating_cast(phase, phase);
   if (dom != NULL) {
     return dom;
@@ -380,6 +402,176 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
   // }
   // // Not joining two pointers
   // return join;
+}
+
+Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  // This is a value type. Its input is the return of a call: the call
+  // returns a value type and we now know its exact type: build a
+  // ValueTypePtrNode from the call.
+  if (can_reshape &&
+      in(0) == NULL &&
+      phase->C->can_add_value_type_ptr() &&
+      type()->isa_valuetypeptr() &&
+      in(1) != NULL && in(1)->is_Proj() &&
+      in(1)->in(0) != NULL && in(1)->in(0)->is_CallStaticJava() &&
+      in(1)->in(0)->as_CallStaticJava()->method() != NULL &&
+      in(1)->as_Proj()->_con == TypeFunc::Parms) {
+    ciValueKlass* vk = type()->is_valuetypeptr()->value_type()->value_klass();
+    assert(vk != phase->C->env()->___Value_klass(), "why cast to __Value?");
+    PhaseIterGVN *igvn = phase->is_IterGVN();
+
+    if (ValueTypeReturnedAsFields && vk->can_be_returned_as_fields()) {
+      igvn->set_delay_transform(true);
+      CallNode* call = in(1)->in(0)->as_Call();
+      phase->C->remove_macro_node(call);
+      // We now know the return type of the call
+      const TypeTuple *range_sig = TypeTuple::make_range(vk, false);
+      const TypeTuple *range_cc = TypeTuple::make_range(vk, true);
+      assert(range_sig != call->_tf->range_sig() && range_cc != call->_tf->range_cc(), "type should change");
+      call->_tf = TypeFunc::make(call->_tf->domain_sig(), call->_tf->domain_cc(),
+                                 range_sig, range_cc);
+      phase->set_type(call, call->Value(phase));
+      phase->set_type(in(1), in(1)->Value(phase));
+
+      CallProjections projs;
+      call->extract_projections(&projs, true, true);
+
+      Node* init_ctl = new Node(1);
+      Node* init_mem = new Node(1);
+      Node* init_io = new Node(1);
+      Node* init_ex_ctl = new Node(1);
+      Node* init_ex_mem = new Node(1);
+      Node* init_ex_io = new Node(1);
+      Node* res = new Node(1);
+
+      Node* ctl = init_ctl;
+      Node* mem = init_mem;
+      Node* io = init_io;
+      Node* ex_ctl = init_ex_ctl;
+      Node* ex_mem = init_ex_mem;
+      Node* ex_io = init_ex_io;
+
+      // Either we get a buffered value pointer and we can case use it
+      // or we get a tagged klass pointer and we need to allocate a
+      // value.
+      Node* cast = phase->transform(new CastP2XNode(ctl, res));
+      Node* masked = phase->transform(new AndXNode(cast, phase->MakeConX(0x1)));
+      Node* cmp = phase->transform(new CmpXNode(masked, phase->MakeConX(0x1)));
+      Node* bol = phase->transform(new BoolNode(cmp, BoolTest::eq));
+      IfNode* iff = phase->transform(new IfNode(ctl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
+      Node* iftrue = phase->transform(new IfTrueNode(iff));
+      Node* iffalse = phase->transform(new IfFalseNode(iff));
+
+      ctl = iftrue;
+
+      Node* ex_r = new RegionNode(3);
+      Node* ex_mem_phi = new PhiNode(ex_r, Type::MEMORY, TypePtr::BOTTOM);
+      Node* ex_io_phi = new PhiNode(ex_r, Type::ABIO);
+
+      ex_r->init_req(2, ex_ctl);
+      ex_mem_phi->init_req(2, ex_mem);
+      ex_io_phi->init_req(2, ex_io);
+
+      // We need an oop pointer in case allocation elimination
+      // fails. Allocate a new instance here.
+      Node* javaoop = ValueTypeBaseNode::allocate(type(), ctl, mem, io,
+                                                  call->in(TypeFunc::FramePtr),
+                                                  ex_ctl, ex_mem, ex_io,
+                                                  call->jvms(), igvn);
+
+
+
+      ex_r->init_req(1, ex_ctl);
+      ex_mem_phi->init_req(1, ex_mem);
+      ex_io_phi->init_req(1, ex_io);
+
+      ex_r = igvn->transform(ex_r);
+      ex_mem_phi = igvn->transform(ex_mem_phi);
+      ex_io_phi = igvn->transform(ex_io_phi);
+
+      // Create the ValueTypePtrNode. This will add extra projections
+      // to the call.
+      ValueTypePtrNode* vtptr = ValueTypePtrNode::make(igvn, this);
+      // Newly allocated value type must be initialized
+      vtptr->store(igvn, ctl, mem->as_MergeMem(), javaoop);
+      vtptr->set_oop(javaoop);
+
+      Node* r = new RegionNode(3);
+      Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
+      Node* io_phi = new PhiNode(r, Type::ABIO);
+      Node* res_phi = new PhiNode(r, type());
+
+      r->init_req(1, ctl);
+      mem_phi->init_req(1, mem);
+      io_phi->init_req(1, io);
+      res_phi->init_req(1, igvn->transform(vtptr));
+
+      ctl = iffalse;
+      mem = init_mem;
+      io = init_io;
+
+      Node* castnotnull = new CastPPNode(res, TypePtr::NOTNULL);
+      castnotnull->set_req(0, ctl);
+      castnotnull = phase->transform(castnotnull);
+      Node* ccast = clone();
+      ccast->set_req(0, ctl);
+      ccast->set_req(1, castnotnull);
+      ccast = phase->transform(ccast);
+
+      vtptr = ValueTypePtrNode::make(*phase, mem, ccast);
+
+      r->init_req(2, ctl);
+      mem_phi->init_req(2, mem);
+      io_phi->init_req(2, io);
+      res_phi->init_req(2, igvn->transform(vtptr));
+
+      r = igvn->transform(r);
+      mem_phi = igvn->transform(mem_phi);
+      io_phi = igvn->transform(io_phi);
+      res_phi = igvn->transform(res_phi);
+
+      igvn->replace_in_uses(projs.fallthrough_catchproj, r);
+      igvn->replace_in_uses(projs.fallthrough_memproj, mem_phi);
+      igvn->replace_in_uses(projs.fallthrough_ioproj, io_phi);
+      igvn->replace_in_uses(projs.resproj, res_phi);
+      igvn->replace_in_uses(projs.catchall_catchproj, ex_r);
+      igvn->replace_in_uses(projs.catchall_memproj, ex_mem_phi);
+      igvn->replace_in_uses(projs.catchall_ioproj, ex_io_phi);
+
+      igvn->set_delay_transform(false);
+
+      igvn->replace_node(init_ctl, projs.fallthrough_catchproj);
+      igvn->replace_node(init_mem, projs.fallthrough_memproj);
+      igvn->replace_node(init_io, projs.fallthrough_ioproj);
+      igvn->replace_node(res, projs.resproj);
+      igvn->replace_node(init_ex_ctl, projs.catchall_catchproj);
+      igvn->replace_node(init_ex_mem, projs.catchall_memproj);
+      igvn->replace_node(init_ex_io, projs.catchall_ioproj);
+
+      return this;
+    } else {
+      CallNode* call = in(1)->in(0)->as_Call();
+      // We now know the return type of the call
+      const TypeTuple *range = TypeTuple::make_range(vk, false);
+      if (range != call->_tf->range_sig()) {
+        // Build the ValueTypePtrNode by loading the fields. Use call
+        // return as oop edge in the ValueTypePtrNode.
+        call->_tf = TypeFunc::make(call->_tf->domain_sig(), call->_tf->domain_cc(),
+                                   range, range);
+        phase->set_type(call, call->Value(phase));
+        phase->set_type(in(1), in(1)->Value(phase));
+        uint last = phase->C->unique();
+        CallNode* call = in(1)->in(0)->as_Call();
+        CallProjections projs;
+        call->extract_projections(&projs, true, true);
+        Node* mem = projs.fallthrough_memproj;
+        Node* vtptr = ValueTypePtrNode::make(*phase, mem, in(1));
+
+        return vtptr;
+      }
+    }
+  }
+  return NULL;
 }
 
 //=============================================================================

@@ -514,6 +514,8 @@ public:
     subsume_node(old, nn);
   }
 
+  void replace_in_uses(Node* n, Node* m);
+
   // Delayed node rehash: remove a node from the hash table and rehash it during
   // next optimizing pass
   void rehash_node_delayed(Node* n) {

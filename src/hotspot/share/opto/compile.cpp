@@ -65,6 +65,7 @@
 #include "opto/runtime.hpp"
 #include "opto/stringopts.hpp"
 #include "opto/type.hpp"
+#include "opto/valuetypenode.hpp"
 #include "opto/vectornode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -402,6 +403,12 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
     Node* n = C->expensive_node(i);
     if (!useful.member(n)) {
       remove_expensive_node(n);
+    }
+  }
+  for (int i = value_type_ptr_count() - 1; i >= 0; i--) {
+    ValueTypePtrNode* vtptr = value_type_ptr(i);
+    if (!useful.member(vtptr)) {
+      remove_value_type_ptr(vtptr);
     }
   }
   // clean up the late inline lists
@@ -759,7 +766,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
     } else {
       // Normal case.
       init_tf(TypeFunc::make(method()));
-      StartNode* s = new StartNode(root(), tf()->domain());
+      StartNode* s = new StartNode(root(), tf()->domain_cc());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
       if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && UseG1GC) {
@@ -1178,6 +1185,7 @@ void Compile::Init(int aliaslevel) {
   _predicate_opaqs = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+  _value_type_ptr_nodes = new(comp_arena()) GrowableArray<ValueTypePtrNode*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 }
 
@@ -1419,16 +1427,18 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     if ( offset != Type::OffsetBot &&
          offset > arrayOopDesc::length_offset_in_bytes() ) {
       offset = Type::OffsetBot; // Flatten constant access into array body only
-      tj = ta = TypeAryPtr::make(ptr, ta->ary(), ta->klass(), true, offset, ta->instance_id());
+      tj = ta = TypeAryPtr::make(ptr, ta->ary(), ta->klass(), true, Type::Offset(offset), ta->field_offset(), ta->instance_id());
     }
   } else if( ta && _AliasLevel >= 2 ) {
     // For arrays indexed by constant indices, we flatten the alias
     // space to include all of the array body.  Only the header, klass
     // and array length can be accessed un-aliased.
+    // For flattened value type array, each field has its own slice so
+    // we must include the field offset.
     if( offset != Type::OffsetBot ) {
       if( ta->const_oop() ) { // MethodData* or Method*
         offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),ta->ary(),ta->klass(),false,offset);
+        tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),ta->ary(),ta->klass(),false,Type::Offset(offset), ta->field_offset());
       } else if( offset == arrayOopDesc::length_offset_in_bytes() ) {
         // range is OK as-is.
         tj = ta = TypeAryPtr::RANGE;
@@ -1442,35 +1452,35 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         ptr = TypePtr::BotPTR;
       } else {                  // Random constant offset into array body
         offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,offset);
+        tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,Type::Offset(offset), ta->field_offset());
       }
     }
     // Arrays of fixed size alias with arrays of unknown size.
     if (ta->size() != TypeInt::POS) {
       const TypeAry *tary = TypeAry::make(ta->elem(), TypeInt::POS);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,ta->klass(),false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,ta->klass(),false,Type::Offset(offset), ta->field_offset());
     }
     // Arrays of known objects become arrays of unknown objects.
     if (ta->elem()->isa_narrowoop() && ta->elem() != TypeNarrowOop::BOTTOM) {
       const TypeAry *tary = TypeAry::make(TypeNarrowOop::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     if (ta->elem()->isa_oopptr() && ta->elem() != TypeInstPtr::BOTTOM) {
       const TypeAry *tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
     // cannot be distinguished by bytecode alone.
     if (ta->elem() == TypeInt::BOOL) {
       const TypeAry *tary = TypeAry::make(TypeInt::BYTE, ta->size());
       ciKlass* aklass = ciTypeArrayKlass::make(T_BYTE);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,aklass,false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,aklass,false,Type::Offset(offset), ta->field_offset());
     }
     // During the 2nd round of IterGVN, NotNull castings are removed.
     // Make sure the Bottom and NotNull variants alias the same.
     // Also, make sure exact and non-exact variants alias the same.
     if (ptr == TypePtr::NotNull || ta->klass_is_exact() || ta->speculative() != NULL) {
-      tj = ta = TypeAryPtr::make(TypePtr::BotPTR,ta->ary(),ta->klass(),false,offset);
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR,ta->ary(),ta->klass(),false,Type::Offset(offset), ta->field_offset());
     }
   }
 
@@ -1484,7 +1494,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         // No constant oop pointers (such as Strings); they alias with
         // unknown strings.
         assert(!is_known_inst, "not scalarizable allocation");
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,offset);
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
       }
     } else if( is_known_inst ) {
       tj = to; // Keep NotNull and klass_is_exact for instance type
@@ -1492,17 +1502,17 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // During the 2nd round of IterGVN, NotNull castings are removed.
       // Make sure the Bottom and NotNull variants alias the same.
       // Also, make sure exact and non-exact variants alias the same.
-      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,offset);
+      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
     }
     if (to->speculative() != NULL) {
-      tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),to->offset(), to->instance_id());
+      tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),Type::Offset(to->offset()), to->instance_id());
     }
     // Canonicalize the holder of this field
     if (offset >= 0 && offset < instanceOopDesc::base_offset_in_bytes()) {
       // First handle header references such as a LoadKlassNode, even if the
       // object's klass is unloaded at compile time (4965979).
       if (!is_known_inst) { // Do it only for non-instance types
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, offset);
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset));
       }
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
@@ -1516,9 +1526,9 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       ciInstanceKlass *canonical_holder = k->get_canonical_holder(offset);
       if (!k->equals(canonical_holder) || tj->offset() != offset) {
         if( is_known_inst ) {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, offset, to->instance_id());
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), to->instance_id());
         } else {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, offset);
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset));
         }
       }
     }
@@ -1535,15 +1545,15 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
       tj = tk = TypeKlassPtr::make(TypePtr::NotNull,
                                    TypeKlassPtr::OBJECT->klass(),
-                                   offset);
+                                   Type::Offset(offset));
     }
 
     ciKlass* klass = tk->klass();
-    if( klass->is_obj_array_klass() ) {
+    if (klass != NULL && klass->is_obj_array_klass()) {
       ciKlass* k = TypeAryPtr::OOPS->klass();
       if( !k || !k->is_loaded() )                  // Only fails for some -Xcomp runs
         k = TypeInstPtr::BOTTOM->klass();
-      tj = tk = TypeKlassPtr::make( TypePtr::NotNull, k, offset );
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset));
     }
 
     // Check for precise loads from the primary supertype array and force them
@@ -1559,7 +1569,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
          offset < (int)(primary_supers_offset + Klass::primary_super_limit() * wordSize)) ||
         offset == (int)in_bytes(Klass::secondary_super_cache_offset())) {
       offset = in_bytes(Klass::secondary_super_cache_offset());
-      tj = tk = TypeKlassPtr::make( TypePtr::NotNull, tk->klass(), offset );
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset));
     }
   }
 
@@ -1779,8 +1789,9 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
 
     // Check for final fields.
     const TypeInstPtr* tinst = flat->isa_instptr();
+    const TypeValueTypePtr* vtptr = flat->isa_valuetypeptr();
+    ciField* field = NULL;
     if (tinst && tinst->offset() >= instanceOopDesc::base_offset_in_bytes()) {
-      ciField* field;
       if (tinst->const_oop() != NULL &&
           tinst->klass() == ciEnv::current()->Class_klass() &&
           tinst->offset() >= (tinst->klass()->as_instance_klass()->size_helper() * wordSize)) {
@@ -1791,14 +1802,18 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         ciInstanceKlass *k = tinst->klass()->as_instance_klass();
         field = k->get_field_by_offset(tinst->offset(), false);
       }
-      assert(field == NULL ||
-             original_field == NULL ||
-             (field->holder() == original_field->holder() &&
-              field->offset() == original_field->offset() &&
-              field->is_static() == original_field->is_static()), "wrong field?");
-      // Set field() and is_rewritable() attributes.
-      if (field != NULL)  alias_type(idx)->set_field(field);
+    } else if (vtptr) {
+      // Value type field
+      ciValueKlass* vk = vtptr->klass()->as_value_klass();
+      field = vk->get_field_by_offset(vtptr->offset(), false);
     }
+    assert(field == NULL ||
+           original_field == NULL ||
+           (field->holder() == original_field->holder() &&
+            field->offset() == original_field->offset() &&
+            field->is_static() == original_field->is_static()), "wrong field?");
+    // Set field() and is_rewritable() attributes.
+    if (field != NULL)  alias_type(idx)->set_field(field);
   }
 
   // Fill the cache for next time.
@@ -1954,6 +1969,25 @@ void Compile::remove_range_check_casts(PhaseIterGVN &igvn) {
     igvn.replace_node(cast, cast->in(1));
   }
   assert(range_check_cast_count() == 0, "should be empty");
+}
+
+void Compile::add_value_type_ptr(ValueTypePtrNode* n) {
+  assert(can_add_value_type_ptr(), "too late");
+  assert(!_value_type_ptr_nodes->contains(n), "duplicate entry");
+  _value_type_ptr_nodes->append(n);
+}
+
+void Compile::process_value_type_ptr_nodes(PhaseIterGVN &igvn) {
+  for (int i = value_type_ptr_count(); i > 0; i--) {
+    ValueTypePtrNode* vtptr = value_type_ptr(i-1);
+    // once all inlining is over otherwise debug info can get
+    // inconsistent
+    vtptr->make_scalar_in_safepoints(igvn.C->root(), &igvn);
+    igvn.replace_node(vtptr, vtptr->get_oop());
+  }
+  assert(value_type_ptr_count() == 0, "should be empty");
+  _value_type_ptr_nodes = NULL;
+  igvn.optimize();
 }
 
 // StringOpts and late inlining of string methods
@@ -2203,6 +2237,10 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
+  if (value_type_ptr_count() > 0) {
+    process_value_type_ptr_nodes(igvn);
+  }
+
   // Perform escape analysis
   if (_do_escape_analysis && ConnectionGraph::has_candidates(this)) {
     if (has_loops()) {
@@ -2347,10 +2385,25 @@ void Compile::Optimize() {
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
 }
 
+// Fixme remove
+static void check_for_value_node(Node &n, void* C) {
+  if (n.is_ValueType()) {
+#ifdef ASSERT
+    ((Compile*)C)->method()->print_short_name();
+    tty->print_cr("");
+    n.dump(-1);
+    assert(false, "Unable to match ValueTypeNode");
+#endif
+    ((Compile*)C)->record_failure("Unable to match ValueTypeNode");
+  }
+}
 
 //------------------------------Code_Gen---------------------------------------
 // Given a graph, generate code for it
 void Compile::Code_Gen() {
+  // FIXME remove
+  root()->walk(Node::nop, check_for_value_node, this);
+
   if (failing()) {
     return;
   }
@@ -2659,6 +2712,7 @@ void Compile::eliminate_redundant_card_marks(Node* n) {
     }
   }
 }
+
 
 //------------------------------final_graph_reshaping_impl----------------------
 // Implement items 1-5 from final_graph_reshaping below.
@@ -3328,6 +3382,18 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     }
     break;
   }
+  case Op_ValueType: {
+    ValueTypeNode* vt = n->as_ValueType();
+    vt->make_scalar_in_safepoints(root(), NULL);
+    if (vt->outcnt() == 0) {
+      vt->disconnect_inputs(NULL, this);
+    }
+    break;
+  }
+  case Op_ValueTypePtr: {
+    ShouldNotReachHere();
+    break;
+  }
   default:
     assert( !n->is_Call(), "" );
     assert( !n->is_Mem(), "" );
@@ -3514,6 +3580,7 @@ bool Compile::final_graph_reshaping() {
       }
       // Recheck with a better notion of 'required_outcnt'
       if (n->outcnt() != required_outcnt) {
+        assert(false, "malformed control flow");
         record_method_not_compilable("malformed control flow");
         return true;            // Not all targets reachable!
       }
@@ -3523,6 +3590,7 @@ bool Compile::final_graph_reshaping() {
     for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++)
       if (!frc._visited.test(n->fast_out(j)->_idx)) {
         record_method_not_compilable("infinite loop");
+        assert(false, "infinite loop");
         return true;            // Found unvisited kid; must be unreach
       }
   }
@@ -4046,11 +4114,11 @@ void Compile::ConstantTable::fill_jump_table(CodeBuffer& cb, MachConstantNode* n
 // (2) subklass does not overlap with superklass => always fail
 // (3) superklass has NO subtypes and we can check with a simple compare.
 int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
-  if (StressReflectiveCode) {
+  if (StressReflectiveCode || superk == NULL || subk == NULL) {
     return SSC_full_test;       // Let caller generate the general case.
   }
 
-  if (superk == env()->Object_klass()) {
+  if (!EnableMVT && !EnableValhalla && superk == env()->Object_klass()) {
     return SSC_always_true;     // (0) this test cannot fail
   }
 
@@ -4587,4 +4655,142 @@ void CloneMap::dump(node_idx_t key) const {
     NodeCloneInfo ni(val);
     ni.dump();
   }
+}
+
+// Helper function for enforcing certain bytecodes to reexecute if
+// deoptimization happens
+static bool should_reexecute_implied_by_bytecode(JVMState *jvms, bool is_anewarray) {
+  ciMethod* cur_method = jvms->method();
+  int       cur_bci   = jvms->bci();
+  if (cur_method != NULL && cur_bci != InvocationEntryBci) {
+    Bytecodes::Code code = cur_method->java_code_at_bci(cur_bci);
+    return Interpreter::bytecode_should_reexecute(code) ||
+           (is_anewarray && (code == Bytecodes::_multianewarray));
+    // Reexecute _multianewarray bytecode which was replaced with
+    // sequence of [a]newarray. See Parse::do_multianewarray().
+    //
+    // Note: interpreter should not have it set since this optimization
+    // is limited by dimensions and guarded by flag so in some cases
+    // multianewarray() runtime calls will be generated and
+    // the bytecode should not be reexecutes (stack will not be reset).
+  } else
+    return false;
+}
+
+void Compile::add_safepoint_edges(SafePointNode* call, JVMState* youngest_jvms, bool can_prune_locals, uint stack_slots_not_pruned) {
+  // do not scribble on the input jvms
+  JVMState* out_jvms = youngest_jvms->clone_deep(C);
+  call->set_jvms(out_jvms); // Start jvms list for call node
+
+  // For a known set of bytecodes, the interpreter should reexecute them if
+  // deoptimization happens. We set the reexecute state for them here
+  if (out_jvms->is_reexecute_undefined() && //don't change if already specified
+      should_reexecute_implied_by_bytecode(out_jvms, call->is_AllocateArray())) {
+    out_jvms->set_should_reexecute(true); //NOTE: youngest_jvms not changed
+  }
+
+  // Presize the call:
+  DEBUG_ONLY(uint non_debug_edges = call->req());
+  call->add_req_batch(top(), youngest_jvms->debug_depth());
+  assert(call->req() == non_debug_edges + youngest_jvms->debug_depth(), "");
+
+  // Set up edges so that the call looks like this:
+  //  Call [state:] ctl io mem fptr retadr
+  //       [parms:] parm0 ... parmN
+  //       [root:]  loc0 ... locN stk0 ... stkSP mon0 obj0 ... monN objN
+  //    [...mid:]   loc0 ... locN stk0 ... stkSP mon0 obj0 ... monN objN [...]
+  //       [young:] loc0 ... locN stk0 ... stkSP mon0 obj0 ... monN objN
+  // Note that caller debug info precedes callee debug info.
+
+  // Fill pointer walks backwards from "young:" to "root:" in the diagram above:
+  uint debug_ptr = call->req();
+
+  // Loop over the map input edges associated with jvms, add them
+  // to the call node, & reset all offsets to match call node array.
+  for (JVMState* in_jvms = youngest_jvms; in_jvms != NULL; ) {
+    uint debug_end   = debug_ptr;
+    uint debug_start = debug_ptr - in_jvms->debug_size();
+    debug_ptr = debug_start;  // back up the ptr
+
+    uint p = debug_start;  // walks forward in [debug_start, debug_end)
+    uint j, k, l;
+    SafePointNode* in_map = in_jvms->map();
+    out_jvms->set_map(call);
+
+    if (can_prune_locals) {
+      assert(in_jvms->method() == out_jvms->method(), "sanity");
+      // If the current throw can reach an exception handler in this JVMS,
+      // then we must keep everything live that can reach that handler.
+      // As a quick and dirty approximation, we look for any handlers at all.
+      if (in_jvms->method()->has_exception_handlers()) {
+        can_prune_locals = false;
+      }
+    }
+
+    // Add the Locals
+    k = in_jvms->locoff();
+    l = in_jvms->loc_size();
+    out_jvms->set_locoff(p);
+    if (!can_prune_locals) {
+      for (j = 0; j < l; j++)
+        call->set_req(p++, in_map->in(k+j));
+    } else {
+      p += l;  // already set to top above by add_req_batch
+    }
+
+    // Add the Expression Stack
+    k = in_jvms->stkoff();
+    l = in_jvms->sp();
+    out_jvms->set_stkoff(p);
+    if (!can_prune_locals) {
+      for (j = 0; j < l; j++)
+        call->set_req(p++, in_map->in(k+j));
+    } else if (can_prune_locals && stack_slots_not_pruned != 0) {
+      // Divide stack into {S0,...,S1}, where S0 is set to top.
+      uint s1 = stack_slots_not_pruned;
+      stack_slots_not_pruned = 0;  // for next iteration
+      if (s1 > l)  s1 = l;
+      uint s0 = l - s1;
+      p += s0;  // skip the tops preinstalled by add_req_batch
+      for (j = s0; j < l; j++)
+        call->set_req(p++, in_map->in(k+j));
+    } else {
+      p += l;  // already set to top above by add_req_batch
+    }
+
+    // Add the Monitors
+    k = in_jvms->monoff();
+    l = in_jvms->mon_size();
+    out_jvms->set_monoff(p);
+    for (j = 0; j < l; j++)
+      call->set_req(p++, in_map->in(k+j));
+
+    // Copy any scalar object fields.
+    k = in_jvms->scloff();
+    l = in_jvms->scl_size();
+    out_jvms->set_scloff(p);
+    for (j = 0; j < l; j++)
+      call->set_req(p++, in_map->in(k+j));
+
+    // Finish the new jvms.
+    out_jvms->set_endoff(p);
+
+    assert(out_jvms->endoff()     == debug_end,             "fill ptr must match");
+    assert(out_jvms->depth()      == in_jvms->depth(),      "depth must match");
+    assert(out_jvms->loc_size()   == in_jvms->loc_size(),   "size must match");
+    assert(out_jvms->mon_size()   == in_jvms->mon_size(),   "size must match");
+    assert(out_jvms->scl_size()   == in_jvms->scl_size(),   "size must match");
+    assert(out_jvms->debug_size() == in_jvms->debug_size(), "size must match");
+
+    // Update the two tail pointers in parallel.
+    out_jvms = out_jvms->caller();
+    in_jvms  = in_jvms->caller();
+  }
+
+  assert(debug_ptr == non_debug_edges, "debug info must fit exactly");
+
+  // Test the correctness of JVMState::debug_xxx accessors:
+  assert(call->jvms()->debug_start() == non_debug_edges, "");
+  assert(call->jvms()->debug_end()   == call->req(), "");
+  assert(call->jvms()->debug_depth() == call->req() - non_debug_edges, "");
 }

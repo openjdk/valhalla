@@ -78,6 +78,9 @@ define_pd_global(uintx, TypeProfileLevel, 0);
 
 define_pd_global(bool, PreserveFramePointer, false);
 
+define_pd_global(bool, ValueTypePassFieldsAsArgs, false);
+define_pd_global(bool, ValueTypeReturnedAsFields, false);
+
 // No performance work done here yet.
 define_pd_global(bool, CompactStrings, false);
 

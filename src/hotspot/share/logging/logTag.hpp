@@ -147,6 +147,7 @@
   LOG_TAG(vmthread) \
   LOG_TAG(vtables) \
   LOG_TAG(workgang) \
+  LOG_TAG(valuetypes) \
   LOG_TAG_LIST_EXT
 
 #define PREFIX_LOG_TAG(T) (LogTag::_##T)

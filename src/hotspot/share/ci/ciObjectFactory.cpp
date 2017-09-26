@@ -26,6 +26,7 @@
 #include "ci/ciCallSite.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciMethod.hpp"
 #include "ci/ciMethodData.hpp"
@@ -40,6 +41,8 @@
 #include "ci/ciTypeArray.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
+#include "ci/ciValueArray.hpp"
+#include "ci/ciValueArrayKlass.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -150,7 +153,8 @@ void ciObjectFactory::init_shared_objects() {
 
   for (int i = T_BOOLEAN; i <= T_CONFLICT; i++) {
     BasicType t = (BasicType)i;
-    if (type2name(t) != NULL && t != T_OBJECT && t != T_ARRAY && t != T_NARROWOOP && t != T_NARROWKLASS) {
+    if (type2name(t) != NULL && t != T_OBJECT && t != T_ARRAY &&
+        t != T_VALUETYPE && t != T_NARROWOOP && t != T_NARROWKLASS) {
       ciType::_basic_types[t] = new (_arena) ciType(t);
       init_ident_of(ciType::_basic_types[t]);
     }
@@ -346,6 +350,9 @@ ciObject* ciObjectFactory::create_new_object(oop o) {
   } else if (o->is_typeArray()) {
     typeArrayHandle h_ta(THREAD, (typeArrayOop)o);
     return new (arena()) ciTypeArray(h_ta);
+  } else if (o->is_valueArray()) {
+    valueArrayHandle h_ta(THREAD, (valueArrayOop)o);
+    return new (arena()) ciValueArray(h_ta);
   }
 
   // The oop is of some type not supported by the compiler interface.
@@ -378,8 +385,12 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
 
   if (o->is_klass()) {
     Klass* k = (Klass*)o;
-    if (k->is_instance_klass()) {
+    if (k->is_value()) {
+      return new (arena()) ciValueKlass(k);
+    } else if (k->is_instance_klass()) {
       return new (arena()) ciInstanceKlass(k);
+    } else if (k->is_valueArray_klass()) {
+      return new (arena()) ciValueArrayKlass(k);
     } else if (k->is_objArray_klass()) {
       return new (arena()) ciObjArrayKlass(k);
     } else if (k->is_typeArray_klass()) {
@@ -526,7 +537,7 @@ ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
     int dimension = fd.dimension();
     assert(element_type != T_ARRAY, "unsuccessful decomposition");
     ciKlass* element_klass = NULL;
-    if (element_type == T_OBJECT) {
+    if (element_type == T_OBJECT || element_type == T_VALUETYPE) {
       ciEnv *env = CURRENT_THREAD_ENV;
       ciSymbol* ci_name = env->get_symbol(fd.object_key());
       element_klass =
