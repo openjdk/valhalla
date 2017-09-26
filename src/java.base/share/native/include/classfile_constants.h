@@ -124,6 +124,7 @@ enum {
     JVM_SIGNATURE_BYTE          = 'B',
     JVM_SIGNATURE_CHAR          = 'C',
     JVM_SIGNATURE_CLASS         = 'L',
+    JVM_SIGNATURE_VALUE_CLASS   = 'Q',
     JVM_SIGNATURE_ENDCLASS      = ';',
     JVM_SIGNATURE_ENUM          = 'E',
     JVM_SIGNATURE_FLOAT         = 'F',

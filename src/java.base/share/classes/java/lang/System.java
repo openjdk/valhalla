@@ -2185,6 +2185,19 @@ public final class System {
             public Stream<ModuleLayer> layers(ClassLoader loader) {
                 return ModuleLayer.layers(loader);
             }
+            public Class<?> loadValueTypeClass(Module module, ClassLoader cl, String name) {
+                try {
+                    // VM support to define DVT
+                    Class<?> c = Class.forName0(name, false, cl, Object.class);
+                    // catch if the given name is not the name of a DVT class
+                    if (!c.isValueClass()) {
+                        throw new InternalError(c.getName() + " not a value type");
+                    }
+                    return c;
+                } catch (ClassNotFoundException e) {
+                    throw new InternalError(e);
+                }
+            }
         });
     }
 }

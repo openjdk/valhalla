@@ -27,6 +27,7 @@ package java.lang.invoke;
 
 import sun.invoke.util.Wrapper;
 
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.ref.SoftReference;
 import java.util.Arrays;
 import java.util.Collections;
@@ -384,9 +385,47 @@ class LambdaFormEditor {
         return BoundMethodHandle.speciesData(lambdaForm);
     }
     private BoundMethodHandle.SpeciesData newSpeciesData(BasicType type) {
-        return oldSpeciesData().extendWith(type);
+        return (type != Q_TYPE) ?
+                oldSpeciesData().extendWith(type) :
+                oldSpeciesData().extendWith(L_TYPE); // Carrier_Q(value, unbox MH)
     }
 
+    /**
+     * Instances of this class are used to carry bound value types instances in BMHs. A bound value-type instance
+     * is represented as a (boxed value, unbox method handle) pair.
+     */
+    static final class Carrier_Q {
+
+        final Object boxedValue;
+        final MethodHandle unboxHandle;
+
+        Carrier_Q(Object boxedValue, MethodHandle unboxHandle) {
+            this.boxedValue = boxedValue;
+            this.unboxHandle = unboxHandle;
+        }
+
+        static final NamedFunction BOX_VALUE_GETTER;
+        static final NamedFunction UNBOX_HANDLE_GETTER;
+
+        static {
+            try {
+                Lookup lookup = Lookup.IMPL_LOOKUP;
+                BOX_VALUE_GETTER = new NamedFunction(lookup.findGetter(Carrier_Q.class, "boxedValue", Object.class));
+                UNBOX_HANDLE_GETTER = new NamedFunction(lookup.findGetter(Carrier_Q.class, "unboxHandle", MethodHandle.class));
+            } catch (Throwable ex) {
+                throw new IllegalStateException(ex);
+            }
+        }
+
+    }
+
+    BoundMethodHandle bindArgumentQ(BoundMethodHandle mh, int pos, Object value, MethodHandle unbox) {
+        assert(mh.speciesData() == oldSpeciesData());
+        BasicType bt = Q_TYPE;
+        MethodType type2 = bindArgumentType(mh, pos, bt);
+        LambdaForm form2 = bindArgumentForm(1+pos);
+        return mh.copyWithExtendL(type2, form2, new Carrier_Q(value, unbox));
+    }
     BoundMethodHandle bindArgumentL(BoundMethodHandle mh, int pos, Object value) {
         assert(mh.speciesData() == oldSpeciesData());
         BasicType bt = L_TYPE;
@@ -447,7 +486,8 @@ class LambdaFormEditor {
         buf.startEdit();
 
         BoundMethodHandle.SpeciesData oldData = oldSpeciesData();
-        BoundMethodHandle.SpeciesData newData = newSpeciesData(lambdaForm.parameterType(pos));
+        BasicType ptype = lambdaForm.parameterType(pos);
+        BoundMethodHandle.SpeciesData newData = newSpeciesData(ptype);
         Name oldBaseAddress = lambdaForm.parameter(0);  // BMH holding the values
         Name newBaseAddress;
         NamedFunction getter = newData.getterFunction(oldData.fieldCount());
@@ -458,7 +498,26 @@ class LambdaFormEditor {
             buf.replaceFunctions(oldData.getterFunctions(), newData.getterFunctions(), oldBaseAddress);
             newBaseAddress = oldBaseAddress.withConstraint(newData);
             buf.renameParameter(0, newBaseAddress);
-            buf.replaceParameterByNewExpression(pos, new Name(getter, newBaseAddress));
+            if (ptype == Q_TYPE) {
+                // Q-types are stored in boxed form. Unboxing step is required.
+                int exprPos = lambdaForm.arity();
+                int CARRIER_Q     = exprPos++;
+                int UNBOX_MH      = exprPos++;
+                int BOXED_VALUE   = exprPos++;
+                int UNBOXED_VALUE = exprPos++;
+                NamedFunction carriedQGetter = newData.getterFunction(oldData.fieldCount());
+                buf.insertExpression(CARRIER_Q, new Name(carriedQGetter, newBaseAddress));
+                NamedFunction unboxGetter = Carrier_Q.UNBOX_HANDLE_GETTER;
+                buf.insertExpression(UNBOX_MH, new Name(unboxGetter, buf.name(CARRIER_Q)));
+                NamedFunction boxedValue = Carrier_Q.BOX_VALUE_GETTER;
+                buf.insertExpression(BOXED_VALUE, new Name(boxedValue, buf.name(CARRIER_Q)));
+                MethodType unboxInvokerType = MethodType.methodType(Q_TYPE.basicTypeClass(), L_TYPE.basicTypeClass());
+                Name unbox = new Name(unboxInvokerType, buf.name(UNBOX_MH), buf.name(BOXED_VALUE));
+                buf.insertExpression(UNBOXED_VALUE, unbox);
+                buf.replaceParameterByCopy(pos, UNBOXED_VALUE);
+            } else {
+                buf.replaceParameterByNewExpression(pos, new Name(getter, newBaseAddress));
+            }
         } else {
             // cannot bind the MH arg itself, unless oldData is empty
             assert(oldData == BoundMethodHandle.SpeciesData.EMPTY);

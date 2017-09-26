@@ -81,6 +81,9 @@ import sun.reflect.generics.scope.ClassScope;
 import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
+import valhalla.shady.MinimalValueTypes_1_0;
+
+import static valhalla.shady.MinimalValueTypes_1_0.ACC_VALUE;
 
 /**
  * Instances of the class {@code Class} represent classes and
@@ -289,7 +292,11 @@ public final class Class<T> implements java.io.Serializable,
     public static Class<?> forName(String className)
                 throws ClassNotFoundException {
         Class<?> caller = Reflection.getCallerClass();
-        return forName0(className, true, ClassLoader.getClassLoader(caller), caller);
+        Class<?> c = forName0(className, true, ClassLoader.getClassLoader(caller), caller);
+        if (c.isValueClass()) {
+            throw new ClassNotFoundException(className + " is a derived value class");
+        }
+        return c;
     }
 
 
@@ -372,13 +379,17 @@ public final class Class<T> implements java.io.Serializable,
                 }
             }
         }
-        return forName0(name, initialize, loader, caller);
+        Class<?> c = forName0(name, initialize, loader, caller);
+        if (c.isValueClass()) {
+            throw new ClassNotFoundException(name + " is a derived value class");
+        }
+        return c;
     }
 
     /** Called after security check for system loader access checks have been made. */
-    private static native Class<?> forName0(String name, boolean initialize,
-                                            ClassLoader loader,
-                                            Class<?> caller)
+    static native Class<?> forName0(String name, boolean initialize,
+                                    ClassLoader loader,
+                                    Class<?> caller)
         throws ClassNotFoundException;
 
 
@@ -447,10 +458,38 @@ public final class Class<T> implements java.io.Serializable,
             cl = module.getClassLoader();
         }
 
+        Class<?> c;
         if (cl != null) {
-            return cl.loadClass(module, name);
+            c = cl.loadClass(module, name);
         } else {
-            return BootLoader.loadClass(module, name);
+            c = BootLoader.loadClass(module, name);
+        }
+
+        return c != null && !c.isValueClass() ? c : null;
+    }
+
+    boolean isValueClass() {
+        // ensure that system properties have been initialized before
+        // loading MinimalValueTypes_1_0 class.
+        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isValueTypeEnabled())
+            return false;
+
+        Class<?> c = this;
+        while (c.isArray()) {
+            c = c.getComponentType();
+        }
+
+        // For now, check if it is a subtype of __Value
+        Class<?> valueBaseClass = MinimalValueTypes_1_0.getValueClass();
+        return valueBaseClass != null && c != valueBaseClass && valueBaseClass.isAssignableFrom(c);
+    }
+
+    private void ensureNotValueClass() {
+        // temporary workaround until compiler/valhalla/valuetypes/ValueTypeBenchTest.java
+        // is updated to do reflection on VCC instead of VVT declared with __ByValue
+        if (this.isValueClass() && !Boolean.parseBoolean(VM.getSavedProperty("jdk.lang.reflect.DVT"))) {
+            throw new UnsupportedOperationException("cannot reflect on derived value type "
+                + this.getName());
         }
     }
 
@@ -512,6 +551,8 @@ public final class Class<T> implements java.io.Serializable,
     public T newInstance()
         throws InstantiationException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), false);
@@ -1246,6 +1287,8 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
+            enclosingCandidate.ensureNotValueClass();
+
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkMemberAccess(sm, Member.DECLARED,
@@ -1402,6 +1445,8 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
+            enclosingCandidate.ensureNotValueClass();
+
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkMemberAccess(sm, Member.DECLARED,
@@ -1698,6 +1743,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Class<?>[] getClasses() {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), false);
@@ -1767,6 +1814,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Field[] getFields() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -1857,6 +1906,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Method[] getMethods() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -1896,6 +1947,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getConstructors() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -1949,6 +2002,8 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Field getField(String name)
         throws NoSuchFieldException, SecurityException {
+        ensureNotValueClass();
+
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2058,6 +2113,8 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Method getMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {
+        ensureNotValueClass();
+
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2103,6 +2160,8 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2149,6 +2208,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Class<?>[] getDeclaredClasses() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), false);
@@ -2201,6 +2262,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Field[] getDeclaredFields() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2262,6 +2325,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Method[] getDeclaredMethods() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2310,6 +2375,8 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getDeclaredConstructors() throws SecurityException {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2361,6 +2428,8 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Field getDeclaredField(String name)
         throws NoSuchFieldException, SecurityException {
+        ensureNotValueClass();
+
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2425,6 +2494,8 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {
+        ensureNotValueClass();
+
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2504,6 +2575,8 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
+        ensureNotValueClass();
+
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);

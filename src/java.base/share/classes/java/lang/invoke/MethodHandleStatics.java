@@ -26,9 +26,12 @@
 package java.lang.invoke;
 
 import jdk.internal.misc.Unsafe;
+import sun.security.action.GetBooleanAction;
 import sun.security.action.GetPropertyAction;
 
+import java.security.AccessController;
 import java.util.Properties;
+import java.util.PropertyPermission;
 
 /**
  * This class consists exclusively of static names internal to the
@@ -55,6 +58,11 @@ import java.util.Properties;
     static final int CUSTOMIZE_THRESHOLD;
     static final boolean VAR_HANDLE_GUARDS;
     static final int MAX_ARITY;
+
+    //Valhalla flags
+
+    /** should we specialize value lambda forms? **/
+    static final boolean VALHALLA_ENABLE_VALUE_LFORMS;
 
     static {
         Properties props = GetPropertyAction.privilegedGetProperties();
@@ -90,6 +98,9 @@ import java.util.Properties;
         if (CUSTOMIZE_THRESHOLD < -1 || CUSTOMIZE_THRESHOLD > 127) {
             throw newInternalError("CUSTOMIZE_THRESHOLD should be in [-1...127] range");
         }
+
+        //Valhalla flags
+        VALHALLA_ENABLE_VALUE_LFORMS = Boolean.parseBoolean(props.getProperty("valhalla.enableValueLambdaForms", "true"));
     }
 
     /** Tell if any of the debugging switches are turned on.

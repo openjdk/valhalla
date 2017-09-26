@@ -27,8 +27,12 @@ package java.lang.invoke;
 
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.Wrapper;
+import sun.security.action.GetBooleanAction;
+import valhalla.shady.MinimalValueTypes_1_0;
 
 import java.lang.ref.SoftReference;
+import java.security.AccessController;
+import java.util.PropertyPermission;
 
 import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
@@ -171,7 +175,7 @@ final class MethodTypeForm {
         Class<?>[] bpts = epts;
         for (int i = 0; i < epts.length; i++) {
             Class<?> pt = epts[i];
-            if (pt != Object.class) {
+            if (pt != Object.class && !MinimalValueTypes_1_0.isValueType(pt)) {
                 ++pac;
                 Wrapper w = Wrapper.forPrimitiveType(pt);
                 if (w.isDoubleWord())  ++lac;
@@ -185,7 +189,7 @@ final class MethodTypeForm {
         pslotCount += lac;                  // #slots = #args + #longs
         Class<?> rt = erasedType.returnType();
         Class<?> bt = rt;
-        if (rt != Object.class) {
+        if (rt != Object.class && !MinimalValueTypes_1_0.isValueType(rt)) {
             ++prc;          // even void.class counts as a prim here
             Wrapper w = Wrapper.forPrimitiveType(rt);
             if (w.isDoubleWord())  ++lrc;
@@ -359,7 +363,9 @@ final class MethodTypeForm {
      */
     static Class<?> canonicalize(Class<?> t, int how) {
         Class<?> ct;
-        if (t == Object.class) {
+        if (t == Object.class ||
+                (MethodHandleStatics.VALHALLA_ENABLE_VALUE_LFORMS &&
+                        t == MinimalValueTypes_1_0.getValueClass())) {
             // no change, ever
         } else if (!t.isPrimitive()) {
             switch (how) {
@@ -369,7 +375,10 @@ final class MethodTypeForm {
                     break;
                 case RAW_RETURN:
                 case ERASE:
-                    return Object.class;
+                    return (MethodHandleStatics.VALHALLA_ENABLE_VALUE_LFORMS &&
+                            MinimalValueTypes_1_0.isValueType(t)) ?
+                                    MinimalValueTypes_1_0.getValueClass() :
+                                    Object.class;
             }
         } else if (t == void.class) {
             // no change, usually

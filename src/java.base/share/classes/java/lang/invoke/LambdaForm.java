@@ -29,14 +29,18 @@ import jdk.internal.perf.PerfCounter;
 import jdk.internal.vm.annotation.DontInline;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.Wrapper;
+import sun.security.action.GetBooleanAction;
+import valhalla.shady.MinimalValueTypes_1_0;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Method;
+import java.security.AccessController;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.PropertyPermission;
 
 import static java.lang.invoke.LambdaForm.BasicType.*;
 import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeStatic;
@@ -141,6 +145,7 @@ class LambdaForm {
         J_TYPE('J', long.class,   Wrapper.LONG),
         F_TYPE('F', float.class,  Wrapper.FLOAT),
         D_TYPE('D', double.class, Wrapper.DOUBLE),  // all primitive types
+        Q_TYPE('Q', MinimalValueTypes_1_0.getValueClass(), Wrapper.OBJECT),  // all reference types
         V_TYPE('V', void.class,   Wrapper.VOID);    // not valid in all contexts
 
         static final BasicType[] ALL_TYPES = BasicType.values();
@@ -189,6 +194,8 @@ class LambdaForm {
                 case 'S':
                 case 'C':
                     return I_TYPE;
+                case 'Q':
+                    return MethodHandleStatics.VALHALLA_ENABLE_VALUE_LFORMS ? Q_TYPE : L_TYPE;
                 default:
                     throw newInternalError("Unknown type char: '"+type+"'");
             }
@@ -198,7 +205,11 @@ class LambdaForm {
             return basicType(c);
         }
         static BasicType basicType(Class<?> type) {
-            if (!type.isPrimitive())  return L_TYPE;
+            if (!type.isPrimitive()) {
+                return MethodHandleStatics.VALHALLA_ENABLE_VALUE_LFORMS && MinimalValueTypes_1_0.isValueType(type) ?
+                        Q_TYPE :
+                        L_TYPE;
+            }
             return basicType(Wrapper.forPrimitiveType(type));
         }
         static BasicType[] basicTypes(String types) {
@@ -245,10 +256,10 @@ class LambdaForm {
         }
 
         static boolean isBasicTypeChar(char c) {
-            return "LIJFDV".indexOf(c) >= 0;
+            return "LIJFDQV".indexOf(c) >= 0;
         }
         static boolean isArgBasicTypeChar(char c) {
-            return "LIJFD".indexOf(c) >= 0;
+            return "LIJFDQ".indexOf(c) >= 0;
         }
 
         static { assert(checkBasicType()); }
@@ -635,6 +646,18 @@ class LambdaForm {
         return names.length - arity;
     }
 
+    /**
+     * Does any 'name' in this lambda form contain Q-types?
+     */
+    boolean containsValues() {
+        for (Name name : names) {
+            if (name.type == Q_TYPE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Return the method type corresponding to my basic type signature. */
     MethodType methodType() {
         Class<?>[] ptypes = new Class<?>[arity];
@@ -854,7 +877,17 @@ class LambdaForm {
         MethodType invokerType = methodType();
         assert(vmentry == null || vmentry.getMethodType().basicType().equals(invokerType));
         try {
-            vmentry = InvokerBytecodeGenerator.generateCustomizedCode(this, invokerType);
+             if (!containsValues()) {
+                //no Q-types, proceed as usual
+                vmentry = InvokerBytecodeGenerator.generateCustomizedCode(this, invokerType);
+            } else {
+                if (!MethodHandleStatics.VALHALLA_ENABLE_VALUE_LFORMS) {
+                    //should not get here!
+                    throw new IllegalStateException();
+                }
+                //some Q-types were found - use alternate bytecode generator
+                vmentry = LambdaFormBuilder.generateCustomizedCode(this, invokerType);
+            }
             if (TRACE_INTERPRETER)
                 traceInterpreter("compileToBytecode", this);
             isCompiled = true;

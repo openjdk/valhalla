@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import java.lang.invoke.LambdaForm.BasicType;
 import java.util.Map;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.Opcodes;
@@ -45,6 +46,7 @@ class GenerateJLIClassesHelper {
         ArrayList<String> names = new ArrayList<>();
         HashSet<String> dedupSet = new HashSet<>();
         for (LambdaForm.BasicType type : LambdaForm.BasicType.values()) {
+            if (type == BasicType.Q_TYPE) continue;
             LambdaForm zero = LambdaForm.zeroForm(type);
             String name = zero.kind.defaultLambdaName
                    + "_" + zero.returnType().basicTypeChar();

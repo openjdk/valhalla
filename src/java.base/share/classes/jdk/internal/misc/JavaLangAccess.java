@@ -264,4 +264,9 @@ public interface JavaLangAccess {
      * given class loader.
      */
     Stream<ModuleLayer> layers(ClassLoader loader);
+
+    /**
+     * Loads a derived ValueType class
+     */
+    Class<?> loadValueTypeClass(Module module, ClassLoader loader, String name);
 }

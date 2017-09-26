@@ -114,7 +114,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     BoundMethodHandle bindArgumentD(int pos, double value) {
         return editor().bindArgumentD(this, pos, value);
     }
-
+    /*non-public*/
+    BoundMethodHandle bindArgumentQ(int pos, Object value, MethodHandle unbox) {
+        return editor().bindArgumentQ(this, pos, value, unbox);
+    }
     @Override
     BoundMethodHandle rebind() {
         if (!tooComplex()) {
@@ -699,6 +702,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
             // for each type, emit copyWithExtendT()
             for (BasicType type : BasicType.ARG_TYPES) {
+                if (type == Q_TYPE) continue;
                 int ord = type.ordinal();
                 char btChar = type.basicTypeChar();
                 mv = cw.visitMethod(NOT_ACC_PUBLIC + ACC_FINAL, "copyWithExtend" + btChar, makeSignature(String.valueOf(btChar), false), null, E_THROWABLE);

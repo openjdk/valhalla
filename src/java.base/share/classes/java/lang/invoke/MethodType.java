@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import sun.invoke.util.BytecodeDescriptor;
 import static java.lang.invoke.MethodHandleStatics.*;
 import sun.invoke.util.VerifyType;
+import valhalla.shady.MinimalValueTypes_1_0;
 
 /**
  * A method type represents the arguments and return type accepted and
@@ -525,8 +526,10 @@ class MethodType implements java.io.Serializable {
     /*non-public*/ Class<?> leadingReferenceParameter() {
         Class<?> ptype;
         if (ptypes.length == 0 ||
-            (ptype = ptypes[0]).isPrimitive())
+            (ptype = ptypes[0]).isPrimitive() ||
+            MinimalValueTypes_1_0.isValueType(ptype)) {
             throw newIllegalArgumentException("no leading reference parameter");
+        }
         return ptype;
     }
 

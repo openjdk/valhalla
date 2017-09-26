@@ -38,6 +38,8 @@ import sun.invoke.empty.Empty;
 import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyType;
 import sun.invoke.util.Wrapper;
+import valhalla.shady.MinimalValueTypes_1_0;
+import valhalla.shady.ValueTypeHolder;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -432,6 +434,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         assert(!VerifyType.isNullConversion(src, dst, /*keepInterfaces=*/ strict));  // caller responsibility
         if (dst == void.class)
             return dst;
+        ValueTypeHolder<?> srcVT = MinimalValueTypes_1_0.findValueType(src);
+        ValueTypeHolder<?> dstVT = MinimalValueTypes_1_0.findValueType(dst);
         MethodHandle fn;
         if (src.isPrimitive()) {
             if (src == void.class) {
@@ -454,6 +458,13 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                         fn = MethodHandleImpl.makePairwiseConvert(fn, mt, /*strict=*/ false);
                 }
             }
+        } else if (srcVT != null) {
+            if (srcVT.boxClass().equals(dst) || dst.equals(Object.class)) {
+                //box
+                fn = srcVT.box();
+            } else {
+                throw new IllegalArgumentException("Cannot box value " + src + " to class " + dst);
+            }
         } else if (dst.isPrimitive()) {
             Wrapper wdst = Wrapper.forPrimitiveType(dst);
             if (monobox || src == wdst.wrapperType()) {
@@ -466,6 +477,13 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                 fn = (strict
                         ? ValueConversions.unboxWiden(wdst)
                         : ValueConversions.unboxCast(wdst));
+            }
+        } else if (dstVT != null) {
+            if (dstVT.boxClass().equals(src) || src.equals(Object.class)) {
+                //unbox
+                fn = dstVT.unbox();
+            } else {
+                throw new IllegalArgumentException("Cannot unbox class " + src + " to value " + dst);
             }
         } else {
             // Simple reference conversion.
@@ -1789,6 +1807,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                 Wrapper w = Wrapper.forPrimitiveType(returnType);
                 return ValueConversions.unboxExact(w);
             }
+        } else if (MinimalValueTypes_1_0.isValueType(returnType)) {
+            return MinimalValueTypes_1_0.findValueType(returnType).unbox();
         } else {
             return MethodHandles.identity(Object.class);
         }

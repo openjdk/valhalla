@@ -115,7 +115,7 @@ Java_java_lang_System_identityHashCode(JNIEnv *env, jobject this, jobject x)
 #endif
 
 #define JAVA_MAX_SUPPORTED_VERSION 53
-#define JAVA_MAX_SUPPORTED_MINOR_VERSION 0
+#define JAVA_MAX_SUPPORTED_MINOR_VERSION 1
 
 #ifdef JAVA_SPECIFICATION_VENDOR /* Third party may NOT overwrite this. */
   #error "ERROR: No override of JAVA_SPECIFICATION_VENDOR is allowed"

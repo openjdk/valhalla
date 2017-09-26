@@ -294,7 +294,7 @@ class InvokerBytecodeGenerator {
         return invokerClass;
     }
 
-    private static MemberName resolveInvokerMember(Class<?> invokerClass, String name, MethodType type) {
+    static MemberName resolveInvokerMember(Class<?> invokerClass, String name, MethodType type) {
         MemberName member = new MemberName(invokerClass, name, type, REF_invokeStatic);
         try {
             member = MEMBERNAME_FACTORY.resolveOrFail(REF_invokeStatic, member, HOST_CLASS, ReflectiveOperationException.class);
