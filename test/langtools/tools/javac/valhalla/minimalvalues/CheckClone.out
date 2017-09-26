@@ -1,0 +1,6 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckClone.java:12:21: compiler.warn.value.does.not.support: calling java.lang.Object's method: clone
+CheckClone.java:16:22: compiler.warn.value.does.not.support: overriding java.lang.Object's method: clone
+1 error
+3 warnings

@@ -754,7 +754,7 @@ public class Check {
      *  @param t             The type to be checked.
      */
     Type checkRefType(DiagnosticPosition pos, Type t) {
-        if (t.isReference())
+        if (t.isReference() && !types.isValue(t))
             return t;
         else
             return typeTagError(pos,
@@ -1168,7 +1168,9 @@ public class Check {
                     mask = implicit = InterfaceMethodFlags;
                 }
             } else {
-                mask = MethodFlags;
+                // instance methods of value types do not have a monitor associated with their `this'
+                mask = ((sym.owner.flags_field & VALUE) != 0 && (flags & Flags.STATIC) == 0) ?
+                        MethodFlags & ~SYNCHRONIZED : MethodFlags;
             }
             // Imply STRICTFP if owner has STRICTFP set.
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
@@ -1197,8 +1199,8 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract or final
-                mask &= ~(ABSTRACT | FINAL);
+                // enums can't be declared abstract or final or value type
+                mask &= ~(ABSTRACT | FINAL | VALUE);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             // Imply STRICTFP if owner has STRICTFP set.
@@ -1231,7 +1233,7 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                                ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED)
+                               FINAL | NATIVE | SYNCHRONIZED | VALUE)
                  &&
                  checkDisjoint(pos, flags,
                                PUBLIC,
@@ -2168,6 +2170,52 @@ public class Check {
                       Errors.DoesNotOverrideAbstract(c, undef1, undef1.location()));
         }
     }
+
+    // A value class cannot contain a field of its own type either or indirectly.
+    void checkNonCyclicMembership(JCClassDecl tree) {
+        Assert.check((tree.sym.flags_field & LOCKED) == 0);
+        try {
+            tree.sym.flags_field |= LOCKED;
+            for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
+                if (l.head.hasTag(VARDEF)) {
+                    JCVariableDecl field = (JCVariableDecl) l.head;
+                    if (!field.sym.isStatic()) {
+                        Type fieldType = field.sym.type;
+                        if (types.isValue(fieldType) || types.isValueCapable(fieldType)) {
+                            checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
+                        }
+                    }
+                }
+            }
+        } finally {
+            tree.sym.flags_field &= ~LOCKED;
+        }
+
+    }
+    // where
+    private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {
+        if ((c.flags_field & LOCKED) != 0) {
+            if (c.isValueCapable()) {
+                if (lint.isEnabled(LintCategory.VALUES)) {
+                    log.warning(LintCategory.VALUES, pos, Warnings.CyclicValueTypeMembership(c));
+                }
+            } else {
+                log.error(pos, Errors.CyclicValueTypeMembership(c));
+            }
+            return;
+        }
+        try {
+            c.flags_field |= LOCKED;
+            for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR &&
+                    !s.isStatic() &&
+                    (types.isValue(s.type) || types.isValueCapable(s.type)), NON_RECURSIVE)) {
+                checkNonCyclicMembership((ClassSymbol) fld.type.tsym, pos);
+            }
+        } finally {
+            c.flags_field &= ~LOCKED;
+        }
+    }
+
 
     void checkNonCyclicDecl(JCClassDecl tree) {
         CycleChecker cc = new CycleChecker();

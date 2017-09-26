@@ -2311,7 +2311,10 @@ public class Resolve {
             else bestSoFar = bestOf(bestSoFar, sym);
 
             sym = findGlobalType(env, env.toplevel.starImportScope, name, starImportScopeRecovery);
-            if (sym.exists()) return sym;
+            if (sym.exists()) {
+                return sym;
+            } else if (name.contentEquals("__Value"))
+                return syms.valueClassType.tsym; // hack, not sure why it is not getting synthesized.
             else bestSoFar = bestOf(bestSoFar, sym);
         }
 
@@ -3801,6 +3804,28 @@ public class Resolve {
             if (name == names.error)
                 return null;
 
+            /* If this is an ill conceived attempt to invoke jlO methods not available on value types,
+               issue a distinct message that spells out the programmer's error.
+            */
+            if (kind == ABSENT_MTH && types.isValue(site)) {
+                int argSize = argtypes.size();
+                switch (name.toString()) {
+                    case "wait":
+                        if (argSize == 0
+                                || (types.isConvertible(argtypes.head, syms.longType) &&
+                                (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
+                            return diags.create(dkind, log.currentSource(), pos,
+                                    "value.does.not.support", name);
+                        }
+                        break;
+                    case "notify":
+                    case "notifyAll":
+                    case "clone":
+                    case "finalize":
+                        return diags.create(dkind, log.currentSource(), pos,
+                                "value.does.not.support", name);
+                }
+            }
             boolean hasLocation = false;
             if (location == null) {
                 location = site.tsym;

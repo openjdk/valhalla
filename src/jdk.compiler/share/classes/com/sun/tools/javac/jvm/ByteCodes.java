@@ -242,7 +242,17 @@ public interface ByteCodes {
         goto_w          = 200,
         jsr_w           = 201,
         breakpoint      = 202,
-        ByteCodeCount   = 203;
+
+        // value-type bytecodes
+        vload           = 203,
+        vstore          = 204,
+        vaload          = 205,
+        vastore         = 206,
+        vreturn         = 207,
+        vdefault       =  208,
+        vwithfield     =  209,
+
+        ByteCodeCount   = 210;
 
     /** Virtual instruction codes; used for constant folding.
      */

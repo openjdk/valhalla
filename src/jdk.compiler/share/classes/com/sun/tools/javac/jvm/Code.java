@@ -495,6 +495,7 @@ public class Code {
         emitop(op);
         if (!alive) return;
         switch (op) {
+        case vaload:
         case aaload: {
             state.pop(1);// index
             Type a = state.stack[state.stacksize-1];
@@ -601,6 +602,7 @@ public class Code {
         case lushr:
             state.pop(1);
             break;
+        case vreturn:
         case areturn:
         case ireturn:
         case freturn:
@@ -655,6 +657,7 @@ public class Code {
             // state.pop(1);
             // state.push(syms.intType);
             break;
+        case vastore:
         case aastore:
             state.pop(3);
             break;
@@ -956,6 +959,7 @@ public class Code {
             state.push(syms.doubleType);
             break;
         case aload:
+        case vload:
             state.push(lvar[od].sym.type);
             break;
         case lstore:
@@ -965,6 +969,7 @@ public class Code {
         case istore:
         case fstore:
         case astore:
+        case vstore:
             state.pop(1);
             break;
         case ret:
@@ -1024,6 +1029,17 @@ public class Code {
             }
             state.push(uninitializedObject(sym.erasure(types), cp-3));
             break;
+        case vdefault:
+            if (pool.pool[od] instanceof UniqueType) {
+                // Required by change in Gen.makeRef to allow
+                // annotated types.
+                // TODO: is this needed anywhere else?
+                sym = ((UniqueType)(pool.pool[od])).type.tsym;
+            } else {
+                sym = (Symbol)(pool.pool[od]);
+            }
+            state.push(sym.erasure(types));
+            break;
         case sipush:
             state.push(syms.intType);
             break;
@@ -1049,6 +1065,9 @@ public class Code {
             break;
         case goto_:
             markDead();
+            break;
+        case vwithfield:
+            state.pop(((Symbol)(pool.pool[od])).erasure(types));
             break;
         case putfield:
             state.pop(((Symbol)(pool.pool[od])).erasure(types));
@@ -2427,6 +2446,13 @@ public class Code {
             mnem[goto_w] = "goto_w";
             mnem[jsr_w] = "jsr_w";
             mnem[breakpoint] = "breakpoint";
+            mnem[vload] = "vload";
+            mnem[vstore] = "vstore";
+            mnem[vaload] = "vaload";
+            mnem[vastore] = "vastore";
+            mnem[vreturn] = "vreturn";
+            mnem[vdefault] = "vdefault";
+            mnem[vwithfield] = "vwithfield";
         }
     }
 }

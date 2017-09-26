@@ -2894,7 +2894,7 @@ public class Utils {
     }
 
     public boolean isValue(DocTree doctree) {
-        return isKind(doctree, VALUE);
+        return isKind(doctree, Kind.VALUE);
     }
 
     public boolean isVersion(DocTree doctree) {

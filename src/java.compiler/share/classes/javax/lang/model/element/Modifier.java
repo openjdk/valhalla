@@ -58,6 +58,17 @@ public enum Modifier {
      * @since 1.8
      */
      DEFAULT,
+    /**
+     * The modifier {@code __ByValue}
+     * @since 1.9
+     */
+    VALUE,
+    /**
+     * The modifier {@code __ValueFactory}
+     * @since 1.9
+     */
+    STATICVALUEFACTORY,
+
     /** The modifier {@code static} */          STATIC,
     /** The modifier {@code final} */           FINAL,
     /** The modifier {@code transient} */       TRANSIENT,

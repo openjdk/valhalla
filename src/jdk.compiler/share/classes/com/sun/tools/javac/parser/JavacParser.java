@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
+import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.parser.Tokens.*;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
@@ -185,6 +186,7 @@ public class JavacParser implements Parser {
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
+        this.allowValueClasses = fac.options.isSet("enableValueTypes");
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -232,6 +234,11 @@ public class JavacParser implements Parser {
     /** Switch: should we allow default methods in interfaces?
      */
     boolean allowDefaultMethods;
+
+    /** Switch: should we allow value classes ?
+     */
+    boolean allowValueClasses;
+
 
     /** Switch: should we allow static methods in interfaces?
      */
@@ -421,6 +428,7 @@ public class JavacParser implements Parser {
                 case THIS:
                 case SUPER:
                 case NEW:
+                case VDEFAULT:
                     if (stopAtStatement)
                         return;
                     break;
@@ -1210,12 +1218,14 @@ public class JavacParser implements Parser {
             } else return illegal();
             break;
         case NEW:
+        case VDEFAULT:
             if (typeArgs != null) return illegal();
             if ((mode & EXPR) != 0) {
                 mode = EXPR;
+                CreationMode creationMode = getCreationMode(token);
                 nextToken();
                 if (token.kind == LT) typeArgs = typeArguments(false);
-                t = creator(pos, typeArgs);
+                t = creator(pos, creationMode, typeArgs);
                 typeArgs = null;
             } else return illegal();
             break;
@@ -1331,9 +1341,10 @@ public class JavacParser implements Parser {
                                 if (typeArgs != null) return illegal();
                                 mode = EXPR;
                                 int pos1 = token.pos;
+                                CreationMode creationMode = getCreationMode(token);
                                 nextToken();
                                 if (token.kind == LT) typeArgs = typeArguments(false);
-                                t = innerCreator(pos1, typeArgs, t);
+                                t = innerCreator(pos1, creationMode, typeArgs, t);
                                 typeArgs = null;
                                 break loop;
                             }
@@ -1425,6 +1436,10 @@ public class JavacParser implements Parser {
         return term3Rest(t, typeArgs);
     }
 
+    private CreationMode getCreationMode(Token token) {
+        return token.kind == NEW ? CreationMode.NEW : CreationMode.DEFAULT_VALUE;
+    }
+
     JCExpression term3Rest(JCExpression t, List<JCExpression> typeArgs) {
         if (typeArgs != null) illegal();
         while (true) {
@@ -1466,13 +1481,14 @@ public class JavacParser implements Parser {
                     nextToken();
                     t = arguments(typeArgs, t);
                     typeArgs = null;
-                } else if (token.kind == NEW && (mode & EXPR) != 0) {
+                } else if ((token.kind == NEW || token.kind == VDEFAULT) && (mode & EXPR) != 0) {
                     if (typeArgs != null) return illegal();
                     mode = EXPR;
                     int pos2 = token.pos;
+                    CreationMode creationMode = getCreationMode(token);
                     nextToken();
                     if (token.kind == LT) typeArgs = typeArguments(false);
-                    t = innerCreator(pos2, typeArgs, t);
+                    t = innerCreator(pos2, creationMode, typeArgs, t);
                     typeArgs = null;
                 } else {
                     List<JCAnnotation> tyannos = null;
@@ -1626,7 +1642,7 @@ public class JavacParser implements Parser {
                         case INTLITERAL: case LONGLITERAL: case FLOATLITERAL:
                         case DOUBLELITERAL: case CHARLITERAL: case STRINGLITERAL:
                         case TRUE: case FALSE: case NULL:
-                        case NEW: case IDENTIFIER: case ASSERT: case ENUM: case UNDERSCORE:
+                        case NEW: case VDEFAULT: case IDENTIFIER: case ASSERT: case ENUM: case UNDERSCORE:
                         case BYTE: case SHORT: case CHAR: case INT:
                         case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
                             return ParensResult.CAST;
@@ -2054,8 +2070,8 @@ public class JavacParser implements Parser {
         }
         Name refName;
         ReferenceMode refMode;
-        if (token.kind == NEW) {
-            refMode = ReferenceMode.NEW;
+        if (token.kind == NEW || token.kind == VDEFAULT) {
+            refMode = ReferenceMode.NEW; // TODO(Srikanth): What is the right thing to do here ?
             refName = names.init;
             nextToken();
         } else {
@@ -2067,7 +2083,7 @@ public class JavacParser implements Parser {
 
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
-    JCExpression creator(int newpos, List<JCExpression> typeArgs) {
+    JCExpression creator(int newpos, CreationMode creationMode, List<JCExpression> typeArgs) {
         List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
 
         switch (token.kind) {
@@ -2141,7 +2157,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t);
+            JCNewClass newClass = classCreatorRest(newpos, creationMode, null, typeArgs, t);
             if (newClass.def != null) {
                 assert newClass.def.mods.annotations.isEmpty();
                 if (newAnnotations.nonEmpty()) {
@@ -2170,7 +2186,7 @@ public class JavacParser implements Parser {
 
     /** InnerCreator = [Annotations] Ident [TypeArguments] ClassCreatorRest
      */
-    JCExpression innerCreator(int newpos, List<JCExpression> typeArgs, JCExpression encl) {
+    JCExpression innerCreator(int newpos, CreationMode creationMode, List<JCExpression> typeArgs, JCExpression encl) {
         List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
 
         JCExpression t = toP(F.at(token.pos).Ident(ident()));
@@ -2184,7 +2200,7 @@ public class JavacParser implements Parser {
             t = typeArguments(t, true);
             mode = oldmode;
         }
-        return classCreatorRest(newpos, encl, typeArgs, t);
+        return classCreatorRest(newpos, creationMode, encl, typeArgs, t);
     }
 
     /** ArrayCreatorRest = [Annotations] "[" ( "]" BracketsOpt ArrayInitializer
@@ -2264,6 +2280,7 @@ public class JavacParser implements Parser {
     /** ClassCreatorRest = Arguments [ClassBody]
      */
     JCNewClass classCreatorRest(int newpos,
+                                CreationMode creationMode,
                                   JCExpression encl,
                                   List<JCExpression> typeArgs,
                                   JCExpression t)
@@ -2276,7 +2293,9 @@ public class JavacParser implements Parser {
             JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
-        return toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
+        JCNewClass newClass = toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
+        newClass.creationMode = creationMode;
+        return newClass;
     }
 
     /** ArrayInitializer = "{" [VariableInitializer {"," VariableInitializer}] [","] "}"
@@ -2417,6 +2436,7 @@ public class JavacParser implements Parser {
         case ASSERT:
             return List.of(parseSimpleStatement());
         case MONKEYS_AT:
+        case VALUE:
         case FINAL: {
             Comment dc = token.comment(CommentStyle.JAVADOC);
             JCModifiers mods = modifiersOpt();
@@ -2854,6 +2874,8 @@ public class JavacParser implements Parser {
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
             case DEFAULT     : checkDefaultMethods(); flag = Flags.DEFAULT; break;
+            case VALUE       : checkValueClasses(); flag = Flags.VALUE; break;
+            case STATICVALUEFACTORY: flag = Flags.STATICVALUEFACTORY; break;
             case ERROR       : flag = 0; nextToken(); break;
             default: break loop;
             }
@@ -4193,6 +4215,13 @@ public class JavacParser implements Parser {
             log.error(DiagnosticFlag.SOURCE_LEVEL, token.pos, Errors.DefaultMethodsNotSupportedInSource(source.name));
         }
     }
+
+    void checkValueClasses() {
+        if (!allowValueClasses) {
+            log.error(token.pos, "value.types.disabled");
+        }
+    }
+
     void checkIntersectionTypesInCast() {
         if (!allowIntersectionTypesInCast) {
             log.error(DiagnosticFlag.SOURCE_LEVEL, token.pos, Errors.IntersectionTypesInCastNotSupportedInSource(source.name));

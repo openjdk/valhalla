@@ -228,6 +228,16 @@ public class MemberEnter extends JCTree.Visitor {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
+
+        if ((tree.mods.flags & STATICVALUEFACTORY) != 0) {
+            if ((tree.mods.flags & STATIC) == 0) {
+                log.error(tree.pos(), "value.factory.must.be.static");
+            }
+            final Type returnType = m.getReturnType();
+            if (returnType != null && returnType.tsym != m.owner) {
+                log.error(tree.restype != null ? tree.restype.pos() : tree.pos(), "type.found.req", returnType.tsym, m.owner);
+            }
+        }
     }
 
     /** Create a fresh environment for method bodies.

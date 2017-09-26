@@ -1,0 +1,19 @@
+CheckSync.java:18:13: compiler.err.value.does.not.support: wait
+CheckSync.java:19:13: compiler.err.value.does.not.support: wait
+CheckSync.java:20:13: compiler.err.value.does.not.support: wait
+CheckSync.java:21:13: compiler.err.value.does.not.support: notify
+CheckSync.java:22:13: compiler.err.value.does.not.support: notifyAll
+CheckSync.java:23:13: compiler.err.value.does.not.support: finalize
+CheckSync.java:24:13: compiler.err.value.does.not.support: clone
+CheckSync.java:32:12: compiler.err.value.does.not.support: wait
+CheckSync.java:33:12: compiler.err.value.does.not.support: wait
+CheckSync.java:34:12: compiler.err.value.does.not.support: wait
+CheckSync.java:35:12: compiler.err.value.does.not.support: wait
+CheckSync.java:36:12: compiler.err.value.does.not.support: wait
+CheckSync.java:37:12: compiler.err.value.does.not.support: wait
+CheckSync.java:38:12: compiler.err.cant.resolve.location.args: kindname.method, wait, , java.lang.String, (compiler.misc.location.1: kindname.variable, val, CheckSync.Val)
+CheckSync.java:39:12: compiler.err.value.does.not.support: notify
+CheckSync.java:40:12: compiler.err.value.does.not.support: notifyAll
+- compiler.note.deprecated.filename: CheckSync.java
+- compiler.note.deprecated.recompile
+16 errors

@@ -1,0 +1,14 @@
+CheckStaticValueFactory.java:7:32: compiler.err.mod.not.allowed.here: staticvaluefactory
+CheckStaticValueFactory.java:19:30: compiler.err.mod.not.allowed.here: staticvaluefactory
+CheckStaticValueFactory.java:24:20: compiler.err.mod.not.allowed.here: staticvaluefactory
+CheckStaticValueFactory.java:27:26: compiler.err.value.factory.must.be.static
+CheckStaticValueFactory.java:31:27: compiler.err.type.found.req: java.lang.String, Point
+CheckStaticValueFactory.java:14:34: compiler.err.mod.not.allowed.here: staticvaluefactory
+CheckStaticValueFactory.java:32:20: compiler.err.make.default.with.nonvalue
+CheckStaticValueFactory.java:40:9: compiler.err.cant.assign.val.to.final.var: z
+CheckStaticValueFactory.java:42:9: compiler.err.cant.assign.val.to.final.var: x
+CheckStaticValueFactory.java:47:18: compiler.err.make.default.in.nonfactory
+CheckStaticValueFactory.java:48:9: compiler.err.cant.assign.val.to.final.var: x
+CheckStaticValueFactory.java:49:9: compiler.err.cant.assign.val.to.final.var: y
+CheckStaticValueFactory.java:50:9: compiler.err.cant.assign.val.to.final.var: z
+13 errors

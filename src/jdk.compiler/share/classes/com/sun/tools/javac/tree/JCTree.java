@@ -1663,6 +1663,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCExpression clazz;
         public List<JCExpression> args;
         public JCClassDecl def;
+        public CreationMode creationMode;    // <- temporary
         public Symbol constructor;
         public Type varargsElement;
         public Type constructorType;
@@ -1678,6 +1679,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             this.clazz = clazz;
             this.args = args;
             this.def = def;
+            this.creationMode = CreationMode.NEW;    // <- temporary
         }
         @Override
         public void accept(Visitor v) { v.visitNewClass(this); }

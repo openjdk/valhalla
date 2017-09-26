@@ -307,7 +307,10 @@ public class CheckResourceKeys {
             "java.",
             "javac.",
             "verbose.",
-            "locn."
+            "locn.",
+            // annotation for minimal value types.
+            "jvm.internal.value.ValueCapableClass",
+            "java.lang.__Value"
     ));
 
     /**

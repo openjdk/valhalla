@@ -1,0 +1,22 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckSync.java:38:12: compiler.err.cant.apply.symbols: kindname.method, wait, java.lang.String,{(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(long), (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: java.lang.String, long))),(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(long,int), (compiler.misc.arg.length.mismatch)),(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(), (compiler.misc.arg.length.mismatch))}
+CheckSync.java:18:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:19:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:20:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:21:19: compiler.warn.value.does.not.support: calling java.lang.Object's method: notify
+CheckSync.java:22:22: compiler.warn.value.does.not.support: calling java.lang.Object's method: notifyAll
+CheckSync.java:23:21: compiler.warn.value.does.not.support: calling java.lang.Object's method: finalize
+CheckSync.java:24:18: compiler.warn.value.does.not.support: calling java.lang.Object's method: clone
+CheckSync.java:32:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:33:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:34:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:35:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:36:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:37:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
+CheckSync.java:39:19: compiler.warn.value.does.not.support: calling java.lang.Object's method: notify
+CheckSync.java:40:22: compiler.warn.value.does.not.support: calling java.lang.Object's method: notifyAll
+- compiler.note.deprecated.filename: CheckSync.java
+- compiler.note.deprecated.recompile
+2 errors
+16 warnings

@@ -664,8 +664,11 @@ public class TypeEnter implements Completer {
             // Determine supertype.
             Type supertype;
             JCExpression extending;
+            final boolean isValueType = (tree.mods.flags & Flags.VALUE) != 0;
 
             if (tree.extending != null) {
+                if (isValueType)
+                    log.error(tree.pos(), "value.may.not.extend");
                 extending = clearTypeParams(tree.extending);
                 supertype = attr.attribBase(extending, baseEnv, true, false, true);
             } else {
@@ -673,9 +676,9 @@ public class TypeEnter implements Completer {
                 supertype = ((tree.mods.flags & Flags.ENUM) != 0)
                 ? attr.attribBase(enumBase(tree.pos, sym), baseEnv,
                                   true, false, false)
-                : (sym.fullname == names.java_lang_Object)
-                ? Type.noType
-                : syms.objectType;
+                : (sym.fullname == names.java_lang_Object || sym.fullname == names.java_lang_Value)
+                        ? Type.noType
+                        : isValueType ? syms.valueClassType : syms.objectType;
             }
             ct.supertype_field = modelMissingTypes(baseEnv, supertype, extending, false);
 
@@ -838,6 +841,9 @@ public class TypeEnter implements Completer {
                 !env.toplevel.sourcefile.isNameCompatible(sym.name.toString(),JavaFileObject.Kind.SOURCE)) {
                 sym.flags_field |= AUXILIARY;
             }
+            if ((tree.mods.flags & Flags.VALUE) != 0 && (tree.mods.flags & Flags.FINAL) == 0) {
+                log.error(tree.pos(), "value.must.be.final");
+            }
         }
     }
 
@@ -934,6 +940,9 @@ public class TypeEnter implements Completer {
             if (allowTypeAnnos) {
                 typeAnnotations.organizeTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
                 typeAnnotations.validateTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
+            }
+            if (types.isValue(tree.sym.type)) {
+                chk.checkNonCyclicMembership(tree);
             }
         }
 
@@ -1043,7 +1052,7 @@ public class TypeEnter implements Completer {
                 argtypes, based);
         List<JCVariableDecl> params = make.Params(argtypes, init);
         List<JCStatement> stats = List.nil();
-        if (c.type != syms.objectType) {
+        if (c.type != syms.objectType && c.type != syms.valueClassType) {
             stats = stats.prepend(SuperCall(make, typarams, params, based));
         }
         result = make.MethodDef(init, make.Block(0, stats));

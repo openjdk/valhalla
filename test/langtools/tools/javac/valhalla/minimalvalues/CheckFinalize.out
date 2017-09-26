@@ -1,0 +1,9 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckFinalize.java:16:12: compiler.err.report.access: finalize(), protected, java.lang.Object
+CheckFinalize.java:10:20: compiler.warn.value.does.not.support: overriding java.lang.Object's method: finalize
+CheckFinalize.java:16:21: compiler.warn.value.does.not.support: calling java.lang.Object's method: finalize
+- compiler.note.deprecated.filename: CheckFinalize.java
+- compiler.note.deprecated.recompile
+2 errors
+3 warnings

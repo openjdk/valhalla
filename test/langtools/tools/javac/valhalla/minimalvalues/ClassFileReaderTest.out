@@ -1,0 +1,5 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+ClassFileReaderTest.java:10:19: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, Point)
+1 error
+2 warnings

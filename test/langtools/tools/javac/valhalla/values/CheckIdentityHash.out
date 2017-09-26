@@ -1,0 +1,5 @@
+CheckIdentityHash.java:14:32: compiler.err.value.does.not.support: identityHashCode
+CheckIdentityHash.java:15:32: compiler.err.value.does.not.support: identityHashCode
+CheckIdentityHash.java:16:42: compiler.err.value.does.not.support: identityHashCode
+CheckIdentityHash.java:17:42: compiler.err.value.does.not.support: identityHashCode
+4 errors

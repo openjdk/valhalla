@@ -154,10 +154,12 @@ public class Symtab {
     /** A symbol for the java.base module.
      */
     public final ModuleSymbol java_base;
+    public final ModuleSymbol jdk_incubator_mvt;
 
     /** Predefined types.
      */
     public final Type objectType;
+    public final Type valueClassType;
     public final Type objectsType;
     public final Type classType;
     public final Type classLoaderType;
@@ -210,6 +212,7 @@ public class Symtab {
     public final Type documentedType;
     public final Type elementTypeType;
     public final Type functionalInterfaceType;
+    public final Type valueCapableClass;
 
     /** The symbol representing the length field of an array.
      */
@@ -293,6 +296,60 @@ public class Symtab {
             }
         };
     }
+
+    public void synthesizeDeriveValueTypeIfMissing(final Type type) {
+        final Completer completer = type.tsym.completer;
+        type.tsym.completer = new Completer() {
+            public void complete(Symbol sym) throws CompletionFailure {
+                try {
+                    completer.complete(sym);
+                } catch (CompletionFailure e) {
+                    ClassType ctype = (ClassType) type;
+                    sym.flags_field = PUBLIC|ACYCLIC|ANNOTATION|INTERFACE;
+                    sym.erasure_field = ctype;
+                    ((ClassSymbol) sym).members_field = WriteableScope.create(sym);
+                    ctype.typarams_field = List.nil();
+                    ctype.allparams_field = List.nil();
+                    ctype.supertype_field = annotationType;
+                    ctype.interfaces_field = List.nil();
+                }
+            }
+
+            @Override
+            public boolean isTerminal() {
+                return completer.isTerminal();
+            }
+        };
+    }
+
+    public void synthesizeJavaLangValueClassIfMissing(final Type type) {
+        final Completer completer = type.tsym.completer;
+        type.tsym.completer = new Completer() {
+            public void complete(Symbol sym) throws CompletionFailure {
+                try {
+                    completer.complete(sym);
+                } catch (CompletionFailure e) {
+                    sym.flags_field |= (PUBLIC | VALUE);
+                    ((ClassType) sym.type).supertype_field = Type.noType;
+                    ((ClassSymbol) sym).members_field = WriteableScope.create(sym);
+                    sym.members().enter(new MethodSymbol(PUBLIC, names.init,
+                            new MethodType(List.<Type>nil(), voidType, List.<Type>nil(), methodClass), sym));
+                    sym.members().enter(new MethodSymbol(PUBLIC, names.hashCode,
+                            new MethodType(List.<Type>nil(), intType, List.<Type>nil(), methodClass), sym));
+                    sym.members().enter(new MethodSymbol(PUBLIC, names.toString,
+                            new MethodType(List.<Type>nil(), stringType, List.<Type>nil(), methodClass), sym));
+                    sym.members().enter(new MethodSymbol(PUBLIC, names.equals,
+                            new MethodType(List.<Type>of(objectType), booleanType, List.<Type>nil(), methodClass), sym));
+                }
+            }
+
+            @Override
+            public boolean isTerminal() {
+                return completer.isTerminal();
+            }
+        };
+    }
+
 
     public void synthesizeBoxTypeIfMissing(final Type type) {
         ClassSymbol sym = enterClass(java_base, boxedName[type.getTag().ordinal()]);
@@ -473,8 +530,13 @@ public class Symtab {
             //avoid completing java.base during the Symtab initialization
             java_base.completer = Completer.NULL_COMPLETER;
             java_base.visiblePackages = Collections.emptyMap();
+
+            jdk_incubator_mvt = enterModule(names.fromString("jdk.incubator.mvt"));
+            jdk_incubator_mvt.completer = Completer.NULL_COMPLETER;
+            jdk_incubator_mvt.visiblePackages = Collections.emptyMap();
         } else {
             java_base = noModule;
+            jdk_incubator_mvt = noModule;
         }
 
         // Get the initial completer for ModuleSymbols from Modules
@@ -483,6 +545,7 @@ public class Symtab {
         // Enter predefined classes. All are assumed to be in the java.base module.
         objectType = enterClass("java.lang.Object");
         objectsType = enterClass("java.util.Objects");
+        valueClassType = enterClass("java.lang.__Value");
         classType = enterClass("java.lang.Class");
         stringType = enterClass("java.lang.String");
         stringBufferType = enterClass("java.lang.StringBuffer");
@@ -544,6 +607,9 @@ public class Symtab {
         stringConcatFactory = enterClass("java.lang.invoke.StringConcatFactory");
         functionalInterfaceType = enterClass("java.lang.FunctionalInterface");
 
+        Name vccName = names.fromString("jdk.incubator.mvt.ValueCapableClass");
+        valueCapableClass = enterClass(jdk_incubator_mvt, vccName).type;
+
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);
         synthesizeEmptyInterfaceIfMissing(serializableType);
@@ -553,6 +619,8 @@ public class Symtab {
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);
+        synthesizeJavaLangValueClassIfMissing(valueClassType);
+        synthesizeDeriveValueTypeIfMissing(valueCapableClass);
 
         // Enter a synthetic class that is used to mark internal
         // proprietary classes in ct.sym.  This class does not have a
@@ -586,8 +654,10 @@ public class Symtab {
             arrayClass);
         arrayClass.members().enter(arrayCloneMethod);
 
-        if (java_base != noModule)
+        if (java_base != noModule) {
             java_base.completer = moduleCompleter::complete; //bootstrap issues
+            jdk_incubator_mvt.completer = moduleCompleter::complete; //bootstrap issues
+        }
 
     }
 

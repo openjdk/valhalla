@@ -26,6 +26,7 @@
 package com.sun.tools.javac.jvm;
 
 import java.io.*;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -434,7 +435,13 @@ public class ClassWriter extends ClassFile {
                 if (c.type.hasTag(ARRAY)) {
                     poolbuf.appendChar(pool.put(typeSig(c.type)));
                 } else {
-                    poolbuf.appendChar(pool.put(names.fromUtf(externalize(c.flatname))));
+                    Name className = names.fromUtf(externalize(c.flatname));
+                    if (types.isValue(c.type)) {
+                        className = names.fromString(";Q")
+                                .append(className)
+                                .append(names.fromString(";"));
+                    }
+                    poolbuf.appendChar(pool.put(className));
                     enterInner(c);
                 }
             } else if (value instanceof NameAndType) {
@@ -1716,6 +1723,8 @@ public class ClassWriter extends ClassFile {
             flags = adjustFlags(c.flags() & ~DEFAULT);
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & ClassFlags & ~STRICTFP;
+            if ((flags & VALUE) != 0) flags |= ACC_VALUE;
+            flags = flags & ~VALUE;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1816,7 +1825,11 @@ public class ClassWriter extends ClassFile {
 
         poolbuf.appendInt(JAVA_MAGIC);
 
-        if (c.owner.kind == MDL) {
+        if (types.isValue(c.type)) {
+            //fixup classfile version for value capable classes
+            poolbuf.appendChar(1);
+            poolbuf.appendChar(53);
+        } else if (c.owner.kind == MDL) {
             // temporarily overide to force use of v53 for module-info.class
             poolbuf.appendChar(0);
             poolbuf.appendChar(53);

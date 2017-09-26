@@ -1,0 +1,5 @@
+CheckNullAssign.java:11:15: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+CheckNullAssign.java:12:9: compiler.err.cant.apply.symbol: kindname.method, foo, CheckNullAssign, compiler.misc.type.null, kindname.class, CheckNullAssign, (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign))
+CheckNullAssign.java:13:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+CheckNullAssign.java:14:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+4 errors

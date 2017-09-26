@@ -47,6 +47,8 @@ import javax.lang.model.type.UnknownTypeException;
 import javax.lang.model.util.*;
 
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.Completer;
+import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -127,7 +129,12 @@ public class TestSymtabItems {
         public Void visitModule(ModuleElement e, Void p) {
             show("module", e);
             indent(+1);
-            super.visitModule(e, p);
+            if (e.getQualifiedName().contentEquals("jdk.incubator.mvt")) {
+                //completion of a module with 'requires' directive will fail at this stage.
+                ((ModuleSymbol) e).completer = Completer.NULL_COMPLETER;
+            } else {
+                super.visitModule(e, p);
+            }
             indent(-1);
             return null;
         }

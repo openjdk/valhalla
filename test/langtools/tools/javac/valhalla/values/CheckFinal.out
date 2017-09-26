@@ -1,0 +1,4 @@
+CheckFinal.java:8:11: compiler.err.value.must.be.final
+CheckFinal.java:9:9: compiler.err.value.field.must.be.final
+CheckFinal.java:13:17: compiler.err.value.field.must.be.final
+3 errors
