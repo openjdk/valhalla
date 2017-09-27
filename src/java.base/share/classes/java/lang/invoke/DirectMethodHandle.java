@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,8 @@ class DirectMethodHandle extends MethodHandle {
         if (!member.isResolved())  throw new InternalError();
 
         if (member.getDeclaringClass().isInterface() &&
-                member.isMethod() && !member.isAbstract()) {
+            member.getReferenceKind() == REF_invokeInterface &&
+            member.isMethod() && !member.isAbstract()) {
             // Check for corner case: invokeinterface of Object method
             MemberName m = new MemberName(Object.class, member.getName(), member.getMethodType(), member.getReferenceKind());
             m = MemberName.getFactory().resolveOrNull(m.getReferenceKind(), m, null);

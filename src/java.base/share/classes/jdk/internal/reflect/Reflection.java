@@ -151,6 +151,17 @@ public class Reflection {
             return true;
         }
 
+        // Check for nestmate access if member is private
+        if (Modifier.isPrivate(modifiers)) {
+          // assert: isSubclassof(targetClass, memberClass)
+          // Note: targetClass may be outside the nest, but that is okay
+          //       as long as memberClass is in the nest.
+          boolean nestmates = areNestMates(currentClass, memberClass);
+          if (nestmates) {
+            return true;
+          }
+        }
+
         boolean successSoFar = false;
 
         if (Modifier.isProtected(modifiers)) {
@@ -359,4 +370,7 @@ public class Reflection {
 
         return new IllegalAccessException(msg);
     }
+
+    public static native boolean areNestMates(Class<?> currentClass,
+                                              Class<?> memberClass);
 }

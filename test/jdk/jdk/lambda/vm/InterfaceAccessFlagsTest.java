@@ -71,10 +71,12 @@ public class InterfaceAccessFlagsTest extends TestHarness {
         }
     }
 
+    /* excluded: 8187655
     @Test(groups = "vm_prototype")
     public void testPrivateMethodCall() {
         testMethodCallWithFlag(AccessFlag.PRIVATE);
     }
+    */
 
     @Test(groups = "vm_prototype")
     public void testStaticMethodCall() {

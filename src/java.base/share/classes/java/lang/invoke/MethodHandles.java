@@ -1395,7 +1395,13 @@ assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
             checkSpecialCaller(specialCaller, refc);
             Lookup specialLookup = this.in(specialCaller);
             MemberName method = specialLookup.resolveOrFail(REF_invokeSpecial, refc, name, type);
-            return specialLookup.getDirectMethod(REF_invokeSpecial, refc, method, findBoundCallerClass(method));
+            Class<?> callerCls = findBoundCallerClass(method);
+            boolean restrict = !(method.isPrivate() && Reflection.areNestMates(specialCaller, refc));
+
+            if (restrict)
+                return specialLookup.getDirectMethod(REF_invokeSpecial, refc, method, callerCls);
+            else
+                return specialLookup.getDirectMethodNoRestrictInvokeSpecial(refc, method, callerCls);
         }
 
         /**
@@ -2216,7 +2222,7 @@ return mh1;
             return "member is private to package";
         }
 
-        private static final boolean ALLOW_NESTMATE_ACCESS = false;
+        private static final boolean ALLOW_NESTMATE_ACCESS = false; // experiment with protected nestmate access
 
         private void checkSpecialCaller(Class<?> specialCaller, Class<?> refc) throws IllegalAccessException {
             int allowedModes = this.allowedModes;
@@ -2279,6 +2285,7 @@ return mh1;
         private MethodHandle getDirectMethodCommon(byte refKind, Class<?> refc, MemberName method,
                                                    boolean checkSecurity,
                                                    boolean doRestrict, Class<?> callerClass) throws IllegalAccessException {
+
             checkMethod(refKind, refc, method);
             // Optionally check with the security manager; this isn't needed for unreflect* calls.
             if (checkSecurity)
@@ -2291,6 +2298,7 @@ return mh1;
                 refc != lookupClass().getSuperclass() &&
                 refc.isAssignableFrom(lookupClass())) {
                 assert(!method.getName().equals("<init>"));  // not this code path
+
                 // Per JVMS 6.5, desc. of invokespecial instruction:
                 // If the method is in a superclass of the LC,
                 // and if our original search was above LC.super,

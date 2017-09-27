@@ -44,7 +44,6 @@ public class VerifyAccess {
     private static final int PACKAGE_ALLOWED = java.lang.invoke.MethodHandles.Lookup.PACKAGE;
     private static final int PROTECTED_OR_PACKAGE_ALLOWED = (PACKAGE_ALLOWED|PROTECTED);
     private static final int ALL_ACCESS_MODES = (PUBLIC|PRIVATE|PROTECTED|PACKAGE_ONLY);
-    private static final boolean ALLOW_NESTMATE_ACCESS = false;
 
     /**
      * Evaluate the JVM linkage rules for access to the given method
@@ -126,9 +125,8 @@ public class VerifyAccess {
             return ((allowedModes & PACKAGE_ALLOWED) != 0 &&
                     isSamePackage(defc, lookupClass));
         case PRIVATE:
-            // Loosened rules for privates follows access rules for inner classes.
-            return (ALLOW_NESTMATE_ACCESS &&
-                    (allowedModes & PRIVATE) != 0 &&
+            // Loosened rules for privates follows access rules for nestmates.
+            return ((allowedModes & PRIVATE) != 0 &&
                     isSamePackageMember(defc, lookupClass));
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
@@ -354,16 +352,8 @@ public class VerifyAccess {
             return true;
         if (!isSamePackage(class1, class2))
             return false;
-        if (getOutermostEnclosingClass(class1) != getOutermostEnclosingClass(class2))
-            return false;
-        return true;
-    }
-
-    private static Class<?> getOutermostEnclosingClass(Class<?> c) {
-        Class<?> pkgmem = c;
-        for (Class<?> enc = c; (enc = enc.getEnclosingClass()) != null; )
-            pkgmem = enc;
-        return pkgmem;
+        
+        return Reflection.areNestMates(class1, class2);
     }
 
     private static boolean loadersAreRelated(ClassLoader loader1, ClassLoader loader2,

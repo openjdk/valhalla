@@ -260,6 +260,7 @@ SUNWprivate_1.1 {
                 Java_java_io_Console_echo;
 		Java_jdk_internal_reflect_NativeConstructorAccessorImpl_newInstance0;
 		Java_jdk_internal_reflect_NativeMethodAccessorImpl_invoke0;
+                Java_jdk_internal_reflect_Reflection_areNestMates;
 		Java_jdk_internal_reflect_Reflection_getCallerClass__;
 		Java_jdk_internal_reflect_Reflection_getCallerClass__I;
 		Java_jdk_internal_reflect_Reflection_getClassAccessFlags;

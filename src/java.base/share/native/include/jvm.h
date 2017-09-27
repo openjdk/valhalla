@@ -536,6 +536,10 @@ JVM_GetClassDeclaredConstructors(JNIEnv *env, jclass ofClass, jboolean publicOnl
 JNIEXPORT jint JNICALL
 JVM_GetClassAccessFlags(JNIEnv *env, jclass cls);
 
+/* Nestmate access - since JDK 10 */
+JNIEXPORT jboolean JNICALL
+JVM_AreNestMates(JNIEnv *env, jclass current, jclass member);
+
 /* The following two reflection routines are still needed due to startup time issues */
 /*
  * java.lang.reflect.Method

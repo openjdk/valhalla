@@ -142,7 +142,7 @@ public class AtomicIntegerFieldUpdaterTest extends JSR166TestCase {
     /**
      * construction using private field from subclass throws RuntimeException
      */
-    public void testPrivateFieldInSubclass() {
+    public void exclude_8187607_testPrivateFieldInSubclass() {
         AtomicIntegerFieldUpdaterTestSubclass s =
             new AtomicIntegerFieldUpdaterTestSubclass();
         s.checkPrivateAccess();
@@ -152,7 +152,7 @@ public class AtomicIntegerFieldUpdaterTest extends JSR166TestCase {
      * construction from unrelated class; package access is allowed,
      * private access is not
      */
-    public void testUnrelatedClassAccess() {
+    public void exclude_8187607_testUnrelatedClassAccess() {
         new UnrelatedClass().checkPackageAccess(this);
         new UnrelatedClass().checkPrivateAccess(this);
     }
