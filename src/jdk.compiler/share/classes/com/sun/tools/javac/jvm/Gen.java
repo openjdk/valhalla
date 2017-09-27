@@ -126,6 +126,7 @@ public class Gen extends JCTree.Visitor {
         genCrt = options.isSet(XJCOV);
         debugCode = options.isSet("debug.code");
         allowBetterNullChecks = target.hasObjects();
+        virtualizePrivateAccess = options.isSet("virtualizePrivateAccess");
         pool = new Pool(types);
 
         // ignore cldc because we cannot have both stackmap formats
@@ -140,6 +141,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private final boolean allowBetterNullChecks;
+    private boolean virtualizePrivateAccess;
 
     /** Code buffer, set by genMethod.
      */
@@ -2053,8 +2055,14 @@ public class Gen extends JCTree.Visitor {
         } else {
             items.makeThisItem().load();
             sym = binaryQualifier(sym, env.enclClass.type);
-            result = items.makeMemberItem(sym, (sym.flags() & PRIVATE) != 0);
+            result = items.makeMemberItem(sym, nonVirtualForPrivateAccess(sym));
         }
+    }
+
+    //where
+    private boolean nonVirtualForPrivateAccess(Symbol sym) {
+        return !(virtualizePrivateAccess || target.hasVirtualPrivateInvoke()) &&
+               ((sym.flags() & PRIVATE) != 0);
     }
 
     public void visitSelect(JCFieldAccess tree) {
@@ -2113,7 +2121,7 @@ public class Gen extends JCTree.Visitor {
                 } else {
                     result = items.
                         makeMemberItem(sym,
-                                       (sym.flags() & PRIVATE) != 0 ||
+                                       nonVirtualForPrivateAccess(sym) ||
                                        selectSuper || accessSuper);
                 }
             }

@@ -35,6 +35,7 @@ import com.sun.tools.classfile.CharacterRangeTable_attribute.Entry;
 import com.sun.tools.classfile.Code_attribute;
 import com.sun.tools.classfile.CompilationID_attribute;
 import com.sun.tools.classfile.ConstantPool;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 import com.sun.tools.classfile.ConstantPoolException;
 import com.sun.tools.classfile.ConstantValue_attribute;
 import com.sun.tools.classfile.DefaultAttribute;
@@ -46,6 +47,7 @@ import com.sun.tools.classfile.InnerClasses_attribute.Info;
 import com.sun.tools.classfile.LineNumberTable_attribute;
 import com.sun.tools.classfile.LocalVariableTable_attribute;
 import com.sun.tools.classfile.LocalVariableTypeTable_attribute;
+import com.sun.tools.classfile.MemberOfNest_attribute;
 import com.sun.tools.classfile.MethodParameters_attribute;
 import com.sun.tools.classfile.Module_attribute;
 import com.sun.tools.classfile.ModuleHashes_attribute;
@@ -53,6 +55,7 @@ import com.sun.tools.classfile.ModuleMainClass_attribute;
 import com.sun.tools.classfile.ModulePackages_attribute;
 import com.sun.tools.classfile.ModuleResolution_attribute;
 import com.sun.tools.classfile.ModuleTarget_attribute;
+import com.sun.tools.classfile.NestMembers_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleTypeAnnotations_attribute;
@@ -397,6 +400,14 @@ public class AttributeWriter extends BasicWriter
         return null;
     }
 
+    @Override
+    public Void visitMemberOfNest(MemberOfNest_attribute attr, Void aVoid) {
+        print("MemberOfNest: ");
+        constantWriter.write(attr.top_index);
+        println();
+        return null;
+    }
+
     private String getJavaClassName(ModuleMainClass_attribute a) {
         try {
             return getJavaName(a.getMainClassName(constant_pool));
@@ -684,6 +695,22 @@ public class AttributeWriter extends BasicWriter
         } catch (ConstantPoolException e) {
             return report(e);
         }
+    }
+
+    @Override
+    public Void visitNestMembers(NestMembers_attribute attr, Void aVoid) {
+        println("NestMembers:");
+        indent(+1);
+        try {
+            CONSTANT_Class_info[] children = attr.getChildren(constant_pool);
+            for (int i = 0; i < attr.members_indexes.length; i++) {
+                println(constantWriter.stringValue(children[i]));
+            }
+            indent(-1);
+        } catch (ConstantPoolException ex) {
+            throw new AssertionError(ex);
+        }
+        return null;
     }
 
     @Override

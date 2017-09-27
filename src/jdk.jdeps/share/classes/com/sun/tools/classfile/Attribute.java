@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ public abstract class Attribute {
     public static final String LineNumberTable          = "LineNumberTable";
     public static final String LocalVariableTable       = "LocalVariableTable";
     public static final String LocalVariableTypeTable   = "LocalVariableTypeTable";
+    public static final String MemberOfNest             = "MemberOfNest";
     public static final String MethodParameters         = "MethodParameters";
     public static final String Module                   = "Module";
     public static final String ModuleHashes             = "ModuleHashes";
@@ -58,6 +59,7 @@ public abstract class Attribute {
     public static final String ModulePackages           = "ModulePackages";
     public static final String ModuleResolution         = "ModuleResolution";
     public static final String ModuleTarget             = "ModuleTarget";
+    public static final String NestMembers              = "NestMembers";
     public static final String RuntimeVisibleAnnotations = "RuntimeVisibleAnnotations";
     public static final String RuntimeInvisibleAnnotations = "RuntimeInvisibleAnnotations";
     public static final String RuntimeVisibleParameterAnnotations = "RuntimeVisibleParameterAnnotations";
@@ -123,6 +125,7 @@ public abstract class Attribute {
             standardAttributes.put(LineNumberTable,   LineNumberTable_attribute.class);
             standardAttributes.put(LocalVariableTable, LocalVariableTable_attribute.class);
             standardAttributes.put(LocalVariableTypeTable, LocalVariableTypeTable_attribute.class);
+            standardAttributes.put(MemberOfNest, MemberOfNest_attribute.class);
             standardAttributes.put(MethodParameters,  MethodParameters_attribute.class);
             standardAttributes.put(Module,            Module_attribute.class);
             standardAttributes.put(ModuleHashes,      ModuleHashes_attribute.class);
@@ -130,6 +133,7 @@ public abstract class Attribute {
             standardAttributes.put(ModulePackages,    ModulePackages_attribute.class);
             standardAttributes.put(ModuleResolution,  ModuleResolution_attribute.class);
             standardAttributes.put(ModuleTarget,      ModuleTarget_attribute.class);
+            standardAttributes.put(NestMembers, NestMembers_attribute.class);
             standardAttributes.put(RuntimeInvisibleAnnotations, RuntimeInvisibleAnnotations_attribute.class);
             standardAttributes.put(RuntimeInvisibleParameterAnnotations, RuntimeInvisibleParameterAnnotations_attribute.class);
             standardAttributes.put(RuntimeVisibleAnnotations, RuntimeVisibleAnnotations_attribute.class);
@@ -186,6 +190,7 @@ public abstract class Attribute {
         R visitLineNumberTable(LineNumberTable_attribute attr, P p);
         R visitLocalVariableTable(LocalVariableTable_attribute attr, P p);
         R visitLocalVariableTypeTable(LocalVariableTypeTable_attribute attr, P p);
+        R visitMemberOfNest(MemberOfNest_attribute attr, P p);
         R visitMethodParameters(MethodParameters_attribute attr, P p);
         R visitModule(Module_attribute attr, P p);
         R visitModuleHashes(ModuleHashes_attribute attr, P p);
@@ -193,6 +198,7 @@ public abstract class Attribute {
         R visitModulePackages(ModulePackages_attribute attr, P p);
         R visitModuleResolution(ModuleResolution_attribute attr, P p);
         R visitModuleTarget(ModuleTarget_attribute attr, P p);
+        R visitNestMembers(NestMembers_attribute attr, P p);
         R visitRuntimeVisibleAnnotations(RuntimeVisibleAnnotations_attribute attr, P p);
         R visitRuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations_attribute attr, P p);
         R visitRuntimeVisibleParameterAnnotations(RuntimeVisibleParameterAnnotations_attribute attr, P p);

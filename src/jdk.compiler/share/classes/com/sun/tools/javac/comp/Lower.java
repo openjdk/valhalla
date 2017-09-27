@@ -93,6 +93,8 @@ public class Lower extends TreeTranslator {
     private final Name dollarCloseResource;
     private final Types types;
     private final boolean debugLower;
+    private final boolean disableAccessors;
+    private final boolean disablePrivateAccessors;
     private final PkgInfo pkginfoOpt;
 
     protected Lower(Context context) {
@@ -121,6 +123,8 @@ public class Lower extends TreeTranslator {
         Options options = Options.instance(context);
         debugLower = options.isSet("debuglower");
         pkginfoOpt = PkgInfo.get(options);
+        disableAccessors = options.isSet("disableAccessors");
+        disablePrivateAccessors = options.isSet("disablePrivateAccessors");
     }
 
     /** The currently enclosing class.
@@ -1006,6 +1010,10 @@ public class Lower extends TreeTranslator {
     /** Do we need an access method to reference private symbol?
      */
     boolean needsPrivateAccess(Symbol sym) {
+        if (disableAccessors || disablePrivateAccessors ||
+            target.hasNestmateAccess()) {
+            return false;
+        }
         if ((sym.flags() & PRIVATE) == 0 || sym.owner == currentClass) {
             return false;
         } else if (sym.name == names.init && sym.owner.isLocal()) {
@@ -1020,6 +1028,7 @@ public class Lower extends TreeTranslator {
     /** Do we need an access method to reference symbol in other package?
      */
     boolean needsProtectedAccess(Symbol sym, JCTree tree) {
+        if (disableAccessors) return false;
         if ((sym.flags() & PROTECTED) == 0 ||
             sym.owner.owner == currentClass.owner || // fast special case
             sym.packge() == currentClass.packge())
