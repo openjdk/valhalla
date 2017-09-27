@@ -334,7 +334,7 @@ Method* LinkResolver::lookup_method_in_klasses(const LinkInfo& link_info,
 
   InstanceKlass* ik = InstanceKlass::cast(klass);
 
-  // JDK 8, JVMS 5.4.3.4: Interface method resolution should
+   // JDK 8, JVMS 5.4.3.4: Interface method resolution should
   // ignore static and non-public methods of java.lang.Object,
   // like clone, finalize, registerNatives.
   if (in_imethod_resolve &&
@@ -740,7 +740,7 @@ methodHandle LinkResolver::resolve_method(const LinkInfo& link_info,
                     nested_exception, NULL);
   }
 
-  // 5. access checks, access checking may be turned off when calling from within the VM.
+  // 6. access checks, access checking may be turned off when calling from within the VM.
   Klass* current_klass = link_info.current_klass();
   if (link_info.check_access()) {
     assert(current_klass != NULL , "current_klass should not be null");
@@ -754,6 +754,26 @@ methodHandle LinkResolver::resolve_method(const LinkInfo& link_info,
 
     // check loader constraints
     check_method_loader_constraints(link_info, resolved_method, "method", CHECK_NULL);
+  }
+
+  // For private method invocation we should only find the method in the resolved class.
+  // If that is not the case then we have a found a supertype method that we have nestmate
+  // access to.
+  // FIXME: the "ignoring xxx" part is for debugging only
+  if (resolved_method->is_private() && resolved_method->method_holder() != resolved_klass) {
+    ResourceMark rm(THREAD);
+   DEBUG_ONLY(bool is_nestmate = InstanceKlass::cast(link_info.current_klass())->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD);)
+    assert(is_nestmate, "was only expecting nestmates to get here!");
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_NoSuchMethodError(),
+      "%s: method %s%s not found (ignoring %s)",
+      resolved_klass->external_name(),
+      resolved_method->name()->as_C_string(),
+      resolved_method->signature()->as_C_string(),
+      resolved_method->method_holder()->external_name()
+    );
+    return NULL;
   }
 
   return resolved_method;
@@ -792,6 +812,9 @@ static void trace_method_resolution(const char* prefix,
   st->cr();
 #endif // PRODUCT
 }
+
+// FIXME: update to correct version
+#define VIRTUAL_PRIVATE_ACCESS_VERSION 53
 
 // Do linktime resolution of a method in the interface within the context of the specied bytecode.
 methodHandle LinkResolver::resolve_interface_method(const LinkInfo& link_info, Bytecodes::Code code, TRAPS) {
@@ -858,16 +881,18 @@ methodHandle LinkResolver::resolve_interface_method(const LinkInfo& link_info, B
   }
 
   if (code == Bytecodes::_invokeinterface && resolved_method->is_private()) {
-    ResourceMark rm(THREAD);
-    char buf[200];
-
     Klass* current_klass = link_info.current_klass();
-    jio_snprintf(buf, sizeof(buf), "private interface method requires invokespecial, not invokeinterface: method %s, caller-class:%s",
-                 Method::name_and_sig_as_C_string(resolved_klass,
-                                                  resolved_method->name(),
-                                                  resolved_method->signature()),
-                                                  (current_klass == NULL ? "<NULL>" : current_klass->internal_name()));
-     THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
+    assert(current_klass != NULL, "current_klass should not be null for invokeinterface");
+    if (InstanceKlass::cast(current_klass)->major_version() < VIRTUAL_PRIVATE_ACCESS_VERSION) {
+      ResourceMark rm(THREAD);
+      char buf[200];
+      jio_snprintf(buf, sizeof(buf), "private interface method requires invokespecial, not invokeinterface: method %s, caller-class:%s",
+                   Method::name_and_sig_as_C_string(resolved_klass,
+                                                    resolved_method->name(),
+                                                    resolved_method->signature()),
+                   current_klass->internal_name());
+      THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
+    }
   }
 
   if (log_develop_is_enabled(Trace, itables)) {
@@ -1115,7 +1140,8 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
     return NULL;
   }
 
-  // check if invokespecial's interface method reference is in an indirect superinterface
+  // check that invokespecial's interface method reference is in a direct superinterface,
+  // unless we are dealing with nestmates.
   Klass* current_klass = link_info.current_klass();
   if (current_klass != NULL && resolved_klass->is_interface()) {
     InstanceKlass* ck = InstanceKlass::cast(current_klass);
@@ -1127,14 +1153,16 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
                         SystemDictionary::reflect_MagicAccessorImpl_klass());
 
     if (!is_reflect &&
-        !klass_to_check->is_same_or_direct_interface(resolved_klass)) {
+        !klass_to_check->is_same_or_direct_interface(resolved_klass) &&
+        (ck == klass_to_check && // don't check nestmate access for anonymous classes
+         !klass_to_check->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD))) {
       ResourceMark rm(THREAD);
       char buf[200];
       jio_snprintf(buf, sizeof(buf),
-                   "Interface method reference: %s, is in an indirect superinterface of %s",
+                   "Interface method reference: %s, is not in a direct superinterface of %s",
                    Method::name_and_sig_as_C_string(resolved_klass,
-                                                    resolved_method->name(),
-                                                    resolved_method->signature()),
+                                                                           resolved_method->name(),
+                                                                           resolved_method->signature()),
                    current_klass->external_name());
       THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
     }
@@ -1150,6 +1178,26 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
                                                   resolved_method->name(),
                                                   resolved_method->signature()));
     THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
+  }
+
+  // For private method invocation we should only find the method in the resolved class.
+  // If that is not the case then we have a found a supertype method that we have nestmate
+  // access to.
+  // FIXME: the "ignoring xxx" part is for debugging only
+  if (resolved_method->is_private() && resolved_method->method_holder() != resolved_klass) {
+    ResourceMark rm(THREAD);
+    DEBUG_ONLY(bool is_nestmate = InstanceKlass::cast(link_info.current_klass())->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD);)
+    assert(is_nestmate, "was only expecting nestmates here!");
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_NoSuchMethodError(),
+      "%s: method %s%s not found (ignoring %s)",
+      resolved_klass->external_name(),
+      resolved_method->name()->as_C_string(),
+      resolved_method->signature()->as_C_string(),
+      resolved_method->method_holder()->external_name()
+    );
+    return NULL;
   }
 
   if (log_develop_is_enabled(Trace, itables)) {
@@ -1176,17 +1224,20 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
 
   if (check_access &&
       // check if the method is not <init>
-      resolved_method->name() != vmSymbols::object_initializer_name()) {
-
-  // check if this is an old-style super call and do a new lookup if so
-        // a) check if ACC_SUPER flag is set for the current class
+      resolved_method->name() != vmSymbols::object_initializer_name()
+      ) {
+    // check if this is an old-style super call and do a new lookup if so
+    // a) check if ACC_SUPER flag is set for the current class
     if ((current_klass->is_super() || !AllowNonVirtualCalls) &&
         // b) check if the class of the resolved_klass is a superclass
         // (not supertype in order to exclude interface classes) of the current class.
         // This check is not performed for super.invoke for interface methods
         // in super interfaces.
         current_klass->is_subclass_of(resolved_klass) &&
-        current_klass != resolved_klass) {
+        current_klass != resolved_klass &&
+        // c) check the method is not private - we don't re-resolve private methods
+        !resolved_method->is_private()
+        ) {
       // Lookup super method
       Klass* super_klass = current_klass->super();
       sel_method = lookup_instance_method_in_klasses(super_klass,
@@ -1203,16 +1254,20 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
     }
 
     // Check that the class of objectref (the receiver) is the current class or interface,
-    // or a subtype of the current class or interface (the sender), otherwise invokespecial
-    // throws IllegalAccessError.
+    // or a subtype of the current class or interface (the sender), or else they are
+    // nestmates, otherwise invokespecial throws IllegalAccessError.
     // The verifier checks that the sender is a subtype of the class in the I/MR operand.
     // The verifier also checks that the receiver is a subtype of the sender, if the sender is
     // a class.  If the sender is an interface, the check has to be performed at runtime.
-    InstanceKlass* sender = InstanceKlass::cast(current_klass);
-    sender = sender->is_anonymous() ? sender->host_klass() : sender;
+    InstanceKlass* cur_ik = InstanceKlass::cast(current_klass);
+    InstanceKlass* sender = cur_ik->is_anonymous() ? cur_ik->host_klass() : cur_ik;
     if (sender->is_interface() && recv.not_null()) {
       Klass* receiver_klass = recv->klass();
-      if (!receiver_klass->is_subtype_of(sender)) {
+      if (!receiver_klass->is_subtype_of(sender) &&
+          (cur_ik == sender && // don't check nestmate access for anonymous classes
+           // Note: we check the resolved class here, not the receiver class - the latter
+           // may be a subtype of the resolved class defined outside the nest.
+           !sender->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD))) {
         ResourceMark rm(THREAD);
         char buf[500];
         jio_snprintf(buf, sizeof(buf),
@@ -1421,42 +1476,48 @@ void LinkResolver::runtime_resolve_interface_method(CallInfo& result,
     THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
   }
 
-  // do lookup based on receiver klass
-  // This search must match the linktime preparation search for itable initialization
-  // to correctly enforce loader constraints for interface method inheritance
-  methodHandle sel_method = lookup_instance_method_in_klasses(recv_klass,
-                                                  resolved_method->name(),
-                                                  resolved_method->signature(), CHECK);
-  if (sel_method.is_null() && !check_null_and_abstract) {
-    // In theory this is a harmless placeholder value, but
-    // in practice leaving in null affects the nsk default method tests.
-    // This needs further study.
-    sel_method = resolved_method;
-  }
-  // check if method exists
-  if (sel_method.is_null()) {
-    ResourceMark rm(THREAD);
-    THROW_MSG(vmSymbols::java_lang_AbstractMethodError(),
-                   Method::name_and_sig_as_C_string(recv_klass,
-                                                    resolved_method->name(),
-                                                    resolved_method->signature()));
-  }
-  // check access
-  // Throw Illegal Access Error if sel_method is not public.
-  if (!sel_method->is_public()) {
-    ResourceMark rm(THREAD);
-    THROW_MSG(vmSymbols::java_lang_IllegalAccessError(),
-              Method::name_and_sig_as_C_string(recv_klass,
-                                               sel_method->name(),
-                                               sel_method->signature()));
-  }
-  // check if abstract
-  if (check_null_and_abstract && sel_method->is_abstract()) {
-    ResourceMark rm(THREAD);
-    THROW_MSG(vmSymbols::java_lang_AbstractMethodError(),
-              Method::name_and_sig_as_C_string(recv_klass,
-                                               sel_method->name(),
-                                               sel_method->signature()));
+  methodHandle sel_method = resolved_method;
+
+  // resolve the method in the receiver class, unless it is private
+  if (!resolved_method()->is_private()) {
+    // do lookup based on receiver klass
+    // This search must match the linktime preparation search for itable initialization
+    // to correctly enforce loader constraints for interface method inheritance
+    sel_method = lookup_instance_method_in_klasses(recv_klass,
+                                                   resolved_method->name(),
+                                                   resolved_method->signature(), CHECK);
+
+    if (sel_method.is_null() && !check_null_and_abstract) {
+      // In theory this is a harmless placeholder value, but
+      // in practice leaving in null affects the nsk default method tests.
+      // This needs further study.
+      sel_method = resolved_method;
+    }
+    // check if method exists
+    if (sel_method.is_null()) {
+      ResourceMark rm(THREAD);
+      THROW_MSG(vmSymbols::java_lang_AbstractMethodError(),
+                Method::name_and_sig_as_C_string(recv_klass,
+                                                 resolved_method->name(),
+                                                 resolved_method->signature()));
+    }
+    // check access
+    // Throw Illegal Access Error if sel_method is not public.
+    if (!sel_method->is_public()) {
+      ResourceMark rm(THREAD);
+      THROW_MSG(vmSymbols::java_lang_IllegalAccessError(),
+                Method::name_and_sig_as_C_string(recv_klass,
+                                                 sel_method->name(),
+                                                 sel_method->signature()));
+    }
+    // check if abstract
+    if (check_null_and_abstract && sel_method->is_abstract()) {
+      ResourceMark rm(THREAD);
+      THROW_MSG(vmSymbols::java_lang_AbstractMethodError(),
+                Method::name_and_sig_as_C_string(recv_klass,
+                                                 sel_method->name(),
+                                                 sel_method->signature()));
+    }
   }
 
   if (log_develop_is_enabled(Trace, itables)) {

@@ -1902,6 +1902,18 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 }
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
+{
+  JVMWrapper("JVM_AreNestMates");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  Klass* m = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(member));
+  assert(m->is_instance_klass(), "must be");
+  InstanceKlass* mk = InstanceKlass::cast(m);
+  return ck->has_nestmate_access_to(mk, THREAD);
+}
+JVM_END
 
 // Constant pool access //////////////////////////////////////////////////////////
 

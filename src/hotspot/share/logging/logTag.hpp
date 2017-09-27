@@ -94,6 +94,7 @@
   LOG_TAG(module) \
   LOG_TAG(monitorinflation) \
   LOG_TAG(monitormismatch) \
+  LOG_TAG(nestmates) \
   LOG_TAG(nmethod) \
   LOG_TAG(normalize) \
   LOG_TAG(objecttagging) \

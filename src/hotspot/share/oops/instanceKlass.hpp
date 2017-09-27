@@ -166,6 +166,18 @@ class InstanceKlass: public Klass {
   // number_of_inner_classes * 4 + enclosing_method_attribute_size.
   Array<jushort>* _inner_classes;
 
+  // The NestMembers attribute. An array of shorts, where each is a
+  // class info index for the class that is a nest member
+  Array<jushort>* _nest_members;
+
+  // The MemberOfNest attribute. The class info index for the class
+  // that is the nest-top of this class
+  jushort _nest_top_index;
+
+  // Resolved nest-top klass: either true nest-top or self if we are not nested.
+  // By always being set it makes nest-member access checks simpler.
+  InstanceKlass* _nest_top;
+
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
   // it is stored in the instanceklass as a NULL-terminated UTF-8 string
@@ -430,6 +442,24 @@ class InstanceKlass: public Klass {
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
   void set_inner_classes(Array<u2>* f)   { _inner_classes = f; }
+
+  // nest members
+  Array<u2>* nest_members() const     { return _nest_members; }
+  void set_nest_members(Array<u2>* m) { _nest_members = m; }
+
+  // nest-top index
+  jushort nest_top_index() const { return _nest_top_index; }
+  void set_nest_top_index(u2 i)  { _nest_top_index = i; }
+
+  // Returns nest-top class, resolving and validating it if needed
+  // Returns NULL if an exception occurs during loading, or validation fails
+  InstanceKlass* nest_top(TRAPS);
+  InstanceKlass* raw_nest_top() { return _nest_top; } // debugging
+
+  // Called to verify that k is a member of this nest - does not look at k's nest-top
+  bool has_nest_member(InstanceKlass* k, TRAPS) const;
+  // Check if this klass is a nestmate of k
+  bool has_nestmate_access_to(InstanceKlass* k, TRAPS);
 
   enum InnerClassAttributeOffset {
     // From http://mirror.eng/products/jdk/1.1/docs/guide/innerclasses/spec/innerclasses.doc10.html#18814

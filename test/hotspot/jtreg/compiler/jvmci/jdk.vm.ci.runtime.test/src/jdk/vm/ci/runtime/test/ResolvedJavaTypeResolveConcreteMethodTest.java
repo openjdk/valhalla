@@ -39,6 +39,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 
 public class ResolvedJavaTypeResolveConcreteMethodTest {
     public final MetaAccessProvider metaAccess;
@@ -117,8 +118,9 @@ public class ResolvedJavaTypeResolveConcreteMethodTest {
         ResolvedJavaType c = getType(C.class);
         ResolvedJavaMethod priv = getMethod(a, "priv");
 
-        assertNull(a.resolveConcreteMethod(priv, c));
-        assertNull(b.resolveConcreteMethod(priv, c));
+        // nestmates have access to private methods
+        assertNotNull(a.resolveConcreteMethod(priv, c));
+        assertNotNull(b.resolveConcreteMethod(priv, c));
     }
 
     @Test

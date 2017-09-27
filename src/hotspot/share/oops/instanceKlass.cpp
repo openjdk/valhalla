@@ -145,6 +145,150 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
+// called to verify that k is a member of this nest
+bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
+  if (_nest_members == NULL || _nest_members == Universe::the_empty_short_array()) {
+    if (log_is_enabled(Trace, class, nestmates)) {
+      ResourceMark rm(THREAD);
+      log_trace(class, nestmates)("Checking nest membership of %s in non-nest-top class %s",
+                                  k->name()->as_C_string(), this->name()->as_C_string());
+    }
+    return false;
+  }
+
+  if (log_is_enabled(Trace, class, nestmates)) {
+    ResourceMark rm(THREAD);
+    log_trace(class, nestmates)("Checking nest membership of %s in %s",
+                                k->name()->as_C_string(), this->name()->as_C_string());
+  }
+
+  // Check names first and if they match then check actual klass. This avoids
+  // resolving anything unnecessarily.
+  for (int i = 0; i < _nest_members->length(); i++) {
+    int cp_index = _nest_members->at(i);
+    Symbol* name = _constants->klass_name_at(cp_index);
+    if (name == k->name()) {
+      log_trace(class, nestmates)("- Found it at nest_members[%d] => cp[%d]", i, cp_index);
+
+      // names match so check actual klass - this may trigger class loading if
+      // it doesn't match (but that should be impossible)
+      Klass* k2 = _constants->klass_at(cp_index, CHECK_false);
+      if (k2 == k) {
+        log_trace(class, nestmates)("- klass is nestmate member");
+        return true;
+      }
+      else {
+        // same name but different klass!
+        log_trace(class, nestmates)(" - klass comparison failed!");
+      }
+    }
+  }
+  log_trace(class, nestmates)("- klass is NOT nestmate member!");
+  return false;
+}
+
+// Return nest top class, resolving, validating and saving it if needed
+InstanceKlass* InstanceKlass::nest_top(TRAPS) {
+  InstanceKlass* nest_top_k = _nest_top;
+  if (nest_top_k == NULL) {
+    // need to resolve and save our nest top class. This could be attempted
+    // concurrently but as the result is idempotent and we don't use the class
+    // then we do not need any synchronization beyond what is implicitly used
+    // during class loading.
+    if (_nest_top_index != 0) { // we have a real nest_top
+      if (log_is_enabled(Trace, class, nestmates)) {
+        ResourceMark rm(THREAD);
+        log_trace(class, nestmates)("Resolving nest top of %s using cp entry for %s",
+                                    this->name()->as_C_string(),
+                                    _constants->klass_name_at(_nest_top_index)->as_C_string());
+      }
+
+      Klass* k = _constants->klass_at(_nest_top_index, CHECK_NULL);
+
+      if (log_is_enabled(Trace, class, nestmates)) {
+        ResourceMark rm(THREAD);
+        log_trace(class, nestmates)("Resolved nest top of %s to %s",
+                                    this->name()->as_C_string(), k->name()->as_C_string());
+      }
+
+      if (!k->is_instance_klass()) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+                           THREAD_AND_LOCATION,
+                           vmSymbols::java_lang_IncompatibleClassChangeError(),
+                           "class %s has non-instance class %s as nest-top",
+                           this->external_name(),
+                           k->external_name()
+                           );
+        return NULL;
+      }
+
+      nest_top_k = InstanceKlass::cast(k);
+
+      bool is_member = nest_top_k->has_nest_member(this, CHECK_NULL);
+      if (!is_member) {
+        // this_k and nest_top disagree about nest membership
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+                           THREAD_AND_LOCATION,
+                           vmSymbols::java_lang_IncompatibleClassChangeError(),
+                           "Type %s is not a nest member of %s",
+                           this->external_name(),
+                           nest_top_k->external_name()
+                           );
+        return NULL;
+      }
+
+      if (!is_same_class_package(nest_top_k)) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+                           THREAD_AND_LOCATION,
+                           vmSymbols::java_lang_IncompatibleClassChangeError(),
+                           "Class %s is in a different package to its nest top class %s",
+                           this->external_name(),
+                           nest_top_k->external_name()
+                           );
+        return NULL;
+      }
+    }
+    else {
+      if (log_is_enabled(Trace, class, nestmates)) {
+        ResourceMark rm(THREAD);
+        log_trace(class, nestmates)("Class %s is not part of a nest: setting nest top to self",
+                                    this->name()->as_C_string());
+      }
+      nest_top_k = const_cast<InstanceKlass*>(this);
+    }
+  }
+  // save resolved nest-top value
+  _nest_top = nest_top_k;
+
+  return nest_top_k;
+}
+
+// check if 'this' and k are nestmates (same nest_top), or k is our nest_top,
+// or we are k's nest_top - all of which is covered by comparing the two
+// resolved_nest_tops
+bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
+
+  // If not actually nestmates, then both nest-top classes may have to loaded
+  // and the nest membership of each class validated.
+  InstanceKlass* cur_top = nest_top(CHECK_false);
+  Klass* k_nest_top = k->nest_top(CHECK_false);
+
+  bool access = (cur_top == k_nest_top);
+
+  if (log_is_enabled(Trace, class, nestmates)) {
+    ResourceMark rm(THREAD);
+    log_trace(class, nestmates)("Class %s does %shave nestmate accesss to %s",
+                                this->name()->as_C_string(),
+                                access ? "" : "NOT ",
+                                k->name()->as_C_string());
+  }
+
+  return access;
+}
+
 InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
   const int size = InstanceKlass::size(parser.vtable_size(),
                                        parser.itable_size(),
@@ -224,7 +368,10 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind) :
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
-  _reference_type(parser.reference_type()) {
+  _reference_type(parser.reference_type()),
+  _nest_members(NULL),
+  _nest_top_index(0),
+  _nest_top(NULL) {
     set_vtable_length(parser.vtable_size());
     set_kind(kind);
     set_access_flags(parser.access_flags());
@@ -364,6 +511,13 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<jushort>(loader_data, inner_classes());
   }
   set_inner_classes(NULL);
+
+  if (nest_members() != NULL &&
+      nest_members() != Universe::the_empty_short_array() &&
+      !nest_members()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, nest_members());
+  }
+  set_nest_members(NULL);
 
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != NULL && !annotations()->is_shared()) {
@@ -648,7 +802,6 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
   }
   return true;
 }
-
 
 // Rewrite the byte codes of all of the methods of a class.
 // The rewriter must be called exactly once. Rewriting must happen after
@@ -2040,6 +2193,8 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
       }
     }
   }
+
+  it->push(&_nest_members);
 }
 
 void InstanceKlass::remove_unshareable_info() {
@@ -2087,6 +2242,8 @@ void InstanceKlass::remove_unshareable_info() {
  _methods_jmethod_ids = NULL;
  _jni_ids = NULL;
  _oop_map_cache = NULL;
+  // clear _nest_top to ensure re-load at runtime
+  _nest_top = NULL;
 }
 
 void InstanceKlass::remove_java_mirror() {
@@ -2946,6 +3103,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->cr();
   }
   st->print(BULLET"inner classes:     "); inner_classes()->print_value_on(st);     st->cr();
+  st->print(BULLET"nest members:     "); nest_members()->print_value_on(st);     st->cr();
   st->print(BULLET"java mirror:       "); java_mirror()->print_value_on(st);       st->cr();
   st->print(BULLET"vtable length      %d  (start addr: " INTPTR_FORMAT ")", vtable_length(), p2i(start_of_vtable())); st->cr();
   if (vtable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_vtable(), vtable_length(), st);
@@ -3188,6 +3346,7 @@ void InstanceKlass::collect_statistics(KlassSizeStats *sz) const {
   n += (sz->_transitive_interfaces_bytes = sz->count_array(transitive_interfaces()));
   n += (sz->_fields_bytes                = sz->count_array(fields()));
   n += (sz->_inner_classes_bytes         = sz->count_array(inner_classes()));
+  n += (sz->_nest_members_bytes          = sz->count_array(nest_members()));
   sz->_ro_bytes += n;
 
   const ConstantPool* cp = constants();

@@ -369,7 +369,7 @@ void ConstantPool::remove_unshareable_info() {
   if (cache() != NULL) {
     cache()->remove_unshareable_info();
   }
-}
+ }
 
 int ConstantPool::cp_to_object_index(int cp_index) {
   // this is harder don't do this so much.
