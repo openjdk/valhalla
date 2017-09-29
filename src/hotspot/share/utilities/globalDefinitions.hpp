@@ -621,7 +621,7 @@ inline BasicType char2type(char c) {
   case 'V': return T_VOID;
   case 'L': return T_OBJECT;
   case '[': return T_ARRAY;
-  case 'Q':return T_VALUETYPE;
+  case 'Q': return T_VALUETYPE;
   }
   return T_ILLEGAL;
 }
@@ -686,9 +686,9 @@ enum ArrayElementSize {
   T_NARROWKLASS_aelem_bytes = 4,
   T_VOID_aelem_bytes        = 0,
 #ifdef _LP64
-  T_VALUETYPEPTR_aelem_bytes= 4
-#else
   T_VALUETYPEPTR_aelem_bytes= 8
+#else
+  T_VALUETYPEPTR_aelem_bytes= 4
 #endif
 };
 

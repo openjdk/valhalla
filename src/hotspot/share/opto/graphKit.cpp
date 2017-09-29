@@ -49,14 +49,21 @@
 
 //----------------------------GraphKit-----------------------------------------
 // Main utility constructor.
-GraphKit::GraphKit(JVMState* jvms)
+GraphKit::GraphKit(JVMState* jvms, PhaseGVN* gvn)
   : Phase(Phase::Parser),
     _env(C->env()),
-    _gvn(*C->initial_gvn())
+    _gvn((gvn != NULL) ? *gvn : *C->initial_gvn())
 {
   _exceptions = jvms->map()->next_exception();
   if (_exceptions != NULL)  jvms->map()->set_next_exception(NULL);
   set_jvms(jvms);
+#ifdef ASSERT
+  if (_gvn.is_IterGVN() != NULL) {
+    assert(_gvn.is_IterGVN()->delay_transform(), "Transformation must be delayed if IterGVN is used");
+    // Save the initial size of _for_igvn worklist for verification (see ~GraphKit)
+    _worklist_size = _gvn.C->for_igvn()->size();
+  }
+#endif
 }
 
 // Private constructor for parser.
@@ -1383,18 +1390,8 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   }
   ld = _gvn.transform(ld);
   if (bt == T_VALUETYPE) {
-    // Load non-flattened value type from memory. Add a null check and let the
-    // interpreter take care of initializing the field to the default value type.
-    Node* null_ctl = top();
-    ld = null_check_common(ld, bt, false, &null_ctl, false);
-    if (null_ctl != top()) {
-      assert(!adr_type->isa_aryptr(), "value type array must be initialized");
-      PreserveJVMState pjvms(this);
-      set_control(null_ctl);
-      uncommon_trap(Deoptimization::reason_null_check(false), Deoptimization::Action_maybe_recompile,
-                    t->is_valuetypeptr()->value_type()->value_klass(), "uninitialized non-flattened value type");
-    }
-    ld = ValueTypeNode::make(gvn(), map()->memory(), ld);
+    // Loading a non-flattened value type from memory requires a null check.
+    ld = ValueTypeNode::make(this, ld, true /* null check */);
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
@@ -1535,9 +1532,9 @@ Node* GraphKit::store_oop(Node* ctl,
   uint adr_idx = C->get_alias_index(adr_type);
   assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory" );
 
-  if (bt == T_VALUETYPE) {
-    // Allocate value type and store oop
-    val = val->as_ValueType()->allocate(this);
+  if (val->is_ValueType()) {
+    // Allocate value type and get oop
+    val = val->as_ValueType()->allocate(this)->get_oop();
   }
 
   pre_barrier(true /* do_load */,
@@ -1630,7 +1627,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     if (ValueTypePassFieldsAsArgs) {
       if (arg->is_ValueType()) {
         ValueTypeNode* vt = arg->as_ValueType();
-        if (domain->field_at(i)->is_valuetypeptr()->klass() != C->env()->___Value_klass()) {
+        if (!domain->field_at(i)->is_valuetypeptr()->is__Value()) {
           // We don't pass value type arguments by reference but instead
           // pass each field of the value type
           idx += vt->pass_fields(call, idx, *this);
@@ -1639,7 +1636,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
           // For example, see CompiledMethod::preserve_callee_argument_oops().
           call->set_override_symbolic_info(true);
         } else {
-          arg = arg->as_ValueType()->allocate(this);
+          arg = arg->as_ValueType()->allocate(this)->get_oop();
           call->init_req(idx, arg);
           idx++;
         }
@@ -1650,7 +1647,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     } else {
       if (arg->is_ValueType()) {
         // Pass value type argument via oop to callee
-        arg = arg->as_ValueType()->allocate(this);
+        arg = arg->as_ValueType()->allocate(this)->get_oop();
       }
       call->init_req(i, arg);
     }
@@ -1691,25 +1688,6 @@ void GraphKit::set_edges_for_java_call(CallJavaNode* call, bool must_throw, bool
 Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_proj) {
   if (stopped())  return top();  // maybe the call folded up?
 
-  // Capture the return value, if any.
-  Node* ret;
-  if (call->method() == NULL ||
-      call->method()->return_type()->basic_type() == T_VOID)
-        ret = top();
-  else {
-    if (!call->tf()->returns_value_type_as_fields()) {
-      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-    } else {
-      // Return of multiple values (value type fields): we create a
-      // ValueType node, each field is a projection from the call.
-      const TypeTuple *range_sig = call->tf()->range_sig();
-      const Type* t = range_sig->field_at(TypeFunc::Parms);
-      assert(t->isa_valuetypeptr(), "only value types for multiple return values");
-      ciValueKlass* vk = t->is_valuetypeptr()->value_type()->value_klass();
-      ret = ValueTypeNode::make(_gvn, call, vk, TypeFunc::Parms+1, false);
-    }
-  }
-
   // Note:  Since any out-of-line call can produce an exception,
   // we always insert an I_O projection from the call into the result.
 
@@ -1722,6 +1700,28 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     set_i_o(_gvn.transform( new ProjNode(call, TypeFunc::I_O) ));
     set_all_memory(_gvn.transform( new ProjNode(call, TypeFunc::Memory) ));
   }
+
+  // Capture the return value, if any.
+  Node* ret;
+  if (call->method() == NULL ||
+      call->method()->return_type()->basic_type() == T_VOID) {
+    ret = top();
+  } else {
+    if (!call->tf()->returns_value_type_as_fields()) {
+      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
+    } else {
+      // Return of multiple values (value type fields): we create a
+      // ValueType node, each field is a projection from the call.
+      const TypeTuple* range_sig = call->tf()->range_sig();
+      const Type* t = range_sig->field_at(TypeFunc::Parms);
+      assert(t->isa_valuetypeptr(), "only value types for multiple return values");
+      ciValueKlass* vk = t->is_valuetypeptr()->value_type()->value_klass();
+      Node* ctl = control();
+      ret = ValueTypeNode::make(_gvn, ctl, merged_memory(), call, vk, TypeFunc::Parms+1, false);
+      set_control(ctl);
+    }
+  }
+
   return ret;
 }
 
@@ -3397,7 +3397,7 @@ Node* GraphKit::new_instance(Node* klass_node,
                              Node* extra_slow_test,
                              Node* *return_size_val,
                              bool deoptimize_on_exception,
-                             ValueTypeNode* value_node) {
+                             ValueTypeBaseNode* value_node) {
   // Compute size in doublewords
   // The size is always an integral number of doublewords, represented
   // as a positive bytewise size stored in the klass's layout_helper.
@@ -3693,7 +3693,7 @@ void GraphKit::initialize_value_type_array(Node* array, Node* length, ciValueKla
     PreserveJVMState pjvms(this);
     // Create default value type and store it to memory
     Node* oop = ValueTypeNode::make_default(gvn(), vk);
-    oop = oop->as_ValueType()->allocate(this);
+    oop = oop->as_ValueType()->allocate(this)->get_oop();
 
     length = SubI(length, intcon(1));
     add_predicate(nargs);
@@ -4564,7 +4564,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
     Node* con = makecon(con_type);
     if (field->layout_type() == T_VALUETYPE) {
       // Load value type from constant oop
-      con = ValueTypeNode::make(gvn(), map()->memory(), con);
+      con = ValueTypeNode::make(this, con);
     }
     return con;
   }

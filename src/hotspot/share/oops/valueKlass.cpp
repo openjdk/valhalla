@@ -309,27 +309,27 @@ GrowableArray<SigEntry> ValueKlass::collect_fields(int base_off) const {
   GrowableArray<SigEntry> sig_extended;
   sig_extended.push(SigEntry(T_VALUETYPE, base_off));
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static())  continue;
+    if (fs.access_flags().is_static()) continue;
     fieldDescriptor& fd = fs.field_descriptor();
     BasicType bt = fd.field_type();
     int offset = base_off + fd.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (bt == T_VALUETYPE) {
       if (fd.is_flatten()) {
-      Symbol* signature = fd.signature();
-      JavaThread* THREAD = JavaThread::current();
-      oop loader = class_loader();
-      oop domain = protection_domain();
-      ResetNoHandleMark rnhm;
-      HandleMark hm;
-      NoSafepointVerifier nsv;
-      Klass* klass = SystemDictionary::resolve_or_null(signature,
-                                                       Handle(THREAD, loader), Handle(THREAD, domain),
-                                                       THREAD);
-      assert(klass != NULL && !HAS_PENDING_EXCEPTION, "lookup shouldn't fail");
-      const GrowableArray<SigEntry>& embedded = ValueKlass::cast(klass)->collect_fields(offset);
-      sig_extended.appendAll(&embedded);
+        Symbol* signature = fd.signature();
+        JavaThread* THREAD = JavaThread::current();
+        oop loader = class_loader();
+        oop domain = protection_domain();
+        ResetNoHandleMark rnhm;
+        HandleMark hm;
+        NoSafepointVerifier nsv;
+        Klass* klass = SystemDictionary::resolve_or_null(signature,
+                                                         Handle(THREAD, loader), Handle(THREAD, domain),
+                                                         THREAD);
+        assert(klass != NULL && !HAS_PENDING_EXCEPTION, "lookup shouldn't fail");
+        const GrowableArray<SigEntry>& embedded = ValueKlass::cast(klass)->collect_fields(offset);
+        sig_extended.appendAll(&embedded);
       } else {
-        sig_extended.push(SigEntry(T_OBJECT, offset));
+        sig_extended.push(SigEntry(T_VALUETYPEPTR, offset));
       }
     } else {
       sig_extended.push(SigEntry(bt, offset));
@@ -433,7 +433,7 @@ void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handl
 
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_OBJECT || bt == T_ARRAY) {
+    if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
       int off = sig_vk->at(i)._offset;
       VMRegPair pair = regs->at(j);
       address loc = reg_map.location(pair.first());
@@ -551,6 +551,7 @@ oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<H
       break;
     }
     case T_OBJECT:
+    case T_VALUETYPEPTR:
     case T_ARRAY: {
       Handle handle = handles.at(k++);
       oop v = handle();

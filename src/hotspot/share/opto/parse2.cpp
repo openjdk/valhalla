@@ -62,7 +62,7 @@ void Parse::array_load(BasicType elem_type) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   if (arytype->klass()->is_value_array_klass()) {
     ciValueArrayKlass* vak = arytype->klass()->as_value_array_klass();
-    Node* vt = ValueTypeNode::make(gvn(), vak->element_klass()->as_value_klass(), map()->memory(), ary, adr);
+    Node* vt = ValueTypeNode::make(this, vak->element_klass()->as_value_klass(), ary, adr);
     push(vt);
     return;
   }
@@ -1761,7 +1761,7 @@ void Parse::do_one_bytecode() {
     }
 
     const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-    Node* oop = c->as_ValueType()->allocate(this);
+    Node* oop = c->as_ValueType()->allocate(this)->get_oop();
     Node* store = store_oop_to_array(control(), a, d, adr_type, oop, elemtype->make_oopptr(), T_OBJECT,
                                      StoreNode::release_if_reference(T_OBJECT));
     break;

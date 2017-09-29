@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,51 +25,23 @@
 #include "precompiled.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciValueKlass.hpp"
-#include "oops/fieldStreams.hpp"
 #include "oops/valueKlass.hpp"
 
-int ciValueKlass::compute_field_index_map() {
-  assert(is_loaded(), "value class must be loaded to compute mapping of field indeces");
+int ciValueKlass::compute_nonstatic_fields() {
+  int result = ciInstanceKlass::compute_nonstatic_fields();
+  assert(super() == NULL || !super()->has_nonstatic_fields(), "a value type must not inherit fields from its superclass");
 
-  if (_field_index_map != NULL) {
-    return _field_index_map->length();
-  }
-
+  // Compute declared non-static fields (without flattening of value type fields)
+  GrowableArray<ciField*>* fields = NULL;
+  GUARDED_VM_ENTRY(fields = compute_nonstatic_fields_impl(NULL, false /* no flattening */);)
   Arena* arena = CURRENT_ENV->arena();
-  _field_index_map = new (arena) GrowableArray<int>(arena, nof_declared_nonstatic_fields(), 0, 0);
-  if (!has_nonstatic_fields()) {
-    return 0;
-  }
-
-  // FIXME: Once it is possible to construct class hierarchies with value types.
-  assert(!super()->has_nonstatic_fields(), "a value type must not inherit fields from its superclass");
-
-  ValueKlass* vklass = ValueKlass::cast(get_Klass());
-  for (JavaFieldStream fs(vklass); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static()) {
-      continue;
-    }
-    _field_index_map->append(fs.field_descriptor().index());
-  }
-  return _field_index_map->length();
+  _declared_nonstatic_fields = (fields != NULL) ? fields : new (arena) GrowableArray<ciField*>(arena, 0, 0, 0);
+  return result;
 }
 
-// Number of value type fields
-int ciValueKlass::field_count() {
-  if (_field_index_map == NULL) {
-    return compute_field_index_map();
-  } else {
-    return _field_index_map->length();
-  }
-}
-
-// Size of value type fields in words
-int ciValueKlass::field_size() {
-  int size = 0;
-  for (int i = 0; i < field_count(); ++i) {
-    size += field_type_by_index(i)->size();
-  }
-  return size;
+// Offset of the first field in the value type
+int ciValueKlass::first_field_offset() const {
+  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->first_field_offset();)
 }
 
 // Returns the index of the field with the given offset. If the field at 'offset'
@@ -80,8 +52,8 @@ int ciValueKlass::field_index_by_offset(int offset) {
   int best_offset = 0;
   int best_index = -1;
   // Search the field with the given offset
-  for (int i = 0; i < field_count(); ++i) {
-    int field_offset = field_offset_by_index(i);
+  for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
+    int field_offset = _declared_nonstatic_fields->at(i)->offset();
     if (field_offset == offset) {
       // Exact match
       return i;
@@ -94,48 +66,18 @@ int ciValueKlass::field_index_by_offset(int offset) {
     }
   }
   assert(best_index >= 0, "field not found");
-  assert(best_offset == offset || field_type_by_index(best_index)->is_valuetype(), "offset should match for non-VTs");
+  assert(best_offset == offset || _declared_nonstatic_fields->at(best_index)->type()->is_valuetype(), "offset should match for non-VTs");
   return best_index;
 }
 
-// Returns the field offset of the field with the given index
-int ciValueKlass::field_offset_by_index(int index) {
-  if (_field_index_map == NULL) {
-    compute_field_index_map();
-  }
-  GUARDED_VM_ENTRY(
-    ValueKlass* vklass = ValueKlass::cast(get_Klass());
-    return vklass->field_offset(_field_index_map->at(index));
-  )
-}
-
-// Returns the field type of the field with the given index
-ciType* ciValueKlass::field_type_by_index(int index) {
-  int offset = field_offset_by_index(index);
-  VM_ENTRY_MARK;
-  return get_field_type_by_offset(offset);
-}
-
-// Offset of the first field in the value type
-int ciValueKlass::first_field_offset() const {
-  GUARDED_VM_ENTRY(
-    ValueKlass* vklass = ValueKlass::cast(get_Klass());
-    return vklass->first_field_offset();
-  )
-}
-
+// Are arrays containing this value type flattened?
 bool ciValueKlass::flatten_array() const {
-  GUARDED_VM_ENTRY(
-    ValueKlass* vklass = ValueKlass::cast(get_Klass());
-    return vklass->flatten_array();
-  )
+  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->flatten_array();)
 }
 
-bool ciValueKlass::contains_oops() const {
-  GUARDED_VM_ENTRY(
-    ValueKlass* vklass = ValueKlass::cast(get_Klass());
-    return vklass->contains_oops();
-  )
+// Can this value type be returned as multiple values?
+bool ciValueKlass::can_be_returned_as_fields() const {
+  GUARDED_VM_ENTRY(return !is__Value() && ValueKlass::cast(get_Klass())->return_regs() != NULL;)
 }
 
 // When passing a value type's fields as arguments, count the number
@@ -145,7 +87,8 @@ int ciValueKlass::value_arg_slots() {
   for (int j = 0; j < nof_nonstatic_fields(); j++) {
     ciField* f = nonstatic_field_at(j);
     BasicType bt = f->type()->basic_type();
-    assert(bt != T_VALUETYPE, "embedded");
+    // TODO re-enable when using T_VALUETYPEPTR
+    //assert(bt != T_VALUETYPE, "embedded");
     if (bt == T_LONG || bt == T_DOUBLE) {
       slots++;
     }

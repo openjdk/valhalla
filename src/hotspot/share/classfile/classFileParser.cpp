@@ -3903,7 +3903,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   // Calculate the starting byte offsets
   int next_static_oop_offset    = InstanceMirrorKlass::offset_of_static_fields();
-  // Value types in static fields are nor embedded, they are handled with oops
+  // Value types in static fields are not embedded, they are handled with oops
   int next_static_double_offset = next_static_oop_offset +
                                   ((fac->count[STATIC_OOP] + fac->count[STATIC_VALUETYPE]) * heapOopSize);
   if ( fac->count[STATIC_DOUBLE] &&
@@ -3987,9 +3987,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       assert(klass != NULL, "Sanity check");
       assert(klass->access_flags().is_value_type(), "Value type expected");
       ValueKlass* vk = ValueKlass::cast(klass);
-      // Conditions to apply flattening or not should be defined
-      //in a single place
-      if (vk->size_helper() <= ValueArrayElemMaxFlatSize) {
+      // Conditions to apply flattening or not should be defined in a single place
+      if ((ValueFieldMaxFlatSize < 0) || vk->size_helper() <= ValueFieldMaxFlatSize) {
         nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
         nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
         nonstatic_value_type_count++;

@@ -571,7 +571,6 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
 // Search the last value stored into the object's field.
 Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc) {
   assert(adr_t->is_known_instance_field(), "instance required");
-  assert(ft != T_VALUETYPE, "should not be used for value type fields");
   int instance_id = adr_t->instance_id();
   assert((uint)instance_id == alloc->_idx, "wrong allocation");
 
@@ -675,16 +674,26 @@ Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* 
   offset -= vk->first_field_offset();
   // Create a new ValueTypeNode and retrieve the field values from memory
   ValueTypeNode* vt = ValueTypeNode::make(_igvn, vk)->as_ValueType();
-  for (int i = 0; i < vk->field_count(); ++i) {
+  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
     // Each value type field has its own memory slice
     adr_type = adr_type->with_field_offset(field_offset);
     Node* value = NULL;
-    if (field_type->basic_type() == T_VALUETYPE) {
+    if (field_type->is_valuetype() && vt->field_is_flattened(i)) {
       value = value_type_from_mem(mem, ctl, field_type->as_value_klass(), adr_type, field_offset, alloc);
     } else {
-      value = value_from_mem(mem, ctl, field_type->basic_type(), Type::get_const_type(field_type), adr_type, alloc);
+      const Type* ft = Type::get_const_type(field_type);
+      BasicType bt = field_type->basic_type();
+      if (UseCompressedOops && !is_java_primitive(bt)) {
+        ft = ft->make_narrowoop();
+        bt = T_NARROWOOP;
+      }
+      value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
+      if (ft->isa_narrowoop()) {
+        assert(UseCompressedOops, "unexpected narrow oop");
+        value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
+      }
     }
     vt->set_field_value(i, value);
   }
@@ -885,8 +894,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         offset = field->offset();
         elem_type = field->type();
         basic_elem_type = field->layout_type();
-        // Value type fields should not have safepoint uses
-        assert(basic_elem_type != T_VALUETYPE, "value type fields are flattened");
+        assert(!field->is_flattened(), "flattened value type fields should not have safepoint uses");
       } else {
         offset = array_base + j * (intptr_t)element_size;
       }
@@ -2650,7 +2658,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   if (ret == NULL) {
     return;
   }
-  assert(ret->bottom_type()->is_valuetypeptr()->klass() == C->env()->___Value_klass(), "unexpected return type from MH intrinsic");
+  assert(ret->bottom_type()->is_valuetypeptr()->is__Value(), "unexpected return type from MH intrinsic");
   const TypeFunc* tf = call->_tf;
   const TypeTuple* domain = OptoRuntime::store_value_type_fields_Type()->domain_cc();
   const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
@@ -2767,7 +2775,9 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   }
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-  rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+  if (UseCompressedClassPointers) {
+    rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+  }
   Node* pack_handler = make_load(slowpath_false, rawmem, klass_node, in_bytes(ValueKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
 
   CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_value_type_Type(),

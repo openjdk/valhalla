@@ -553,9 +553,7 @@ void SigEntry::fill_sig_bt(const GrowableArray<SigEntry>& sig_extended, BasicTyp
   for (int i = 0; i < sig_extended.length(); i++) {
     if (!skip_vt) {
       BasicType bt = sig_extended.at(i)._bt;
-      if (bt == T_VALUETYPE) {
-        bt = T_VALUETYPEPTR;
-      }
+      assert(bt != T_VALUETYPE, "value types should be passed as fields or reference");
       sig_bt_cc[j++] = bt;
     } else if (sig_extended.at(i)._bt != T_VALUETYPE &&
                (sig_extended.at(i)._bt != T_VOID ||

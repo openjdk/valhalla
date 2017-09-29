@@ -2097,8 +2097,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         // Ignore first AddP.
       } else {
         const Type* elemtype = adr_type->isa_aryptr()->elem();
-        if (elemtype->isa_valuetype()) {
-          assert(field_offset != Type::OffsetBot, "invalid field offset");
+        if (elemtype->isa_valuetype() && field_offset != Type::OffsetBot) {
           ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
           field_offset += vk->first_field_offset();
           bt = vk->get_field_by_offset(field_offset, false)->layout_type();
@@ -2115,7 +2114,9 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     }
   }
-  return (bt == T_OBJECT || bt == T_NARROWOOP || bt == T_ARRAY);
+  // TODO enable when using T_VALUETYPEPTR
+  //assert(bt != T_VALUETYPE, "should not have valuetype here");
+  return (bt == T_OBJECT || bt == T_VALUETYPE || bt == T_VALUETYPEPTR || bt == T_NARROWOOP || bt == T_ARRAY);
 }
 
 // Returns unique pointed java object or NULL.
@@ -3183,7 +3184,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         assert(_compile->tf()->returns_value_type_as_fields(), "must return a value type");
         // Get ValueKlass by removing the tag bit from the metadata pointer
         Node* klass = use->in(TypeFunc::Parms);
-        intptr_t ptr = (intptr_t)igvn->find_intptr_t_con(klass, -1);
+        intptr_t ptr = igvn->type(klass)->isa_rawptr()->get_con();
         clear_nth_bit(ptr, 0);
         assert(Metaspace::contains((void*)ptr), "should be klass");
         assert(((ValueKlass*)ptr)->contains_oops(), "returned value type must contain a reference field");

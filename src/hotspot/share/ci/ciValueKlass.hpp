@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,48 +39,40 @@ class ciValueKlass : public ciInstanceKlass {
   CI_PACKAGE_ACCESS
 
 private:
-  // Index fields of a value type, indeces range from 0 to the number of fields of the
-  // value type - 1.
-  // For each index constructed, _field_index_map records the field's index
-  // in InstanceKlass::_fields (i.e., _field_index_map records the value returned by
-  // fieldDescriptor::index() for each field).
-  GrowableArray<int>* _field_index_map;
+  // Fields declared in the bytecode (without flattened value type fields)
+  GrowableArray<ciField*>* _declared_nonstatic_fields;
 
 protected:
-  ciValueKlass(Klass* h_k) : ciInstanceKlass(h_k), _field_index_map(NULL) {
+  ciValueKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(NULL) {
     assert(is_final(), "ValueKlass must be final");
   };
 
+  int compute_nonstatic_fields();
   const char* type_string() { return "ciValueKlass"; }
-  int compute_field_index_map();
-
-  ValueKlass* get_valueKlass() const {
-    return ValueKlass::cast(get_Klass());
-  }
 
 public:
-  bool      is_valuetype() const { return true; }
-  bool      flatten_array() const;
-  bool      contains_oops() const;
+  bool is_valuetype() const { return true; }
+
+  int nof_declared_nonstatic_fields() {
+    if (_declared_nonstatic_fields == NULL) {
+      compute_nonstatic_fields();
+    }
+    return _declared_nonstatic_fields->length();
+  }
+
+  // ith non-static declared field (presented by ascending address)
+  ciField* declared_nonstatic_field_at(int i) {
+    assert(_declared_nonstatic_fields != NULL, "should be initialized");
+    return _declared_nonstatic_fields->at(i);
+  }
 
   // Value type fields
-  int       field_count();
-  int       field_size();
-  int       flattened_field_count() {
-    return nof_nonstatic_fields();
-  }
-  int       field_index_by_offset(int offset);
-  int       field_offset_by_index(int index);
-  ciType*   field_type_by_index(int index);
-  int       first_field_offset() const;
+  int first_field_offset() const;
+  int field_index_by_offset(int offset);
 
+  bool flatten_array() const;
+  bool can_be_returned_as_fields() const;
   int value_arg_slots();
-
-  // Can a value type instance of this type be returned as multiple
-  // returned values?
-  bool can_be_returned_as_fields() const {
-    return this != ciEnv::current()->___Value_klass() && get_valueKlass()->return_regs() != NULL;
-  }
 };
 
 #endif // SHARE_VM_CI_CIVALUEKLASS_HPP

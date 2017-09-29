@@ -710,7 +710,7 @@ public:
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&
         r->field_at(TypeFunc::Parms)->isa_valuetypeptr() &&
-        r->field_at(TypeFunc::Parms)->is_valuetypeptr()->value_type()->value_klass() == C->env()->___Value_klass()) {
+        r->field_at(TypeFunc::Parms)->is_valuetypeptr()->is__Value()) {
       init_flags(Flag_is_macro);
       C->add_macro_node(this);
     }
@@ -879,7 +879,7 @@ public:
 
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
-               Node *size, Node *klass_node, Node *initial_test, ValueTypeNode* value_node = NULL);
+               Node *size, Node *klass_node, Node *initial_test, ValueTypeBaseNode* value_node = NULL);
   // Expansion modifies the JVMState, so we need to clone it
   virtual void  clone_jvms(Compile* C) {
     if (jvms() != NULL) {

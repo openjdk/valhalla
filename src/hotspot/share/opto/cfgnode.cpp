@@ -1663,6 +1663,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     for (uint i = 1; i < req(); i++) {
       if (in(i) != NULL && in(i)->is_ValueTypePtr()) {
         const TypeValueTypePtr* t = phase->type(in(i))->is_valuetypeptr();
+        t = t->cast_to_ptr_type(TypePtr::BotPTR)->is_valuetypeptr();
         if (vtptr == NULL) {
           vtptr = t;
         } else {
@@ -1670,7 +1671,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         }
       } else {
         assert(in(i) == NULL || vtptr == NULL || phase->type(in(i))->higher_equal(vtptr) || phase->type(in(i)) == Type::TOP ||
-               phase->type(in(i))->is_valuetypeptr()->value_type()->value_klass() == phase->C->env()->___Value_klass(), "bad type");
+               phase->type(in(i))->is_valuetypeptr()->is__Value(), "bad type");
       }
     }
     if (vtptr != NULL) {
@@ -1678,7 +1679,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       bool progress = false;
       PhaseIterGVN* igvn = phase->is_IterGVN();
       for (uint i = 1; i < req(); i++) {
-        if (in(i) != NULL && !phase->type(in(i))->higher_equal(vtptr)) {
+        if (in(i) != NULL && !in(i)->is_Con() && !phase->type(in(i))->higher_equal(vtptr)) {
           // Can't transform because CheckCastPPNode::Identity can
           // push the cast up through another Phi and cause this same
           // transformation to run again, indefinitely

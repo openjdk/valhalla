@@ -2688,11 +2688,11 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
       int i = 0;
       if (!method->is_static()) {  // Pass in receiver first
-        if (ValueTypePassFieldsAsArgs && holder->is_value()) {
+        if (holder->is_value()) {
           ValueKlass* vk = ValueKlass::cast(holder);
-          if (vk == SystemDictionary::___Value_klass()) {
-            // If the holder of the method is __Value, we must pass a
-            // reference.
+          if (!ValueTypePassFieldsAsArgs || (vk == SystemDictionary::___Value_klass())) {
+            // If we don't pass value types as arguments or if the holder of
+            // the method is __Value, we must pass a reference.
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
           } else {
             const Array<SigEntry>* sig_vk = vk->extended_sig();
@@ -2703,11 +2703,11 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
         }
       }
       for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-        if (ValueTypePassFieldsAsArgs && ss.type() == T_VALUETYPE) {
+        if (ss.type() == T_VALUETYPE) {
           Symbol* name = ss.as_symbol_or_null();
           assert(name != NULL, "should not be null");
-          if (name == vmSymbols::java_lang____Value()) {
-            assert(method->is_compiled_lambda_form() || method->is_method_handle_intrinsic(),
+          if (!ValueTypePassFieldsAsArgs || (name == vmSymbols::java_lang____Value())) {
+            assert(!ValueTypePassFieldsAsArgs || method->is_compiled_lambda_form() || method->is_method_handle_intrinsic(),
                    "should not use __Value for a value type argument");
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
           } else {
@@ -2944,14 +2944,17 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       SignatureStream ss(method->signature());
       for (; !ss.at_return_type(); ss.next()) {
         BasicType bt = ss.type();
-        if  (bt == T_VALUETYPE) {
+        if (bt == T_VALUETYPE) {
 #ifdef ASSERT
           Thread* THREAD = Thread::current();
-          Handle class_loader(THREAD, method->method_holder()->class_loader());
-          Handle protection_domain(THREAD, method->method_holder()->protection_domain());
-          Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
-          assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
-          assert(k == SystemDictionary::___Value_klass(), "other values not supported");
+          // Avoid class loading from compiler thread
+          if (THREAD->can_call_java()) {
+            Handle class_loader(THREAD, method->method_holder()->class_loader());
+            Handle protection_domain(THREAD, method->method_holder()->protection_domain());
+            Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
+            assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
+            assert(k == SystemDictionary::___Value_klass(), "other values not supported");
+          }
 #endif
           bt = T_VALUETYPEPTR;
         }

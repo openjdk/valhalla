@@ -191,8 +191,8 @@ RegMask* Matcher::return_values_mask(const TypeTuple *range) {
       mask[0].Insert(regs.second());
     }
   } else {
-    BasicType *sig_bt = NEW_RESOURCE_ARRAY(BasicType, cnt);
-    VMRegPair *vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
+    BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, cnt);
+    VMRegPair* vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
 
     for (uint i = 0; i < cnt; i++) {
       sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();

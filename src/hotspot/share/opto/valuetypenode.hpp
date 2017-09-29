@@ -47,13 +47,13 @@ protected:
   virtual const TypeValueTypePtr* value_type_ptr() const = 0;
   // Get the klass defining the field layout of the value type
   virtual ciValueKlass* value_klass() const = 0;
-  int make_scalar_in_safepoint(SafePointNode* sfpt, Node* root, PhaseGVN* gvn);
+  int make_scalar_in_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt, Node* root, PhaseGVN* gvn);
 
-  static void make(PhaseGVN* gvn, Node* n, ValueTypeBaseNode* vt, ciValueKlass* base_vk, int base_offset, int base_input, bool in);
+  static void make(PhaseGVN* gvn, Node*& ctl, Node* mem, Node* n, ValueTypeBaseNode* vt, ciValueKlass* base_vk, int base_offset, int base_input, bool in);
 
 public:
   // Support for control flow merges
-  bool  has_phi_inputs(Node* region);
+  bool has_phi_inputs(Node* region);
   ValueTypeBaseNode* clone_with_phis(PhaseGVN* gvn, Node* region);
   ValueTypeBaseNode* merge_with(PhaseGVN* gvn, const ValueTypeBaseNode* other, int pnum, bool transform);
 
@@ -68,23 +68,24 @@ public:
   void      set_field_value(uint index, Node* value);
   int           field_offset(uint index) const;
   ciType*       field_type(uint index) const;
+  bool          field_is_flattened(uint index) const;
 
   // Replace ValueTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
   void make_scalar_in_safepoints(Node* root, PhaseGVN* gvn);
 
-  void store_flattened(PhaseGVN* gvn, Node* ctl, MergeMemNode* mem, Node* base, ciValueKlass* holder, int holder_offset) const;
-  void store(PhaseGVN* gvn, Node* ctl, MergeMemNode* mem, Node* base, ciValueKlass* holder = NULL, int holder_offset = 0) const;
+  // Store the value type as a flattened (headerless) representation
+  void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0) const;
+  // Store the field values to memory
+  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0) const;
 
   // Initialize the value type by loading its field values from memory
-  void load(PhaseGVN& gvn, Node* mem, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
+  void load(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
 
-  void replace_call_results(Node* call, Compile* C);
+  // Allocates the value type (if not yet allocated) and returns the oop
+  ValueTypeBaseNode* allocate(GraphKit* kit);
+  bool is_allocated(PhaseGVN* phase) const;
 
-  static Node* allocate(const Type* type,
-                        Node*& ctl, Node*& mem, Node*& io,
-                        Node* frameptr,
-                        Node*& ex_ctl, Node*& ex_mem, Node*& ex_io,
-                        JVMState* jvms, PhaseIterGVN *igvn);
+  void replace_call_results(GraphKit* kit, Node* call, Compile* C);
 };
 
 //------------------------------ValueTypeNode-------------------------------------
@@ -94,12 +95,6 @@ class ValueTypeNode : public ValueTypeBaseNode {
 private:
   ValueTypeNode(const TypeValueType* t, Node* oop)
     : ValueTypeBaseNode(t, Values + t->value_klass()->nof_declared_nonstatic_fields()) {
-    init_class_id(Class_ValueType);
-    init_req(Oop, oop);
-  }
-
-  ValueTypeNode(const TypeValueType* t, Node* oop, int field_count)
-    : ValueTypeBaseNode(t, Values + field_count) {
     init_class_id(Class_ValueType);
     init_req(Oop, oop);
   }
@@ -117,24 +112,20 @@ public:
   // Create a new ValueTypeNode with default values
   static Node* make_default(PhaseGVN& gvn, ciValueKlass* vk);
   // Create a new ValueTypeNode and load its values from an oop
-  static Node* make(PhaseGVN& gvn, Node* mem, Node* oop);
+  static Node* make(GraphKit* kit, Node* oop, bool null_check = false);
+  static Node* make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check = false);
   // Create a new ValueTypeNode and load its values from a flattened value type field or array
-  static Node* make(PhaseGVN& gvn, ciValueKlass* vk, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
+  static Node* make(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
+  static Node* make(PhaseGVN& gvn, ciValueKlass* vk, Node*& ctl, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
   // Create value type node from arguments at method entry and calls
-  static Node* make(PhaseGVN& gvn, Node* n, ciValueKlass* vk, int base_input, bool in);
+  static Node* make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* n, ciValueKlass* vk, int base_input, bool in);
 
-  // Store the value type as a flattened (headerless) representation
-  void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0) const;
-  // Store the field values to memory
-  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0) const;
-
-  // Allocates the value type (if not yet allocated) and returns the oop
-  Node* allocate(GraphKit* kit);
-  bool  is_allocated(PhaseGVN* phase) const;
+  // Allocate all non-flattened value type fields
+  Node* allocate_fields(GraphKit* kit);
 
   Node* tagged_klass(PhaseGVN& gvn);
   void pass_klass(Node* n, uint pos, const GraphKit& kit);
-  uint pass_fields(Node* call, int base_input, const GraphKit& kit, ciValueKlass* base_vk = NULL, int base_offset = 0);
+  uint pass_fields(Node* call, int base_input, GraphKit& kit, bool assert_allocated = false, ciValueKlass* base_vk = NULL, int base_offset = 0);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase);
@@ -154,9 +145,10 @@ private:
   ciValueKlass* value_klass() const { return type()->is_valuetypeptr()->value_type()->value_klass(); }
   const TypeValueTypePtr* value_type_ptr() const { return bottom_type()->isa_valuetypeptr(); }
 
-  ValueTypePtrNode(ciValueKlass* vk, Compile* C)
+  ValueTypePtrNode(ciValueKlass* vk, Node* oop, Compile* C)
     : ValueTypeBaseNode(TypeValueTypePtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_ValueTypePtr);
+    init_req(Oop, oop);
     C->add_value_type_ptr(this);
   }
 public:
@@ -171,8 +163,8 @@ public:
     C->add_value_type_ptr(this);
   }
 
-  static ValueTypePtrNode* make(PhaseGVN* gvn, CheckCastPPNode* cast);
-  static ValueTypePtrNode* make(PhaseGVN& gvn, Node* mem, Node* oop);
+  static ValueTypePtrNode* make(GraphKit* kit, ciValueKlass* vk, CallNode* call);
+  static ValueTypePtrNode* make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop);
   virtual int Opcode() const;
 };
 

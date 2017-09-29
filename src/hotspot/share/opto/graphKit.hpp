@@ -63,6 +63,9 @@ class GraphKit : public Phase {
   SafePointNode*    _exceptions;// Parser map(s) for exception state(s)
   int               _bci;       // JVM Bytecode Pointer
   ciMethod*         _method;    // JVM Current Method
+#ifdef ASSERT
+  uint              _worklist_size;
+#endif
 
  private:
   int               _sp;        // JVM Expression Stack Pointer; don't modify directly!
@@ -75,11 +78,16 @@ class GraphKit : public Phase {
 
  public:
   GraphKit();                   // empty constructor
-  GraphKit(JVMState* jvms);     // the JVM state on which to operate
+  GraphKit(JVMState* jvms, PhaseGVN* gvn = NULL);     // the JVM state on which to operate
 
 #ifdef ASSERT
   ~GraphKit() {
     assert(!has_exceptions(), "user must call transfer_exceptions_into_jvms");
+    // During incremental inlining, the Node_Array of the C->for_igvn() worklist and the IGVN
+    // worklist are shared but the _in_worklist VectorSet is not. To avoid inconsistencies,
+    // we should not add nodes to the _for_igvn worklist when using IGVN for the GraphKit.
+    assert((_gvn.is_IterGVN() == NULL) || (_gvn.C->for_igvn()->size() == _worklist_size),
+           "GraphKit should not modify _for_igvn worklist after parsing");
   }
 #endif
 
@@ -89,7 +97,7 @@ class GraphKit : public Phase {
   ciEnv*        env()           const { return _env; }
   PhaseGVN&     gvn()           const { return _gvn; }
 
-  void record_for_igvn(Node* n) const { C->record_for_igvn(n); }  // delegate to Compile
+  void record_for_igvn(Node* n) const { _gvn.record_for_igvn(n); }
 
   // Handy well-known nodes:
   Node*         null()          const { return zerocon(T_OBJECT); }
@@ -880,7 +888,7 @@ class GraphKit : public Phase {
                      Node* slow_test = NULL,
                      Node* *return_size_val = NULL,
                      bool deoptimize_on_exception = false,
-                     ValueTypeNode* value_node = NULL);
+                     ValueTypeBaseNode* value_node = NULL);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);

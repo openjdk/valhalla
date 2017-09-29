@@ -1328,7 +1328,7 @@ class TypeValueTypePtr : public TypeOopPtr {
 public:
   // Make a pointer to a value type
   static const TypeValueTypePtr* make(const TypeValueType* vt, PTR ptr = TypePtr::BotPTR, ciObject* o = NULL, Offset offset = Offset(0),
-                                      int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom);
+                                      int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom, bool narrow = false);
   // Make a pointer to a value type
   static const TypeValueTypePtr* make(PTR ptr, ciValueKlass* vk, ciObject* o = NULL) { return make(TypeValueType::make(vk), ptr, o); }
   // Make a pointer to a constant value type
@@ -1343,7 +1343,7 @@ public:
 
   virtual bool eq(const Type* t) const;
   virtual int  hash() const;             // Type specific hashing
-  virtual bool empty(void) const;        // TRUE if type is vacuous
+  bool is__Value() const;
 
   virtual const Type* xmeet_helper(const Type* t) const;
   virtual const Type* xdual() const;

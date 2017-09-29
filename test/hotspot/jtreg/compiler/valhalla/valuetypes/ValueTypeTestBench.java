@@ -35,23 +35,38 @@
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:+VerifyAdapterSharing -XX:+VerifyStack
- *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
- *                   -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
- *                   -Djdk.lang.reflect.DVT=true
- *                   compiler.valhalla.valuetypes.ValueTypeTestBench
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:+VerifyStack
- *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
- *                   -Djdk.lang.reflect.DVT=true
- *                   compiler.valhalla.valuetypes.ValueTypeTestBench
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:+AlwaysIncrementalInline
  *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
- *                   -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
- *                   -Djdk.lang.reflect.DVT=true
- *                   compiler.valhalla.valuetypes.ValueTypeTestBench
+ *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   -XX:ValueTypesBufferMaxMemory=0
+ *                   -Djdk.lang.reflect.DVT=true compiler.valhalla.valuetypes.ValueTypeTestBench
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:-UseCompressedOops
+ *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   -XX:ValueTypesBufferMaxMemory=0
+ *                   -Djdk.lang.reflect.DVT=true compiler.valhalla.valuetypes.ValueTypeTestBench
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:-UseCompressedOops
+ *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
+ *                   -XX:ValueTypesBufferMaxMemory=0
+ *                   -Djdk.lang.reflect.DVT=true -DVerifyIR=false compiler.valhalla.valuetypes.ValueTypeTestBench
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:+AlwaysIncrementalInline
+ *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
+ *                   -XX:ValueTypesBufferMaxMemory=0
+ *                   -Djdk.lang.reflect.DVT=true -DVerifyIR=false compiler.valhalla.valuetypes.ValueTypeTestBench
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation
+ *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   -XX:ValueTypesBufferMaxMemory=0
+ *                   -Djdk.lang.reflect.DVT=true -DVerifyIR=false compiler.valhalla.valuetypes.ValueTypeTestBench
  */
+
+// TODO remove -XX:ValueTypesBufferMaxMemory=0 when interpreter buffering is fixed
 
 package compiler.valhalla.valuetypes;
 
@@ -81,6 +96,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.TreeMap;
 
 // Test value types
 __ByValue final class MyValue1 {
@@ -132,8 +148,8 @@ __ByValue final class MyValue1 {
         v = setO(v, new Integer(x));
         int[] oa = {x};
         v = setOA(v, oa);
-        v = setV1(v, MyValue2.createWithFieldsInline(x, x < y));
-        v = setV2(v, MyValue2.createWithFieldsInline(x, x > y));
+        v = setV1(v, MyValue2.createWithFieldsInline(x, true));
+        v = setV2(v, MyValue2.createWithFieldsInline(x, false));
         v = setC(v, ValueTypeTestBench.rI);
         return v;
     }
@@ -156,7 +172,7 @@ __ByValue final class MyValue1 {
 
     @ForceInline
     public void print() {
-        System.out.print("s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + (o != null ? (Integer)o : "NULL") + ", v1[");
+        System.out.print("s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + (o != null ? (Integer)o : "NULL") + ", oa=" + oa[0] + ", v1[");
         v1.print();
         System.out.print("], v2[");
         v2.print();
@@ -214,17 +230,50 @@ __ByValue final class MyValue1 {
     }
 }
 
+__ByValue final class MyValue2Inline {
+    final boolean b;
+    final long c;
+
+    private MyValue2Inline() {
+        this.b = false;
+        this.c = 0;
+    }
+
+    @ForceInline
+    __ValueFactory static MyValue2Inline setB(MyValue2Inline v, boolean b) {
+        v.b = b;
+        return v;
+    }
+
+    @ForceInline
+    __ValueFactory static MyValue2Inline setC(MyValue2Inline v, long c) {
+        v.c = c;
+        return v;
+    }
+
+    @ForceInline
+    __ValueFactory public static MyValue2Inline createDefault() {
+        return __MakeDefault MyValue2Inline();
+    }
+
+    @ForceInline
+    public static MyValue2Inline createWithFieldsInline(boolean b, long c) {
+        MyValue2Inline v = MyValue2Inline.createDefault();
+        v = MyValue2Inline.setB(v, b);
+        v = MyValue2Inline.setC(v, c);
+        return v;
+    }
+}
+
 __ByValue final class MyValue2 {
     final int x;
     final byte y;
-    final boolean b;
-    final long c;
+    final MyValue2Inline v1;
 
     private MyValue2() {
         this.x = 0;
         this.y = 0;
-        this.b = false;
-        this.c = 0;
+        this.v1 = MyValue2Inline.createDefault();
     }
 
     @ForceInline
@@ -237,24 +286,23 @@ __ByValue final class MyValue2 {
         MyValue2 v = createDefaultInline();
         v = setX(v, x);
         v = setY(v, (byte)x);
-        v = setB(v, b);
-        v = setC(v, ValueTypeTestBench.rL);
+        v = setV1(v, MyValue2Inline.createWithFieldsInline(b, ValueTypeTestBench.rL));
         return v;
     }
 
     @ForceInline
     public long hash() {
-        return x + y + (b ? 0 : 1) + c;
+        return x + y + (v1.b ? 0 : 1) + v1.c;
     }
 
     @DontInline
     public long hashInterpreted() {
-        return x + y + (b ? 0 : 1) + c;
+        return x + y + (v1.b ? 0 : 1) + v1.c;
     }
 
     @ForceInline
     public void print() {
-        System.out.print("x=" + x + "y=" + y + ", b=" + b + ", c=" + c);
+        System.out.print("x=" + x + ", y=" + y + ", b=" + v1.b + ", c=" + v1.c);
     }
 
     @ForceInline
@@ -270,14 +318,43 @@ __ByValue final class MyValue2 {
     }
 
     @ForceInline
-    __ValueFactory static MyValue2 setC(MyValue2 v, long c) {
-        v.c = c;
+    __ValueFactory static MyValue2 setV1(MyValue2 v, MyValue2Inline v1) {
+        v.v1 = v1;
+        return v;
+    }
+}
+
+__ByValue final class MyValue3Inline {
+    final float f7;
+    final double f8;
+
+    private MyValue3Inline() {
+        this.f7 = 0;
+        this.f8 = 0;
+    }
+
+    @ForceInline
+    __ValueFactory static MyValue3Inline setF7(MyValue3Inline v, float f7) {
+        v.f7 = f7;
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue2 setB(MyValue2 v, boolean b) {
-        v.b = b;
+    __ValueFactory static MyValue3Inline setF8(MyValue3Inline v, double f8) {
+        v.f8 = f8;
+        return v;
+    }
+
+    @ForceInline
+    __ValueFactory public static MyValue3Inline createDefault() {
+        return __MakeDefault MyValue3Inline();
+    }
+
+    @ForceInline
+    public static MyValue3Inline createWithFieldsInline(float f7, double f8) {
+        MyValue3Inline v = createDefault();
+        v = setF7(v, f7);
+        v = setF8(v, f8);
         return v;
     }
 }
@@ -297,38 +374,7 @@ __ByValue final class MyValue3 {
     final double f4;
     final float f5;
     final double f6;
-    final float f7;
-    final double f8;
-
-    private MyValue3(char c,
-            byte bb,
-            short s,
-            int i,
-            long l,
-            Object o,
-            float f1,
-            double f2,
-            float f3,
-            double f4,
-            float f5,
-            double f6,
-            float f7,
-            double f8) {
-        this.c = c;
-        this.bb = bb;
-        this.s = s;
-        this.i = i;
-        this.l = l;
-        this.o = o;
-        this.f1 = f1;
-        this.f2 = f2;
-        this.f3 = f3;
-        this.f4 = f4;
-        this.f5 = f5;
-        this.f6 = f6;
-        this.f7 = f7;
-        this.f8 = f8;
-    }
+    final MyValue3Inline v1;
 
     private MyValue3() {
         this.c = 0;
@@ -343,8 +389,7 @@ __ByValue final class MyValue3 {
         this.f4 = 0;
         this.f5 = 0;
         this.f6 = 0;
-        this.f7 = 0;
-        this.f8 = 0;
+        this.v1 = MyValue3Inline.createDefault();
     }
 
     @ForceInline
@@ -420,14 +465,8 @@ __ByValue final class MyValue3 {
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF7(MyValue3 v, float f7) {
-        v.f7 = f7;
-        return v;
-    }
-
-    @ForceInline
-    __ValueFactory static MyValue3 setF8(MyValue3 v, double f8) {
-        v.f8 = f8;
+    __ValueFactory static MyValue3 setV1(MyValue3 v, MyValue3Inline v1) {
+        v.v1 = v1;
         return v;
     }
 
@@ -452,8 +491,7 @@ __ByValue final class MyValue3 {
         v = setF4(v, r.nextDouble());
         v = setF5(v, r.nextFloat());
         v = setF6(v, r.nextDouble());
-        v = setF7(v, r.nextFloat());
-        v = setF8(v, r.nextDouble());
+        v = setV1(v, MyValue3Inline.createWithFieldsInline(r.nextFloat(), r.nextDouble()));
         return v;
     }
 
@@ -477,8 +515,7 @@ __ByValue final class MyValue3 {
         v = setF4(v, other.f4);
         v = setF5(v, other.f5);
         v = setF6(v, other.f6);
-        v = setF7(v, other.f7);
-        v = setF8(v, other.f8);
+        v = setV1(v, other.v1);
         return v;
     }
 
@@ -496,8 +533,8 @@ __ByValue final class MyValue3 {
         Asserts.assertEQ(f4, other.f4);
         Asserts.assertEQ(f5, other.f5);
         Asserts.assertEQ(f6, other.f6);
-        Asserts.assertEQ(f7, other.f7);
-        Asserts.assertEQ(f8, other.f8);
+        Asserts.assertEQ(v1.f7, other.v1.f7);
+        Asserts.assertEQ(v1.f8, other.v1.f8);
     }
 }
 
@@ -505,11 +542,6 @@ __ByValue final class MyValue3 {
 __ByValue final class MyValue4 {
     final MyValue3 v1;
     final MyValue3 v2;
-
-    private MyValue4(MyValue3 v1, MyValue3 v2) {
-        this.v1 = v1;
-        this.v2 = v2;
-    }
 
     private MyValue4() {
         this.v1 = MyValue3.createDefault();
@@ -1006,6 +1038,7 @@ public class ValueTypeTestBench {
 
     // Test OSR compilation
     @Test()
+    @Slow
     public long test23() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = new MyValue1[Math.abs(rI) % 3];
@@ -1679,6 +1712,7 @@ public class ValueTypeTestBench {
 
     // Test loop peeling
     @Test(failOn = ALLOC + LOAD + STORE)
+    @Slow
     public void test57() {
         MyValue1 v = MyValue1.createWithFieldsInline(0, 1);
         // Trigger OSR compilation and loop peeling
@@ -1698,6 +1732,7 @@ public class ValueTypeTestBench {
 
     // Test loop peeling and unrolling
     @Test()
+    @Slow
     public void test58() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(0, 0);
         MyValue1 v2 = MyValue1.createWithFieldsInline(1, 1);
@@ -2574,6 +2609,7 @@ public class ValueTypeTestBench {
 
     // Test correct handling of __Value merges through PhiNodes
     @Test()
+    @Slow
     public long test93() throws Throwable {
         // Create a new value type
         final MethodHandle dvt = MethodHandleBuilder.loadCode(MethodHandles.lookup(), "createValueType",
@@ -3040,6 +3076,7 @@ public class ValueTypeTestBench {
     }
 
     @Test()
+    @Slow
     public __Value test106() throws Throwable {
         __Value vt = test106_init();
         for (int i = 0; i < 50_000; i++) {
@@ -3057,6 +3094,35 @@ public class ValueTypeTestBench {
 
     // ========== Test infrastructure ==========
 
+    // User defined settings
+    private static final boolean SKIP_SLOW = Boolean.parseBoolean(System.getProperty("SkipSlow", "false"));
+    private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
+    private static final boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true"));
+    private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
+    private static final String TESTLIST = System.getProperty("Testlist", "");
+    private static final int WARMUP = Integer.parseInt(System.getProperty("Warmup", "251"));
+
+    // Pre defined settings
+    private static final List<String> defaultFlags = Arrays.asList(
+        "-XX:-BackgroundCompilation", "-XX:CICompilerCount=1",
+        "-XX:+PrintCompilation", "-XX:+PrintInlining", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly",
+        "-XX:CompileCommand=quiet",
+        "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
+        "-XX:CompileCommand=compileonly,java.lang.Long::sum",
+        "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue1::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue2::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue2Inline::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3Inline::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue4::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.ValueCapableClass2_*::*",
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.ValueTypeTestBench::*",
+        "-XX:CompileCommand=inline,java.lang.__Value::hashCode");
+    private static final List<String> verifyFlags = Arrays.asList(
+        "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
+        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing", "-XX:+StressValueTypeReturnedAsFields");
+
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     private static final int ValueTypePassFieldsAsArgsOn = 0x1;
     private static final int ValueTypePassFieldsAsArgsOff = 0x2;
@@ -3071,10 +3137,9 @@ public class ValueTypeTestBench {
     private static final int COMP_LEVEL_ANY = -2;
     private static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
     private static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
-    private static final int WARMUP = 251;
-    private static boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
-    private static boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
-    private static boolean XCOMP = Platform.isComp();
+    private static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
+    private static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
+    private static final boolean XCOMP = Platform.isComp();
 
     // Regular expressions used to match nodes in the PrintIdeal output
     private static final String START = "(\\d+\\t(.*";
@@ -3098,54 +3163,52 @@ public class ValueTypeTestBench {
     private static final String SCOBJ = "(.*# ScObj.*" + END;
 
     static {
+        List<String> list = null;
+        if (!TESTLIST.isEmpty()) {
+           list = Arrays.asList(TESTLIST.split(","));
+        }
         // Gather all test methods and put them in Hashtable
         for (Method m : ValueTypeTestBench.class.getDeclaredMethods()) {
             Test[] annos = m.getAnnotationsByType(Test.class);
-            if (annos.length != 0) {
+            if (annos.length != 0 &&
+                (list == null || list.contains(m.getName())) &&
+                !(SKIP_SLOW && m.isAnnotationPresent(Slow.class))) {
                 tests.put("ValueTypeTestBench::" + m.getName(), m);
             }
         }
     }
 
-    private static void execute_vm(String... args) throws Throwable {
+    private static void execute_vm() throws Throwable {
         Asserts.assertFalse(tests.isEmpty(), "no tests to execute");
-        ArrayList<String> all_args = new ArrayList(List.of(args));
+        ArrayList<String> args = new ArrayList<String>(defaultFlags);
+        if (VERIFY_VM) {
+            args.addAll(verifyFlags);
+        }
         // Run tests in own process and verify output
-        all_args.add(ValueTypeTestBench.class.getName());
-        all_args.add("run");
+        args.add(ValueTypeTestBench.class.getName());
+        args.add("run");
         // Spawn process with default JVM options from the test's run command
         String[] vmInputArgs = InputArguments.getVmInputArgs();
-        String[] cmds = Arrays.copyOf(vmInputArgs, vmInputArgs.length + all_args.size());
-        System.arraycopy(all_args.toArray(), 0, cmds, vmInputArgs.length, all_args.size());
+        String[] cmds = Arrays.copyOf(vmInputArgs, vmInputArgs.length + args.size());
+        System.arraycopy(args.toArray(), 0, cmds, vmInputArgs.length, args.size());
         OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
         // If ideal graph printing is enabled/supported, verify output
         String output = oa.getOutput();
         oa.shouldHaveExitValue(0);
-        boolean verifyIR = output.contains("PrintIdeal enabled") &&
+        boolean verifyIR = VERIFY_IR && output.contains("PrintIdeal enabled") &&
                 !output.contains("ValueTypePassFieldsAsArgs is not supported on this platform");
         if (verifyIR) {
             parseOutput(output);
         } else {
+            System.out.println(output);
             System.out.println("WARNING: IR verification disabled! Running with -Xint, -Xcomp or release build?");
         }
     }
 
     public static void main(String[] args) throws Throwable {
-        //tests.values().removeIf(p -> !p.getName().equals("test106")); // Run single test
         if (args.length == 0) {
-            execute_vm("-XX:+IgnoreUnrecognizedVMOptions", "-XX:-BackgroundCompilation",
-                    "-XX:+PrintCompilation", "-XX:+PrintInlining", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly",
-                    "-XX:CICompilerCount=1",
-                    "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.ValueTypeTestBench::*",
-                    "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue1::*",
-                    "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue2::*",
-                    "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3::*",
-                    "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue4::*",
-                    "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
-                    "-XX:CompileCommand=inline,java.lang.__Value::hashCode",
-                    "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
-                    "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.ValueCapableClass2_*::*",
-                    "-XX:CompileCommand=compileonly,java.lang.Long::sum");
+            // Spawn a new VM instance
+            execute_vm();
         } else {
             // Execute tests
             ValueTypeTestBench bench = new ValueTypeTestBench();
@@ -3153,7 +3216,7 @@ public class ValueTypeTestBench {
         }
     }
 
-    public static void parseOutput(String output) throws Exception {
+    private static void parseOutput(String output) throws Exception {
         Pattern comp_re = Pattern.compile("\\n\\s+\\d+\\s+\\d+\\s+(%| )(s| )(!| )b(n| )\\s+\\S+\\.(?<name>[^.]+::\\S+)\\s+(?<osr>@ \\d+\\s+)?[(]\\d+ bytes[)]\\n");
         Matcher m = comp_re.matcher(output);
         Map<String,String> compilations = new LinkedHashMap<>();
@@ -3253,8 +3316,8 @@ public class ValueTypeTestBench {
 
     public void setup(Method[] methods) {
         if (XCOMP) {
-            // Don't control compilation if -Xcomp is enabled
-            return;
+          // Don't control compilation if -Xcomp is enabled
+          return;
         }
         for (Method m : methods) {
             if (m.isAnnotationPresent(Test.class)) {
@@ -3282,18 +3345,24 @@ public class ValueTypeTestBench {
         setup(this.getClass().getDeclaredMethods());
         setup(MyValue1.class.getDeclaredMethods());
         setup(MyValue2.class.getDeclaredMethods());
+        setup(MyValue2Inline.class.getDeclaredMethods());
         setup(MyValue3.class.getDeclaredMethods());
+        setup(MyValue3Inline.class.getDeclaredMethods());
         setup(MyValue4.class.getDeclaredMethods());
 
         // Compile class initializers
         WHITE_BOX.enqueueInitializerForCompilation(this.getClass(), COMP_LEVEL_FULL_OPTIMIZATION);
         WHITE_BOX.enqueueInitializerForCompilation(MyValue1.class, COMP_LEVEL_FULL_OPTIMIZATION);
         WHITE_BOX.enqueueInitializerForCompilation(MyValue2.class, COMP_LEVEL_FULL_OPTIMIZATION);
+        WHITE_BOX.enqueueInitializerForCompilation(MyValue2Inline.class, COMP_LEVEL_FULL_OPTIMIZATION);
         WHITE_BOX.enqueueInitializerForCompilation(MyValue3.class, COMP_LEVEL_FULL_OPTIMIZATION);
+        WHITE_BOX.enqueueInitializerForCompilation(MyValue3Inline.class, COMP_LEVEL_FULL_OPTIMIZATION);
         WHITE_BOX.enqueueInitializerForCompilation(MyValue4.class, COMP_LEVEL_FULL_OPTIMIZATION);
 
         // Execute tests
+        TreeMap<Long, String> durations = PRINT_TIMES ? new TreeMap<Long, String>() : null;
         for (Method test : tests.values()) {
+            long startTime = System.nanoTime();
             Method verifier = getClass().getDeclaredMethod(test.getName() + "_verifier", boolean.class);
             // Warmup using verifier method
             Warmup anno = test.getAnnotation(Warmup.class);
@@ -3306,6 +3375,19 @@ public class ValueTypeTestBench {
             Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             // Check result
             verifier.invoke(this, false);
+            if (PRINT_TIMES) {
+                long endTime = System.nanoTime();
+                long duration = (endTime - startTime);
+                durations.put(duration, test.getName());
+            }
+        }
+
+        // Print execution times
+        if (PRINT_TIMES) {
+          System.out.println("\n\nTest execution times:");
+          for (Map.Entry<Long, String> entry : durations.entrySet()) {
+              System.out.format("%-10s%15d ns\n", entry.getValue() + ":", entry.getKey());
+          }
         }
     }
 }
@@ -3340,7 +3422,12 @@ public class ValueTypeTestBench {
 @Retention(RetentionPolicy.RUNTIME)
 @interface DontCompile { }
 
+// Number of warmup iterations
 @Retention(RetentionPolicy.RUNTIME)
 @interface Warmup {
     int value();
 }
+
+// Mark test as slow
+@Retention(RetentionPolicy.RUNTIME)
+@interface Slow { }

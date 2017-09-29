@@ -462,7 +462,7 @@ public:
 
   // Idealize new Node 'n' with respect to its inputs and its value
   virtual Node *transform( Node *a_node );
-  virtual void record_for_igvn(Node *n) { }
+  virtual void record_for_igvn(Node *n) { _worklist.push(n); }
 
   virtual PhaseIterGVN *is_IterGVN() { return this; }
 

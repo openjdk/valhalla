@@ -27,6 +27,7 @@
 #include "opto/callnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/connode.hpp"
+#include "opto/graphKit.hpp"
 #include "opto/matcher.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
@@ -416,157 +417,153 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       in(1)->in(0) != NULL && in(1)->in(0)->is_CallStaticJava() &&
       in(1)->in(0)->as_CallStaticJava()->method() != NULL &&
       in(1)->as_Proj()->_con == TypeFunc::Parms) {
-    ciValueKlass* vk = type()->is_valuetypeptr()->value_type()->value_klass();
-    assert(vk != phase->C->env()->___Value_klass(), "why cast to __Value?");
-    PhaseIterGVN *igvn = phase->is_IterGVN();
+    const TypeValueTypePtr* cast_type = type()->is_valuetypeptr();
+    ciValueKlass* vk = cast_type->value_type()->value_klass();
+    assert(!vk->is__Value(), "why cast to __Value?");
+    PhaseIterGVN* igvn = phase->is_IterGVN();
 
     if (ValueTypeReturnedAsFields && vk->can_be_returned_as_fields()) {
       igvn->set_delay_transform(true);
       CallNode* call = in(1)->in(0)->as_Call();
-      phase->C->remove_macro_node(call);
+      igvn->C->remove_macro_node(call);
       // We now know the return type of the call
-      const TypeTuple *range_sig = TypeTuple::make_range(vk, false);
-      const TypeTuple *range_cc = TypeTuple::make_range(vk, true);
+      const TypeTuple* range_sig = TypeTuple::make_range(vk, false);
+      const TypeTuple* range_cc = TypeTuple::make_range(vk, true);
       assert(range_sig != call->_tf->range_sig() && range_cc != call->_tf->range_cc(), "type should change");
       call->_tf = TypeFunc::make(call->_tf->domain_sig(), call->_tf->domain_cc(),
                                  range_sig, range_cc);
-      phase->set_type(call, call->Value(phase));
-      phase->set_type(in(1), in(1)->Value(phase));
+      igvn->set_type(call, call->Value(igvn));
+      igvn->set_type(in(1), in(1)->Value(igvn));
 
+      Node* ctl_hook = new Node(1);
+      Node* mem_hook = new Node(1);
+      Node* io_hook = new Node(1);
+      Node* res_hook = new Node(1);
+      Node* ex_ctl_hook = new Node(1);
+      Node* ex_mem_hook = new Node(1);
+      Node* ex_io_hook = new Node(1);
+
+      // Extract projections from the call and hook users to temporary nodes.
+      // We will re-attach them to newly created PhiNodes below.
       CallProjections projs;
       call->extract_projections(&projs, true, true);
+      igvn->replace_in_uses(projs.fallthrough_catchproj, ctl_hook);
+      igvn->replace_in_uses(projs.fallthrough_memproj, mem_hook);
+      igvn->replace_in_uses(projs.fallthrough_ioproj, io_hook);
+      igvn->replace_in_uses(projs.resproj, res_hook);
+      igvn->replace_in_uses(projs.catchall_catchproj, ex_ctl_hook);
+      igvn->replace_in_uses(projs.catchall_memproj, ex_mem_hook);
+      igvn->replace_in_uses(projs.catchall_ioproj, ex_io_hook);
 
-      Node* init_ctl = new Node(1);
-      Node* init_mem = new Node(1);
-      Node* init_io = new Node(1);
-      Node* init_ex_ctl = new Node(1);
-      Node* init_ex_mem = new Node(1);
-      Node* init_ex_io = new Node(1);
-      Node* res = new Node(1);
+      // Restore IO input of the CatchNode
+      CatchNode* catchp = projs.fallthrough_catchproj->in(0)->as_Catch();
+      catchp->set_req(TypeFunc::I_O, projs.catchall_ioproj);
+      igvn->rehash_node_delayed(catchp);
 
-      Node* ctl = init_ctl;
-      Node* mem = init_mem;
-      Node* io = init_io;
-      Node* ex_ctl = init_ex_ctl;
-      Node* ex_mem = init_ex_mem;
-      Node* ex_io = init_ex_io;
+      // Rebuild the output JVMState from the call and use it to initialize a GraphKit
+      JVMState* new_jvms = call->jvms()->clone_shallow(igvn->C);
+      SafePointNode* new_map = new SafePointNode(call->req(), new_jvms);
+      for (uint i = TypeFunc::FramePtr; i < call->req(); i++) {
+        new_map->init_req(i, call->in(i));
+      }
+      new_map->set_control(projs.fallthrough_catchproj);
+      new_map->set_memory(MergeMemNode::make(projs.fallthrough_memproj));
+      new_map->set_i_o(projs.fallthrough_ioproj);
+      new_jvms->set_map(new_map);
+
+      GraphKit kit(new_jvms, igvn);
 
       // Either we get a buffered value pointer and we can case use it
-      // or we get a tagged klass pointer and we need to allocate a
-      // value.
-      Node* cast = phase->transform(new CastP2XNode(ctl, res));
-      Node* masked = phase->transform(new AndXNode(cast, phase->MakeConX(0x1)));
-      Node* cmp = phase->transform(new CmpXNode(masked, phase->MakeConX(0x1)));
-      Node* bol = phase->transform(new BoolNode(cmp, BoolTest::eq));
-      IfNode* iff = phase->transform(new IfNode(ctl, bol, PROB_MAX, COUNT_UNKNOWN))->as_If();
-      Node* iftrue = phase->transform(new IfTrueNode(iff));
-      Node* iffalse = phase->transform(new IfFalseNode(iff));
+      // or we get a tagged klass pointer and we need to allocate a value.
+      Node* cast = igvn->transform(new CastP2XNode(kit.control(), projs.resproj));
+      Node* masked = igvn->transform(new AndXNode(cast, igvn->MakeConX(0x1)));
+      Node* cmp = igvn->transform(new CmpXNode(masked, igvn->MakeConX(0x1)));
+      Node* bol = kit.Bool(cmp, BoolTest::eq);
+      IfNode* iff = kit.create_and_map_if(kit.control(), bol, PROB_MAX, COUNT_UNKNOWN);
+      Node* iftrue = kit.IfTrue(iff);
+      Node* iffalse = kit.IfFalse(iff);
 
-      ctl = iftrue;
+      Node* region = new RegionNode(3);
+      Node* mem_phi = new PhiNode(region, Type::MEMORY, TypePtr::BOTTOM);
+      Node* io_phi = new PhiNode(region, Type::ABIO);
+      Node* res_phi = new PhiNode(region, cast_type);
+      Node* ex_region = new RegionNode(3);
+      Node* ex_mem_phi = new PhiNode(ex_region, Type::MEMORY, TypePtr::BOTTOM);
+      Node* ex_io_phi = new PhiNode(ex_region, Type::ABIO);
 
-      Node* ex_r = new RegionNode(3);
-      Node* ex_mem_phi = new PhiNode(ex_r, Type::MEMORY, TypePtr::BOTTOM);
-      Node* ex_io_phi = new PhiNode(ex_r, Type::ABIO);
+      // True branch: result is a tagged klass pointer
+      // Allocate a value type (will add extra projections to the call)
+      kit.set_control(iftrue);
+      Node* res = igvn->transform(ValueTypePtrNode::make(&kit, vk, call));
+      res = res->isa_ValueTypePtr()->allocate(&kit);
 
-      ex_r->init_req(2, ex_ctl);
-      ex_mem_phi->init_req(2, ex_mem);
-      ex_io_phi->init_req(2, ex_io);
+      // Get exception state
+      GraphKit ekit(kit.transfer_exceptions_into_jvms(), igvn);
+      SafePointNode* ex_map = ekit.combine_and_pop_all_exception_states();
+      Node* ex_oop = ekit.use_exception_state(ex_map);
 
-      // We need an oop pointer in case allocation elimination
-      // fails. Allocate a new instance here.
-      Node* javaoop = ValueTypeBaseNode::allocate(type(), ctl, mem, io,
-                                                  call->in(TypeFunc::FramePtr),
-                                                  ex_ctl, ex_mem, ex_io,
-                                                  call->jvms(), igvn);
+      region->init_req(1, kit.control());
+      mem_phi->init_req(1, kit.reset_memory());
+      io_phi->init_req(1, kit.i_o());
+      res_phi->init_req(1, res);
+      ex_region->init_req(1, ekit.control());
+      ex_mem_phi->init_req(1, ekit.reset_memory());
+      ex_io_phi->init_req(1, ekit.i_o());
 
+      // False branch: result is not tagged
+      // Load buffered value type from returned oop
+      kit.set_control(iffalse);
+      kit.set_all_memory(projs.fallthrough_memproj);
+      kit.set_i_o(projs.fallthrough_ioproj);
+      // Cast oop to NotNull
+      ConstraintCastNode* res_cast = clone()->as_ConstraintCast();
+      res_cast->set_req(0, kit.control());
+      res_cast->set_req(1, projs.resproj);
+      res_cast->set_type(cast_type->cast_to_ptr_type(TypePtr::NotNull));
+      Node* ctl = kit.control(); // Control may get updated below
+      res = ValueTypePtrNode::make(*igvn, ctl, kit.merged_memory(), igvn->transform(res_cast));
 
-
-      ex_r->init_req(1, ex_ctl);
-      ex_mem_phi->init_req(1, ex_mem);
-      ex_io_phi->init_req(1, ex_io);
-
-      ex_r = igvn->transform(ex_r);
-      ex_mem_phi = igvn->transform(ex_mem_phi);
-      ex_io_phi = igvn->transform(ex_io_phi);
-
-      // Create the ValueTypePtrNode. This will add extra projections
-      // to the call.
-      ValueTypePtrNode* vtptr = ValueTypePtrNode::make(igvn, this);
-      // Newly allocated value type must be initialized
-      vtptr->store(igvn, ctl, mem->as_MergeMem(), javaoop);
-      vtptr->set_oop(javaoop);
-
-      Node* r = new RegionNode(3);
-      Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
-      Node* io_phi = new PhiNode(r, Type::ABIO);
-      Node* res_phi = new PhiNode(r, type());
-
-      r->init_req(1, ctl);
-      mem_phi->init_req(1, mem);
-      io_phi->init_req(1, io);
-      res_phi->init_req(1, igvn->transform(vtptr));
-
-      ctl = iffalse;
-      mem = init_mem;
-      io = init_io;
-
-      Node* castnotnull = new CastPPNode(res, TypePtr::NOTNULL);
-      castnotnull->set_req(0, ctl);
-      castnotnull = phase->transform(castnotnull);
-      Node* ccast = clone();
-      ccast->set_req(0, ctl);
-      ccast->set_req(1, castnotnull);
-      ccast = phase->transform(ccast);
-
-      vtptr = ValueTypePtrNode::make(*phase, mem, ccast);
-
-      r->init_req(2, ctl);
-      mem_phi->init_req(2, mem);
-      io_phi->init_req(2, io);
-      res_phi->init_req(2, igvn->transform(vtptr));
-
-      r = igvn->transform(r);
-      mem_phi = igvn->transform(mem_phi);
-      io_phi = igvn->transform(io_phi);
-      res_phi = igvn->transform(res_phi);
-
-      igvn->replace_in_uses(projs.fallthrough_catchproj, r);
-      igvn->replace_in_uses(projs.fallthrough_memproj, mem_phi);
-      igvn->replace_in_uses(projs.fallthrough_ioproj, io_phi);
-      igvn->replace_in_uses(projs.resproj, res_phi);
-      igvn->replace_in_uses(projs.catchall_catchproj, ex_r);
-      igvn->replace_in_uses(projs.catchall_memproj, ex_mem_phi);
-      igvn->replace_in_uses(projs.catchall_ioproj, ex_io_phi);
+      region->init_req(2, ctl);
+      mem_phi->init_req(2, kit.reset_memory());
+      io_phi->init_req(2, kit.i_o());
+      res_phi->init_req(2, igvn->transform(res));
+      ex_region->init_req(2, projs.catchall_catchproj);
+      ex_mem_phi->init_req(2, projs.catchall_memproj);
+      ex_io_phi->init_req(2, projs.catchall_ioproj);
 
       igvn->set_delay_transform(false);
 
-      igvn->replace_node(init_ctl, projs.fallthrough_catchproj);
-      igvn->replace_node(init_mem, projs.fallthrough_memproj);
-      igvn->replace_node(init_io, projs.fallthrough_ioproj);
-      igvn->replace_node(res, projs.resproj);
-      igvn->replace_node(init_ex_ctl, projs.catchall_catchproj);
-      igvn->replace_node(init_ex_mem, projs.catchall_memproj);
-      igvn->replace_node(init_ex_io, projs.catchall_ioproj);
-
+      // Re-attach users to newly created PhiNodes
+      igvn->replace_node(ctl_hook, igvn->transform(region));
+      igvn->replace_node(mem_hook, igvn->transform(mem_phi));
+      igvn->replace_node(io_hook, igvn->transform(io_phi));
+      igvn->replace_node(res_hook, igvn->transform(res_phi));
+      igvn->replace_node(ex_ctl_hook, igvn->transform(ex_region));
+      igvn->replace_node(ex_mem_hook, igvn->transform(ex_mem_phi));
+      igvn->replace_node(ex_io_hook, igvn->transform(ex_io_phi));
       return this;
     } else {
       CallNode* call = in(1)->in(0)->as_Call();
       // We now know the return type of the call
-      const TypeTuple *range = TypeTuple::make_range(vk, false);
+      const TypeTuple* range = TypeTuple::make_range(vk, false);
       if (range != call->_tf->range_sig()) {
-        // Build the ValueTypePtrNode by loading the fields. Use call
-        // return as oop edge in the ValueTypePtrNode.
+        // Build the ValueTypePtrNode by loading the fields
         call->_tf = TypeFunc::make(call->_tf->domain_sig(), call->_tf->domain_cc(),
                                    range, range);
         phase->set_type(call, call->Value(phase));
         phase->set_type(in(1), in(1)->Value(phase));
         uint last = phase->C->unique();
         CallNode* call = in(1)->in(0)->as_Call();
+        // Extract projections from the call and hook control users to temporary node
         CallProjections projs;
         call->extract_projections(&projs, true, true);
+        Node* ctl = projs.fallthrough_catchproj;
         Node* mem = projs.fallthrough_memproj;
-        Node* vtptr = ValueTypePtrNode::make(*phase, mem, in(1));
-
+        Node* ctl_hook = new Node(1);
+        igvn->replace_in_uses(ctl, ctl_hook);
+        Node* vtptr = ValueTypePtrNode::make(*phase, ctl, mem, in(1));
+        // Attach users to updated control
+        igvn->replace_node(ctl_hook, ctl);
         return vtptr;
       }
     }

@@ -1178,16 +1178,16 @@ Node* PhaseIterGVN::register_new_node_with_optimizer(Node* n, Node* orig) {
 //------------------------------transform--------------------------------------
 // Non-recursive: idealize Node 'n' with respect to its inputs and its value
 Node *PhaseIterGVN::transform( Node *n ) {
-  if (_delay_transform) {
-    // Register the node but don't optimize for now
-    register_new_node_with_optimizer(n);
-    return n;
-  }
-
   // If brand new node, make space in type array, and give it a type.
   ensure_type_or_null(n);
   if (type_or_null(n) == NULL) {
     set_type_bottom(n);
+  }
+
+  if (_delay_transform) {
+    // Add the node to the worklist but don't optimize for now
+    _worklist.push(n);
+    return n;
   }
 
   return transform_old(n);

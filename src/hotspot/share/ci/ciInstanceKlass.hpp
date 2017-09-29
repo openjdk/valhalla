@@ -65,8 +65,6 @@ private:
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
   GrowableArray<ciField*>* _nonstatic_fields;
-  int                    _nof_declared_nonstatic_fields; // Number of nonstatic fields declared in the bytecode
-                                                         // i.e., without value types flattened into the instance.
 
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
 
@@ -107,8 +105,8 @@ protected:
 
   void compute_shared_init_state();
   bool compute_shared_has_subklass();
-  int  compute_nonstatic_fields();
-  GrowableArray<ciField*>* compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields);
+  virtual int compute_nonstatic_fields();
+  GrowableArray<ciField*>* compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten = true);
 
   // Update the init_state for shared klasses
   void update_if_shared(InstanceKlass::ClassState expected) {
@@ -195,18 +193,11 @@ public:
 
   // total number of nonstatic fields (including inherited):
   int nof_nonstatic_fields() {
-    if (_nonstatic_fields == NULL)
-      return compute_nonstatic_fields();
-    else
-      return _nonstatic_fields->length();
-  }
-
-  int nof_declared_nonstatic_fields() {
     if (_nonstatic_fields == NULL) {
-      compute_nonstatic_fields();
+      return compute_nonstatic_fields();
+    } else {
+      return _nonstatic_fields->length();
     }
-    assert(_nof_declared_nonstatic_fields >= 0, "after lazy initialization _nof_declared_nonstatic_fields must be at least 0");
-    return _nof_declared_nonstatic_fields;
   }
 
   bool has_injected_fields() {

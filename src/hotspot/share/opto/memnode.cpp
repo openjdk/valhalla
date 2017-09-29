@@ -1112,11 +1112,24 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
   if (base != NULL && base->is_ValueTypePtr()) {
     Node* value = base->as_ValueTypePtr()->field_value_by_offset((int)offset, true);
-    if (bottom_type()->isa_narrowoop()) {
-      assert(!phase->type(value)->isa_narrowoop(), "should already be decoded");
-      value = phase->transform(new EncodePNode(value, bottom_type()));
+    if (value->is_ValueType()) {
+      // Non-flattened value type field
+      ValueTypeNode* vt = value->as_ValueType();
+      if (vt->is_allocated(phase)) {
+        value = vt->get_oop();
+      } else {
+        // Not yet allocated, bail out
+        value = NULL;
+      }
     }
-    return value;
+    if (value != NULL) {
+      if (Opcode() == Op_LoadN) {
+        // Encode oop value if we are loading a narrow oop
+        assert(!phase->type(value)->isa_narrowoop(), "should already be decoded");
+        value = phase->transform(new EncodePNode(value, bottom_type()));
+      }
+      return value;
+    }
   }
 
   // If the previous store-maker is the right kind of Store, and the store is

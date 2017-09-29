@@ -199,7 +199,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       obj->obj_field(offset())->print_value_on(st);
       break;
     case T_VALUETYPE:
-      {
+      if (is_flatten()) {
         // Resolve klass of flattened value type field
         Thread* THREAD = Thread::current();
         ResourceMark rm(THREAD);
@@ -216,8 +216,12 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
         FieldPrinter print_field(st, obj);
         vk->do_nonstatic_fields(&print_field);
         return; // Do not print underlying representation
-        break;
+      } else {
+        st->print(" ");
+        NOT_LP64(as_int = obj->int_field(offset()));
+        obj->obj_field(offset())->print_value_on(st);
       }
+      break;
     default:
       ShouldNotReachHere();
       break;

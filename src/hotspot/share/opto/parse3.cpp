@@ -176,8 +176,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
 
   ciType* field_klass = field->type();
   bool is_vol = field->is_volatile();
-  // TODO change this when we support non-flattened value type fields that are non-static
-  bool flattened = (bt == T_VALUETYPE) && !field->is_static();
+  bool flattened = field->is_flattened();
 
   // Compute address and memory type.
   int offset = field->offset_in_bytes();
@@ -235,7 +234,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   Node* ld = NULL;
    if (flattened) {
     // Load flattened value type
-    ld = ValueTypeNode::make(_gvn, field_klass->as_value_klass(), map()->memory(), obj, obj, field->holder(), offset);
+    ld = ValueTypeNode::make(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
   } else {
     ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, needs_atomic_access);
   }
@@ -281,6 +280,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
 
 void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool is_vol = field->is_volatile();
+  bool is_flattened = field->is_flattened();
   // If reference is volatile, prevent following memory ops from
   // floating down past the volatile write.  Also prevents commoning
   // another volatile read.
@@ -314,10 +314,14 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     } else {
       field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
     }
-    if (bt == T_VALUETYPE && !field->is_static()) {
-      // Store flattened value type to non-static field
+    if (is_flattened) {
+      // Store flattened value type to a non-static field
+      assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
       val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
     } else {
+      if (bt == T_VALUETYPE) {
+        field_type = field_type->cast_to_ptr_type(TypePtr::BotPTR)->is_oopptr();
+      }
       store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, mo);
     }
   } else {
@@ -651,7 +655,7 @@ void Parse::do_vunbox() {
 
   // Create a value type node with the corresponding type
   ciValueKlass* vk = target_dvt_klass->as_value_klass();
-  Node* vt = ValueTypeNode::make(gvn(), vk, map()->memory(), not_null_obj, not_null_obj, target_vcc_klass, vk->first_field_offset());
+  Node* vt = ValueTypeNode::make(this, vk, not_null_obj, not_null_obj, target_vcc_klass, vk->first_field_offset());
 
   // Push the value type onto the stack
   push(vt);

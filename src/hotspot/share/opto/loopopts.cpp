@@ -1015,6 +1015,11 @@ static bool merge_point_safe(Node* region) {
         Node* m = n->fast_out(j);
         if (m->is_FastLock())
           return false;
+        if (m->is_ValueType()) {
+          // TODO this breaks optimizations!
+          // Value types should not be split through phis
+          //return false;
+        }
 #ifdef _LP64
         if (m->Opcode() == Op_ConvI2L)
           return false;

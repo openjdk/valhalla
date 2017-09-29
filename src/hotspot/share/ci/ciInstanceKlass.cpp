@@ -63,7 +63,6 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
   _is_anonymous = ik->is_anonymous();
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
-  _nof_declared_nonstatic_fields = -1; // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
   _vcc_klass = NULL;
   _implementor = NULL; // we will fill these lazily
@@ -106,7 +105,6 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _nonstatic_field_size = -1;
   _has_nonstatic_fields = false;
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
-  _nof_declared_nonstatic_fields = -1; // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
   _vcc_klass = NULL;
   _is_anonymous = false;
@@ -457,7 +455,6 @@ int ciInstanceKlass::compute_nonstatic_fields() {
   if (!has_nonstatic_fields()) {
     Arena* arena = CURRENT_ENV->arena();
     _nonstatic_fields = new (arena) GrowableArray<ciField*>(arena, 0, 0, NULL);
-    _nof_declared_nonstatic_fields = 0;
     return 0;
   }
   assert(!is_java_lang_Object(), "bootstrap OK");
@@ -475,7 +472,6 @@ int ciInstanceKlass::compute_nonstatic_fields() {
     // See if I am no larger than my super; if so, I can use his fields.
     if (fsize == super_fsize) {
       _nonstatic_fields = super_fields;
-      _nof_declared_nonstatic_fields = super->nof_declared_nonstatic_fields();
       return super_fields->length();
     }
   }
@@ -489,26 +485,17 @@ int ciInstanceKlass::compute_nonstatic_fields() {
     // This can happen if this class (java.lang.Class) has invisible fields.
     if (super_fields != NULL) {
       _nonstatic_fields = super_fields;
-      _nof_declared_nonstatic_fields = super->nof_declared_nonstatic_fields();
       return super_fields->length();
     } else {
-      _nof_declared_nonstatic_fields = 0;
       return 0;
     }
   }
 
-  int flen = fields->length();
-
-  // Now sort them by offset, ascending.
-  // (In principle, they could mix with superclass fields.)
-  fields->sort(sort_field_by_offset);
   _nonstatic_fields = fields;
-  return flen;
+  return fields->length();
 }
 
-GrowableArray<ciField*>*
-ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
-                                               super_fields) {
+GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten) {
   ASSERT_IN_VM;
   Arena* arena = CURRENT_ENV->arena();
   int flen = 0;
@@ -521,13 +508,11 @@ ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
 
   // allocate the array:
   if (flen == 0) {
-    _nof_declared_nonstatic_fields = flen;
     return NULL;  // return nothing if none are locally declared
   }
   if (super_fields != NULL) {
     flen += super_fields->length();
   }
-  _nof_declared_nonstatic_fields = flen;
 
   fields = new (arena) GrowableArray<ciField*>(arena, flen, 0, NULL);
   if (super_fields != NULL) {
@@ -537,12 +522,13 @@ ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.field_type() == T_VALUETYPE) {
+    if (fd.is_flatten() && flatten) {
+      assert(fd.field_type() == T_VALUETYPE, "flattening is only supported for value type fields");
       // Value type fields are embedded
       int field_offset = fd.offset();
       // Get ValueKlass and adjust number of fields
       ciValueKlass* vk = get_field_type_by_offset(field_offset)->as_value_klass();
-      flen += vk->flattened_field_count() - 1;
+      flen += vk->nof_nonstatic_fields() - 1;
       // Iterate over fields of the flattened value type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
         ciField* flattened_field = vk->nonstatic_field_at(i);
@@ -560,6 +546,9 @@ ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
     }
   }
   assert(fields->length() == flen, "sanity");
+  // Now sort them by offset, ascending.
+  // (In principle, they could mix with superclass fields.)
+  fields->sort(sort_field_by_offset);
   return fields;
 }
 
@@ -760,7 +749,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
             _out->print(" \"");
             _out->print_raw(java_lang_String::as_quoted_ascii(value));
             _out->print("\"");
-          }          
+          }
         }
       }
       break;

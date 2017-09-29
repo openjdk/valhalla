@@ -261,7 +261,7 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_VALUETYPE:
-    if (type == ciEnv::current()->___Value_klass()) {
+    if (type->is__Value()) {
       return TypeValueTypePtr::NOTNULL;
     } else {
       return TypeValueType::make(type->as_value_klass());
@@ -637,6 +637,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
   TypeAryPtr::_array_body_type[T_VALUETYPE] = TypeAryPtr::OOPS;
+  TypeAryPtr::_array_body_type[T_VALUETYPEPTR] = NULL;
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
   TypeAryPtr::_array_body_type[T_SHORT]   = TypeAryPtr::SHORTS;
@@ -687,6 +688,7 @@ void Type::Initialize_shared(Compile* current) {
   _const_basic_type[T_FLOAT]       = Type::FLOAT;
   _const_basic_type[T_DOUBLE]      = Type::DOUBLE;
   _const_basic_type[T_OBJECT]      = TypeInstPtr::BOTTOM;
+  _const_basic_type[T_VALUETYPEPTR]= TypeInstPtr::BOTTOM;
   _const_basic_type[T_ARRAY]       = TypeInstPtr::BOTTOM; // there is no separate bottom for arrays
   _const_basic_type[T_VALUETYPE]   = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VOID]        = TypePtr::NULL_PTR;   // reflection represents void this way
@@ -704,6 +706,7 @@ void Type::Initialize_shared(Compile* current) {
   _zero_type[T_FLOAT]       = TypeF::ZERO;
   _zero_type[T_DOUBLE]      = TypeD::ZERO;
   _zero_type[T_OBJECT]      = TypePtr::NULL_PTR;
+  _zero_type[T_VALUETYPEPTR]= TypePtr::NULL_PTR;
   _zero_type[T_ARRAY]       = TypePtr::NULL_PTR; // null array is null oop
   _zero_type[T_VALUETYPE]   = TypePtr::NULL_PTR;
   _zero_type[T_ADDRESS]     = TypePtr::NULL_PTR; // raw pointers use the same null
@@ -1928,10 +1931,13 @@ const TypeTuple *TypeTuple::LONG_CC_PAIR;
 
 static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uint& pos) {
   for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
-    ciField* f = vk->nonstatic_field_at(j);
-    BasicType bt = f->type()->basic_type();
-    assert(bt < T_VALUETYPE && bt >= T_BOOLEAN, "not yet supported");
-    field_array[pos++] = Type::get_const_type(f->type());
+    ciField* field = vk->nonstatic_field_at(j);
+    BasicType bt = field->type()->basic_type();
+    const Type* ft = Type::get_const_type(field->type());
+    if (bt == T_VALUETYPE) {
+      ft = ft->isa_valuetypeptr()->cast_to_ptr_type(TypePtr::BotPTR);
+    }
+    field_array[pos++] = ft;
     if (bt == T_LONG || bt == T_DOUBLE) {
       field_array[pos++] = Type::HALF;
     }
@@ -2004,7 +2010,7 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
   if (vt_fields_as_args) {
     for (int i = 0; i < sig->count(); i++) {
       ciType* type = sig->type_at(i);
-      if (type->basic_type() == T_VALUETYPE && type != ciEnv::current()->___Value_klass()) {
+      if (type->basic_type() == T_VALUETYPE && !type->is__Value()) {
         assert(type->is_valuetype(), "inconsistent type");
         ciValueKlass* vk = (ciValueKlass*)type;
         vt_extra += vk->value_arg_slots()-1;
@@ -2017,8 +2023,7 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
   const Type **field_array;
   if (recv != NULL) {
     arg_cnt++;
-    bool vt_fields_for_recv = vt_fields_as_args && recv->is_valuetype() &&
-      recv != ciEnv::current()->___Value_klass();
+    bool vt_fields_for_recv = vt_fields_as_args && recv->is_valuetype() && !recv->is__Value();
     if (vt_fields_for_recv) {
       ciValueKlass* vk = (ciValueKlass*)recv;
       vt_extra += vk->value_arg_slots()-1;
@@ -2062,7 +2067,7 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
       break;
     case T_VALUETYPE: {
       assert(type->is_valuetype(), "inconsistent type");
-      if (vt_fields_as_args && type != ciEnv::current()->___Value_klass()) {
+      if (vt_fields_as_args && !type->is__Value()) {
         ciValueKlass* vk = (ciValueKlass*)type;
         collect_value_fields(vk, field_array, pos);
       } else {
@@ -2432,10 +2437,11 @@ bool TypeValueType::empty(void) const {
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
 void TypeValueType::dump2(Dict &d, uint depth, outputStream* st) const {
-  st->print("valuetype[%d]:{", _vk->field_count());
-  st->print("%s", _vk->field_count() != 0 ? _vk->field_type_by_index(0)->name() : "empty");
-  for (int i = 1; i < _vk->field_count(); ++i) {
-    st->print(", %s", _vk->field_type_by_index(i)->name());
+  int count = _vk->nof_declared_nonstatic_fields();
+  st->print("valuetype[%d]:{", count);
+  st->print("%s", count != 0 ? _vk->declared_nonstatic_field_at(0)->type()->name() : "empty");
+  for (int i = 1; i < count; ++i) {
+    st->print(", %s", _vk->declared_nonstatic_field_at(i)->type()->name());
   }
   st->print("}");
 }
@@ -3177,8 +3183,8 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
         ciField* field = vk->get_field_by_offset(foffset, false);
         assert(field != NULL, "missing field");
         BasicType bt = field->layout_type();
-        assert(bt != T_VALUETYPE, "should be flattened");
-        _is_ptr_to_narrowoop = (bt == T_OBJECT || bt == T_ARRAY);
+        assert(bt != T_VALUETYPEPTR, "unexpected type");
+        _is_ptr_to_narrowoop = (bt == T_OBJECT || bt == T_ARRAY || T_VALUETYPE);
       }
     } else if (klass()->is_instance_klass()) {
       ciInstanceKlass* ik = klass()->as_instance_klass();
@@ -3213,7 +3219,9 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
           if (field != NULL) {
             BasicType basic_elem_type = field->layout_type();
             _is_ptr_to_narrowoop = UseCompressedOops && (basic_elem_type == T_OBJECT ||
+                                                         basic_elem_type == T_VALUETYPE ||
                                                          basic_elem_type == T_ARRAY);
+            assert(basic_elem_type != T_VALUETYPEPTR, "unexpected type");
           } else if (klass()->equals(ciEnv::current()->Object_klass())) {
             // Compile::find_alias_type() cast exactness on all types to verify
             // that it does not affect alias type.
@@ -4748,12 +4756,21 @@ const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
     if (elemtype->isa_valuetype()) {
       uint header = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
       if (offset >= (intptr_t)header) {
+        // Try to get the field of the value type array element we are pointing to
         ciKlass* arytype_klass = klass();
         ciValueArrayKlass* vak = arytype_klass->as_value_array_klass();
+        ciValueKlass* vk = vak->element_klass()->as_value_klass();
         int shift = vak->log2_element_size();
-        intptr_t field_offset = ((offset - header) & ((1 << shift) - 1));
-
-        return with_field_offset(field_offset)->add_offset(offset - field_offset);
+        int mask = (1 << shift) - 1;
+        intptr_t field_offset = ((offset - header) & mask);
+        ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
+        if (field == NULL) {
+          // This may happen with nested AddP(base, AddP(base, base, offset), longcon(16))
+          return add_offset(offset);
+        } else {
+          assert(_field_offset.get() <= 0, "should not have field_offset");
+          return with_field_offset(field_offset)->add_offset(offset - field_offset);
+        }
       }
     }
   }
@@ -4767,7 +4784,7 @@ const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
 
 const TypeValueTypePtr* TypeValueTypePtr::NOTNULL;
 //------------------------------make-------------------------------------------
-const TypeValueTypePtr* TypeValueTypePtr::make(const TypeValueType* vt, PTR ptr, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth) {
+const TypeValueTypePtr* TypeValueTypePtr::make(const TypeValueType* vt, PTR ptr, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth, bool narrow) {
   return (TypeValueTypePtr*)(new TypeValueTypePtr(vt, ptr, o, offset, instance_id, speculative, inline_depth))->hashcons();
 }
 
@@ -4878,16 +4895,15 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       ciObject* tp_oop = tp->const_oop();
       const TypeValueType* vt = NULL;
       if (_vt != tp->_vt) {
-        ciKlass* __value_klass = ciEnv::current()->___Value_klass();
-        assert(klass() == __value_klass || tp->klass() == __value_klass, "impossible meet");
+        assert(is__Value() || tp->is__Value(), "impossible meet");
         if (above_centerline(ptr)) {
-          vt = klass() == __value_klass ? tp->_vt : _vt;
+          vt = is__Value() ? tp->_vt : _vt;
         } else if (above_centerline(this->_ptr) && !above_centerline(tp->_ptr)) {
           vt = tp->_vt;
         } else if (above_centerline(tp->_ptr) && !above_centerline(this->_ptr)) {
           vt = _vt;
         } else {
-          vt = klass() == __value_klass ? _vt : tp->_vt;
+          vt = is__Value() ? _vt : tp->_vt;
         }
       } else {
         vt = _vt;
@@ -4927,11 +4943,9 @@ int TypeValueTypePtr::hash(void) const {
   return java_add(_vt->hash(), TypeOopPtr::hash());
 }
 
-//------------------------------empty------------------------------------------
-// TRUE if Type is a type with no values, FALSE otherwise.
-bool TypeValueTypePtr::empty(void) const {
-  // FIXME
-  return false;
+//------------------------------is__Value--------------------------------------
+bool TypeValueTypePtr::is__Value() const {
+  return klass()->equals(TypeKlassPtr::VALUE->klass());
 }
 
 //------------------------------dump2------------------------------------------
@@ -5713,8 +5727,7 @@ const TypeFunc *TypeFunc::make(ciMethod* method) {
     domain_cc = TypeTuple::make_domain(method->holder(), method->signature(), ValueTypePassFieldsAsArgs);
   }
   const TypeTuple *range_sig = TypeTuple::make_range(method->signature(), false);
-  bool as_fields = ValueTypeReturnedAsFields;
-  const TypeTuple *range_cc = TypeTuple::make_range(method->signature(), as_fields);
+  const TypeTuple *range_cc = TypeTuple::make_range(method->signature(), ValueTypeReturnedAsFields);
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
   C->set_last_tf(method, tf);  // fill cache
   return tf;

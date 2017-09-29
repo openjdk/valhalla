@@ -48,6 +48,7 @@ private:
   ciType*          _type;
   int              _offset;
   bool             _is_constant;
+  bool             _is_flattened;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
@@ -174,6 +175,7 @@ public:
   bool is_stable               () const { return flags().is_stable(); }
   bool is_volatile             () const { return flags().is_volatile(); }
   bool is_transient            () const { return flags().is_transient(); }
+  bool is_flattened            () const { return _is_flattened; }
   // The field is modified outside of instance initializer methods
   // (or class/initializer methods if the field is static).
   bool has_initialized_final_update() const { return flags().has_initialized_final_update(); }

@@ -1395,7 +1395,7 @@ uint AllocateNode::size_of() const { return sizeof(*this); }
 AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
                            Node *ctrl, Node *mem, Node *abio,
                            Node *size, Node *klass_node,
-                           Node* initial_test, ValueTypeNode* value_node)
+                           Node* initial_test, ValueTypeBaseNode* value_node)
   : CallNode(atype, NULL, TypeRawPtr::BOTTOM)
 {
   init_class_id(Class_Allocate);

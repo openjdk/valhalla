@@ -127,7 +127,7 @@ Node* Parse::fetch_interpreter_state(int index,
     // Load oop and create a new ValueTypeNode
     const TypeValueTypePtr* vtptr_type = TypeValueTypePtr::make(type->is_valuetype(), TypePtr::NotNull);
     l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, vtptr_type, MemNode::unordered));
-    l = ValueTypeNode::make(gvn(), mem, l);
+    l = ValueTypeNode::make(this, l);
     break;
   }
   case T_VALUETYPEPTR: {
@@ -205,7 +205,6 @@ void Parse::load_interpreter_state(Node* osr_buf) {
   int max_locals = jvms()->loc_size();
   int max_stack  = jvms()->stk_size();
 
-
   // Mismatch between method and jvms can occur since map briefly held
   // an OSR entry state (which takes up one RawPtr word).
   assert(max_locals == method()->max_locals(), "sanity");
@@ -243,14 +242,12 @@ void Parse::load_interpreter_state(Node* osr_buf) {
     // Make a BoxLockNode for the monitor.
     Node *box = _gvn.transform(new BoxLockNode(next_monitor()));
 
-
     // Displaced headers and locked objects are interleaved in the
     // temp OSR buffer.  We only copy the locked objects out here.
     // Fetch the locked object from the OSR temp buffer and copy to our fastlock node.
     Node* lock_object = fetch_interpreter_state(index*2, Type::get_const_basic_type(T_OBJECT), monitors_addr, osr_buf);
     // Try and copy the displaced header to the BoxNode
     Node* displaced_hdr = fetch_interpreter_state((index*2) + 1, Type::get_const_basic_type(T_ADDRESS), monitors_addr, osr_buf);
-
 
     store_to_memory(control(), box, displaced_hdr, T_ADDRESS, Compile::AliasIdxRaw, MemNode::unordered);
 
@@ -808,7 +805,7 @@ void Parse::build_exits() {
     }
     if ((_caller->has_method() || tf()->returns_value_type_as_fields()) &&
         ret_type->isa_valuetypeptr() &&
-        ret_type->is_valuetypeptr()->klass() != C->env()->___Value_klass()) {
+        !ret_type->is_valuetypeptr()->is__Value()) {
       // When inlining or with multiple return values: return value
       // type as ValueTypeNode not as oop
       ret_type = ret_type->is_valuetypeptr()->value_type();
@@ -860,9 +857,11 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
         // argument per field of the value type. Build ValueTypeNodes
         // from the value type arguments.
         const Type* t = tf->domain_sig()->field_at(i);
-        if (t->isa_valuetypeptr() && t->is_valuetypeptr()->klass() != C->env()->___Value_klass()) {
+        if (t->isa_valuetypeptr() && !t->is_valuetypeptr()->is__Value()) {
           ciValueKlass* vk = t->is_valuetypeptr()->value_type()->value_klass();
-          Node* vt = ValueTypeNode::make(gvn, start, vk, j, true);
+          Node* ctl = map->control();
+          Node* vt = ValueTypeNode::make(gvn, ctl, map->memory(), start, vk, j, true);
+          map->set_control(ctl);
           map->init_req(i, gvn.transform(vt));
           j += vk->value_arg_slots();
         } else {
@@ -874,16 +873,18 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
         }
       }
     } else {
-     Node* parm = gvn.transform(new ParmNode(start, i));
-     // Check if parameter is a value type pointer
-     if (gvn.type(parm)->isa_valuetypeptr()) {
-       // Create ValueTypeNode from the oop and replace the parameter
-       parm = ValueTypeNode::make(gvn, map->memory(), parm);
-     }
-     map->init_req(i, parm);
-     // Record all these guys for later GVN.
-     record_for_igvn(parm);
-     j++;
+      Node* parm = gvn.transform(new ParmNode(start, i));
+      // Check if parameter is a value type pointer
+      if (gvn.type(parm)->isa_valuetypeptr()) {
+        // Create ValueTypeNode from the oop and replace the parameter
+        Node* ctl = map->control();
+        parm = ValueTypeNode::make(gvn, ctl, map->memory(), parm);
+        map->set_control(ctl);
+      }
+      map->init_req(i, parm);
+      // Record all these guys for later GVN.
+      record_for_igvn(parm);
+      j++;
     }
   }
   for (; j < map->req(); j++) {
@@ -931,7 +932,7 @@ void Compile::return_values(JVMState* jvms) {
       ValueTypeNode* vt = res->as_ValueType();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
       vt->pass_klass(ret, TypeFunc::Parms, kit);
-      vt->pass_fields(ret, TypeFunc::Parms+1, kit);
+      vt->pass_fields(ret, TypeFunc::Parms+1, kit, /* assert_allocated */ true);
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
@@ -2272,11 +2273,15 @@ void Parse::decrement_age() {
 //------------------------------return_current---------------------------------
 // Append current _map to _exit_return
 void Parse::return_current(Node* value) {
-  if (value != NULL && value->is_ValueType() && !_caller->has_method() &&
-      !tf()->returns_value_type_as_fields()) {
-    // Returning from root JVMState without multiple returned values,
-    // make sure value type is allocated
-    value = value->as_ValueType()->allocate(this);
+  if (value != NULL && value->is_ValueType() && !_caller->has_method()) {
+    // Returning a value type from root JVMState
+    if (tf()->returns_value_type_as_fields()) {
+      // Value type is returned as fields, make sure non-flattened value type fields are allocated
+      value = value->as_ValueType()->allocate_fields(this);
+    } else {
+      // Value type is returned as oop, make sure it's allocated
+      value = value->as_ValueType()->allocate(this)->get_oop();
+    }
   }
 
   if (RegisterFinalizersAtInit &&

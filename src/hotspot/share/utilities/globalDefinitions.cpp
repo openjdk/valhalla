@@ -263,13 +263,13 @@ BasicType type2wfield[T_CONFLICT+1] = {
   T_LONG,    // T_LONG     = 11,
   T_OBJECT,  // T_OBJECT   = 12,
   T_OBJECT,  // T_ARRAY    = 13,
-  T_VALUETYPE, // T_VALUETYPE =14
+  T_VALUETYPE, // T_VALUETYPE = 14
   T_VOID,    // T_VOID     = 15,
   T_ADDRESS, // T_ADDRESS  = 16,
   T_NARROWOOP, // T_NARROWOOP  = 17,
   T_METADATA,  // T_METADATA   = 18,
   T_NARROWKLASS, // T_NARROWKLASS  = 19,
-  T_VALUETYPEPTR,// T_VALUETYPEPTR =20,
+  T_VALUETYPEPTR,// T_VALUETYPEPTR = 20,
   T_CONFLICT // T_CONFLICT = 21,
 };
 
@@ -295,7 +295,7 @@ int _type2aelembytes[T_CONFLICT+1] = {
   T_NARROWOOP_aelem_bytes,   // T_NARROWOOP= 17,
   T_OBJECT_aelem_bytes,      // T_METADATA = 18,
   T_NARROWKLASS_aelem_bytes, // T_NARROWKLASS= 19,
-  T_VALUETYPEPTR_aelem_bytes,// T_VALUETYPE = 20
+  T_VALUETYPEPTR_aelem_bytes,// T_VALUETYPEPTR = 20
   0                          // T_CONFLICT = 21,
 };
 

@@ -1307,6 +1307,9 @@ public:
   product(intx, ValueArrayElemMaxFlatSize, -1,                              \
           "Max size for flattening value array elements, <0 no limit")      \
                                                                             \
+  product(intx, ValueFieldMaxFlatSize, -1,                                  \
+          "Max size for flattening value type fields, <0 no limit")         \
+                                                                            \
   product(intx, ValueArrayElemMaxFlatOops, 4,                               \
           "Max nof embedded object references in a value type to flatten, <0 no limit")  \
                                                                             \

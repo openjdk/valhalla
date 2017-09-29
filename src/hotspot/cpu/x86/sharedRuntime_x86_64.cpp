@@ -893,7 +893,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           int off = sig_extended.at(next_arg_comp)._offset;
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
-          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+          bool is_oop = (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY);
           has_oop_field = has_oop_field || is_oop;
           gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
                                  size_in_bytes, regs[next_arg_comp-ignored], Address(r11, off), extraspace, is_oop);
@@ -1152,7 +1152,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
           int off = sig_extended.at(next_arg_comp)._offset;
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
-          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+          bool is_oop = (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY);
           gen_i2c_adapter_helper(masm, bt, prev_bt, size_in_bytes, regs[next_arg_comp - ignored], Address(r10, off), is_oop);
         }
       } while (vt != 0);
@@ -1247,6 +1247,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
       BasicType bt = sig_extended.at(index)._bt;
       if (bt == T_VALUETYPE) {
         has_value_argument = true;
+      } else if (bt == T_VALUETYPEPTR) {
+        // non-flattened value type field
+        sig_str[idx++] = type2char(T_VALUETYPE);
+        sig_str[idx++] = ';';
       } else if (bt == T_VOID) {
         // Ignore
       } else {
@@ -4200,7 +4204,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movflt(to, r_1->as_XMMRegister());
     } else if (bt == T_DOUBLE) {
       __ movdbl(to, r_1->as_XMMRegister());
-    } else if (bt == T_OBJECT || bt == T_ARRAY) {
+    } else if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
       __ store_heap_oop(to, r_1->as_Register());
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
@@ -4237,7 +4241,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movflt(r_1->as_XMMRegister(), from);
     } else if (bt == T_DOUBLE) {
       __ movdbl(r_1->as_XMMRegister(), from);
-    } else if (bt == T_OBJECT || bt == T_ARRAY) {
+    } else if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
       __ load_heap_oop(r_1->as_Register(), from);
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
