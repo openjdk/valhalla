@@ -405,11 +405,9 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_expensive_node(n);
     }
   }
-  for (int i = value_type_ptr_count() - 1; i >= 0; i--) {
-    ValueTypePtrNode* vtptr = value_type_ptr(i);
-    if (!useful.member(vtptr)) {
-      remove_value_type_ptr(vtptr);
-    }
+  // Remove useless value type nodes
+  if (_value_type_nodes != NULL) {
+    _value_type_nodes->remove_useless_nodes(useful.member_set());
   }
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
@@ -1185,7 +1183,7 @@ void Compile::Init(int aliaslevel) {
   _predicate_opaqs = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
-  _value_type_ptr_nodes = new(comp_arena()) GrowableArray<ValueTypePtrNode*>(comp_arena(), 8,  0, NULL);
+  _value_type_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
   register_library_intrinsics();
 }
 
@@ -1971,22 +1969,30 @@ void Compile::remove_range_check_casts(PhaseIterGVN &igvn) {
   assert(range_check_cast_count() == 0, "should be empty");
 }
 
-void Compile::add_value_type_ptr(ValueTypePtrNode* n) {
-  assert(can_add_value_type_ptr(), "too late");
-  assert(!_value_type_ptr_nodes->contains(n), "duplicate entry");
-  _value_type_ptr_nodes->append(n);
+void Compile::add_value_type(Node* n) {
+  assert(n->is_ValueTypeBase(), "unexpected node");
+  if (_value_type_nodes != NULL) {
+    _value_type_nodes->push(n);
+  }
 }
 
-void Compile::process_value_type_ptr_nodes(PhaseIterGVN &igvn) {
-  for (int i = value_type_ptr_count(); i > 0; i--) {
-    ValueTypePtrNode* vtptr = value_type_ptr(i-1);
-    // once all inlining is over otherwise debug info can get
-    // inconsistent
-    vtptr->make_scalar_in_safepoints(igvn.C->root(), &igvn);
-    igvn.replace_node(vtptr, vtptr->get_oop());
+void Compile::remove_value_type(Node* n) {
+  assert(n->is_ValueTypeBase(), "unexpected node");
+  if (_value_type_nodes != NULL) {
+    _value_type_nodes->remove(n);
   }
-  assert(value_type_ptr_count() == 0, "should be empty");
-  _value_type_ptr_nodes = NULL;
+}
+
+void Compile::process_value_types(PhaseIterGVN &igvn) {
+  // Make value types scalar in safepoints
+  while (_value_type_nodes->size() != 0) {
+    ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
+    vt->make_scalar_in_safepoints(igvn.C->root(), &igvn);
+    if (vt->is_ValueTypePtr()) {
+      igvn.replace_node(vt, vt->get_oop());
+    }
+  }
+  _value_type_nodes = NULL;
   igvn.optimize();
 }
 
@@ -2237,8 +2243,9 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
-  if (value_type_ptr_count() > 0) {
-    process_value_type_ptr_nodes(igvn);
+  if (_value_type_nodes->size() > 0) {
+    // Do this once all inlining is over to avoid getting inconsistent debug info
+    process_value_types(igvn);
   }
 
   // Perform escape analysis
@@ -2385,25 +2392,9 @@ void Compile::Optimize() {
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
 }
 
-// Fixme remove
-static void check_for_value_node(Node &n, void* C) {
-  if (n.is_ValueType()) {
-#ifdef ASSERT
-    ((Compile*)C)->method()->print_short_name();
-    tty->print_cr("");
-    n.dump(-1);
-    assert(false, "Unable to match ValueTypeNode");
-#endif
-    ((Compile*)C)->record_failure("Unable to match ValueTypeNode");
-  }
-}
-
 //------------------------------Code_Gen---------------------------------------
 // Given a graph, generate code for it
 void Compile::Code_Gen() {
-  // FIXME remove
-  root()->walk(Node::nop, check_for_value_node, this);
-
   if (failing()) {
     return;
   }
@@ -3382,18 +3373,14 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     }
     break;
   }
+#ifdef ASSERT
+  case Op_ValueTypePtr:
   case Op_ValueType: {
-    ValueTypeNode* vt = n->as_ValueType();
-    vt->make_scalar_in_safepoints(root(), NULL);
-    if (vt->outcnt() == 0) {
-      vt->disconnect_inputs(NULL, this);
-    }
+    n->dump(-1);
+    assert(false, "value type node was not removed");
     break;
   }
-  case Op_ValueTypePtr: {
-    ShouldNotReachHere();
-    break;
-  }
+#endif
   default:
     assert( !n->is_Call(), "" );
     assert( !n->is_Mem(), "" );

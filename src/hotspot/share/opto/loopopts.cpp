@@ -1015,11 +1015,6 @@ static bool merge_point_safe(Node* region) {
         Node* m = n->fast_out(j);
         if (m->is_FastLock())
           return false;
-        if (m->is_ValueType()) {
-          // TODO this breaks optimizations!
-          // Value types should not be split through phis
-          //return false;
-        }
 #ifdef _LP64
         if (m->Opcode() == Op_ConvI2L)
           return false;
@@ -1372,6 +1367,7 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
   // Remove multiple allocations of the same value type
   if (n->is_ValueType() && EliminateAllocations) {
     n->as_ValueType()->remove_redundant_allocations(&_igvn, this);
+    return; // n is now dead
   }
 
   // Check for Opaque2's who's loop has disappeared - who's input is in the

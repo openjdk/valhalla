@@ -1421,8 +1421,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (cast != NULL && cast->has_range_check()) {
         C->remove_range_check_cast(cast);
       }
-      if (dead->is_ValueTypePtr()) {
-        C->remove_value_type_ptr(dead->as_ValueTypePtr());
+      if (dead->is_ValueTypeBase()) {
+        C->remove_value_type(dead);
       }
     }
   } // while (_stack.is_nonempty())

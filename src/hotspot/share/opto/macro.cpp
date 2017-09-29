@@ -868,6 +868,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   //
   // Process the safepoint uses
   //
+  Unique_Node_List value_worklist;
   while (safepoints.length() > 0) {
     SafePointNode* sfpt = safepoints.pop();
     Node* mem = sfpt->memory();
@@ -996,6 +997,9 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         } else {
           field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
         }
+      } else if (field_val->is_ValueType()) {
+        // Keep track of value types to scalarize them later
+        value_worklist.push(field_val);
       }
       sfpt->add_req(field_val);
     }
@@ -1008,6 +1012,11 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
     sfpt->replace_edges_in_range(res, sobj, start, end);
     _igvn._worklist.push(sfpt);
     safepoints_done.append_if_missing(sfpt); // keep it for rollback
+  }
+  // Scalarize value types that were added to the safepoint
+  for (uint i = 0; i < value_worklist.size(); ++i) {
+    Node* vt = value_worklist.at(i);
+    vt->as_ValueType()->make_scalar_in_safepoints(C->root(), &_igvn);
   }
   return true;
 }

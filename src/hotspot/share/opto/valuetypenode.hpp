@@ -32,9 +32,10 @@ class GraphKit;
 
 class ValueTypeBaseNode : public TypeNode {
 protected:
-  ValueTypeBaseNode(const Type* t, int nb_fields)
+  ValueTypeBaseNode(const Type* t, int nb_fields, Compile* C)
     : TypeNode(t, nb_fields) {
     init_class_id(Class_ValueTypeBase);
+    C->add_value_type(this);
   }
 
   enum { Control,   // Control input
@@ -93,8 +94,8 @@ public:
 class ValueTypeNode : public ValueTypeBaseNode {
   friend class ValueTypeBaseNode;
 private:
-  ValueTypeNode(const TypeValueType* t, Node* oop)
-    : ValueTypeBaseNode(t, Values + t->value_klass()->nof_declared_nonstatic_fields()) {
+  ValueTypeNode(const TypeValueType* t, Node* oop, Compile* C)
+    : ValueTypeBaseNode(t, Values + t->value_klass()->nof_declared_nonstatic_fields(), C) {
     init_class_id(Class_ValueType);
     init_req(Oop, oop);
   }
@@ -146,21 +147,19 @@ private:
   const TypeValueTypePtr* value_type_ptr() const { return bottom_type()->isa_valuetypeptr(); }
 
   ValueTypePtrNode(ciValueKlass* vk, Node* oop, Compile* C)
-    : ValueTypeBaseNode(TypeValueTypePtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields()) {
+    : ValueTypeBaseNode(TypeValueTypePtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields(), C) {
     init_class_id(Class_ValueTypePtr);
     init_req(Oop, oop);
-    C->add_value_type_ptr(this);
   }
 public:
 
   ValueTypePtrNode(ValueTypeNode* vt, Node* oop, Compile* C)
-    : ValueTypeBaseNode(TypeValueTypePtr::make(vt->type()->is_valuetype())->cast_to_ptr_type(TypePtr::NotNull), vt->req()) {
+    : ValueTypeBaseNode(TypeValueTypePtr::make(vt->type()->is_valuetype())->cast_to_ptr_type(TypePtr::NotNull), vt->req(), C) {
     init_class_id(Class_ValueTypePtr);
     for (uint i = Oop+1; i < vt->req(); i++) {
       init_req(i, vt->in(i));
     }
     init_req(Oop, oop);
-    C->add_value_type_ptr(this);
   }
 
   static ValueTypePtrNode* make(GraphKit* kit, ciValueKlass* vk, CallNode* call);

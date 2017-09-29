@@ -411,7 +411,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // ValueTypePtrNode from the call.
   if (can_reshape &&
       in(0) == NULL &&
-      phase->C->can_add_value_type_ptr() &&
+      phase->C->can_add_value_type() &&
       type()->isa_valuetypeptr() &&
       in(1) != NULL && in(1)->is_Proj() &&
       in(1)->in(0) != NULL && in(1)->in(0)->is_CallStaticJava() &&

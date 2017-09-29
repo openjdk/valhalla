@@ -201,6 +201,7 @@ int ValueTypeBaseNode::make_scalar_in_safepoint(Unique_Node_List& worklist, Safe
 }
 
 void ValueTypeBaseNode::make_scalar_in_safepoints(Node* root, PhaseGVN* gvn) {
+  // Process all safepoint uses and scalarize value type
   Unique_Node_List worklist;
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node* u = fast_out(i);
@@ -213,9 +214,9 @@ void ValueTypeBaseNode::make_scalar_in_safepoints(Node* root, PhaseGVN* gvn) {
       --i; imax -= nb;
     }
   }
-
-  for (uint next = 0; next < worklist.size(); ++next) {
-    Node* vt = worklist.at(next);
+  // Now scalarize non-flattened fields
+  for (uint i = 0; i < worklist.size(); ++i) {
+    Node* vt = worklist.at(i);
     vt->as_ValueType()->make_scalar_in_safepoints(root, gvn);
   }
 }
@@ -469,7 +470,7 @@ void ValueTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile*
 ValueTypeNode* ValueTypeNode::make(PhaseGVN& gvn, ciValueKlass* klass) {
   // Create a new ValueTypeNode with uninitialized values and NULL oop
   const TypeValueType* type = TypeValueType::make(klass);
-  return new ValueTypeNode(type, gvn.zerocon(T_VALUETYPE));
+  return new ValueTypeNode(type, gvn.zerocon(T_VALUETYPE), gvn.C);
 }
 
 Node* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
@@ -493,7 +494,7 @@ Node* ValueTypeNode::make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool 
   // Create and initialize a ValueTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
   const TypeValueType* type = gvn.type(oop)->is_valuetypeptr()->value_type();
-  ValueTypeNode* vt = new ValueTypeNode(type, oop);
+  ValueTypeNode* vt = new ValueTypeNode(type, oop, gvn.C);
 
   if (null_check && !vt->is_allocated(&gvn)) {
     // Add oop null check
@@ -769,6 +770,30 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
     phase->lazy_replace(projs.catchall_catchproj, phase->C->top());
     phase->lazy_replace(projs.resproj, phase->C->top());
   }
+
+  // Process users
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    Node* out = fast_out(i);
+    if (out->isa_ValueType() != NULL) {
+      // Recursively process value type users
+      out->as_ValueType()->remove_redundant_allocations(igvn, phase);
+      --i; --imax;
+    } else if (out->isa_Allocate() != NULL) {
+      // Unlink AllocateNode
+      assert(out->in(AllocateNode::ValueNode) == this, "should be linked");
+      igvn->replace_input_of(out, AllocateNode::ValueNode, NULL);
+      --i; --imax;
+    } else {
+#ifdef ASSERT
+      // The value type should not have any other users at this time
+      out->dump();
+      assert(false, "unexpected user of value type");
+#endif
+    }
+  }
+
+  // Should be dead now
+  igvn->remove_dead_node(this);
 }
 
 #ifndef PRODUCT
