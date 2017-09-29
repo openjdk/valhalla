@@ -314,6 +314,7 @@ GrowableArray<SigEntry> ValueKlass::collect_fields(int base_off) const {
     BasicType bt = fd.field_type();
     int offset = base_off + fd.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (bt == T_VALUETYPE) {
+      if (fd.is_flatten()) {
       Symbol* signature = fd.signature();
       JavaThread* THREAD = JavaThread::current();
       oop loader = class_loader();
@@ -327,6 +328,9 @@ GrowableArray<SigEntry> ValueKlass::collect_fields(int base_off) const {
       assert(klass != NULL && !HAS_PENDING_EXCEPTION, "lookup shouldn't fail");
       const GrowableArray<SigEntry>& embedded = ValueKlass::cast(klass)->collect_fields(offset);
       sig_extended.appendAll(&embedded);
+      } else {
+        sig_extended.push(SigEntry(T_OBJECT, offset));
+      }
     } else {
       sig_extended.push(SigEntry(bt, offset));
       if (bt == T_LONG || bt == T_DOUBLE) {

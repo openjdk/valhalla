@@ -3964,6 +3964,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int* nonstatic_value_type_indexes = NULL;
   Klass** nonstatic_value_type_klasses = NULL;
   unsigned int value_type_oop_map_count = 0;
+  int not_flattened_value_types = 0;
 
   int max_nonstatic_value_type = fac->count[NONSTATIC_VALUETYPE] + 1;
 
@@ -3985,16 +3986,28 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
                                                        _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
       assert(klass->access_flags().is_value_type(), "Value type expected");
-      nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
-      nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
-      nonstatic_value_type_count++;
+      ValueKlass* vk = ValueKlass::cast(klass);
+      // Conditions to apply flattening or not should be defined
+      //in a single place
+      if (vk->size_helper() <= ValueArrayElemMaxFlatSize) {
+        nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
+        nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
+        nonstatic_value_type_count++;
 
-      ValueKlass* vklass = ValueKlass::cast(klass);
-      if (vklass->contains_oops()) {
-        value_type_oop_map_count += vklass->nonstatic_oop_map_count();
+        ValueKlass* vklass = ValueKlass::cast(klass);
+        if (vklass->contains_oops()) {
+          value_type_oop_map_count += vklass->nonstatic_oop_map_count();
+        }
+        fs.set_flattening(true);
+      } else {
+        not_flattened_value_types++;
+        fs.set_flattening(false);
       }
     }
   }
+
+  // Adjusting non_static_oop_count to take into account not flattened value types;
+  nonstatic_oop_count += not_flattened_value_types;
 
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
@@ -4026,7 +4039,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int max_oop_map_count =
       super_oop_map_count +
       fac->count[NONSTATIC_OOP] +
-      value_type_oop_map_count;
+      value_type_oop_map_count +
+      not_flattened_value_types;
 
   OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count, THREAD);
   if (super_oop_map_count > 0) {
@@ -4214,28 +4228,30 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         next_static_double_offset += BytesPerLong;
         break;
       case NONSTATIC_VALUETYPE:
-      {
-        Klass* klass = nonstatic_value_type_klasses[next_value_type_index];
-        assert(klass != NULL, "Klass should have been loaded and resolved earlier");
-        assert(klass->access_flags().is_value_type(),"Must be a value type");
-        ValueKlass* vklass = ValueKlass::cast(klass);
-        real_offset = next_nonstatic_valuetype_offset;
-        next_nonstatic_valuetype_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
-        // aligning next value type on a 64 bits boundary
-        next_nonstatic_valuetype_offset = align_up(next_nonstatic_valuetype_offset, BytesPerLong);
-        next_value_type_index += 1;
+        if (fs.is_flatten()) {
+          Klass* klass = nonstatic_value_type_klasses[next_value_type_index];
+          assert(klass != NULL, "Klass should have been loaded and resolved earlier");
+          assert(klass->access_flags().is_value_type(),"Must be a value type");
+          ValueKlass* vklass = ValueKlass::cast(klass);
+          real_offset = next_nonstatic_valuetype_offset;
+          next_nonstatic_valuetype_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
+          // aligning next value type on a 64 bits boundary
+          next_nonstatic_valuetype_offset = align_up(next_nonstatic_valuetype_offset, BytesPerLong);
+          next_value_type_index += 1;
 
-        if (vklass->contains_oops()) { // add flatten oop maps
-          int diff = real_offset - vklass->first_field_offset();
-          const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
-          const OopMapBlock* const last_map = map + vklass->nonstatic_oop_map_count();
-          while (map < last_map) {
-            nonstatic_oop_maps->add(map->offset() + diff, map->count());
-            map++;
+          if (vklass->contains_oops()) { // add flatten oop maps
+            int diff = real_offset - vklass->first_field_offset();
+            const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
+            const OopMapBlock* const last_map = map + vklass->nonstatic_oop_map_count();
+            while (map < last_map) {
+              nonstatic_oop_maps->add(map->offset() + diff, map->count());
+              map++;
+            }
           }
+          break;
+        } else {
+          // Fall through
         }
-      }
-      break;
       case NONSTATIC_OOP:
         if( nonstatic_oop_space_count > 0 ) {
           real_offset = nonstatic_oop_space_offset;

@@ -38,6 +38,7 @@
 // AllFieldStream exposes all fields and should only be used in rare
 // cases.
 class FieldStreamBase : public StackObj {
+
  protected:
   Array<u2>*          _fields;
   constantPoolHandle  _constants;
@@ -159,6 +160,14 @@ class FieldStreamBase : public StackObj {
 
   int allocation_type() const {
     return field()->allocation_type();
+  }
+
+  bool is_flatten() {
+    return field()->is_flatten();
+  }
+
+  void set_flattening(bool b) {
+    field()->set_flattening(b);
   }
 
   void set_offset(int offset) {

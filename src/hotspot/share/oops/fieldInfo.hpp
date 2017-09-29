@@ -45,12 +45,14 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   // Field info extracted from the class file and stored
   // as an array of 6 shorts.
 
-#define FIELDINFO_TAG_SIZE             2
+#define FIELDINFO_TAG_SIZE             3
 #define FIELDINFO_TAG_BLANK            0
 #define FIELDINFO_TAG_OFFSET           1
 #define FIELDINFO_TAG_TYPE_PLAIN       2
 #define FIELDINFO_TAG_TYPE_CONTENDED   3
-#define FIELDINFO_TAG_MASK             3
+#define FIELDINFO_TAG_TYPE_MASK        3
+#define FIELDINFO_TAG_MASK             7
+#define FIELDINFO_FLATTENING_OFFSET    2
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits
@@ -103,7 +105,7 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   u2 access_flags() const                        { return _shorts[access_flags_offset];            }
   u4 offset() const {
     u2 lo = _shorts[low_packed_offset];
-    switch(lo & FIELDINFO_TAG_MASK) {
+    switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_OFFSET:
         return build_int_from_shorts(_shorts[low_packed_offset], _shorts[high_packed_offset]) >> FIELDINFO_TAG_SIZE;
 #ifndef PRODUCT
@@ -121,7 +123,7 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
 
   bool is_contended() const {
     u2 lo = _shorts[low_packed_offset];
-    switch(lo & FIELDINFO_TAG_MASK) {
+    switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_TYPE_PLAIN:
         return false;
       case FIELDINFO_TAG_TYPE_CONTENDED:
@@ -139,7 +141,7 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
 
   u2 contended_group() const {
     u2 lo = _shorts[low_packed_offset];
-    switch(lo & FIELDINFO_TAG_MASK) {
+    switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_TYPE_PLAIN:
         return 0;
       case FIELDINFO_TAG_TYPE_CONTENDED:
@@ -157,7 +159,7 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
 
   u2 allocation_type() const {
     u2 lo = _shorts[low_packed_offset];
-    switch(lo & FIELDINFO_TAG_MASK) {
+    switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_TYPE_PLAIN:
       case FIELDINFO_TAG_TYPE_CONTENDED:
         return (lo >> FIELDINFO_TAG_SIZE);
@@ -173,7 +175,7 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   }
 
   bool is_offset_set() const {
-    return (_shorts[low_packed_offset] & FIELDINFO_TAG_MASK) == FIELDINFO_TAG_OFFSET;
+    return (_shorts[low_packed_offset] & FIELDINFO_TAG_TYPE_MASK) == FIELDINFO_TAG_OFFSET;
   }
 
   Symbol* name(const constantPoolHandle& cp) const {
@@ -195,17 +197,22 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   void set_access_flags(u2 val)                  { _shorts[access_flags_offset] = val;             }
   void set_offset(u4 val)                        {
     val = val << FIELDINFO_TAG_SIZE; // make room for tag
+    bool flatten = is_flatten();
     _shorts[low_packed_offset] = extract_low_short_from_int(val) | FIELDINFO_TAG_OFFSET;
+    if (flatten) set_flattening(true);
     _shorts[high_packed_offset] = extract_high_short_from_int(val);
+    assert(is_flatten() || !flatten, "just checking");
   }
 
   void set_allocation_type(int type) {
+    bool b = is_flatten();
     u2 lo = _shorts[low_packed_offset];
-    switch(lo & FIELDINFO_TAG_MASK) {
+    switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_BLANK:
-        _shorts[low_packed_offset] = ((type << FIELDINFO_TAG_SIZE)) & 0xFFFF;
-        _shorts[low_packed_offset] &= ~FIELDINFO_TAG_MASK;
+        _shorts[low_packed_offset] |= ((type << FIELDINFO_TAG_SIZE)) & 0xFFFF;
+        _shorts[low_packed_offset] &= ~FIELDINFO_TAG_TYPE_MASK;
         _shorts[low_packed_offset] |= FIELDINFO_TAG_TYPE_PLAIN;
+        assert(is_flatten() || !b, "Just checking");
         return;
 #ifndef PRODUCT
       case FIELDINFO_TAG_TYPE_PLAIN:
@@ -217,9 +224,21 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
     ShouldNotReachHere();
   }
 
+  void set_flattening(bool b) {
+    if (b) {
+      _shorts[low_packed_offset] |= 1 << FIELDINFO_FLATTENING_OFFSET;
+    } else {
+      _shorts[low_packed_offset] &= ~(1 << FIELDINFO_FLATTENING_OFFSET);
+    }
+  }
+
+  bool is_flatten() {
+    return ((_shorts[low_packed_offset] >> FIELDINFO_FLATTENING_OFFSET) & 1) != 0;
+  }
+
   void set_contended_group(u2 val) {
     u2 lo = _shorts[low_packed_offset];
-    switch(lo & FIELDINFO_TAG_MASK) {
+    switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_TYPE_PLAIN:
         _shorts[low_packed_offset] |= FIELDINFO_TAG_TYPE_CONTENDED;
         _shorts[high_packed_offset] = val;

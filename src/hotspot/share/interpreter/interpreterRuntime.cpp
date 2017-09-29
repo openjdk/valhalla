@@ -266,13 +266,19 @@ IRT_ENTRY(int, InterpreterRuntime::vwithfield(JavaThread* thread, ConstantPoolCa
     assert(aoop == NULL || (oopDesc::is_oop(aoop) && (!aoop->is_value())),"argument must be a reference type");
     new_value_h()->obj_field_put(field_offset, aoop);
   } else if (field_type == T_VALUETYPE) {
-    Klass* field_k = vklass->get_value_field_klass(field_index);
-    ValueKlass* field_vk = ValueKlass::cast(field_k);
-    oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-    assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
-    assert(field_vk == vt_oop->klass(), "Must match");
-    field_vk->value_store(field_vk->data_for_oop(vt_oop),
-        ((char*)(oopDesc*)new_value_h()) + field_offset, true, false);
+    if (cp_entry->is_flatten()) {
+      Klass* field_k = vklass->get_value_field_klass(field_index);
+      ValueKlass* field_vk = ValueKlass::cast(field_k);
+      oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
+      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
+      assert(field_vk == vt_oop->klass(), "Must match");
+      field_vk->value_store(field_vk->data_for_oop(vt_oop),
+          ((char*)(oopDesc*)new_value_h()) + field_offset, true, false);
+    } else {
+      oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
+      assert(voop != NULL || (oopDesc::is_oop(voop) && (voop->is_value())),"argument must be a value type");
+      new_value_h()->obj_field_put(field_offset, voop);
+    }
   } else {
     intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
     copy_primitive_argument(addr, new_value_h, field_offset, field_type);
@@ -330,22 +336,31 @@ assert(EnableMVT, "vunbox is supported only when the MVT programming model is en
   thread->set_vm_result(value);
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* value, int index))
-  Handle value_h(THREAD, value);
-  InstanceKlass* klass = InstanceKlass::cast(value->klass());
+IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, int index))
+  Handle value_h(THREAD, obj);
+  InstanceKlass* klass = InstanceKlass::cast(obj->klass());
 
   Klass* field_k = klass->get_value_field_klass(index);
   ValueKlass* field_vklass = ValueKlass::cast(field_k);
   field_vklass->initialize(THREAD);
 
-  // allocate instance
+  instanceOop res;
   bool in_heap;
-  instanceOop res = field_vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
-  instanceHandle res_h(THREAD, res);
-  // copy value
-  field_vklass->value_store(((char*)(oopDesc*)value_h()) + klass->field_offset(index),
-                            field_vklass->data_for_oop(res), in_heap, false);
-  thread->set_vm_result(res_h());
+  if (klass->is_field_flatten(index)) {
+    // allocate instance
+    res = field_vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
+    instanceHandle res_h(THREAD, res);
+    // copy value
+    field_vklass->value_store(((char*)(oopDesc*)value_h()) + klass->field_offset(index),
+                              field_vklass->data_for_oop(res), in_heap, false);
+    thread->set_vm_result(res_h());
+  } else {
+    oop res = value_h()->obj_field_acquire(klass->field_offset(index));
+    if (res == NULL) {
+      res = field_vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
+    }
+    thread->set_vm_result(res);
+  }
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::initialize_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
@@ -370,14 +385,31 @@ IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, 
   assert(!obj_h()->klass()->is_value(), "obj must be an object");
   assert(value_h()->klass()->is_value(), "value must be an value type");
   int index = flags & ConstantPoolCacheEntry::field_index_mask;
+  bool flatten = (flags & (1 << ConstantPoolCacheEntry::is_flatten_field)) != 0;
 
   InstanceKlass* klass = InstanceKlass::cast(obj->klass());
   Klass* field_k = klass->get_value_field_klass(index);
   ValueKlass* field_vklass = ValueKlass::cast(value->klass());
   assert(field_k == field_vklass, "Field descriptor and argument must match");
-  // copy value
-  field_vklass->value_store(field_vklass->data_for_oop(value_h()),
-                            ((char*)(oopDesc*)obj_h()) + klass->field_offset(index), true, false);
+  if (flatten) {
+    // copy value
+    field_vklass->value_store(field_vklass->data_for_oop(value_h()),
+                              ((char*)(oopDesc*)obj_h()) + klass->field_offset(index), true, false);
+  } else {
+    if (Universe::heap()->is_in_reserved(value_h())) {
+      obj_h()->obj_field_put(klass->field_offset(index), value_h());
+    } else {
+      // allocate heap instance
+      instanceOop val = field_vklass->allocate_instance(CHECK);
+      instanceHandle res_h(THREAD, val);
+      // copy value
+      field_vklass->value_store(field_vklass->data_for_oop(value_h()),
+                                field_vklass->data_for_oop(res_h()), true, false);
+
+
+      obj_h()->obj_field_put(klass->field_offset(index), res_h());
+    }
+  }
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::qputstatic(JavaThread* thread, oopDesc* value, int offset, oopDesc* mirror))
@@ -976,6 +1008,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     state,
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
+    info.is_flatten(),
     pool->pool_holder()
   );
 }

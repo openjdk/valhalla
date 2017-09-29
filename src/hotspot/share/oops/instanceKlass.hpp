@@ -468,6 +468,7 @@ class InstanceKlass: public Klass {
   int     field_access_flags(int index) const { return field(index)->access_flags(); }
   Symbol* field_name        (int index) const { return field(index)->name(constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
+  bool    is_field_flatten  (int index) const { return field(index)->is_flatten(); }
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }
