@@ -723,6 +723,7 @@ OPENJDK_BUILD_JVM_LIBS
 OPENJDK_BUILD_JVM_ASFLAGS
 OPENJDK_BUILD_JVM_LDFLAGS
 OPENJDK_BUILD_JVM_CFLAGS
+OPENJDK_BUILD_LDFLAGS_NO_EXEC_STACK
 OPENJDK_BUILD_LDFLAGS_HASH_STYLE
 OPENJDK_BUILD_LDFLAGS_CXX_JDK
 OPENJDK_BUILD_JDKEXE_LIBS
@@ -738,6 +739,7 @@ JVM_LIBS
 JVM_ASFLAGS
 JVM_LDFLAGS
 JVM_CFLAGS
+LDFLAGS_NO_EXEC_STACK
 LDFLAGS_HASH_STYLE
 LDFLAGS_CXX_JDK
 JDKEXE_LIBS
@@ -870,7 +872,6 @@ IMPORT_MODULES_CONF
 IMPORT_MODULES_LIBS
 IMPORT_MODULES_CMDS
 IMPORT_MODULES_CLASSES
-BUILD_OUTPUT
 EXTERNAL_BUILDJDK
 BUILD_JDK
 CREATE_BUILDJDK
@@ -952,7 +953,7 @@ CHECK_GMAKE
 MAKE
 PKGHANDLER
 CONFIGURESUPPORT_OUTPUTDIR
-OUTPUT_ROOT
+OUTPUTDIR
 CONF_NAME
 SPEC
 SDKROOT
@@ -5116,7 +5117,7 @@ VS_SDK_PLATFORM_NAME_2013=
 #CUSTOM_AUTOCONF_INCLUDE
 
 # Do not change or remove the following line, it is needed for consistency checks:
-DATE_WHEN_GENERATED=1506027115
+DATE_WHEN_GENERATED=1506397140
 
 ###############################################################################
 #
@@ -16804,8 +16805,6 @@ $as_echo "$as_me: The path of TOPDIR, which resolves as \"$path\", is invalid." 
     fi
   fi
 
-  # SRC_ROOT is a traditional alias for TOPDIR.
-  SRC_ROOT=$TOPDIR
 
   # Calculate a canonical version of TOPDIR for string comparisons
   CANONICAL_TOPDIR=$TOPDIR
@@ -17559,16 +17558,16 @@ fi
 if test "${with_output_base_dir+set}" = set; then :
   withval=$with_output_base_dir;  OUTPUT_BASE=${with_output_base_dir}
 else
-   OUTPUT_BASE="$SRC_ROOT/build"
+   OUTPUT_BASE="$TOPDIR/build"
 fi
 
 
   # Test from where we are running configure, in or outside of src root.
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking where to store configuration" >&5
 $as_echo_n "checking where to store configuration... " >&6; }
-  if test "x$CURDIR" = "x$SRC_ROOT" || test "x$CURDIR" = "x$SRC_ROOT/common" \
-      || test "x$CURDIR" = "x$SRC_ROOT/make/autoconf" \
-      || test "x$CURDIR" = "x$SRC_ROOT/make" ; then
+  if test "x$CURDIR" = "x$TOPDIR" || test "x$CURDIR" = "x$TOPDIR/common" \
+      || test "x$CURDIR" = "x$TOPDIR/make/autoconf" \
+      || test "x$CURDIR" = "x$TOPDIR/make" ; then
     # We are running configure from the src root.
     # Create a default ./build/target-variant-debuglevel output root.
     if test "x${CONF_NAME}" = x; then
@@ -17579,10 +17578,10 @@ $as_echo "in default location" >&6; }
       { $as_echo "$as_me:${as_lineno-$LINENO}: result: in build directory with custom name" >&5
 $as_echo "in build directory with custom name" >&6; }
     fi
-    OUTPUT_ROOT="${OUTPUT_BASE}/${CONF_NAME}"
-    $MKDIR -p "$OUTPUT_ROOT"
-    if test ! -d "$OUTPUT_ROOT"; then
-      as_fn_error $? "Could not create build directory $OUTPUT_ROOT" "$LINENO" 5
+    OUTPUTDIR="${OUTPUT_BASE}/${CONF_NAME}"
+    $MKDIR -p "$OUTPUTDIR"
+    if test ! -d "$OUTPUTDIR"; then
+      as_fn_error $? "Could not create build directory $OUTPUTDIR" "$LINENO" 5
     fi
   else
     # We are running configure from outside of the src dir.
@@ -17590,19 +17589,19 @@ $as_echo "in build directory with custom name" >&6; }
     # If configuration is situated in normal build directory, just use the build
     # directory name as configuration name, otherwise use the complete path.
     if test "x${CONF_NAME}" = x; then
-      CONF_NAME=`$ECHO $CURDIR | $SED -e "s!^${SRC_ROOT}/build/!!"`
+      CONF_NAME=`$ECHO $CURDIR | $SED -e "s!^${TOPDIR}/build/!!"`
     fi
-    OUTPUT_ROOT="$CURDIR"
+    OUTPUTDIR="$CURDIR"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: in current directory" >&5
 $as_echo "in current directory" >&6; }
 
     # WARNING: This might be a bad thing to do. You need to be sure you want to
     # have a configuration in this directory. Do some sanity checks!
 
-    if test ! -e "$OUTPUT_ROOT/spec.gmk"; then
+    if test ! -e "$OUTPUTDIR/spec.gmk"; then
       # If we have a spec.gmk, we have run here before and we are OK. Otherwise, check for
       # other files
-      files_present=`$LS $OUTPUT_ROOT`
+      files_present=`$LS $OUTPUTDIR`
       # Configure has already touched config.log and confdefs.h in the current dir when this check
       # is performed.
       filtered_files=`$ECHO "$files_present" \
@@ -17622,8 +17621,8 @@ $as_echo "$as_me: (as opposed to creating a configuration in <src_root>/build/<c
 $as_echo "$as_me: However, this directory is not empty. This is not allowed, since it could" >&6;}
         { $as_echo "$as_me:${as_lineno-$LINENO}: seriously mess up just about everything." >&5
 $as_echo "$as_me: seriously mess up just about everything." >&6;}
-        { $as_echo "$as_me:${as_lineno-$LINENO}: Try 'cd $SRC_ROOT' and restart configure" >&5
-$as_echo "$as_me: Try 'cd $SRC_ROOT' and restart configure" >&6;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Try 'cd $TOPDIR' and restart configure" >&5
+$as_echo "$as_me: Try 'cd $TOPDIR' and restart configure" >&6;}
         { $as_echo "$as_me:${as_lineno-$LINENO}: (or create a new empty directory and cd to it)." >&5
 $as_echo "$as_me: (or create a new empty directory and cd to it)." >&6;}
         as_fn_error $? "Will not continue creating configuration in $CURDIR" "$LINENO" 5
@@ -17638,12 +17637,12 @@ $as_echo "$CONF_NAME" >&6; }
 
   # Only process if variable expands to non-empty
 
-  if test "x$OUTPUT_ROOT" != x; then
+  if test "x$OUTPUTDIR" != x; then
     if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
 
   # Input might be given as Windows format, start by converting to
   # unix format.
-  path="$OUTPUT_ROOT"
+  path="$OUTPUTDIR"
   new_path=`$CYGPATH -u "$path"`
 
   # Cygwin tries to hide some aspects of the Windows file system, such that binaries are
@@ -17655,9 +17654,9 @@ $as_echo "$CONF_NAME" >&6; }
   # It is also a way to make sure we got the proper file name for the real test later on.
   test_shortpath=`$CYGPATH -s -m "$new_path" 2> /dev/null`
   if test "x$test_shortpath" = x; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: The path of OUTPUT_ROOT, which resolves as \"$path\", is invalid." >&5
-$as_echo "$as_me: The path of OUTPUT_ROOT, which resolves as \"$path\", is invalid." >&6;}
-    as_fn_error $? "Cannot locate the the path of OUTPUT_ROOT" "$LINENO" 5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: The path of OUTPUTDIR, which resolves as \"$path\", is invalid." >&5
+$as_echo "$as_me: The path of OUTPUTDIR, which resolves as \"$path\", is invalid." >&6;}
+    as_fn_error $? "Cannot locate the the path of OUTPUTDIR" "$LINENO" 5
   fi
 
   # Call helper function which possibly converts this using DOS-style short mode.
@@ -17695,14 +17694,14 @@ $as_echo "$as_me: The path of OUTPUT_ROOT, which resolves as \"$path\", is inval
 
 
   if test "x$path" != "x$new_path"; then
-    OUTPUT_ROOT="$new_path"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting OUTPUT_ROOT to \"$new_path\"" >&5
-$as_echo "$as_me: Rewriting OUTPUT_ROOT to \"$new_path\"" >&6;}
+    OUTPUTDIR="$new_path"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting OUTPUTDIR to \"$new_path\"" >&5
+$as_echo "$as_me: Rewriting OUTPUTDIR to \"$new_path\"" >&6;}
   fi
 
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
 
-  path="$OUTPUT_ROOT"
+  path="$OUTPUTDIR"
   has_colon=`$ECHO $path | $GREP ^.:`
   new_path="$path"
   if test "x$has_colon" = x; then
@@ -17733,9 +17732,9 @@ $as_echo "$as_me: Rewriting OUTPUT_ROOT to \"$new_path\"" >&6;}
   fi
 
   if test "x$path" != "x$new_path"; then
-    OUTPUT_ROOT="$new_path"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting OUTPUT_ROOT to \"$new_path\"" >&5
-$as_echo "$as_me: Rewriting OUTPUT_ROOT to \"$new_path\"" >&6;}
+    OUTPUTDIR="$new_path"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting OUTPUTDIR to \"$new_path\"" >&5
+$as_echo "$as_me: Rewriting OUTPUTDIR to \"$new_path\"" >&6;}
   fi
 
   # Save the first 10 bytes of this path to the storage, so fixpath can work.
@@ -17743,56 +17742,56 @@ $as_echo "$as_me: Rewriting OUTPUT_ROOT to \"$new_path\"" >&6;}
 
     else
       # We're on a unix platform. Hooray! :)
-      path="$OUTPUT_ROOT"
+      path="$OUTPUTDIR"
       has_space=`$ECHO "$path" | $GREP " "`
       if test "x$has_space" != x; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: The path of OUTPUT_ROOT, which resolves as \"$path\", is invalid." >&5
-$as_echo "$as_me: The path of OUTPUT_ROOT, which resolves as \"$path\", is invalid." >&6;}
+        { $as_echo "$as_me:${as_lineno-$LINENO}: The path of OUTPUTDIR, which resolves as \"$path\", is invalid." >&5
+$as_echo "$as_me: The path of OUTPUTDIR, which resolves as \"$path\", is invalid." >&6;}
         as_fn_error $? "Spaces are not allowed in this path." "$LINENO" 5
       fi
 
       # Use eval to expand a potential ~
       eval path="$path"
       if test ! -f "$path" && test ! -d "$path"; then
-        as_fn_error $? "The path of OUTPUT_ROOT, which resolves as \"$path\", is not found." "$LINENO" 5
+        as_fn_error $? "The path of OUTPUTDIR, which resolves as \"$path\", is not found." "$LINENO" 5
       fi
 
       if test -d "$path"; then
-        OUTPUT_ROOT="`cd "$path"; $THEPWDCMD -L`"
+        OUTPUTDIR="`cd "$path"; $THEPWDCMD -L`"
       else
         dir="`$DIRNAME "$path"`"
         base="`$BASENAME "$path"`"
-        OUTPUT_ROOT="`cd "$dir"; $THEPWDCMD -L`/$base"
+        OUTPUTDIR="`cd "$dir"; $THEPWDCMD -L`/$base"
       fi
     fi
   fi
 
 
-  CONFIGURESUPPORT_OUTPUTDIR="$OUTPUT_ROOT/configure-support"
+  CONFIGURESUPPORT_OUTPUTDIR="$OUTPUTDIR/configure-support"
   $MKDIR -p "$CONFIGURESUPPORT_OUTPUTDIR"
 
-  SPEC="$OUTPUT_ROOT/spec.gmk"
+  SPEC="$OUTPUTDIR/spec.gmk"
 
 
 
 
 
   # The spec.gmk file contains all variables for the make system.
-  ac_config_files="$ac_config_files $OUTPUT_ROOT/spec.gmk:$AUTOCONF_DIR/spec.gmk.in"
+  ac_config_files="$ac_config_files $OUTPUTDIR/spec.gmk:$AUTOCONF_DIR/spec.gmk.in"
 
   # The bootcycle-spec.gmk file contains support for boot cycle builds.
-  ac_config_files="$ac_config_files $OUTPUT_ROOT/bootcycle-spec.gmk:$AUTOCONF_DIR/bootcycle-spec.gmk.in"
+  ac_config_files="$ac_config_files $OUTPUTDIR/bootcycle-spec.gmk:$AUTOCONF_DIR/bootcycle-spec.gmk.in"
 
   # The buildjdk-spec.gmk file contains support for building a buildjdk when cross compiling.
-  ac_config_files="$ac_config_files $OUTPUT_ROOT/buildjdk-spec.gmk:$AUTOCONF_DIR/buildjdk-spec.gmk.in"
+  ac_config_files="$ac_config_files $OUTPUTDIR/buildjdk-spec.gmk:$AUTOCONF_DIR/buildjdk-spec.gmk.in"
 
   # The compare.sh is used to compare the build output to other builds.
-  ac_config_files="$ac_config_files $OUTPUT_ROOT/compare.sh:$AUTOCONF_DIR/compare.sh.in"
+  ac_config_files="$ac_config_files $OUTPUTDIR/compare.sh:$AUTOCONF_DIR/compare.sh.in"
 
   # The generated Makefile knows where the spec.gmk is and where the source is.
-  # You can run make from the OUTPUT_ROOT, or from the top-level Makefile
+  # You can run make from the OUTPUTDIR, or from the top-level Makefile
   # which will look for generated configurations
-  ac_config_files="$ac_config_files $OUTPUT_ROOT/Makefile:$AUTOCONF_DIR/Makefile.in"
+  ac_config_files="$ac_config_files $OUTPUTDIR/Makefile:$AUTOCONF_DIR/Makefile.in"
 
 
 
@@ -25083,8 +25082,20 @@ if test "${with_cacerts_file+set}" = set; then :
   withval=$with_cacerts_file;
 fi
 
-  if test "x$with_cacerts_file" != x; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cacerts file" >&5
+$as_echo_n "checking for cacerts file... " >&6; }
+  if test "x$with_cacerts_file" == x; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: default" >&5
+$as_echo "default" >&6; }
+  else
     CACERTS_FILE=$with_cacerts_file
+    if test ! -f "$CACERTS_FILE"; then
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+$as_echo "fail" >&6; }
+      as_fn_error $? "Specified cacerts file \"$CACERTS_FILE\" does not exist" "$LINENO" 5
+    fi
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $CACERTS_FILE" >&5
+$as_echo "$CACERTS_FILE" >&6; }
   fi
 
 
@@ -25654,12 +25665,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -25856,12 +25867,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -26046,12 +26057,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -26235,12 +26246,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -26424,12 +26435,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -26604,12 +26615,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -26935,12 +26946,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -27266,12 +27277,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -27484,12 +27495,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -27667,12 +27678,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -27878,12 +27889,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -28061,12 +28072,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -28272,12 +28283,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -28455,12 +28466,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -28666,12 +28677,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -28849,12 +28860,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -29047,12 +29058,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -29228,12 +29239,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -29427,12 +29438,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -29608,12 +29619,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -29806,12 +29817,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -29987,12 +29998,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -30186,12 +30197,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -30367,12 +30378,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -30547,12 +30558,12 @@ $as_echo "$as_me: (This might be an JRE instead of an JDK)" >&6;}
           BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
           # Extra M4 quote needed to protect [] in grep expression.
-          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"|(1\.[89]\.)'`
+          FOUND_CORRECT_VERSION=`$ECHO $BOOT_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"|\"9([\.+-].*)?\"|(1\.[89]\.)'`
           if test "x$FOUND_CORRECT_VERSION" = x; then
             { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Boot JDK found at $BOOT_JDK is incorrect JDK version ($BOOT_JDK_VERSION); ignoring" >&6;}
-            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8 or 9)" >&5
-$as_echo "$as_me: (Your Boot JDK must be version 8 or 9)" >&6;}
+            { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Boot JDK must be version 8, 9 or 10)" >&5
+$as_echo "$as_me: (Your Boot JDK must be version 8, 9 or 10)" >&6;}
             BOOT_JDK_FOUND=no
           else
             # We're done! :-)
@@ -31522,12 +31533,12 @@ $as_echo "$as_me: (This might be a JRE instead of an JDK)" >&6;}
         BUILD_JDK_VERSION=`"$BUILD_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
 
         # Extra M4 quote needed to protect [] in grep expression.
-        FOUND_CORRECT_VERSION=`echo $BUILD_JDK_VERSION | $EGREP '\"9([\.+-].*)?\"'`
+        FOUND_CORRECT_VERSION=`echo $BUILD_JDK_VERSION | $EGREP '\"10([\.+-].*)?\"'`
         if test "x$FOUND_CORRECT_VERSION" = x; then
           { $as_echo "$as_me:${as_lineno-$LINENO}: Potential Build JDK found at $BUILD_JDK is incorrect JDK version ($BUILD_JDK_VERSION); ignoring" >&5
 $as_echo "$as_me: Potential Build JDK found at $BUILD_JDK is incorrect JDK version ($BUILD_JDK_VERSION); ignoring" >&6;}
-          { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Build JDK must be version 9)" >&5
-$as_echo "$as_me: (Your Build JDK must be version 9)" >&6;}
+          { $as_echo "$as_me:${as_lineno-$LINENO}: (Your Build JDK must be version 10)" >&5
+$as_echo "$as_me: (Your Build JDK must be version 10)" >&6;}
           BUILD_JDK_FOUND=no
         else
           # We're done!
@@ -31723,9 +31734,9 @@ $as_echo "no" >&6; }
 ###############################################################################
 
 
-  BUILD_OUTPUT="$OUTPUT_ROOT"
+  OUTPUTDIR="$OUTPUTDIR"
 
-  JDK_OUTPUTDIR="$OUTPUT_ROOT/jdk"
+  JDK_OUTPUTDIR="$OUTPUTDIR/jdk"
 
   # Where are the sources.
 
@@ -48750,6 +48761,138 @@ $as_echo "no, disabled" >&6; }
   elif test "x$with_jtreg" != xyes && test "x$with_jtreg" != x; then
     # An explicit path is specified, use it.
     JT_HOME="$with_jtreg"
+
+  # Only process if variable expands to non-empty
+
+  if test "x$JT_HOME" != x; then
+    if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
+
+  # Input might be given as Windows format, start by converting to
+  # unix format.
+  path="$JT_HOME"
+  new_path=`$CYGPATH -u "$path"`
+
+  # Cygwin tries to hide some aspects of the Windows file system, such that binaries are
+  # named .exe but called without that suffix. Therefore, "foo" and "foo.exe" are considered
+  # the same file, most of the time (as in "test -f"). But not when running cygpath -s, then
+  # "foo.exe" is OK but "foo" is an error.
+  #
+  # This test is therefore slightly more accurate than "test -f" to check for file precense.
+  # It is also a way to make sure we got the proper file name for the real test later on.
+  test_shortpath=`$CYGPATH -s -m "$new_path" 2> /dev/null`
+  if test "x$test_shortpath" = x; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: The path of JT_HOME, which resolves as \"$path\", is invalid." >&5
+$as_echo "$as_me: The path of JT_HOME, which resolves as \"$path\", is invalid." >&6;}
+    as_fn_error $? "Cannot locate the the path of JT_HOME" "$LINENO" 5
+  fi
+
+  # Call helper function which possibly converts this using DOS-style short mode.
+  # If so, the updated path is stored in $new_path.
+
+  input_path="$new_path"
+  # Check if we need to convert this using DOS-style short mode. If the path
+  # contains just simple characters, use it. Otherwise (spaces, weird characters),
+  # take no chances and rewrite it.
+  # Note: m4 eats our [], so we need to use [ and ] instead.
+  has_forbidden_chars=`$ECHO "$input_path" | $GREP [^-._/a-zA-Z0-9]`
+  if test "x$has_forbidden_chars" != x; then
+    # Now convert it to mixed DOS-style, short mode (no spaces, and / instead of \)
+    shortmode_path=`$CYGPATH -s -m -a "$input_path"`
+    path_after_shortmode=`$CYGPATH -u "$shortmode_path"`
+    if test "x$path_after_shortmode" != "x$input_to_shortpath"; then
+      # Going to short mode and back again did indeed matter. Since short mode is
+      # case insensitive, let's make it lowercase to improve readability.
+      shortmode_path=`$ECHO "$shortmode_path" | $TR 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
+      # Now convert it back to Unix-style (cygpath)
+      input_path=`$CYGPATH -u "$shortmode_path"`
+      new_path="$input_path"
+    fi
+  fi
+
+  test_cygdrive_prefix=`$ECHO $input_path | $GREP ^/cygdrive/`
+  if test "x$test_cygdrive_prefix" = x; then
+    # As a simple fix, exclude /usr/bin since it's not a real path.
+    if test "x`$ECHO $new_path | $GREP ^/usr/bin/`" = x; then
+      # The path is in a Cygwin special directory (e.g. /home). We need this converted to
+      # a path prefixed by /cygdrive for fixpath to work.
+      new_path="$CYGWIN_ROOT_PATH$input_path"
+    fi
+  fi
+
+
+  if test "x$path" != "x$new_path"; then
+    JT_HOME="$new_path"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting JT_HOME to \"$new_path\"" >&5
+$as_echo "$as_me: Rewriting JT_HOME to \"$new_path\"" >&6;}
+  fi
+
+    elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
+
+  path="$JT_HOME"
+  has_colon=`$ECHO $path | $GREP ^.:`
+  new_path="$path"
+  if test "x$has_colon" = x; then
+    # Not in mixed or Windows style, start by that.
+    new_path=`cmd //c echo $path`
+  fi
+
+
+  input_path="$new_path"
+  # Check if we need to convert this using DOS-style short mode. If the path
+  # contains just simple characters, use it. Otherwise (spaces, weird characters),
+  # take no chances and rewrite it.
+  # Note: m4 eats our [], so we need to use [ and ] instead.
+  has_forbidden_chars=`$ECHO "$input_path" | $GREP [^-_/:a-zA-Z0-9]`
+  if test "x$has_forbidden_chars" != x; then
+    # Now convert it to mixed DOS-style, short mode (no spaces, and / instead of \)
+    new_path=`cmd /c "for %A in (\"$input_path\") do @echo %~sA"|$TR \\\\\\\\ / | $TR 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
+  fi
+
+
+  windows_path="$new_path"
+  if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
+    unix_path=`$CYGPATH -u "$windows_path"`
+    new_path="$unix_path"
+  elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
+    unix_path=`$ECHO "$windows_path" | $SED -e 's,^\\(.\\):,/\\1,g' -e 's,\\\\,/,g'`
+    new_path="$unix_path"
+  fi
+
+  if test "x$path" != "x$new_path"; then
+    JT_HOME="$new_path"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: Rewriting JT_HOME to \"$new_path\"" >&5
+$as_echo "$as_me: Rewriting JT_HOME to \"$new_path\"" >&6;}
+  fi
+
+  # Save the first 10 bytes of this path to the storage, so fixpath can work.
+  all_fixpath_prefixes=("${all_fixpath_prefixes[@]}" "${new_path:0:10}")
+
+    else
+      # We're on a unix platform. Hooray! :)
+      path="$JT_HOME"
+      has_space=`$ECHO "$path" | $GREP " "`
+      if test "x$has_space" != x; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: The path of JT_HOME, which resolves as \"$path\", is invalid." >&5
+$as_echo "$as_me: The path of JT_HOME, which resolves as \"$path\", is invalid." >&6;}
+        as_fn_error $? "Spaces are not allowed in this path." "$LINENO" 5
+      fi
+
+      # Use eval to expand a potential ~
+      eval path="$path"
+      if test ! -f "$path" && test ! -d "$path"; then
+        as_fn_error $? "The path of JT_HOME, which resolves as \"$path\", is not found." "$LINENO" 5
+      fi
+
+      if test -d "$path"; then
+        JT_HOME="`cd "$path"; $THEPWDCMD -L`"
+      else
+        dir="`$DIRNAME "$path"`"
+        base="`$BASENAME "$path"`"
+        JT_HOME="`cd "$dir"; $THEPWDCMD -L`/$base"
+      fi
+    fi
+  fi
+
     if test ! -d "$JT_HOME"; then
       as_fn_error $? "jtreg home directory from --with-jtreg=$with_jtreg does not exist" "$LINENO" 5
     fi
@@ -51883,9 +52026,10 @@ fi
   LDFLAGS_JDKLIB="${LDFLAGS_JDK}"
 
   LDFLAGS_JDKLIB="${LDFLAGS_JDKLIB} ${SHARED_LIBRARY_FLAGS}"
+  LDFLAGS_JDKLIB="${LDFLAGS_JDKLIB} ${LDFLAGS_NO_EXEC_STACK}"
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     JAVA_BASE_LDFLAGS="${JAVA_BASE_LDFLAGS} \
-        -libpath:${OUTPUT_ROOT}/support/modules_libs/java.base"
+        -libpath:${OUTPUTDIR}/support/modules_libs/java.base"
     JDKLIB_LIBS=""
   else
     JAVA_BASE_LDFLAGS="${JAVA_BASE_LDFLAGS} \
@@ -51953,6 +52097,7 @@ LDFLAGS_JDKLIB="${LDFLAGS_JDKLIB} ${JAVA_BASE_LDFLAGS}"
   fi
 
   LDFLAGS_JDKLIB="${LDFLAGS_JDKLIB} ${EXTRA_LDFLAGS_JDK}"
+
 
 
 
@@ -52762,9 +52907,10 @@ fi
   OPENJDK_BUILD_LDFLAGS_JDKLIB="${OPENJDK_BUILD_LDFLAGS_JDK}"
 
   OPENJDK_BUILD_LDFLAGS_JDKLIB="${OPENJDK_BUILD_LDFLAGS_JDKLIB} ${SHARED_LIBRARY_FLAGS}"
+  OPENJDK_BUILD_LDFLAGS_JDKLIB="${OPENJDK_BUILD_LDFLAGS_JDKLIB} ${LDFLAGS_NO_EXEC_STACK}"
   if test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     OPENJDK_BUILD_JAVA_BASE_LDFLAGS="${OPENJDK_BUILD_JAVA_BASE_LDFLAGS} \
-        -libpath:${OUTPUT_ROOT}/support/modules_libs/java.base"
+        -libpath:${OUTPUTDIR}/support/modules_libs/java.base"
     OPENJDK_BUILD_JDKLIB_LIBS=""
   else
     OPENJDK_BUILD_JAVA_BASE_LDFLAGS="${OPENJDK_BUILD_JAVA_BASE_LDFLAGS} \
@@ -52832,6 +52978,7 @@ OPENJDK_BUILD_LDFLAGS_JDKLIB="${OPENJDK_BUILD_LDFLAGS_JDKLIB} ${OPENJDK_BUILD_JA
   fi
 
   OPENJDK_BUILD_LDFLAGS_JDKLIB="${OPENJDK_BUILD_LDFLAGS_JDKLIB} ${OPENJDK_BUILD_EXTRA_LDFLAGS_JDK}"
+
 
 
 
@@ -54146,7 +54293,7 @@ $as_echo "no" >&6; }
   if test "x$OPENJDK_BUILD_OS" = xwindows; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if fixpath can be created" >&5
 $as_echo_n "checking if fixpath can be created... " >&6; }
-    FIXPATH_SRC="$SRC_ROOT/make/src/native/fixpath.c"
+    FIXPATH_SRC="$TOPDIR/make/src/native/fixpath.c"
     FIXPATH_BIN="$CONFIGURESUPPORT_OUTPUTDIR/bin/fixpath.exe"
     FIXPATH_DIR="$CONFIGURESUPPORT_OUTPUTDIR/fixpath"
     if test "x$OPENJDK_BUILD_OS_ENV" = xwindows.cygwin; then
@@ -67516,7 +67663,7 @@ $as_echo "no" >&6; }
 # Check for some common pitfalls
 
   if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-    file_to_test="$SRC_ROOT/LICENSE"
+    file_to_test="$TOPDIR/LICENSE"
     if test `$STAT -c '%a' "$file_to_test"` -lt 400; then
       as_fn_error $? "Bad file permissions on src files. This is usually caused by cloning the repositories with a non cygwin hg in a directory not created in cygwin." "$LINENO" 5
     fi
@@ -67552,7 +67699,7 @@ $as_echo_n "checking if build directory is on local disk... " >&6; }
       OUTPUT_DIR_IS_LOCAL="yes"
     fi
   else
-    if $DF -l $OUTPUT_ROOT > /dev/null 2>&1; then
+    if $DF -l $OUTPUTDIR > /dev/null 2>&1; then
       OUTPUT_DIR_IS_LOCAL="yes"
     else
       OUTPUT_DIR_IS_LOCAL="no"
@@ -67569,7 +67716,7 @@ $as_echo "$OUTPUT_DIR_IS_LOCAL" >&6; }
 
   # Before generating output files, test if they exist. If they do, this is a reconfigure.
   # Since we can't properly handle the dependencies for this, warn the user about the situation
-  if test -e $OUTPUT_ROOT/spec.gmk; then
+  if test -e $OUTPUTDIR/spec.gmk; then
     IS_RECONFIGURE=yes
   else
     IS_RECONFIGURE=no
@@ -68319,11 +68466,11 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "$OUTPUT_ROOT/spec.gmk") CONFIG_FILES="$CONFIG_FILES $OUTPUT_ROOT/spec.gmk:$AUTOCONF_DIR/spec.gmk.in" ;;
-    "$OUTPUT_ROOT/bootcycle-spec.gmk") CONFIG_FILES="$CONFIG_FILES $OUTPUT_ROOT/bootcycle-spec.gmk:$AUTOCONF_DIR/bootcycle-spec.gmk.in" ;;
-    "$OUTPUT_ROOT/buildjdk-spec.gmk") CONFIG_FILES="$CONFIG_FILES $OUTPUT_ROOT/buildjdk-spec.gmk:$AUTOCONF_DIR/buildjdk-spec.gmk.in" ;;
-    "$OUTPUT_ROOT/compare.sh") CONFIG_FILES="$CONFIG_FILES $OUTPUT_ROOT/compare.sh:$AUTOCONF_DIR/compare.sh.in" ;;
-    "$OUTPUT_ROOT/Makefile") CONFIG_FILES="$CONFIG_FILES $OUTPUT_ROOT/Makefile:$AUTOCONF_DIR/Makefile.in" ;;
+    "$OUTPUTDIR/spec.gmk") CONFIG_FILES="$CONFIG_FILES $OUTPUTDIR/spec.gmk:$AUTOCONF_DIR/spec.gmk.in" ;;
+    "$OUTPUTDIR/bootcycle-spec.gmk") CONFIG_FILES="$CONFIG_FILES $OUTPUTDIR/bootcycle-spec.gmk:$AUTOCONF_DIR/bootcycle-spec.gmk.in" ;;
+    "$OUTPUTDIR/buildjdk-spec.gmk") CONFIG_FILES="$CONFIG_FILES $OUTPUTDIR/buildjdk-spec.gmk:$AUTOCONF_DIR/buildjdk-spec.gmk.in" ;;
+    "$OUTPUTDIR/compare.sh") CONFIG_FILES="$CONFIG_FILES $OUTPUTDIR/compare.sh:$AUTOCONF_DIR/compare.sh.in" ;;
+    "$OUTPUTDIR/Makefile") CONFIG_FILES="$CONFIG_FILES $OUTPUTDIR/Makefile:$AUTOCONF_DIR/Makefile.in" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -68783,20 +68930,20 @@ fi
   fi
 
   # Rotate our log file (configure.log)
-  if test -e "$OUTPUT_ROOT/configure.log.old"; then
-    $RM -f "$OUTPUT_ROOT/configure.log.old"
+  if test -e "$OUTPUTDIR/configure.log.old"; then
+    $RM -f "$OUTPUTDIR/configure.log.old"
   fi
-  if test -e "$OUTPUT_ROOT/configure.log"; then
-    $MV -f "$OUTPUT_ROOT/configure.log" "$OUTPUT_ROOT/configure.log.old" 2> /dev/null
+  if test -e "$OUTPUTDIR/configure.log"; then
+    $MV -f "$OUTPUTDIR/configure.log" "$OUTPUTDIR/configure.log.old" 2> /dev/null
   fi
 
   # Move configure.log from current directory to the build output root
   if test -e ./configure.log; then
-    $MV -f ./configure.log "$OUTPUT_ROOT/configure.log" 2> /dev/null
+    $MV -f ./configure.log "$OUTPUTDIR/configure.log" 2> /dev/null
   fi
 
   # Make the compare script executable
-  $CHMOD +x $OUTPUT_ROOT/compare.sh
+  $CHMOD +x $OUTPUTDIR/compare.sh
 
 
 # Finally output some useful information to the user
@@ -68807,15 +68954,15 @@ fi
   printf "====================================================\n"
   if test "x$no_create" != "xyes"; then
     if test "x$IS_RECONFIGURE" != "xyes"; then
-      printf "A new configuration has been successfully created in\n%s\n" "$OUTPUT_ROOT"
+      printf "A new configuration has been successfully created in\n%s\n" "$OUTPUTDIR"
     else
-      printf "The existing configuration has been successfully updated in\n%s\n" "$OUTPUT_ROOT"
+      printf "The existing configuration has been successfully updated in\n%s\n" "$OUTPUTDIR"
     fi
   else
     if test "x$IS_RECONFIGURE" != "xyes"; then
       printf "A configuration has been successfully checked but not created\n"
     else
-      printf "The existing configuration has been successfully checked in\n%s\n" "$OUTPUT_ROOT"
+      printf "The existing configuration has been successfully checked in\n%s\n" "$OUTPUTDIR"
     fi
   fi
   if test "x$CONFIGURE_COMMAND_LINE" != x; then
