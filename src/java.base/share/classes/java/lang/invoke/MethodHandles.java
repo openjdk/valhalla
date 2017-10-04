@@ -1395,13 +1395,7 @@ assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
             checkSpecialCaller(specialCaller, refc);
             Lookup specialLookup = this.in(specialCaller);
             MemberName method = specialLookup.resolveOrFail(REF_invokeSpecial, refc, name, type);
-            Class<?> callerCls = findBoundCallerClass(method);
-            boolean restrict = !(method.isPrivate() && Reflection.areNestMates(specialCaller, refc));
-
-            if (restrict)
-                return specialLookup.getDirectMethod(REF_invokeSpecial, refc, method, callerCls);
-            else
-                return specialLookup.getDirectMethodNoRestrictInvokeSpecial(refc, method, callerCls);
+            return specialLookup.getDirectMethod(REF_invokeSpecial, refc, method, findBoundCallerClass(method));
         }
 
         /**

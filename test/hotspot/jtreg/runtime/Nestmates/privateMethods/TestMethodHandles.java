@@ -49,36 +49,53 @@ public class TestMethodHandles {
     // Methods that will access private methods of nestmates
 
     void access_priv(TestMethodHandles o) throws Throwable {
-        MethodHandle mh =
-          lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+        MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
+        mh.invoke(o);
+        mh.invokeExact(o);
+        checkBadInvoke(mh, new StaticNested()); // wrong nestmate
+        checkBadInvoke(mh, mh); // completely wrong type
+        // findSpecial also works when this and o are the same class
+        mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
         mh.invoke(o);
         mh.invokeExact(o);
         checkBadInvoke(mh, new StaticNested()); // wrong nestmate
         checkBadInvoke(mh, mh); // completely wrong type
     }
     void access_priv(InnerNested o) throws Throwable {
-        MethodHandle mh =
-          lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+        MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
         mh.invoke(o);
         mh.invokeExact(o);
         checkBadInvoke(mh, this); // wrong nestmate
         checkBadInvoke(mh, mh); // completely wrong type
+        try {
+            mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            throw new Error("findSpecial() succeeded unexpectedly");
+        }
+        catch (IllegalAccessException expected) {}
     }
     void access_priv(StaticNested o) throws Throwable {
-        MethodHandle mh =
-          lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+        MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
         mh.invoke(o);
         mh.invokeExact(o);
         checkBadInvoke(mh, this); // wrong nestmate
         checkBadInvoke(mh, mh); // completely wrong type
+        try {
+            mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            throw new Error("findSpecial() succeeded unexpectedly");
+        }
+        catch (IllegalAccessException expected) {}
     }
     void access_priv(StaticIface o) throws Throwable {
-        MethodHandle mh =
-          lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, this.getClass());
+        MethodHandle mh = lookup().findVirtual(StaticIface.class, "priv_invoke", M_T);
         mh.invoke(o);
         mh.invokeExact(o);
         checkBadInvoke(mh, this); // wrong nestmate
         checkBadInvoke(mh, mh); // completely wrong type
+        try {
+            mh = lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, this.getClass());
+            throw new Error("findSpecial() succeeded unexpectedly");
+        }
+        catch (IllegalAccessException expected) {}
     }
 
     // The various nestmates
@@ -93,31 +110,49 @@ public class TestMethodHandles {
 
         default void access_priv(TestMethodHandles o) throws Throwable {
             MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, StaticIface.class);
+              lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         default void access_priv(InnerNested o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, StaticIface.class);
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         default void access_priv(StaticNested o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, StaticIface.class);
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         default void access_priv(StaticIface o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, StaticIface.class);
+            MethodHandle mh = lookup().findVirtual(StaticIface.class, "priv_invoke", M_T);
+            mh.invoke(o);
+            mh.invokeExact(o);
+            checkBadInvoke(mh, new StaticNested()); // wrong nestmate
+            checkBadInvoke(mh, mh); // completely wrong type
+            // findSpecial also works when this and o are the same interface
+            mh = lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, StaticIface.class);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, new StaticNested()); // wrong nestmate
@@ -137,36 +172,53 @@ public class TestMethodHandles {
         // Methods that will access private methods of nestmates
 
         void access_priv(TestMethodHandles o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         void access_priv(InnerNested o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         void access_priv(StaticNested o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
+            mh.invoke(o);
+            mh.invokeExact(o);
+            checkBadInvoke(mh, new TestMethodHandles()); // wrong nestmate
+            checkBadInvoke(mh, mh); // completely wrong type
+            // findSpecial also works when this and o are the same class
+            mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, new TestMethodHandles()); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
         }
         void access_priv(StaticIface o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(StaticIface.class, "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
     }
 
@@ -180,36 +232,53 @@ public class TestMethodHandles {
         public InnerNested() {}
 
         void access_priv(TestMethodHandles o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         void access_priv(InnerNested o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
+            mh.invoke(o);
+            mh.invokeExact(o);
+            checkBadInvoke(mh, new StaticNested()); // wrong nestmate
+            checkBadInvoke(mh, mh); // completely wrong type
+            // findSpecial also works when this and o are the same class
+            mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, new StaticNested()); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
         }
         void access_priv(StaticNested o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(o.getClass(), "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(o.getClass(), "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
         void access_priv(StaticIface o) throws Throwable {
-            MethodHandle mh =
-              lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, this.getClass());
+            MethodHandle mh = lookup().findVirtual(StaticIface.class, "priv_invoke", M_T);
             mh.invoke(o);
             mh.invokeExact(o);
             checkBadInvoke(mh, this); // wrong nestmate
             checkBadInvoke(mh, mh); // completely wrong type
+            try {
+                mh = lookup().findSpecial(StaticIface.class, "priv_invoke", M_T, this.getClass());
+                throw new Error("findSpecial() succeeded unexpectedly");
+            }
+            catch (IllegalAccessException expected) {}
         }
     }
 
