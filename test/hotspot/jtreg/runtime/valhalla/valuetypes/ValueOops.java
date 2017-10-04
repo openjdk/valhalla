@@ -27,56 +27,46 @@ import java.lang.invoke.*;
 import java.lang.ref.*;
 import java.util.concurrent.*;
 
-import jdk.experimental.value.MethodHandleBuilder;
-import jdk.incubator.mvt.ValueType;
-
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
 import sun.hotspot.WhiteBox;
 
+import jdk.experimental.value.MethodHandleBuilder;
+
 /**
  * @test ValueOops
  * @summary Test embedding oops into Value types
- * @modules java.base/jdk.experimental.value
- *          jdk.incubator.mvt
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile PersonVcc.java
  * @compile -XDenableValueTypes Person.java
  * @compile -XDenableValueTypes ValueOops.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -noverify -XX:+UseSerialGC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
+ * @run main/othervm -noverify -Xint -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xint -noverify -XX:+UseG1GC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
+ * @run main/othervm -noverify -Xint  -XX:+UseG1GC -Xmx128m -XX:+EnableValhalla
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   runtime.valhalla.valuetypes.ValueOops 100
+ * @run main/othervm -noverify -Xint -XX:+UseParallelGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xint -noverify -XX:+UseParallelGC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
+ * @run main/othervm -noverify -Xcomp -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xint -noverify -XX:+UseConcMarkSweepGC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
+ * @run main/othervm -noverify -Xcomp -XX:+UseG1GC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xcomp -noverify -XX:+UseSerialGC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xcomp -noverify -XX:+UseG1GC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xcomp -noverify -XX:+UseParallelGC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xcomp -noverify -XX:+UseConcMarkSweepGC -Xmx128m -XX:+EnableMVT -XX:+EnableValhalla
+ *                   runtime.valhalla.valuetypes.ValueOops 100
+ * @run main/othervm -noverify -Xcomp -XX:+UseParallelGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
  */
 public class ValueOops {
 
-    // Note: -noverify can not be eliminated. Possible issue with ValueType::mhName(),
-    //       does not translate '.' to '/' for JVM.
-    //       java.lang.ClassFormatError: Illegal method name "runtime.valhalla.valuetypes.PersonVcc_default"
-    //
+    // Note: -noverify can not be eliminated. Javac Class_Info not using ";Q"
+
     // Extra debug: -XX:+VerifyOops -XX:+VerifyStack -XX:+VerifyLastFrame -XX:+VerifyBeforeGC -XX:+VerifyAfterGC -XX:+VerifyDuringGC -XX:VerifySubSet=threads,heap
     // Even more debugging: -XX:+TraceNewOopMapGeneration -Xlog:gc*=info
 
@@ -91,14 +81,14 @@ public class ValueOops {
 
     static boolean USE_COMPILER = WhiteBox.getWhiteBox().getBooleanVMFlag("UseCompiler");
 
+    static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
+
     public static void main(String[] args) {
         if (args.length > 0) {
             MIN_ACTIVE_GC_COUNT = Integer.parseInt(args[0]);
         }
         testClassLoad();
-        testBytecodes();
         testVvt();
-        testMvt();
 
         if (!USE_COMPILER) {
             testOopMaps();
@@ -113,170 +103,14 @@ public class ValueOops {
      * Test ClassFileParser can load values with reference fields
      */
     public static void testClassLoad() {
-        // VVT
         String s = Person.class.toString();
         new Bar();
         new BarWithValue();
         s = BarValue.class.toString();
         s = ObjectWithObjectValue.class.toString();
         s = ObjectWithObjectValues.class.toString();
-
-        // MVT
-        Class<?> vccClass = PersonVcc.class;
-        ValueType<?> vt = ValueType.forClass(vccClass);
-        Class<?> boxClass = vt.boxClass();
-        Class<?> dvtClass = vt.valueClass();
-        Class<?> arrayClass = vt.arrayValueClass();
-        s = dvtClass.toString();
     }
 
-    /**
-     * Test value type opcodes are okay with reference fields in values
-     * I.e. ValueKlass::value_store()
-     */
-    public static void testBytecodes() {
-        try {
-            // Craft Value Type class how you will, using MVT class for simplicity just here
-            ValueType<?> vt = ValueType.forClass(PersonVcc.class);
-            Class<?> vtClass = vt.valueClass();
-            Class<?> arrayClass = vt.arrayValueClass();
-            Class<?> boxClass = vt.boxClass();
-            MethodHandles.Lookup lookup = MethodHandles.lookup();
-
-            // Exercise with null refs...
-
-            // anewarray
-            Object array = MethodHandleBuilder.loadCode(
-                lookup,
-                "anewarrayPerson",
-                MethodType.methodType(Object.class, Integer.TYPE),
-                CODE->{
-                CODE
-                .iload(0)
-                .anewarray(vtClass)
-                .astore(0)
-                .aload(0)
-                .areturn();
-            }).invoke(NOF_PEOPLE);
-
-            // vaload
-            // vstore
-            // vload
-            // vastore
-            // vbox
-            int arraySlot = 0;
-            int indexSlot = 1;
-            int valueSlot = 2;
-            Object obj = MethodHandleBuilder.loadCode(
-                lookup,
-                "valoadBoxPerson",
-                MethodType.methodType(Object.class, arrayClass, Integer.TYPE),
-                CODE->{
-                CODE
-                .aload(arraySlot)
-                .iload(indexSlot)
-                .vaload()
-                .vstore(valueSlot)
-                .aload(arraySlot)
-                .iload(indexSlot)
-                .vload(valueSlot)
-                .vastore()
-                .vload(valueSlot)
-                .vbox(boxClass)
-                .areturn();
-            }).invoke(array, 7);
-            validateDefaultPersonVcc(obj);
-
-            // vreturn
-            MethodHandle loadValueFromArray = MethodHandleBuilder.loadCode(
-                lookup,
-                "valoadVreturnPerson",
-                MethodType.methodType(vtClass, arrayClass, Integer.TYPE),
-                CODE->{
-                CODE
-                .aload(arraySlot)
-                .iload(indexSlot)
-                .vaload()
-                .vreturn();
-            });
-            MethodHandle box = MethodHandleBuilder.loadCode(
-                lookup,
-                "boxPersonVcc",
-                MethodType.methodType(boxClass, vtClass),
-                CODE->{
-                CODE
-                .vload(0)
-                .vbox(boxClass)
-                .areturn();
-            });
-            MethodHandle loadValueFromArrayBoxed =
-                MethodHandles.filterReturnValue(loadValueFromArray, box);
-            obj = loadValueFromArrayBoxed.invoke(array, 0);
-            validateDefaultPersonVcc(obj);
-
-            // vunbox
-            MethodHandle unbox = MethodHandleBuilder.loadCode(
-                lookup,
-                "unboxPersonVcc",
-                MethodType.methodType(vtClass, boxClass),
-                CODE->{
-                CODE
-                .aload(0)
-                .vunbox(vtClass)
-                .vreturn();
-            });
-            MethodHandle unboxBox = MethodHandles.filterReturnValue(unbox, box);
-            obj = unboxBox.invoke(createDefaultPersonVcc());
-            validateDefaultPersonVcc(obj);
-
-            /*
-               vgetfield
-               qputfield
-               qgetfield
-
-               going to need VVT for VT fields and vgetfield
-               check test coverage in testVvt()
-            */
-
-            // Exercise with live refs...
-            Thread.holdsLock("Debug here");
-            // vunbox
-            // vastore
-            // vaload
-            // vstore
-            // vload
-            // vbox
-            int index = 3;
-            obj = MethodHandleBuilder.loadCode(
-                lookup,
-                "unboxStoreLoadPersonVcc",
-                MethodType.methodType(boxClass, arrayClass, Integer.TYPE, boxClass),
-                CODE->{
-                CODE
-                .aload(arraySlot)
-                .iload(indexSlot)
-                .aload(valueSlot)
-                .vunbox(vtClass)
-                .vastore()
-                .aload(arraySlot)
-                .iload(indexSlot)
-                .vaload()
-                .vstore(valueSlot)
-                .vload(valueSlot)
-                .vbox(boxClass)
-                .areturn();
-            }).invoke(array, index, createIndexedPersonVcc(index));
-            validateIndexedPersonVcc(obj, index);
-
-            // Check the neighbours
-            validateDefaultPersonVcc(loadValueFromArrayBoxed.invoke(array, index - 1));
-            validateDefaultPersonVcc(loadValueFromArrayBoxed.invoke(array, index + 1));
-
-            // vreturn
-            validateIndexedPersonVcc(unboxBox.invoke((PersonVcc)obj), index);
-        }
-        catch (Throwable t) { fail("testBytecodes", t); }
-    }
 
     static class Couple {
         public Person onePerson;
@@ -304,7 +138,7 @@ public class ValueOops {
      * Check value type operations with "Valhalla Value Types" (VVT)
      */
     public static void testVvt() {
-        // Exercise creation, vgetfield, vreturn with null refs
+        // Exercise creation, getfield, vreturn with null refs
         validateDefaultPerson(createDefaultPerson());
 
         // anewarray, vaload, vastore
@@ -335,89 +169,10 @@ public class ValueOops {
     }
 
     /**
-     * Check value type operations with "Minimal Value Types" (MVT)
-     */
-    public static void testMvt() {
-        try {
-            // MVT...
-            ValueType<?> vt = ValueType.forClass(PersonVcc.class);
-            Class<?> vtClass = vt.valueClass();
-            Class<?> arrayClass = vt.arrayValueClass();
-
-            Object obj = vt.defaultValueConstant().invoke();
-            validateDefaultPersonVcc(obj);
-
-            obj = MethodHandles.filterReturnValue(vt.unbox(), vt.box())
-                .invoke(createDefaultPersonVcc());
-            validateDefaultPersonVcc(obj);
-
-            int index = 11;
-            obj = MethodHandles.filterReturnValue(vt.unbox(), vt.box())
-                .invoke(createIndexedPersonVcc(index));
-            validateIndexedPersonVcc(obj, index);
-
-            testMvtArray("testMvt.array.1", 1);
-        }
-        catch (Throwable t) {
-            fail("testMvtfailed", t);
-        }
-    }
-
-    /**
-     * MVT array operations...
-     */
-    public static void testMvtPeopleArray() {
-        testMvtArray("testMvtPeopleArray", NOF_PEOPLE);
-    }
-
-    public static void testMvtArray(String testName, int arrayLength) {
-        try {
-            Class<?> vcc = PersonVcc.class;
-            ValueType<?> vt = ValueType.forClass(vcc);
-            Class<?> dvtClass = vt.valueClass();
-            Class<?> arrayClass = vt.arrayValueClass();
-
-            MethodHandle arrayElemGet = MethodHandles.arrayElementGetter(arrayClass);
-            MethodHandle arrayElemSet = MethodHandles.arrayElementSetter(arrayClass);
-
-            MethodHandles.Lookup lookup = MethodHandles.lookup();
-            MethodHandle getId = lookup.findGetter(dvtClass, "id", Integer.TYPE);
-            MethodHandle getFirstName = lookup.findGetter(dvtClass, "firstName", String.class);
-            MethodHandle getLastName = lookup.findGetter(dvtClass, "lastName", String.class);
-
-            MethodHandle getIdFromArray = MethodHandles.filterReturnValue(arrayElemGet, getId);
-            MethodHandle getFnFromArray = MethodHandles.filterReturnValue(arrayElemGet, getFirstName);
-            MethodHandle getLnFromArray = MethodHandles.filterReturnValue(arrayElemGet, getLastName);
-
-            Object people = vt.newArray().invoke(arrayLength);
-            for (int i = 0; i < arrayLength; i++) {
-                arrayElemSet.invoke(people, i, createIndexedPersonVcc(i));
-            }
-
-            for (int i = 0; i < arrayLength; i++) {
-                validateIndexedPersonVcc(arrayElemGet.invoke(people, i), i);
-
-                int id = (int) getIdFromArray.invoke(people, i);
-                assertTrue(id == i, "Invalid field: Id");
-                String fn = (String) getFnFromArray.invoke(people, i);
-                assertTrue(fn.equals(firstName(i)), "Invalid field: firstName");
-                String ln = (String) getLnFromArray.invoke(people, i);
-                assertTrue(ln.equals(lastName(i)), "Invalid field: lastName");
-            }
-        }
-        catch (Throwable t) {
-            fail(testName + " failed", t);
-        }
-    }
-
-    /**
      * Check oop map generation for klass layout and frame...
      */
     public static void testOopMaps() {
-        // testOopMaps() needs to be revisited with the introduction of
-        // optional flattening of value fields.
-        return;
-  /*    Object[] objects = WhiteBox.getWhiteBox().getObjectsViaKlassOopMaps(new Couple());
+        Object[] objects = WhiteBox.getWhiteBox().getObjectsViaKlassOopMaps(new Couple());
         assertTrue(objects.length == 4, "Expected 4 oops");
         for (int i = 0; i < objects.length; i++) {
             assertTrue(objects[i] == null, "not-null");
@@ -463,13 +218,12 @@ public class ValueOops {
         assertTrue(objects[4] == TEST_STRING2, "Bad oop 4");
 
         testFrameOopsVBytecodes();
-        */
     }
 
     static final String GET_OOP_MAP_NAME = "getOopMap";
     static final String GET_OOP_MAP_DESC = "()[Ljava/lang/Object;";
 
-    static Object[] getOopMap() {
+    public static Object[] getOopMap() {
         Object[] oopMap = WhiteBox.getWhiteBox().getObjectsViaFrameOopIterator(2);
         /* Remove this frame (class mirror for this method), and above class mirror */
         Object[] trimmedOopMap = new Object[oopMap.length - 2];
@@ -507,11 +261,6 @@ public class ValueOops {
 
         FooValue.testFrameOopsDefault(oopMaps);
 
-        dumpOopMap(oopMaps[0]);
-        dumpOopMap(oopMaps[1]);
-        dumpOopMap(oopMaps[2]);
-        dumpOopMap(oopMaps[3]);
-
         // Test-D0 Slots=R Stack=Q(RRR)RV
         assertTrue(oopMaps[0].length == 5 &&
                    oopMaps[0][1] == null &&
@@ -539,7 +288,6 @@ public class ValueOops {
         String desc = "TestDesc";
         String note = "TestNotes";
         FooValue.testFrameOopsRefs(name, desc, note, oopMaps);
-        dumpOopMap(oopMaps[0]);
 
         // Test-R0 Slots=RR Stack=Q(RRR)RV
         assertTrue(oopMaps[0].length == 6 &&
@@ -558,23 +306,18 @@ public class ValueOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vccClass = PersonVcc.class;
-            ValueType<?> vt = ValueType.forClass(vccClass);
-            Class<?> vtClass = vt.valueClass();
-            Class<?> arrayClass = vt.arrayValueClass();
+            Class<?> vtClass = Person.class;
 
-            MethodHandles.Lookup lookup = MethodHandles.lookup();
             doGc();
 
             // VT on stack and lvt, null refs, see if GC flies
             MethodHandle moveValueThroughStackAndLvt = MethodHandleBuilder.loadCode(
-                lookup,
+                LOOKUP,
                 "gcOverPerson",
-                MethodType.methodType(vccClass, vccClass),
+                MethodType.methodType(vtClass, vtClass),
                 CODE->{
                 CODE
-                .aload(0)
-                .vunbox(vtClass)
+                .vload(0)
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack
                 .vstore(0)
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // LVT
@@ -582,20 +325,17 @@ public class ValueOops {
                 .iconst_1()  // push a litte further down
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
                 .pop()
-                .vbox(vccClass)
-                .areturn();
+                .vreturn();
             });
-            Object obj = moveValueThroughStackAndLvt.invoke(createDefaultPersonVcc());
-            validateDefaultPersonVcc(obj);
-            doGc();
-            obj = null;
+            Person person = (Person) moveValueThroughStackAndLvt.invokeExact(createDefaultPerson());
+            validateDefaultPerson(person);
             doGc();
 
             int index = 4711;
-            obj = moveValueThroughStackAndLvt.invoke(createIndexedPersonVcc(index));
-            validateIndexedPersonVcc(obj, index);
+            person = (Person) moveValueThroughStackAndLvt.invokeExact(createIndexedPerson(index));
+            validateIndexedPerson(person, index);
             doGc();
-            obj = null;
+            person = createDefaultPerson();
             doGc();
         }
         catch (Throwable t) { fail("testOverGc", t); }
@@ -603,13 +343,8 @@ public class ValueOops {
 
     static void submitNewWork(ForkJoinPool fjPool, int size) {
         for (int i = 0; i < size; i++) {
-            fjPool.execute(ValueOops::testMvtPeopleArray);
             for (int j = 0; j < 100; j++) {
-                // JDK-8186718 random crashes in interpreter vbox and vunbox (with G1)
-                // test needs refactoring to more specific use cases for debugging.
-                //fjPool.execute(ValueOops::testBytecodes);
                 fjPool.execute(ValueOops::testVvt);
-                fjPool.execute(ValueOops::testMvt);
             }
         }
     }
@@ -631,11 +366,9 @@ public class ValueOops {
 
             Object longLivedObjects = createLongLived();
             Object longLivedPeople = createPeople();
-            Object longLivedPeopleVcc = createPeopleVcc();
 
             Object medLivedObjects = createLongLived();
             Object medLivedPeople = createPeople();
-            Object medLivedPeopleVcc = createPeopleVcc();
 
             doGc();
 
@@ -664,11 +397,9 @@ public class ValueOops {
                     if (nofActiveGc % MED_ACTIVE_GC_COUNT == 0) {
                         validateLongLived(medLivedObjects);
                         validatePeople(medLivedPeople);
-                        validatePeopleVcc(medLivedPeopleVcc);
 
                         medLivedObjects = createLongLived();
                         medLivedPeople = createPeople();
-                        medLivedPeopleVcc = createPeopleVcc();
                     }
                 }
                 else if (fjPool.hasQueuedSubmissions()) {
@@ -683,22 +414,18 @@ public class ValueOops {
 
             validateLongLived(medLivedObjects);
             validatePeople(medLivedPeople);
-            validatePeopleVcc(medLivedPeopleVcc);
             medLivedObjects = null;
             medLivedPeople = null;
-            medLivedPeopleVcc = null;
 
             validateLongLived(longLivedObjects);
             validatePeople(longLivedPeople);
-            validatePeopleVcc(longLivedPeopleVcc);
 
             longLivedObjects = null;
             longLivedPeople = null;
-            longLivedPeopleVcc = null;
 
             doGc();
         }
-        catch (Throwable t) { fail("testMvtActiveGc", t); }
+        catch (Throwable t) { fail("testActiveGc", t); }
     }
 
     static final ReferenceQueue<Object> REFQ = new ReferenceQueue<>();
@@ -714,37 +441,6 @@ public class ValueOops {
     static Reference createRef() {
         return new WeakReference<Object>(new Object(), REFQ);
     }
-
-    static void validatePersonVcc(Object obj, int id, String fn, String ln, boolean equals) {
-        assertTrue(obj.getClass() == PersonVcc.class, "Expected VCC class");
-        PersonVcc person = (PersonVcc) obj;
-        assertTrue(person.id == id);
-        if (equals) {
-            assertTrue(fn.equals(person.getFirstName()), "Invalid field firstName");
-            assertTrue(ln.equals(person.getLastName()), "Invalid  field lastName");
-        }
-        else {
-            assertTrue(person.getFirstName() == fn, "Invalid field firstName");
-            assertTrue(person.getLastName() == ln, "Invalid  field lastName");
-        }
-    }
-
-    static PersonVcc createIndexedPersonVcc(int i) {
-        return PersonVcc.create(i, firstName(i), lastName(i));
-    }
-
-    static void validateIndexedPersonVcc(Object obj, int i) {
-        validatePersonVcc(obj, i, firstName(i), lastName(i), true);
-    }
-
-    static PersonVcc createDefaultPersonVcc() {
-        return PersonVcc.create(0, null, null);
-    }
-
-    static void validateDefaultPersonVcc(Object obj) {
-        validatePersonVcc(obj, 0, null, null, false);
-    }
-
 
     static void validatePerson(Person person, int id, String fn, String ln, boolean equals) {
         assertTrue(person.id == id);
@@ -783,40 +479,14 @@ public class ValueOops {
     }
 
     static Object createLongLived()  throws Throwable {
-        Object[] population = new Object[2];
+        Object[] population = new Object[1];
         population[0] = createPeople();
-        population[1] = createPeopleVcc();
         return population;
     }
 
     static void validateLongLived(Object pop) throws Throwable {
         Object[] population = (Object[]) pop;
         validatePeople(population[0]);
-        validatePeopleVcc(population[1]);
-    }
-
-    static Object createPeopleVcc() throws Throwable {
-        int arrayLength = NOF_PEOPLE;
-        Class<?> vccClass = PersonVcc.class;
-        ValueType<?> vt = ValueType.forClass(vccClass);
-        MethodHandle arrayElemSet = MethodHandles.arrayElementSetter(vt.arrayValueClass());
-
-        Object people = vt.newArray().invoke(arrayLength);
-        for (int i = 0; i < arrayLength; i++) {
-            arrayElemSet.invoke(people, i, createIndexedPersonVcc(i));
-        }
-        return people;
-    }
-
-    static void validatePeopleVcc(Object people) throws Throwable {
-        MethodHandle arrayElemGet = MethodHandles.arrayElementGetter(
-            ValueType.forClass((Class<?>)PersonVcc.class).arrayValueClass());
-
-        int arrayLength = java.lang.reflect.Array.getLength(people);
-        assertTrue(arrayLength == NOF_PEOPLE);
-        for (int i = 0; i < arrayLength; i++) {
-            validateIndexedPersonVcc(arrayElemGet.invoke(people, i), i);
-        }
     }
 
     static Object createPeople() {
@@ -873,12 +543,12 @@ public class ValueOops {
         String otherStuff;
     }
 
-    static final __ByValue class FooValue {
-        final int id;
-        final String name;
-        final String description;
-        final long timestamp;
-        final String notes;
+    public static final __ByValue class FooValue {
+        public final int id;
+        public final String name;
+        public final String description;
+        public final long timestamp;
+        public final String notes;
 
         private FooValue() {
             this.id          = 0;
@@ -899,7 +569,6 @@ public class ValueOops {
         }
 
         public static void testFrameOopsDefault(Object[][] oopMaps) {
-            Class<?> fooValueCls = FooValue.class;
             MethodType mt = MethodType.methodType(Void.TYPE, oopMaps.getClass());
             int oopMapsSlot   = 0;
             int vtSlot        = 1;
@@ -907,12 +576,11 @@ public class ValueOops {
             // Slots 1=oopMaps
             // OopMap Q=RRR (.name .description .someNotes)
             try {
-                MethodHandleBuilder
-                    .loadCode(MethodHandles.lookup(),
-                              "exerciseVBytecodeExprStackWithDefault", mt,
+                MethodHandleBuilder.loadCode(
+                              LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                               CODE->{
                                   CODE
-                                      .vdefault(fooValueCls)
+                                      .vdefault(FooValue.class)
                                       .aload(oopMapsSlot)
                                       .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                                       .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -922,7 +590,7 @@ public class ValueOops {
                                       .iconst_1()  // Test-D1 Slots=R Stack=RV
                                       .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                                       .aastore()
-                                      .vdefault(fooValueCls)
+                                      .vdefault(FooValue.class)
                                       .vstore(vtSlot)
                                       .aload(oopMapsSlot)
                                       .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
@@ -942,16 +610,13 @@ public class ValueOops {
         }
 
         public static void testFrameOopsRefs(String name, String description, String notes, Object[][] oopMaps) {
-            Class<?> fooValueCls = FooValue.class;
             FooValue f = create(4711, name, description, 9876543231L, notes);
             FooValue[] fa = new FooValue[] { f };
             MethodType mt = MethodType.methodType(Void.TYPE, fa.getClass(), oopMaps.getClass());
             int fooArraySlot  = 0;
             int oopMapsSlot   = 1;
             try {
-                MethodHandleBuilder
-                    .loadCode(MethodHandles.lookup(),
-                              "exerciseVBytecodeExprStackWithRefs", mt,
+                MethodHandleBuilder.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
                               CODE->{
                                   CODE
                                       .aload(fooArraySlot)
@@ -964,7 +629,7 @@ public class ValueOops {
                                       .pop()
                                       .return_();
                               }).invoke(fa, oopMaps);
-            } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithDefault", t); }
+            } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithRefs", t); }
         }
     }
 
