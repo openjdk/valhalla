@@ -1254,8 +1254,8 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
     }
 
     // Check that the class of objectref (the receiver) is the current class or interface,
-    // or a subtype of the current class or interface (the sender), or else they are
-    // nestmates, otherwise invokespecial throws IllegalAccessError.
+    // or a subtype of the current class or interface (the sender), otherwise invokespecial
+    // throws IllegalAccessError.
     // The verifier checks that the sender is a subtype of the class in the I/MR operand.
     // The verifier also checks that the receiver is a subtype of the sender, if the sender is
     // a class.  If the sender is an interface, the check has to be performed at runtime.
@@ -1263,11 +1263,7 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
     InstanceKlass* sender = cur_ik->is_anonymous() ? cur_ik->host_klass() : cur_ik;
     if (sender->is_interface() && recv.not_null()) {
       Klass* receiver_klass = recv->klass();
-      if (!receiver_klass->is_subtype_of(sender) &&
-          (cur_ik == sender && // don't check nestmate access for anonymous classes
-           // Note: we check the resolved class here, not the receiver class - the latter
-           // may be a subtype of the resolved class defined outside the nest.
-           !sender->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD))) {
+      if (!receiver_klass->is_subtype_of(sender)) {
         ResourceMark rm(THREAD);
         char buf[500];
         jio_snprintf(buf, sizeof(buf),
