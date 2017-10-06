@@ -2885,6 +2885,12 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj, notValueType, notDouble;
 
+  if (!is_static) {
+    __ movptr(rcx, Address(cache, index, Address::times_ptr,
+                           in_bytes(ConstantPoolCache::base_offset() +
+                                    ConstantPoolCacheEntry::f1_offset())));
+  }
+
   __ movl(flags2, flags);
 
   __ shrl(flags, ConstantPoolCacheEntry::tos_state_shift);
@@ -2922,10 +2928,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     __ bind(initialized);
     __ push(qtos);
   } else {
-    pop_and_check_object(obj);
     __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+    pop_and_check_object(rbx);
     call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::qgetfield),
-        obj, flags2);
+            rbx, flags2, rcx);
     __ verify_oop(rax);
     __ push(qtos);
     // Bytecode rewrite?
@@ -3261,7 +3267,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       // value types in non-static fields are embedded
       pop_and_check_object(rbx);
       call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputfield),
-          rbx, rax, flags2);
+          rbx, rax, rcx);
       __ jmp(notVolatile); // value types are never volatile
     } else {
       // Store into the static field

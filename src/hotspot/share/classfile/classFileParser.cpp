@@ -5743,15 +5743,14 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   // Update the loader_data graph.
   record_defined_class_dependencies(ik, CHECK);
 
-  for (FieldStream st((InstanceKlass*)ik, false, false); !st.eos(); st.next()) {
-    Symbol* signature = st.signature();
-    if (signature->starts_with("Q")) {
-      Klass* klass = SystemDictionary::resolve_or_fail(signature,
+  for(int i = 0; i < ik->java_fields_count(); i++) {
+    if (ik->field_signature(i)->starts_with("Q")) {
+      Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
                                                        Handle(THREAD, ik->class_loader()),
                                                        Handle(THREAD, ik->protection_domain()), true, CHECK);
       assert(klass != NULL, "Sanity check");
       assert(klass->access_flags().is_value_type(), "Value type expected");
-      ik->set_value_field_klass(st.index(), klass);
+      ik->set_value_field_klass(i, klass);
     }
   }
 

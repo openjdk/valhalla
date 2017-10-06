@@ -336,9 +336,9 @@ assert(EnableMVT, "vunbox is supported only when the MVT programming model is en
   thread->set_vm_result(value);
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, int index))
+IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
   Handle value_h(THREAD, obj);
-  InstanceKlass* klass = InstanceKlass::cast(obj->klass());
+  InstanceKlass* klass = InstanceKlass::cast(field_holder);
 
   Klass* field_k = klass->get_value_field_klass(index);
   ValueKlass* field_vklass = ValueKlass::cast(field_k);
@@ -379,15 +379,19 @@ IRT_ENTRY(void, InterpreterRuntime::initialize_static_value_field(JavaThread* th
   thread->set_vm_result(res_h());
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, oopDesc* value, int flags))
+IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, oopDesc* value, ConstantPoolCache* cp_cache))
   Handle value_h(THREAD, value);
   Handle obj_h(THREAD, obj);
   assert(!obj_h()->klass()->is_value(), "obj must be an object");
   assert(value_h()->klass()->is_value(), "value must be an value type");
-  int index = flags & ConstantPoolCacheEntry::field_index_mask;
-  bool flatten = (flags & (1 << ConstantPoolCacheEntry::is_flatten_field)) != 0;
 
-  InstanceKlass* klass = InstanceKlass::cast(obj->klass());
+  int idx = ConstantPool::decode_cpcache_index(get_index_u2_cpcache(thread, Bytecodes::_putfield));
+  ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(idx);
+
+  int index = cp_entry->field_index();
+  bool flatten = cp_entry->is_flatten();
+
+  InstanceKlass* klass = InstanceKlass::cast(cp_entry->f1_as_klass());
   Klass* field_k = klass->get_value_field_klass(index);
   ValueKlass* field_vklass = ValueKlass::cast(value->klass());
   assert(field_k == field_vklass, "Field descriptor and argument must match");

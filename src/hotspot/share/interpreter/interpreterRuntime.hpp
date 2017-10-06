@@ -89,8 +89,8 @@ class InterpreterRuntime: AllStatic {
   static void    register_finalizer(JavaThread* thread, oopDesc* obj);
   static void    vdefault      (JavaThread* thread, ConstantPool* pool, int index);
   static int     vwithfield    (JavaThread* thread, ConstantPoolCache* cp_cache);
-  static void    qgetfield     (JavaThread* thread, oopDesc* value, int index);
-  static void    qputfield     (JavaThread* thread, oopDesc* obj, oopDesc* value, int flags);
+  static void    qgetfield     (JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
+  static void    qputfield     (JavaThread* thread, oopDesc* obj, oopDesc* value, ConstantPoolCache* cp_cache);
   static void    qputstatic    (JavaThread* thread, oopDesc* value, int offset, oopDesc* mirror);
   static void    initialize_static_value_field(JavaThread*, oopDesc* mirror, int offset);
 
