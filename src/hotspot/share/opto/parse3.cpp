@@ -204,19 +204,13 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
       assert(type != NULL, "field singleton type must be consistent");
     } else {
       type = TypeOopPtr::make_from_klass(field_klass->as_klass());
-      if (bt == T_VALUETYPE && !flattened) {
-        // A non-flattened value type field may be NULL
-        bool maybe_null = true;
-        if (field->is_static()) {
-          // Check if static field is already initialized
-          ciInstance* mirror = field->holder()->java_mirror();
-          ciObject* val = mirror->field_value(field).as_object();
-          if (!val->is_null_object()) {
-            maybe_null = false;
-          }
-        }
-        if (maybe_null) {
-          type = type->is_valuetypeptr()->cast_to_ptr_type(TypePtr::BotPTR);
+      if (bt == T_VALUETYPE && field->is_static()) {
+        // Check if static value type field is already initialized
+        assert(!flattened, "static fields should not be flattened");
+        ciInstance* mirror = field->holder()->java_mirror();
+        ciObject* val = mirror->field_value(field).as_object();
+        if (!val->is_null_object()) {
+          type = type->join_speculative(TypePtr::NOTNULL);
         }
       }
     }
@@ -234,7 +228,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   Node* ld = NULL;
    if (flattened) {
     // Load flattened value type
-    ld = ValueTypeNode::make(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
+    ld = ValueTypeNode::make_from_flattened(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
   } else {
     ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, needs_atomic_access);
   }
@@ -319,9 +313,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
       val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
     } else {
-      if (bt == T_VALUETYPE) {
-        field_type = field_type->cast_to_ptr_type(TypePtr::BotPTR)->is_oopptr();
-      }
       store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, mo);
     }
   } else {
@@ -653,10 +644,8 @@ void Parse::do_vunbox() {
   // Remove object from the top of the stack
   pop();
 
-  // Create a value type node with the corresponding type
+  // Create a value type node with the corresponding type and push it onto the stack
   ciValueKlass* vk = target_dvt_klass->as_value_klass();
-  Node* vt = ValueTypeNode::make(this, vk, not_null_obj, not_null_obj, target_vcc_klass, vk->first_field_offset());
-
-  // Push the value type onto the stack
+  ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, not_null_obj, not_null_obj, target_vcc_klass, vk->first_field_offset());
   push(vt);
 }

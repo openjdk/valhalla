@@ -87,8 +87,6 @@ int ciValueKlass::value_arg_slots() {
   for (int j = 0; j < nof_nonstatic_fields(); j++) {
     ciField* f = nonstatic_field_at(j);
     BasicType bt = f->type()->basic_type();
-    // TODO re-enable when using T_VALUETYPEPTR
-    //assert(bt != T_VALUETYPE, "embedded");
     if (bt == T_LONG || bt == T_DOUBLE) {
       slots++;
     }

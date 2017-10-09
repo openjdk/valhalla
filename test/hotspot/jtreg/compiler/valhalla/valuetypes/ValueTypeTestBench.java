@@ -38,35 +38,28 @@
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:+AlwaysIncrementalInline
  *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
- *                   -XX:ValueTypesBufferMaxMemory=0
  *                   -Djdk.lang.reflect.DVT=true compiler.valhalla.valuetypes.ValueTypeTestBench
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:-UseCompressedOops
- *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
- *                   -XX:ValueTypesBufferMaxMemory=0
  *                   -Djdk.lang.reflect.DVT=true compiler.valhalla.valuetypes.ValueTypeTestBench
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:-UseCompressedOops
  *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
- *                   -XX:ValueTypesBufferMaxMemory=0
  *                   -Djdk.lang.reflect.DVT=true -DVerifyIR=false compiler.valhalla.valuetypes.ValueTypeTestBench
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation -XX:+AlwaysIncrementalInline
  *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
- *                   -XX:ValueTypesBufferMaxMemory=0
  *                   -Djdk.lang.reflect.DVT=true -DVerifyIR=false compiler.valhalla.valuetypes.ValueTypeTestBench
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-TieredCompilation
  *                   -XX:+EnableValhalla -XX:+EnableMVT -XX:+ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
- *                   -XX:ValueTypesBufferMaxMemory=0
  *                   -Djdk.lang.reflect.DVT=true -DVerifyIR=false compiler.valhalla.valuetypes.ValueTypeTestBench
  */
-
-// TODO remove -XX:ValueTypesBufferMaxMemory=0 when interpreter buffering is fixed
 
 package compiler.valhalla.valuetypes;
 

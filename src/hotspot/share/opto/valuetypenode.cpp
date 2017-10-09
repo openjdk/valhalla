@@ -38,10 +38,9 @@ ValueTypeBaseNode* ValueTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* regio
   ValueTypeBaseNode* vt = clone()->as_ValueTypeBase();
 
   // Create a PhiNode for merging the oop values
-  const TypeValueTypePtr* vtptr = value_type_ptr();
-  vtptr = vtptr->cast_to_ptr_type(TypePtr::BotPTR)->is_valuetypeptr();
-  PhiNode* oop = PhiNode::make(region, vt->get_oop(), vtptr);
-  gvn->set_type(oop, vtptr);
+  const Type* phi_type = Type::get_const_type(value_klass());
+  PhiNode* oop = PhiNode::make(region, vt->get_oop(), phi_type);
+  gvn->set_type(oop, phi_type);
   vt->set_oop(oop);
 
   // Create a PhiNode each for merging the field values
@@ -52,7 +51,7 @@ ValueTypeBaseNode* ValueTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* regio
       // Handle flattened value type fields recursively
       value = value->as_ValueType()->clone_with_phis(gvn, region);
     } else {
-      const Type* phi_type = Type::get_const_type(type);
+      phi_type = Type::get_const_type(type);
       value = PhiNode::make(region, value, phi_type);
       gvn->set_type(value, phi_type);
     }
@@ -158,7 +157,9 @@ ciType* ValueTypeBaseNode::field_type(uint index) const {
 
 bool ValueTypeBaseNode::field_is_flattened(uint index) const {
   assert(index < field_count(), "index out of bounds");
-  return value_klass()->declared_nonstatic_field_at(index)->is_flattened();
+  ciField* field = value_klass()->declared_nonstatic_field_at(index);
+  assert(!field->is_flattened() || field->type()->is_valuetype(), "must be a value type");
+  return field->is_flattened();
 }
 
 int ValueTypeBaseNode::make_scalar_in_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt, Node* root, PhaseGVN* gvn) {
@@ -221,22 +222,22 @@ void ValueTypeBaseNode::make_scalar_in_safepoints(Node* root, PhaseGVN* gvn) {
   }
 }
 
-void ValueTypeBaseNode::make(PhaseGVN* gvn, Node*& ctl, Node* mem, Node* n, ValueTypeBaseNode* vt, ciValueKlass* base_vk, int base_offset, int base_input, bool in) {
-  assert(base_offset >= 0, "offset in value type always positive");
-  for (uint i = 0; i < vt->field_count(); i++) {
-    ciType* field_type = vt->field_type(i);
-    int offset = base_offset + vt->field_offset(i);
-    if (field_type->is_valuetype() && vt->field_is_flattened(i)) {
-      ciValueKlass* embedded_vk = field_type->as_value_klass();
-      ValueTypeNode* embedded_vt = ValueTypeNode::make(*gvn, embedded_vk);
-      ValueTypeBaseNode::make(gvn, ctl, mem, n, embedded_vt, base_vk, offset - vt->value_klass()->first_field_offset(), base_input, in);
-      vt->set_field_value(i, gvn->transform(embedded_vt));
+void ValueTypeBaseNode::initialize(PhaseGVN* gvn, Node*& ctl, Node* mem, MultiNode* multi, ciValueKlass* vk, int base_offset, int base_input, bool in) {
+  assert(base_offset >= 0, "offset in value type must be positive");
+  for (uint i = 0; i < field_count(); i++) {
+    ciType* ft = field_type(i);
+    int offset = base_offset + field_offset(i);
+    if (field_is_flattened(i)) {
+      // Flattened value type field
+      ValueTypeNode* vt = ValueTypeNode::make_uninitialized(*gvn, ft->as_value_klass());
+      vt->initialize(gvn, ctl, mem, multi, vk, offset - value_klass()->first_field_offset(), base_input, in);
+      set_field_value(i, gvn->transform(vt));
     } else {
       int j = 0; int extra = 0;
-      for (; j < base_vk->nof_nonstatic_fields(); j++) {
-        ciField* f = base_vk->nonstatic_field_at(j);
+      for (; j < vk->nof_nonstatic_fields(); j++) {
+        ciField* f = vk->nonstatic_field_at(j);
         if (offset == f->offset()) {
-          assert(f->type() == field_type, "inconsistent field type");
+          assert(f->type() == ft, "inconsistent field type");
           break;
         }
         BasicType bt = f->type()->basic_type();
@@ -244,25 +245,23 @@ void ValueTypeBaseNode::make(PhaseGVN* gvn, Node*& ctl, Node* mem, Node* n, Valu
           extra++;
         }
       }
-      assert(j != base_vk->nof_nonstatic_fields(), "must find");
+      assert(j != vk->nof_nonstatic_fields(), "must find");
       Node* parm = NULL;
-      if (n->is_Start()) {
+      if (multi->is_Start()) {
         assert(in, "return from start?");
-        parm = gvn->transform(new ParmNode(n->as_Start(), base_input + j + extra));
+        parm = gvn->transform(new ParmNode(multi->as_Start(), base_input + j + extra));
       } else {
         if (in) {
-          assert(n->is_Call(), "nothing else here");
-          parm = n->in(base_input + j + extra);
+          parm = multi->as_Call()->in(base_input + j + extra);
         } else {
-          parm = gvn->transform(new ProjNode(n->as_Call(), base_input + j + extra));
+          parm = gvn->transform(new ProjNode(multi->as_Call(), base_input + j + extra));
         }
       }
-      if (field_type->is_valuetype()) {
+      if (ft->is_valuetype()) {
         // Non-flattened value type field, check for null
-        parm = ValueTypeNode::make(*gvn, ctl, mem, parm, /* null_check */ true);
-
+        parm = ValueTypeNode::make_from_oop(*gvn, ctl, mem, parm, /* null_check */ true);
       }
-      vt->set_field_value(i, parm);
+      set_field_value(i, parm);
       // Record all these guys for later GVN.
       gvn->record_for_igvn(parm);
     }
@@ -274,11 +273,11 @@ void ValueTypeBaseNode::load(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* base, N
   // memory and adding the values as input edges to the node.
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
-    ciType* ftype = field_type(i);
     Node* value = NULL;
-    if (ftype->is_valuetype() && field_is_flattened(i)) {
+    ciType* ft = field_type(i);
+    if (field_is_flattened(i)) {
       // Recursively load the flattened value type field
-      value = ValueTypeNode::make(gvn, ftype->as_value_klass(), ctl, mem, base, ptr, holder, offset);
+      value = ValueTypeNode::make_from_flattened(gvn, ft->as_value_klass(), ctl, mem, base, ptr, holder, offset);
     } else {
       const Type* con_type = NULL;
       if (base->is_Con()) {
@@ -295,30 +294,28 @@ void ValueTypeBaseNode::load(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* base, N
         value = gvn.transform(gvn.makecon(con_type));
         if (con_type->isa_valuetypeptr()) {
           // Constant, non-flattened value type field
-          value = ValueTypeNode::make(gvn, ctl, mem, value);
+          value = ValueTypeNode::make_from_oop(gvn, ctl, mem, value);
         }
       } else {
         // Load field value from memory
-        const Type* base_type = gvn.type(base);
+        const TypeAryPtr* ary_type = gvn.type(base)->isa_aryptr();
         const TypePtr* adr_type = NULL;
-        if (base_type->isa_aryptr()) {
+        bool is_array = ary_type != NULL;
+        if (is_array) {
           // In the case of a flattened value type array, each field has its own slice
-          adr_type = base_type->is_aryptr()->with_field_offset(offset)->add_offset(Type::OffsetBot);
+          adr_type = ary_type->with_field_offset(offset)->add_offset(Type::OffsetBot);
         } else {
           ciField* field = holder->get_field_by_offset(offset, false);
           adr_type = gvn.C->alias_type(field)->adr_type();
         }
         Node* adr = gvn.transform(new AddPNode(base, ptr, gvn.MakeConX(offset)));
-        BasicType bt = type2field[ftype->basic_type()];
-        const Type* ft = Type::get_const_type(ftype);
-        if (bt == T_VALUETYPE) {
-          ft = ft->is_valuetypeptr()->cast_to_ptr_type(TypePtr::BotPTR);
-        }
+        BasicType bt = type2field[ft->basic_type()];
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
-        value = gvn.transform(LoadNode::make(gvn, NULL, mem, adr, adr_type, ft, bt, MemNode::unordered));
+        const Type* rt = Type::get_const_type(ft);
+        value = gvn.transform(LoadNode::make(gvn, is_array ? ctl : NULL, mem, adr, adr_type, rt, bt, MemNode::unordered));
         if (bt == T_VALUETYPE) {
           // Non-flattened value type field, check for null
-          value = ValueTypeNode::make(gvn, ctl, mem, value, /* null_check */ true);
+          value = ValueTypeNode::make_from_oop(gvn, ctl, mem, value, /* null_check */ true);
         }
       }
     }
@@ -341,30 +338,29 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
     Node* value = field_value(i);
-    if (value->is_ValueType() && field_is_flattened(i)) {
+    ciType* ft = field_type(i);
+    if (field_is_flattened(i)) {
       // Recursively store the flattened value type field
-      value->isa_ValueType()->store_flattened(kit, base, ptr, holder, offset);
+      value->as_ValueType()->store_flattened(kit, base, ptr, holder, offset);
     } else {
-      const Type* base_type = kit->gvn().type(base);
+      const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
       const TypePtr* adr_type = NULL;
-      if (base_type->isa_aryptr()) {
+      bool is_array = ary_type != NULL;
+      if (is_array) {
         // In the case of a flattened value type array, each field has its own slice
-        adr_type = base_type->is_aryptr()->with_field_offset(offset)->add_offset(Type::OffsetBot);
+        adr_type = ary_type->with_field_offset(offset)->add_offset(Type::OffsetBot);
       } else {
         ciField* field = holder->get_field_by_offset(offset, false);
         adr_type = kit->C->alias_type(field)->adr_type();
       }
       Node* adr = kit->basic_plus_adr(base, ptr, offset);
-      BasicType bt = type2field[field_type(i)->basic_type()];
+      BasicType bt = type2field[ft->basic_type()];
       if (is_java_primitive(bt)) {
         kit->store_to_memory(kit->control(), adr, value, bt, adr_type, MemNode::unordered);
       } else {
-        const TypeOopPtr* ft = TypeOopPtr::make_from_klass(field_type(i)->as_klass());
-        // Field may be NULL
-        ft = ft->cast_to_ptr_type(TypePtr::BotPTR)->is_oopptr();
+        const TypeOopPtr* val_type = Type::get_const_type(ft)->is_oopptr();
         assert(adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
-        bool is_array = base_type->isa_aryptr() != NULL;
-        kit->store_oop(kit->control(), base, adr, adr_type, value, ft, bt, is_array, MemNode::unordered);
+        kit->store_oop(kit->control(), base, adr, adr_type, value, val_type, bt, is_array, MemNode::unordered);
       }
     }
   }
@@ -382,12 +378,8 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit) {
   // Not able to prove that value type is allocated.
   // Emit runtime check that may be folded later.
   assert(!is_allocated(&kit->gvn()), "should not be allocated");
-  const TypeValueTypePtr* vtptr_type = bottom_type()->isa_valuetypeptr();
-  if (vtptr_type == NULL) {
-    vtptr_type = TypeValueTypePtr::make(bottom_type()->isa_valuetype(), TypePtr::NotNull);
-  }
   RegionNode* region = new RegionNode(3);
-  PhiNode* oop = new PhiNode(region, vtptr_type);
+  PhiNode* oop = new PhiNode(region, value_type_ptr());
   PhiNode* io  = new PhiNode(region, Type::ABIO);
   PhiNode* mem = new PhiNode(region, Type::MEMORY, TypePtr::BOTTOM);
 
@@ -467,16 +459,15 @@ void ValueTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile*
   }
 }
 
-ValueTypeNode* ValueTypeNode::make(PhaseGVN& gvn, ciValueKlass* klass) {
+ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* klass) {
   // Create a new ValueTypeNode with uninitialized values and NULL oop
   const TypeValueType* type = TypeValueType::make(klass);
-  return new ValueTypeNode(type, gvn.zerocon(T_VALUETYPE), gvn.C);
+  return new ValueTypeNode(type, gvn.zerocon(T_VALUETYPE));
 }
 
-Node* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
-  // TODO re-use constant oop of pre-allocated default value type here?
+ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
   // Create a new ValueTypeNode with default values
-  ValueTypeNode* vt = ValueTypeNode::make(gvn, vk);
+  ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, vk);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
     Node* value = NULL;
@@ -487,14 +478,14 @@ Node* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
     }
     vt->set_field_value(i, value);
   }
-  return gvn.transform(vt);
+  return gvn.transform(vt)->as_ValueType();
 }
 
-Node* ValueTypeNode::make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check) {
+ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check) {
   // Create and initialize a ValueTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  const TypeValueType* type = gvn.type(oop)->is_valuetypeptr()->value_type();
-  ValueTypeNode* vt = new ValueTypeNode(type, oop, gvn.C);
+  ciValueKlass* vk = gvn.type(oop)->is_valuetypeptr()->value_klass();
+  ValueTypeNode* vt = new ValueTypeNode(TypeValueType::make(vk), oop);
 
   if (null_check && !vt->is_allocated(&gvn)) {
     // Add oop null check
@@ -509,63 +500,68 @@ Node* ValueTypeNode::make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool 
     oop = new CastPPNode(oop, TypePtr::NOTNULL);
     oop->set_req(0, not_null);
     oop = gvn.transform(oop);
-    vt->load(gvn, not_null, mem, oop, oop, type->value_klass());
+    vt->load(gvn, not_null, mem, oop, oop, vk);
     region->init_req(1, not_null);
 
     // Use default value type if oop is null
-    Node* def = make_default(gvn, type->value_klass());
+    ValueTypeNode* def = make_default(gvn, vk);
     region->init_req(2, null);
 
     // Merge the two value types and update control
     vt = vt->clone_with_phis(&gvn, region)->as_ValueType();
-    vt->merge_with(&gvn, def->as_ValueType(), 2, true);
+    vt->merge_with(&gvn, def, 2, true);
     ctl = gvn.transform(region);
   } else {
     Node* init_ctl = ctl;
-    vt->load(gvn, ctl, mem, oop, oop, type->value_klass());
+    vt->load(gvn, ctl, mem, oop, oop, vk);
     vt = gvn.transform(vt)->as_ValueType();
     assert(vt->is_allocated(&gvn), "value type should be allocated");
     assert(init_ctl != ctl || oop->is_Con() || oop->is_CheckCastPP() || oop->Opcode() == Op_ValueTypePtr ||
-           vt->is_loaded(&gvn, type) == oop, "value type should be loaded");
+           vt->is_loaded(&gvn) == oop, "value type should be loaded");
   }
   return vt;
 }
 
-Node* ValueTypeNode::make(GraphKit* kit, Node* oop, bool null_check) {
+// GraphKit wrapper for the 'make_from_oop' method
+ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, bool null_check) {
   Node* ctl = kit->control();
-  Node* vt = make(kit->gvn(), ctl, kit->merged_memory(), oop, null_check);
+  ValueTypeNode* vt = make_from_oop(kit->gvn(), ctl, kit->merged_memory(), oop, null_check);
   kit->set_control(ctl);
   return vt;
 }
 
-Node* ValueTypeNode::make(PhaseGVN& gvn, ciValueKlass* vk, Node*& ctl, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
+ValueTypeNode* ValueTypeNode::make_from_flattened(PhaseGVN& gvn, ciValueKlass* vk, Node*& ctl, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
   // Create and initialize a ValueTypeNode by loading all field values from
   // a flattened value type field at 'holder_offset' or from a value type array.
-  ValueTypeNode* vt = make(gvn, vk);
+  ValueTypeNode* vt = make_uninitialized(gvn, vk);
   // The value type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.
   holder_offset -= vk->first_field_offset();
   vt->load(gvn, ctl, mem, obj, ptr, holder, holder_offset);
-  assert(vt->is_loaded(&gvn, vt->type()->isa_valuetype()) != obj, "holder oop should not be used as flattened value type oop");
+  assert(vt->is_loaded(&gvn) != obj, "holder oop should not be used as flattened value type oop");
   return gvn.transform(vt)->as_ValueType();
 }
 
-Node* ValueTypeNode::make(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
+// GraphKit wrapper for the 'make_from_flattened' method
+ValueTypeNode* ValueTypeNode::make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
   Node* ctl = kit->control();
-  Node* vt = make(kit->gvn(), vk, ctl, kit->merged_memory(), obj, ptr, holder, holder_offset);
+  ValueTypeNode* vt = make_from_flattened(kit->gvn(), vk, ctl, kit->merged_memory(), obj, ptr, holder, holder_offset);
   kit->set_control(ctl);
   return vt;
 }
 
-Node* ValueTypeNode::make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* n, ciValueKlass* vk, int base_input, bool in) {
-  ValueTypeNode* vt = ValueTypeNode::make(gvn, vk);
-  ValueTypeBaseNode::make(&gvn, ctl, mem, n, vt, vk, 0, base_input, in);
-  return gvn.transform(vt);
+ValueTypeNode* ValueTypeNode::make_from_multi(PhaseGVN& gvn, Node*& ctl, Node* mem, MultiNode* multi, ciValueKlass* vk, int base_input, bool in) {
+  ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, vk);
+  vt->initialize(&gvn, ctl, mem, multi, vk, 0, base_input, in);
+  return gvn.transform(vt)->as_ValueType();
 }
 
-Node* ValueTypeNode::is_loaded(PhaseGVN* phase, const TypeValueType* t, Node* base, int holder_offset) {
+Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, int holder_offset) {
+  if (vk == NULL) {
+    vk = value_klass();
+  }
   if (field_count() == 0) {
-    assert(t->value_klass()->is__Value(), "unexpected value type klass");
+    assert(vk->is__Value(), "unexpected value type klass");
     assert(is_allocated(phase), "must be allocated");
     return get_oop();
   }
@@ -586,14 +582,14 @@ Node* ValueTypeNode::is_loaded(PhaseGVN* phase, const TypeValueType* t, Node* ba
         // Set base and check if pointer type matches
         base = lbase;
         const TypeValueTypePtr* vtptr = phase->type(base)->isa_valuetypeptr();
-        if (vtptr == NULL || !vtptr->value_type()->eq(t)) {
+        if (vtptr == NULL || !vtptr->value_klass()->equals(vk)) {
           return NULL;
         }
       }
     } else if (value->isa_ValueType()) {
       // Check value type field load recursively
       ValueTypeNode* vt = value->as_ValueType();
-      base = vt->is_loaded(phase, t, base, offset - vt->value_klass()->first_field_offset());
+      base = vt->is_loaded(phase, vk, base, offset - vt->value_klass()->first_field_offset());
       if (base == NULL) {
         return NULL;
       }
@@ -607,16 +603,14 @@ Node* ValueTypeNode::is_loaded(PhaseGVN* phase, const TypeValueType* t, Node* ba
 Node* ValueTypeNode::allocate_fields(GraphKit* kit) {
   ValueTypeNode* vt = clone()->as_ValueType();
   for (uint i = 0; i < field_count(); i++) {
-    Node* value = field_value(i);
-    if (value->is_ValueType()) {
-      if (field_is_flattened(i)) {
-        value = value->as_ValueType()->allocate_fields(kit);
-      } else {
-        // Non-flattened value type field
-        value = value->as_ValueType()->allocate(kit);
-      }
-      vt->set_field_value(i, value);
-    }
+     ValueTypeNode* value = field_value(i)->isa_ValueType();
+     if (field_is_flattened(i)) {
+       // Flattened value type field
+       vt->set_field_value(i, value->allocate_fields(kit));
+     } else if (value != NULL){
+       // Non-flattened value type field
+       vt->set_field_value(i, value->allocate(kit));
+     }
   }
   vt = kit->gvn().transform(vt)->as_ValueType();
   kit->replace_in_map(this, vt);
@@ -642,21 +636,20 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
   }
   uint edges = 0;
   for (uint i = 0; i < field_count(); i++) {
-    ciType* f_type = field_type(i);
     int offset = base_offset + field_offset(i) - (base_offset > 0 ? vk->first_field_offset() : 0);
     Node* arg = field_value(i);
-    if (f_type->is_valuetype() && field_is_flattened(i)) {
-      ciValueKlass* embedded_vk = f_type->as_value_klass();
-      edges += arg->as_ValueType()->pass_fields(n, base_input, kit, assert_allocated, base_vk, offset);
+    if (field_is_flattened(i)) {
+       // Flattened value type field
+       edges += arg->as_ValueType()->pass_fields(n, base_input, kit, assert_allocated, base_vk, offset);
     } else {
       int j = 0; int extra = 0;
       for (; j < base_vk->nof_nonstatic_fields(); j++) {
-        ciField* f = base_vk->nonstatic_field_at(j);
-        if (offset == f->offset()) {
-          assert(f->type() == f_type, "inconsistent field type");
+        ciField* field = base_vk->nonstatic_field_at(j);
+        if (offset == field->offset()) {
+          assert(field->type() == field_type(i), "inconsistent field type");
           break;
         }
-        BasicType bt = f->type()->basic_type();
+        BasicType bt = field->type()->basic_type();
         if (bt == T_LONG || bt == T_DOUBLE) {
           extra++;
         }
@@ -669,7 +662,7 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
       }
       n->init_req(base_input + j + extra, arg);
       edges++;
-      BasicType bt = f_type->basic_type();
+      BasicType bt = field_type(i)->basic_type();
       if (bt == T_LONG || bt == T_DOUBLE) {
         n->init_req(base_input + j + extra + 1, kit.top());
         edges++;
@@ -682,7 +675,7 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
 Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (!is_allocated(phase)) {
     // Check if this value type is loaded from memory
-    Node* base = is_loaded(phase, type()->is_valuetype());
+    Node* base = is_loaded(phase);
     if (base != NULL) {
       // Save the oop
       set_oop(base);
@@ -796,27 +789,27 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   igvn->remove_dead_node(this);
 }
 
-#ifndef PRODUCT
-
-void ValueTypeNode::dump_spec(outputStream* st) const {
-  TypeNode::dump_spec(st);
+ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(PhaseGVN& gvn, ValueTypeNode* vt) {
+  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vt->value_klass(), vt->get_oop());
+  for (uint i = Oop+1; i < vt->req(); i++) {
+    vtptr->init_req(i, vt->in(i));
+  }
+  return gvn.transform(vtptr)->as_ValueTypePtr();
 }
 
-#endif
-
-ValueTypePtrNode* ValueTypePtrNode::make(GraphKit* kit, ciValueKlass* vk, CallNode* call) {
-  ValueTypePtrNode* vt = new ValueTypePtrNode(vk, kit->zerocon(T_VALUETYPE), kit->C);
+ValueTypePtrNode* ValueTypePtrNode::make_from_call(GraphKit* kit, ciValueKlass* vk, CallNode* call) {
+  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vk, kit->zerocon(T_VALUETYPE));
   Node* ctl = kit->control();
-  ValueTypeBaseNode::make(&kit->gvn(), ctl, kit->merged_memory(), call, vt, vk, 0, TypeFunc::Parms+1, false);
+  vtptr->initialize(&kit->gvn(), ctl, kit->merged_memory(), call, vk);
   kit->set_control(ctl);
-  return vt;
+  return vtptr;
 }
 
-ValueTypePtrNode* ValueTypePtrNode::make(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop) {
+ValueTypePtrNode* ValueTypePtrNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop) {
   // Create and initialize a ValueTypePtrNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  ciValueKlass* vk = gvn.type(oop)->is_valuetypeptr()->value_type()->value_klass();
-  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vk, oop, gvn.C);
+  ciValueKlass* vk = gvn.type(oop)->is_valuetypeptr()->value_klass();
+  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vk, oop);
   vtptr->load(gvn, ctl, mem, oop, oop, vk);
   return vtptr;
 }

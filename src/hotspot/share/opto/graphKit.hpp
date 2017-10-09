@@ -892,6 +892,7 @@ class GraphKit : public Phase {
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);
+  // Initialize a non-flattened value type array with default oops
   void initialize_value_type_array(Node* array, Node* length, ciValueKlass* vk, int nargs);
 
   // java.lang.String helpers

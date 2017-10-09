@@ -662,17 +662,16 @@ void Parse::do_call() {
           assert(ct == T_VALUETYPE, "value type expected but got rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (rtype->is__Value()) {
             const Type* sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
+            sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             Node* retnode = pop();
             Node* cast = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
-            Node* vt = ValueTypeNode::make(this, cast);
+            ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, cast);
             push(vt);
           } else {
             assert(ctype->is__Value(), "unexpected value type klass");
-            Node* retnode = pop();
-            assert(retnode->is_ValueType(), "inconsistent");
-            ValueTypeNode* vt = retnode->as_ValueType();
-            Node* alloc = vt->allocate(this)->get_oop();
-            Node* vtptr = _gvn.transform(new ValueTypePtrNode(vt, alloc, C));
+            ValueTypeNode* vt = pop()->as_ValueType();
+            vt = vt->allocate(this)->as_ValueType();
+            Node* vtptr = ValueTypePtrNode::make_from_value_type(_gvn, vt);
             push(vtptr);
           }
         } else {

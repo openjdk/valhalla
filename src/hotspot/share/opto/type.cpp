@@ -1934,9 +1934,6 @@ static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uin
     ciField* field = vk->nonstatic_field_at(j);
     BasicType bt = field->type()->basic_type();
     const Type* ft = Type::get_const_type(field->type());
-    if (bt == T_VALUETYPE) {
-      ft = ft->isa_valuetypeptr()->cast_to_ptr_type(TypePtr::BotPTR);
-    }
     field_array[pos++] = ft;
     if (bt == T_LONG || bt == T_DOUBLE) {
       field_array[pos++] = Type::HALF;
@@ -1991,7 +1988,8 @@ const TypeTuple *TypeTuple::make_range(ciType* return_type, bool ret_vt_fields) 
       pos++;
       collect_value_fields(vk, field_array, pos);
     } else {
-      field_array[TypeFunc::Parms] = get_const_type(return_type);
+      // Value type returns cannot be NULL
+      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
     }
     break;
   case T_VOID:
@@ -2071,7 +2069,8 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
         ciValueKlass* vk = (ciValueKlass*)type;
         collect_value_fields(vk, field_array, pos);
       } else {
-        field_array[pos++] = get_const_type(type);
+        // Value types arguments cannot be NULL
+        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
       }
       break;
     }
@@ -2216,6 +2215,10 @@ inline const TypeInt* normalize_array_size(const TypeInt* size) {
 
 //------------------------------make-------------------------------------------
 const TypeAry* TypeAry::make(const Type* elem, const TypeInt* size, bool stable) {
+  if (elem->isa_valuetypeptr()) {
+    // Value type array elements cannot be NULL
+    elem = elem->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+  }
   if (UseCompressedOops && elem->isa_oopptr()) {
     elem = elem->make_narrowoop();
   }
@@ -3367,7 +3370,7 @@ const Type *TypeOopPtr::xdual() const {
 // Computes the element-type given a klass.
 const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_change, bool try_for_exact) {
   if (klass->is_valuetype()) {
-    return TypeValueTypePtr::make(TypePtr::NotNull, klass->as_value_klass());
+    return TypeValueTypePtr::make(TypePtr::BotPTR, klass->as_value_klass());
   } else if (klass->is_instance_klass()) {
     Compile* C = Compile::current();
     Dependencies* deps = C->dependencies();
@@ -3417,18 +3420,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     return arr;
   } else if (klass->is_value_array_klass()) {
     ciValueKlass* vk = klass->as_array_klass()->element_klass()->as_value_klass();
-    const Type* etype = NULL;
-    bool xk = false;
-    if (vk->flatten_array()) {
-      etype = TypeValueType::make(vk);
-      xk = true;
-    } else {
-      const TypeOopPtr* etype_oop = TypeOopPtr::make_from_klass_common(vk, false, try_for_exact);
-      xk = etype_oop->klass_is_exact();
-      etype = etype_oop;
-    }
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS);
-    const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, xk, Offset(0));
+    const TypeAry* arr0 = TypeAry::make(TypeValueType::make(vk), TypeInt::POS);
+    const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
     return arr;
   } else {
     ShouldNotReachHere();
@@ -4784,24 +4777,24 @@ const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
 
 const TypeValueTypePtr* TypeValueTypePtr::NOTNULL;
 //------------------------------make-------------------------------------------
-const TypeValueTypePtr* TypeValueTypePtr::make(const TypeValueType* vt, PTR ptr, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth, bool narrow) {
-  return (TypeValueTypePtr*)(new TypeValueTypePtr(vt, ptr, o, offset, instance_id, speculative, inline_depth))->hashcons();
+const TypeValueTypePtr* TypeValueTypePtr::make(PTR ptr, ciValueKlass* vk, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth, bool narrow) {
+  return (TypeValueTypePtr*)(new TypeValueTypePtr(ptr, vk, o, offset, instance_id, speculative, inline_depth))->hashcons();
 }
 
 const TypePtr* TypeValueTypePtr::add_offset(intptr_t offset) const {
-  return make(_vt, _ptr, _const_oop, Offset(offset), _instance_id, _speculative, _inline_depth);
+  return make(_ptr, value_klass(), _const_oop, Offset(offset), _instance_id, _speculative, _inline_depth);
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
 const Type* TypeValueTypePtr::cast_to_ptr_type(PTR ptr) const {
   if (ptr == _ptr) return this;
-  return make(_vt, ptr, _const_oop, _offset, _instance_id, _speculative, _inline_depth);
+  return make(ptr, value_klass(), _const_oop, _offset, _instance_id, _speculative, _inline_depth);
 }
 
 //-----------------------------cast_to_instance_id----------------------------
 const TypeOopPtr* TypeValueTypePtr::cast_to_instance_id(int instance_id) const {
   if (instance_id == _instance_id) return this;
-  return make(_vt, _ptr, _const_oop, _offset, instance_id, _speculative, _inline_depth);
+  return make(_ptr, value_klass(), _const_oop, _offset, instance_id, _speculative, _inline_depth);
 }
 
 //------------------------------meet-------------------------------------------
@@ -4848,7 +4841,7 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       switch (tp->ptr()) {
       case TopPTR:
       case AnyNull: {
-        return make(_vt, ptr, NULL, offset, instance_id, speculative, depth);
+        return make(ptr, value_klass(), NULL, offset, instance_id, speculative, depth);
       }
       case NotNull:
       case BotPTR: {
@@ -4872,7 +4865,7 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
         // else fall through to AnyNull
       case TopPTR:
       case AnyNull: {
-        return make(_vt, ptr, NULL, offset, instance_id, speculative, depth);
+        return make(ptr, value_klass(), NULL, offset, instance_id, speculative, depth);
       }
       case NotNull:
       case BotPTR:
@@ -4893,20 +4886,20 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       ciObject* o = NULL;
       ciObject* this_oop  = const_oop();
       ciObject* tp_oop = tp->const_oop();
-      const TypeValueType* vt = NULL;
-      if (_vt != tp->_vt) {
+      ciKlass* klass = NULL;
+      if (_klass != tp->_klass) {
         assert(is__Value() || tp->is__Value(), "impossible meet");
         if (above_centerline(ptr)) {
-          vt = is__Value() ? tp->_vt : _vt;
+          klass = is__Value() ? tp->_klass : _klass;
         } else if (above_centerline(this->_ptr) && !above_centerline(tp->_ptr)) {
-          vt = tp->_vt;
+          klass = tp->_klass;
         } else if (above_centerline(tp->_ptr) && !above_centerline(this->_ptr)) {
-          vt = _vt;
+          klass = _klass;
         } else {
-          vt = is__Value() ? _vt : tp->_vt;
+          klass = is__Value() ? _klass : tp->_klass;
         }
       } else {
-        vt = _vt;
+        klass = _klass;
       }
       if (ptr == Constant) {
         if (this_oop != NULL && tp_oop != NULL &&
@@ -4920,27 +4913,27 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
           ptr = NotNull;
         }
       }
-      return make(vt, ptr, o, offset, instance_id, speculative, depth);
+      return make(ptr, klass->as_value_klass(), o, offset, instance_id, speculative, depth);
     }
     }
 }
 
 // Dual: compute field-by-field dual
 const Type* TypeValueTypePtr::xdual() const {
-  return new TypeValueTypePtr(_vt, dual_ptr(), const_oop(), dual_offset(), dual_instance_id(), dual_speculative(), dual_inline_depth());
+  return new TypeValueTypePtr(dual_ptr(), value_klass(), const_oop(), dual_offset(), dual_instance_id(), dual_speculative(), dual_inline_depth());
 }
 
 //------------------------------eq---------------------------------------------
 // Structural equality check for Type representations
 bool TypeValueTypePtr::eq(const Type* t) const {
   const TypeValueTypePtr* p = t->is_valuetypeptr();
-  return _vt->eq(p->value_type()) && TypeOopPtr::eq(p);
+  return klass()->equals(p->klass()) && TypeOopPtr::eq(p);
 }
 
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
 int TypeValueTypePtr::hash(void) const {
-  return java_add(_vt->hash(), TypeOopPtr::hash());
+  return java_add(klass()->hash(), TypeOopPtr::hash());
 }
 
 //------------------------------is__Value--------------------------------------

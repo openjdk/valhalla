@@ -1318,23 +1318,18 @@ public:
 //------------------------------TypeValueTypePtr-------------------------------------
 // Class of value type pointers
 class TypeValueTypePtr : public TypeOopPtr {
-  TypeValueTypePtr(const TypeValueType* vt, PTR ptr, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth)
-    : TypeOopPtr(ValueTypePtr, ptr, vt->value_klass(), true, o, offset, Offset::bottom, instance_id, speculative, inline_depth) {
-    _vt = vt;
+  TypeValueTypePtr(PTR ptr, ciValueKlass* vk, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth)
+    : TypeOopPtr(ValueTypePtr, ptr, vk, true, o, offset, Offset::bottom, instance_id, speculative, inline_depth) {
   }
-
-  const TypeValueType* _vt;    // Value type we point to
 
 public:
   // Make a pointer to a value type
-  static const TypeValueTypePtr* make(const TypeValueType* vt, PTR ptr = TypePtr::BotPTR, ciObject* o = NULL, Offset offset = Offset(0),
+  static const TypeValueTypePtr* make(PTR ptr, ciValueKlass* vk, ciObject* o = NULL, Offset offset = Offset(0),
                                       int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom, bool narrow = false);
-  // Make a pointer to a value type
-  static const TypeValueTypePtr* make(PTR ptr, ciValueKlass* vk, ciObject* o = NULL) { return make(TypeValueType::make(vk), ptr, o); }
   // Make a pointer to a constant value type
-  static const TypeValueTypePtr* make(ciObject* o) { return make(TypePtr::Constant, o->klass()->as_value_klass(), o);  }
+  static const TypeValueTypePtr* make(ciObject* o) { return make(TypePtr::Constant, o->klass()->as_value_klass(), o); }
 
-  const TypeValueType* value_type() const { return _vt; }
+  ciValueKlass* value_klass() const { return klass()->as_value_klass(); }
 
   virtual const TypePtr* add_offset(intptr_t offset) const;
 

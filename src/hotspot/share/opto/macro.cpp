@@ -673,14 +673,14 @@ Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* 
   // Subtract the offset of the first field to account for the missing oop header
   offset -= vk->first_field_offset();
   // Create a new ValueTypeNode and retrieve the field values from memory
-  ValueTypeNode* vt = ValueTypeNode::make(_igvn, vk)->as_ValueType();
+  ValueTypeNode* vt = ValueTypeNode::make_uninitialized(_igvn, vk)->as_ValueType();
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
     // Each value type field has its own memory slice
     adr_type = adr_type->with_field_offset(field_offset);
     Node* value = NULL;
-    if (field_type->is_valuetype() && vt->field_is_flattened(i)) {
+    if (vt->field_is_flattened(i)) {
       value = value_type_from_mem(mem, ctl, field_type->as_value_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);

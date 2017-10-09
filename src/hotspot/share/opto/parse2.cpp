@@ -62,7 +62,7 @@ void Parse::array_load(BasicType elem_type) {
   const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   if (arytype->klass()->is_value_array_klass()) {
     ciValueArrayKlass* vak = arytype->klass()->as_value_array_klass();
-    Node* vt = ValueTypeNode::make(this, vak->element_klass()->as_value_klass(), ary, adr);
+    ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vak->element_klass()->as_value_klass(), ary, adr);
     push(vt);
     return;
   }

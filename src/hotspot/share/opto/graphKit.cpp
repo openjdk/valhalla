@@ -1391,7 +1391,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   ld = _gvn.transform(ld);
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened value type from memory requires a null check.
-    ld = ValueTypeNode::make(this, ld, true /* null check */);
+    ld = ValueTypeNode::make_from_oop(this, ld, true /* null check */);
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
@@ -1715,9 +1715,9 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       const TypeTuple* range_sig = call->tf()->range_sig();
       const Type* t = range_sig->field_at(TypeFunc::Parms);
       assert(t->isa_valuetypeptr(), "only value types for multiple return values");
-      ciValueKlass* vk = t->is_valuetypeptr()->value_type()->value_klass();
+      ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
       Node* ctl = control();
-      ret = ValueTypeNode::make(_gvn, ctl, merged_memory(), call, vk, TypeFunc::Parms+1, false);
+      ret = ValueTypeNode::make_from_multi(_gvn, ctl, merged_memory(), call, vk, TypeFunc::Parms+1, false);
       set_control(ctl);
     }
   }
@@ -3678,68 +3678,61 @@ void GraphKit::initialize_value_type_array(Node* array, Node* length, ciValueKla
     return;
   }
 
-  // Prepare for merging control and IO
   RegionNode* res_ctl = new RegionNode(3);
-  res_ctl->init_req(1, null_ctl);
   gvn().set_type(res_ctl, Type::CONTROL);
   record_for_igvn(res_ctl);
-  Node* res_io = PhiNode::make(res_ctl, i_o(), Type::ABIO);
+
+  // Length is zero: don't execute initialization loop
+  res_ctl->init_req(1, null_ctl);
+  PhiNode* res_io  = PhiNode::make(res_ctl, i_o(), Type::ABIO);
+  PhiNode* res_mem = PhiNode::make(res_ctl, merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
   gvn().set_type(res_io, Type::ABIO);
+  gvn().set_type(res_mem, Type::MEMORY);
   record_for_igvn(res_io);
+  record_for_igvn(res_mem);
 
-  // TODO comment
-  SafePointNode* loop_map = NULL;
-  {
-    PreserveJVMState pjvms(this);
-    // Create default value type and store it to memory
-    Node* oop = ValueTypeNode::make_default(gvn(), vk);
-    oop = oop->as_ValueType()->allocate(this)->get_oop();
+  // Length is non-zero: execute a loop that initializes the array with the default value type
+  Node* oop = ValueTypeNode::make_default(gvn(), vk);
+  oop = oop->as_ValueType()->allocate(this)->get_oop();
 
-    length = SubI(length, intcon(1));
-    add_predicate(nargs);
-    RegionNode* loop = new RegionNode(3);
-    loop->init_req(1, control());
-    gvn().set_type(loop, Type::CONTROL);
-    record_for_igvn(loop);
+  add_predicate(nargs);
+  RegionNode* loop = new RegionNode(3);
+  loop->init_req(1, control());
+  PhiNode* index = PhiNode::make(loop, intcon(0), TypeInt::INT);
+  PhiNode* mem   = PhiNode::make(loop, reset_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
-    Node* index = new PhiNode(loop, TypeInt::INT);
-    index->init_req(1, intcon(0));
-    gvn().set_type(index, TypeInt::INT);
-    record_for_igvn(index);
+  gvn().set_type(loop, Type::CONTROL);
+  gvn().set_type(index, TypeInt::INT);
+  gvn().set_type(mem, Type::MEMORY);
+  record_for_igvn(loop);
+  record_for_igvn(index);
+  record_for_igvn(mem);
 
-    // TODO explain why we need to capture all memory
-    PhiNode* mem = new PhiNode(loop, Type::MEMORY, TypePtr::BOTTOM);
-    mem->init_req(1, reset_memory());
-    gvn().set_type(mem, Type::MEMORY);
-    record_for_igvn(mem);
-    set_control(loop);
-    set_all_memory(mem);
-    // Initialize array element
-    Node* adr = array_element_address(array, index, T_OBJECT);
-    const TypeOopPtr* elemtype = TypeValueTypePtr::make(TypePtr::NotNull, vk);
-    Node* store = store_oop_to_array(control(), array, adr, TypeAryPtr::OOPS, oop, elemtype, T_OBJECT, MemNode::release);
+  // Loop body: initialize array element at 'index'
+  set_control(loop);
+  set_all_memory(mem);
+  Node* adr = array_element_address(array, index, T_OBJECT);
+  const TypeOopPtr* elemtype = TypeValueTypePtr::make(TypePtr::NotNull, vk);
+  store_oop_to_array(control(), array, adr, TypeAryPtr::OOPS, oop, elemtype, T_VALUETYPE, MemNode::release);
 
-    IfNode* iff = create_and_map_if(control(), Bool(CmpI(index, length), BoolTest::lt), PROB_FAIR, COUNT_UNKNOWN);
-    loop->init_req(2, IfTrue(iff));
-    mem->init_req(2, merged_memory());
-    index->init_req(2, AddI(index, intcon(1)));
+  // Check if we need to execute another loop iteration
+  length = SubI(length, intcon(1));
+  IfNode* iff = create_and_map_if(control(), Bool(CmpI(index, length), BoolTest::lt), PROB_FAIR, COUNT_UNKNOWN);
 
-    res_ctl->init_req(2, IfFalse(iff));
-    res_io->set_req(2, i_o());
-    loop_map = stop();
-  }
+  // Continue with next iteration
+  loop->init_req(2, IfTrue(iff));
+  index->init_req(2, AddI(index, intcon(1)));
+  mem->init_req(2, merged_memory());
+
+  // Exit loop
+  res_ctl->init_req(2, IfFalse(iff));
+  res_io->set_req(2, i_o());
+  res_mem->set_req(2, reset_memory());
+
   // Set merged control, IO and memory
   set_control(res_ctl);
   set_i_o(res_io);
-  merge_memory(loop_map->merged_memory(), res_ctl, 2);
-
-  // Transform new memory Phis.
-  for (MergeMemStream mms(merged_memory()); mms.next_non_empty();) {
-    Node* phi = mms.memory();
-    if (phi->is_Phi() && phi->in(0) == res_ctl) {
-      mms.set_memory(gvn().transform(phi));
-    }
-  }
+  set_all_memory(res_mem);
 }
 
 // The following "Ideal_foo" functions are placed here because they recognize
@@ -4564,7 +4557,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
     Node* con = makecon(con_type);
     if (field->layout_type() == T_VALUETYPE) {
       // Load value type from constant oop
-      con = ValueTypeNode::make(this, con);
+      con = ValueTypeNode::make_from_oop(this, con);
     }
     return con;
   }

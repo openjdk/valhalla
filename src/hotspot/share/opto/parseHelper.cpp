@@ -335,20 +335,15 @@ void Parse::do_new() {
 
 //------------------------------do_vdefault-------------------------------------
 void Parse::do_vdefault() {
-  // Fixme additional checks needed?
   bool will_link;
   ciValueKlass* vk = iter().get_klass(will_link)->as_value_klass();
   assert(will_link, "vdefault: typeflow responsibility");
-
-  // Create a new ValueTypeNode
-  Node* vt = ValueTypeNode::make_default(_gvn, vk);
-
-  push(_gvn.transform(vt));
+  // Create and push a new default ValueTypeNode
+  push(ValueTypeNode::make_default(_gvn, vk));
 }
 
 //------------------------------do_vwithfield-----------------------------------
 void Parse::do_vwithfield() {
-  // Fixme additional checks needed?
   bool will_link;
   ciField* field = iter().get_field(will_link);
   assert(will_link, "vdefault: typeflow responsibility");
@@ -362,7 +357,7 @@ void Parse::do_vwithfield() {
   int offset = field->offset();
   uint i = 0;
   for (; i < new_vt->field_count() && new_vt->field_offset(i) != offset; i++) {}
-  assert(i < new_vt->field_count(), "where's the field");
+  assert(i < new_vt->field_count(), "field not found");
   new_vt->set_field_value(i, val);
 
   push(_gvn.transform(new_vt));

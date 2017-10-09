@@ -1532,6 +1532,41 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     }
   }
 
+  // Value type pointers need flattening
+  const TypeValueTypePtr* tv = tj->isa_valuetypeptr();
+  if (tv != NULL && _AliasLevel >= 2) {
+    assert(tv->speculative() == NULL, "should not have speculative type information");
+    ciValueKlass* vk = tv->klass()->as_value_klass();
+    if (ptr == TypePtr::Constant) {
+      assert(!is_known_inst, "not scalarizable allocation");
+      tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, tv->value_klass(), NULL, Type::Offset(offset));
+    } else if (is_known_inst) {
+      tj = tv; // Keep NotNull and klass_is_exact for instance type
+    } else if (ptr == TypePtr::NotNull || tv->klass_is_exact()) {
+      // During the 2nd round of IterGVN, NotNull castings are removed.
+      // Make sure the Bottom and NotNull variants alias the same.
+      // Also, make sure exact and non-exact variants alias the same.
+      tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, tv->value_klass(), tv->const_oop(), Type::Offset(offset));
+    }
+    // Canonicalize the holder of this field
+    if (offset >= 0 && offset < instanceOopDesc::base_offset_in_bytes()) {
+      // First handle header references such as a LoadKlassNode, even if the
+      // object's klass is unloaded at compile time (4965979).
+      if (!is_known_inst) { // Do it only for non-instance types
+        tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, env()->___Value_klass()->as_value_klass(), NULL, Type::Offset(offset));
+      }
+    } else if (offset < 0 || offset >= vk->size_helper() * wordSize) {
+      // Static fields are in the space above the normal instance
+      // fields in the java.lang.Class instance.
+      tv = NULL;
+      tj = TypeOopPtr::BOTTOM;
+      offset = tj->offset();
+    } else {
+      ciInstanceKlass* canonical_holder = vk->get_canonical_holder(offset);
+      assert(vk->equals(canonical_holder), "value types should not inherit fields");
+    }
+  }
+
   // Klass pointers to object array klasses need some flattening
   const TypeKlassPtr *tk = tj->isa_klassptr();
   if( tk ) {

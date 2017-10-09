@@ -1036,8 +1036,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
           field._klass = InstanceKlass::cast(vk);
         } else {
           // Non-flattened value type field
-          // TODO change this when we use T_VALUETYPEPTR
-          field._type = T_OBJECT;
+          field._type = T_VALUETYPEPTR;
         }
       }
       fields->append(field);
@@ -1051,7 +1050,9 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     int offset = base_offset + fields->at(i)._offset;
     BasicType type = fields->at(i)._type;
     switch (type) {
-      case T_OBJECT: case T_ARRAY:
+      case T_OBJECT:
+      case T_VALUETYPEPTR:
+      case T_ARRAY:
         assert(value->type() == T_OBJECT, "Agreement.");
         obj->obj_field_put(offset, value->get_obj()());
         break;

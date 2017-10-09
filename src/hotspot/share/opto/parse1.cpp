@@ -125,9 +125,9 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
   case T_VALUETYPE: {
     // Load oop and create a new ValueTypeNode
-    const TypeValueTypePtr* vtptr_type = TypeValueTypePtr::make(type->is_valuetype(), TypePtr::NotNull);
+    const TypeValueTypePtr* vtptr_type = TypeValueTypePtr::make(TypePtr::NotNull, type->is_valuetype()->value_klass());
     l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, vtptr_type, MemNode::unordered));
-    l = ValueTypeNode::make(this, l);
+    l = ValueTypeNode::make_from_oop(this, l);
     break;
   }
   case T_VALUETYPEPTR: {
@@ -808,7 +808,7 @@ void Parse::build_exits() {
         !ret_type->is_valuetypeptr()->is__Value()) {
       // When inlining or with multiple return values: return value
       // type as ValueTypeNode not as oop
-      ret_type = ret_type->is_valuetypeptr()->value_type();
+      ret_type = TypeValueType::make(ret_type->is_valuetypeptr()->value_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
     Node*       ret_phi  = new PhiNode(region, ret_type);
@@ -858,11 +858,11 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
         // from the value type arguments.
         const Type* t = tf->domain_sig()->field_at(i);
         if (t->isa_valuetypeptr() && !t->is_valuetypeptr()->is__Value()) {
-          ciValueKlass* vk = t->is_valuetypeptr()->value_type()->value_klass();
+          ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
           Node* ctl = map->control();
-          Node* vt = ValueTypeNode::make(gvn, ctl, map->memory(), start, vk, j, true);
+          ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), start, vk, j, true);
           map->set_control(ctl);
-          map->init_req(i, gvn.transform(vt));
+          map->init_req(i, vt);
           j += vk->value_arg_slots();
         } else {
           Node* parm = gvn.transform(new ParmNode(start, j));
@@ -878,7 +878,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       if (gvn.type(parm)->isa_valuetypeptr()) {
         // Create ValueTypeNode from the oop and replace the parameter
         Node* ctl = map->control();
-        parm = ValueTypeNode::make(gvn, ctl, map->memory(), parm);
+        parm = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), parm);
         map->set_control(ctl);
       }
       map->init_req(i, parm);

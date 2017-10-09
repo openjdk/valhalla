@@ -418,7 +418,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       in(1)->in(0)->as_CallStaticJava()->method() != NULL &&
       in(1)->as_Proj()->_con == TypeFunc::Parms) {
     const TypeValueTypePtr* cast_type = type()->is_valuetypeptr();
-    ciValueKlass* vk = cast_type->value_type()->value_klass();
+    ciValueKlass* vk = cast_type->value_klass();
     assert(!vk->is__Value(), "why cast to __Value?");
     PhaseIterGVN* igvn = phase->is_IterGVN();
 
@@ -494,7 +494,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // True branch: result is a tagged klass pointer
       // Allocate a value type (will add extra projections to the call)
       kit.set_control(iftrue);
-      Node* res = igvn->transform(ValueTypePtrNode::make(&kit, vk, call));
+      Node* res = igvn->transform(ValueTypePtrNode::make_from_call(&kit, vk, call));
       res = res->isa_ValueTypePtr()->allocate(&kit);
 
       // Get exception state
@@ -521,7 +521,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       res_cast->set_req(1, projs.resproj);
       res_cast->set_type(cast_type->cast_to_ptr_type(TypePtr::NotNull));
       Node* ctl = kit.control(); // Control may get updated below
-      res = ValueTypePtrNode::make(*igvn, ctl, kit.merged_memory(), igvn->transform(res_cast));
+      res = ValueTypePtrNode::make_from_oop(*igvn, ctl, kit.merged_memory(), igvn->transform(res_cast));
 
       region->init_req(2, ctl);
       mem_phi->init_req(2, kit.reset_memory());
@@ -561,7 +561,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         Node* mem = projs.fallthrough_memproj;
         Node* ctl_hook = new Node(1);
         igvn->replace_in_uses(ctl, ctl_hook);
-        Node* vtptr = ValueTypePtrNode::make(*phase, ctl, mem, in(1));
+        Node* vtptr = ValueTypePtrNode::make_from_oop(*phase, ctl, mem, in(1));
         // Attach users to updated control
         igvn->replace_node(ctl_hook, ctl);
         return vtptr;

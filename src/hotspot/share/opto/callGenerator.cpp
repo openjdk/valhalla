@@ -186,7 +186,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   if (vtptr != NULL) {
     if (!vtptr->is__Value()) {
       // Create ValueTypeNode from the oop and replace the return value
-      Node* vt = ValueTypeNode::make(&kit, ret);
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret);
       kit.push_node(T_VALUETYPE, vt);
     } else {
       kit.push_node(T_VALUETYPE, ret);
@@ -280,7 +280,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   if (gvn.type(ret)->isa_valuetypeptr()) {
     // Create ValueTypeNode from the oop and replace the return value
     Node* ctl = kit.control();
-    Node* vt = ValueTypeNode::make(&kit, ret);
+    ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret);
     kit.set_control(ctl);
     kit.push_node(T_VALUETYPE, vt);
   } else {
@@ -440,17 +440,17 @@ void LateInlineCallGenerator::do_late_inline() {
       Node* arg = call->in(TypeFunc::Parms + i1);
       if (t->isa_valuetypeptr()) {
         Node* ctl = map->control();
-        arg = ValueTypeNode::make(gvn, ctl, map->memory(), arg);
+        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg);
         map->set_control(ctl);
       }
       map->set_argument(jvms, i1, arg);
     } else {
       if (t->isa_valuetypeptr() && !t->is_valuetypeptr()->is__Value()) {
-        ciValueKlass* vk = t->is_valuetypeptr()->value_type()->value_klass();
+        ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
         Node* ctl = map->control();
-        Node* vt = ValueTypeNode::make(gvn, ctl, map->memory(), call, vk, j, true);
+        ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), call, vk, j, true);
         map->set_control(ctl);
-        map->set_argument(jvms, i1, gvn.transform(vt));
+        map->set_argument(jvms, i1, vt);
         j += vk->value_arg_slots();
       } else {
         map->set_argument(jvms, i1, call->in(j));
@@ -506,8 +506,8 @@ void LateInlineCallGenerator::do_late_inline() {
     if (result->is_ValueType()) {
       ValueTypeNode* vt = result->as_ValueType();
       if (!returned_as_fields) {
-        result = vt->allocate(&kit)->get_oop();
-        result = gvn.transform(new ValueTypePtrNode(vt, result, C));
+        vt = vt->allocate(&kit)->as_ValueType();
+        result = ValueTypePtrNode::make_from_value_type(gvn, vt);
       } else {
         // Return of multiple values (the fields of a value type)
         vt->replace_call_results(&kit, call, C);
@@ -522,7 +522,7 @@ void LateInlineCallGenerator::do_late_inline() {
       Node* cast = new CheckCastPPNode(NULL, result, vt_t);
       gvn.record_for_igvn(cast);
       Node* ctl = kit.control();
-      ValueTypePtrNode* vtptr = ValueTypePtrNode::make(gvn, ctl, kit.merged_memory(), gvn.transform(cast));
+      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(gvn, ctl, kit.merged_memory(), gvn.transform(cast));
       kit.set_control(ctl);
       vtptr->replace_call_results(&kit, call, C);
       result = cast;
@@ -918,17 +918,17 @@ static void cast_argument(int arg_nb, ciType* t, GraphKit& kit) {
   if (t->is_valuetype()) {
     assert(!(arg_type->isa_valuetype() && t->is__Value()), "need a pointer to the value type");
     if (arg_type->isa_valuetypeptr() && !t->is__Value()) {
+      // Value type arguments cannot be NULL
+      sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
       Node* cast = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-      Node* vt = ValueTypeNode::make(&kit, cast);
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, cast);
       kit.set_argument(arg_nb, vt);
     } else {
       assert(t->is__Value() || arg->is_ValueType(), "inconsistent argument");
     }
-  } else {
-    if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
-      Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-      kit.set_argument(arg_nb, cast_obj);
-    }
+  } else if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
+    Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
+    kit.set_argument(arg_nb, cast_obj);
   }
 }
 
