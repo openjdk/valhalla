@@ -27,7 +27,13 @@
  * @summary Test access to private methods between nestmates and nest-top
  *          using different flavours of named nested types using core reflection
  * @run main TestReflection
+ * @run main/othervm -Dsun.reflect.noInflation=true TestReflection
  */
+
+// The first run will use NativeMethodAccessor and due to the limited number
+// of calls we will not reach the inflation threshold.
+// The second run disables inflation so we will use the GeneratedMethodAccessor
+// instead. In this way both sets of Reflection classes are tested.
 
 public class TestReflection {
 
@@ -51,6 +57,7 @@ public class TestReflection {
         o.getClass().getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
     }
     void access_priv(StaticIface o) throws Throwable {
+        // Can't use o.getClass() as the method is not in that class
         StaticIface.class.getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
     }
 
@@ -74,6 +81,7 @@ public class TestReflection {
             o.getClass().getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
         }
         default void access_priv(StaticIface o) throws Throwable {
+            // Can't use o.getClass() as the method is not in that class
             StaticIface.class.getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
         }
     }
@@ -99,6 +107,7 @@ public class TestReflection {
             o.getClass().getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
         }
         void access_priv(StaticIface o) throws Throwable {
+            // Can't use o.getClass() as the method is not in that class
             StaticIface.class.getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
         }
     }
@@ -122,6 +131,7 @@ public class TestReflection {
             o.getClass().getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
         }
         void access_priv(StaticIface o) throws Throwable {
+            // Can't use o.getClass() as the method is not in that class
             StaticIface.class.getDeclaredMethod("priv_invoke", new Class<?>[0]).invoke(o, new Object[0]);
         }
     }

@@ -27,7 +27,14 @@
  * @summary Test access to private constructors between nestmates and nest-top
  *          using different flavours of named nested types using core reflection
  * @run main TestReflection
+ * @run main/othervm -Dsun.reflect.noInflation=true TestReflection
  */
+
+// The first run will use NativeConstructorAccessor and due to the limited
+// number of calls we will not reach the inflation threshold.
+// The second run disables inflation so we will use the
+// GeneratedConstructorAccessor instead.
+// In this way both sets of Reflection classes are tested.
 
 public class TestReflection {
 
@@ -44,7 +51,6 @@ public class TestReflection {
     static interface StaticIface {
 
         // Methods that will access private constructors of nestmates.
-        // The arg is a dummy for overloading purposes
 
         default void doConstruct(TestReflection o) throws Throwable {
           Object obj = o.getClass().getDeclaredConstructor(new Class<?>[0]).newInstance(new Object[0]);
