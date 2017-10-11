@@ -35,9 +35,10 @@ import static jdk.test.lib.Asserts.*;
  * @modules java.base/jdk.experimental.value
  *          jdk.incubator.mvt
  * @library /test/lib
+ * @compile PersonVcc.java
  * @build runtime.valhalla.valuetypes.ValueCapableClass
- * @run main/othervm -Xint -noverify -XX:+EnableMVT runtime.valhalla.valuetypes.VboxUnbox
- * @run main/othervm -Xcomp -noverify -XX:+EnableMVT runtime.valhalla.valuetypes.VboxUnbox
+ * @run main/othervm -Xint -XX:+EnableMVT runtime.valhalla.valuetypes.VboxUnbox
+ * @run main/othervm -Xcomp -XX:+EnableMVT runtime.valhalla.valuetypes.VboxUnbox
  */
 public class VboxUnbox {
 
@@ -82,10 +83,7 @@ public class VboxUnbox {
         catch (ClassCastException cce) {}
         catch (Throwable t) { fail("Invokation Exception", t); }
 
-        // With -verify, this test will yield a VerifyError
-        // since the constant pool entry at the index is not a
-        // symbolic reference to a direct value class type.
-        MethodHandle unbox = unboxMh(vcc, String.class); // Illegal unbox type
+        MethodHandle unbox = unboxMh(vcc, ValueType.forClass(PersonVcc.class).valueClass()); // Illegal unbox type
         try {
             unbox.invoke(ValueCapableClass.create());
             fail("Expected ClassCastException");
