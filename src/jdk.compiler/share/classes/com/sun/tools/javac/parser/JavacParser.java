@@ -3085,6 +3085,7 @@ public class JavacParser implements Parser {
         }
         else if (reqInit) syntaxError(token.pos, "expected", EQ);
         JCTree elemType = TreeInfo.innermostType(type, true);
+        int startPos = Position.NOPOS;
         if (allowLocalVariableTypeInference && elemType.hasTag(IDENT)) {
             Name typeName = ((JCIdent)elemType).name;
             if (isRestrictedLocalVarTypeName(typeName)) {
@@ -3092,6 +3093,9 @@ public class JavacParser implements Parser {
                     //error - 'var' and arrays
                     reportSyntaxError(pos, "var.not.allowed.array");
                 } else {
+                    startPos = TreeInfo.getStartPos(mods);
+                    if (startPos == Position.NOPOS)
+                        startPos = TreeInfo.getStartPos(type);
                     //implicit type
                     type = null;
                 }
@@ -3100,6 +3104,7 @@ public class JavacParser implements Parser {
         JCVariableDecl result =
             toP(F.at(pos).VarDef(mods, name, type, init));
         attach(result, dc);
+        result.startPos = startPos;
         return result;
     }
 
