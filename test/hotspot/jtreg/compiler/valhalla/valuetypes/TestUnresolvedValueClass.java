@@ -38,14 +38,14 @@ public class TestUnresolvedValueClass {
     final static String TEST_CLASSES = System.getProperty("test.classes") + File.separator;
 
     // Method with unresolved value type argument
-    static void test1(MyValue1 vt) {
+    static void test1(SimpleValueType vt) {
 
     }
 
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
-            // Delete MyValue1.class to cause a NoClassDefFoundError
-            File unresolved = new File(TEST_CLASSES, "MyValue1.class");
+            // Delete SimpleValueType.class to cause a NoClassDefFoundError
+            File unresolved = new File(TEST_CLASSES, "SimpleValueType.class");
             if (!unresolved.exists() || !unresolved.delete()) {
                 throw new RuntimeException("Could not delete: " + unresolved);
             }
@@ -56,7 +56,7 @@ public class TestUnresolvedValueClass {
 
             // Adapter creation for TestUnresolvedValueClass::test1 should fail with a
             // ClassNotFoundException because the class for argument 'vt' was not found.
-            output.shouldContain("java.lang.ClassNotFoundException: MyValue1");
+            output.shouldContain("java.lang.ClassNotFoundException: SimpleValueType");
             output.shouldHaveExitValue(1);
         }
     }
