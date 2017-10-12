@@ -311,11 +311,12 @@ protected:
     _lh_header_size_shift       = BitsPerByte*2,
     _lh_header_size_mask        = right_n_bits(BitsPerByte),  // shifted mask
     _lh_array_tag_bits          = 3,
-    _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits,
-    _lh_array_tag_type_value      = ~0x3,  // bits ~100 compare as int, ie. sign extended
-    _lh_array_tag_vt_value        = ~0x2,  // bits ~101
-    _lh_array_tag_obj_value       = ~0x1   // bits ~110
+    _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits
   };
+
+  static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
+  static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
+  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -332,13 +333,13 @@ protected:
     return (jint)lh < (jint)_lh_neutral_value;
   }
   static bool layout_helper_is_typeArray(jint lh) {
-    return _lh_array_tag_type_value == (lh >> _lh_array_tag_shift);
+    return (juint) _lh_array_tag_type_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_objArray(jint lh) {
-    return _lh_array_tag_obj_value == (lh >> _lh_array_tag_shift);
+    return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_valueArray(jint lh) {
-    return _lh_array_tag_vt_value == (lh >> _lh_array_tag_shift);
+    return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static int layout_helper_header_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
