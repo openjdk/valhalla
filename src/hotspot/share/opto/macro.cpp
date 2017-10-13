@@ -2706,13 +2706,12 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* rawklassptr = transform_later(new CastX2PNode(masked2));
   Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::VALUE));
 
-  Node* top_adr;
-  Node* end_adr;
-
   Node* slowpath_bol = NULL;
+  Node* top_adr = NULL;
   Node* old_top = NULL;
   Node* new_top = NULL;
   if (UseTLAB) {
+    Node* end_adr = NULL;
     set_eden_pointers(top_adr, end_adr);
     Node* end = make_load(ctl, mem, end_adr, 0, TypeRawPtr::BOTTOM, T_ADDRESS);
     old_top = new LoadPNode(ctl, mem, top_adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM, MemNode::unordered);
@@ -2727,6 +2726,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     transform_later(slowpath_bol);
   } else {
     slowpath_bol = intcon(1);
+    top_adr = top();
     old_top = top();
     new_top = top();
   }
@@ -2735,7 +2735,6 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
 
   Node* slowpath_true = new IfTrueNode(slowpath_iff);
   transform_later(slowpath_true);
-
 
   CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_value_type_fields_Type(),
                                                          StubRoutines::store_value_type_fields_to_buf(),
