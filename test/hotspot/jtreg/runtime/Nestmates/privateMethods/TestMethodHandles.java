@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8046171
- * @summary Test access to private methods between nestmates and nest-top
+ * @summary Test access to private methods between nestmates and nest-host
  *          using different flavours of named nested types using MethodHandles
  * @run main TestMethodHandles
  */
@@ -38,7 +38,7 @@ public class TestMethodHandles {
 
     static final MethodType M_T = MethodType.methodType(void.class);
 
-    // Private method of nest-top for nestmates to access
+    // Private method of nest-host for nestmates to access
     private void priv_invoke() {
         System.out.println("TestMethodHandles::priv_invoke");
     }

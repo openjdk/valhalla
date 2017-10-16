@@ -22,9 +22,9 @@
  */
 
 public class NotAMember2 {
-    // jcod modified to have a nest-top which does not include this class
+    // jcod modified to have a nest-host which does not include this class
     public static class Member {
-        // this generates a CP entry we can use for the nest-top
+        // this generates a CP entry we can use for the nest-host
         static Class tc = TestNestmateMembership.class;
 
         // jcod modified to be private

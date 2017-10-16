@@ -24,13 +24,13 @@
 /* Source: NestmateAttributeHolder.java
 
 public class NestmateAttributeHolder {
-    public static class TwoMemberOfNest {
+    public static class TwoNestHost {
     }
 }
 */
 
-// Add second MemberOfNest attribute - should fail parsing
-class NestmateAttributeHolder$TwoMemberOfNest {
+// Add second NestHost attribute - should fail parsing
+class NestmateAttributeHolder$TwoNestHost {
   0xCAFEBABE;
   0; // minor version
   53; // version
@@ -45,11 +45,11 @@ class NestmateAttributeHolder$TwoMemberOfNest {
     Utf8 "LineNumberTable"; // #7    
     Utf8 "SourceFile"; // #8    
     Utf8 "NestmateAttributeHolder.java"; // #9    
-    Utf8 "MemberOfNest"; // #10    
+    Utf8 "NestHost"; // #10    
     class #17; // #11    
     NameAndType #4 #5; // #12    
-    Utf8 "NestmateAttributeHolder$TwoMemberOfNest"; // #13    
-    Utf8 "TwoMemberOfNest"; // #14    
+    Utf8 "NestmateAttributeHolder$TwoNestHost"; // #13    
+    Utf8 "TwoNestHost"; // #14    
     Utf8 "InnerClasses"; // #15    
     Utf8 "java/lang/Object"; // #16    
     Utf8 "NestmateAttributeHolder"; // #17    
@@ -96,13 +96,13 @@ class NestmateAttributeHolder$TwoMemberOfNest {
       #9;
     } // end SourceFile
     ;
-    Attr(#10) { // MemberOfNest
+    Attr(#10) { // NestHost
       0x000B;
-    } // end MemberOfNest
+    } // end NestHost
     ;
-    Attr(#10) { // MemberOfNest
+    Attr(#10) { // NestHost
       0x000B;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     Attr(#15) { // InnerClasses
       [] { // InnerClasses
@@ -110,4 +110,4 @@ class NestmateAttributeHolder$TwoMemberOfNest {
       }
     } // end InnerClasses
   } // Attributes
-} // end class NestmateAttributeHolder$TwoMemberOfNest
+} // end class NestmateAttributeHolder$TwoNestHost

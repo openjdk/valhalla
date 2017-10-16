@@ -24,14 +24,14 @@
 /*
  * @test
  * @bug 8046171
- * @summary Test access to private fields between nestmates and nest-top
+ * @summary Test access to private fields between nestmates and nest-host
  *          using different flavours of named nested types
  * @run main TestPrivateField
  */
 
 public class TestPrivateField {
 
-    // Private field of nest-top for nestmates to access
+    // Private field of nest-host for nestmates to access
     private int priv_field;
 
     // public constructor so we aren't relying on private access

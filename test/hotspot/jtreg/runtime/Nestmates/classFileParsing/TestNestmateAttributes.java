@@ -25,39 +25,39 @@
  * @test
  * @bug 8046171
  * @summary Test incorrect use of Nestmate related attributes
- * @compile TwoMemberOfNest.jcod
+ * @compile TwoNestHost.jcod
  *          TwoNestMembers.jcod
- *          ConflictingAttributesInNestTop.jcod
+ *          ConflictingAttributesInNestHost.jcod
  *          ConflictingAttributesInNestMember.jcod
  *          BadNestMembersLength.jcod
  *          BadNestMembersEntry.jcod
  *          DuplicateNestMemberEntry.jcod
- *          BadNestTop.jcod
+ *          BadNestHost.jcod
  * @run main TestNestmateAttributes
  */
 
 public class TestNestmateAttributes {
     public static void main(String args[]) throws Throwable {
         String[] badClasses = new String[] {
-            "NestmateAttributeHolder$TwoMemberOfNest",
+            "NestmateAttributeHolder$TwoNestHost",
             "NestmateAttributeHolder",
-            "ConflictingAttributesInNestTop",
+            "ConflictingAttributesInNestHost",
             "NestmateAttributeHolder$ConflictingAttributesInNestMember",
             "BadNestMembersLength",
             "BadNestMembersEntry",
             "DuplicateNestMemberEntry",
-            "NestmateAttributeHolder$BadNestTop",
+            "NestmateAttributeHolder$BadNestHost",
         };
 
         String[] messages = new String[] {
-            "Multiple MemberOfNest attributes in class file",
+            "Multiple NestHost attributes in class file",
             "Multiple NestMembers attributes in class file",
-            "Conflicting NestMembers and MemberOfNest attributes",
-            "Conflicting MemberOfNest and NestMembers attributes",
+            "Conflicting NestMembers and NestHost attributes",
+            "Conflicting NestHost and NestMembers attributes",
             "Wrong NestMembers attribute length", 
             "Nest member class_info_index 9 has bad constant type",
             "Duplicate entry in NestMembers ",
-            "Nest top class_info_index 10 has bad constant type",
+            "Nest-host class_info_index 10 has bad constant type",
         };
         
         for (int i = 0; i < badClasses.length; i++ ) {

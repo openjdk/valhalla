@@ -1117,11 +1117,11 @@ public class ClassWriter extends ClassFile {
     }
 
     /**
-     * Write MemberOfNest attribute (if needed)
+     * Write NestHost attribute (if needed)
      */
-    int writeMemberOfNestIfNeeded(ClassSymbol csym) {
+    int writeNestHostIfNeeded(ClassSymbol csym) {
         if (csym.owner.kind != PCK) {
-            int alenIdx = writeAttr(names.MemberOfNest);
+            int alenIdx = writeAttr(names.NestHost);
             databuf.appendChar(pool.put(csym.outermostClass()));
             endAttr(alenIdx);
             return 1;
@@ -1880,7 +1880,7 @@ public class ClassWriter extends ClassFile {
             // that check really belongs, but this works.
             if (target.hasNestmateAccess()) {
                 acount += writeNestMembersIfNeeded(c);
-                acount += writeMemberOfNestIfNeeded(c);
+                acount += writeNestHostIfNeeded(c);
             }
         }
 

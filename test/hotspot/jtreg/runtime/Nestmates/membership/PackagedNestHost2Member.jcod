@@ -21,56 +21,56 @@
  * questions.
  */
 
-/* Generated from: TestNestmateMembership.java
+/* Generated from: PackagedNestHost2.java
 
-   MemberOfNest attribute is modified to refer to non-instance class Object[]
+   NestHost attribute is modified to contain P1.PackagedNestHost
+   m() is declared to be private
 */
 
-class TestNestmateMembership$ArrayNestTop {
+class P2/PackagedNestHost2$Member {
   0xCAFEBABE;
   0; // minor version
   53; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #6 #18; // #1    
-    Field #19 #20; // #2    
-    String #21; // #3    
-    Method #22 #23; // #4    
-    class #24; // #5    
-    class #27; // #6    
-    Utf8 "oa"; // #7    
-    Utf8 "[Ljava/lang/Object;"; // #8    
-    Utf8 "<init>"; // #9    
-    Utf8 "()V"; // #10    
-    Utf8 "Code"; // #11    
-    Utf8 "LineNumberTable"; // #12    
-    Utf8 "m"; // #13    
-    Utf8 "SourceFile"; // #14    
-    Utf8 "TestNestmateMembership.java"; // #15    
-    Utf8 "MemberOfNest"; // #16    
-    class #28; // #17    
-    NameAndType #9 #10; // #18    
-    class #29; // #19    
-    NameAndType #30 #31; // #20    
-    Utf8 "ArrayTop.m() - jcod version"; // #21  - modified
-    class #32; // #22    
-    NameAndType #33 #34; // #23    
-    Utf8 "TestNestmateMembership$ArrayNestTop"; // #24    
-    Utf8 "ArrayNestTop"; // #25    
-    Utf8 "InnerClasses"; // #26    
-    Utf8 "java/lang/Object"; // #27    
-    Utf8 "TestNestmateMembership"; // #28    
-    Utf8 "java/lang/System"; // #29    
-    Utf8 "out"; // #30    
-    Utf8 "Ljava/io/PrintStream;"; // #31    
-    Utf8 "java/io/PrintStream"; // #32    
-    Utf8 "println"; // #33    
-    Utf8 "(Ljava/lang/String;)V"; // #34    
-    // Added
-    class #8; // #35
+    Method #6 #16; // #1
+    Field #17 #18; // #2
+    String #19; // #3
+    Method #20 #21; // #4
+    class #22; // #5
+    class #25; // #6
+    Utf8 "<init>"; // #7
+    Utf8 "()V"; // #8
+    Utf8 "Code"; // #9
+    Utf8 "LineNumberTable"; // #10
+    Utf8 "m"; // #11
+    Utf8 "SourceFile"; // #12
+    Utf8 "PackagedNestHost2.java"; // #13
+    Utf8 "NestHost"; // #14
+    class #26; // #15
+    NameAndType #7 #8; // #16
+    class #27; // #17
+    NameAndType #28 #29; // #18
+    Utf8 "You should never see this!"; // #19
+    class #30; // #20
+    NameAndType #31 #32; // #21
+    Utf8 "P2/PackagedNestHost2$Member"; // #22
+    Utf8 "Member"; // #23
+    Utf8 "InnerClasses"; // #24
+    Utf8 "java/lang/Object"; // #25
+    Utf8 "P2/PackagedNestHost2"; // #26
+    Utf8 "java/lang/System"; // #27
+    Utf8 "out"; // #28
+    Utf8 "Ljava/io/PrintStream;"; // #29
+    Utf8 "java/io/PrintStream"; // #30
+    Utf8 "println"; // #31
+    Utf8 "(Ljava/lang/String;)V"; // #32
+    // added entries
+    Utf8 "P1/PackagedNestHost"; // #33
+    class #33; // #34
   } // Constant Pool
 
-  0x0020; // access
+  0x0021; // access
   #5;// this_cpx
   #6;// super_cpx
 
@@ -78,22 +78,15 @@ class TestNestmateMembership$ArrayNestTop {
   } // Interfaces
 
   [] { // fields
-    { // Member
-      0x0000; // access
-      #7; // name_cpx
-      #8; // sig_cpx
-      [] { // Attributes
-      } // Attributes
-    } // Member
   } // fields
 
   [] { // methods
     { // Member
-      0x0000; // access
-      #9; // name_cpx
-      #10; // sig_cpx
+      0x0001; // access
+      #7; // name_cpx
+      #8; // sig_cpx
       [] { // Attributes
-        Attr(#11) { // Code
+        Attr(#9) { // Code
           1; // max_stack
           1; // max_locals
           Bytes[]{
@@ -102,9 +95,9 @@ class TestNestmateMembership$ArrayNestTop {
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#12) { // LineNumberTable
+            Attr(#10) { // LineNumberTable
               [] { // LineNumberTable
-                0  60;
+                0  32;
               }
             } // end LineNumberTable
           } // Attributes
@@ -113,11 +106,11 @@ class TestNestmateMembership$ArrayNestTop {
     } // Member
     ;
     { // Member
-      0x000A; // access
-      #13; // name_cpx
-      #10; // sig_cpx
+      0x000A; // access- modified
+      #11; // name_cpx
+      #8; // sig_cpx
       [] { // Attributes
-        Attr(#11) { // Code
+        Attr(#9) { // Code
           2; // max_stack
           0; // max_locals
           Bytes[]{
@@ -127,10 +120,10 @@ class TestNestmateMembership$ArrayNestTop {
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#12) { // LineNumberTable
+            Attr(#10) { // LineNumberTable
               [] { // LineNumberTable
-                0  63;
-                8  64;
+                0  35;
+                8  36;
               }
             } // end LineNumberTable
           } // Attributes
@@ -140,18 +133,18 @@ class TestNestmateMembership$ArrayNestTop {
   } // methods
 
   [] { // Attributes
-    Attr(#14) { // SourceFile
-      #15;
+    Attr(#12) { // SourceFile
+      #13;
     } // end SourceFile
     ;
-    Attr(#16) { // MemberOfNest - modified
-      0x0023;
-    } // end MemberOfNest
+    Attr(#14) { // NestHost - modified
+      0x0022;
+    } // end NestHost
     ;
-    Attr(#26) { // InnerClasses
+    Attr(#24) { // InnerClasses
       [] { // InnerClasses
-        #5 #17 #25 8;
+        #5 #15 #23 9;
       }
     } // end InnerClasses
   } // Attributes
-} // end class TestNestmateMembership$ArrayNestTop
+} // end class P2/PackagedNestHost2$Member

@@ -24,11 +24,11 @@
 /*
  * @test
  * @bug 8046171
- * @summary Test access to private constructors between nestmates and nest-top
+ * @summary Test access to private constructors between nestmates and nest-host
  *          using different flavours of named nested types that will
  *          generate invokespecial for the calls. The -Xcomp run is a special
  *          regression test for a compiler assertion that would fire when
- *          "loading" a nest-top class.
+ *          "loading" a nest-host class.
  * @run main TestInvokeSpecial
  * @run main/othervm -Xcomp TestInvokeSpecial
  */
@@ -105,7 +105,7 @@ public class TestInvokeSpecial {
     }
 
     public static void main(String[] args) {
-        // These initial constructions test nest-top access
+        // These initial constructions test nest-host access
         TestInvokeSpecial o = new TestInvokeSpecial();
         StaticNested s = new StaticNested();
         InnerNested i = o.new InnerNested();

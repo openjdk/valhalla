@@ -23,47 +23,47 @@
 
 /* Generated from: TestNestmateMembership.java
 
-   MemberOfNest attribute is modified to refer to NoSuchClass
+   NestHost attribute is modified to refer to NoSuchClass
 */
 
-class TestNestmateMembership$MissingNestTop {
+class TestNestmateMembership$MissingNestHost {
   0xCAFEBABE;
   0; // minor version
   53; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #6 #16; // #1    
-    Field #17 #18; // #2    
-    String #19; // #3    
-    Method #20 #21; // #4    
-    class #22; // #5    
-    class #25; // #6    
-    Utf8 "<init>"; // #7    
-    Utf8 "()V"; // #8    
-    Utf8 "Code"; // #9    
-    Utf8 "LineNumberTable"; // #10    
-    Utf8 "m"; // #11    
-    Utf8 "SourceFile"; // #12    
-    Utf8 "TestNestmateMembership.java"; // #13    
-    Utf8 "MemberOfNest"; // #14    
-    class #26; // #15    
-    NameAndType #7 #8; // #16    
-    class #27; // #17    
-    NameAndType #28 #29; // #18    
-    Utf8 "MissingNestTop.m() - jcod version"; // #19   - modified
-    class #30; // #20    
-    NameAndType #31 #32; // #21    
-    Utf8 "TestNestmateMembership$MissingNestTop"; // #22    
-    Utf8 "MissingNestTop"; // #23    
-    Utf8 "InnerClasses"; // #24    
-    Utf8 "java/lang/Object"; // #25    
-    Utf8 "TestNestmateMembership"; // #26    
-    Utf8 "java/lang/System"; // #27    
-    Utf8 "out"; // #28    
-    Utf8 "Ljava/io/PrintStream;"; // #29    
-    Utf8 "java/io/PrintStream"; // #30    
-    Utf8 "println"; // #31    
-    Utf8 "(Ljava/lang/String;)V"; // #32    
+    Method #6 #16; // #1
+    Field #17 #18; // #2
+    String #19; // #3
+    Method #20 #21; // #4
+    class #22; // #5
+    class #25; // #6
+    Utf8 "<init>"; // #7
+    Utf8 "()V"; // #8
+    Utf8 "Code"; // #9
+    Utf8 "LineNumberTable"; // #10
+    Utf8 "m"; // #11
+    Utf8 "SourceFile"; // #12
+    Utf8 "TestNestmateMembership.java"; // #13
+    Utf8 "NestHost"; // #14
+    class #26; // #15
+    NameAndType #7 #8; // #16
+    class #27; // #17
+    NameAndType #28 #29; // #18
+    Utf8 "MissingNestHost.m() - jcod version"; // #19   - modified
+    class #30; // #20
+    NameAndType #31 #32; // #21
+    Utf8 "TestNestmateMembership$MissingNestHost"; // #22
+    Utf8 "MissingNestHost"; // #23
+    Utf8 "InnerClasses"; // #24
+    Utf8 "java/lang/Object"; // #25
+    Utf8 "TestNestmateMembership"; // #26
+    Utf8 "java/lang/System"; // #27
+    Utf8 "out"; // #28
+    Utf8 "Ljava/io/PrintStream;"; // #29
+    Utf8 "java/io/PrintStream"; // #30
+    Utf8 "println"; // #31
+    Utf8 "(Ljava/lang/String;)V"; // #32
     // added
     Utf8 "NoSuchClass"; // 33
     class #33; // #34
@@ -136,9 +136,9 @@ class TestNestmateMembership$MissingNestTop {
       #13;
     } // end SourceFile
     ;
-    Attr(#14) { // MemberOfNest - modified
+    Attr(#14) { // NestHost - modified
       0x0022;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     Attr(#24) { // InnerClasses
       [] { // InnerClasses
@@ -146,4 +146,4 @@ class TestNestmateMembership$MissingNestTop {
       }
     } // end InnerClasses
   } // Attributes
-} // end class TestNestmateMembership$MissingNestTop
+} // end class TestNestmateMembership$MissingNestHost

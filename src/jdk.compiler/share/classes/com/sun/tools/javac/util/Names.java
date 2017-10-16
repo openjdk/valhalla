@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -149,10 +149,10 @@ public class Names {
     public final Name LineNumberTable;
     public final Name LocalVariableTable;
     public final Name LocalVariableTypeTable;
-    public final Name MemberOfNest;
     public final Name MethodParameters;
     public final Name Module;
     public final Name ModuleResolution;
+    public final Name NestHost;
     public final Name NestMembers;
     public final Name RuntimeInvisibleAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
@@ -314,10 +314,10 @@ public class Names {
         LineNumberTable = fromString("LineNumberTable");
         LocalVariableTable = fromString("LocalVariableTable");
         LocalVariableTypeTable = fromString("LocalVariableTypeTable");
-        MemberOfNest = fromString("MemberOfNest");
         MethodParameters = fromString("MethodParameters");
         Module = fromString("Module");
         ModuleResolution = fromString("ModuleResolution");
+        NestHost = fromString("NestHost");
         NestMembers = fromString("NestMembers");
         RuntimeInvisibleAnnotations = fromString("RuntimeInvisibleAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");

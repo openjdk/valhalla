@@ -3310,7 +3310,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   bool parsed_sourcefile_attribute = false;
   bool parsed_innerclasses_attribute = false;
   bool parsed_nest_members_attribute = false;
-  bool parsed_member_of_nest_attribute = false;
+  bool parsed_nest_host_attribute = false;
   bool parsed_enclosingmethod_attribute = false;
   bool parsed_bootstrap_methods_attribute = false;
   const u1* runtime_visible_annotations = NULL;
@@ -3377,28 +3377,28 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
       } else {
         parsed_nest_members_attribute = true;
       }
-      if (parsed_member_of_nest_attribute) {
-        classfile_parse_error("Conflicting MemberOfNest and NestMembers attributes in class file %s", CHECK);
+      if (parsed_nest_host_attribute) {
+        classfile_parse_error("Conflicting NestHost and NestMembers attributes in class file %s", CHECK);
       }
       nest_members_attribute_start = cfs->current();
       nest_members_attribute_length = attribute_length;
       cfs->skip_u1(nest_members_attribute_length, CHECK);
-    } else if (tag == vmSymbols::tag_member_of_nest()) {
-      if (parsed_member_of_nest_attribute) {
-        classfile_parse_error("Multiple MemberOfNest attributes in class file %s", CHECK);
+    } else if (tag == vmSymbols::tag_nest_host()) {
+      if (parsed_nest_host_attribute) {
+        classfile_parse_error("Multiple NestHost attributes in class file %s", CHECK);
       } else {
-        parsed_member_of_nest_attribute = true;
+        parsed_nest_host_attribute = true;
       }
       if (parsed_nest_members_attribute) {
-        classfile_parse_error("Conflicting NestMembers and MemberOfNest attributes in class file %s", CHECK);
+        classfile_parse_error("Conflicting NestMembers and NestHost attributes in class file %s", CHECK);
       }
       cfs->guarantee_more(2, CHECK);
       u2 class_info_index = cfs->get_u2_fast();
       check_property(
         valid_klass_reference_at(class_info_index),
-        "Nest top class_info_index %u has bad constant type in class file %s",
+        "Nest-host class_info_index %u has bad constant type in class file %s",
         class_info_index, CHECK);
-      _nest_top = class_info_index;
+      _nest_host = class_info_index;
     } else if (tag == vmSymbols::tag_synthetic()) {
       // Check for Synthetic tag
       // Shouldn't we check that the synthetic flags wasn't already set? - not required in spec
@@ -3618,7 +3618,7 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_methods(_methods);
   this_klass->set_inner_classes(_inner_classes);
   this_klass->set_nest_members(_nest_members);
-  this_klass->set_nest_top_index(_nest_top);
+  this_klass->set_nest_host_index(_nest_host);
   this_klass->set_local_interfaces(_local_interfaces);
   this_klass->set_transitive_interfaces(_transitive_interfaces);
   this_klass->set_annotations(_combined_annotations);
@@ -5695,7 +5695,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _methods(NULL),
   _inner_classes(NULL),
   _nest_members(NULL),
-  _nest_top(0),
+  _nest_host(0),
   _local_interfaces(NULL),
   _transitive_interfaces(NULL),
   _combined_annotations(NULL),

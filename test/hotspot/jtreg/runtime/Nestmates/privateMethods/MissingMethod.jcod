@@ -43,7 +43,7 @@ class TestInvokeErrors$MissingMethod {
     Utf8 "not_priv_invoke"; // #11 - renamed    
     Utf8 "SourceFile"; // #12    
     Utf8 "TestInvokeErrors.java"; // #13    
-    Utf8 "MemberOfNest"; // #14    
+    Utf8 "NestHost"; // #14    
     class #26; // #15    
     NameAndType #7 #8; // #16    
     class #27; // #17    
@@ -131,9 +131,9 @@ class TestInvokeErrors$MissingMethod {
       #13;
     } // end SourceFile
     ;
-    Attr(#14) { // MemberOfNest
+    Attr(#14) { // NestHost
       0x000F;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     Attr(#24) { // InnerClasses
       [] { // InnerClasses

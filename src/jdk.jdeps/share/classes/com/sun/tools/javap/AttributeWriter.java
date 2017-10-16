@@ -47,7 +47,6 @@ import com.sun.tools.classfile.InnerClasses_attribute.Info;
 import com.sun.tools.classfile.LineNumberTable_attribute;
 import com.sun.tools.classfile.LocalVariableTable_attribute;
 import com.sun.tools.classfile.LocalVariableTypeTable_attribute;
-import com.sun.tools.classfile.MemberOfNest_attribute;
 import com.sun.tools.classfile.MethodParameters_attribute;
 import com.sun.tools.classfile.Module_attribute;
 import com.sun.tools.classfile.ModuleHashes_attribute;
@@ -55,6 +54,7 @@ import com.sun.tools.classfile.ModuleMainClass_attribute;
 import com.sun.tools.classfile.ModulePackages_attribute;
 import com.sun.tools.classfile.ModuleResolution_attribute;
 import com.sun.tools.classfile.ModuleTarget_attribute;
+import com.sun.tools.classfile.NestHost_attribute;
 import com.sun.tools.classfile.NestMembers_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
@@ -401,8 +401,8 @@ public class AttributeWriter extends BasicWriter
     }
 
     @Override
-    public Void visitMemberOfNest(MemberOfNest_attribute attr, Void aVoid) {
-        print("MemberOfNest: ");
+    public Void visitNestHost(NestHost_attribute attr, Void aVoid) {
+        print("NestHost: ");
         constantWriter.write(attr.top_index);
         println();
         return null;

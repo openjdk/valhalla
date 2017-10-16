@@ -170,13 +170,13 @@ class InstanceKlass: public Klass {
   // class info index for the class that is a nest member
   Array<jushort>* _nest_members;
 
-  // The MemberOfNest attribute. The class info index for the class
-  // that is the nest-top of this class
-  jushort _nest_top_index;
+  // The NestHost attribute. The class info index for the class
+  // that is the nest-host of this class
+  jushort _nest_host_index;
 
-  // Resolved nest-top klass: either true nest-top or self if we are not nested.
+  // Resolved nest-host klass: either true nest-host or self if we are not nested.
   // By always being set it makes nest-member access checks simpler.
-  InstanceKlass* _nest_top;
+  InstanceKlass* _nest_host;
 
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
@@ -447,16 +447,16 @@ class InstanceKlass: public Klass {
   Array<u2>* nest_members() const     { return _nest_members; }
   void set_nest_members(Array<u2>* m) { _nest_members = m; }
 
-  // nest-top index
-  jushort nest_top_index() const { return _nest_top_index; }
-  void set_nest_top_index(u2 i)  { _nest_top_index = i; }
+  // nest-host index
+  jushort nest_host_index() const { return _nest_host_index; }
+  void set_nest_host_index(u2 i)  { _nest_host_index = i; }
 
-  // Returns nest-top class, resolving and validating it if needed
+  // Returns nest-host class, resolving and validating it if needed
   // Returns NULL if an exception occurs during loading, or validation fails
-  InstanceKlass* nest_top(TRAPS);
-  InstanceKlass* raw_nest_top() { return _nest_top; } // debugging
+  InstanceKlass* nest_host(TRAPS);
+  InstanceKlass* raw_nest_host() { return _nest_host; } // debugging
 
-  // Called to verify that k is a member of this nest - does not look at k's nest-top
+  // Called to verify that k is a member of this nest - does not look at k's nest-host
   bool has_nest_member(InstanceKlass* k, TRAPS) const;
   // Check if this klass is a nestmate of k
   bool has_nestmate_access_to(InstanceKlass* k, TRAPS);

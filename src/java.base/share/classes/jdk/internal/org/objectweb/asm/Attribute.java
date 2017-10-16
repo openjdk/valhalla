@@ -321,19 +321,19 @@ public class Attribute {
         }
     }
 
-    public static class MemberOfNest extends Attribute {
+    public static class NestHost extends Attribute {
 
         byte[] bytes;
         String clazz;
 
-        public MemberOfNest() {
-            super("MemberOfNest");
+        public NestHost() {
+            super("NestHost");
         }
 
         @Override
         protected Attribute read(ClassReader cr, int off, int len, char[] buf, int codeOff, Label[] labels) {
             int offset = off;
-            MemberOfNest a = new MemberOfNest();
+            NestHost a = new NestHost();
             a.clazz = cr.readClass(off, buf);
             a.bytes = Arrays.copyOfRange(cr.b, offset, offset + len);
             return a;
@@ -349,6 +349,6 @@ public class Attribute {
 
     static final Attribute[] DEFAULT_ATTRIBUTE_PROTOS = new Attribute[] {
         new NestMembers(),
-        new MemberOfNest()
+        new NestHost()
     };
 }

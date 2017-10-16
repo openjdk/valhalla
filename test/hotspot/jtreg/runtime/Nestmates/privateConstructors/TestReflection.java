@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8046171
- * @summary Test access to private constructors between nestmates and nest-top
+ * @summary Test access to private constructors between nestmates and nest-host
  *          using different flavours of named nested types using core reflection
  * @run main TestReflection
  * @run main/othervm -Dsun.reflect.noInflation=true TestReflection
@@ -100,7 +100,7 @@ public class TestReflection {
     }
 
     public static void main(String[] args) throws Throwable {
-        // These initial constructions test nest-top access
+        // These initial constructions test nest-host access
         TestReflection o = TestReflection.class.getDeclaredConstructor(new Class<?>[0]).newInstance(new Object[0]);
         StaticNested s = StaticNested.class.getDeclaredConstructor(new Class<?>[0]).newInstance(new Object[0]);
         InnerNested i = InnerNested.class.getDeclaredConstructor(new Class<?>[] {TestReflection.class}).newInstance(new Object[] { o });

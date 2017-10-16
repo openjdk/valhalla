@@ -24,14 +24,14 @@
 /*
  * @test
  * @bug 8046171
- * @summary Test access to private methods between nestmates and nest-top
+ * @summary Test access to private methods between nestmates and nest-host
  *          using different flavours of named nested types
   * @run main TestInvoke
  */
 
 public class TestInvoke {
 
-    // Private method of nest-top for nestmates to access
+    // Private method of nest-host for nestmates to access
     private void priv_invoke() {
         System.out.println("TestInvoke::priv_invoke");
     }

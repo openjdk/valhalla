@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary Smoke test for nestmate classfile support
- * @compile -XDdisableAccessors CheckNestmateAttrs.java
  * @run main CheckNestmateAttrs
  * @modules
  *      jdk.compiler
@@ -75,24 +74,24 @@ public class CheckNestmateAttrs {
                                  Paths.get(System.getProperty("test.classes"),
                                      "CheckNestmateAttrs$Inner.class").toString() };
 
-        runCheck(params, new String [] { "MemberOfNest: class CheckNestmateAttrs" });
+        runCheck(params, new String [] { "NestHost: class CheckNestmateAttrs" });
 
         params = new String [] { "-v",
                                  Paths.get(System.getProperty("test.classes"),
                                      "CheckNestmateAttrs$Nested.class").toString() };
 
-        runCheck(params, new String [] { "MemberOfNest: class CheckNestmateAttrs" });
+        runCheck(params, new String [] { "NestHost: class CheckNestmateAttrs" });
 
         params = new String [] { "-v",
                                  Paths.get(System.getProperty("test.classes"),
                                      "CheckNestmateAttrs$Inner$1LocalInner.class").toString() };
 
         runCheck(params, new String [] {
-                        "MemberOfNest: class CheckNestmateAttrs",
+                        "NestHost: class CheckNestmateAttrs",
                         "0: aload_0",
                         "1: getfield      #1                  // Field this$1:LCheckNestmateAttrs$Inner;",
                         "4: getfield      #3                  // Field CheckNestmateAttrs$Inner.this$0:LCheckNestmateAttrs;",
-                        "7: invokespecial #4                  // Method CheckNestmateAttrs.test:()V",
+                        "7: invokevirtual #4                  // Method CheckNestmateAttrs.test:()V",
                         "10: return"
         });
 
@@ -100,7 +99,7 @@ public class CheckNestmateAttrs {
                                  Paths.get(System.getProperty("test.classes"),
                                      "CheckNestmateAttrs$Nested$1LocalNested.class").toString() };
 
-        runCheck(params, new String [] { "MemberOfNest: class CheckNestmateAttrs" });
+        runCheck(params, new String [] { "NestHost: class CheckNestmateAttrs" });
      }
 
      void runCheck(String [] params, String [] expectedOut) {

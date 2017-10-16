@@ -523,7 +523,7 @@ public class ClassWriter {
         }
 
         @Override
-        public Void visitMemberOfNest(MemberOfNest_attribute attr, ClassOutputStream out) {
+        public Void visitNestHost(NestHost_attribute attr, ClassOutputStream out) {
             out.writeShort(attr.top_index);
             return null;
         }

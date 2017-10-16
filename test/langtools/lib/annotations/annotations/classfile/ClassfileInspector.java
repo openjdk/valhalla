@@ -1253,7 +1253,7 @@ public class ClassfileInspector {
         }
 
         @Override
-          public Void visitMemberOfNest(MemberOfNest_attribute attr, T p) {
+          public Void visitNestHost(NestHost_attribute attr, T p) {
             return null;
         }
 

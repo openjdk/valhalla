@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,18 +35,18 @@ import java.io.IOException;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public class MemberOfNest_attribute extends Attribute {
-    MemberOfNest_attribute(ClassReader cr, int name_index, int length) throws IOException {
+public class NestHost_attribute extends Attribute {
+    NestHost_attribute(ClassReader cr, int name_index, int length) throws IOException {
         super(name_index, length);
         top_index = cr.readUnsignedShort();
     }
 
-    public MemberOfNest_attribute(ConstantPool constant_pool, int signature_index)
+    public NestHost_attribute(ConstantPool constant_pool, int signature_index)
             throws ConstantPoolException {
         this(constant_pool.getUTF8Index(Attribute.Signature), signature_index);
     }
 
-    public MemberOfNest_attribute(int name_index, int top_index) {
+    public NestHost_attribute(int name_index, int top_index) {
         super(name_index, 2);
         this.top_index = top_index;
     }
@@ -56,7 +56,7 @@ public class MemberOfNest_attribute extends Attribute {
     }
 
     public <R, D> R accept(Visitor<R, D> visitor, D data) {
-        return visitor.visitMemberOfNest(this, data);
+        return visitor.visitNestHost(this, data);
     }
 
     public final int top_index;

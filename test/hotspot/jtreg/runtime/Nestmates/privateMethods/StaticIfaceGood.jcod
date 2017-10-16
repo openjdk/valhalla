@@ -48,7 +48,7 @@ class TestInvokeInterface$StaticIface {
     Utf8 "(LTestInvokeInterface$StaticIface;)V"; // #14
     Utf8 "SourceFile"; // #15
     Utf8 "TestInvokeInterface.java"; // #16
-    Utf8 "MemberOfNest"; // #17
+    Utf8 "NestHost"; // #17
     class #27; // #18
     class #28; // #19
     NameAndType #29 #30; // #20
@@ -135,9 +135,9 @@ class TestInvokeInterface$StaticIface {
       #16;
     } // end SourceFile
     ;
-    Attr(#17) { // MemberOfNest
+    Attr(#17) { // NestHost
       0x0012;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     Attr(#13) { // InnerClasses
       [] { // InnerClasses

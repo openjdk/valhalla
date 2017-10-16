@@ -24,7 +24,7 @@
 /* Source: NestmateAttributeHolder.java
 
 public class NestmateAttributeHolder {
-    public static class TwoMemberOfNest {
+    public static class TwoNestHost {
     }
 }
 */
@@ -44,7 +44,7 @@ class NestmateAttributeHolder$ConflictingAttributesInNestMember {
     Utf8 "LineNumberTable"; // #7    
     Utf8 "SourceFile"; // #8    
     Utf8 "NestmateAttributeHolder.java"; // #9    
-    Utf8 "MemberOfNest"; // #10    
+    Utf8 "NestHost"; // #10    
     class #17; // #11    
     NameAndType #4 #5; // #12    
     Utf8 "NestmateAttributeHolder$ConflictingAttributesInNestMember"; // #13    
@@ -96,9 +96,9 @@ class NestmateAttributeHolder$ConflictingAttributesInNestMember {
       #9;
     } // end SourceFile
     ;
-    Attr(#10) { // MemberOfNest
+    Attr(#10) { // NestHost
       0x000B;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     // conflict: can't have nest members when you are a member of a nest
     Attr(#18) { // NestMembers

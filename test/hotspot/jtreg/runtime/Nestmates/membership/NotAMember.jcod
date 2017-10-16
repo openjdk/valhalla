@@ -23,7 +23,7 @@
 
 /* Generated from: TestNestmateMembership.java
 
-   MemberOfNest attribute is modified to refer to Object
+   NestHost attribute is modified to refer to Object
 */
 
 class TestNestmateMembership$NotAMember {
@@ -45,7 +45,7 @@ class TestNestmateMembership$NotAMember {
     Utf8 "m"; // #11    
     Utf8 "SourceFile"; // #12    
     Utf8 "TestNestmateMembership.java"; // #13    
-    Utf8 "MemberOfNest"; // #14    
+    Utf8 "NestHost"; // #14    
     class #26; // #15    
     NameAndType #7 #8; // #16    
     class #27; // #17    
@@ -133,9 +133,9 @@ class TestNestmateMembership$NotAMember {
       #13;
     } // end SourceFile
     ;
-    Attr(#14) { // MemberOfNest - modified
+    Attr(#14) { // NestHost - modified
       0x0006;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     Attr(#24) { // InnerClasses
       [] { // InnerClasses

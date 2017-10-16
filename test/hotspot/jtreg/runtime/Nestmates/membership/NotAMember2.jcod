@@ -23,7 +23,7 @@
 
 /* Generated from: NotAMember2.java
 
-   MemberOfNest attribute is modified to refer to TestNestmateMembership.
+   NestHost attribute is modified to refer to TestNestmateMembership.
    m() is declared private
 */
 
@@ -51,7 +51,7 @@ class NotAMember2$Member {
     Utf8 "<clinit>"; // #16    
     Utf8 "SourceFile"; // #17    
     Utf8 "NotAMember2.java"; // #18    
-    Utf8 "MemberOfNest"; // #19    
+    Utf8 "NestHost"; // #19    
     class #33; // #20    
     NameAndType #11 #12; // #21    
     class #34; // #22    
@@ -172,9 +172,9 @@ class NotAMember2$Member {
       #18;
     } // end SourceFile
     ;
-    Attr(#19) { // MemberOfNest - modified
+    Attr(#19) { // NestHost - modified
       0x0005;
-    } // end MemberOfNest
+    } // end NestHost
     ;
     Attr(#31) { // InnerClasses
       [] { // InnerClasses

@@ -24,37 +24,36 @@
 /* Source: NestmateAttributeHolder.java
 
 public class NestmateAttributeHolder {
-    public static class TwoMemberOfNest {
+    public static class TwoNestHost {
     }
 }
 */
 
-// Add MemberOfNest attribute to nest top class - conflicting attributes
+// NestHost attribute does not refer to a class
 
-class ConflictingAttributesInNestTop {
+class NestmateAttributeHolder$BadNestHost {
   0xCAFEBABE;
   0; // minor version
   53; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #3 #14; // #1    
-    class #15; // #2    
-    class #16; // #3    
-    class #17; // #4    
-    Utf8 "TwoMemberOfNest"; // #5    
-    Utf8 "InnerClasses"; // #6    
-    Utf8 "<init>"; // #7    
-    Utf8 "()V"; // #8    
-    Utf8 "Code"; // #9    
-    Utf8 "LineNumberTable"; // #10    
-    Utf8 "SourceFile"; // #11    
-    Utf8 "ConflictingAttributesInNestTop.java"; // #12    
-    Utf8 "NestMembers"; // #13    
-    NameAndType #7 #8; // #14    
-    Utf8 "ConflictingAttributesInNestTop"; // #15    
-    Utf8 "java/lang/Object"; // #16    
-    Utf8 "ConflictingAttributesInNestTop$TwoMemberOfNest"; // #17    
-    Utf8 "MemberOfNest"; // #18
+    Method #3 #12; // #1
+    class #13; // #2
+    class #16; // #3
+    Utf8 "<init>"; // #4
+    Utf8 "()V"; // #5
+    Utf8 "Code"; // #6
+    Utf8 "LineNumberTable"; // #7
+    Utf8 "SourceFile"; // #8
+    Utf8 "NestmateAttributeHolder.java"; // #9
+    Utf8 "NestHost"; // #10
+    class #17; // #11
+    NameAndType #4 #5; // #12
+    Utf8 "NestmateAttributeHolder$BadNestHost"; // #13
+    Utf8 "BadNestHost"; // #14
+    Utf8 "InnerClasses"; // #15
+    Utf8 "java/lang/Object"; // #16
+    Utf8 "NestmateAttributeHolder"; // #17
   } // Constant Pool
 
   0x0021; // access
@@ -70,10 +69,10 @@ class ConflictingAttributesInNestTop {
   [] { // methods
     { // Member
       0x0001; // access
-      #7; // name_cpx
-      #8; // sig_cpx
+      #4; // name_cpx
+      #5; // sig_cpx
       [] { // Attributes
-        Attr(#9) { // Code
+        Attr(#6) { // Code
           1; // max_stack
           1; // max_locals
           Bytes[]{
@@ -82,9 +81,9 @@ class ConflictingAttributesInNestTop {
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#10) { // LineNumberTable
+            Attr(#7) { // LineNumberTable
               [] { // LineNumberTable
-                0  1;
+                0  2;
               }
             } // end LineNumberTable
           } // Attributes
@@ -94,23 +93,18 @@ class ConflictingAttributesInNestTop {
   } // methods
 
   [] { // Attributes
-    Attr(#11) { // SourceFile
-      #12;
+    Attr(#8) { // SourceFile
+      #9;
     } // end SourceFile
     ;
-    Attr(#13) { // NestMembers
-      0x00010004;
-    } // end NestMembers
+    Attr(#10) { // NestHost
+      0x000A;  // not a class index
+    } // end NestHost
     ;
-    // conflict - can't be a member of a nest and have nest members
-    Attr(#18) { // MemberOfNest
-      0x0003; // #3 is Object
-    } // end MemberOfNest
-    ;
-    Attr(#6) { // InnerClasses
+    Attr(#15) { // InnerClasses
       [] { // InnerClasses
-        #4 #2 #5 9;
+        #2 #11 #14 9;
       }
     } // end InnerClasses
   } // Attributes
-} // end class ConflictingAttributesInNestTop
+} // end class NestmateAttributeHolder$BadNestHost

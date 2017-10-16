@@ -30,7 +30,7 @@
  * @compile TestInvokeErrors.java
  * @compile MissingMethod.jcod
  *          MissingMethodWithSuper.jcod
- *          MissingNestTop.jcod
+ *          MissingNestHost.jcod
  * @run main TestInvokeErrors true
  * @run main/othervm -Xverify:none TestInvokeErrors false
  */
@@ -57,10 +57,10 @@ public class TestInvokeErrors {
         }
     }
 
-    static class MissingNestTop {
-        // jcod version will change MemberOfNest to a non-existent class
+    static class MissingNestHost {
+        // jcod version will change NestHost to a non-existent class
         private void priv_invoke() {
-            System.out.println("MissingNestTop::priv_invoke");
+            System.out.println("MissingNestHost::priv_invoke");
         }
     }
 
@@ -70,9 +70,9 @@ public class TestInvokeErrors {
     static class Helper {
         static void doTest() {
             try {
-                MissingNestTop m = new MissingNestTop();
+                MissingNestHost m = new MissingNestHost();
                 m.priv_invoke();
-                throw new Error("Unexpected success invoking MissingNestTop.priv_invoke");
+                throw new Error("Unexpected success invoking MissingNestHost.priv_invoke");
             }
             catch (NoClassDefFoundError ncdfe) {
                 System.out.println("Got expected exception:" + ncdfe);

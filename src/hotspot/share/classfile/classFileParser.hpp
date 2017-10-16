@@ -98,7 +98,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   Array<Method*>* _methods;
   Array<u2>* _inner_classes;
   Array<u2>* _nest_members;
-  u2 _nest_top;
+  u2 _nest_host;
   Array<Klass*>* _local_interfaces;
   Array<Klass*>* _transitive_interfaces;
   Annotations* _combined_annotations;

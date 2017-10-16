@@ -21,26 +21,18 @@
  * questions.
  */
 
-package P1;
+package P2;
 
 /*
  * This is used to produce a jcod file in which we modify the
- * NestMembers attribute to claim that P2.PackagedNestTop.Member
- * is a member of our nest.
+ * NestHost attribute to claim that P2.PackagedNestHost.Member
+ * is a member of the nest of P1.PackagedNestHost.
  */
-public class PackagedNestTop {
-    // Use this to get our own NestMembers attribute
+public class PackagedNestHost2 {
     public static class Member {
-        private static void m() {
+        // jcod file changes this to private
+        public static void m() {
             System.out.println("You should never see this!");
         }
-    }
-
-    // Entry point for main test
-    public static void doAccess() {
-        // this should fail at runtime as m() will now be private
-        // and the nestmate access check should fail due to m() being in
-        // a different package.
-        P2.PackagedNestTop2.Member.m();
     }
 }

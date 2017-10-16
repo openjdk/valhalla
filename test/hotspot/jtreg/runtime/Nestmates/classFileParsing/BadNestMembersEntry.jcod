@@ -24,7 +24,7 @@
 /* Source: NestmateAttributeHolder.java
 
 public class NestmateAttributeHolder {
-    public static class TwoMemberOfNest {
+    public static class TwoNestHost {
     }
 }
 */
@@ -41,7 +41,7 @@ class BadNestMembersEntry {
     class #15; // #2    
     class #16; // #3    
     class #17; // #4    
-    Utf8 "TwoMemberOfNest"; // #5    
+    Utf8 "TwoNestHost"; // #5    
     Utf8 "InnerClasses"; // #6    
     Utf8 "<init>"; // #7    
     Utf8 "()V"; // #8    
@@ -53,7 +53,7 @@ class BadNestMembersEntry {
     NameAndType #7 #8; // #14    
     Utf8 "BadNestMembersEntry"; // #15    
     Utf8 "java/lang/Object"; // #16    
-    Utf8 "BadNestMembersEntry$TwoMemberOfNest"; // #17    
+    Utf8 "BadNestMembersEntry$TwoNestHost"; // #17    
   } // Constant Pool
 
   0x0021; // access
