@@ -748,7 +748,8 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             opcode != Bytecodes::_istore && opcode != Bytecodes::_astore &&
             opcode != Bytecodes::_lstore && opcode != Bytecodes::_fload  &&
             opcode != Bytecodes::_dload  && opcode != Bytecodes::_fstore &&
-            opcode != Bytecodes::_dstore) {
+            opcode != Bytecodes::_dstore && opcode != Bytecodes::_vstore &&
+            opcode != Bytecodes::_vload) {
           /* Unreachable?  RawBytecodeStream's raw_next() returns 'illegal'
            * if we encounter a wide instruction that modifies an invalid
            * opcode (not one of the ones listed above) */

@@ -322,6 +322,8 @@ public class ValueOops {
                 .vstore(0)
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // LVT
                 .vload(0)
+		.vstore(1024) // LVT wide index
+		.vload(1024)
                 .iconst_1()  // push a litte further down
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
                 .pop()
