@@ -369,7 +369,15 @@ IRT_ENTRY(void, InterpreterRuntime::initialize_static_value_field(JavaThread* th
   int offset = klass->field_offset(index);
   assert(mirror->obj_field(offset) == NULL,"Field must not be initialized twice");
 
-  Klass* field_k = klass->get_value_field_klass(index);
+  Klass* field_k = klass->get_value_field_klass_or_null(index);
+  if (field_k == NULL) {
+    field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index),
+                                                Handle(THREAD, klass->class_loader()),
+                                                Handle(THREAD, klass->protection_domain()), true, CHECK);
+    assert(field_k != NULL, "Sanity check");
+    assert(field_k->access_flags().is_value_type(), "Value type expected");
+    klass->set_value_field_klass(index, field_k);
+  }
   ValueKlass* field_vklass = ValueKlass::cast(field_k);
   // allocate instance, because it is going to be assigned to a static field
   // it must not be a buffered value

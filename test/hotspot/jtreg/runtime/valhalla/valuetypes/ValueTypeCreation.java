@@ -43,6 +43,7 @@ public class ValueTypeCreation {
         testLong8();
         // Embedded oops not yet supported
         //testPerson();
+	StaticSelf.test();
     }
 
     void testPoint() {
@@ -71,5 +72,25 @@ public class ValueTypeCreation {
         Asserts.assertEquals(person.getId(), 1L, "Id field incorrect");
         Asserts.assertEquals(person.getFirstName(), "John", "First name incorrect");
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
+    }
+
+    static final __ByValue class StaticSelf {
+
+	static final StaticSelf DEFAULT = create(0);
+	final int f1;
+
+	private StaticSelf() { f1 = 0; }
+	public String toString() { return "StaticSelf f1=" + f1; }
+
+	__ValueFactory static StaticSelf create(int f1) {
+	    StaticSelf s = __MakeDefault StaticSelf();
+	    s.f1 = f1;
+	    return s;
+	}
+
+	public static void test() {
+	    String s = DEFAULT.toString();
+	}
+
     }
 }

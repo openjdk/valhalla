@@ -1239,11 +1239,18 @@ public:
     }
   }
 
-  Klass* get_value_field_klass(int idx) {
+  Klass* get_value_field_klass(int idx) const {
     assert(has_value_fields(), "Sanity checking");
     Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
     assert(k != NULL, "Should always be set before being read");
     assert(k->is_value(), "Must be a value type");
+    return k;
+  }
+
+  Klass* get_value_field_klass_or_null(int idx) const {
+    assert(has_value_fields(), "Sanity checking");
+    Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
+    assert(k == NULL || k->is_value(), "Must be a value type");
     return k;
   }
 

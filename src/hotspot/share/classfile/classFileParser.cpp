@@ -4584,14 +4584,9 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
       }
     }
 
-    for (FieldStream st((InstanceKlass*)defined_klass, false, false); !st.eos(); st.next()) {
-      Symbol* signature = st.signature();
-      if (signature->starts_with("Q")) {
-        Klass* klass = SystemDictionary::resolve_or_fail(signature,
-                                                         Handle(THREAD, defined_klass->class_loader()),
-                                                         Handle(THREAD, defined_klass->protection_domain()), true, CHECK);
-        assert(klass != NULL, "Sanity check");
-        assert(klass->access_flags().is_value_type(), "Value type expected");
+    for(int i = 0; i < defined_klass->java_fields_count(); i++) {
+      if (defined_klass->field_signature(i)->starts_with("Q")  && (((defined_klass->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
+        const Klass* klass = defined_klass->get_value_field_klass(i);
         defining_loader_data->record_dependency(klass, CHECK);
       }
     }
@@ -5740,11 +5735,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
     }
   }
 
-  // Update the loader_data graph.
-  record_defined_class_dependencies(ik, CHECK);
-
   for(int i = 0; i < ik->java_fields_count(); i++) {
-    if (ik->field_signature(i)->starts_with("Q")) {
+    if (ik->field_signature(i)->starts_with("Q")  && (((ik->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
       Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
                                                        Handle(THREAD, ik->class_loader()),
                                                        Handle(THREAD, ik->protection_domain()), true, CHECK);
@@ -5753,6 +5745,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
       ik->set_value_field_klass(i, klass);
     }
   }
+
+  // Update the loader_data graph.
+  record_defined_class_dependencies(ik, CHECK);
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
 
