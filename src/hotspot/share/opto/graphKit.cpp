@@ -3661,8 +3661,9 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     if (!vk->flatten_array()) {
       // Non-flattened value type arrays need to be initialized with default value type oops
       initialize_value_type_array(javaoop, length, elem_klass->as_value_klass(), nargs);
-      InitializeNode* init = alloc->initialization();
-      init->set_complete_with_arraycopy();
+      // TODO re-enable once JDK-8189802 is fixed
+      // InitializeNode* init = alloc->initialization();
+      //init->set_complete_with_arraycopy();
     }
   }
 
