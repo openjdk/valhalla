@@ -1153,7 +1153,7 @@ void CodeInstaller::site_Call(CodeBuffer& buffer, jint pc_offset, Handle site, T
     OopMap *map = create_oop_map(debug_info, CHECK);
     _debug_recorder->add_safepoint(next_pc_offset, map);
 
-    bool return_oop = hotspot_method.not_null() && getMethodFromHotSpotMethod(hotspot_method())->is_returning_oop();
+    bool return_oop = hotspot_method.not_null() && getMethodFromHotSpotMethod(hotspot_method())->may_return_oop();
 
     record_scope(next_pc_offset, debug_info, CodeInstaller::FullFrame, return_oop, CHECK);
   }

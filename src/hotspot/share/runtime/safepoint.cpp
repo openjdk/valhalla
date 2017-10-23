@@ -1100,20 +1100,20 @@ void ThreadSafepointState::handle_polling_page_exception() {
     ResourceMark rm;
     // See if return type is an oop.
     Method* method = nm->method();
-    bool return_oop = method->is_returning_oop();
-    
+    bool return_oop = method->may_return_oop();
+
     GrowableArray<Handle> return_values;
     ValueKlass* vk = NULL;
-    if (!return_oop && method->is_returning_vt()) {
-      // We're at a safepoint at the return of a method that returns
-      // multiple values. We must make sure we preserve the oop values
-      // across the safepoint.
-      vk = ValueKlass::returned_value_type(map);
-      assert(vk == NULL || vk == method->returned_value_type(thread()) ||
-             method->returned_value_type(thread()) == SystemDictionary::___Value_klass(), "Bad value klass");
-      if (vk != NULL && !vk->save_oop_results(map, return_values)) {
-        return_oop = true;
-        vk = NULL;
+    if (method->is_returning_vt() && ValueTypeReturnedAsFields) {
+      // Check if value type is returned as fields
+      vk = ValueKlass::returned_value_klass(map);
+      if (vk != NULL) {
+        // We're at a safepoint at the return of a method that returns
+        // multiple values. We must make sure we preserve the oop values
+        // across the safepoint.
+        assert(vk == method->returned_value_type(thread()), "bad value klass");
+        vk->save_oop_fields(map, return_values);
+        return_oop = false;
       }
     }
 

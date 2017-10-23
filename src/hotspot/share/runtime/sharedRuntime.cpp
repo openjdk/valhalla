@@ -2690,7 +2690,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       if (!method->is_static()) {  // Pass in receiver first
         if (holder->is_value()) {
           ValueKlass* vk = ValueKlass::cast(holder);
-          if (!ValueTypePassFieldsAsArgs || (vk == SystemDictionary::___Value_klass())) {
+          if (!ValueTypePassFieldsAsArgs || vk->is__Value()) {
             // If we don't pass value types as arguments or if the holder of
             // the method is __Value, we must pass a reference.
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
@@ -2953,7 +2953,7 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
             Handle protection_domain(THREAD, method->method_holder()->protection_domain());
             Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
             assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
-            assert(k == SystemDictionary::___Value_klass(), "other values not supported");
+            assert(ValueKlass::cast(k)->is__Value(), "other values not supported");
           }
 #endif
           bt = T_VALUETYPEPTR;
@@ -3467,7 +3467,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
   frame callerFrame = stubFrame.sender(&reg_map);
 
 #ifdef ASSERT
-  ValueKlass* verif_vk = ValueKlass::returned_value_type(reg_map);
+  ValueKlass* verif_vk = ValueKlass::returned_value_klass(reg_map);
 #endif
 
   if (!is_set_nth_bit(res, 0)) {
@@ -3507,7 +3507,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
     methodHandle callee = inv.static_target(thread);
     assert(!thread->has_pending_exception(), "call resolution should work");
     ValueKlass* verif_vk2 = callee->returned_value_type(thread);
-    assert(verif_vk == verif_vk2 || verif_vk2 == SystemDictionary::___Value_klass(), "Bad value klass");
+    assert(verif_vk == verif_vk2 || verif_vk2->is__Value(), "Bad value klass");
 #endif
   }
   JRT_BLOCK_END;

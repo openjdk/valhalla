@@ -116,6 +116,7 @@ class ValueKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_value_slow() const        { return true; }
+  bool is__Value() const { return (this == SystemDictionary::___Value_klass()); }
 
   // Casting from Klass*
   static ValueKlass* cast(Klass* k) {
@@ -208,18 +209,18 @@ class ValueKlass: public InstanceKlass {
   // calling convention support
   void initialize_calling_convention();
   Array<SigEntry>* extended_sig() const {
-    assert(this != SystemDictionary::___Value_klass(), "make no sense for __Value");
+    assert(!is__Value(), "make no sense for __Value");
     return *((Array<SigEntry>**)adr_extended_sig());
   }
   Array<VMRegPair>* return_regs() const {
-    assert(this != SystemDictionary::___Value_klass(), "make no sense for __Value");
+    assert(!is__Value(), "make no sense for __Value");
     return *((Array<VMRegPair>**)adr_return_regs());
   }
+  bool can_be_returned_as_fields() const;
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
-  bool save_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, bool buffered, TRAPS);
-  static ValueKlass* returned_value_type(const RegisterMap& reg_map);
+  static ValueKlass* returned_value_klass(const RegisterMap& reg_map);
 
   // pack and unpack handlers. Need to be loadable from generated code
   // so at a fixed offset from the base of the klass pointer.

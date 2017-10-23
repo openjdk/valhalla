@@ -220,16 +220,11 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
       // of all oop return values.
       GrowableArray<Handle> return_oops;
       ValueKlass* vk = NULL;
-      if (save_oop_result) {
-        if (scope->return_vt()) {
-          vk = ValueKlass::returned_value_type(map);
-          if (vk != NULL) {
-            bool success = vk->save_oop_results(map, return_oops);
-            assert(success, "found klass ptr being returned: saving oops can't fail");
-            save_oop_result = false;
-          } else {
-            vk = NULL;
-          }
+      if (save_oop_result && scope->return_vt()) {
+        vk = ValueKlass::returned_value_klass(map);
+        if (vk != NULL) {
+          vk->save_oop_fields(map, return_oops);
+          save_oop_result = false;
         }
       }
       if (save_oop_result) {

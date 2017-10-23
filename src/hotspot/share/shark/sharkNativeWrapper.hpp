@@ -99,7 +99,7 @@ class SharkNativeWrapper : public SharkCompileInvariants {
     return target()->is_synchronized();
   }
   bool is_returning_oop() const {
-    return target()->is_returning_oop();
+    return target()->may_return_oop();
   }
 
   // The LLVM function we are building.

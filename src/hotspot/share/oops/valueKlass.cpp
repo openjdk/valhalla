@@ -51,8 +51,7 @@ int ValueKlass::first_field_offset() const {
 }
 
 int ValueKlass::raw_value_byte_size() const {
-  assert(this != SystemDictionary::___Value_klass(),
-      "This is not the value type klass you are looking for");
+  assert(!is__Value(), "This is not the value type klass you are looking for");
   int heapOopAlignedSize = nonstatic_field_size() << LogBytesPerHeapOop;
   // If bigger than 64 bits or needs oop alignment, then use jlong aligned
   // which for values should be jlong aligned, asserts in raw_field_copy otherwise
@@ -412,19 +411,12 @@ void ValueKlass::cleanup_blobs() {
   }
 }
 
-// Create handles for all oop fields returned in registers that are
-// going to be live across a safepoint.
-bool ValueKlass::save_oop_results(RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
-  if (ValueTypeReturnedAsFields) {
-    if (return_regs() != NULL) {
-      save_oop_fields(reg_map, handles);
-      return true;
-    }
-  }
-  return false;
+// Can this value type be returned as multiple values?
+bool ValueKlass::can_be_returned_as_fields() const {
+  return !is__Value() && (return_regs() != NULL);
 }
 
-// Same as above but with pre-computed return convention
+// Create handles for all oop fields returned in registers that are going to be live across a safepoint
 void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
   Thread* thread = Thread::current();
   const Array<SigEntry>* sig_vk = extended_sig();
@@ -585,7 +577,8 @@ oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<H
   return new_vt;
 }
 
-ValueKlass* ValueKlass::returned_value_type(const RegisterMap& map) {
+// Check the return register for a ValueKlass oop
+ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
@@ -594,9 +587,18 @@ ValueKlass* ValueKlass::returned_value_type(const RegisterMap& map) {
   address loc = map.location(pair.first());
   intptr_t ptr = *(intptr_t*)loc;
   if (is_set_nth_bit(ptr, 0)) {
+    // Oop is tagged, must be a ValueKlass oop
     clear_nth_bit(ptr, 0);
     assert(Metaspace::contains((void*)ptr), "should be klass");
-    return (ValueKlass*)ptr;
+    ValueKlass* vk = (ValueKlass*)ptr;
+    assert(vk->can_be_returned_as_fields(), "must be able to return as fields");
+    return vk;
   }
+#ifdef ASSERT
+  // Oop is not tagged, must be a valid oop
+  if (VerifyOops) {
+    oop((HeapWord*)ptr)->verify();
+  }
+#endif
   return NULL;
 }

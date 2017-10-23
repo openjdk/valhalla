@@ -77,7 +77,7 @@ bool ciValueKlass::flatten_array() const {
 
 // Can this value type be returned as multiple values?
 bool ciValueKlass::can_be_returned_as_fields() const {
-  GUARDED_VM_ENTRY(return !is__Value() && ValueKlass::cast(get_Klass())->return_regs() != NULL;)
+  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->can_be_returned_as_fields();)
 }
 
 // When passing a value type's fields as arguments, count the number

@@ -25,6 +25,7 @@
  * @test
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to resolve a value type argument
+ * @requires vm.compMode != "Xint"
  * @library /test/lib
  * @compile -XDenableValueTypes TestUnresolvedValueClass.java
  * @run main/othervm -XX:+EnableValhalla TestUnresolvedValueClass
