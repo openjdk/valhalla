@@ -271,6 +271,8 @@ public enum Opcode {
     ASTORE_W(0xc43a, WIDE_LOCAL),
     IINC_W(0xc484, WIDE_LOCAL_SHORT),
     RET_W(0xc4a9, WIDE_LOCAL),
+    VLOAD_W(0xc4cb, WIDE_LOCAL),
+    VSTORE_W(0xc4cc, WIDE_LOCAL),
 
     // PicoJava nonpriv instructions
     LOAD_UBYTE(PICOJAVA, 0xfe00),
