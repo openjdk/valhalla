@@ -572,6 +572,10 @@ void LinkResolver::check_method_accessability(Klass* ref_klass,
                                        sel_klass,
                                        flags,
                                        true)) {
+    // Propagate any existing exceptions that may have been thrown
+    if (HAS_PENDING_EXCEPTION) {
+      return;
+    }
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
@@ -919,6 +923,11 @@ void LinkResolver::check_field_accessability(Klass* ref_klass,
                                        sel_klass,
                                        fd.access_flags(),
                                        true)) {
+    // Propagate any existing exceptions that may have been thrown
+    if (HAS_PENDING_EXCEPTION) {
+      return;
+    }
+
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
       THREAD_AND_LOCATION,

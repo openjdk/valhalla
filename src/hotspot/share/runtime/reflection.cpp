@@ -709,10 +709,17 @@ bool Reflection::verify_field_access(const Klass* current_class,
   // private access between different classes needs a nestmate check, but
   // not for anonymous classes - so check host_class
   if (access.is_private() && host_class == current_class) {
+    // FIXME: can we actually get here with non-instance classes?
     if (current_class->is_instance_klass() && field_class->is_instance_klass() ) {
       InstanceKlass* cur_ik = const_cast<InstanceKlass*>(InstanceKlass::cast(current_class));
       InstanceKlass* field_ik = const_cast<InstanceKlass*>(InstanceKlass::cast(field_class));
-      if (cur_ik->has_nestmate_access_to(field_ik, Thread::current())) {
+      // Nestmate access checks may require resolution and validation of the nest-host
+      Thread* THREAD = Thread::current();
+      bool access = cur_ik->has_nestmate_access_to(field_ik, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        return false;
+      }
+      if (access) {
         guarantee(resolved_class->is_subclass_of(field_class), "must be!");
         return true;
       }

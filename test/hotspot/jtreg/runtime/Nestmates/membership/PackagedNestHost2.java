@@ -34,5 +34,12 @@ public class PackagedNestHost2 {
         public static void m() {
             System.out.println("You should never see this!");
         }
+
+        // Entry point for main test
+        public static void doAccess() {
+            // this should fail at runtime as m() will now be private
+            // and our nest-host won't resolve as it's in a different package
+            P1.PackagedNestHost.Member.m();
+        }
     }
 }

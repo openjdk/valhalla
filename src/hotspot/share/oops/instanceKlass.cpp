@@ -150,8 +150,8 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
   if (_nest_members == NULL || _nest_members == Universe::the_empty_short_array()) {
     if (log_is_enabled(Trace, class, nestmates)) {
       ResourceMark rm(THREAD);
-      log_trace(class, nestmates)("Checking nest membership of %s in non-nest-host class %s",
-                                  k->name()->as_C_string(), this->name()->as_C_string());
+      log_trace(class, nestmates)("Checked nest membership of %s in non-nest-host class %s",
+                                  k->external_name(), this->external_name());
     }
     return false;
   }
@@ -159,7 +159,7 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
   if (log_is_enabled(Trace, class, nestmates)) {
     ResourceMark rm(THREAD);
     log_trace(class, nestmates)("Checking nest membership of %s in %s",
-                                k->name()->as_C_string(), this->name()->as_C_string());
+                                k->external_name(), this->external_name());
   }
 
   // Check names first and if they match then check actual klass. This avoids
@@ -174,7 +174,7 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
       // it doesn't match (but that should be impossible)
       Klass* k2 = _constants->klass_at(cp_index, CHECK_false);
       if (k2 == k) {
-        log_trace(class, nestmates)("- klass is nestmate member");
+        log_trace(class, nestmates)("- class is listed as a nest member");
         return true;
       }
       else {
@@ -183,11 +183,15 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
       }
     }
   }
-  log_trace(class, nestmates)("- klass is NOT nestmate member!");
+  log_trace(class, nestmates)("- class is NOT a nest member!");
   return false;
 }
 
-// Return nest-host class, resolving, validating and saving it if needed
+// Return nest-host class, resolving, validating and saving it if needed.
+// In cases where this is called from a thread that can not do classloading
+// (such as a native JIT thread) then we simply return NULL, which in turn
+// causes the access check to return false. Such code will retry the access
+// from a more suitable environment later.
 InstanceKlass* InstanceKlass::nest_host(TRAPS) {
   InstanceKlass* nest_host_k = _nest_host;
   if (nest_host_k == NULL) {
@@ -196,73 +200,107 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
     // then we do not need any synchronization beyond what is implicitly used
     // during class loading.
     if (_nest_host_index != 0) { // we have a real nest_host
+      // Before trying to resolve check if we're in a suitable context
+      if (!THREAD->can_call_java() && !_constants->tag_at(_nest_host_index).is_klass()) {
+        if (log_is_enabled(Trace, class, nestmates)) {
+          ResourceMark rm(THREAD);
+          log_trace(class, nestmates)("Rejected resolution of nest-host of %s in unsuitable thread",
+                                      this->external_name());
+        }
+        return NULL;
+      }
+
       if (log_is_enabled(Trace, class, nestmates)) {
         ResourceMark rm(THREAD);
         log_trace(class, nestmates)("Resolving nest-host of %s using cp entry for %s",
-                                    this->name()->as_C_string(),
+                                    this->external_name(),
                                     _constants->klass_name_at(_nest_host_index)->as_C_string());
       }
 
-      Klass* k = _constants->klass_at(_nest_host_index, CHECK_NULL);
+      Klass* k = _constants->klass_at(_nest_host_index, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        Handle exc_h = Handle(THREAD, PENDING_EXCEPTION);
+        if (exc_h->is_a(SystemDictionary::NoClassDefFoundError_klass())) {
+          // throw a new CDNFE with the original as its cause, and a clear msg
+          ResourceMark rm(THREAD);
+          char buf[200];
+          CLEAR_PENDING_EXCEPTION;
+          jio_snprintf(buf, sizeof(buf),
+                       "Unable to load nest-host class of %s",
+                       this->external_name());
+          log_trace(class, nestmates)("%s - NoClassDefFoundError", buf);
+          THROW_MSG_CAUSE_NULL(vmSymbols::java_lang_NoClassDefFoundError(), buf, exc_h);
+        }
+        // other exceptions pass through (OOME, StackOverflowError etc)
+        return NULL;
+      }
+
+      // A valid nest-host is an instance class in the current package that lists this
+      // class as a nest member. If any of these conditions are not met we simply throw
+      // IllegalAccessError, with a suitable message.
+
+      const char* error = NULL;
+
+      // Need to check we have an instance class first
+      if (k->is_instance_klass()) {
+        nest_host_k = InstanceKlass::cast(k);
+
+        // FIXME: an exception from this is perhaps impossible
+        bool is_member = nest_host_k->has_nest_member(this, CHECK_NULL);
+        if (is_member) {
+          // Finally check we're in the same package - as there could be collusion
+          // between untrusted types.
+          if (is_same_class_package(nest_host_k)) {
+            // save resolved nest-host value
+            _nest_host = nest_host_k;
+
+            if (log_is_enabled(Trace, class, nestmates)) {
+              ResourceMark rm(THREAD);
+              log_trace(class, nestmates)("Resolved nest-host of %s to %s",
+                                          this->external_name(), k->external_name());
+            }
+            return nest_host_k;
+          }
+          else {
+            error = "types are in different packages";
+          }
+        }
+        else {
+          error = "current type is not listed as a nest member";
+        }
+      }
+      else {
+        error = "nest-host is not an instance class!";
+      }
 
       if (log_is_enabled(Trace, class, nestmates)) {
         ResourceMark rm(THREAD);
-        log_trace(class, nestmates)("Resolved nest-host of %s to %s",
-                                    this->name()->as_C_string(), k->name()->as_C_string());
+        log_trace(class, nestmates)("Type %s is not a nest member of resolved type %s: %s",
+                                    this->external_name(),
+                                    k->external_name(),
+                                    error);
       }
 
-      if (!k->is_instance_klass()) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-                           THREAD_AND_LOCATION,
-                           vmSymbols::java_lang_IncompatibleClassChangeError(),
-                           "class %s has non-instance class %s as nest-host",
-                           this->external_name(),
-                           k->external_name()
-                           );
-        return NULL;
-      }
-
-      nest_host_k = InstanceKlass::cast(k);
-
-      bool is_member = nest_host_k->has_nest_member(this, CHECK_NULL);
-      if (!is_member) {
-        // this_k and nest_host disagree about nest membership
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-                           THREAD_AND_LOCATION,
-                           vmSymbols::java_lang_IncompatibleClassChangeError(),
-                           "Type %s is not a nest member of %s",
-                           this->external_name(),
-                           nest_host_k->external_name()
-                           );
-        return NULL;
-      }
-
-      if (!is_same_class_package(nest_host_k)) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-                           THREAD_AND_LOCATION,
-                           vmSymbols::java_lang_IncompatibleClassChangeError(),
-                           "Class %s is in a different package to its nest-host class %s",
-                           this->external_name(),
-                           nest_host_k->external_name()
-                           );
-        return NULL;
-      }
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(THREAD_AND_LOCATION,
+                         vmSymbols::java_lang_IllegalAccessError(),
+                         "Type %s is not a nest member of %s: %s",
+                         this->external_name(),
+                         k->external_name(),
+                         error
+                         );
+      return NULL;
     }
     else {
       if (log_is_enabled(Trace, class, nestmates)) {
         ResourceMark rm(THREAD);
-        log_trace(class, nestmates)("Class %s is not part of a nest: setting nest-host to self",
-                                    this->name()->as_C_string());
+        log_trace(class, nestmates)("Type %s is not part of a nest: setting nest-host to self",
+                                    this->external_name());
       }
-      nest_host_k = const_cast<InstanceKlass*>(this);
+      // save resolved nest-host value
+      return (_nest_host = this);
     }
   }
-  // save resolved nest-host value
-  _nest_host = nest_host_k;
-
   return nest_host_k;
 }
 
@@ -271,19 +309,31 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
 // resolved_nest_hosts
 bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 
-  // If not actually nestmates, then both nest-host classes may have to loaded
-  // and the nest membership of each class validated.
-  InstanceKlass* cur_top = nest_host(CHECK_false);
-  Klass* k_nest_host = k->nest_host(CHECK_false);
+  assert(this != k, "this should be handled by higher-level code");
 
-  bool access = (cur_top == k_nest_host);
+  // Per the JVMS we first resolve and validate the current class, then
+  // the target class k. Resolution exceptions will be passed on by upper
+  // layers. IllegalAccessErrors from membership validation failures will
+  // also be passed through.
+
+  InstanceKlass* cur_host = nest_host(THREAD);
+  if (cur_host == NULL || HAS_PENDING_EXCEPTION) {
+    return false;
+  }
+
+  Klass* k_nest_host = k->nest_host(THREAD);
+  if (k_nest_host == NULL || HAS_PENDING_EXCEPTION) {
+    return false;
+  }
+
+  bool access = (cur_host == k_nest_host);
 
   if (log_is_enabled(Trace, class, nestmates)) {
     ResourceMark rm(THREAD);
     log_trace(class, nestmates)("Class %s does %shave nestmate accesss to %s",
-                                this->name()->as_C_string(),
+                                this->external_name(),
                                 access ? "" : "NOT ",
-                                k->name()->as_C_string());
+                                k->external_name());
   }
 
   return access;

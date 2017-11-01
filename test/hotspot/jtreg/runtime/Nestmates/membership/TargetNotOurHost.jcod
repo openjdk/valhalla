@@ -21,12 +21,9 @@
  * questions.
  */
 
-/* Generated from: TestNestmateMembership.java
+// NestHost attribute refers to class with no nest
 
-   NestHost attribute is modified to refer to NoSuchClass
-*/
-
-class TestNestmateMembership$MissingNestHost {
+class TestNestmateMembership$TargetNotOurHost {
   0xCAFEBABE;
   0; // minor version
   53; // version
@@ -50,11 +47,11 @@ class TestNestmateMembership$MissingNestHost {
     NameAndType #7 #8; // #16
     class #27; // #17
     NameAndType #28 #29; // #18
-    Utf8 "MissingNestHost.m() - jcod version"; // #19   - modified
+    Utf8 "TargetNotOurHost.m() - java version"; // #19
     class #30; // #20
     NameAndType #31 #32; // #21
-    Utf8 "TestNestmateMembership$MissingNestHost"; // #22
-    Utf8 "MissingNestHost"; // #23
+    Utf8 "TestNestmateMembership$TargetNotOurHost"; // #22
+    Utf8 "TargetNotOurHost"; // #23
     Utf8 "InnerClasses"; // #24
     Utf8 "java/lang/Object"; // #25
     Utf8 "TestNestmateMembership"; // #26
@@ -64,9 +61,6 @@ class TestNestmateMembership$MissingNestHost {
     Utf8 "java/io/PrintStream"; // #30
     Utf8 "println"; // #31
     Utf8 "(Ljava/lang/String;)V"; // #32
-    // added
-    Utf8 "NoSuchClass"; // 33
-    class #33; // #34
   } // Constant Pool
 
   0x0020; // access
@@ -96,7 +90,7 @@ class TestNestmateMembership$MissingNestHost {
           [] { // Attributes
             Attr(#10) { // LineNumberTable
               [] { // LineNumberTable
-                0  52;
+                0  155;
               }
             } // end LineNumberTable
           } // Attributes
@@ -121,8 +115,8 @@ class TestNestmateMembership$MissingNestHost {
           [] { // Attributes
             Attr(#10) { // LineNumberTable
               [] { // LineNumberTable
-                0  54;
-                8  55;
+                0  157;
+                8  158;
               }
             } // end LineNumberTable
           } // Attributes
@@ -136,8 +130,8 @@ class TestNestmateMembership$MissingNestHost {
       #13;
     } // end SourceFile
     ;
-    Attr(#14) { // NestHost - modified
-      0x0022;
+    Attr(#14) { // NestHost
+      0x0006; // modified - #6
     } // end NestHost
     ;
     Attr(#24) { // InnerClasses
@@ -146,4 +140,4 @@ class TestNestmateMembership$MissingNestHost {
       }
     } // end InnerClasses
   } // Attributes
-} // end class TestNestmateMembership$MissingNestHost
+} // end class TestNestmateMembership$TargetNotOurHost

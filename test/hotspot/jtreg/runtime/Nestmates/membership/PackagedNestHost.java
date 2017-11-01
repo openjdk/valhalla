@@ -29,9 +29,9 @@ package P1;
  * is a member of our nest.
  */
 public class PackagedNestHost {
-    // Use this to get our own NestMembers attribute
     public static class Member {
-        private static void m() {
+        // jcod file will change this to private
+        public static void m() {
             System.out.println("You should never see this!");
         }
     }
@@ -39,7 +39,7 @@ public class PackagedNestHost {
     // Entry point for main test
     public static void doAccess() {
         // this should fail at runtime as m() will now be private
-        // and the nestmate access check should fail due to m() being in
+        // and the nestmate access check should fail due to being in
         // a different package.
         P2.PackagedNestHost2.Member.m();
     }

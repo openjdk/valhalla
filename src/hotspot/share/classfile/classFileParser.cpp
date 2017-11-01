@@ -4634,6 +4634,11 @@ static void check_final_method_override(const InstanceKlass* this_klass, TRAPS) 
                                                super_m->access_flags(), false))
             // this class can access super final method and therefore override
             ) {
+            // Propagate any existing exceptions that may have been thrown
+            if (HAS_PENDING_EXCEPTION) {
+              return;
+            }
+
             ResourceMark rm(THREAD);
             Exceptions::fthrow(
               THREAD_AND_LOCATION,
