@@ -561,18 +561,9 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
   AC_MSG_RESULT([$TOPDIR])
   AC_SUBST(TOPDIR)
 
-  # Save the original version of TOPDIR for string comparisons
-  ORIGINAL_TOPDIR="$TOPDIR"
-  AC_SUBST(ORIGINAL_TOPDIR)
-
   # We can only call BASIC_FIXUP_PATH after BASIC_CHECK_PATHS_WINDOWS.
   BASIC_FIXUP_PATH(CURDIR)
   BASIC_FIXUP_PATH(TOPDIR)
-
-  # Calculate a canonical version of TOPDIR for string comparisons
-  CANONICAL_TOPDIR=$TOPDIR
-  BASIC_REMOVE_SYMBOLIC_LINKS([CANONICAL_TOPDIR])
-  AC_SUBST(CANONICAL_TOPDIR)
 
   # Locate the directory of this script.
   AUTOCONF_DIR=$TOPDIR/make/autoconf
@@ -1160,7 +1151,15 @@ AC_DEFUN([BASIC_CHECK_DIR_ON_LOCAL_DISK],
       $2
     fi
   else
-    if $DF -l $1 > /dev/null 2>&1; then
+    # JDK-8189619
+    # df on AIX does not understand -l. On modern AIXes it understands "-T local" which
+    # is the same. On older AIXes we just continue to live with a "not local build" warning.
+    if test "x$OPENJDK_TARGET_OS" = xaix; then
+      DF_LOCAL_ONLY_OPTION='-T local'
+    else
+      DF_LOCAL_ONLY_OPTION='-l'
+    fi
+    if $DF $DF_LOCAL_ONLY_OPTION $1 > /dev/null 2>&1; then
       $2
     else
       $3
