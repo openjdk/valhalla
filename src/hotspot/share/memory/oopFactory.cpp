@@ -109,7 +109,7 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
 
   // Populate default values...
   objArrayHandle array_h(THREAD, array);
-  instanceOop value = vklass->allocate_instance(CHECK_NULL);
+  instanceOop value = (instanceOop)vklass->default_value();
   for (int i = 0; i < length; i++) {
     array_h->obj_at_put(i, value);
   }

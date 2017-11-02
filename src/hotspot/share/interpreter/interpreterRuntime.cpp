@@ -216,13 +216,8 @@ IRT_ENTRY(void, InterpreterRuntime::vdefault(JavaThread* thread, ConstantPool* p
   ValueKlass* vklass = ValueKlass::cast(k);
 
   vklass->initialize(THREAD);
-
-  // Creating value
-  bool in_heap;
-  instanceOop value = vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
-  Handle value_h = Handle(THREAD, value);
-
-  thread->set_vm_result(value_h());
+  oop res = vklass->default_value();
+  thread->set_vm_result(res);
 IRT_END
 
 IRT_ENTRY(int, InterpreterRuntime::vwithfield(JavaThread* thread, ConstantPoolCache* cp_cache))
@@ -357,7 +352,7 @@ IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, 
   } else {
     oop res = value_h()->obj_field_acquire(klass->field_offset(index));
     if (res == NULL) {
-      res = field_vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
+      res = field_vklass->default_value();
     }
     thread->set_vm_result(res);
   }
@@ -381,7 +376,7 @@ IRT_ENTRY(void, InterpreterRuntime::initialize_static_value_field(JavaThread* th
   ValueKlass* field_vklass = ValueKlass::cast(field_k);
   // allocate instance, because it is going to be assigned to a static field
   // it must not be a buffered value
-  instanceOop res = field_vklass->allocate_instance(CHECK);
+  instanceOop res = (instanceOop)field_vklass->default_value();
   instanceHandle res_h(THREAD, res);
   mirror_h()->obj_field_put(offset, res_h());
   thread->set_vm_result(res_h());

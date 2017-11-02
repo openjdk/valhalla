@@ -1526,6 +1526,7 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
 // _fields_type_annotations fields
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    bool is_interface,
+                                   bool is_concrete_value_type,
                                    FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
@@ -1548,7 +1549,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   int num_injected = 0;
   const InjectedField* const injected = JavaClasses::get_injected(_class_name,
                                                                   &num_injected);
-  const int total_fields = length + num_injected;
+
+  const int total_fields = length + num_injected + (is_concrete_value_type ? 1 : 0);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1707,6 +1709,19 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       field->set_allocation_type(atype);
       index++;
     }
+  }
+
+  if (is_concrete_value_type) {
+    index = length + num_injected;
+    FieldInfo* const field = FieldInfo::from_field_array(fa, index);
+    field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
+                      vmSymbols::default_value_name_enum,
+                      vmSymbols::java_lang___Value_signature_enum,
+                      0);
+    const BasicType type = FieldType::basic_type(vmSymbols::java_lang___Value_signature());
+    const FieldAllocationType atype = fac->update(true, type);
+    field->set_allocation_type(atype);
+    index++;
   }
 
   assert(NULL == _fields, "invariant");
@@ -5557,6 +5572,12 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
     }
   }
 
+  if (ik->is_value() && (ik->name() != vmSymbols::java_lang____Value())) {
+    ValueKlass* vk = ValueKlass::cast(ik);
+    oop val = ik->allocate_instance(CHECK_NULL);
+    vk->set_default_value(val);
+  }
+
   return ik;
 }
 
@@ -5735,14 +5756,20 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
     }
   }
 
-  for(int i = 0; i < ik->java_fields_count(); i++) {
-    if (ik->field_signature(i)->starts_with("Q")  && (((ik->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
-      Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
-                                                       Handle(THREAD, ik->class_loader()),
-                                                       Handle(THREAD, ik->protection_domain()), true, CHECK);
-      assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_value_type(), "Value type expected");
-      ik->set_value_field_klass(i, klass);
+  int nfields = ik->java_fields_count();
+  if (ik->is_value() && (ik->name() != vmSymbols::java_lang____Value())) nfields++;
+  for(int i = 0; i < nfields; i++) {
+    if (ik->field_signature(i)->starts_with("Q")) {
+      if ((((ik->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
+        Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
+                                                         Handle(THREAD, ik->class_loader()),
+                                                         Handle(THREAD, ik->protection_domain()), true, CHECK);
+        assert(klass != NULL, "Sanity check");
+        assert(klass->access_flags().is_value_type(), "Value type expected");
+        ik->set_value_field_klass(i, klass);
+      } else if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)) {
+        ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
+      }
     }
   }
 
@@ -6253,6 +6280,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   _fac = new FieldAllocationCount();
   parse_fields(stream,
                _access_flags.is_interface(),
+               _access_flags.is_value_type() && (_class_name != vmSymbols::java_lang____Value()),
                _fac,
                cp,
                cp_size,

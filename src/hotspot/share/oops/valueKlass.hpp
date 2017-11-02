@@ -48,6 +48,7 @@ class ValueKlass: public InstanceKlass {
     *((address*)adr_pack_handler()) = NULL;
     *((address*)adr_unpack_handler()) = NULL;
     assert(pack_handler() == NULL, "pack handler not null");
+    *((int*)adr_default_value_offset()) = 0;
   }
 
   address adr_extended_sig() const {
@@ -98,6 +99,10 @@ class ValueKlass: public InstanceKlass {
 
   address unpack_handler() const {
     return *(address*)adr_unpack_handler();
+  }
+
+  address adr_default_value_offset() const {
+    return (address)this + in_bytes(default_value_offset_offset());
   }
 
   // static Klass* array_klass_impl(InstanceKlass* this_k, bool or_null, int n, TRAPS);
@@ -230,6 +235,32 @@ class ValueKlass: public InstanceKlass {
 
   static ByteSize unpack_handler_offset() {
     return in_ByteSize((InstanceKlass::header_size()+1) * wordSize);
+  }
+
+  static ByteSize default_value_offset_offset() {
+    return in_ByteSize((InstanceKlass::header_size()+2) * wordSize);
+  }
+
+  void set_default_value_offset(int offset) {
+    *((int*)adr_default_value_offset()) = offset;
+  }
+
+  int default_value_offset() {
+    int offset = *((int*)adr_default_value_offset());
+    assert(offset != 0, "must not be called if not initialized");
+    return offset;
+  }
+
+  void set_default_value(oop val) {
+    java_mirror()->obj_field_put(default_value_offset(), val);
+  }
+
+  oop default_value() {
+    oop val = java_mirror()->obj_field_acquire(default_value_offset());
+    assert(oopDesc::is_oop(val), "Sanity check");
+    assert(val->is_value(), "Sanity check");
+    assert(val->klass() == this, "sanity check");
+    return val;
   }
 
   void deallocate_contents(ClassLoaderData* loader_data);

@@ -227,6 +227,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
 
   void parse_fields(const ClassFileStream* const cfs,
                     bool is_interface,
+                    bool is_concrete_value_type,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,

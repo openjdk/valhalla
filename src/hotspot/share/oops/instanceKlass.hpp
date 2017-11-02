@@ -1116,7 +1116,7 @@ public:
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
            (is_value_type ? (int)sizeof(Klass*) : 0) +
-           (is_value_type ? (int)sizeof(intptr_t)*2 : 0));
+           (is_value_type ? (int)sizeof(intptr_t)*3 : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1131,7 +1131,7 @@ public:
   virtual void collect_statistics(KlassSizeStats *sz) const;
 #endif
 
-  intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + (is_value() ? 2 : 0 ) + vtable_length(); }
+  intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + (is_value() ? 3 : 0 ) + vtable_length(); }
   intptr_t* end_of_itable()     const { return start_of_itable() + itable_length(); }
 
   int  itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
