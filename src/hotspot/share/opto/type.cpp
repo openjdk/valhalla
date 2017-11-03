@@ -649,7 +649,7 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeKlassPtr::OBJECT = TypeKlassPtr::make(TypePtr::NotNull, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0) );
-  TypeKlassPtr::BOTTOM = (EnableValhalla | EnableMVT) ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
+  TypeKlassPtr::BOTTOM = (EnableValhalla || EnableMVT) ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
   TypeKlassPtr::VALUE = TypeKlassPtr::make(TypePtr::NotNull, current->env()->___Value_klass(), Offset(0));
 
   const Type **fi2c = TypeTuple::fields(2);
