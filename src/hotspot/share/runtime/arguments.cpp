@@ -3497,8 +3497,13 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     }
   }
 
-  if (EnableMVT || EnableValhalla) {
-    if (!create_property("valhalla.enableValueType", "true", InternalProperty)) {
+  if (EnableMVT) {
+    if (!create_property("valhalla.enableMVT", "true", InternalProperty)) {
+      return JNI_ENOMEM;
+    }
+  }
+  if (EnableValhalla) {
+    if (!create_property("valhalla.enableValhalla", "true", InternalProperty)) {
       return JNI_ENOMEM;
     }
   }
@@ -3718,7 +3723,7 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
   UNSUPPORTED_OPTION(TieredCompilation);
 #endif
 
-  if ((EnableMVT || EnableValhalla) &&
+  if (EnableMVT &&
       !create_numbered_property("jdk.module.addmods", "jdk.incubator.mvt", addmods_count++)) {
     return JNI_ENOMEM;
   }

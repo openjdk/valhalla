@@ -55,7 +55,8 @@ public class MinimalValueTypes_1_0 {
     public static final int    DERIVE_VT_CLASS_ACCESS = ACC_PUBLIC|ACC_SUPER|ACC_FINAL|ACC_VALUE|ACC_SYNTHETIC;
 
     public static final boolean DUMP_CLASS_FILES;
-    private static final boolean VALUE_TYPE_ENABLED;
+    private static final boolean MVT_ENABLED;
+    private static final boolean VALHALLA_ENABLED;
     private static final JavaLangAccess JLA;
 
     static {
@@ -64,8 +65,8 @@ public class MinimalValueTypes_1_0 {
         DUMP_CLASS_FILES = Boolean.parseBoolean(
             props.getProperty("java.lang.invoke.MethodHandle.DUMP_CLASS_FILES"));
 
-        VALUE_TYPE_ENABLED = Boolean.parseBoolean(
-            props.getProperty("valhalla.enableValueType"));
+        MVT_ENABLED = Boolean.parseBoolean(props.getProperty("valhalla.enableMVT"));
+        VALHALLA_ENABLED = Boolean.parseBoolean(props.getProperty("valhalla.enableValhalla"));
 
         JLA = SharedSecrets.getJavaLangAccess();
     }
@@ -82,11 +83,11 @@ public class MinimalValueTypes_1_0 {
      */
     @SuppressWarnings("unchecked")
     public static <T> ValueTypeHolder<T> getValueFor(Class<T> vcc) {
-        if (!MinimalValueTypes_1_0.isValueTypeEnabled()) {
+        if (!isMVTEnabled()) {
             throw new UnsupportedOperationException("MVT is not enabled");
         }
 
-        if (!MinimalValueTypes_1_0.isValueCapable(vcc)) {
+        if (!isValueCapable(vcc)) {
             throw new IllegalArgumentException("Class " + vcc + " not a value capable class");
         }
 
@@ -95,7 +96,7 @@ public class MinimalValueTypes_1_0 {
             return vt;
         }
 
-        Class<T> valueClass = (Class<T>) MinimalValueTypes_1_0.getValueTypeClass(vcc);
+        Class<T> valueClass = (Class<T>) getValueTypeClass(vcc);
         vt = new ValueTypeHolder<T>(vcc, valueClass);
         ValueTypeHolder<T> old = (ValueTypeHolder<T>) BOX_TO_VT.putIfAbsent(vcc, vt);
         if (old != null) {
@@ -110,8 +111,8 @@ public class MinimalValueTypes_1_0 {
      */
     @SuppressWarnings("unchecked")
     public static <T> ValueTypeHolder<T> findValueType(Class<T> c) {
-        if (MinimalValueTypes_1_0.isValueType(c)) {
-            return (ValueTypeHolder<T>) getValueFor(MinimalValueTypes_1_0.getValueCapableClass(c));
+        if (isValueType(c)) {
+            return (ValueTypeHolder<T>) getValueFor(getValueCapableClass(c));
         } else {
             return null;
         }
@@ -122,12 +123,22 @@ public class MinimalValueTypes_1_0 {
      *
      * jdk.incubator.mvt must be resolved in the boot layer.
      */
-    public static boolean isValueTypeEnabled() {
-        return VALUE_TYPE_ENABLED;
+    public static boolean isMVTEnabled() {
+        return MVT_ENABLED;
     }
 
-    public static boolean isValueType(Class<?> dvt) {
-        return (dvt.getModifiers() & ACC_VALUE) != 0;
+    /**
+     * Returns true if Valhalla is enabled.
+     */
+    public static boolean isValhallaEnabled() {
+        return VALHALLA_ENABLED;
+    }
+
+    /**
+     * Tests if the given type is value type.
+     */
+    public static boolean isValueType(Class<?> vt) {
+        return (vt.getModifiers() & ACC_VALUE) != 0;
     }
 
     /**
@@ -135,7 +146,7 @@ public class MinimalValueTypes_1_0 {
      * annotated with @ValueCapableClass.
      */
     public static boolean isValueCapable(Class<?> vcc) {
-        if (!isValueTypeEnabled()) {
+        if (!isMVTEnabled()) {
             return false;
         }
 
@@ -252,8 +263,12 @@ public class MinimalValueTypes_1_0 {
 
     private final native Class<?> getDerivedValueType(Class<?> ofClass);
 
+    /*
+     * Returns the Class object for java.lang.__Value when
+     * -XX:+EnableMVT or -XX:+EnableValhalla is set.
+     */
     public static Class<?> getValueClass() {
-        return isValueTypeEnabled() ? ValueClassHelper.VALUE_CLASS : null;
+        return isMVTEnabled() || isValhallaEnabled() ? ValueClassHelper.VALUE_CLASS : null;
     }
 
     public static String getValueTypeClassName(ValueTypeDesc valueTypeDesc) {
@@ -333,7 +348,7 @@ public class MinimalValueTypes_1_0 {
      * Returns jdk.incubator.mvt.ValueType class from jdk.incubator.mvt module
      */
     static Class<?> getIncubatorValueTypeClass() {
-        if (!isValueTypeEnabled()) {
+        if (!isMVTEnabled()) {
             throw new UnsupportedOperationException("MVT is not enabled");
         }
         return ValueClassHelper.incubatorValueTypeClass();

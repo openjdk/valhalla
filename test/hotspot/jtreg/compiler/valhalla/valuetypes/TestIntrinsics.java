@@ -38,7 +38,7 @@ import jdk.test.lib.Asserts;
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla -Djdk.lang.reflect.DVT=true
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                   compiler.valhalla.valuetypes.TestIntrinsics
  */
 public class TestIntrinsics extends ValueTypeTest {

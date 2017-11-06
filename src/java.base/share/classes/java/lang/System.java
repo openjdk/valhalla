@@ -2190,7 +2190,7 @@ public final class System {
                     // VM support to define DVT
                     Class<?> c = Class.forName0(name, false, cl, Object.class);
                     // catch if the given name is not the name of a DVT class
-                    if (!c.isValueClass()) {
+                    if (!c.isDerivedValueClass()) {
                         throw new InternalError(c.getName() + " not a value type");
                     }
                     return c;

@@ -83,8 +83,6 @@ import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
 import valhalla.shady.MinimalValueTypes_1_0;
 
-import static valhalla.shady.MinimalValueTypes_1_0.ACC_VALUE;
-
 /**
  * Instances of the class {@code Class} represent classes and
  * interfaces in a running Java application.  An enum is a kind of
@@ -293,7 +291,7 @@ public final class Class<T> implements java.io.Serializable,
                 throws ClassNotFoundException {
         Class<?> caller = Reflection.getCallerClass();
         Class<?> c = forName0(className, true, ClassLoader.getClassLoader(caller), caller);
-        if (c.isValueClass()) {
+        if (c.isDerivedValueClass()) {
             throw new ClassNotFoundException(className + " is a derived value class");
         }
         return c;
@@ -380,7 +378,7 @@ public final class Class<T> implements java.io.Serializable,
             }
         }
         Class<?> c = forName0(name, initialize, loader, caller);
-        if (c.isValueClass()) {
+        if (c.isDerivedValueClass()) {
             throw new ClassNotFoundException(name + " is a derived value class");
         }
         return c;
@@ -465,15 +463,48 @@ public final class Class<T> implements java.io.Serializable,
             c = BootLoader.loadClass(module, name);
         }
 
-        return c != null && !c.isValueClass() ? c : null;
+        return c != null && !c.isDerivedValueClass() ? c : null;
     }
 
-    boolean isValueClass() {
+    /*
+     * Tests if this class is a derived value class
+     */
+    boolean isDerivedValueClass() {
         // ensure that system properties have been initialized before
         // loading MinimalValueTypes_1_0 class.
-        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isValueTypeEnabled())
+        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isMVTEnabled())
             return false;
+        return isValueClass();
+    }
 
+    /*
+     * Tests if this class is a valhalla value type
+     */
+    private boolean isValhallaValueType() {
+        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isValhallaEnabled())
+            return false;
+        return isValueClass();
+    }
+
+
+    /*
+     * Ensure this class is not a value class.
+     */
+    private void ensureNotValueClass() {
+        // value class is support only if -XX:+EnableMVT is set
+        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isMVTEnabled())
+            return;
+
+        if (this.isValueClass()) {
+            throw new UnsupportedOperationException("cannot reflect on value type "
+                + this.getName());
+        }
+    }
+
+    /*
+     * Test if this class is a value class (either MVT or Valhalla)
+     */
+    private boolean isValueClass() {
         Class<?> c = this;
         while (c.isArray()) {
             c = c.getComponentType();
@@ -482,15 +513,6 @@ public final class Class<T> implements java.io.Serializable,
         // For now, check if it is a subtype of __Value
         Class<?> valueBaseClass = MinimalValueTypes_1_0.getValueClass();
         return valueBaseClass != null && c != valueBaseClass && valueBaseClass.isAssignableFrom(c);
-    }
-
-    private void ensureNotValueClass() {
-        // temporary workaround until compiler/valhalla/valuetypes/ValueTypeBenchTest.java
-        // is updated to do reflection on VCC instead of VVT declared with __ByValue
-        if (this.isValueClass() && !Boolean.parseBoolean(VM.getSavedProperty("jdk.lang.reflect.DVT"))) {
-            throw new UnsupportedOperationException("cannot reflect on derived value type "
-                + this.getName());
-        }
     }
 
     /**
@@ -551,6 +573,9 @@ public final class Class<T> implements java.io.Serializable,
     public T newInstance()
         throws InstantiationException, IllegalAccessException
     {
+        if (isValhallaValueType()) {
+            throw new InstantiationException("no constructor in value type: " + getName());
+        }
         ensureNotValueClass();
 
         SecurityManager sm = System.getSecurityManager();
@@ -1445,6 +1470,9 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
+            if (enclosingCandidate.isValhallaValueType()) {
+                return null;
+            }
             enclosingCandidate.ensureNotValueClass();
 
             SecurityManager sm = System.getSecurityManager();
@@ -1947,6 +1975,10 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getConstructors() throws SecurityException {
+        if (isValhallaValueType()) {
+            return new Constructor<?>[0];
+        }
+
         ensureNotValueClass();
 
         SecurityManager sm = System.getSecurityManager();
@@ -2160,6 +2192,10 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
+        if (isValhallaValueType()) {
+            throw new NoSuchMethodException("no constructor in value type: " + getName());
+        }
+
         ensureNotValueClass();
 
         SecurityManager sm = System.getSecurityManager();
@@ -2375,6 +2411,10 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getDeclaredConstructors() throws SecurityException {
+        if (isValhallaValueType()) {
+            return new Constructor<?>[0];
+        }
+
         ensureNotValueClass();
 
         SecurityManager sm = System.getSecurityManager();
@@ -2575,6 +2615,10 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
+        if (isValhallaValueType()) {
+            throw new NoSuchMethodException("no constructor in value type: " + getName());
+        }
+
         ensureNotValueClass();
 
         SecurityManager sm = System.getSecurityManager();
