@@ -487,11 +487,14 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
           const char* derive_vt_classname_postfix = "$Value;";
           // check for a value type
           // check for name > 3 to rule out ";Q;" where no name is present
+          // check for name = 9 to rule out ";Q$Value;" where no name is present for EnableMVT
           if (name_len != 0 &&
               name_len > 3 &&
               name->starts_with(";Q") &&
               ((EnableValhalla && (name->byte_at(name_len-1) == ';')) ||
-               (EnableMVT && ClassLoader::string_ends_with(name->as_utf8(), derive_vt_classname_postfix)))) {
+               (EnableMVT &&
+                ClassLoader::string_ends_with(name->as_utf8(), derive_vt_classname_postfix) &&
+                name_len != 9))) {
             Symbol* const strippedsym = SymbolTable::new_symbol(name, 2, name_len-1, CHECK);
             assert(strippedsym != NULL, "failure to create value type stripped name");
             cp->symbol_at_put(class_index, strippedsym);
@@ -3169,14 +3172,15 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     const u2 inner_class_info_index = cfs->get_u2_fast();
     check_property(
       (valid_klass_reference_at(inner_class_info_index) ||
-       ((EnableValhalla || EnableMVT) && valid_value_type_reference_at(inner_class_info_index))),
+       (EnableValhalla && valid_value_type_reference_at(inner_class_info_index))),
       "inner_class_info_index %u has bad constant type in class file %s",
       inner_class_info_index, CHECK_0);
     // Outer class index
     const u2 outer_class_info_index = cfs->get_u2_fast();
     check_property(
       outer_class_info_index == 0 ||
-        valid_klass_reference_at(outer_class_info_index),
+        (valid_klass_reference_at(outer_class_info_index) ||
+         (EnableValhalla && valid_value_type_reference_at(outer_class_info_index))),
       "outer_class_info_index %u has bad constant type in class file %s",
       outer_class_info_index, CHECK_0);
     // Inner class name
