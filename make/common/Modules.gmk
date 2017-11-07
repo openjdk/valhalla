@@ -114,6 +114,7 @@ PLATFORM_MODULES += \
     jdk.httpserver \
     jdk.incubator.httpclient \
     jdk.incubator.mvt \
+    jdk.internal.vm.compiler.management \
     jdk.jsobject \
     jdk.localedata \
     jdk.naming.dns \
@@ -217,6 +218,7 @@ endif
 
 ifeq ($(INCLUDE_GRAAL), false)
   MODULES_FILTER += jdk.internal.vm.compiler
+  MODULES_FILTER += jdk.internal.vm.compiler.management
 endif
 
 ################################################################################

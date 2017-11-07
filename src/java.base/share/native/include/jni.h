@@ -64,6 +64,7 @@ typedef jint            jsize;
 
 #ifdef __cplusplus
 
+class _jvaluetype {};
 class _jobject {};
 class _jclass : public _jobject {};
 class _jthrowable : public _jobject {};
@@ -79,6 +80,7 @@ class _jfloatArray : public _jarray {};
 class _jdoubleArray : public _jarray {};
 class _jobjectArray : public _jarray {};
 
+typedef _jvaluetype *jvaluetype;
 typedef _jobject *jobject;
 typedef _jclass *jclass;
 typedef _jthrowable *jthrowable;
@@ -96,8 +98,10 @@ typedef _jobjectArray *jobjectArray;
 
 #else
 
+struct _jvaluetype;
 struct _jobject;
 
+typedef struct _jvaluetype *jvaluetype;
 typedef struct _jobject *jobject;
 typedef jobject jclass;
 typedef jobject jthrowable;
@@ -127,6 +131,7 @@ typedef union jvalue {
     jfloat   f;
     jdouble  d;
     jobject  l;
+    jvaluetype q;
 } jvalue;
 
 struct _jfieldID;
@@ -1964,6 +1969,7 @@ JNI_OnUnload(JavaVM *vm, void *reserved);
 #define JNI_VERSION_1_6 0x00010006
 #define JNI_VERSION_1_8 0x00010008
 #define JNI_VERSION_9   0x00090000
+#define JNI_VERSION_10  0x000a0000
 
 #ifdef __cplusplus
 } /* extern "C" */

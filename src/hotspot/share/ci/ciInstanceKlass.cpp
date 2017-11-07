@@ -746,9 +746,8 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
         } else {
           assert(value->is_instance() && bt == T_OBJECT, "what else?");
           if (value->is_a(SystemDictionary::String_klass())) {
-            _out->print(" \"");
-            _out->print_raw(java_lang_String::as_quoted_ascii(value));
-            _out->print("\"");
+              const char* ascii_value = java_lang_String::as_quoted_ascii(value);
+              _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
           }
         }
       }

@@ -234,7 +234,6 @@ class MetaspaceObj {
   void print_address_on(outputStream* st) const;  // nonvirtual address printing
 
 #define METASPACE_OBJ_TYPES_DO(f) \
-  f(Unknown) \
   f(Class) \
   f(Symbol) \
   f(TypeArrayU1) \
