@@ -2704,8 +2704,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       }
       for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
         if (ss.type() == T_VALUETYPE) {
-          Symbol* name = ss.as_symbol_or_null();
-          assert(name != NULL, "should not be null");
+          Symbol* name = ss.as_symbol(CHECK_NULL);
           if (!ValueTypePassFieldsAsArgs || (name == vmSymbols::java_lang____Value())) {
             assert(!ValueTypePassFieldsAsArgs || method->is_compiled_lambda_form() || method->is_method_handle_intrinsic(),
                    "should not use __Value for a value type argument");
