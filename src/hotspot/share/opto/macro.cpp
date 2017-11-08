@@ -2814,7 +2814,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   }
 
   // We can safepoint at that new call
-  C->add_safepoint_edges(slow_call, call->jvms());
+  copy_call_debug_info(call, slow_call);
   transform_later(slow_call);
   transform_later(handler_call);
 

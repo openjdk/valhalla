@@ -2555,6 +2555,7 @@ bool Arguments::check_vm_args_consistency() {
   if (EnableMVT && EnableValhalla) {
     jio_fprintf(defaultStream::error_stream(),
         "Conflicting combination in option list: EnableMVT and EnableValhalla cannot be both enabled at the same time");
+    status = false;
   }
 
   return status;

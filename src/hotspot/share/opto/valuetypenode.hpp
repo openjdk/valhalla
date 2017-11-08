@@ -113,8 +113,8 @@ public:
   // Create with default field values
   static ValueTypeNode* make_default(PhaseGVN& gvn, ciValueKlass* vk);
   // Create and initialize by loading the field values from an oop
-  static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, bool null_check = false);
-  static ValueTypeNode* make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check = false);
+  static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, bool null_check = false, bool buffer_check = false);
+  static ValueTypeNode* make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check = false, bool buffer_check = false);
   // Create and initialize by loading the field values from a flattened field or array
   static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
   static ValueTypeNode* make_from_flattened(PhaseGVN& gvn, ciValueKlass* vk, Node*& ctl, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);

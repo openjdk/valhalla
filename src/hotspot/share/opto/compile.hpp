@@ -1343,8 +1343,6 @@ class Compile : public Phase {
   // supporting clone_map
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
-
-  void add_safepoint_edges(SafePointNode* call, JVMState* youngest_jvms, bool can_prune_locals = false, uint stack_slots_not_pruned = 0);
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP

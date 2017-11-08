@@ -1885,6 +1885,7 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 #define AndXNode     AndLNode
 #define OrXNode      OrLNode
 #define CmpXNode     CmpLNode
+#define CmpUXNode    CmpULNode
 #define SubXNode     SubLNode
 #define LShiftXNode  LShiftLNode
 // For object size computation:
@@ -1930,6 +1931,7 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 #define AndXNode     AndINode
 #define OrXNode      OrINode
 #define CmpXNode     CmpINode
+#define CmpUXNode    CmpUNode
 #define SubXNode     SubINode
 #define LShiftXNode  LShiftINode
 // For object size computation:

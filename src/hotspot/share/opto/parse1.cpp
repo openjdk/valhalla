@@ -127,7 +127,8 @@ Node* Parse::fetch_interpreter_state(int index,
     // Load oop and create a new ValueTypeNode
     const TypeValueTypePtr* vtptr_type = TypeValueTypePtr::make(TypePtr::NotNull, type->is_valuetype()->value_klass());
     l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, vtptr_type, MemNode::unordered));
-    l = ValueTypeNode::make_from_oop(this, l);
+    // Value type oop may point to the TLVB
+    l = ValueTypeNode::make_from_oop(this, l, /* null_check */ false, /* buffer_check */ true);
     break;
   }
   case T_VALUETYPEPTR: {
@@ -878,7 +879,8 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       if (gvn.type(parm)->isa_valuetypeptr()) {
         // Create ValueTypeNode from the oop and replace the parameter
         Node* ctl = map->control();
-        parm = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), parm);
+        // Value type oop may point to the TLVB
+        parm = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), parm, /* null_check */ false, /* buffer_check */ true);
         map->set_control(ctl);
       }
       map->init_req(i, parm);

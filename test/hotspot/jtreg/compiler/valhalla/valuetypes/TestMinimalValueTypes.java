@@ -220,23 +220,23 @@ public class TestMinimalValueTypes extends ValueTypeTest {
                         }
                         );
 
-            MethodHandle test102_count = MethodHandles.constant(int.class, 100);
-            ValueType<?> test102_VT = ValueType.forClass(ValueCapableClass2.class);
-            MethodHandle test102_init = test102_VT.defaultValueConstant();
-            MethodHandle test102_getfield = test102_VT.findGetter(lookup, "u", long.class);
-            MethodHandle test102_add = lookup.findStatic(Long.class, "sum", MethodType.methodType(long.class, long.class, long.class));
-            MethodHandle test102_body = MethodHandles.collectArguments(ValueCapableClass2.FACTORY,
+            MethodHandle test13_count = MethodHandles.constant(int.class, 100);
+            ValueType<?> test13_VT = ValueType.forClass(ValueCapableClass2.class);
+            MethodHandle test13_init = test13_VT.defaultValueConstant();
+            MethodHandle test13_getfield = test13_VT.findGetter(lookup, "u", long.class);
+            MethodHandle test13_add = lookup.findStatic(Long.class, "sum", MethodType.methodType(long.class, long.class, long.class));
+            MethodHandle test13_body = MethodHandles.collectArguments(ValueCapableClass2.FACTORY,
                                                                       0,
-                                                                      MethodHandles.dropArguments(MethodHandles.collectArguments(MethodHandles.insertArguments(test102_add,
+                                                                      MethodHandles.dropArguments(MethodHandles.collectArguments(MethodHandles.insertArguments(test13_add,
                                                                                                                                                                0,
                                                                                                                                                                1L),
                                                                                                                                  0,
-                                                                                                                                 test102_getfield),
+                                                                                                                                 test13_getfield),
                                                                                                   1,
                                                                                                   int.class));
-            test13_mh = MethodHandles.collectArguments(test102_getfield,
+            test13_mh = MethodHandles.collectArguments(test13_getfield,
                                                        0,
-                                                       MethodHandles.countedLoop(test102_count, test102_init, test102_body));
+                                                       MethodHandles.countedLoop(test13_count, test13_init, test13_body));
         } catch (NoSuchMethodException | IllegalAccessException | NoSuchFieldException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");

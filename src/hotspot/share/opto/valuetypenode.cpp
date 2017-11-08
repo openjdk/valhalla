@@ -492,7 +492,9 @@ ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
   return gvn.transform(vt)->as_ValueType();
 }
 
-ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check) {
+ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check, bool buffer_check) {
+  assert(!(null_check && buffer_check), "should not both require a null and a buffer check");
+
   // Create and initialize a ValueTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
   ciValueKlass* vk = gvn.type(oop)->is_valuetypeptr()->value_klass();
@@ -511,6 +513,7 @@ ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem
     oop = new CastPPNode(oop, TypePtr::NOTNULL);
     oop->set_req(0, not_null);
     oop = gvn.transform(oop);
+    vt->set_oop(oop);
     vt->load(gvn, not_null, mem, oop, oop, vk);
     region->init_req(1, not_null);
 
@@ -530,13 +533,39 @@ ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem
     assert(init_ctl != ctl || oop->is_Con() || oop->is_CheckCastPP() || oop->Opcode() == Op_ValueTypePtr ||
            vt->is_loaded(&gvn) == oop, "value type should be loaded");
   }
+
+  if (buffer_check && vk->is_bufferable()) {
+    // Check if oop is in heap bounds or if it points into the vtBuffer:
+    // base <= oop < (base + size)  <=>  (oop - base) <U size
+    // Discard buffer oops to avoid storing them into fields or arrays.
+    assert(!gvn.type(oop)->isa_narrowoop(), "should not be a narrow oop");
+    Node* heap_base = gvn.MakeConX((intptr_t)Universe::heap()->base());
+    Node* heap_size = gvn.MakeConX(Universe::heap()->max_capacity());
+    Node* sub = gvn.transform(new SubXNode(gvn.transform(new CastP2XNode(NULL, oop)), heap_base));
+    Node* chk = gvn.transform(new CmpUXNode(sub, heap_size));
+    Node* tst = gvn.transform(new BoolNode(chk, BoolTest::lt));
+    IfNode* iff = gvn.transform(new IfNode(ctl, tst, PROB_MAX, COUNT_UNKNOWN))->as_If();
+
+    Node* region = new RegionNode(3);
+    region->init_req(1, gvn.transform(new IfTrueNode(iff)));
+    region->init_req(2, gvn.transform(new IfFalseNode(iff)));
+    Node* new_oop = new PhiNode(region, vt->value_type_ptr());
+    new_oop->init_req(1, oop);
+    new_oop->init_req(2, gvn.zerocon(T_VALUETYPE));
+
+    gvn.hash_delete(vt);
+    vt->set_oop(gvn.transform(new_oop));
+    vt = gvn.transform(vt)->as_ValueType();
+    ctl = gvn.transform(region);
+  }
+
   return vt;
 }
 
 // GraphKit wrapper for the 'make_from_oop' method
-ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, bool null_check) {
+ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, bool null_check, bool buffer_check) {
   Node* ctl = kit->control();
-  ValueTypeNode* vt = make_from_oop(kit->gvn(), ctl, kit->merged_memory(), oop, null_check);
+  ValueTypeNode* vt = make_from_oop(kit->gvn(), ctl, kit->merged_memory(), oop, null_check, buffer_check);
   kit->set_control(ctl);
   return vt;
 }
@@ -684,11 +713,11 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
 }
 
 Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  if (!is_allocated(phase)) {
-    // Check if this value type is loaded from memory
+  if (!is_allocated(phase) && !value_klass()->is_bufferable()) {
+    // Save base oop if fields are loaded from memory and the value
+    // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
     if (base != NULL) {
-      // Save the oop
       set_oop(base);
       assert(is_allocated(phase), "should now be allocated");
       return this;
