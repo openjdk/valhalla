@@ -73,6 +73,7 @@ public:
   bool flatten_array() const;
   bool can_be_returned_as_fields() const;
   int value_arg_slots();
+  int default_value_offset() const;
 };
 
 #endif // SHARE_VM_CI_CIVALUEKLASS_HPP

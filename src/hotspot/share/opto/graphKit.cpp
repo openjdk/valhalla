@@ -3693,8 +3693,7 @@ void GraphKit::initialize_value_type_array(Node* array, Node* length, ciValueKla
   record_for_igvn(res_mem);
 
   // Length is non-zero: execute a loop that initializes the array with the default value type
-  Node* oop = ValueTypeNode::make_default(gvn(), vk);
-  oop = oop->as_ValueType()->allocate(this)->get_oop();
+  Node* oop = ValueTypeNode::load_default_oop(gvn(), vk);
 
   add_predicate(nargs);
   RegionNode* loop = new RegionNode(3);

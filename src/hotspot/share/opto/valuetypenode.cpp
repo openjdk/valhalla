@@ -465,9 +465,20 @@ ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* kl
   return new ValueTypeNode(type, gvn.zerocon(T_VALUETYPE));
 }
 
+Node* ValueTypeNode::load_default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
+  // Load the default oop from the java mirror of the given ValueKlass
+  const TypeInstPtr* tip = TypeInstPtr::make(vk->java_mirror());
+  Node* base = gvn.makecon(tip);
+  Node* adr = gvn.transform(new AddPNode(base, base, gvn.MakeConX(vk->default_value_offset())));
+  const Type* rt = Type::get_const_type(vk)->join_speculative(TypePtr::NOTNULL);
+  return gvn.transform(LoadNode::make(gvn, NULL, gvn.C->immutable_memory(), adr, tip, rt, T_VALUETYPE, MemNode::unordered));
+}
+
 ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
   // Create a new ValueTypeNode with default values
-  ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, vk);
+  Node* oop = load_default_oop(gvn, vk);
+  const TypeValueType* type = TypeValueType::make(vk);
+  ValueTypeNode* vt = new ValueTypeNode(type, oop);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
     Node* value = NULL;

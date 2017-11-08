@@ -3196,8 +3196,6 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
         _is_ptr_to_narrowoop = (bt == T_OBJECT || bt == T_ARRAY || T_VALUETYPE);
       }
     } else if (klass()->is_instance_klass()) {
-      ciInstanceKlass* ik = klass()->as_instance_klass();
-      ciField* field = NULL;
       if (this->isa_klassptr()) {
         // Perm objects don't use compressed references
       } else if (_offset == Offset::bottom || _offset == Offset::top) {
@@ -3205,7 +3203,6 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
         _is_ptr_to_narrowoop = UseCompressedOops;
       } else { // exclude unsafe ops
         assert(this->isa_instptr() || this->isa_valuetypeptr(), "must be an instance ptr.");
-
         if (klass() == ciEnv::current()->Class_klass() &&
             (this->offset() == java_lang_Class::klass_offset_in_bytes() ||
              this->offset() == java_lang_Class::array_klass_offset_in_bytes())) {
@@ -3216,15 +3213,23 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
                    this->offset() >= InstanceMirrorKlass::offset_of_static_fields()) {
           // Static fields
           assert(o != NULL, "must be constant");
-          ciInstanceKlass* k = o->as_instance()->java_lang_Class_klass()->as_instance_klass();
-          ciField* field = k->get_field_by_offset(this->offset(), true);
-          assert(field != NULL, "missing field");
-          BasicType basic_elem_type = field->layout_type();
+          ciInstanceKlass* ik = o->as_instance()->java_lang_Class_klass()->as_instance_klass();
+          BasicType basic_elem_type;
+          if (ik->is_valuetype() && this->offset() == ik->as_value_klass()->default_value_offset()) {
+            // Special hidden field that contains the oop of the default value type
+            basic_elem_type = T_VALUETYPE;
+          } else {
+            ciField* field = ik->get_field_by_offset(this->offset(), true);
+            assert(field != NULL, "missing field");
+            basic_elem_type = field->layout_type();
+          }
           _is_ptr_to_narrowoop = UseCompressedOops && (basic_elem_type == T_OBJECT ||
+                                                       basic_elem_type == T_VALUETYPE ||
                                                        basic_elem_type == T_ARRAY);
         } else {
           // Instance fields which contains a compressed oop references.
-          field = ik->get_field_by_offset(this->offset(), false);
+          ciInstanceKlass* ik = klass()->as_instance_klass();
+          ciField* field = ik->get_field_by_offset(this->offset(), false);
           if (field != NULL) {
             BasicType basic_elem_type = field->layout_type();
             _is_ptr_to_narrowoop = UseCompressedOops && (basic_elem_type == T_OBJECT ||
