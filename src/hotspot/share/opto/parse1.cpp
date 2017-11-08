@@ -2319,23 +2319,27 @@ void Parse::return_current(Node* value) {
 
   // frame pointer is always same, already captured
   if (value != NULL) {
-    // If returning oops to an interface-return, there is a silent free
-    // cast from oop to interface allowed by the Verifier.  Make it explicit
-    // here.
     Node* phi = _exits.argument(0);
-    const TypeInstPtr *tr = phi->bottom_type()->isa_instptr();
-    if (tr && tr->klass()->is_loaded() &&
+    const TypeOopPtr* tr = phi->bottom_type()->isa_oopptr();
+    if (tr && tr->isa_instptr() && tr->klass()->is_loaded() &&
         tr->klass()->is_interface()) {
-      const TypeInstPtr *tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->klass()->is_loaded() &&
-          !tp->klass()->is_interface()) {
+      // If returning oops to an interface-return, there is a silent free
+      // cast from oop to interface allowed by the Verifier. Make it explicit here.
+      const TypeInstPtr* tp = value->bottom_type()->isa_instptr();
+      if (tp && tp->klass()->is_loaded() && !tp->klass()->is_interface()) {
         // sharpen the type eagerly; this eases certain assert checking
-        if (tp->higher_equal(TypeInstPtr::NOTNULL))
+        if (tp->higher_equal(TypeInstPtr::NOTNULL)) {
           tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
+        }
         value = _gvn.transform(new CheckCastPPNode(0, value, tr));
       }
+    } else if (tr && tr->isa_valuetypeptr() && value->is_ValueType()) {
+      // Handle exact value type to __Value return
+      assert(tr->isa_valuetypeptr()->is__Value(), "must be __Value");
+      ValueTypeNode* vt = value->as_ValueType()->allocate(this)->as_ValueType();
+      value = ValueTypePtrNode::make_from_value_type(_gvn, vt);
     } else {
-      // Also handle returns of oop-arrays to an arrays-of-interface return
+      // Handle returns of oop-arrays to an arrays-of-interface return
       const TypeInstPtr* phi_tip;
       const TypeInstPtr* val_tip;
       Type::get_arrays_base_elements(phi->bottom_type(), value->bottom_type(), &phi_tip, &val_tip);

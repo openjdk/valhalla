@@ -708,4 +708,25 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(va[0].i, (int)staticVal3.c);
         Asserts.assertEQ(vt.i, (int)staticVal3.c);
     }
+
+    // Test __Value in the method signature
+    @DontInline
+    public __Value test34_callee(__Value vt) {
+        return vt;
+    }
+
+    @Test()
+    public __Value test34(boolean b, __Value vt) throws Throwable {
+        if (b) {
+            return test34_callee(vt);
+        } else {
+            return MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        }
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) throws Throwable {
+        test34(true, MyValue1.createWithFieldsInline(rI, rL));
+        test34(false, MyValue1.createWithFieldsInline(rI, rL));
+    }
 }

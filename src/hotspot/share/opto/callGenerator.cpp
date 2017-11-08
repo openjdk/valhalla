@@ -125,8 +125,7 @@ class DirectCallGenerator : public CallGenerator {
     : CallGenerator(method),
       _separate_io_proj(separate_io_proj)
   {
-    if (method->is_method_handle_intrinsic() &&
-        method->signature()->return_type()->is__Value()) {
+    if (method->signature()->return_type()->is__Value()) {
       // If that call has not been optimized by the time optimizations
       // are over, we'll need to add a call to create a value type
       // instance from the klass returned by the call. Separating

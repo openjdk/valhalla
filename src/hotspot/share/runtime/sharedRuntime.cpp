@@ -2706,8 +2706,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
         if (ss.type() == T_VALUETYPE) {
           Symbol* name = ss.as_symbol(CHECK_NULL);
           if (!ValueTypePassFieldsAsArgs || (name == vmSymbols::java_lang____Value())) {
-            assert(!ValueTypePassFieldsAsArgs || method->is_compiled_lambda_form() || method->is_method_handle_intrinsic(),
-                   "should not use __Value for a value type argument");
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
           } else {
             // Method handle intrinsics with a __Value argument may be created during
