@@ -168,6 +168,7 @@ class ValueKlass: public InstanceKlass {
       size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
       bufferable = size_in_bytes <= BigValueTypeThreshold;
     }
+    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
     if (bufferable) {
       _extra_flags |= _extra_is_bufferable;
     } else {
