@@ -837,7 +837,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 break;
             case ANEWARRAY:
                 state.pop();
-                state.push(typeHelper.arrayOf(typeHelper.arrayOf(typeHelper.type((S)optValue))));
+		state.push(typeHelper.arrayOf(typeHelper.type((S)optValue))); 
                 break;
             case VBOX:
             case VUNBOX:
