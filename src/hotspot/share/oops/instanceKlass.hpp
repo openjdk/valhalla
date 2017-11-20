@@ -453,7 +453,7 @@ class InstanceKlass: public Klass {
 
   // Returns nest-host class, resolving and validating it if needed
   // Returns NULL if an exception occurs during loading, or validation fails
-  InstanceKlass* nest_host(TRAPS);
+  InstanceKlass* nest_host(Symbol* validationException, TRAPS);
   InstanceKlass* raw_nest_host() { return _nest_host; } // debugging
 
   // Called to verify that k is a member of this nest - does not look at k's nest-host

@@ -551,9 +551,16 @@ JVM_GetClassDeclaredConstructors(JNIEnv *env, jclass ofClass, jboolean publicOnl
 JNIEXPORT jint JNICALL
 JVM_GetClassAccessFlags(JNIEnv *env, jclass cls);
 
-/* Nestmate access - since JDK 10 */
+/* Nestmates - since JDK 18.9 */
+
 JNIEXPORT jboolean JNICALL
 JVM_AreNestMates(JNIEnv *env, jclass current, jclass member);
+
+JNIEXPORT jclass JNICALL
+JVM_GetNestHost(JNIEnv *env, jclass current);
+
+JNIEXPORT jobjectArray JNICALL
+JVM_GetNestMembers(JNIEnv *env, jclass current);
 
 /*
  * Constant pool access; currently used to implement reflective access to annotations (JDK 1.5)

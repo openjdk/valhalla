@@ -192,7 +192,7 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
 // (such as a native JIT thread) then we simply return NULL, which in turn
 // causes the access check to return false. Such code will retry the access
 // from a more suitable environment later.
-InstanceKlass* InstanceKlass::nest_host(TRAPS) {
+InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
   InstanceKlass* nest_host_k = _nest_host;
   if (nest_host_k == NULL) {
     // need to resolve and save our nest-host class. This could be attempted
@@ -226,7 +226,8 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
           char buf[200];
           CLEAR_PENDING_EXCEPTION;
           jio_snprintf(buf, sizeof(buf),
-                       "Unable to load nest-host class of %s",
+                       "Unable to load nest-host class (%s) of %s",
+                       _constants->klass_name_at(_nest_host_index)->as_C_string(),
                        this->external_name());
           log_trace(class, nestmates)("%s - NoClassDefFoundError", buf);
           THROW_MSG_CAUSE_NULL(vmSymbols::java_lang_NoClassDefFoundError(), buf, exc_h);
@@ -236,8 +237,8 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
       }
 
       // A valid nest-host is an instance class in the current package that lists this
-      // class as a nest member. If any of these conditions are not met we simply throw
-      // IllegalAccessError, with a suitable message.
+      // class as a nest member. If any of these conditions are not met we post the
+      // requested exception type (if any) and return NULL
 
       const char* error = NULL;
 
@@ -281,14 +282,16 @@ InstanceKlass* InstanceKlass::nest_host(TRAPS) {
                                     error);
       }
 
-      ResourceMark rm(THREAD);
-      Exceptions::fthrow(THREAD_AND_LOCATION,
-                         vmSymbols::java_lang_IllegalAccessError(),
-                         "Type %s is not a nest member of %s: %s",
-                         this->external_name(),
-                         k->external_name(),
-                         error
-                         );
+      if (validationException != NULL) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(THREAD_AND_LOCATION,
+                           validationException,
+                           "Type %s is not a nest member of %s: %s",
+                           this->external_name(),
+                           k->external_name(),
+                           error
+                           );
+      }
       return NULL;
     }
     else {
@@ -316,12 +319,13 @@ bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
   // layers. IllegalAccessErrors from membership validation failures will
   // also be passed through.
 
-  InstanceKlass* cur_host = nest_host(THREAD);
+  Symbol* iae = vmSymbols::java_lang_IllegalAccessError();
+  InstanceKlass* cur_host = nest_host(iae, THREAD);
   if (cur_host == NULL || HAS_PENDING_EXCEPTION) {
     return false;
   }
 
-  Klass* k_nest_host = k->nest_host(THREAD);
+  Klass* k_nest_host = k->nest_host(iae, THREAD);
   if (k_nest_host == NULL || HAS_PENDING_EXCEPTION) {
     return false;
   }

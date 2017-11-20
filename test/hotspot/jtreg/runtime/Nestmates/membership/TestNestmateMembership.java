@@ -221,7 +221,7 @@ public class TestNestmateMembership {
 
     static void test_MissingHost() throws Throwable {
         System.out.println("Testing for nest-host class that does not exist");
-        String msg = "Unable to load nest-host class of " +
+        String msg = "Unable to load nest-host class (NoTargetMissingHost) of " +
             "TestNestmateMembership$TargetMissingHost";
         String cause_msg = "NoTargetMissingHost";
         try {
@@ -236,7 +236,7 @@ public class TestNestmateMembership {
             }
             else throw new Error("Unexpected NoClassDefFoundError", expected);
         }
-        msg = "Unable to load nest-host class of " +
+        msg = "Unable to load nest-host class (NoCallerMissingHost) of " +
             "TestNestmateMembership$CallerMissingHost";
         cause_msg = "NoCallerMissingHost";
         try {
@@ -251,7 +251,7 @@ public class TestNestmateMembership {
             }
             else throw new Error("Unexpected NoClassDefFoundError", expected);
         }
-        msg = "Unable to load nest-host class of "+
+        msg = "Unable to load nest-host class (NoCallerMissingHost) of "+
             "TestNestmateMembership$CallerMissingHost";
         cause_msg = "NoCallerMissingHost";
         try {

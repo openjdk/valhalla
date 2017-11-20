@@ -3835,4 +3835,101 @@ public final class Class<T> implements java.io.Serializable,
     public AnnotatedType[] getAnnotatedInterfaces() {
          return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
     }
+
+    private native Class<?> getNestHost0();
+
+    /**
+     * Returns the nest host of the object represented by this {@code Class}.
+     *
+     * <p>If there is any error accessing the nest host, or the nest host is
+     * in any way invalid, then {@code this} is returned.
+     *
+     * @apiNote A nest is a set of classes and interfaces (nestmates) that
+     * form an access control context in which each nestmate has access to the
+     * private members of the other nestmates (JVMS 4.7.28).
+     * Nest membership is declared through special attributes in the binary
+     * representation of a class or interface (JVMS 4.1).
+     * The nest host is the class or interface designated to hold the list of
+     * classes and interfaces that make up the nest, and to which each of the
+     * other nestmates refer.
+     * The source language compiler is responsible for deciding which classes
+     * and interfaces are nestmates. For example, the {@code javac} compiler
+     * places a top-level class or interface into a nest with all of its direct,
+     * and indirect, {@linkplain #getDeclaredClasses() nested classes and interfaces}
+     * (JLS 8).
+     * The top-level {@linkplain #getEnclosingClass() enclosing class or interface}
+     * is designated as the nest host.
+     *
+     * <p>A class or interface that is not explicitly a member of a nest,
+     * is a member of the nest consisting only of itself, and is the
+     * nest host. Every class and interface is a member of exactly one nest.
+     *
+     * @return the nest host of this class, or {@code this} if we can not
+     * obtain a valid nest host
+     *
+     * @since 11
+     */
+    public Class<?> getNestHost() {
+        if (isPrimitive() || isArray()) {
+            return this;
+        }
+        try {
+            Class<?> host = getNestHost0();
+            // if null then nest membership validation failed, so we
+            // act as-if we have no nest-host
+            if (host == null) {
+                host = this;
+            }
+            return host;
+        } catch (LinkageError e) {
+            // if we couldn't load our nest-host then we
+            // again act as-if we have no nest-host
+            return this;
+        }
+    }
+
+    /**
+     * Determines if the given {@code Class} is a nestmate of the
+     * object represented by this {@code Class}. Two classes are nestmates
+     * if they have the same {@linkplain #getNestHost nest host}.
+     *
+     * @param  c the class to check
+     * @return {@code true} if this class and {@code c} are valid members of the same
+     * nest; and {@code false} otherwise.
+     *
+     * @since 11
+     */
+    public boolean isNestmateOf(Class<?> c) {
+        // We could use Reflection.areNestmates(this, c) and ignore
+        // any IllegalAccessError, but prefer to minimize exception
+        // creation by using getNestHost() directly.
+        return getNestHost() == c.getNestHost();
+    }
+
+    private native Class<?>[] getNestMembers0();
+
+    /**
+     * Returns an array containing {@code Class} objects representing all the
+     * classes and interfaces that are declared in the
+     * {@linkplain #getNestHost() nest host} of this class, as being members
+     * of its nest. The nest host will always be the zeroeth element.
+     *
+     * <p>Each listed nest member must be validated by checking its own
+     * declared {@linkplain #getNestHost() nest host}. Any exceptions that occur
+     * as part of this process will be thrown.
+     *
+     * @return an array of all classes and interfaces in the same nest as
+     * this class
+     *
+     * @throws LinkageError if there is any problem loading or validating
+     * a nest member or its nest host
+     *
+     * @since 11
+     */
+    public Class<?>[] getNestMembers() {
+        if (isPrimitive() || isArray()) {
+            return new Class<?>[] { this };
+        }
+        return getNestMembers0();
+    }
 }

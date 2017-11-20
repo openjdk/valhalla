@@ -122,6 +122,8 @@ JVM_GetMethodIxSignatureUTF
 JVM_GetMethodParameters
 JVM_GetMethodTypeAnnotations
 JVM_GetNanoTimeAdjustment
+JVM_GetNestHost
+JVM_GetNestMembers
 JVM_GetPrimitiveArrayElement
 JVM_GetProtectionDomain
 JVM_GetSimpleBinaryName
