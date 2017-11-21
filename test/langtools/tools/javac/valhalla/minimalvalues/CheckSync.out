@@ -1,6 +1,6 @@
 - compiler.warn.incubating.modules: jdk.incubator.mvt
 - compiler.err.warnings.and.werror
-CheckSync.java:38:12: compiler.err.cant.apply.symbols: kindname.method, wait, java.lang.String,{(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(long), (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: java.lang.String, long))),(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(long,int), (compiler.misc.arg.length.mismatch)),(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(), (compiler.misc.arg.length.mismatch))}
+CheckSync.java:38:12: compiler.err.cant.apply.symbols: kindname.method, wait, java.lang.String,{(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(), (compiler.misc.arg.length.mismatch)),(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(long), (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: java.lang.String, long))),(compiler.misc.inapplicable.method: kindname.method, java.lang.Object, wait(long,int), (compiler.misc.arg.length.mismatch))}
 CheckSync.java:18:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
 CheckSync.java:19:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
 CheckSync.java:20:17: compiler.warn.value.does.not.support: calling java.lang.Object's method: wait
