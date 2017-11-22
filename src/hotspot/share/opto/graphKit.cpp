@@ -3102,7 +3102,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
                               Node* *failure_control) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr *tk = _gvn.type(superklass)->is_klassptr();
-  assert(tk->is_loaded(), "must be loaded");
   const Type *toop = TypeOopPtr::make_from_klass(tk->klass());
 
   // Fast cutout:  Check the case that the cast is vacuously true.
