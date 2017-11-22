@@ -92,7 +92,7 @@ class InterpreterRuntime: AllStatic {
   static void    qgetfield     (JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
   static void    qputfield     (JavaThread* thread, oopDesc* obj, oopDesc* value, ConstantPoolCache* cp_cache);
   static void    qputstatic    (JavaThread* thread, oopDesc* value, int offset, oopDesc* mirror);
-  static void    initialize_static_value_field(JavaThread*, oopDesc* mirror, int offset);
+  static void    uninitialized_static_value_field(JavaThread*, oopDesc* mirror, int offset);
 
   // Value Buffers support
   static void    recycle_vtbuffer(JavaThread* thread);

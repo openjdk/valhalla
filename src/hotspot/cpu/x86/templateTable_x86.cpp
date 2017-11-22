@@ -2930,7 +2930,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     __ testptr(rax, rax);
     __ jcc(Assembler::notZero, initialized);
     __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::initialize_static_value_field),
+    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
          obj, flags2);
     __ verify_oop(rax);
     __ bind(initialized);

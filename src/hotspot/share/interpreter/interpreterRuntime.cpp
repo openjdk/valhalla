@@ -358,7 +358,7 @@ IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, 
   }
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::initialize_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
+IRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   int offset = klass->field_offset(index);
@@ -374,12 +374,8 @@ IRT_ENTRY(void, InterpreterRuntime::initialize_static_value_field(JavaThread* th
     klass->set_value_field_klass(index, field_k);
   }
   ValueKlass* field_vklass = ValueKlass::cast(field_k);
-  // allocate instance, because it is going to be assigned to a static field
-  // it must not be a buffered value
   instanceOop res = (instanceOop)field_vklass->default_value();
-  instanceHandle res_h(THREAD, res);
-  mirror_h()->obj_field_put(offset, res_h());
-  thread->set_vm_result(res_h());
+  thread->set_vm_result(res);
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, oopDesc* value, ConstantPoolCache* cp_cache))
