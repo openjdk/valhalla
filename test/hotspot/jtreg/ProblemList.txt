@@ -90,6 +90,16 @@ serviceability/sa/TestInstanceKlassSizeForInterface.java 8184042 macosx-all
 serviceability/sa/TestPrintMdo.java 8184042 macosx-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8184042 macosx-all
 serviceability/dcmd/jvmti/LoadAgentDcmdTest.java 8186540 windows-all
+
+
+# Valhalla TODO:
+serviceability/sa/JhsdbThreadInfoTest.java 8190936 generic-all
+serviceability/sa/TestCpoolForInvokeDynamic.java 8190936 generic-all
+serviceability/sa/TestHeapDumpForInvokeDynamic.java 8190936 generic-all
+serviceability/sa/TestHeapDumpForLargeArray.java 8190936 generic-all
+serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
+
+
 #############################################################################
 
 # :hotspot_misc
