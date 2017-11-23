@@ -54,6 +54,9 @@ compiler/types/correctness/OffTest.java 8066173 generic-all
 # aot test intermittently failing in jprt 8175791
 compiler/aot/DeoptimizationTest.java 8175791 windows-all
 
+#Valhalla
+applications/ctw/Modules.java 8191818 generic-all
+
 #############################################################################
 
 # :hotspot_gc
