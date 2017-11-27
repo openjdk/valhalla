@@ -687,7 +687,8 @@ address TemplateInterpreterGenerator::generate_return_entry_for (TosState state,
 }
 
 address TemplateInterpreterGenerator::generate_deopt_entry_for (TosState state,
-                                                               int step) {
+                                                               int step,
+                                                               address continuation) {
   address entry = __ pc();
 
   BLOCK_COMMENT("deopt_entry {");
@@ -710,7 +711,11 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for (TosState state,
     __ should_not_reach_here();
     __ bind(L);
   }
-  __ dispatch_next(state, step);
+  if (continuation == NULL) {
+    __ dispatch_next(state, step);
+  } else {
+    __ jump_to_entry(continuation, Z_R1_scratch);
+  }
 
   BLOCK_COMMENT("} deopt_entry");
 
@@ -2377,6 +2382,12 @@ address TemplateInterpreterGenerator::generate_earlyret_entry_for (TosState stat
   __ store_const(Address(RjvmtiState, JvmtiThreadState::earlyret_state_offset()),
                  JvmtiThreadState::earlyret_inactive, 4, 4, Z_R0_scratch);
 
+  if (state == itos) {
+    // Narrow result if state is itos but result type is smaller.
+    // Need to narrow in the return bytecode rather than in generate_return_entry
+    // since compiled code callers expect the result to already be narrowed.
+    __ narrow(Z_tos, Z_tmp_1); /* fall through */
+  }
   __ remove_activation(state,
                        Z_tmp_1, // retaddr
                        false,   // throw_monitor_exception

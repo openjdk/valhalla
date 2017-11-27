@@ -49,6 +49,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/handshake.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
@@ -75,6 +76,7 @@
 
 #ifdef LINUX
 #include "utilities/elfFile.hpp"
+#include "osContainer_linux.hpp"
 #endif
 
 #define SIZE_T_MAX_VALUE ((size_t) -1)
@@ -1715,12 +1717,50 @@ WB_ENTRY(jobject, WB_GetResolvedReferences(JNIEnv* env, jobject wb, jclass clazz
   }
 WB_END
 
+WB_ENTRY(jboolean, WB_AreOpenArchiveHeapObjectsMapped(JNIEnv* env))
+  return MetaspaceShared::open_archive_heap_region_mapped();
+WB_END
+
 WB_ENTRY(jboolean, WB_IsCDSIncludedInVmBuild(JNIEnv* env))
 #if INCLUDE_CDS
   return true;
 #else
   return false;
 #endif
+WB_END
+
+WB_ENTRY(jint, WB_HandshakeWalkStack(JNIEnv* env, jobject wb, jobject thread_handle, jboolean all_threads))
+  class TraceSelfClosure : public ThreadClosure {
+    jint _num_threads_completed;
+
+    void do_thread(Thread* th) {
+      assert(th->is_Java_thread(), "sanity");
+      JavaThread* jt = (JavaThread*)th;
+      ResourceMark rm;
+
+      jt->print_on(tty);
+      jt->print_stack_on(tty);
+      tty->cr();
+      Atomic::inc(&_num_threads_completed);
+    }
+
+  public:
+    TraceSelfClosure() : _num_threads_completed(0) {}
+
+    jint num_threads_completed() const { return _num_threads_completed; }
+  };
+  TraceSelfClosure tsc;
+
+  if (all_threads) {
+    Handshake::execute(&tsc);
+  } else {
+    oop thread_oop = JNIHandles::resolve(thread_handle);
+    if (thread_oop != NULL) {
+      JavaThread* target = java_lang_Thread::thread(thread_oop);
+      Handshake::execute(&tsc, target);
+    }
+  }
+  return tsc.num_threads_completed();
 WB_END
 
 //Some convenience methods to deal with objects from java
@@ -1839,6 +1879,16 @@ WB_ENTRY(jboolean, WB_CheckLibSpecifiesNoexecstack(JNIEnv* env, jobject o, jstri
 #endif
   return ret;
 WB_END
+
+WB_ENTRY(jboolean, WB_IsContainerized(JNIEnv* env, jobject o))
+  LINUX_ONLY(return OSContainer::is_containerized();)
+  return false;
+WB_END
+
+WB_ENTRY(void, WB_PrintOsInfo(JNIEnv* env, jobject o))
+  os::print_os_info(tty);
+WB_END
+
 
 #define CC (char*)
 
@@ -2031,8 +2081,10 @@ static JNINativeMethod methods[] = {
   {CC"isSharedClass",      CC"(Ljava/lang/Class;)Z",  (void*)&WB_IsSharedClass },
   {CC"areSharedStringsIgnored",           CC"()Z",    (void*)&WB_AreSharedStringsIgnored },
   {CC"getResolvedReferences", CC"(Ljava/lang/Class;)Ljava/lang/Object;", (void*)&WB_GetResolvedReferences},
+  {CC"areOpenArchiveHeapObjectsMapped",   CC"()Z",    (void*)&WB_AreOpenArchiveHeapObjectsMapped},
   {CC"isCDSIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsCDSIncludedInVmBuild },
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },
+  {CC"handshakeWalkStack", CC"(Ljava/lang/Thread;Z)I", (void*)&WB_HandshakeWalkStack },
   {CC"addCompilerDirective",    CC"(Ljava/lang/String;)I",
                                                       (void*)&WB_AddCompilerDirective },
   {CC"removeCompilerDirective",   CC"(I)V",             (void*)&WB_RemoveCompilerDirective },
@@ -2046,7 +2098,10 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_RequestConcurrentGCPhase},
   {CC"checkLibSpecifiesNoexecstack", CC"(Ljava/lang/String;)Z",
                                                       (void*)&WB_CheckLibSpecifiesNoexecstack},
+  {CC"isContainerized",           CC"()Z",            (void*)&WB_IsContainerized },
+  {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
 };
+
 
 #undef CC
 

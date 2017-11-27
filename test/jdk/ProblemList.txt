@@ -176,6 +176,8 @@ java/net/MulticastSocket/Test.java                              7145658 macosx-a
 
 java/net/DatagramSocket/SendDatagramToBadAddress.java           7143960 macosx-all
 
+java/net/httpclient/websocket/ConnectionHandover.java           8188895 windows-all
+
 ############################################################################
 
 # jdk_nio
@@ -244,8 +246,6 @@ javax/sound/sampled/Mixers/DisabledAssertionCrash.java 7067310 generic-all
 ############################################################################
 
 # jdk_swing
-
-sanity/client/SwingSet/src/ButtonDemoScreenshotTest.java        8157338 generic-all
 
 ############################################################################
 
