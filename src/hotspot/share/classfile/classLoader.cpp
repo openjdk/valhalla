@@ -1890,11 +1890,6 @@ static bool can_be_compiled(const methodHandle& m, int comp_level) {
     return false;
   }
 
-  // Don't compile methods in __Value if value types are disabled
-  if (!EnableMVT && !EnableValhalla && m->method_holder()->name() == vmSymbols::java_lang____Value()) {
-    return false;
-  }
-
   return CompilationPolicy::can_be_compiled(m, comp_level);
 }
 
