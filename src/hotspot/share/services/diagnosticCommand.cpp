@@ -1025,20 +1025,17 @@ void VTBufferStatsDCmd::execute(DCmdSource source, TRAPS) {
   int in_pool;
   int max_in_pool;
   int total_allocated;
-  int total_deallocated;
   int total_failed;
   {
     MutexLockerEx ml(VTBuffer::lock(), Mutex::_no_safepoint_check_flag);
     in_pool = VTBuffer::in_pool();
     max_in_pool = VTBuffer::max_in_pool();
     total_allocated = VTBuffer::total_allocated();
-    total_deallocated = VTBuffer::total_deallocated();
     total_failed = VTBuffer::total_failed();
   }
   output()->print_cr("Global VTBuffer Pool statistics:");
   output()->print_cr("\tChunks in pool   : %d", in_pool);
   output()->print_cr("\tMax in pool      : %d", max_in_pool);
   output()->print_cr("\tTotal allocated  : %d", total_allocated);
-  output()->print_cr("\tTotal deallocated: %d", total_deallocated);
   output()->print_cr("\tTotal failed     : %d", total_failed);
 }

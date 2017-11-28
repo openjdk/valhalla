@@ -27,6 +27,7 @@
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "memory/metadataFactory.hpp"
+#include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/method.hpp"
@@ -226,32 +227,36 @@ void ValueKlass::raw_field_copy(void* src, void* dst, size_t raw_byte_size) {
  *
  */
 void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool dst_heap, bool dst_uninitialized) {
-  if (contains_oops() && dst_heap) {
-    // src/dst aren't oops, need offset to adjust oop map offset
-    const address dst_oop_addr = ((address) dst) - first_field_offset();
+  if (contains_oops()) {
+    if (dst_heap) {
+      // src/dst aren't oops, need offset to adjust oop map offset
+      const address dst_oop_addr = ((address) dst) - first_field_offset();
 
-    // Pre-barriers...
-    OopMapBlock* map = start_of_nonstatic_oop_maps();
-    OopMapBlock* const end = map + nonstatic_oop_map_count();
-    while (map != end) {
-      // Shame we can't just use the existing oop iterator...src/dst aren't oop
-      address doop_address = dst_oop_addr + map->offset();
-      if (UseCompressedOops) {
-        oopDesc::bs()->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
-      } else {
-        oopDesc::bs()->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
+      // Pre-barriers...
+      OopMapBlock* map = start_of_nonstatic_oop_maps();
+      OopMapBlock* const end = map + nonstatic_oop_map_count();
+      while (map != end) {
+        // Shame we can't just use the existing oop iterator...src/dst aren't oop
+        address doop_address = dst_oop_addr + map->offset();
+        if (UseCompressedOops) {
+          oopDesc::bs()->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
+        } else {
+          oopDesc::bs()->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
+        }
+        map++;
       }
-      map++;
-    }
 
-    raw_field_copy(src, dst, raw_byte_size);
+      raw_field_copy(src, dst, raw_byte_size);
 
-    // Post-barriers...
-    map = start_of_nonstatic_oop_maps();
-    while (map != end) {
-      address doop_address = dst_oop_addr + map->offset();
-      oopDesc::bs()->write_ref_array((HeapWord*) doop_address, map->count());
-      map++;
+      // Post-barriers...
+      map = start_of_nonstatic_oop_maps();
+      while (map != end) {
+        address doop_address = dst_oop_addr + map->offset();
+        oopDesc::bs()->write_ref_array((HeapWord*) doop_address, map->count());
+        map++;
+      }
+    } else { // Buffered value case
+      raw_field_copy(src, dst, raw_byte_size);
     }
   } else {   // Primitive-only case...
     raw_field_copy(src, dst, raw_byte_size);
@@ -601,4 +606,38 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
   }
 #endif
   return NULL;
+}
+
+void ValueKlass::iterate_over_inside_oops(OopClosure* f, oop value) {
+  assert(!Universe::heap()->is_in_reserved(value), "This method is used on buffered values");
+
+  oop* addr_mirror = (oop*)(value)->mark_addr();
+  f->do_oop_no_buffering(addr_mirror);
+
+  if (!contains_oops()) return;
+
+  OopMapBlock* map = start_of_nonstatic_oop_maps();
+  OopMapBlock* const end_map = map + nonstatic_oop_map_count();
+
+  if (!UseCompressedOops) {
+    for (; map < end_map; map++) {
+      oop* p = (oop*) (((char*)(oopDesc*)value) + map->offset());
+      oop* const end = p + map->count();
+      for (; p < end; ++p) {
+        assert(oopDesc::is_oop_or_null(*p), "Sanity check");
+        f->do_oop(p);
+      }
+    }
+  } else {
+    for (; map < end_map; map++) {
+      narrowOop* p = (narrowOop*) (((char*)(oopDesc*)value) + map->offset());
+      narrowOop* const end = p + map->count();
+      for (; p < end; ++p) {
+        oop o = oopDesc::decode_heap_oop(*p);
+        assert(Universe::heap()->is_in_reserved_or_null(o), "Sanity check");
+        assert(oopDesc::is_oop_or_null(o), "Sanity check");
+        f->do_oop(p);
+      }
+    }
+  }
 }

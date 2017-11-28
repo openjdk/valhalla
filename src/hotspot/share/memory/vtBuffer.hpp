@@ -30,7 +30,7 @@
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-class VTBufferChunk : public CMmapObj<VTBufferChunk, mtValueTypes> {
+class VTBufferChunk {
   friend class VMStructs;
 
   static const int MAGIC_NUMBER = 3141592;
@@ -63,11 +63,16 @@ private:
    */
 
   VTBufferChunk(JavaThread* thread) {
-    _magic = MAGIC_NUMBER;
-    _index = -1;
-    _prev = NULL;
-    _next = NULL;
-    _owner = thread;
+    fatal("Should not reach here");
+    VTBufferChunk::init(this, thread);
+  }
+
+  static void init(VTBufferChunk* chunk, JavaThread* thread) {
+    chunk->_magic = MAGIC_NUMBER;
+    chunk->_index = -1;
+    chunk->_prev = NULL;
+    chunk->_next = NULL;
+    chunk->_owner = thread;
   }
 
   int            index() { return _index; }
@@ -109,30 +114,44 @@ private:
     return c;
   }
 
-  static bool check_buffered(void* address) {
-    assert(address != NULL, "Sanity check");
-    VTBufferChunk* c = (VTBufferChunk*)((intptr_t)address & chunk_mask());
-    return c->is_valid();
-  }
-
   bool contains(void* address) {
     return address > (char*)chunk(address) && address < ((char*)chunk(address) + chunk_size());
   }
+
+  void zap(void *start);
 };
+
+/* VTBuffer is a thread-local buffer used to store values, or TLVB (Thread-Local Value Buffer).
+ * Values allocated in the TLVB have the same layout as values allocated in the Java heap:
+ * same header size, same offsets for fields. The only difference is on the meaning of the
+ * mark word: in a buffered value, the mark word contains an oop pointing to the Java mirror
+ * of the value's class, with the two least significant bits used for internal marking.
+ * Values allocated in the TLVB are references through oops, however, because TLVBs are not
+ * part of the Java heap, those oops *must never be exposed to GCs*. But buffered values
+ * can contain references to Java heap allocated objects or values, in addition to the
+ * reference to the Java mirror, and these oops have to be processed by GC. The solution is
+ * to let GC closures iterate over the internal oops, but not directly on the buffered value
+ * itself (see ValueKlass::iterate_over_inside_oops() method).
+ */
 
 class VTBuffer : AllStatic {
   friend class VMStructs;
 private:
+  static address _base;
+  static size_t _size;
+  static address _commit_ptr;
+
   static VTBufferChunk* _free_list;
   static Mutex* _pool_lock;
   static int _pool_counter;
   static int _max_pool_counter;
   static int _total_allocated;
-  static int _total_deallocated;
   static int _total_failed;
-  static const int _max_free_list = 64;  // Should be tunable
 
 public:
+  static void init();
+  static VTBufferChunk* get_new_chunk(JavaThread* thread);
+
   static Mutex* lock() { return _pool_lock; }
   static oop allocate_value(ValueKlass* k, TRAPS);
   static bool allocate_vt_chunk(JavaThread* thread);
@@ -142,22 +161,39 @@ public:
   static int in_pool() { return _pool_counter; }
   static int max_in_pool() { return _max_pool_counter; }
   static int total_allocated() { return _total_allocated; }
-  static int total_deallocated() { return _total_deallocated; }
   static int total_failed() { return _total_failed; }
 
   static bool is_in_vt_buffer(const void* p) {
-    intptr_t chunk_mask = (~(VTBufferChunk::chunk_size() - 1));
-    VTBufferChunk* c = (VTBufferChunk*)((intptr_t)p & chunk_mask);
-    return c->is_valid();
+#ifdef ASSERT
+    if (p >= _base && p < (_base + _size)) {
+      assert(p < _commit_ptr, "should not point to an uncommited page");
+      intptr_t chunk_mask = (~(VTBufferChunk::chunk_size() - 1));
+      VTBufferChunk* c = (VTBufferChunk*)((intptr_t)p & chunk_mask);
+      assert(c->is_valid(), "Sanity check");
+    }
+#endif // ASSERT
+    return p >= _base && p < (_base + _size);
   }
 
   static bool value_belongs_to_frame(oop p, frame *f);
+  static bool is_value_allocated_after(oop p, void* a);
   static void recycle_vt_in_frame(JavaThread* thread, frame* f);
-  static void recycle_vtbuffer(JavaThread *thread, frame f);
+  static void recycle_vtbuffer(JavaThread *thread, void* alloc_ptr);
   static address relocate_value(address old, address previous, int previous_size_in_words);
-  static oop relocate_return_value(JavaThread* thread, frame fr, oop old);
+  static oop relocate_return_value(JavaThread* thread, void* alloc_ptr, oop old);
 
   static void fix_frame_vt_alloc_ptr(frame fr, VTBufferChunk* chunk);
+
+  enum Mark {
+    mark_A = 1,
+    mark_B = 2,
+    mark_mask = 3
+  };
+
+  static Mark switch_mark(Mark m) {
+    assert(m == mark_A || m == mark_B, "Sanity check");
+    return m == mark_A ? mark_B : mark_A;
+  }
 
 };
 
@@ -165,6 +201,7 @@ struct VT_relocation_entry {
   int chunk_index;
   address old_ptr;
   address new_ptr;
+  markOop mark_word;
 };
 
 
@@ -190,6 +227,28 @@ public:
     _frame = frame;
   }
   virtual void do_buffered_value(oop* p);
+};
+
+/* Value buffered in a TLVB expose their internal oops as roots for GCs.
+ * A GC root must only be processed once by each GC closure. However,
+ * a Java Thread can have multiple oops (aliases) pointing to the same
+ * buffered value (from local variable entries, operand stack slots,
+ * Handles or runtime data structures). To prevent duplicated processing
+ * of a buffered value, each function processing a Java Thread's GC roots
+ * must allocates a BufferedValuesDealiaser which uses a marking mechanism
+ * to avoid processing a buffered value twice.
+ */
+class BufferedValuesDealiaser : public StackObj {
+private:
+  const JavaThread* _target;
+  VTBuffer::Mark _current_mark;
+
+public:
+  BufferedValuesDealiaser(JavaThread* thread);
+  VTBuffer::Mark current_mark() const { return _current_mark; }
+  void oops_do(OopClosure* f, oop value);
+
+  ~BufferedValuesDealiaser();
 };
 
 #endif /* SHARE_VM_MEMORY_VTBUFFER_HPP */

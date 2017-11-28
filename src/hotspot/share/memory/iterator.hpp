@@ -46,6 +46,8 @@ class OopClosure : public Closure {
  public:
   virtual void do_oop(oop* o) = 0;
   virtual void do_oop(narrowOop* o) = 0;
+  virtual void do_oop_no_buffering(oop* o) { do_oop(o); }
+  virtual void do_oop_no_buffering(narrowOop* o) { do_oop(o); }
 };
 
 class DoNothingClosure : public OopClosure {

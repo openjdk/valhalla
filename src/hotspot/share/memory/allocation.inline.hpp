@@ -269,29 +269,4 @@ void ArrayAllocator<E>::free(E* addr, size_t length) {
   }
 }
 
-template <class E, MEMFLAGS F> void* CMmapObj<E,F>::operator new(size_t size) {
-  int alignment = os::vm_allocation_granularity();
-
-  int pages = (int)(size / os::vm_page_size());
-  if (pages == 0 || size % (pages * os::vm_page_size()) != 0) pages++;
-  size_t mmap_size = pages * os::vm_page_size();
-
-  char* addr = os::reserve_memory(mmap_size, NULL, alignment, F);
-  if (addr == NULL) {
-    vm_exit_out_of_memory(size, OOM_MMAP_ERROR, "VTBuffer (reserve)");
-  }
-
-  os::commit_memory_or_exit(addr, mmap_size, !ExecMem, "VTBuffer (commit)");
-
-  return addr;
-}
-
-template <class E, MEMFLAGS F> void CMmapObj<E, F>::operator delete(void* addr, size_t length) {
-  int pages = (int)(length / os::vm_page_size());
-  if (pages == 0 || length % (pages * os::vm_page_size()) != 0) pages++;
-  size_t mmap_size = pages * os::vm_page_size();
-  bool result = os::release_memory((char*)addr, mmap_size);
-  assert(result, "Failed to release memory");
-}
-
 #endif // SHARE_VM_MEMORY_ALLOCATION_INLINE_HPP

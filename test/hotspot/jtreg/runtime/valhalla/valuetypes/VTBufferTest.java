@@ -29,6 +29,7 @@
  * @run main/othervm -Xint -XX:+EnableValhalla VTBufferTest generate-and-run
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:ValueTypesBufferMaxMemory=0 VTBufferTest generate-and-run
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:BigValueTypeThreshold=196 VTBufferTest generate-and-run
+ * @run main/othervm -Xint -XX:+EnableValhalla -XX:-ValueTypesThreadLocalRecycling VTBufferTest generate-and-run
  */
 
 /* This test generates its source code.
@@ -160,7 +161,7 @@ public class VTBufferTest implements Runnable {
         File[] sources = new File[valueNames.length];
         for (int i = 0; i < valueNames.length; i++) {
             int nfields = random.nextInt(6) + 1;
-            String s = ValueTypeGenerator.generateValueTypeNoObjectRef(random, valueNames[i], nfields);
+            String s = ValueTypeGenerator.generateValueType(random, valueNames[i], nfields);
             String filename = valueNames[i]+".java";
             sources[i] = writeSource(filename, s);
         }

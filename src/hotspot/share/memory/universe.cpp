@@ -50,6 +50,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "memory/universe.inline.hpp"
+#include "memory/vtBuffer.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -694,7 +695,7 @@ jint universe_init() {
   }
 
   Metaspace::global_initialize();
-
+  VTBuffer::init();
   AOTLoader::universe_init();
 
   // Checks 'AfterMemoryInit' constraints.

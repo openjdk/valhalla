@@ -312,6 +312,16 @@ class Thread: public ThreadShadow {
     is_definitely_current_thread = true
   };
 
+ private:
+  friend class BufferedValuesDealiaser;
+
+  BufferedValuesDealiaser* _buffered_values_dealiaser;
+ public:
+  BufferedValuesDealiaser* buffered_values_dealiaser() {
+    assert(Thread::current() == this, "Should only be accessed locally");
+    return _buffered_values_dealiaser;
+  }
+
   // Constructor
   Thread();
   virtual ~Thread();
@@ -790,6 +800,7 @@ class JavaThread: public Thread {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class WhiteBox;
+  friend class VTBuffer;
  private:
   JavaThread*    _next;                          // The next thread in the Threads list
   oop            _threadObj;                     // The Java level thread object
@@ -849,6 +860,7 @@ class JavaThread: public Thread {
   // Used to pass back results to the interpreter or generated code running Java code.
   oop           _vm_result;    // oop result is GC-preserved
   Metadata*     _vm_result_2;  // non-oop result
+  oop           _return_buffered_value; // buffered value being returned
 
   // See ReduceInitialCardMarks: this holds the precise space interval of
   // the most recent slow path allocation for which compiled code has
@@ -1001,6 +1013,7 @@ class JavaThread: public Thread {
   void* _vt_alloc_ptr;
   void* _vt_alloc_limit;
   VTBufferChunk* _local_free_chunk;
+  VTBuffer::Mark _current_vtbuffer_mark;
   // Next 4 fields are used to monitor VT buffer memory consumption
   // We may want to not support them in PRODUCT builds
   jint _vtchunk_in_use;
@@ -1332,6 +1345,9 @@ class JavaThread: public Thread {
   Metadata*    vm_result_2() const               { return _vm_result_2; }
   void set_vm_result_2  (Metadata* x)          { _vm_result_2   = x; }
 
+  oop return_buffered_value() const              { return _return_buffered_value; }
+  void set_return_buffered_value(oop val)        { _return_buffered_value = val; }
+
   MemRegion deferred_card_mark() const           { return _deferred_card_mark; }
   void set_deferred_card_mark(MemRegion mr)      { _deferred_card_mark = mr;   }
 
@@ -1571,6 +1587,7 @@ class JavaThread: public Thread {
   static ByteSize callee_target_offset()         { return byte_offset_of(JavaThread, _callee_target); }
   static ByteSize vm_result_offset()             { return byte_offset_of(JavaThread, _vm_result); }
   static ByteSize vm_result_2_offset()           { return byte_offset_of(JavaThread, _vm_result_2); }
+  static ByteSize return_buffered_value_offset() { return byte_offset_of(JavaThread, _return_buffered_value); }
   static ByteSize thread_state_offset()          { return byte_offset_of(JavaThread, _thread_state); }
   static ByteSize saved_exception_pc_offset()    { return byte_offset_of(JavaThread, _saved_exception_pc); }
   static ByteSize osthread_offset()              { return byte_offset_of(JavaThread, _osthread); }
@@ -1885,6 +1902,8 @@ class JavaThread: public Thread {
     return chunk;
     // return _vt_alloc_ptr == NULL ? NULL : VTBufferChunk::chunk(_vt_alloc_ptr);
   }
+  VTBuffer::Mark current_vtbuffer_mark() const { return _current_vtbuffer_mark; }
+  void set_current_vtbuffer_mark(VTBuffer::Mark m) { _current_vtbuffer_mark = m ; }
 
   void increment_vtchunk_in_use() {
     _vtchunk_in_use++;

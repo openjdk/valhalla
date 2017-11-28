@@ -95,9 +95,10 @@ class InterpreterRuntime: AllStatic {
   static void    uninitialized_static_value_field(JavaThread*, oopDesc* mirror, int offset);
 
   // Value Buffers support
-  static void    recycle_vtbuffer(JavaThread* thread);
+  static void    recycle_vtbuffer(void *alloc_ptr);
   static void    recycle_buffered_values(JavaThread* thread);
   static void    return_value(JavaThread* thread, oopDesc* obj);
+  static void    return_value_step2(oopDesc* obj, void* alloc_ptr);
   static void    check_areturn(JavaThread* thread, oopDesc* obj);
   static void    fix_frame_vt_alloc_ptr(JavaThread* thread);
 

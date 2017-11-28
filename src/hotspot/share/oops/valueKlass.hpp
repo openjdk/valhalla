@@ -160,14 +160,12 @@ class ValueKlass: public InstanceKlass {
 
   void set_if_bufferable() {
     bool bufferable;
-    if (contains_oops()) {
-      bufferable = false;
-    } else {
-      int size_in_heap_words = size_helper();
-      int base_offset = instanceOopDesc::base_offset_in_bytes();
-      size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
-      bufferable = size_in_bytes <= BigValueTypeThreshold;
-    }
+
+    int size_in_heap_words = size_helper();
+    int base_offset = instanceOopDesc::base_offset_in_bytes();
+    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
+    bufferable = size_in_bytes <= BigValueTypeThreshold;
+    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
     if (ValueTypesBufferMaxMemory == 0) bufferable = false;
     if (bufferable) {
       _extra_flags |= _extra_is_bufferable;
@@ -204,6 +202,8 @@ class ValueKlass: public InstanceKlass {
   oop box(Handle src, InstanceKlass* target_klass, TRAPS);
 
   // GC support...
+
+  void iterate_over_inside_oops(OopClosure* f, oop value);
 
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <bool nv, typename T, class OopClosureType>

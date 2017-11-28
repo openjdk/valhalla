@@ -259,7 +259,11 @@ IRT_ENTRY(int, InterpreterRuntime::vwithfield(JavaThread* thread, ConstantPoolCa
   if (field_type == T_OBJECT || field_type == T_ARRAY) {
     oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
     assert(aoop == NULL || (oopDesc::is_oop(aoop) && (!aoop->is_value())),"argument must be a reference type");
-    new_value_h()->obj_field_put(field_offset, aoop);
+    if (in_heap) {
+      new_value_h()->obj_field_put(field_offset, aoop);
+    } else {
+      new_value_h()->obj_field_put_raw(field_offset, aoop);
+    }
   } else if (field_type == T_VALUETYPE) {
     if (cp_entry->is_flatten()) {
       Klass* field_k = vklass->get_value_field_klass(field_index);
@@ -268,11 +272,31 @@ IRT_ENTRY(int, InterpreterRuntime::vwithfield(JavaThread* thread, ConstantPoolCa
       assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
       assert(field_vk == vt_oop->klass(), "Must match");
       field_vk->value_store(field_vk->data_for_oop(vt_oop),
-          ((char*)(oopDesc*)new_value_h()) + field_offset, true, false);
+          ((char*)(oopDesc*)new_value_h()) + field_offset, in_heap, false);
     } else {
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       assert(voop != NULL || (oopDesc::is_oop(voop) && (voop->is_value())),"argument must be a value type");
-      new_value_h()->obj_field_put(field_offset, voop);
+      if (VTBuffer::is_in_vt_buffer(voop)) {
+        // new value field is currently allocated in a TLVB, a heap allocated
+        // copy must be created because a field must never point to a TLVB allocated value
+        Handle voop_h = Handle(THREAD, voop);
+        ValueKlass* field_vk = ValueKlass::cast(voop->klass());
+        assert(field_vk == vklass->get_value_field_klass(field_index), "Sanity check");
+        instanceOop field_copy = field_vk->allocate_instance(CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
+        Handle field_copy_h = Handle(THREAD, field_copy);
+        field_vk->value_store(field_vk->data_for_oop(voop_h()), field_vk->data_for_oop(field_copy_h()), true, false);
+        if (in_heap) {
+          new_value_h()->obj_field_put(field_offset, field_copy_h());
+        } else {
+          new_value_h()->obj_field_put_raw(field_offset, field_copy_h());
+        }
+      } else {
+        if (in_heap) {
+          new_value_h()->obj_field_put(field_offset, voop);
+        } else {
+          new_value_h()->obj_field_put_raw(field_offset, voop);
+        }
+      }
     }
   } else {
     intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
@@ -353,9 +377,13 @@ IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, 
     oop res = value_h()->obj_field_acquire(klass->field_offset(index));
     if (res == NULL) {
       res = field_vklass->default_value();
+    } else {
+      assert(res->klass() == field_k, "Sanity check");
+      assert(!VTBuffer::is_in_vt_buffer(res), "Sanity check");
     }
     thread->set_vm_result(res);
   }
+  assert(thread->vm_result()->klass() == field_vklass, "sanity check");
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
@@ -393,13 +421,14 @@ IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, 
   InstanceKlass* klass = InstanceKlass::cast(cp_entry->f1_as_klass());
   Klass* field_k = klass->get_value_field_klass(index);
   ValueKlass* field_vklass = ValueKlass::cast(value->klass());
+  assert(value_h()->klass() == field_k, "Sanity check");
   assert(field_k == field_vklass, "Field descriptor and argument must match");
   if (flatten) {
     // copy value
     field_vklass->value_store(field_vklass->data_for_oop(value_h()),
                               ((char*)(oopDesc*)obj_h()) + klass->field_offset(index), true, false);
   } else {
-    if (Universe::heap()->is_in_reserved(value_h())) {
+    if (!VTBuffer::is_in_vt_buffer(value_h())) {
       obj_h()->obj_field_put(klass->field_offset(index), value_h());
     } else {
       // allocate heap instance
@@ -418,7 +447,7 @@ IRT_END
 IRT_ENTRY(void, InterpreterRuntime::qputstatic(JavaThread* thread, oopDesc* value, int offset, oopDesc* mirror))
   instanceHandle value_h(THREAD, (instanceOop)value);
   assert(value_h()->is_value(), "qputstatic only deals with value arguments");
-  if (Universe::heap()->is_in_reserved(value_h())) {
+  if (!VTBuffer::is_in_vt_buffer(value_h())) {
       mirror->obj_field_put(offset, value_h());
   } else {
     // The argument is a buffered value, a copy must be created in the Java heap
@@ -459,8 +488,7 @@ IRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOo
 
   if (klass->is_objArray_klass()) {
     thread->set_vm_result(((objArrayOop) array)->obj_at(index));
-  }
-  else {
+  } else {
     ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
     ValueKlass* vklass = vaklass->element_klass();
     arrayHandle ah(THREAD, array);
@@ -476,12 +504,13 @@ IRT_END
 IRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, arrayOopDesc* array, int index, void* val))
   Klass* klass = array->klass();
   assert(klass->is_valueArray_klass() || klass->is_objArray_klass(), "expected value or object array oop");
+  Handle array_h(THREAD, array);
 
   if (ArrayKlass::cast(klass)->element_klass() != ((oop)val)->klass()) {
     THROW(vmSymbols::java_lang_ArrayStoreException());
   }
   if (klass->is_objArray_klass()) {
-    if(!Universe::heap()->is_in_reserved(val)) {
+    if(VTBuffer::is_in_vt_buffer(val)) {
       // A Java heap allocated copy must be made because an array cannot
       // reference a thread-local buffered value
       Handle val_h(THREAD, (oop)val);
@@ -498,7 +527,7 @@ IRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, arrayO
                             ((char*)(oopDesc*)res_h()) + vklass->first_field_offset(),true, false);
       val = res_h();
     }
-    ((objArrayOop) array)->obj_at_put(index, (oop)val);
+    ((objArrayOop) array_h())->obj_at_put(index, (oop)val);
   } else {
     valueArrayOop varray = (valueArrayOop)array;
     ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
@@ -539,8 +568,9 @@ IRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* fir
   thread->set_vm_result(obj);
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::recycle_vtbuffer(JavaThread* thread))
-  VTBuffer::recycle_vtbuffer(thread, last_frame(thread));
+IRT_LEAF(void, InterpreterRuntime::recycle_vtbuffer(void* alloc_ptr))
+  JavaThread* thread = (JavaThread*)Thread::current();
+  VTBuffer::recycle_vtbuffer(thread, alloc_ptr);
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::recycle_buffered_values(JavaThread* thread))
@@ -555,7 +585,7 @@ IRT_ENTRY(void, InterpreterRuntime::fix_frame_vt_alloc_ptr(JavaThread* thread))
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::return_value(JavaThread* thread, oopDesc* obj))
-  if (Universe::heap()->is_in_reserved(obj)) {
+  if (!VTBuffer::is_in_vt_buffer(obj)) {
     thread->set_vm_result(obj);
     return;
   }
@@ -575,9 +605,25 @@ IRT_ENTRY(void, InterpreterRuntime::return_value(JavaThread* thread, oopDesc* ob
     thread->set_vm_result(res_h());
     return;
   } else {
-    oop dest = VTBuffer::relocate_return_value(thread, current_frame, obj);
-    thread->set_vm_result(dest);
+    // A buffered value is being returned to an interpreted frame,
+    // but the work has to be delayed to remove_activation() because
+    // the frame cannot be modified now (GC can run at the safepoint
+    // when exiting runtime, and frame layout must be kept consistent
+    // with the OopMap).
+    thread->set_return_buffered_value(obj);
+    thread->set_vm_result(obj);
   }
+IRT_END
+
+IRT_LEAF(void, InterpreterRuntime::return_value_step2(oopDesc* obj, void* alloc_ptr))
+
+  JavaThread* thread = (JavaThread*)Thread::current();
+  assert(obj == thread->return_buffered_value(), "Consistency check");
+  assert(!Universe::heap()->is_in_reserved(obj), "Should only apply to buffered values");
+
+  oop dest = VTBuffer::relocate_return_value(thread, alloc_ptr, obj);
+  thread->set_return_buffered_value(NULL);
+  thread->set_vm_result(dest);
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::check_areturn(JavaThread* thread, oopDesc* obj))

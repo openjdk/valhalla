@@ -36,6 +36,7 @@
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
@@ -755,6 +756,7 @@ class InterpreterFrameClosure : public OffsetClosure {
   BufferedValueClosure* _bvt_f;
   int    _max_locals;
   int    _max_stack;
+  BufferedValuesDealiaser* _dealiaser;
 
  public:
   InterpreterFrameClosure(frame* fr, int max_locals, int max_stack,
@@ -764,6 +766,7 @@ class InterpreterFrameClosure : public OffsetClosure {
     _max_stack  = max_stack;
     _f          = f;
     _bvt_f      = bvt_f;
+    _dealiaser  = NULL;
   }
 
   void offset_do(int offset) {
@@ -771,14 +774,14 @@ class InterpreterFrameClosure : public OffsetClosure {
     if (offset < _max_locals) {
       addr = (oop*) _fr->interpreter_frame_local_at(offset);
       assert((intptr_t*)addr >= _fr->sp(), "must be inside the frame");
-      if (Universe::heap()->is_in_reserved_or_null(*addr)) {
+      if (!VTBuffer::is_in_vt_buffer(*addr)) {
         if (_f != NULL) {
           _f->do_oop(addr);
         }
       } else { // Buffered value types case
+        assert((*addr)->is_value(), "Only values can be buffered");
         if (_f != NULL) {
-          oop* addr_mirror = (oop*)(*addr)->mark_addr();
-          _f->do_oop(addr_mirror);
+          dealiaser()->oops_do(_f, *addr);
         }
         if (_bvt_f != NULL) {
           _bvt_f->do_buffered_value(addr);
@@ -795,14 +798,14 @@ class InterpreterFrameClosure : public OffsetClosure {
         in_stack = (intptr_t*)addr >= _fr->interpreter_frame_tos_address();
       }
       if (in_stack) {
-        if (Universe::heap()->is_in_reserved_or_null(*addr)) {
+        if (!VTBuffer::is_in_vt_buffer(*addr)) {
           if (_f != NULL) {
             _f->do_oop(addr);
           }
         } else { // Buffered value types case
+          assert((*addr)->is_value(), "Only values can be buffered");
           if (_f != NULL) {
-            oop* addr_mirror = (oop*)(*addr)->mark_addr();
-            _f->do_oop(addr_mirror);
+            dealiaser()->oops_do(_f, *addr);
           }
           if (_bvt_f != NULL) {
             _bvt_f->do_buffered_value(addr);
@@ -814,6 +817,15 @@ class InterpreterFrameClosure : public OffsetClosure {
 
   int max_locals()  { return _max_locals; }
   frame* fr()       { return _fr; }
+
+ private:
+  BufferedValuesDealiaser* dealiaser() {
+    if (_dealiaser == NULL) {
+      _dealiaser = Thread::current()->buffered_values_dealiaser();
+      assert(_dealiaser != NULL, "Must not be NULL");
+    }
+    return _dealiaser;
+  }
 };
 
 
@@ -823,6 +835,7 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
   int    _offset;        // TOS-relative offset, decremented with each argument
   bool   _has_receiver;  // true if the callee has a receiver
   frame* _fr;
+  BufferedValuesDealiaser* _dealiaser;
 
   void set(int size, BasicType type) {
     _offset -= size;
@@ -832,7 +845,13 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
   void oop_offset_do() {
     oop* addr;
     addr = (oop*)_fr->interpreter_frame_tos_at(_offset);
-    _f->do_oop(addr);
+    if (!VTBuffer::is_in_vt_buffer(*addr)) {
+      _f->do_oop(addr);
+    } else { // Buffered value types case
+      assert((*addr)->is_value(), "Only values can be buffered");
+      oop value = *addr;
+      dealiaser()->oops_do(_f, value);
+    }
   }
 
  public:
@@ -846,6 +865,15 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
     _f         = f;
     _fr        = fr;
     _offset    = args_size;
+    _dealiaser = NULL;
+  }
+
+  BufferedValuesDealiaser* dealiaser() {
+    if (_dealiaser == NULL) {
+      _dealiaser = Thread::current()->buffered_values_dealiaser();
+      assert(_dealiaser != NULL, "Must not be NULL");
+    }
+    return _dealiaser;
   }
 
   void oops_do() {
@@ -876,6 +904,15 @@ class EntryFrameOopFinder: public SignatureInfo {
   int    _offset;
   frame* _fr;
   OopClosure* _f;
+  BufferedValuesDealiaser* _dealiaser;
+
+  BufferedValuesDealiaser* dealiaser() {
+    if (_dealiaser == NULL) {
+      _dealiaser = Thread::current()->buffered_values_dealiaser();
+      assert(_dealiaser != NULL, "Must not be NULL");
+    }
+    return _dealiaser;
+  }
 
   void set(int size, BasicType type) {
     assert (_offset >= 0, "illegal offset");
@@ -886,7 +923,13 @@ class EntryFrameOopFinder: public SignatureInfo {
   void oop_at_offset_do(int offset) {
     assert (offset >= 0, "illegal offset");
     oop* addr = (oop*) _fr->entry_frame_argument_at(offset);
-    _f->do_oop(addr);
+    if (!VTBuffer::is_in_vt_buffer(*addr)) {
+      _f->do_oop(addr);
+    } else { // Buffered value types case
+      assert((*addr)->is_value(), "Only values can be buffered");
+      oop value = *addr;
+      dealiaser()->oops_do(_f, value);
+    }
   }
 
  public:
@@ -895,6 +938,7 @@ class EntryFrameOopFinder: public SignatureInfo {
      _fr = frame;
      _is_static = is_static;
      _offset = ArgumentSizeComputer(signature).size() - 1; // last parameter is at index 0
+     _dealiaser = NULL;
    }
 
   void arguments_do(OopClosure* f) {
@@ -939,6 +983,7 @@ void frame::oops_interpreted_do(OopClosure* f, const RegisterMap* map, bool quer
   }
 
   if (m->is_native()) {
+    assert(!VTBuffer::is_in_vt_buffer((oopDesc*)*interpreter_frame_temp_oop_addr()), "Sanity check");
     f->do_oop(interpreter_frame_temp_oop_addr());
   }
 
@@ -1045,6 +1090,15 @@ class CompiledArgumentOopFinder: public SignatureInfo {
   RegisterMap*    _reg_map;
   int             _arg_size;
   VMRegPair*      _regs;        // VMReg list of arguments
+  BufferedValuesDealiaser* _dealiaser;
+
+  BufferedValuesDealiaser* dealiaser() {
+    if (_dealiaser == NULL) {
+      _dealiaser = Thread::current()->buffered_values_dealiaser();
+      assert(_dealiaser != NULL, "Must not be NULL");
+    }
+    return _dealiaser;
+  }
 
   void set(int size, BasicType type) {
     if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) handle_oop_offset();
@@ -1057,7 +1111,13 @@ class CompiledArgumentOopFinder: public SignatureInfo {
     assert(_offset < _arg_size, "out of bounds");
     VMReg reg = _regs[_offset].first();
     oop *loc = _fr.oopmapreg_to_location(reg, _reg_map);
-    _f->do_oop(loc);
+    if (!VTBuffer::is_in_vt_buffer(*loc)) {
+      _f->do_oop(loc);
+    } else { // Buffered value types case
+      assert((*loc)->is_value(), "Only values can be buffered");
+      oop value = *loc;
+      dealiaser()->oops_do(_f, value);
+    }
   }
 
  public:
@@ -1072,6 +1132,7 @@ class CompiledArgumentOopFinder: public SignatureInfo {
     _fr        = fr;
     _reg_map   = (RegisterMap*)reg_map;
     _regs = SharedRuntime::find_callee_arguments(signature, has_receiver, has_appendix, &_arg_size);
+    _dealiaser = NULL;
   }
 
   void oops_do() {

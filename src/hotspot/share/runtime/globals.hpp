@@ -4103,7 +4103,7 @@ public:
   product(size_t, BigValueTypeThreshold, 4 * BytesPerLong,                  \
           "Max value type size for buffering")                              \
                                                                             \
-  product(intx, ValueTypesBufferMaxMemory, 0,                               \
+  product(intx, ValueTypesBufferMaxMemory, 128,                             \
           "Max memory used for value types buffers (in pages)")             \
                                                                             \
   product(bool, ValueTypesThreadLocalRecycling, true,                       \
@@ -4114,6 +4114,9 @@ public:
                                                                             \
   product(int, MinimumVTBufferChunkPerFrame, 2,                             \
           "Minimum number of VT buffer chunk allowed per frame")            \
+                                                                            \
+  product(bool, ZapVTBufferChunks, trueInDebug,                             \
+          "Zap VTBufferChunk memory when recycled")                         \
                                                                             \
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
           "stress return of fields instead of a value type reference")      \

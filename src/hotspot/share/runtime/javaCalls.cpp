@@ -31,6 +31,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jniCheck.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/handles.inline.hpp"
@@ -147,7 +148,14 @@ JavaCallWrapper::~JavaCallWrapper() {
 
 
 void JavaCallWrapper::oops_do(OopClosure* f) {
-  f->do_oop((oop*)&_receiver);
+  if (!VTBuffer::is_in_vt_buffer(_receiver)) {
+    f->do_oop((oop*)&_receiver);
+  } else {
+    assert(_receiver->is_value(), "Sanity check");
+    BufferedValuesDealiaser* dealiaser = Thread::current()->buffered_values_dealiaser();
+    assert(dealiaser != NULL, "Sanity check");
+    dealiaser->oops_do(f, _receiver);
+  }
   handles()->oops_do(f);
 }
 

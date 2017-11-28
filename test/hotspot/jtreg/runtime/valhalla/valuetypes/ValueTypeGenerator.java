@@ -29,11 +29,17 @@ public class ValueTypeGenerator {
     static class FieldDescriptor {
 
         final public String name;
-        final public Type type;
+	final public Type   type;
+        final public String typeName;
 
         public FieldDescriptor(String name, Type type) {
             this.name = name;
-            this.type = type;
+	    this.type = type;
+	    String s = type.getTypeName();
+	    if (s.startsWith("class")) {
+		s = s.substring(s.lastIndexOf(".")+1);
+	    }
+            this.typeName = s;
         }
     }
 
@@ -52,7 +58,6 @@ public class ValueTypeGenerator {
         typeArray[6] = double.class;
         typeArray[7] = boolean.class;
         typeArray[8] = Object.class;
-
     }
 
     static String defaultValue(Type t) {
@@ -65,7 +70,7 @@ public class ValueTypeGenerator {
             case "float": return "2.71828f";
             case "double": return "3.14159d";
             case "boolean": return "true";
-            case "java.lang.Object": return "null";
+            case "java.lang.Object": return "new String(\"foo\")";
             default:
                 throw new RuntimeException();
         }
@@ -75,7 +80,11 @@ public class ValueTypeGenerator {
         FieldDescriptor[] fieldDescArray = new FieldDescriptor[nfields];
         for (int i = 0; i < nfields; i++) {
             int idx = random.nextInt(typeLimit);
-            String fieldName = typeArray[idx].getTypeName()+"Field"+i;
+	    String s =  typeArray[idx].getTypeName();
+	    if (s.contains(".")) {
+		s = s.substring(s.lastIndexOf(".")+1);
+	    }
+            String fieldName = s+"Field"+i;
             fieldDescArray[i] = new FieldDescriptor(fieldName, typeArray[idx]);
         }
 
@@ -94,7 +103,7 @@ public class ValueTypeGenerator {
     static String fieldsAsArgs(FieldDescriptor[] fields) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < fields.length; i++) {
-            sb.append(fields[i].type).append(" ").append(fields[i].name);
+            sb.append(fields[i].typeName).append(" ").append(fields[i].name);
             if (i != fields.length - 1) {
                 sb.append(", ");
             }
@@ -113,7 +122,7 @@ public class ValueTypeGenerator {
 
         // field declarations
         for (FieldDescriptor f : fields) {
-            sb.append("\tfinal public ").append(f.type).append(" ");
+            sb.append("\tfinal public ").append(f.typeName).append(" ");
             sb.append(f.name).append(";\n");
         }
         sb.append("\n");
@@ -151,7 +160,11 @@ public class ValueTypeGenerator {
         // verify method
         sb.append("\tstatic public boolean verify(").append(name).append(" value) {\n");
         for (FieldDescriptor f : fields) {
-            sb.append("\t\tif (value.").append(f.name).append(" != ").append(defaultValue(f.type)).append(") return false;\n");
+	    if (f.type.getTypeName().compareTo("java.lang.Object") == 0) {
+		sb.append("\t\tif (((String)value.").append(f.name).append(").compareTo(").append(defaultValue(f.type)).append(") != 0) return false;\n");
+	    } else {
+		sb.append("\t\tif (value.").append(f.name).append(" != ").append(defaultValue(f.type)).append(") return false;\n");
+	    }
         }
         sb.append("\t\treturn true;\n");
         sb.append("\t}\n");
@@ -160,7 +173,7 @@ public class ValueTypeGenerator {
         sb.append("\tstatic public void printLayout(PrintStream out) {\n");
         sb.append("\t\tout.println(\"").append(name).append(" fields: ");
         for (int i = 0; i < fields.length; i++) {
-            sb.append(fields[i].type);
+            sb.append(fields[i].typeName);
             if (i != fields.length - 1) {
                 sb.append(", ");
             }

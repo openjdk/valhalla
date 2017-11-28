@@ -50,6 +50,7 @@
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
+#include "oops/valueKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
@@ -278,6 +279,8 @@ Thread::Thread() {
   _SleepEvent  = ParkEvent::Allocate(this);
   _MutexEvent  = ParkEvent::Allocate(this);
   _MuxEvent    = ParkEvent::Allocate(this);
+
+  _buffered_values_dealiaser = NULL;
 
 #ifdef CHECK_UNHANDLED_OOPS
   if (CheckUnhandledOops) {
@@ -1436,6 +1439,7 @@ void JavaThread::initialize() {
   set_callee_target(NULL);
   set_vm_result(NULL);
   set_vm_result_2(NULL);
+  set_return_buffered_value(NULL);
   set_vframe_array_head(NULL);
   set_vframe_array_last(NULL);
   set_deferred_locals(NULL);
@@ -1509,6 +1513,7 @@ void JavaThread::initialize() {
   _vt_alloc_ptr = NULL;
   _vt_alloc_limit = NULL;
   _local_free_chunk = NULL;
+  _current_vtbuffer_mark = VTBuffer::mark_A;
   // Buffered value types instrumentation support
   _vtchunk_in_use = 0;
   _vtchunk_max = 0;
@@ -1651,6 +1656,17 @@ JavaThread::~JavaThread() {
   // All Java related clean up happens in exit
   ThreadSafepointState::destroy(this);
   if (_thread_stat != NULL) delete _thread_stat;
+
+  if (_vt_alloc_ptr != NULL) {
+    VTBufferChunk* chunk = VTBufferChunk::chunk(_vt_alloc_ptr);
+    while (chunk != NULL) {
+      VTBufferChunk* temp = chunk->prev();
+      VTBuffer::recycle_chunk(this, chunk);
+      chunk = temp;
+    }
+    _vt_alloc_ptr = NULL;
+    _vt_alloc_limit = NULL;
+  }
 
 #if INCLUDE_JVMCI
   if (JVMCICounterSize > 0) {
@@ -2650,6 +2666,10 @@ void JavaThread::disable_stack_red_zone() {
 void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
   // ignore is there is no stack
   if (!has_last_Java_frame()) return;
+  // Because this method is used to verify oops, it must support
+  // oops in buffered values
+  BufferedValuesDealiaser dealiaser(this);
+
   // traverse the stack frames. Starts from top frame.
   for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
     frame* fr = fst.current();
@@ -2762,6 +2782,8 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   // Verify that the deferred card marks have been flushed.
   assert(deferred_card_mark().is_empty(), "Should be empty during GC");
 
+  BufferedValuesDealiaser dealiaser(this);
+
   // Traverse the GCHandles
   Thread::oops_do(f, cf);
 
@@ -2782,7 +2804,13 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
     // traverse the registered growable array
     if (_array_for_gc != NULL) {
       for (int index = 0; index < _array_for_gc->length(); index++) {
-        f->do_oop(_array_for_gc->adr_at(index));
+        if (!VTBuffer::is_in_vt_buffer(_array_for_gc->at(index))) {
+         f->do_oop(_array_for_gc->adr_at(index));
+        } else {
+          oop value = _array_for_gc->at(index);
+          assert(value->is_value(), "Sanity check");
+          dealiaser.oops_do(f, value);
+        }
       }
     }
 
@@ -2815,9 +2843,11 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   // Traverse instance variables at the end since the GC may be moving things
   // around using this function
   f->do_oop((oop*) &_threadObj);
-  // if (Universe::heap()->is_in_reserved_or_null((void*)_vm_result)) {
-    if (!VTBufferChunk::check_buffered(&_vm_result)) {
+  if (!VTBuffer::is_in_vt_buffer(_vm_result)) {
     f->do_oop((oop*) &_vm_result);
+  } else {
+    assert(_vm_result->is_value(), "Must be a value");
+    dealiaser.oops_do(f, _vm_result);
   }
   f->do_oop((oop*) &_exception_oop);
   f->do_oop((oop*) &_pending_async_exception);

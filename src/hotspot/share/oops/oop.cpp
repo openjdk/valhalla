@@ -144,7 +144,7 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
     return true;
   }
   return !SafepointSynchronize::is_at_safepoint()
-    || (obj->klass()->is_value() && !Universe::heap()->is_in_reserved(obj)) ;
+    || (obj->klass()->is_value() && VTBuffer::is_in_vt_buffer(obj)) ;
 }
 
 // used only for asserts and guarantees

@@ -529,10 +529,4 @@ class MallocArrayAllocator : public AllStatic {
   static void free(E* addr, size_t length);
 };
 
-template <class E, MEMFLAGS F> class CMmapObj ALLOCATION_SUPER_CLASS_SPEC {
-public:
-  void* operator new(size_t size);
-  void  operator delete(void* address, size_t length);
-};
-
 #endif // SHARE_VM_MEMORY_ALLOCATION_HPP
