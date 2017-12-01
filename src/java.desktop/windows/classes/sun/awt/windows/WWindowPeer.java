@@ -630,7 +630,7 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
      private native void nativeGrab();
      private native void nativeUngrab();
 
-     private final boolean hasWarningWindow() {
+     private boolean hasWarningWindow() {
          return ((Window)target).getWarningString() != null;
      }
 
@@ -674,7 +674,7 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
          super.setBounds(x, y, width, height, op);
      }
 
-    private final void initScales() {
+    private void initScales() {
 
         if (scaleX >= 1 && scaleY >= 1) {
             return;
@@ -717,7 +717,7 @@ public class WWindowPeer extends WPanelPeer implements WindowPeer,
 
     public final Graphics getTranslucentGraphics() {
         synchronized (getStateLock()) {
-            return isOpaque ? null : painter.getBackBuffer(false).getGraphics();
+            return isOpaque ? null : painter.getGraphics(false);
         }
     }
 

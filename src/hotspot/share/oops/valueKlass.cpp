@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
@@ -238,10 +239,11 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
       while (map != end) {
         // Shame we can't just use the existing oop iterator...src/dst aren't oop
         address doop_address = dst_oop_addr + map->offset();
+        // TEMP HACK: barrier code need to migrate to => access API (need own versions of value type ops)
         if (UseCompressedOops) {
-          oopDesc::bs()->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
+          BarrierSet::barrier_set()->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
         } else {
-          oopDesc::bs()->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
+          BarrierSet::barrier_set()->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
         }
         map++;
       }
@@ -252,7 +254,7 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
       map = start_of_nonstatic_oop_maps();
       while (map != end) {
         address doop_address = dst_oop_addr + map->offset();
-        oopDesc::bs()->write_ref_array((HeapWord*) doop_address, map->count());
+        BarrierSet::barrier_set()->write_ref_array((HeapWord*) doop_address, map->count());
         map++;
       }
     } else { // Buffered value case

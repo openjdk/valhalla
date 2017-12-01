@@ -264,11 +264,18 @@ public class MinimalValueTypes_1_0 {
     private final native Class<?> getDerivedValueType(Class<?> ofClass);
 
     /*
+     * Returns true when
+     * -XX:+EnableMVT or -XX:+EnableValhalla is set.
+     */
+    public static boolean isValueTypesEnabled() {
+        return isMVTEnabled() || isValhallaEnabled();
+    }
+    /*
      * Returns the Class object for java.lang.__Value when
      * -XX:+EnableMVT or -XX:+EnableValhalla is set.
      */
     public static Class<?> getValueClass() {
-        return isMVTEnabled() || isValhallaEnabled() ? ValueClassHelper.VALUE_CLASS : null;
+        return isValueTypesEnabled() ? ValueClassHelper.VALUE_CLASS : null;
     }
 
     public static String getValueTypeClassName(ValueTypeDesc valueTypeDesc) {

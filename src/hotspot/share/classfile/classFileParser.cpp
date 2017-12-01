@@ -22,6 +22,7 @@
  *
  */
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "aot/aotLoader.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
@@ -55,7 +56,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/valueKlass.hpp"
-#include "prims/jvm.h"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/javaCalls.hpp"

@@ -680,8 +680,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     }
 
     static void checkSpreadArgument(Object av, int n) {
-        if (av == null) {
-            if (n == 0)  return;
+        if (av == null && n == 0) {
+            return;
+        } else if (av == null) {
+            throw new NullPointerException("null array reference");
         } else if (av instanceof Object[]) {
             int len = ((Object[])av).length;
             if (len == n)  return;
@@ -794,11 +796,11 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             if (PROFILE_GWT) {
                 int[] counts = new int[2];
                 mh = (BoundMethodHandle)
-                        BoundMethodHandle.speciesData_LLLL().constructor().invokeBasic(type, form,
+                        BoundMethodHandle.speciesData_LLLL().factory().invokeBasic(type, form,
                                 (Object) test, (Object) profile(target), (Object) profile(fallback), counts);
             } else {
                 mh = (BoundMethodHandle)
-                        BoundMethodHandle.speciesData_LLL().constructor().invokeBasic(type, form,
+                        BoundMethodHandle.speciesData_LLL().factory().invokeBasic(type, form,
                                 (Object) test, (Object) profile(target), (Object) profile(fallback));
             }
         } catch (Throwable ex) {
@@ -1107,7 +1109,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         BoundMethodHandle.SpeciesData data = BoundMethodHandle.speciesData_LLLLL();
         BoundMethodHandle mh;
         try {
-            mh = (BoundMethodHandle) data.constructor().invokeBasic(type, form, (Object) target, (Object) exType,
+            mh = (BoundMethodHandle) data.factory().invokeBasic(type, form, (Object) target, (Object) exType,
                     (Object) catcher, (Object) collectArgs, (Object) unboxResult);
         } catch (Throwable ex) {
             throw uncaughtException(ex);
@@ -1802,6 +1804,11 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                 MemberName memberName = (MemberName)mname;
                 return memberName.getName();
             }
+            @Override
+            public Class<?> getDeclaringClass(Object mname) {
+                MemberName memberName = (MemberName)mname;
+                return memberName.getDeclaringClass();
+            }
 
             @Override
             public MethodType getMethodType(Object mname) {
@@ -1905,7 +1912,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         BoundMethodHandle.SpeciesData data = BoundMethodHandle.speciesData_LLL();
         BoundMethodHandle mh;
         try {
-            mh = (BoundMethodHandle) data.constructor().invokeBasic(type, form, (Object) clauseData,
+            mh = (BoundMethodHandle) data.factory().invokeBasic(type, form, (Object) clauseData,
                     (Object) collectArgs, (Object) unboxResult);
         } catch (Throwable ex) {
             throw uncaughtException(ex);
@@ -2148,7 +2155,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         BoundMethodHandle.SpeciesData data = BoundMethodHandle.speciesData_LLLL();
         BoundMethodHandle mh;
         try {
-            mh = (BoundMethodHandle) data.constructor().invokeBasic(type, form, (Object) target, (Object) cleanup,
+            mh = (BoundMethodHandle) data.factory().invokeBasic(type, form, (Object) target, (Object) cleanup,
                     (Object) collectArgs, (Object) unboxResult);
         } catch (Throwable ex) {
             throw uncaughtException(ex);

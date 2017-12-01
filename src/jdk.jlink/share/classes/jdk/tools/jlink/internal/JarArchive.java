@@ -34,7 +34,6 @@ import java.util.jar.JarFile;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import jdk.internal.util.jar.VersionedStream;
 import jdk.tools.jlink.internal.Archive.Entry.EntryType;
 
 /**
@@ -74,14 +73,16 @@ public abstract class JarArchive implements Archive {
 
     private final Path file;
     private final String moduleName;
+    private final Runtime.Version version;
     // currently processed JarFile
     private JarFile jarFile;
 
-    protected JarArchive(String mn, Path file) {
+    protected JarArchive(String mn, Path file, Runtime.Version version) {
         Objects.requireNonNull(mn);
         Objects.requireNonNull(file);
         this.moduleName = mn;
         this.file = file;
+        this.version = Objects.requireNonNull(version);
     }
 
     @Override
@@ -103,7 +104,7 @@ public abstract class JarArchive implements Archive {
         } catch (IOException ioe) {
             throw new UncheckedIOException(ioe);
         }
-        return VersionedStream.stream(jarFile)
+        return jarFile.versionedStream()
                 .filter(je -> !je.isDirectory())
                 .map(this::toEntry);
     }
@@ -126,7 +127,7 @@ public abstract class JarArchive implements Archive {
         if (jarFile != null) {
             jarFile.close();
         }
-        jarFile = new JarFile(file.toFile(), true, ZipFile.OPEN_READ, JarFile.runtimeVersion());
+        jarFile = new JarFile(file.toFile(), true, ZipFile.OPEN_READ, version);
     }
 
     protected JarFile getJarFile() {

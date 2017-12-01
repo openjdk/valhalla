@@ -25,6 +25,7 @@
 
 #include "precompiled.hpp"
 #include "jni.h"
+#include "jvm.h"
 #include "ci/ciReplay.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/classFileStream.hpp"
@@ -42,6 +43,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.inline.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/markOop.hpp"
@@ -55,7 +57,6 @@
 #include "prims/jniCheck.hpp"
 #include "prims/jniExport.hpp"
 #include "prims/jniFastGetField.hpp"
-#include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -84,9 +85,6 @@
 #include "utilities/internalVMTests.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#endif // INCLUDE_ALL_GCS
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciCompiler.hpp"
 #include "jvmci/jvmciRuntime.hpp"
@@ -263,7 +261,7 @@ void jfieldIDWorkaround::verify_instance_jfieldID(Klass* k, jfieldID id) {
 
 #ifdef ASSERT
   Histogram* JNIHistogram;
-  static volatile jint JNIHistogram_lock = 0;
+  static volatile int JNIHistogram_lock = 0;
 
   class JNIHistogramElement : public HistogramElement {
     public:
@@ -2080,28 +2078,9 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (JvmtiExport::should_post_field_access()) {
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false);
   }
-  jobject ret = JNIHandles::make_local(env, o->obj_field(offset));
-#if INCLUDE_ALL_GCS
-  // If G1 is enabled and we are accessing the value of the referent
-  // field in a reference object then we need to register a non-null
-  // referent with the SATB barrier.
-  if (UseG1GC) {
-    bool needs_barrier = false;
-
-    if (ret != NULL &&
-        offset == java_lang_ref_Reference::referent_offset &&
-        InstanceKlass::cast(k)->reference_type() != REF_NONE) {
-      assert(InstanceKlass::cast(k)->is_subclass_of(SystemDictionary::Reference_klass()), "sanity");
-      needs_barrier = true;
-    }
-
-    if (needs_barrier) {
-      oop referent = JNIHandles::resolve(ret);
-      G1SATBCardTableModRefBS::enqueue(referent);
-    }
-  }
-#endif // INCLUDE_ALL_GCS
-HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
+  oop loaded_obj = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
+  jobject ret = JNIHandles::make_local(env, loaded_obj);
+  HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
 
@@ -2198,7 +2177,7 @@ JNI_QUICK_ENTRY(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldID fiel
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe_nh(thread, obj, o, k, fieldID, false, 'L', (jvalue *)&field_value);
   }
-  o->obj_field_put(offset, JNIHandles::resolve(value));
+  HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
 
@@ -3288,9 +3267,9 @@ JNI_END
 
 // Initialization state for three routines below relating to
 // java.nio.DirectBuffers
-static          jint directBufferSupportInitializeStarted = 0;
-static volatile jint directBufferSupportInitializeEnded   = 0;
-static volatile jint directBufferSupportInitializeFailed  = 0;
+static          int directBufferSupportInitializeStarted = 0;
+static volatile int directBufferSupportInitializeEnded   = 0;
+static volatile int directBufferSupportInitializeFailed  = 0;
 static jclass    bufferClass                 = NULL;
 static jclass    directBufferClass           = NULL;
 static jclass    directByteBufferClass       = NULL;
@@ -3855,9 +3834,9 @@ struct JNINativeInterface_* jni_functions_nocheck() {
 extern const struct JNIInvokeInterface_ jni_InvokeInterface;
 
 // Global invocation API vars
-volatile jint vm_created = 0;
+volatile int vm_created = 0;
 // Indicate whether it is safe to recreate VM
-volatile jint safe_to_recreate_vm = 1;
+volatile int safe_to_recreate_vm = 1;
 struct JavaVM_ main_vm = {&jni_InvokeInterface};
 
 
@@ -3960,7 +3939,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
         // JVMCI is initialized on a CompilerThread
         if (BootstrapJVMCI) {
           JavaThread* THREAD = thread;
-          JVMCICompiler* compiler = JVMCICompiler::instance(CATCH);
+          JVMCICompiler* compiler = JVMCICompiler::instance(true, CATCH);
           compiler->bootstrap(THREAD);
           if (HAS_PENDING_EXCEPTION) {
             HandleMark hm;
@@ -4056,7 +4035,7 @@ _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_GetCreatedJavaVMs(JavaVM **vm_buf, jsize
 
   HOTSPOT_JNI_GETCREATEDJAVAVMS_ENTRY((void **) vm_buf, bufLen, (uintptr_t *) numVMs);
 
-  if (vm_created) {
+  if (vm_created == 1) {
     if (numVMs != NULL) *numVMs = 1;
     if (bufLen > 0)     *vm_buf = (JavaVM *)(&main_vm);
   } else {
@@ -4076,7 +4055,7 @@ static jint JNICALL jni_DestroyJavaVM_inner(JavaVM *vm) {
   jint res = JNI_ERR;
   DT_RETURN_MARK(DestroyJavaVM, jint, (const jint&)res);
 
-  if (!vm_created) {
+  if (vm_created == 0) {
     res = JNI_ERR;
     return res;
   }
@@ -4097,7 +4076,7 @@ static jint JNICALL jni_DestroyJavaVM_inner(JavaVM *vm) {
   ThreadStateTransition::transition_from_native(thread, _thread_in_vm);
   if (Threads::destroy_vm()) {
     // Should not change thread state, VM is gone
-    vm_created = false;
+    vm_created = 0;
     res = JNI_OK;
     return res;
   } else {
@@ -4237,7 +4216,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
 
 jint JNICALL jni_AttachCurrentThread(JavaVM *vm, void **penv, void *_args) {
   HOTSPOT_JNI_ATTACHCURRENTTHREAD_ENTRY(vm, penv, _args);
-  if (!vm_created) {
+  if (vm_created == 0) {
   HOTSPOT_JNI_ATTACHCURRENTTHREAD_RETURN((uint32_t) JNI_ERR);
     return JNI_ERR;
   }
@@ -4296,7 +4275,7 @@ jint JNICALL jni_GetEnv(JavaVM *vm, void **penv, jint version) {
   jint ret = JNI_ERR;
   DT_RETURN_MARK(GetEnv, jint, (const jint&)ret);
 
-  if (!vm_created) {
+  if (vm_created == 0) {
     *penv = NULL;
     ret = JNI_EDETACHED;
     return ret;
@@ -4347,7 +4326,7 @@ jint JNICALL jni_GetEnv(JavaVM *vm, void **penv, jint version) {
 
 jint JNICALL jni_AttachCurrentThreadAsDaemon(JavaVM *vm, void **penv, void *_args) {
   HOTSPOT_JNI_ATTACHCURRENTTHREADASDAEMON_ENTRY(vm, penv, _args);
-  if (!vm_created) {
+  if (vm_created == 0) {
   HOTSPOT_JNI_ATTACHCURRENTTHREADASDAEMON_RETURN((uint32_t) JNI_ERR);
     return JNI_ERR;
   }

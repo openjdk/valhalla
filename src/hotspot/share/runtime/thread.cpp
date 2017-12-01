@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "classfile/classLoader.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
@@ -52,7 +53,6 @@
 #include "oops/symbol.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
-#include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -66,6 +66,7 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/handshake.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.hpp"
 #include "runtime/java.hpp"
@@ -78,6 +79,7 @@
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/safepoint.hpp"
+#include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/statSampler.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -765,7 +767,7 @@ bool Thread::is_interrupted(Thread* thread, bool clear_interrupted) {
 
 // GC Support
 bool Thread::claim_oops_do_par_case(int strong_roots_parity) {
-  jint thread_parity = _oops_do_parity;
+  int thread_parity = _oops_do_parity;
   if (thread_parity != strong_roots_parity) {
     jint res = Atomic::cmpxchg(strong_roots_parity, &_oops_do_parity, thread_parity);
     if (res == thread_parity) {
@@ -1521,6 +1523,10 @@ void JavaThread::initialize() {
   _vtchunk_total_failed = 0;
   _vtchunk_total_memory_buffered = 0;
 
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    SafepointMechanism::initialize_header(this);
+  }
+
   pd_initialize();
 }
 
@@ -1948,6 +1954,11 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
 
   // Remove from list of active threads list, and notify VM thread if we are the last non-daemon thread
   Threads::remove(this);
+
+  // If someone set a handshake on us just as we entered exit path, we simple cancel it.
+  if (ThreadLocalHandshakes) {
+    cancel_handshake();
+  }
 }
 
 #if INCLUDE_ALL_GCS
@@ -2410,11 +2421,7 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
     InterfaceSupport::serialize_thread_state_with_handler(thread);
   }
 
-  if (SafepointSynchronize::do_call_back()) {
-    // If we are safepointing, then block the caller which may not be
-    // the same as the target thread (see above).
-    SafepointSynchronize::block(curJT);
-  }
+  SafepointMechanism::block_if_requested(curJT);
 
   if (thread->is_deopt_suspend()) {
     thread->clear_deopt_suspend();
@@ -2502,7 +2509,13 @@ size_t JavaThread::_stack_reserved_zone_size = 0;
 size_t JavaThread::_stack_shadow_zone_size = 0;
 
 void JavaThread::create_stack_guard_pages() {
-  if (!os::uses_stack_guard_pages() || _stack_guard_state != stack_guard_unused) { return; }
+  if (!os::uses_stack_guard_pages() ||
+      _stack_guard_state != stack_guard_unused ||
+      (DisablePrimordialThreadGuardPages && os::is_primordial_thread())) {
+      log_info(os, thread)("Stack guard page creation for thread "
+                           UINTX_FORMAT " disabled", os::current_thread_id());
+    return;
+  }
   address low_addr = stack_end();
   size_t len = stack_guard_zone_size();
 
@@ -3576,6 +3589,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   LogConfiguration::initialize(create_vm_timer.begin_time());
 
   // Parse arguments
+  // Note: this internally calls os::init_container_support()
   jint parse_result = Arguments::parse(args);
   if (parse_result != JNI_OK) return parse_result;
 
@@ -3609,6 +3623,8 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Initialize the os module after parsing the args
   jint os_init_2_result = os::init_2();
   if (os_init_2_result != JNI_OK) return os_init_2_result;
+
+  SafepointMechanism::initialize();
 
   jint adjust_after_os_result = Arguments::adjust_after_os();
   if (adjust_after_os_result != JNI_OK) return adjust_after_os_result;
@@ -3779,7 +3795,7 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   }
 
   // initialize compiler(s)
-#if defined(COMPILER1) || defined(COMPILER2) || INCLUDE_JVMCI
+#if defined(COMPILER1) || COMPILER2_OR_JVMCI
   CompileBroker::compilation_init(CHECK_JNI_ERR);
 #endif
 

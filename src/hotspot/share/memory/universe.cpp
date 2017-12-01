@@ -34,8 +34,8 @@
 #include "code/dependencies.hpp"
 #include "gc/shared/cardTableModRefBS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/space.hpp"
@@ -83,14 +83,6 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/preserveException.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/cms/cmsCollectorPolicy.hpp"
-#include "gc/cms/cmsHeap.hpp"
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1CollectorPolicy.hpp"
-#include "gc/parallel/parallelScavengeHeap.hpp"
-#include "gc/shared/adaptiveSizePolicy.hpp"
-#endif // INCLUDE_ALL_GCS
 #if INCLUDE_CDS
 #include "classfile/sharedClassUtil.hpp"
 #endif
@@ -747,27 +739,8 @@ jint universe_init() {
 
 CollectedHeap* Universe::create_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
-#if !INCLUDE_ALL_GCS
-  if (UseParallelGC) {
-    fatal("UseParallelGC not supported in this VM.");
-  } else if (UseG1GC) {
-    fatal("UseG1GC not supported in this VM.");
-  } else if (UseConcMarkSweepGC) {
-    fatal("UseConcMarkSweepGC not supported in this VM.");
-#else
-  if (UseParallelGC) {
-    return Universe::create_heap_with_policy<ParallelScavengeHeap, GenerationSizer>();
-  } else if (UseG1GC) {
-    return Universe::create_heap_with_policy<G1CollectedHeap, G1CollectorPolicy>();
-  } else if (UseConcMarkSweepGC) {
-    return Universe::create_heap_with_policy<CMSHeap, ConcurrentMarkSweepPolicy>();
-#endif
-  } else if (UseSerialGC) {
-    return Universe::create_heap_with_policy<GenCollectedHeap, MarkSweepPolicy>();
-  }
-
-  ShouldNotReachHere();
-  return NULL;
+  assert(GCArguments::is_initialized(), "GC must be initialized here");
+  return GCArguments::arguments()->create_heap();
 }
 
 // Choose the heap base address and oop encoding mode

@@ -105,7 +105,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a primitive type, dispatching to the visit method for
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation dispatches to the visit method for
      * the specific {@linkplain TypeKind kind} of primitive type:
      * {@code BOOLEAN}, {@code BYTE}, etc.
      *
@@ -147,8 +149,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code BOOLEAN} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code BOOLEAN} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -159,8 +162,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code BYTE} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code BYTE} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -171,8 +175,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code SHORT} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code SHORT} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -183,8 +188,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits an {@code INT} primitive type by calling
-     * {@code defaultAction}.
+     * Visits an {@code INT} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -195,8 +201,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code LONG} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code LONG} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -207,8 +214,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code CHAR} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code CHAR} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -219,8 +227,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code FLOAT} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code FLOAT} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -231,8 +240,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@code DOUBLE} primitive type by calling
-     * {@code defaultAction}.
+     * Visits a {@code DOUBLE} primitive type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -243,9 +253,11 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@link NoType} instance, dispatching to the visit method for
+     * {@inheritDoc}
+     *
+     * @implSpec This implementation dispatches to the visit method for
      * the specific {@linkplain TypeKind kind} of pseudo-type:
-     * {@code VOID}, {@code PACKAGE}, or {@code NONE}.
+     * {@code VOID}, {@code PACKAGE}, {@code MODULE}, or {@code NONE}.
      *
      * @param t {@inheritDoc}
      * @param p {@inheritDoc}
@@ -261,6 +273,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
         case PACKAGE:
             return visitNoTypeAsPackage(t, p);
 
+        case MODULE:
+            return visitNoTypeAsModule(t, p);
+
         case NONE:
             return visitNoTypeAsNone(t, p);
 
@@ -270,8 +285,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@link TypeKind#VOID VOID} pseudo-type by calling
-     * {@code defaultAction}.
+     * Visits a {@link TypeKind#VOID VOID} pseudo-type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -282,8 +298,9 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@link TypeKind#PACKAGE PACKAGE} pseudo-type by calling
-     * {@code defaultAction}.
+     * Visits a {@link TypeKind#PACKAGE PACKAGE} pseudo-type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter
@@ -294,8 +311,24 @@ public class TypeKindVisitor6<R, P> extends SimpleTypeVisitor6<R, P> {
     }
 
     /**
-     * Visits a {@link TypeKind#NONE NONE} pseudo-type by calling
-     * {@code defaultAction}.
+     * Visits a {@link TypeKind#MODULE MODULE} pseudo-type.
+     *
+     * @implSpec This implementation calls {@code visitUnknown}.
+     *
+     * @param t the type to visit
+     * @param p a visitor-specified parameter
+     * @return  the result of {@code visitUnknown}
+     *
+     * @since 10
+     */
+    public R visitNoTypeAsModule(NoType t, P p) {
+        return visitUnknown(t, p);
+    }
+
+    /**
+     * Visits a {@link TypeKind#NONE NONE} pseudo-type.
+     *
+     * @implSpec This implementation calls {@code defaultAction}.
      *
      * @param t the type to visit
      * @param p a visitor-specified parameter

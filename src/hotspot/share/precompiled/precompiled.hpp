@@ -27,6 +27,7 @@
 
 #ifndef DONT_USE_PRECOMPILED_HEADER
 # include "jni.h"
+# include "jvm.h"
 # include "asm/assembler.hpp"
 # include "asm/assembler.inline.hpp"
 # include "asm/codeBuffer.hpp"
@@ -161,7 +162,6 @@
 # include "oops/symbol.hpp"
 # include "oops/typeArrayKlass.hpp"
 # include "oops/typeArrayOop.hpp"
-# include "prims/jvm.h"
 # include "prims/jvmtiExport.hpp"
 # include "prims/methodHandles.hpp"
 # include "runtime/arguments.hpp"

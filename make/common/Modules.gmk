@@ -330,8 +330,9 @@ $(MODULE_DEPS_MAKEFILE): $(MODULE_INFOS) \
 	      $(NAWK) -v MODULE=$(call GetModuleNameFromModuleInfo, $m) '\
 	          BEGIN      { if (MODULE != "java.base") printf(" java.base"); } \
 	          /^ *requires/ { sub(/;/, ""); \
-	                          sub(/requires/, ""); \
-	                          sub(/transitive/, ""); \
+	                          sub(/requires /, " "); \
+	                          sub(/ static /, " "); \
+	                          sub(/ transitive /, " "); \
 	                          sub(/\/\/.*/, ""); \
 	                          sub(/\/\*.*\*\//, ""); \
 	                          gsub(/^ +\*.*/, ""); \
@@ -411,8 +412,10 @@ LEGAL_SUBDIRS += share/legal
 # $1 - Module to find legal dirs for
 FindModuleLegalDirs = \
     $(strip $(wildcard \
-        $(addsuffix /$(strip $1), $(IMPORT_MODULES_LEGAL)) \
-        $(foreach sub, $(LEGAL_SUBDIRS), $(addsuffix /$(strip $1)/$(sub), $(TOP_SRC_DIRS)))))
+        $(addsuffix /$(strip $1), $(SUPPORT_OUTPUTDIR)/modules_legal \
+            $(IMPORT_MODULES_LEGAL)) \
+        $(foreach sub, $(LEGAL_SUBDIRS), $(addsuffix /$(strip $1)/$(sub), $(TOP_SRC_DIRS))) \
+    ))
 
 ################################################################################
 

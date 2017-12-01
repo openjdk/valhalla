@@ -203,7 +203,7 @@ var getJibProfiles = function (input) {
     data.src_bundle_excludes = "./build webrev* */webrev* */*/webrev* */*/*/webrev* .hg */.hg */*/.hg */*/*/.hg";
     // Include list to use when creating a minimal jib source bundle which
     // contains just the jib configuration files.
-    data.conf_bundle_includes = "*/conf/jib-profiles.* common/autoconf/version-numbers"
+    data.conf_bundle_includes = "*/conf/jib-profiles.* make/autoconf/version-numbers"
 
     // Define some common values
     var common = getJibProfilesCommon(input, data);
@@ -429,7 +429,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "macosx-x64": {
             target_os: "macosx",
             target_cpu: "x64",
-            dependencies: ["devkit"],
+            dependencies: ["devkit", "freetype"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
                 "--with-macosx-version-max=10.7.0"),
         },
@@ -662,21 +662,6 @@ var getJibProfilesProfiles = function (input, common, data) {
         }
     });
 
-    // The windows ri profile needs to add the freetype license file
-    profilesRiFreetype = {
-        "windows-x86-ri": {
-            configure_args: "--with-freetype-license="
-                + input.get("freetype", "install_path")
-                + "/freetype-2.7.1-v120-x86/freetype.md"
-        },
-        "windows-x64-ri": {
-            configure_args: "--with-freetype-license="
-                + input.get("freetype", "install_path")
-                + "/freetype-2.7.1-v120-x64/freetype.md"
-        }
-    };
-    profiles = concatObjects(profiles, profilesRiFreetype);
-
     // Profiles used to run tests. Used in JPRT and Mach 5.
     var testOnlyProfiles = {
         "run-test-jprt": {
@@ -788,6 +773,12 @@ var getJibProfilesDependencies = function (input, common) {
     var boot_jdk_platform = (input.build_os == "macosx" ? "osx" : input.build_os)
         + "-" + input.build_cpu;
 
+    var freetype_version = {
+        windows_x64: "2.7.1-v120+1.1",
+        windows_x86: "2.7.1-v120+1.1",
+        macosx_x64: "2.7.1-Xcode6.3-MacOSX10.9+1.0"
+    }[input.target_platform];
+
     var dependencies = {
 
         boot_jdk: {
@@ -852,7 +843,7 @@ var getJibProfilesDependencies = function (input, common) {
         freetype: {
             organization: common.organization,
             ext: "tar.gz",
-            revision: "2.7.1-v120+1.0",
+            revision: freetype_version,
             module: "freetype-" + input.target_platform
         },
 
@@ -1043,7 +1034,7 @@ var concatObjects = function (o1, o2) {
 
 /**
  * Constructs the numeric version string from reading the
- * common/autoconf/version-numbers file and removing all trailing ".0".
+ * make/autoconf/version-numbers file and removing all trailing ".0".
  *
  * @param major Override major version
  * @param minor Override minor version
@@ -1080,17 +1071,17 @@ var versionArgs = function(input, common) {
     return args;
 }
 
-// Properties representation of the common/autoconf/version-numbers file. Lazily
+// Properties representation of the make/autoconf/version-numbers file. Lazily
 // initiated by the function below.
 var version_numbers;
 
 /**
- * Read the common/autoconf/version-numbers file into a Properties object.
+ * Read the make/autoconf/version-numbers file into a Properties object.
  *
  * @returns {java.utilProperties}
  */
 var getVersionNumbers = function () {
-    // Read version information from common/autoconf/version-numbers
+    // Read version information from make/autoconf/version-numbers
     if (version_numbers == null) {
         version_numbers = new java.util.Properties();
         var stream = new java.io.FileInputStream(__DIR__ + "/../autoconf/version-numbers");

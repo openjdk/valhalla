@@ -47,6 +47,7 @@
 #include "gc/parallel/immutableSpace.hpp"
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/serial/defNewGeneration.hpp"
+#include "gc/serial/serialHeap.hpp"
 #include "gc/serial/tenuredGeneration.hpp"
 #include "gc/cms/cmsHeap.hpp"
 #include "gc/shared/cardTableRS.hpp"
@@ -227,8 +228,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                                                                                      \
   volatile_nonstatic_field(oopDesc,            _mark,                                         markOop)                               \
   volatile_nonstatic_field(oopDesc,            _metadata._klass,                              Klass*)                                \
-  volatile_nonstatic_field(oopDesc,            _metadata._compressed_klass,                   narrowOop)                             \
-     static_field(oopDesc,                     _bs,                                           BarrierSet*)                           \
+  volatile_nonstatic_field(oopDesc,            _metadata._compressed_klass,                   narrowKlass)                           \
+  static_field(BarrierSet,                     _bs,                                           BarrierSet*)                           \
   nonstatic_field(ArrayKlass,                  _dimension,                                    int)                                   \
   volatile_nonstatic_field(ArrayKlass,         _higher_dimension,                             Klass*)                                \
   volatile_nonstatic_field(ArrayKlass,         _lower_dimension,                              Klass*)                                \
@@ -357,7 +358,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(Symbol,                      _length,                                       unsigned short)                        \
   unchecked_nonstatic_field(Symbol,            _body,                                         sizeof(jbyte)) /* NOTE: no type */     \
   nonstatic_field(Symbol,                      _body[0],                                      jbyte)                                 \
-  nonstatic_field(TypeArrayKlass,              _max_length,                                   int)                                   \
+  nonstatic_field(TypeArrayKlass,              _max_length,                                   jint)                                  \
                                                                                                                                      \
   /***********************/                                                                                                          \
   /* Constant Pool Cache */                                                                                                          \
@@ -580,7 +581,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
      static_field(PerfMemory,                  _top,                                          char*)                                 \
      static_field(PerfMemory,                  _capacity,                                     size_t)                                \
      static_field(PerfMemory,                  _prologue,                                     PerfDataPrologue*)                     \
-     static_field(PerfMemory,                  _initialized,                                  jint)                                  \
+     static_field(PerfMemory,                  _initialized,                                  int)                                   \
                                                                                                                                      \
   /***************/                                                                                                                  \
   /* SymbolTable */                                                                                                                  \
@@ -830,7 +831,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(nmethod,                     _osr_link,                                     nmethod*)                              \
   nonstatic_field(nmethod,                     _scavenge_root_link,                           nmethod*)                              \
   nonstatic_field(nmethod,                     _scavenge_root_state,                          jbyte)                                 \
-  nonstatic_field(nmethod,                     _state,                                        volatile unsigned char)                \
+  nonstatic_field(nmethod,                     _state,                                        volatile char)                         \
   nonstatic_field(nmethod,                     _exception_offset,                             int)                                   \
   nonstatic_field(nmethod,                     _orig_pc_offset,                               int)                                   \
   nonstatic_field(nmethod,                     _stub_offset,                                  int)                                   \
@@ -1351,7 +1352,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_integer_type(long)                                              \
   declare_integer_type(char)                                              \
   declare_unsigned_integer_type(unsigned char)                            \
-  declare_unsigned_integer_type(volatile unsigned char)                   \
+  declare_unsigned_integer_type(volatile char)                            \
   declare_unsigned_integer_type(u_char)                                   \
   declare_unsigned_integer_type(unsigned int)                             \
   declare_unsigned_integer_type(uint)                                     \
@@ -1466,6 +1467,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(CollectedHeap)                                    \
            declare_type(GenCollectedHeap,             CollectedHeap)      \
            declare_type(CMSHeap,                      GenCollectedHeap)   \
+           declare_type(SerialHeap,                   GenCollectedHeap)   \
   declare_toplevel_type(Generation)                                       \
            declare_type(DefNewGeneration,             Generation)         \
            declare_type(CardGeneration,               Generation)         \
@@ -2176,6 +2178,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_toplevel_type(vframeArray)                                      \
   declare_toplevel_type(vframeArrayElement)                               \
   declare_toplevel_type(Annotations*)                                     \
+  declare_type(OopMapValue, StackObj)                                     \
                                                                           \
   /***************/                                                       \
   /* Miscellaneous types */                                               \
@@ -2258,7 +2261,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
                                                                           \
   declare_constant(G1SATBCardTableModRefBS::g1_young_gen)                 \
                                                                           \
-  declare_constant(CollectedHeap::GenCollectedHeap)                       \
+  declare_constant(CollectedHeap::SerialHeap)                             \
+  declare_constant(CollectedHeap::CMSHeap)                                \
   declare_constant(CollectedHeap::ParallelScavengeHeap)                   \
   declare_constant(CollectedHeap::G1CollectedHeap)                        \
                                                                           \

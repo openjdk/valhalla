@@ -66,8 +66,6 @@ import java.util.zip.ZipFile;
 import jdk.internal.jmod.JmodFile;
 import jdk.internal.jmod.JmodFile.Section;
 import jdk.internal.perf.PerfCounter;
-import jdk.internal.util.jar.VersionedStream;
-
 
 /**
  * A {@code ModuleFinder} that locates modules on the file system by searching
@@ -112,7 +110,7 @@ public class ModulePath implements ModuleFinder {
     }
 
     /**
-     * Returns a ModuleFinder that that locates modules on the file system by
+     * Returns a ModuleFinder that locates modules on the file system by
      * searching a sequence of directories and/or packaged modules. The modules
      * may be patched by the given ModulePatcher.
      */
@@ -121,7 +119,7 @@ public class ModulePath implements ModuleFinder {
     }
 
     /**
-     * Returns a ModuleFinder that that locates modules on the file system by
+     * Returns a ModuleFinder that locates modules on the file system by
      * searching a sequence of directories and/or packaged modules.
      */
     public static ModuleFinder of(Path... entries) {
@@ -129,7 +127,7 @@ public class ModulePath implements ModuleFinder {
     }
 
     /**
-     * Returns a ModuleFinder that that locates modules on the file system by
+     * Returns a ModuleFinder that locates modules on the file system by
      * searching a sequence of directories and/or packaged modules.
      *
      * @param version The release version to use for multi-release JAR files
@@ -515,7 +513,7 @@ public class ModulePath implements ModuleFinder {
             builder.version(vs);
 
         // scan the names of the entries in the JAR file
-        Map<Boolean, Set<String>> map = VersionedStream.stream(jf)
+        Map<Boolean, Set<String>> map = jf.versionedStream()
                 .filter(e -> !e.isDirectory())
                 .map(JarEntry::getName)
                 .filter(e -> (e.endsWith(".class") ^ e.startsWith(SERVICES_PREFIX)))
@@ -615,7 +613,7 @@ public class ModulePath implements ModuleFinder {
     }
 
     private Set<String> jarPackages(JarFile jf) {
-        return VersionedStream.stream(jf)
+        return jf.versionedStream()
                 .filter(e -> !e.isDirectory())
                 .map(JarEntry::getName)
                 .map(this::toPackageName)

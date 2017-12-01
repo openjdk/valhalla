@@ -283,7 +283,7 @@ public class EventQueue {
      * @param theEvent an instance of {@code java.awt.AWTEvent},
      *          or a subclass of it
      */
-    private final void postEventPrivate(AWTEvent theEvent) {
+    private void postEventPrivate(AWTEvent theEvent) {
         theEvent.isPosted = true;
         pushPopLock.lock();
         try {
@@ -858,15 +858,13 @@ public class EventQueue {
     private AWTEvent getCurrentEventImpl() {
         pushPopLock.lock();
         try {
-            if (fxAppThreadIsDispatchThread) {
+            if (Thread.currentThread() == dispatchThread
+                    || fxAppThreadIsDispatchThread) {
                 return (currentEvent != null)
                         ? currentEvent.get()
                         : null;
-            } else {
-                return (Thread.currentThread() == dispatchThread)
-                        ? currentEvent.get()
-                        : null;
             }
+            return null;
         } finally {
             pushPopLock.unlock();
         }

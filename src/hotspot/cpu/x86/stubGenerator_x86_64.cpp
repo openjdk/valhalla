@@ -4626,6 +4626,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmExp() {
+    StubCodeMark mark(this, "StubRoutines", "libmExp");
+
     address start = __ pc();
 
     const XMMRegister x0  = xmm0;
@@ -4653,6 +4655,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmLog() {
+    StubCodeMark mark(this, "StubRoutines", "libmLog");
+
     address start = __ pc();
 
     const XMMRegister x0 = xmm0;
@@ -4681,6 +4685,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmLog10() {
+    StubCodeMark mark(this, "StubRoutines", "libmLog10");
+
     address start = __ pc();
 
     const XMMRegister x0 = xmm0;
@@ -4708,6 +4714,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmPow() {
+    StubCodeMark mark(this, "StubRoutines", "libmPow");
+
     address start = __ pc();
 
     const XMMRegister x0 = xmm0;
@@ -4738,6 +4746,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmSin() {
+    StubCodeMark mark(this, "StubRoutines", "libmSin");
+
     address start = __ pc();
 
     const XMMRegister x0 = xmm0;
@@ -4777,6 +4787,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmCos() {
+    StubCodeMark mark(this, "StubRoutines", "libmCos");
+
     address start = __ pc();
 
     const XMMRegister x0 = xmm0;
@@ -4816,6 +4828,8 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_libmTan() {
+    StubCodeMark mark(this, "StubRoutines", "libmTan");
+
     address start = __ pc();
 
     const XMMRegister x0 = xmm0;

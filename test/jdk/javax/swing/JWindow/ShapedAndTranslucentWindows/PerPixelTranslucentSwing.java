@@ -26,6 +26,7 @@ import java.awt.*;
 
 /*
  * @test
+ * @bug 8164811
  * @key headful
  * @summary Check if a per-pixel translucent window shows only the area having
  *          opaque pixels
@@ -40,6 +41,7 @@ import java.awt.*;
  * @library ../../../../lib/testlibrary
  * @build Common ExtendedRobot
  * @run main PerPixelTranslucentSwing
+ * @run main/othervm -Dsun.java2d.uiScale=1.5 PerPixelTranslucentSwing
  */
 
 public class PerPixelTranslucentSwing extends Common {
@@ -88,7 +90,7 @@ public class PerPixelTranslucentSwing extends Common {
 
         Color color = robot.getPixelColor(loc.x + bounds.width / 2, loc.y + bounds.height + 3);
         System.out.println(color);
-        if (FG_COLOR.getRGB() == color.getRGB())
+        if (BG_COLOR.getRGB() != color.getRGB())
             throw new RuntimeException("Background is not translucent (" + color + ")");
 
         EventQueue.invokeAndWait(this::dispose);

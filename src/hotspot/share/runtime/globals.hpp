@@ -99,11 +99,11 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 #define CI_COMPILER_COUNT 0
 #else
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
 #define CI_COMPILER_COUNT 2
 #else
 #define CI_COMPILER_COUNT 1
-#endif // COMPILER2 || INCLUDE_JVMCI
+#endif // COMPILER2_OR_JVMCI
 
 #endif // no compilers
 
@@ -597,6 +597,13 @@ public:
                                                                             \
   develop(bool, CleanChunkPoolAsync, true,                                  \
           "Clean the chunk pool asynchronously")                            \
+                                                                            \
+  product_pd(bool, ThreadLocalHandshakes,                                   \
+          "Use thread-local polls instead of global poll for safepoints.")  \
+          constraint(ThreadLocalHandshakesConstraintFunc,AfterErgo)         \
+                                                                            \
+  diagnostic(uint, HandshakeTimeout, 0,                                     \
+          "If nonzero set a timeout in milliseconds for handshakes")        \
                                                                             \
   experimental(bool, AlwaysSafeConstructors, false,                         \
           "Force safe construction, as if all fields are final.")           \
@@ -1144,8 +1151,8 @@ public:
   notproduct(bool, PrintSystemDictionaryAtExit, false,                      \
           "Print the system dictionary at exit")                            \
                                                                             \
-  experimental(intx, PredictedLoadedClassCount, 0,                          \
-          "Experimental: Tune loaded class cache starting size")            \
+  diagnostic(bool, DynamicallyResizeSystemDictionaries, true,               \
+          "Dynamically resize system dictionaries as needed")               \
                                                                             \
   diagnostic(bool, UnsyncloadClass, false,                                  \
           "Unstable: VM calls loadClass unsynchronized. Custom "            \
@@ -1170,6 +1177,10 @@ public:
   develop(bool, UseDetachedThreads, true,                                   \
           "Use detached threads that are recycled upon termination "        \
           "(for Solaris only)")                                             \
+                                                                            \
+  experimental(bool, DisablePrimordialThreadGuardPages, false,              \
+               "Disable the use of stack guard pages if the JVM is loaded " \
+               "on the primordial process thread")                          \
                                                                             \
   product(bool, UseLWPSynchronization, true,                                \
           "Use LWP-based instead of libthread-based synchronization "       \
@@ -2034,8 +2045,8 @@ public:
   product(bool, ZeroTLAB, false,                                            \
           "Zero out the newly created TLAB")                                \
                                                                             \
-  product(bool, FastTLABRefill, true,                                       \
-          "Use fast TLAB refill code")                                      \
+  product(bool, FastTLABRefill, false,                                      \
+          "(Deprecated) Use fast TLAB refill code")                         \
                                                                             \
   product(bool, TLABStats, true,                                            \
           "Provide more detailed and expensive TLAB statistics.")           \
@@ -2050,6 +2061,9 @@ public:
           "Real memory size (in bytes) used to set maximum heap size")      \
           range(0, 0XFFFFFFFFFFFFFFFF)                                      \
                                                                             \
+  product(bool, AggressiveHeap, false,                                      \
+          "Optimize heap options for long-running memory intensive apps")   \
+                                                                            \
   product(size_t, ErgoHeapSizeLimit, 0,                                     \
           "Maximum ergonomically set heap size (in bytes); zero means use " \
           "MaxRAM * MaxRAMPercentage / 100")                                \
@@ -2057,7 +2071,8 @@ public:
                                                                             \
   experimental(bool, UseCGroupMemoryLimitForHeap, false,                    \
           "Use CGroup memory limit as physical memory limit for heap "      \
-          "sizing")                                                         \
+          "sizing"                                                          \
+          "Deprecated, replaced by container support")                      \
                                                                             \
   product(uintx, MaxRAMFraction, 4,                                         \
           "Maximum fraction (1/n) of real memory used for maximum heap "    \
@@ -2088,6 +2103,9 @@ public:
   product(double, InitialRAMPercentage, 1.5625,                             \
           "Percentage of real memory used for initial heap size")           \
           range(0.0, 100.0)                                                 \
+                                                                            \
+  product(int, ActiveProcessorCount, -1,                                    \
+          "Specify the CPU count the VM should use and report as active")   \
                                                                             \
   develop(uintx, MaxVirtMemFraction, 2,                                     \
           "Maximum fraction (1/n) of virtual memory used for ergonomically "\
@@ -3281,16 +3299,18 @@ public:
           "Delay in scheduling GC workers (in milliseconds)")               \
                                                                             \
   product(intx, DeferThrSuspendLoopCount,     4000,                         \
-          "(Unstable) Number of times to iterate in safepoint loop "        \
+          "(Unstable, Deprecated) "                                         \
+          "Number of times to iterate in safepoint loop "                   \
           "before blocking VM threads ")                                    \
           range(-1, max_jint-1)                                             \
                                                                             \
   product(intx, DeferPollingPageLoopCount,     -1,                          \
-          "(Unsafe,Unstable) Number of iterations in safepoint loop "       \
+          "(Unsafe,Unstable,Deprecated) "                                   \
+          "Number of iterations in safepoint loop "                         \
           "before changing safepoint polling page to RO ")                  \
           range(-1, max_jint-1)                                             \
                                                                             \
-  product(intx, SafepointSpinBeforeYield, 2000, "(Unstable)")               \
+  product(intx, SafepointSpinBeforeYield, 2000, "(Unstable, Deprecated)")   \
           range(0, max_intx)                                                \
                                                                             \
   product(bool, PSChunkLargeArrays, true,                                   \
@@ -3922,18 +3942,6 @@ public:
           "If PrintSharedArchiveAndExit is true, also print the shared "    \
           "dictionary")                                                     \
                                                                             \
-  product(size_t, SharedReadWriteSize, 0,                                   \
-          "Deprecated")                                                     \
-                                                                            \
-  product(size_t, SharedReadOnlySize, 0,                                    \
-          "Deprecated")                                                     \
-                                                                            \
-  product(size_t, SharedMiscDataSize,  0,                                   \
-          "Deprecated")                                                     \
-                                                                            \
-  product(size_t, SharedMiscCodeSize,  0,                                   \
-          "Deprecated")                                                     \
-                                                                            \
   product(size_t, SharedBaseAddress, LP64_ONLY(32*G)                        \
           NOT_LP64(LINUX_ONLY(2*G) NOT_LINUX(0)),                           \
           "Address to allocate shared memory region for class data")        \
@@ -3943,7 +3951,7 @@ public:
           "Average number of symbols per bucket in shared table")           \
           range(2, 246)                                                     \
                                                                             \
-  diagnostic(bool, IgnoreUnverifiableClassesDuringDump, false,              \
+  diagnostic(bool, IgnoreUnverifiableClassesDuringDump, true,              \
           "Do not quit -Xshare:dump even if we encounter unverifiable "     \
           "classes. Just exclude them from the shared dictionary.")         \
                                                                             \

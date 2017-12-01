@@ -687,7 +687,7 @@ public class URLClassPath {
     }
 
     /*
-     * Nested class class used to represent a Loader of resources from a JAR URL.
+     * Nested class used to represent a Loader of resources from a JAR URL.
      */
     static class JarLoader extends Loader {
         private JarFile jar;
@@ -834,7 +834,7 @@ public class URLClassPath {
             try {
                 String nm;
                 if (jar.isMultiRelease()) {
-                    nm = SharedSecrets.javaUtilJarAccess().getRealName(jar, entry);
+                    nm = entry.getRealName();
                 } else {
                     nm = name;
                 }

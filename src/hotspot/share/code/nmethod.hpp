@@ -63,9 +63,22 @@ class nmethod : public CompiledMethod {
   jmethodID _jmethod_id;       // Cache of method()->jmethod_id()
 
 #if INCLUDE_JVMCI
-  // Needed to keep nmethods alive that are not the default nmethod for the associated Method.
-  oop       _jvmci_installed_code;
-  oop       _speculation_log;
+  // A weak reference to an InstalledCode object associated with
+  // this nmethod.
+  jweak     _jvmci_installed_code;
+
+  // A weak reference to a SpeculationLog object associated with
+  // this nmethod.
+  jweak     _speculation_log;
+
+  // Determines whether this nmethod is unloaded when the
+  // referent in _jvmci_installed_code is cleared. This
+  // will be false if the referent is initialized to a
+  // HotSpotNMethod object whose isDefault field is true.
+  // That is, installed code other than a "default"
+  // HotSpotNMethod causes nmethod unloading.
+  // This field is ignored once _jvmci_installed_code is NULL.
+  bool _jvmci_installed_code_triggers_unloading;
 #endif
 
   // To support simple linked-list chaining of nmethods:
@@ -111,7 +124,7 @@ class nmethod : public CompiledMethod {
   bool _unload_reported;
 
   // Protected by Patching_lock
-  volatile unsigned char _state;             // {in_use, not_entrant, zombie, unloaded}
+  volatile char _state;             // {not_installed, in_use, not_entrant, zombie, unloaded}
 
 #ifdef ASSERT
   bool _oops_are_stale;  // indicates that it's no longer safe to access oops section
@@ -192,8 +205,8 @@ class nmethod : public CompiledMethod {
           AbstractCompiler* compiler,
           int comp_level
 #if INCLUDE_JVMCI
-          , Handle installed_code,
-          Handle speculation_log
+          , jweak installed_code,
+          jweak speculation_log
 #endif
           );
 
@@ -203,7 +216,7 @@ class nmethod : public CompiledMethod {
   const char* reloc_string_for(u_char* begin, u_char* end);
   // Returns true if this thread changed the state of the nmethod or
   // false if another thread performed the transition.
-  bool make_not_entrant_or_zombie(unsigned int state);
+  bool make_not_entrant_or_zombie(int state);
   bool make_entrant() { Unimplemented(); return false; }
   void inc_decompile_count();
 
@@ -236,8 +249,8 @@ class nmethod : public CompiledMethod {
                               AbstractCompiler* compiler,
                               int comp_level
 #if INCLUDE_JVMCI
-                              , Handle installed_code = Handle(),
-                              Handle speculation_log = Handle()
+                              , jweak installed_code = NULL,
+                              jweak speculation_log = NULL
 #endif
   );
 
@@ -303,8 +316,9 @@ class nmethod : public CompiledMethod {
   address verified_entry_point() const            { return _verified_entry_point;    } // if klass is correct
 
   // flag accessing and manipulation
-  bool  is_in_use() const                         { return _state == in_use; }
-  bool  is_alive() const                          { unsigned char s = _state; return s < zombie; }
+  bool  is_not_installed() const                  { return _state == not_installed; }
+  bool  is_in_use() const                         { return _state <= in_use; }
+  bool  is_alive() const                          { return _state < zombie; }
   bool  is_not_entrant() const                    { return _state == not_entrant; }
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
@@ -315,6 +329,7 @@ class nmethod : public CompiledMethod {
   void set_rtm_state(RTMState state)              { _rtm_state = state; }
 #endif
 
+  void make_in_use()                              { _state = in_use; }
   // Make the nmethod non entrant. The nmethod will continue to be
   // alive.  It is used when an uncommon trap happens.  Returns true
   // if this thread changed the state of the nmethod or false if
@@ -433,20 +448,37 @@ public:
   void set_method(Method* method) { _method = method; }
 
 #if INCLUDE_JVMCI
-  oop jvmci_installed_code() { return _jvmci_installed_code ; }
+  // Gets the InstalledCode object associated with this nmethod
+  // which may be NULL if this nmethod was not compiled by JVMCI
+  // or the weak reference has been cleared.
+  oop jvmci_installed_code();
+
+  // Copies the value of the name field in the InstalledCode
+  // object (if any) associated with this nmethod into buf.
+  // Returns the value of buf if it was updated otherwise NULL.
   char* jvmci_installed_code_name(char* buf, size_t buflen);
 
-  // Update the state of any InstalledCode instance associated with
+  // Updates the state of the InstalledCode (if any) associated with
   // this nmethod based on the current value of _state.
   void maybe_invalidate_installed_code();
 
-  // Helper function to invalidate InstalledCode instances
+  // Deoptimizes the nmethod (if any) in the address field of a given
+  // InstalledCode object. The address field is zeroed upon return.
   static void invalidate_installed_code(Handle installed_code, TRAPS);
 
-  oop speculation_log() { return _speculation_log ; }
+  // Gets the SpeculationLog object associated with this nmethod
+  // which may be NULL if this nmethod was not compiled by JVMCI
+  // or the weak reference has been cleared.
+  oop speculation_log();
 
  private:
+  // Deletes the weak reference (if any) to the InstalledCode object
+  // associated with this nmethod.
   void clear_jvmci_installed_code();
+
+  // Deletes the weak reference (if any) to the SpeculationLog object
+  // associated with this nmethod.
+  void clear_speculation_log();
 
  public:
 #endif
@@ -454,6 +486,8 @@ public:
  protected:
   virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred);
 #if INCLUDE_JVMCI
+  // See comment for _jvmci_installed_code_triggers_unloading field.
+  // Returns whether this nmethod was unloaded.
   virtual bool do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred);
 #endif
 

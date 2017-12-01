@@ -23,6 +23,7 @@
  */
 
 // no precompiled headers
+#include "jvm.h"
 #include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -31,7 +32,6 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "interpreter/interpreter.hpp"
-#include "jvm_bsd.h"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/filemap.hpp"
@@ -39,7 +39,6 @@
 #include "os_bsd.inline.hpp"
 #include "os_share_bsd.hpp"
 #include "prims/jniFastGetField.hpp"
-#include "prims/jvm.h"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
@@ -3240,7 +3239,7 @@ void os::run_periodic_checks() {
 
 
   // ReduceSignalUsage allows the user to override these handlers
-  // see comments at the very top and jvm_solaris.h
+  // see comments at the very top and jvm_md.h
   if (!ReduceSignalUsage) {
     DO_SIGNAL_CHECK(SHUTDOWN1_SIGNAL);
     DO_SIGNAL_CHECK(SHUTDOWN2_SIGNAL);
@@ -3361,7 +3360,7 @@ void os::init(void) {
 
   Bsd::initialize_system_info();
 
-  // main_thread points to the aboriginal thread
+  // _main_thread points to the thread that created/loaded the JVM.
   Bsd::_main_thread = pthread_self();
 
   Bsd::clock_init();
@@ -3391,20 +3390,6 @@ extern "C" {
 jint os::init_2(void) {
 
   os::Posix::init_2();
-
-  // Allocate a single page and mark it as readable for safepoint polling
-  address polling_page = (address) ::mmap(NULL, Bsd::page_size(), PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  guarantee(polling_page != MAP_FAILED, "os::init_2: failed to allocate polling page");
-
-  os::set_polling_page(polling_page);
-  log_info(os)("SafePoint Polling address: " INTPTR_FORMAT, p2i(polling_page));
-
-  if (!UseMembar) {
-    address mem_serialize_page = (address) ::mmap(NULL, Bsd::page_size(), PROT_READ | PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-    guarantee(mem_serialize_page != MAP_FAILED, "mmap Failed for memory serialize page");
-    os::set_memory_serialize_page(mem_serialize_page);
-    log_info(os)("Memory Serialize Page address: " INTPTR_FORMAT, p2i(mem_serialize_page));
-  }
 
   // initialize suspend/resume support - must do this before signal_sets_init()
   if (SR_initialize() != 0) {
@@ -3492,6 +3477,14 @@ void os::make_polling_page_readable(void) {
 }
 
 int os::active_processor_count() {
+  // User has overridden the number of active processors
+  if (ActiveProcessorCount > 0) {
+    log_trace(os)("active_processor_count: "
+                  "active processor count set by user : %d",
+                  ActiveProcessorCount);
+    return ActiveProcessorCount;
+  }
+
   return _processor_count;
 }
 

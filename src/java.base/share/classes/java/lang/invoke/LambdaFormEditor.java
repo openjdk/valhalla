@@ -382,12 +382,13 @@ class LambdaFormEditor {
     /// Editing methods for method handles.  These need to have fast paths.
 
     private BoundMethodHandle.SpeciesData oldSpeciesData() {
-        return BoundMethodHandle.speciesData(lambdaForm);
+        return BoundMethodHandle.speciesDataFor(lambdaForm);
     }
+
     private BoundMethodHandle.SpeciesData newSpeciesData(BasicType type) {
         return (type != Q_TYPE) ?
-                oldSpeciesData().extendWith(type) :
-                oldSpeciesData().extendWith(L_TYPE); // Carrier_Q(value, unbox MH)
+                oldSpeciesData().extendWith((byte) type.ordinal()) :
+                oldSpeciesData().extendWith((byte) L_TYPE.ordinal()); // Carrier_Q(value, unbox MH)
     }
 
     /**
@@ -520,7 +521,7 @@ class LambdaFormEditor {
             }
         } else {
             // cannot bind the MH arg itself, unless oldData is empty
-            assert(oldData == BoundMethodHandle.SpeciesData.EMPTY);
+            assert(oldData == BoundMethodHandle.SPECIALIZER.topSpecies());
             newBaseAddress = new Name(L_TYPE).withConstraint(newData);
             buf.replaceParameterByNewExpression(0, new Name(getter, newBaseAddress));
             buf.insertParameter(0, newBaseAddress);

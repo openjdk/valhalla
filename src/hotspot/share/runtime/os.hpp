@@ -25,8 +25,8 @@
 #ifndef SHARE_VM_RUNTIME_OS_HPP
 #define SHARE_VM_RUNTIME_OS_HPP
 
+#include "jvm.h"
 #include "jvmtifiles/jvmti.h"
-#include "prims/jvm.h"
 #include "runtime/extendedPC.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/macros.hpp"
@@ -142,8 +142,16 @@ class os: AllStatic {
   static void  get_summary_os_info(char* buf, size_t buflen);
 
   static void initialize_initial_active_processor_count();
+
+  LINUX_ONLY(static void pd_init_container_support();)
+
  public:
   static void init(void);                      // Called before command line parsing
+
+  static void init_container_support() {       // Called during command line parsing.
+     LINUX_ONLY(pd_init_container_support();)
+  }
+
   static void init_before_ergo(void);          // Called after command line parsing
                                                // before VM ergonomics processing.
   static jint init_2(void);                    // Called after command line parsing
@@ -446,7 +454,24 @@ class os: AllStatic {
   static bool create_thread(Thread* thread,
                             ThreadType thr_type,
                             size_t req_stack_size = 0);
+
+  // The "main thread", also known as "starting thread", is the thread
+  // that loads/creates the JVM via JNI_CreateJavaVM.
   static bool create_main_thread(JavaThread* thread);
+
+  // The primordial thread is the initial process thread. The java
+  // launcher never uses the primordial thread as the main thread, but
+  // applications that host the JVM directly may do so. Some platforms
+  // need special-case handling of the primordial thread if it attaches
+  // to the VM.
+  static bool is_primordial_thread(void)
+#if defined(_WINDOWS) || defined(BSD)
+    // No way to identify the primordial thread.
+    { return false; }
+#else
+  ;
+#endif
+
   static bool create_attached_thread(JavaThread* thread);
   static void pd_start_thread(Thread* thread);
   static void start_thread(Thread* thread);

@@ -115,11 +115,11 @@
    </target>
   
 
-  <!-- check minimum ant version required to be 1.8.4 -->
+  <!-- check minimum ant version required to be 1.9.5 -->
   <target name="check-ant-version">
-    <property name="ant.version.required" value="1.8.4"/>
+    <property name="ant.version.required" value="1.9.5"/>
     <antversion property="ant.current.version" />
-    <fail message="The current ant version, ${ant.current.version}, is too old. Please use 1.8.4 or above.">
+    <fail message="The current ant version, ${ant.current.version}, is too old. Please use 1.9.5 or above.">
         <condition>
             <not>
                 <antversion atleast="${ant.version.required}"/>
@@ -278,7 +278,7 @@
       <arg value="${javadoc.option}"/>
       <fileset dir="${nashorn.module.src.dir}" includes="**/*.java"/>
       <fileset dir="${dynalink.module.src.dir}" includes="**/*.java"/>
-      <link href="http://docs.oracle.com/javase/8/docs/api/"/>
+      <link offline="true" href="${javadoc.base.url}" packagelistLoc="${javadoc.pkg.list}"/>
     </javadoc>
   </target>
 
@@ -296,7 +296,7 @@
       <arg value="."/>
       <arg value="${javadoc.option}"/>
       <fileset dir="${nashorn.module.src.dir}" includes="jdk/nashorn/api/**/*.java"/>
-      <link href="http://docs.oracle.com/javase/8/docs/api/"/>
+      <link offline="true" href="${javadoc.base.url}" packagelistLoc="${javadoc.pkg.list}"/>
     </javadoc>
   </target>
 
@@ -314,7 +314,7 @@
       <arg value="."/>
       <arg value="${javadoc.option}"/>
       <fileset dir="${dynalink.module.src.dir}" includes="**/*.java"/>
-      <link href="http://docs.oracle.com/javase/8/docs/api/"/>
+      <link offline="true" href="${javadoc.base.url}" packagelistLoc="${javadoc.pkg.list}"/>
     </javadoc>
   </target>
 
@@ -830,8 +830,8 @@ grant codeBase "file:/${basedir}/${test.script.dir}/basic/JDK-8158467.js" {
 
     <!-- underscorejs -->
     <mkdir dir="${test.external.dir}/underscore"/>
-    <get src="http://underscorejs.org/underscore.js" dest="${test.external.dir}/underscore" skipexisting="true" ignoreerrors="true"/>
-    <get src="http://underscorejs.org/underscore-min.js" dest="${test.external.dir}/underscore" skipexisting="true" ignoreerrors="true"/>
+    <get src="http://underscorejs.org/underscore.js" dest="${test.external.dir}/underscore" skipexisting="true" ignoreerrors="true" tryGzipEncoding="true"/>
+    <get src="http://underscorejs.org/underscore-min.js" dest="${test.external.dir}/underscore" skipexisting="true" ignoreerrors="true" tryGzipEncoding="true"/>
 
     <!-- yui -->
     <mkdir dir="${test.external.dir}/yui"/>

@@ -2271,8 +2271,9 @@ void java_lang_StackFrameInfo::set_method_and_bci(Handle stackFrame, const metho
 
 void java_lang_StackFrameInfo::to_stack_trace_element(Handle stackFrame, Handle stack_trace_element, TRAPS) {
   ResourceMark rm(THREAD);
-  Handle k (THREAD, stackFrame->obj_field(_declaringClass_offset));
-  InstanceKlass* holder = InstanceKlass::cast(java_lang_Class::as_Klass(k()));
+  Handle mname(THREAD, stackFrame->obj_field(java_lang_StackFrameInfo::_memberName_offset));
+  Klass* clazz = java_lang_Class::as_Klass(java_lang_invoke_MemberName::clazz(mname()));
+  InstanceKlass* holder = InstanceKlass::cast(clazz);
   Method* method = java_lang_StackFrameInfo::get_method(stackFrame, holder, CHECK);
 
   short version = stackFrame->short_field(_version_offset);
@@ -2283,7 +2284,6 @@ void java_lang_StackFrameInfo::to_stack_trace_element(Handle stackFrame, Handle 
 
 void java_lang_StackFrameInfo::compute_offsets() {
   Klass* k = SystemDictionary::StackFrameInfo_klass();
-  compute_offset(_declaringClass_offset, k, vmSymbols::declaringClass_name(),  vmSymbols::class_signature());
   compute_offset(_memberName_offset,     k, vmSymbols::memberName_name(),  vmSymbols::object_signature());
   compute_offset(_bci_offset,            k, vmSymbols::bci_name(),         vmSymbols::short_signature());
   STACKFRAMEINFO_INJECTED_FIELDS(INJECTED_FIELD_COMPUTE_OFFSET);
@@ -3077,6 +3077,25 @@ void java_lang_boxing_object::print(BasicType type, jvalue* value, outputStream*
   }
 }
 
+// Support for java_lang_ref_Reference
+
+bool java_lang_ref_Reference::is_referent_field(oop obj, ptrdiff_t offset) {
+  assert(!oopDesc::is_null(obj), "sanity");
+  if (offset != java_lang_ref_Reference::referent_offset) {
+    return false;
+  }
+
+  Klass* k = obj->klass();
+  if (!k->is_instance_klass()) {
+    return false;
+  }
+
+  InstanceKlass* ik = InstanceKlass::cast(obj->klass());
+  bool is_reference = ik->reference_type() != REF_NONE;
+  assert(!is_reference || ik->is_subclass_of(SystemDictionary::Reference_klass()), "sanity");
+  return is_reference;
+}
+
 // Support for java_lang_ref_SoftReference
 
 jlong java_lang_ref_SoftReference::timestamp(oop ref) {
@@ -3692,7 +3711,6 @@ int java_lang_StackTraceElement::moduleVersion_offset;
 int java_lang_StackTraceElement::classLoaderName_offset;
 int java_lang_StackTraceElement::declaringClass_offset;
 int java_lang_StackTraceElement::declaringClassObject_offset;
-int java_lang_StackFrameInfo::_declaringClass_offset;
 int java_lang_StackFrameInfo::_memberName_offset;
 int java_lang_StackFrameInfo::_bci_offset;
 int java_lang_StackFrameInfo::_version_offset;
@@ -3743,11 +3761,6 @@ void java_lang_StackTraceElement::set_classLoaderName(oop element, oop value) {
 
 void java_lang_StackTraceElement::set_declaringClassObject(oop element, oop value) {
   element->obj_field_put(declaringClassObject_offset, value);
-}
-
-// Support for java_lang_StackFrameInfo
-void java_lang_StackFrameInfo::set_declaringClass(oop element, oop value) {
-  element->obj_field_put(_declaringClass_offset, value);
 }
 
 void java_lang_StackFrameInfo::set_version(oop element, short value) {

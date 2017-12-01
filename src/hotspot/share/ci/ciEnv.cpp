@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm.h"
 #include "ci/ciConstant.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
@@ -50,7 +51,6 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvm.h"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/init.hpp"
 #include "runtime/reflection.hpp"
@@ -1123,6 +1123,7 @@ void ciEnv::register_method(ciMethod* target,
         }
         method->method_holder()->add_osr_nmethod(nm);
       }
+      nm->make_in_use();
     }
   }  // safepoints are allowed again
 
