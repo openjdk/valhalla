@@ -26,8 +26,6 @@ JVM_AreNestMates
 JVM_ArrayCopy
 JVM_AssertionStatusDirectives
 JVM_CallStackWalk
-JVM_ClassDepth
-JVM_ClassLoaderDepth
 JVM_Clone
 JVM_ConstantPoolGetClassAt
 JVM_ConstantPoolGetClassAtIfLoaded
@@ -48,8 +46,6 @@ JVM_ConstantPoolGetStringAt
 JVM_ConstantPoolGetTagAt
 JVM_ConstantPoolGetUTF8At
 JVM_CountStackFrames
-JVM_CurrentClassLoader
-JVM_CurrentLoadedClass
 JVM_CurrentThread
 JVM_CurrentTimeMillis
 JVM_DefineClass
