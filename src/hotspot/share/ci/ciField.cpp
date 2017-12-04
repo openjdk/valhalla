@@ -167,6 +167,14 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
     _holder = declared_holder;
     _offset = -1;
     _is_constant = false;
+    // It's possible the access check failed due to a nestmate access check
+    // encountering an exception. We can't propagate the exception from here
+    // so we have to clear it. If the access check happens again in a different
+    // context then the exception will be thrown there.
+    Thread* THREAD = Thread::current();
+    if (HAS_PENDING_EXCEPTION) {
+      CLEAR_PENDING_EXCEPTION;
+    }
     return;
   }
 
