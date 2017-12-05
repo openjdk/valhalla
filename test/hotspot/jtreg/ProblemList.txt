@@ -95,10 +95,15 @@ serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8184042 macosx-all
 
 
 # Valhalla TODO:
+serviceability/sa/ClhsdbJstack.java 8190936 generic-all
+serviceability/sa/ClhsdbPrintStatics.java 8190936 generic-all
+serviceability/sa/ClhsdbSymbol.java 8190936 generic-all
+serviceability/sa/ClhsdbWhere.java 8190936 generic-all
 serviceability/sa/JhsdbThreadInfoTest.java 8190936 generic-all
 serviceability/sa/TestCpoolForInvokeDynamic.java 8190936 generic-all
 serviceability/sa/TestHeapDumpForInvokeDynamic.java 8190936 generic-all
 serviceability/sa/TestHeapDumpForLargeArray.java 8190936 generic-all
+serviceability/sa/TestIntConstant.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 
 
