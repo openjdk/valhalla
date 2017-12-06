@@ -54,6 +54,10 @@ compiler/types/correctness/OffTest.java 8066173 generic-all
 # aot test intermittently failing in jprt 8175791
 compiler/aot/DeoptimizationTest.java 8175791 windows-all
 
+#Valhalla
+compiler/valhalla/valuetypes/TestBasicFunctionality.java 8193070 generic-all
+compiler/valhalla/valuetypes/TestOnStackReplacement.java 8193070 generic-all
+
 applications/ctw/modules/java_desktop.java 8189604 windows-all
 applications/ctw/modules/jdk_jconsole.java 8189604 windows-all
 #Valhalla
