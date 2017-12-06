@@ -4944,7 +4944,7 @@ bool TypeValueTypePtr::eq(const Type* t) const {
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
 int TypeValueTypePtr::hash(void) const {
-  return java_add(klass()->hash(), TypeOopPtr::hash());
+  return java_add((jint)klass()->hash(), (jint)TypeOopPtr::hash());
 }
 
 //------------------------------is__Value--------------------------------------
