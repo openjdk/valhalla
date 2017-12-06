@@ -1063,9 +1063,10 @@ var versionArgs = function(input, common) {
     if (input.build_type == "promoted") {
         args = concat(args,
                       // This needs to be changed when we start building release candidates
-                      "--with-version-pre=ea",
+                      "--with-version-pre=mvtea",
                       "--without-version-opt");
     } else {
+        args = concat(args, "--with-version-pre=mvtea");
         args = concat(args, "--with-version-opt=" + common.build_id);
     }
     return args;
