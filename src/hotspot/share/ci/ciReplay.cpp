@@ -842,10 +842,15 @@ class CompileReplay : public StackObj {
                                SignatureStream::ReturnNull, THREAD);
         assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
         ValueKlass* vk = ValueKlass::cast(k);
-        int field_offset = fd->offset() - vk->first_field_offset();
-        oop obj = (oop)((address)_vt + field_offset);
-        ValueTypeFieldInitializer init_fields(obj, _replay);
-        vk->do_nonstatic_fields(&init_fields);
+        if (fd->is_flatten()) {
+          int field_offset = fd->offset() - vk->first_field_offset();
+          oop obj = (oop)((address)_vt + field_offset);
+          ValueTypeFieldInitializer init_fields(obj, _replay);
+          vk->do_nonstatic_fields(&init_fields);
+        } else {
+          oop value = vk->allocate_instance(THREAD);
+          _vt->obj_field_put(fd->offset(), value);
+        }
         break;
       }
       default: {
@@ -917,7 +922,7 @@ class CompileReplay : public StackObj {
   // Initialize a class and fill in the value for a static field.
   // This is useful when the compile was dependent on the value of
   // static fields but it's impossible to properly rerun the static
-  // initiailizer.
+  // initializer.
   void process_staticfield(TRAPS) {
     InstanceKlass* k = (InstanceKlass *)parse_klass(CHECK);
 
@@ -978,15 +983,11 @@ class CompileReplay : public StackObj {
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
     } else if (field_signature[0] == 'Q') {
-      Symbol* klass_name = SymbolTable::lookup(field_signature, (int)strlen(field_signature), CHECK);
       Klass* kelem = resolve_klass(field_signature, CHECK);
       ValueKlass* vk = ValueKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);
       ValueTypeFieldInitializer init_fields(value, this);
       vk->do_nonstatic_fields(&init_fields);
-      if (HAS_PENDING_EXCEPTION) {
-        return;
-      }
       java_mirror->obj_field_put(fd.offset(), value);
     } else {
       bool res = process_staticfield_reference(field_signature, java_mirror, &fd, CHECK);
