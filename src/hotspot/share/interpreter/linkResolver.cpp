@@ -1146,8 +1146,7 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
     return NULL;
   }
 
-  // check that invokespecial's interface method reference is in a direct superinterface,
-  // unless we are dealing with nestmates.
+  // check that invokespecial's interface method reference is in an indirect superinterface
   Klass* current_klass = link_info.current_klass();
   if (current_klass != NULL && resolved_klass->is_interface()) {
     InstanceKlass* ck = InstanceKlass::cast(current_klass);
@@ -1159,13 +1158,11 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
                         SystemDictionary::reflect_MagicAccessorImpl_klass());
 
     if (!is_reflect &&
-        !klass_to_check->is_same_or_direct_interface(resolved_klass) &&
-        (ck == klass_to_check && // don't check nestmate access for anonymous classes
-         !klass_to_check->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD))) {
+        !klass_to_check->is_same_or_direct_interface(resolved_klass)) {
       ResourceMark rm(THREAD);
       char buf[200];
       jio_snprintf(buf, sizeof(buf),
-                   "Interface method reference: %s, is not in a direct superinterface of %s",
+                   "Interface method reference: %s, is in an indirect superinterface of %s",
                    Method::name_and_sig_as_C_string(resolved_klass,
                                                                            resolved_method->name(),
                                                                            resolved_method->signature()),
