@@ -745,7 +745,6 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 // and try to replace them by dominating allocations.
 void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase) {
   assert(EliminateAllocations, "allocation elimination should be enabled");
-  Node_List dead_allocations;
   // Search for allocations of this value type
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
@@ -773,11 +772,9 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
         // Move users to dominating allocation
         Node* res = alloc->result_cast();
         igvn->replace_node(res, res_dom);
-        // The dominated allocation is now dead, remove the
-        // value type node connection and adjust the iterator.
-        dead_allocations.push(alloc);
-        igvn->replace_input_of(alloc, AllocateNode::ValueNode, NULL);
-        --i; --imax;
+        // The result of the dominated allocation is now unused and will be
+        // removed later in AllocateNode::Ideal() to not confuse loop opts.
+        igvn->record_for_igvn(alloc);
 #ifdef ASSERT
         if (PrintEliminateAllocations) {
           tty->print("++++ Eliminated: %d Allocate ", alloc->_idx);
@@ -789,33 +786,15 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
     }
   }
 
-  // Remove dead value type allocations by replacing the projection nodes
-  for (uint i = 0; i < dead_allocations.size(); ++i) {
-    CallProjections projs;
-    AllocateNode* alloc = dead_allocations.at(i)->as_Allocate();
-    alloc->extract_projections(&projs, true);
-    // Use lazy_replace to avoid corrupting the dominator tree of PhaseIdealLoop
-    phase->lazy_replace(projs.fallthrough_catchproj, alloc->in(TypeFunc::Control));
-    phase->lazy_replace(projs.fallthrough_memproj, alloc->in(TypeFunc::Memory));
-    phase->lazy_replace(projs.catchall_memproj, phase->C->top());
-    phase->lazy_replace(projs.fallthrough_ioproj, alloc->in(TypeFunc::I_O));
-    phase->lazy_replace(projs.catchall_ioproj, phase->C->top());
-    phase->lazy_replace(projs.catchall_catchproj, phase->C->top());
-    phase->lazy_replace(projs.resproj, phase->C->top());
-  }
-
   // Process users
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node* out = fast_out(i);
     if (out->isa_ValueType() != NULL) {
       // Recursively process value type users
       out->as_ValueType()->remove_redundant_allocations(igvn, phase);
-      --i; --imax;
     } else if (out->isa_Allocate() != NULL) {
-      // Unlink AllocateNode
+      // Allocate users should be linked
       assert(out->in(AllocateNode::ValueNode) == this, "should be linked");
-      igvn->replace_input_of(out, AllocateNode::ValueNode, NULL);
-      --i; --imax;
     } else {
 #ifdef ASSERT
       // The value type should not have any other users at this time
@@ -824,9 +803,6 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
 #endif
     }
   }
-
-  // Should be dead now
-  igvn->remove_dead_node(this);
 }
 
 ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(PhaseGVN& gvn, ValueTypeNode* vt) {

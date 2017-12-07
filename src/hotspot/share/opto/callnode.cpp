@@ -690,7 +690,9 @@ void CallNode::dump_spec(outputStream *st) const {
 
 const Type *CallNode::bottom_type() const { return tf()->range_cc(); }
 const Type* CallNode::Value(PhaseGVN* phase) const {
-  if (phase->type(in(0)) == Type::TOP)  return Type::TOP;
+  if (!in(0) || phase->type(in(0)) == Type::TOP) {
+    return Type::TOP;
+  }
   return tf()->range_cc();
 }
 
@@ -1433,6 +1435,28 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
   if (analyzer->is_arg_stack(0) || analyzer->is_arg_local(0)) {
     _is_allocation_MemBar_redundant = true;
   }
+}
+
+Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  // Check for unused value type allocation
+  if (can_reshape && in(AllocateNode::ValueNode) != NULL &&
+      outcnt() != 0 && result_cast() == NULL) {
+    // Remove allocation by replacing the projection nodes with its inputs
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    CallProjections projs;
+    extract_projections(&projs, true);
+    igvn->replace_node(projs.fallthrough_catchproj, in(TypeFunc::Control));
+    igvn->replace_node(projs.fallthrough_memproj, in(TypeFunc::Memory));
+    igvn->replace_node(projs.catchall_memproj, phase->C->top());
+    igvn->replace_node(projs.fallthrough_ioproj, in(TypeFunc::I_O));
+    igvn->replace_node(projs.catchall_ioproj, phase->C->top());
+    igvn->replace_node(projs.catchall_catchproj, phase->C->top());
+    igvn->replace_node(projs.resproj, phase->C->top());
+    igvn->remove_dead_node(this);
+    return NULL;
+  }
+
+  return CallNode::Ideal(phase, can_reshape);
 }
 
 //=============================================================================
