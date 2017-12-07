@@ -390,6 +390,7 @@ public class TestMinimalValueTypes extends ValueTypeTest {
     private static final MethodHandle objectUnboxLoadLongMH;
 
     @Test(match = {NPE,CCE}, matchCount = {1,1})
+    @Warmup(5000)
     public long test8(Object vcc) throws Throwable {
         return (long)objectUnboxLoadLongMH.invokeExact(vcc);
     }
@@ -419,6 +420,7 @@ public class TestMinimalValueTypes extends ValueTypeTest {
     private static final MethodHandle objectBoxMH;
 
     @Test(match = {NPE, CCE}, matchCount = {2, 2})
+    @Warmup(5000)
     public long test9(Object obj, boolean warmup) throws Throwable {
         return (long)objectBoxMH.invokeExact(obj, warmup);
     }

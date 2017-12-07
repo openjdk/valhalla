@@ -2495,6 +2495,9 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
       }
       for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
         BasicType t = ss.type();
+        if (!ValueTypePassFieldsAsArgs && t == T_VALUETYPE) {
+          t = T_VALUETYPEPTR; // Pass value types by reference
+        }
         sig_bt[sizeargs++] = t;
         if (type2size[t] == 2) {
           sig_bt[sizeargs++] = T_VOID;
@@ -2513,11 +2516,15 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
         bool at_this = (arg_index == -1);
         bool at_old_sp = false;
         BasicType t = (at_this ? T_OBJECT : ss.type());
+        if (!ValueTypePassFieldsAsArgs && t == T_VALUETYPE) {
+          t = T_VALUETYPEPTR; // Pass value types by reference
+        }
         assert(t == sig_bt[sig_index], "sigs in sync");
-        if (at_this)
+        if (at_this) {
           stream->print("  # this: ");
-        else
+        } else {
           stream->print("  # parm%d: ", arg_index);
+        }
         stream->move_to(tab1);
         VMReg fst = regs[sig_index].first();
         VMReg snd = regs[sig_index].second();

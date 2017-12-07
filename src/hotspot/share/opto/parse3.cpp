@@ -549,103 +549,82 @@ void Parse::do_multianewarray() {
 }
 
 void Parse::do_vbox() {
-  // Obtain target type (from bytecodes)
+  // Obtain target value-capable class
   bool will_link;
-  ciKlass* target_klass = iter().get_klass(will_link);
-  guarantee(will_link, "vbox: Value-capable class must be loaded");
-  guarantee(target_klass->is_instance_klass(), "vbox: Target class must be an instance type");
+  ciInstanceKlass* dst_vcc = iter().get_klass(will_link)->as_instance_klass();
+  assert(will_link, "vbox: Target value-capable class must be loaded");
 
-  // Obtain source type
-  ValueTypeNode* vt = peek()->as_ValueType();
-  const TypeValueType* src_type = gvn().type(vt)->isa_valuetype();
-  guarantee(src_type != NULL, "vbox: Source type must not be null");
-  ciValueKlass* src_vk = src_type->value_klass();
-  guarantee(src_vk != NULL && src_vk->is_loaded() && src_vk->exact_klass(),
-            "vbox: Source class must be a value type and must be loaded and exact");
+  // Obtain source value type instance and type
+  const ValueTypeNode* vt = peek()->as_ValueType();
+  ciValueKlass* src_vk = vt->type()->is_valuetype()->value_klass();
+  assert(src_vk != NULL && src_vk->is_loaded() && src_vk->exact_klass(),
+         "vbox: Source class must be a value type and must be loaded and exact");
 
-  kill_dead_locals();
-
-  ciInstanceKlass* target_vcc_klass = target_klass->as_instance_klass();
-  ciInstanceKlass* src_vcc_klass = src_vk->vcc_klass();
-
-  // TODO: Extend type check below if (and once) value type class hierarchies become available.
-  // (incl. extension to support dynamic type checks).
-  if (!src_vcc_klass->equals(target_vcc_klass)) {
+  // Verify that the vcc derived from the source value klass is equal to the target vcc
+  const ciInstanceKlass* src_vcc = src_vk->vcc_klass();
+  assert(src_vcc, "vbox: Source value-capable class must not be null");
+  if (!src_vcc->equals(dst_vcc)) {
     builtin_throw(Deoptimization::Reason_class_check);
-    guarantee(stopped(), "A ClassCastException must be always thrown on this path");
+    assert(stopped(), "A ClassCastException must be always thrown on this path");
     return;
   }
-  guarantee(src_vk->is_valuetype(), "vbox: Target DVT must be a value type");
-  pop();
 
   // Create new object
-  Node* kls = makecon(TypeKlassPtr::make(target_vcc_klass));
+  pop();
+  kill_dead_locals();
+  Node* kls = makecon(TypeKlassPtr::make(dst_vcc));
   Node* obj = new_instance(kls);
 
   // Store all field values to the newly created object.
   // The code below relies on the assumption that the VCC has the
   // same memory layout as the derived value type.
-  // TODO: Once the layout of the two is not the same, update code below.
-  vt->as_ValueType()->store(this, obj, obj, target_vcc_klass);
+  vt->store(this, obj, obj, dst_vcc);
 
   // Push the new object onto the stack
   push(obj);
 }
 
 void Parse::do_vunbox() {
-  kill_dead_locals();
-
-  // Check if the VCC instance is null.
-  Node* not_null_obj = null_check(peek());
-
-  // Value determined to be null at compile time
-  if (stopped()) {
-    return;
-  }
-
-  // Obtain target type (from bytecodes)
+  // Obtain target value klass
   bool will_link;
-  ciKlass* target_klass = iter().get_klass(will_link);
-  guarantee(will_link, "vunbox: Derived value type must be loaded");
-  guarantee(target_klass->is_instance_klass(), "vunbox: Target class must be an instance type");
+  ciValueKlass* dst_vk = iter().get_klass(will_link)->as_value_klass();
+  assert(will_link, "vunbox: Derived value type must be loaded");
 
-  // Obtain source type
-  const TypeOopPtr* source_type = gvn().type(not_null_obj)->isa_oopptr();
-  guarantee(source_type != NULL && source_type->klass() != NULL &&
-            source_type->klass()->is_instance_klass() && source_type->klass()->is_loaded(),
-            "vunbox: Source class must be an instance type and must be loaded");
-
-  ciInstanceKlass* target_dvt_klass = target_klass->as_instance_klass();
-  ciInstanceKlass* target_vcc_klass = target_dvt_klass->vcc_klass();
-
-  // Check if the class of the source is a subclass of the value-capable class
-  // corresponding to the target.
-  // TOOD: Implement profiling of vunbox bytecodes to enable type speculation.
-  if (target_vcc_klass == NULL || !source_type->klass()->is_subclass_of(target_vcc_klass)) {
-    // It is obvious at compile-time that source and target are unrelated.
-    builtin_throw(Deoptimization::Reason_class_check);
-    guarantee(stopped(), "A ClassCastException must be always thrown on this path");
-    return;
+  // Obtain source value-capable class instance and type
+  Node* vcc = null_check(peek());
+  if (stopped()) {
+    return; // Always null
   }
-  guarantee(target_dvt_klass->is_valuetype(), "vunbox: Target DVT must be a value type");
+  ciKlass* src_vcc = gvn().type(vcc)->isa_oopptr()->klass();
+  assert(src_vcc != NULL && src_vcc->is_instance_klass() && src_vcc->is_loaded(),
+         "vunbox: Source class must be an instance type and must be loaded");
 
-  if (!target_vcc_klass->equals(source_type->klass()) || !source_type->klass_is_exact()) {
-    Node* exact_obj = not_null_obj;
-    Node* slow_ctl  = type_check_receiver(exact_obj, target_vcc_klass, 1.0, &exact_obj);
-    {
-      PreserveJVMState pjvms(this);
-      set_control(slow_ctl);
+  // Verify that the source vcc is equal to the vcc derived from the target value klass
+  ciInstanceKlass* dst_vcc = dst_vk->vcc_klass();
+  assert(dst_vcc != NULL && dst_vcc->exact_klass(), "vunbox: Target value-capable class must not be null and exact");
+  if (!src_vcc->equals(dst_vcc)) {
+    if (src_vcc->exact_klass()) {
+      // Source vcc is exact and therefore always incompatible with dst_vcc
       builtin_throw(Deoptimization::Reason_class_check);
+      assert(stopped(), "A ClassCastException must be always thrown on this path");
+      return;
+    } else {
+      // Emit a runtime check to verify that the dynamic type of vcc is equal to dst_vcc
+      Node* exact_vcc = vcc;
+      Node* slow_ctl  = type_check_receiver(vcc, dst_vcc, 1.0, &exact_vcc);
+      {
+        PreserveJVMState pjvms(this);
+        set_control(slow_ctl);
+        builtin_throw(Deoptimization::Reason_class_check);
+      }
+      replace_in_map(vcc, exact_vcc);
+      vcc = exact_vcc;
     }
-    replace_in_map(not_null_obj, exact_obj);
-    not_null_obj = exact_obj;
   }
-
-  // Remove object from the top of the stack
-  pop();
 
   // Create a value type node with the corresponding type and push it onto the stack
-  ciValueKlass* vk = target_dvt_klass->as_value_klass();
-  ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, not_null_obj, not_null_obj, target_vcc_klass, vk->first_field_offset());
+  pop();
+  kill_dead_locals();
+  ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, dst_vk, vcc, vcc, dst_vcc, dst_vk->first_field_offset());
   push(vt);
 }

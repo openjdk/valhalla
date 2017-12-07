@@ -152,7 +152,8 @@ public abstract class ValueTypeTest {
     protected static final String RETURN = START + "Return" + MID + "returns" + END;
     protected static final String LINKTOSTATIC = START + "CallStaticJava" + MID + "linkToStatic" + END;
     protected static final String NPE = START + "CallStaticJava" + MID + "null_check" + END;
-    protected static final String CCE = START + "CallStaticJava" + MID + "class_check" + END;
+    protected static final String CCE = "((.*cmp.*precise klass compiler/valhalla/valuetypes/ValueCapableClass.*)|" +
+                                         "(.*mov.*precise klass compiler/valhalla/valuetypes/ValueCapableClass.*\\R.*cmp.*)" + END;
     protected static final String CALL = START + "CallStaticJava" + MID + END;
     protected static final String STOREVALUETYPEFIELDS = START + "CallStaticJava" + MID + "store_value_type_fields" + END;
     protected static final String SCOBJ = "(.*# ScObj.*" + END;
@@ -308,7 +309,7 @@ public abstract class ValueTypeTest {
         }
     }
 
-    private void setup(Class<?> classes) {
+    private void setup(Class<?> clazz) {
         if (XCOMP) {
             // Don't control compilation if -Xcomp is enabled
             return;
@@ -321,7 +322,7 @@ public abstract class ValueTypeTest {
             }
         }
 
-        Method[] methods = classes.getDeclaredMethods();
+        Method[] methods = clazz.getDeclaredMethods();
         for (Method m : methods) {
             if (m.isAnnotationPresent(Test.class)) {
                 // Don't inline tests
@@ -340,7 +341,7 @@ public abstract class ValueTypeTest {
         }
 
         // Compile class initializers
-        WHITE_BOX.enqueueInitializerForCompilation(classes, COMP_LEVEL_FULL_OPTIMIZATION);
+        WHITE_BOX.enqueueInitializerForCompilation(clazz, COMP_LEVEL_FULL_OPTIMIZATION);
     }
 
     private void run(Class<?>... classes) throws Exception {
