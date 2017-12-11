@@ -28,6 +28,20 @@
  * @run main TestFinalMethodOverride
  */
 
+// The check_final_method_override function in ClassfileParser uses an
+// accessability check to see if the subclass method overrides a same-named
+// superclass method. This would result in a nestmate access check if the
+// super class method is private, which in turn could lead to classloading
+// and possibly exceptions and cause havoc in the classfile parsing process.
+// To fix that we added a check for whether the super class method is private,
+// and if so, we skip the override check as by definition you can't override
+// a private method.
+//
+// This test simply sets up the case where a public subclass method has the
+// same signature as a private superclass method - the case we now skip when
+// doing check_final_method_override. The test should trivially complete
+// normally.
+
 public class TestFinalMethodOverride {
 
   public static class Super {
@@ -43,3 +57,4 @@ public class TestFinalMethodOverride {
     Inner i = new Inner();
   }
 }
+

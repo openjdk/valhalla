@@ -30,16 +30,31 @@ package P2;
  */
 public class PackagedNestHost2 {
     public static class Member {
-        // jcod file changes this to private
+        // jcod file will change these to private
+        public Member() {}
+        public static int f;
         public static void m() {
             System.out.println("You should never see this!");
         }
 
-        // Entry point for main test
-        public static void doAccess() {
-            // this should fail at runtime as m() will now be private
-            // and our nest-host won't resolve as it's in a different package
+        // Entry points for main test.
+        // These should fail at runtime as members will now be private
+        // and our nest-host won't resolve as it's in a different package.
+
+        public static void doInvoke() {
             P1.PackagedNestHost.Member.m();
+        }
+
+        public static void doConstruct() {
+            Object o = new P1.PackagedNestHost.Member();
+        }
+
+        public static void doGetField() {
+            int x = P1.PackagedNestHost.Member.f;
+        }
+
+        public static void doPutField() {
+            P1.PackagedNestHost.Member.f = 42;
         }
     }
 }
