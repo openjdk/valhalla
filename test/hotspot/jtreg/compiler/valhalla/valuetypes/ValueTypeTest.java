@@ -187,6 +187,10 @@ public abstract class ValueTypeTest {
     private void execute_vm() throws Throwable {
         Asserts.assertFalse(tests.isEmpty(), "no tests to execute");
         ArrayList<String> args = new ArrayList<String>(defaultFlags);
+        if (VERIFY_IR) {
+            // Always trap for exception throwing to not confuse IR verification
+            args.add("-XX:-OmitStackTraceInFastThrow");
+        }
         if (VERIFY_VM) {
             args.addAll(verifyFlags);
         }
