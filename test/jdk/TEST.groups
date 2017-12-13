@@ -94,7 +94,6 @@ jdk_util = \
 jdk_util_other = \
     java/util \
     sun/util \
-    jdk/internal/util \
     -:jdk_collections \
     -:jdk_concurrent \
     -:jdk_stream
@@ -207,6 +206,9 @@ jdk_security = \
     :jdk_security2 \
     :jdk_security3 \
     :jdk_security4
+
+jdk_security_infra = \
+    security/infra/java/security/cert/CertPathValidator/certification
 
 jdk_text = \
     java/text \

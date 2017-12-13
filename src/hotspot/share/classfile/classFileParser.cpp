@@ -87,7 +87,7 @@
 
 #define JAVA_CLASSFILE_MAGIC              0xCAFEBABE
 #define JAVA_MIN_SUPPORTED_VERSION        45
-#define JAVA_MAX_SUPPORTED_VERSION        53
+#define JAVA_MAX_SUPPORTED_VERSION        54
 #define JAVA_MAX_SUPPORTED_MINOR_VERSION  1
 
 // Used for two backward compatibility reasons:
@@ -108,6 +108,8 @@
 #define JAVA_8_VERSION                    52
 
 #define JAVA_9_VERSION                    53
+
+#define JAVA_10_VERSION                   54
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == 19 || bad_constant == 20) && _major_version >= JAVA_9_VERSION,

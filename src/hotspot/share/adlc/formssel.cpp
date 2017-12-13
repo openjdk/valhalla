@@ -4035,6 +4035,7 @@ int MatchRule::is_expensive() const {
         strcmp(opType,"ModF")==0 ||
         strcmp(opType,"ModI")==0 ||
         strcmp(opType,"SqrtD")==0 ||
+        strcmp(opType,"SqrtF")==0 ||
         strcmp(opType,"TanD")==0 ||
         strcmp(opType,"ConvD2F")==0 ||
         strcmp(opType,"ConvD2I")==0 ||
@@ -4168,7 +4169,7 @@ bool MatchRule::is_vector() const {
     "DivVF","DivVD",
     "AbsVF","AbsVD",
     "NegVF","NegVD",
-    "SqrtVD",
+    "SqrtVD","SqrtVF",
     "AndV" ,"XorV" ,"OrV",
     "AddReductionVI", "AddReductionVL",
     "AddReductionVF", "AddReductionVD",
