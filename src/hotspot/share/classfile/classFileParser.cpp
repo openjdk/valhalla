@@ -86,7 +86,7 @@
 
 #define JAVA_CLASSFILE_MAGIC              0xCAFEBABE
 #define JAVA_MIN_SUPPORTED_VERSION        45
-#define JAVA_MAX_SUPPORTED_VERSION        53
+#define JAVA_MAX_SUPPORTED_VERSION        54
 #define JAVA_MAX_SUPPORTED_MINOR_VERSION  0
 
 // Used for two backward compatibility reasons:
@@ -108,14 +108,13 @@
 
 #define JAVA_9_VERSION                    53
 
+#define JAVA_10_VERSION                   54
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == 19 || bad_constant == 20) && _major_version >= JAVA_9_VERSION,
          "Unexpected bad constant pool entry");
   if (_bad_constant_seen == 0) _bad_constant_seen = bad_constant;
 }
-
-// FIX ME: update this
-#define JAVA_10_VERSION                    53
 
 void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const stream,
                                                   ConstantPool* cp,

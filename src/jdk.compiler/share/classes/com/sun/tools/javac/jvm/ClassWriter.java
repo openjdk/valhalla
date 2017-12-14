@@ -1033,7 +1033,6 @@ public class ClassWriter extends ClassFile {
         return 1;
     }
 
-
 /**********************************************************************
  * Writing Objects
  **********************************************************************/
@@ -1867,17 +1866,12 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraClassAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
+        poolbuf.appendChar(target.minorVersion);
+        poolbuf.appendChar(target.majorVersion);
 
-        if (c.owner.kind == MDL) {
-            // temporarily overide to force use of v53 for module-info.class
-            poolbuf.appendChar(0);
-            poolbuf.appendChar(53);
-        } else {
-            poolbuf.appendChar(target.minorVersion);
-            poolbuf.appendChar(target.majorVersion);
-
-            // TODO: Need to skip this for Modules - not sure where
-            // that check really belongs, but this works.
+        // TODO: Need to skip this for Modules - not sure where
+        // that check really belongs, but this works.
+        if (c.owner.kind != MDL) {
             if (target.hasNestmateAccess()) {
                 acount += writeNestMembersIfNeeded(c);
                 acount += writeNestHostIfNeeded(c);
