@@ -119,11 +119,14 @@ private:
   // helper methods modeled after LibraryCallKit for array copy
   Node* generate_guard(Node** ctrl, Node* test, RegionNode* region, float true_prob);
   Node* generate_slow_guard(Node** ctrl, Node* test, RegionNode* region);
+  Node* generate_fair_guard(Node** ctrl, Node* test, RegionNode* region);
   void generate_negative_guard(Node** ctrl, Node* index, RegionNode* region);
   void generate_limit_guard(Node** ctrl, Node* offset, Node* subseq_length, Node* array_length, RegionNode* region);
 
   // More helper methods for array copy
   Node* generate_nonpositive_guard(Node** ctrl, Node* index, bool never_negative);
+  Node* generate_valueArray_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region);
+
   void finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type);
   address basictype2arraycopy(BasicType t,
                               Node* src_offset,
@@ -141,6 +144,7 @@ private:
                            Node* copy_length,
                            bool disjoint_bases = false,
                            bool length_never_negative = false,
+                           bool vt_with_oops_field = false,
                            RegionNode* slow_region = NULL);
   void generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
                             const TypePtr* adr_type,
@@ -203,6 +207,8 @@ private:
                             Node* length);
 
   Node* make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type *ftype, AllocateNode *alloc);
+
+  bool can_try_zeroing_elimination(AllocateArrayNode* alloc, Node* src, Node* dest) const;
 
 public:
   PhaseMacroExpand(PhaseIterGVN &igvn) : Phase(Macro_Expand), _igvn(igvn), _has_locks(false) {

@@ -185,7 +185,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   if (vtptr != NULL) {
     if (!vtptr->is__Value()) {
       // Create ValueTypeNode from the oop and replace the return value
-      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret);
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret, vtptr->value_klass());
       kit.push_node(T_VALUETYPE, vt);
     } else {
       kit.push_node(T_VALUETYPE, ret);
@@ -276,10 +276,11 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   kit.set_edges_for_java_call(call);
   Node* ret = kit.set_results_for_java_call(call);
   // Check if return value is a value type pointer
-  if (gvn.type(ret)->isa_valuetypeptr()) {
+  const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
+  if (vtptr != NULL) {
     // Create ValueTypeNode from the oop and replace the return value
     Node* ctl = kit.control();
-    ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret);
+    ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret, vtptr->value_klass());
     kit.set_control(ctl);
     kit.push_node(T_VALUETYPE, vt);
   } else {
@@ -453,7 +454,7 @@ void LateInlineCallGenerator::do_late_inline() {
       Node* arg = call->in(TypeFunc::Parms + i1);
       if (t->isa_valuetypeptr()) {
         Node* ctl = map->control();
-        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg);
+        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg, gvn.type(arg)->is_valuetypeptr()->value_klass());
         map->set_control(ctl);
       }
       map->set_argument(jvms, i1, arg);
@@ -934,7 +935,7 @@ static void cast_argument(int arg_nb, ciType* t, GraphKit& kit) {
       // Value type arguments cannot be NULL
       sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
       Node* cast = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, cast);
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, cast, t->as_value_klass());
       kit.set_argument(arg_nb, vt);
     } else {
       assert(t->is__Value() || arg->is_ValueType(), "inconsistent argument");

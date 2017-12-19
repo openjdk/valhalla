@@ -3605,7 +3605,6 @@ bool Compile::final_graph_reshaping() {
       }
       // Recheck with a better notion of 'required_outcnt'
       if (n->outcnt() != required_outcnt) {
-        assert(false, "malformed control flow");
         record_method_not_compilable("malformed control flow");
         return true;            // Not all targets reachable!
       }
@@ -3615,7 +3614,6 @@ bool Compile::final_graph_reshaping() {
     for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++)
       if (!frc._visited.test(n->fast_out(j)->_idx)) {
         record_method_not_compilable("infinite loop");
-        assert(false, "infinite loop");
         return true;            // Found unvisited kid; must be unreach
       }
 

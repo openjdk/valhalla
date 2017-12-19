@@ -4755,11 +4755,22 @@ const TypeAryPtr* TypeAryPtr::with_field_offset(int offset) const {
 }
 
 const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
-  if (offset != Type::OffsetBot) {
+  int adj = 0;
+  if (offset != Type::OffsetBot && offset != Type::OffsetTop) {
     const Type* elemtype = elem();
     if (elemtype->isa_valuetype()) {
+      if (_offset.get() != OffsetBot && _offset.get() != OffsetTop) {
+        adj = _offset.get();
+        offset += _offset.get();
+      }
       uint header = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
-      if (offset >= (intptr_t)header) {
+      if (_field_offset.get() != OffsetBot && _field_offset.get() != OffsetTop) {
+        offset += _field_offset.get();
+        if (_offset.get() == OffsetBot || _offset.get() == OffsetTop) {
+          offset += header;
+        }
+      }
+      if (offset >= (intptr_t)header || offset < 0) {
         // Try to get the field of the value type array element we are pointing to
         ciKlass* arytype_klass = klass();
         ciValueArrayKlass* vak = arytype_klass->as_value_array_klass();
@@ -4772,13 +4783,12 @@ const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
           // This may happen with nested AddP(base, AddP(base, base, offset), longcon(16))
           return add_offset(offset);
         } else {
-          assert(_field_offset.get() <= 0, "should not have field_offset");
-          return with_field_offset(field_offset)->add_offset(offset - field_offset);
+          return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
         }
       }
     }
   }
-  return add_offset(offset);
+  return add_offset(offset - adj);
 }
 
 //=============================================================================

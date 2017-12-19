@@ -75,6 +75,7 @@ public:
   bool is_bufferable() const;
   int value_arg_slots();
   int default_value_offset() const;
+  bool contains_oops() const;
 };
 
 #endif // SHARE_VM_CI_CIVALUEKLASS_HPP

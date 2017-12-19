@@ -68,6 +68,7 @@ public:
   int log2_element_size() {
     return Klass::layout_helper_log2_element_size(layout_helper());
   }
+  int element_byte_size() { return 1 << log2_element_size(); }
 
   // The innermost type of the array elements.
   ciKlass* base_element_klass() { return _base_element_klass; }

@@ -103,3 +103,7 @@ int ciValueKlass::value_arg_slots() {
 int ciValueKlass::default_value_offset() const {
   GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->default_value_offset();)
 }
+
+bool ciValueKlass::contains_oops() const {
+  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->contains_oops();)
+}

@@ -1526,7 +1526,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   ld = _gvn.transform(ld);
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened value type from memory requires a null check.
-    ld = ValueTypeNode::make_from_oop(this, ld, true /* null check */);
+    ld = ValueTypeNode::make_from_oop(this, ld, t->make_ptr()->is_valuetypeptr()->value_klass(), true /* null check */);
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
@@ -3476,9 +3476,24 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     Node* minit_out = memory(rawidx);
     assert(minit_out->is_Proj() && minit_out->in(0) == init, "");
     if (oop_type->isa_aryptr()) {
-      const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
-      int            elemidx  = C->get_alias_index(telemref);
-      hook_memory_on_init(*this, elemidx, minit_in, minit_out);
+      const TypeAryPtr* arytype = oop_type->is_aryptr();
+      if (arytype->klass()->is_value_array_klass()) {
+        ciValueArrayKlass* vak = arytype->klass()->as_value_array_klass();
+        ciValueKlass* vk = vak->element_klass()->as_value_klass();
+        for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
+          ciField* field = vk->nonstatic_field_at(i);
+          if (field->offset() >= TrackedInitializationLimit * HeapWordSize)
+            continue;  // do not bother to track really large numbers of fields
+          int off_in_vt = field->offset() - vk->first_field_offset();
+          const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
+          int fieldidx = C->get_alias_index(adr_type);
+          hook_memory_on_init(*this, fieldidx, minit_in, minit_out);
+        }
+      } else {
+        const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
+        int            elemidx  = C->get_alias_index(telemref);
+        hook_memory_on_init(*this, elemidx, minit_in, minit_out);
+      }
     } else if (oop_type->isa_instptr() || oop_type->isa_valuetypeptr()) {
       ciInstanceKlass* ik = oop_type->klass()->as_instance_klass();
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
@@ -4691,7 +4706,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
     Node* con = makecon(con_type);
     if (field->layout_type() == T_VALUETYPE) {
       // Load value type from constant oop
-      con = ValueTypeNode::make_from_oop(this, con);
+      con = ValueTypeNode::make_from_oop(this, con, field->type()->as_value_klass());
     }
     return con;
   }

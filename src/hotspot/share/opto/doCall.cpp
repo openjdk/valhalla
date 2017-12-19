@@ -665,7 +665,7 @@ void Parse::do_call() {
             sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             Node* retnode = pop();
             Node* cast = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
-            ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, cast);
+            ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, cast, ctype->as_value_klass());
             push(vt);
           } else {
             assert(ctype->is__Value(), "unexpected value type klass");

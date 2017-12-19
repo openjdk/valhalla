@@ -53,6 +53,8 @@ protected:
   // Initialize the value type fields with the inputs or outputs of a MultiNode
   void initialize(PhaseGVN* gvn, Node*& ctl, Node* mem, MultiNode* multi, ciValueKlass* vk, int base_offset = 0, int base_input = TypeFunc::Parms+1, bool in = false);
 
+  const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, PhaseGVN& gvn) const;
+
 public:
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
@@ -113,8 +115,8 @@ public:
   // Create with default field values
   static ValueTypeNode* make_default(PhaseGVN& gvn, ciValueKlass* vk);
   // Create and initialize by loading the field values from an oop
-  static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, bool null_check = false, bool buffer_check = false);
-  static ValueTypeNode* make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, bool null_check = false, bool buffer_check = false);
+  static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool null_check = false, bool buffer_check = false);
+  static ValueTypeNode* make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, ciValueKlass* vk, bool null_check = false, bool buffer_check = false);
   // Create and initialize by loading the field values from a flattened field or array
   static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
   static ValueTypeNode* make_from_flattened(PhaseGVN& gvn, ciValueKlass* vk, Node*& ctl, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);

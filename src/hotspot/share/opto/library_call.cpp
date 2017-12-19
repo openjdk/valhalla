@@ -182,20 +182,35 @@ class LibraryCallKit : public GraphKit {
                                     int modifier_mask, int modifier_bits,
                                     RegionNode* region);
   Node* generate_interface_guard(Node* kls, RegionNode* region);
+
+  enum ArrayKind {
+    AnyArray,
+    NonArray,
+    ObjectArray,
+    NonObjectArray,
+    TypeArray,
+    ValueArray
+  };
+
   Node* generate_array_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, false, false);
+    return generate_array_guard_common(kls, region, AnyArray);
   }
   Node* generate_non_array_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, false, true);
+    return generate_array_guard_common(kls, region, NonArray);
   }
   Node* generate_objArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, true, false);
+    return generate_array_guard_common(kls, region, ObjectArray);
   }
   Node* generate_non_objArray_guard(Node* kls, RegionNode* region) {
-    return generate_array_guard_common(kls, region, true, true);
+    return generate_array_guard_common(kls, region, NonObjectArray);
   }
-  Node* generate_array_guard_common(Node* kls, RegionNode* region,
-                                    bool obj_array, bool not_array);
+  Node* generate_typeArray_guard(Node* kls, RegionNode* region) {
+    return generate_array_guard_common(kls, region, TypeArray);
+  }
+  Node* generate_valueArray_guard(Node* kls, RegionNode* region) {
+    return generate_array_guard_common(kls, region, ValueArray);
+  }
+  Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
   Node* generate_virtual_guard(Node* obj_klass, RegionNode* slow_region);
   CallJavaNode* generate_method_call(vmIntrinsics::ID method_id,
                                      bool is_virtual = false, bool is_static = false);
@@ -3869,30 +3884,28 @@ bool LibraryCallKit::inline_native_subtype_check() {
 }
 
 //---------------------generate_array_guard_common------------------------
-Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
-                                                  bool obj_array, bool not_array) {
+Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind) {
 
   if (stopped()) {
     return NULL;
   }
 
-  // If obj_array/non_array==false/false:
-  // Branch around if the given klass is in fact an array (either obj or prim).
-  // If obj_array/non_array==false/true:
-  // Branch around if the given klass is not an array klass of any kind.
-  // If obj_array/non_array==true/true:
-  // Branch around if the kls is not an oop array (kls is int[], String, etc.)
-  // If obj_array/non_array==true/false:
-  // Branch around if the kls is an oop array (Object[] or subtype)
-  //
   // Like generate_guard, adds a new path onto the region.
   jint  layout_con = 0;
   Node* layout_val = get_layout_helper(kls, layout_con);
   if (layout_val == NULL) {
-    bool query = (obj_array
-                  ? Klass::layout_helper_is_objArray(layout_con)
-                  : Klass::layout_helper_is_array(layout_con));
-    if (query == not_array) {
+    bool query = 0;
+    switch(kind) {
+      case ObjectArray:    query = Klass::layout_helper_is_objArray(layout_con); break;
+      case NonObjectArray: query = !Klass::layout_helper_is_objArray(layout_con); break;
+      case TypeArray:      query = Klass::layout_helper_is_typeArray(layout_con); break;
+      case ValueArray:     query = Klass::layout_helper_is_valueArray(layout_con); break;
+      case AnyArray:       query = Klass::layout_helper_is_array(layout_con); break;
+      case NonArray:       query = !Klass::layout_helper_is_array(layout_con); break;
+      default:
+        ShouldNotReachHere();
+    }
+    if (!query) {
       return NULL;                       // never a branch
     } else {                             // always a branch
       Node* always_branch = control();
@@ -3902,15 +3915,36 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       return always_branch;
     }
   }
+  unsigned int value = 0;
+  BoolTest::mask btest = BoolTest::illegal;
+  switch(kind) {
+    case ObjectArray:
+    case NonObjectArray: {
+      value = Klass::_lh_array_tag_obj_value;
+      layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+      btest = kind == ObjectArray ? BoolTest::eq : BoolTest::ne;
+      break;
+    }
+    case TypeArray: {
+      value = Klass::_lh_array_tag_type_value;
+      layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+      btest = BoolTest::eq;
+      break;
+    }
+    case ValueArray: {
+      value = Klass::_lh_array_tag_vt_value;
+      layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+      btest = BoolTest::eq;
+      break;
+    }
+    case AnyArray:    value = Klass::_lh_neutral_value; btest = BoolTest::lt; break;
+    case NonArray:    value = Klass::_lh_neutral_value; btest = BoolTest::gt; break;
+    default:
+      ShouldNotReachHere();
+  }
   // Now test the correct condition.
-  jint  nval = (obj_array
-                ? (jint)(Klass::_lh_array_tag_type_value
-                   <<    Klass::_lh_array_tag_shift)
-                : Klass::_lh_neutral_value);
+  jint nval = (jint)value;
   Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(nval)));
-  BoolTest::mask btest = BoolTest::lt;  // correct for testing is_[obj]array
-  // invert the test if we are looking for a non-array
-  if (not_array)  btest = BoolTest(btest).negate();
   Node* bol = _gvn.transform(new BoolNode(cmp, btest));
   return generate_fair_guard(bol, region);
 }
@@ -4779,59 +4813,70 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
     int raw_adr_idx = Compile::AliasIdxRaw;
 
+    // We only go to the fast case code if we pass a number of guards.
+    // The paths which do not pass are accumulated in the slow_region.
+    RegionNode* slow_region = new RegionNode(1);
+    record_for_igvn(slow_region);
+
     Node* array_ctl = generate_array_guard(obj_klass, (RegionNode*)NULL);
     if (array_ctl != NULL) {
       // It's an array.
       PreserveJVMState pjvms(this);
       set_control(array_ctl);
-      Node* obj_length = load_array_length(obj);
-      Node* obj_size  = NULL;
-      Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
 
       if (!use_ReduceInitialCardMarks()) {
-        // If it is an oop array, it requires very special treatment,
-        // because card marking is required on each card of the array.
-        Node* is_obja = generate_objArray_guard(obj_klass, (RegionNode*)NULL);
-        if (is_obja != NULL) {
-          PreserveJVMState pjvms2(this);
-          set_control(is_obja);
-          // Generate a direct call to the right arraycopy function(s).
-          Node* alloc = tightly_coupled_allocation(alloc_obj, NULL);
-          ArrayCopyNode* ac = ArrayCopyNode::make(this, true, obj, intcon(0), alloc_obj, intcon(0), obj_length, alloc != NULL, false);
-          ac->set_cloneoop();
-          Node* n = _gvn.transform(ac);
-          assert(n == ac, "cannot disappear");
-          ac->connect_outputs(this);
-
-          result_reg->init_req(_objArray_path, control());
-          result_val->init_req(_objArray_path, alloc_obj);
-          result_i_o ->set_req(_objArray_path, i_o());
-          result_mem ->set_req(_objArray_path, reset_memory());
-        }
+        // Value type array may have object field that would require a
+        // write barrier. Conservatively, go to slow path.
+        generate_valueArray_guard(obj_klass, slow_region);
       }
-      // Otherwise, there are no card marks to worry about.
-      // (We can dispense with card marks if we know the allocation
-      //  comes out of eden (TLAB)...  In fact, ReduceInitialCardMarks
-      //  causes the non-eden paths to take compensating steps to
-      //  simulate a fresh allocation, so that no further
-      //  card marks are required in compiled code to initialize
-      //  the object.)
 
       if (!stopped()) {
-        copy_to_clone(obj, alloc_obj, obj_size, true, false);
+        Node* obj_length = load_array_length(obj);
+        Node* obj_size  = NULL;
+        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
 
-        // Present the results of the copy.
-        result_reg->init_req(_array_path, control());
-        result_val->init_req(_array_path, alloc_obj);
-        result_i_o ->set_req(_array_path, i_o());
-        result_mem ->set_req(_array_path, reset_memory());
+        if (!use_ReduceInitialCardMarks()) {
+          // If it is an oop array, it requires very special treatment,
+          // because card marking is required on each card of the array.
+          Node* is_obja = generate_objArray_guard(obj_klass, (RegionNode*)NULL);
+          if (is_obja != NULL) {
+            PreserveJVMState pjvms2(this);
+            set_control(is_obja);
+            // Generate a direct call to the right arraycopy function(s).
+            Node* alloc = tightly_coupled_allocation(alloc_obj, NULL);
+            ArrayCopyNode* ac = ArrayCopyNode::make(this, true, obj, intcon(0), alloc_obj, intcon(0), obj_length, alloc != NULL, false);
+            ac->set_cloneoop();
+            Node* n = _gvn.transform(ac);
+            assert(n == ac, "cannot disappear");
+            ac->connect_outputs(this);
+
+            result_reg->init_req(_objArray_path, control());
+            result_val->init_req(_objArray_path, alloc_obj);
+            result_i_o ->set_req(_objArray_path, i_o());
+            result_mem ->set_req(_objArray_path, reset_memory());
+          }
+        }
+
+        // Otherwise, there are no card marks to worry about.
+        // (We can dispense with card marks if we know the allocation
+        //  comes out of eden (TLAB)...  In fact, ReduceInitialCardMarks
+        //  causes the non-eden paths to take compensating steps to
+        //  simulate a fresh allocation, so that no further
+        //  card marks are required in compiled code to initialize
+        //  the object.)
+
+        if (!stopped()) {
+          copy_to_clone(obj, alloc_obj, obj_size, true, false);
+
+          // Present the results of the copy.
+          result_reg->init_req(_array_path, control());
+          result_val->init_req(_array_path, alloc_obj);
+          result_i_o ->set_req(_array_path, i_o());
+          result_mem ->set_req(_array_path, reset_memory());
+        }
       }
     }
 
-    // We only go to the instance fast case code if we pass a number of guards.
-    // The paths which do not pass are accumulated in the slow_region.
-    RegionNode* slow_region = new RegionNode(1);
-    record_for_igvn(slow_region);
     if (!stopped()) {
       // It's an instance (we did array above).  Make the slow-path tests.
       // If this is a virtual call, we generate a funny guard.  We grab

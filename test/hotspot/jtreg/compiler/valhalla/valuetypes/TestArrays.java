@@ -459,4 +459,260 @@ public class TestArrays extends ValueTypeTest {
             Asserts.assertEQ(va[i].x, rI + 1);
         }
     }
+
+    // clone() as stub call
+    @Test()
+    public MyValue1[] test18(MyValue1[] va) {
+        return va.clone();
+    }
+
+    @DontCompile
+    public void test18_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = test18(va);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(result[i].hash(), va[i].hash());
+        }
+    }
+
+    // clone() as series of loads/stores
+    static MyValue1[] test19_orig = null;
+    @Test()
+    public MyValue1[] test19() {
+        MyValue1[] va = new MyValue1[8];
+        for (int i = 0; i < va.length; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test19_orig = va;
+
+        return va.clone();
+    }
+
+    @DontCompile
+    public void test19_verifier(boolean warmup) {
+        MyValue1[] result = test19();
+        for (int i = 0; i < test19_orig.length; ++i) {
+            Asserts.assertEQ(result[i].hash(), test19_orig[i].hash());
+        }
+    }
+
+    // arraycopy() of value type array with oop fields
+    @Test()
+    public void test20(MyValue1[] src, MyValue1[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test20_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        MyValue1[] dst = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test20(src, dst);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of value type array with no oop field
+    @Test()
+    public void test21(MyValue2[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test21_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue2[] src = new MyValue2[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test21(src, dst);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of value type array with oop field and tightly
+    // coupled allocation as dest
+    @Test()
+    public MyValue1[] test22(MyValue1[] src) {
+        MyValue1[] dst = new MyValue1[src.length];
+        System.arraycopy(src, 0, dst, 0, src.length);
+        return dst;
+    }
+
+    @DontCompile
+    public void test22_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] dst = test22(src);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of value type array with oop fields and tightly
+    // coupled allocation as dest
+    @Test()
+    public MyValue1[] test23(MyValue1[] src) {
+        MyValue1[] dst = new MyValue1[src.length + 10];
+        System.arraycopy(src, 0, dst, 5, src.length);
+        return dst;
+    }
+
+    @DontCompile
+    public void test23_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] dst = test23(src);
+        for (int i = 5; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of value type array passed as Object
+    @Test()
+    public void test24(MyValue1[] src, Object dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test24_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        MyValue1[] dst = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test24(src, dst);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // short arraycopy() with no oop field
+    @Test()
+    public void test25(MyValue2[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test25_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[8];
+        MyValue2[] dst = new MyValue2[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test25(src, dst);
+        for (int i = 0; i < 8; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // short arraycopy() with oop fields
+    @Test()
+    public void test26(MyValue1[] src, MyValue1[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        MyValue1[] src = new MyValue1[8];
+        MyValue1[] dst = new MyValue1[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test26(src, dst);
+        for (int i = 0; i < 8; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // short arraycopy() with oop fields and offsets
+    @Test()
+    public void test27(MyValue1[] src, MyValue1[] dst) {
+        System.arraycopy(src, 1, dst, 2, 6);
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        MyValue1[] src = new MyValue1[8];
+        MyValue1[] dst = new MyValue1[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test27(src, dst);
+        for (int i = 2; i < 8; ++i) {
+            Asserts.assertEQ(src[i-1].hash(), dst[i].hash());
+        }
+    }
+
+    // non escaping allocations
+    @Test()
+    public MyValue2 test28() {
+        MyValue2[] src = new MyValue2[10];
+        src[0] = MyValue2.createWithFieldsInline(rI, false);
+        MyValue2[] dst = (MyValue2[])src.clone();
+        return dst[0];
+    }
+
+    @DontCompile
+    public void test28_verifier(boolean warmup) {
+        MyValue2 va = MyValue2.createWithFieldsInline(rI, false);
+        MyValue2 result = test28();
+        Asserts.assertEQ(result.hash(), va.hash());
+    }
+
+    // non escaping allocations
+    @Test()
+    public MyValue2 test29(MyValue2[] src) {
+        MyValue2[] dst = new MyValue2[10];
+        System.arraycopy(src, 0, dst, 0, 10);
+        return dst[0];
+    }
+
+    @DontCompile
+    public void test29_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[10];
+        for (int i = 0; i < 10; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        MyValue2 va = test29(src);
+        Asserts.assertEQ(src[0].hash(), va.hash());
+    }
+
+    // non escaping allocation with uncommon trap that needs
+    // eliminated value type array element as debug info
+    @Test()
+    @Warmup(10000)
+    public MyValue2 test30(MyValue2[] src, boolean flag) {
+        MyValue2[] dst = new MyValue2[10];
+        System.arraycopy(src, 0, dst, 0, 10);
+        if (flag) { }
+        return dst[0];
+    }
+
+    @DontCompile
+    public void test30_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[10];
+        for (int i = 0; i < 10; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        MyValue2 va = test30(src, false);
+        Asserts.assertEQ(src[0].hash(), va.hash());
+    }
 }

@@ -128,7 +128,7 @@ Node* Parse::fetch_interpreter_state(int index,
     const TypeValueTypePtr* vtptr_type = TypeValueTypePtr::make(TypePtr::NotNull, type->is_valuetype()->value_klass());
     l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, vtptr_type, MemNode::unordered));
     // Value type oop may point to the TLVB
-    l = ValueTypeNode::make_from_oop(this, l, /* null_check */ false, /* buffer_check */ true);
+    l = ValueTypeNode::make_from_oop(this, l, vtptr_type->value_klass(), /* null_check */ false, /* buffer_check */ true);
     break;
   }
   case T_VALUETYPEPTR: {
@@ -876,11 +876,12 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     } else {
       Node* parm = gvn.transform(new ParmNode(start, i));
       // Check if parameter is a value type pointer
-      if (gvn.type(parm)->isa_valuetypeptr()) {
+      const TypeValueTypePtr* vtptr = gvn.type(parm)->isa_valuetypeptr();
+      if (vtptr != NULL) {
         // Create ValueTypeNode from the oop and replace the parameter
         Node* ctl = map->control();
         // Value type oop may point to the TLVB
-        parm = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), parm, /* null_check */ false, /* buffer_check */ true);
+        parm = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), parm, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ true);
         map->set_control(ctl);
       }
       map->init_req(i, parm);
@@ -2302,23 +2303,6 @@ void Parse::return_current(Node* value) {
   if (C->env()->dtrace_method_probes()) {
     make_dtrace_method_exit(method());
   }
-  SafePointNode* exit_return = _exits.map();
-  exit_return->in( TypeFunc::Control  )->add_req( control() );
-  exit_return->in( TypeFunc::I_O      )->add_req( i_o    () );
-  Node *mem = exit_return->in( TypeFunc::Memory   );
-  for (MergeMemStream mms(mem->as_MergeMem(), merged_memory()); mms.next_non_empty2(); ) {
-    if (mms.is_empty()) {
-      // get a copy of the base memory, and patch just this one input
-      const TypePtr* adr_type = mms.adr_type(C);
-      Node* phi = mms.force_memory()->as_Phi()->slice_memory(adr_type);
-      assert(phi->as_Phi()->region() == mms.base_memory()->in(0), "");
-      gvn().set_type_bottom(phi);
-      phi->del_req(phi->req()-1);  // prepare to re-patch
-      mms.set_memory(phi);
-    }
-    mms.memory()->add_req(mms.memory2());
-  }
-
   // frame pointer is always same, already captured
   if (value != NULL) {
     Node* phi = _exits.argument(0);
@@ -2351,6 +2335,23 @@ void Parse::return_current(Node* value) {
       }
     }
     phi->add_req(value);
+  }
+
+  SafePointNode* exit_return = _exits.map();
+  exit_return->in( TypeFunc::Control  )->add_req( control() );
+  exit_return->in( TypeFunc::I_O      )->add_req( i_o    () );
+  Node *mem = exit_return->in( TypeFunc::Memory   );
+  for (MergeMemStream mms(mem->as_MergeMem(), merged_memory()); mms.next_non_empty2(); ) {
+    if (mms.is_empty()) {
+      // get a copy of the base memory, and patch just this one input
+      const TypePtr* adr_type = mms.adr_type(C);
+      Node* phi = mms.force_memory()->as_Phi()->slice_memory(adr_type);
+      assert(phi->as_Phi()->region() == mms.base_memory()->in(0), "");
+      gvn().set_type_bottom(phi);
+      phi->del_req(phi->req()-1);  // prepare to re-patch
+      mms.set_memory(phi);
+    }
+    mms.memory()->add_req(mms.memory2());
   }
 
   if (_first_return) {

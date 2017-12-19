@@ -2125,7 +2125,8 @@ bool CallNode::may_modify_arraycopy_helper(const TypeOopPtr* dest_t, const TypeO
       return true;
     }
 
-    dest_t = dest_t->add_offset(Type::OffsetBot)->is_oopptr();
+    dest_t = dest_t->is_aryptr()->with_field_offset(Type::OffsetBot)->add_offset(Type::OffsetBot)->is_oopptr();
+    t_oop = t_oop->is_aryptr()->with_field_offset(Type::OffsetBot);
     uint dest_alias = phase->C->get_alias_index(dest_t);
     uint t_oop_alias = phase->C->get_alias_index(t_oop);
 
