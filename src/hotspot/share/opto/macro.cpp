@@ -1082,12 +1082,11 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
         assert(ac->is_arraycopy_validated() ||
                ac->is_copyof_validated() ||
                ac->is_copyofrange_validated(), "unsupported");
-        CallProjections callprojs;
-        ac->extract_projections(&callprojs, true);
+        CallProjections* callprojs = ac->extract_projections(true);
 
-        _igvn.replace_node(callprojs.fallthrough_ioproj, ac->in(TypeFunc::I_O));
-        _igvn.replace_node(callprojs.fallthrough_memproj, ac->in(TypeFunc::Memory));
-        _igvn.replace_node(callprojs.fallthrough_catchproj, ac->in(TypeFunc::Control));
+        _igvn.replace_node(callprojs->fallthrough_ioproj, ac->in(TypeFunc::I_O));
+        _igvn.replace_node(callprojs->fallthrough_memproj, ac->in(TypeFunc::Memory));
+        _igvn.replace_node(callprojs->fallthrough_catchproj, ac->in(TypeFunc::Control));
 
         // Set control to top. IGVN will remove the remaining projections
         ac->set_req(0, top());
@@ -2679,8 +2678,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   _igvn.set_type(ret, ret->Value(&_igvn));
 
   // Before any new projection is added:
-  CallProjections projs;
-  call->extract_projections(&projs, true, true);
+  CallProjections* projs = call->extract_projections(true, true);
 
   Node* ctl = new Node(1);
   Node* mem = new Node(1);
@@ -2850,21 +2848,22 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(io_phi);
   transform_later(res_phi);
 
-  _igvn.replace_in_uses(projs.fallthrough_catchproj, r);
-  _igvn.replace_in_uses(projs.fallthrough_memproj, mem_phi);
-  _igvn.replace_in_uses(projs.fallthrough_ioproj, io_phi);
-  _igvn.replace_in_uses(projs.resproj, res_phi);
-  _igvn.replace_in_uses(projs.catchall_catchproj, ex_r);
-  _igvn.replace_in_uses(projs.catchall_memproj, ex_mem_phi);
-  _igvn.replace_in_uses(projs.catchall_ioproj, ex_io_phi);
+  assert(projs->nb_resproj == 1, "unexpected number of results");
+  _igvn.replace_in_uses(projs->fallthrough_catchproj, r);
+  _igvn.replace_in_uses(projs->fallthrough_memproj, mem_phi);
+  _igvn.replace_in_uses(projs->fallthrough_ioproj, io_phi);
+  _igvn.replace_in_uses(projs->resproj[0], res_phi);
+  _igvn.replace_in_uses(projs->catchall_catchproj, ex_r);
+  _igvn.replace_in_uses(projs->catchall_memproj, ex_mem_phi);
+  _igvn.replace_in_uses(projs->catchall_ioproj, ex_io_phi);
 
-  _igvn.replace_node(ctl, projs.fallthrough_catchproj);
-  _igvn.replace_node(mem, projs.fallthrough_memproj);
-  _igvn.replace_node(io, projs.fallthrough_ioproj);
-  _igvn.replace_node(res, projs.resproj);
-  _igvn.replace_node(ex_ctl, projs.catchall_catchproj);
-  _igvn.replace_node(ex_mem, projs.catchall_memproj);
-  _igvn.replace_node(ex_io, projs.catchall_ioproj);
+  _igvn.replace_node(ctl, projs->fallthrough_catchproj);
+  _igvn.replace_node(mem, projs->fallthrough_memproj);
+  _igvn.replace_node(io, projs->fallthrough_ioproj);
+  _igvn.replace_node(res, projs->resproj[0]);
+  _igvn.replace_node(ex_ctl, projs->catchall_catchproj);
+  _igvn.replace_node(ex_mem, projs->catchall_memproj);
+  _igvn.replace_node(ex_io, projs->catchall_ioproj);
  }
 
 //---------------------------eliminate_macro_nodes----------------------

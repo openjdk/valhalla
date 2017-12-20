@@ -1934,8 +1934,7 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   SafePointNode* final_state = stop();
 
   // Find all the needed outputs of this call
-  CallProjections callprojs;
-  call->extract_projections(&callprojs, true);
+  CallProjections* callprojs = call->extract_projections(true);
 
   Node* init_mem = call->in(TypeFunc::Memory);
   Node* final_mem = final_state->in(TypeFunc::Memory);
@@ -1943,39 +1942,40 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   Node* final_io = final_state->in(TypeFunc::I_O);
 
   // Replace all the old call edges with the edges from the inlining result
-  if (callprojs.fallthrough_catchproj != NULL) {
-    C->gvn_replace_by(callprojs.fallthrough_catchproj, final_ctl);
+  if (callprojs->fallthrough_catchproj != NULL) {
+    C->gvn_replace_by(callprojs->fallthrough_catchproj, final_ctl);
   }
-  if (callprojs.fallthrough_memproj != NULL) {
+  if (callprojs->fallthrough_memproj != NULL) {
     if (final_mem->is_MergeMem()) {
       // Parser's exits MergeMem was not transformed but may be optimized
       final_mem = _gvn.transform(final_mem);
     }
-    C->gvn_replace_by(callprojs.fallthrough_memproj,   final_mem);
+    C->gvn_replace_by(callprojs->fallthrough_memproj,   final_mem);
   }
-  if (callprojs.fallthrough_ioproj != NULL) {
-    C->gvn_replace_by(callprojs.fallthrough_ioproj,    final_io);
+  if (callprojs->fallthrough_ioproj != NULL) {
+    C->gvn_replace_by(callprojs->fallthrough_ioproj,    final_io);
   }
 
   // Replace the result with the new result if it exists and is used
-  if (callprojs.resproj != NULL && result != NULL) {
-    C->gvn_replace_by(callprojs.resproj, result);
+  if (callprojs->resproj[0] != NULL && result != NULL) {
+    assert(callprojs->nb_resproj == 1, "unexpected number of results");
+    C->gvn_replace_by(callprojs->resproj[0], result);
   }
 
   if (ejvms == NULL) {
     // No exception edges to simply kill off those paths
-    if (callprojs.catchall_catchproj != NULL) {
-      C->gvn_replace_by(callprojs.catchall_catchproj, C->top());
+    if (callprojs->catchall_catchproj != NULL) {
+      C->gvn_replace_by(callprojs->catchall_catchproj, C->top());
     }
-    if (callprojs.catchall_memproj != NULL) {
-      C->gvn_replace_by(callprojs.catchall_memproj,   C->top());
+    if (callprojs->catchall_memproj != NULL) {
+      C->gvn_replace_by(callprojs->catchall_memproj,   C->top());
     }
-    if (callprojs.catchall_ioproj != NULL) {
-      C->gvn_replace_by(callprojs.catchall_ioproj,    C->top());
+    if (callprojs->catchall_ioproj != NULL) {
+      C->gvn_replace_by(callprojs->catchall_ioproj,    C->top());
     }
     // Replace the old exception object with top
-    if (callprojs.exobj != NULL) {
-      C->gvn_replace_by(callprojs.exobj, C->top());
+    if (callprojs->exobj != NULL) {
+      C->gvn_replace_by(callprojs->exobj, C->top());
     }
   } else {
     GraphKit ekit(ejvms);
@@ -1986,20 +1986,20 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
 
     Node* ex_oop = ekit.use_exception_state(ex_map);
 
-    if (callprojs.catchall_catchproj != NULL) {
-      C->gvn_replace_by(callprojs.catchall_catchproj, ekit.control());
+    if (callprojs->catchall_catchproj != NULL) {
+      C->gvn_replace_by(callprojs->catchall_catchproj, ekit.control());
       ex_ctl = ekit.control();
     }
-    if (callprojs.catchall_memproj != NULL) {
-      C->gvn_replace_by(callprojs.catchall_memproj,   ekit.reset_memory());
+    if (callprojs->catchall_memproj != NULL) {
+      C->gvn_replace_by(callprojs->catchall_memproj,   ekit.reset_memory());
     }
-    if (callprojs.catchall_ioproj != NULL) {
-      C->gvn_replace_by(callprojs.catchall_ioproj,    ekit.i_o());
+    if (callprojs->catchall_ioproj != NULL) {
+      C->gvn_replace_by(callprojs->catchall_ioproj,    ekit.i_o());
     }
 
     // Replace the old exception object with the newly created one
-    if (callprojs.exobj != NULL) {
-      C->gvn_replace_by(callprojs.exobj, ex_oop);
+    if (callprojs->exobj != NULL) {
+      C->gvn_replace_by(callprojs->exobj, ex_oop);
     }
   }
 
@@ -2022,7 +2022,7 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
     }
   }
 
-  if (callprojs.fallthrough_catchproj != NULL && !final_ctl->is_top() && do_replaced_nodes) {
+  if (callprojs->fallthrough_catchproj != NULL && !final_ctl->is_top() && do_replaced_nodes) {
     replaced_nodes.apply(C, final_ctl);
   }
   if (!ex_ctl->is_top() && do_replaced_nodes) {

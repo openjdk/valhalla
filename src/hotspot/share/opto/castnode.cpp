@@ -445,19 +445,19 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
       // Extract projections from the call and hook users to temporary nodes.
       // We will re-attach them to newly created PhiNodes below.
-      CallProjections projs;
-      call->extract_projections(&projs, true, true);
-      igvn->replace_in_uses(projs.fallthrough_catchproj, ctl_hook);
-      igvn->replace_in_uses(projs.fallthrough_memproj, mem_hook);
-      igvn->replace_in_uses(projs.fallthrough_ioproj, io_hook);
-      igvn->replace_in_uses(projs.resproj, res_hook);
-      igvn->replace_in_uses(projs.catchall_catchproj, ex_ctl_hook);
-      igvn->replace_in_uses(projs.catchall_memproj, ex_mem_hook);
-      igvn->replace_in_uses(projs.catchall_ioproj, ex_io_hook);
+      CallProjections* projs = call->extract_projections(true, true);
+      assert(projs->nb_resproj == 1, "unexpected number of results");
+      igvn->replace_in_uses(projs->fallthrough_catchproj, ctl_hook);
+      igvn->replace_in_uses(projs->fallthrough_memproj, mem_hook);
+      igvn->replace_in_uses(projs->fallthrough_ioproj, io_hook);
+      igvn->replace_in_uses(projs->resproj[0], res_hook);
+      igvn->replace_in_uses(projs->catchall_catchproj, ex_ctl_hook);
+      igvn->replace_in_uses(projs->catchall_memproj, ex_mem_hook);
+      igvn->replace_in_uses(projs->catchall_ioproj, ex_io_hook);
 
       // Restore IO input of the CatchNode
-      CatchNode* catchp = projs.fallthrough_catchproj->in(0)->as_Catch();
-      catchp->set_req(TypeFunc::I_O, projs.catchall_ioproj);
+      CatchNode* catchp = projs->fallthrough_catchproj->in(0)->as_Catch();
+      catchp->set_req(TypeFunc::I_O, projs->catchall_ioproj);
       igvn->rehash_node_delayed(catchp);
 
       // Rebuild the output JVMState from the call and use it to initialize a GraphKit
@@ -466,16 +466,16 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       for (uint i = TypeFunc::FramePtr; i < call->req(); i++) {
         new_map->init_req(i, call->in(i));
       }
-      new_map->set_control(projs.fallthrough_catchproj);
-      new_map->set_memory(MergeMemNode::make(projs.fallthrough_memproj));
-      new_map->set_i_o(projs.fallthrough_ioproj);
+      new_map->set_control(projs->fallthrough_catchproj);
+      new_map->set_memory(MergeMemNode::make(projs->fallthrough_memproj));
+      new_map->set_i_o(projs->fallthrough_ioproj);
       new_jvms->set_map(new_map);
 
       GraphKit kit(new_jvms, igvn);
 
       // Either we get a buffered value pointer and we can case use it
       // or we get a tagged klass pointer and we need to allocate a value.
-      Node* cast = igvn->transform(new CastP2XNode(kit.control(), projs.resproj));
+      Node* cast = igvn->transform(new CastP2XNode(kit.control(), projs->resproj[0]));
       Node* masked = igvn->transform(new AndXNode(cast, igvn->MakeConX(0x1)));
       Node* cmp = igvn->transform(new CmpXNode(masked, igvn->MakeConX(0x1)));
       Node* bol = kit.Bool(cmp, BoolTest::eq);
@@ -513,12 +513,12 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // False branch: result is not tagged
       // Load buffered value type from returned oop
       kit.set_control(iffalse);
-      kit.set_all_memory(projs.fallthrough_memproj);
-      kit.set_i_o(projs.fallthrough_ioproj);
+      kit.set_all_memory(projs->fallthrough_memproj);
+      kit.set_i_o(projs->fallthrough_ioproj);
       // Cast oop to NotNull
       ConstraintCastNode* res_cast = clone()->as_ConstraintCast();
       res_cast->set_req(0, kit.control());
-      res_cast->set_req(1, projs.resproj);
+      res_cast->set_req(1, projs->resproj[0]);
       res_cast->set_type(cast_type->cast_to_ptr_type(TypePtr::NotNull));
       Node* ctl = kit.control(); // Control may get updated below
       res = ValueTypePtrNode::make_from_oop(*igvn, ctl, kit.merged_memory(), igvn->transform(res_cast));
@@ -527,9 +527,9 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       mem_phi->init_req(2, kit.reset_memory());
       io_phi->init_req(2, kit.i_o());
       res_phi->init_req(2, igvn->transform(res));
-      ex_region->init_req(2, projs.catchall_catchproj);
-      ex_mem_phi->init_req(2, projs.catchall_memproj);
-      ex_io_phi->init_req(2, projs.catchall_ioproj);
+      ex_region->init_req(2, projs->catchall_catchproj);
+      ex_mem_phi->init_req(2, projs->catchall_memproj);
+      ex_io_phi->init_req(2, projs->catchall_ioproj);
 
       igvn->set_delay_transform(false);
 
@@ -555,10 +555,9 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         uint last = phase->C->unique();
         CallNode* call = in(1)->in(0)->as_Call();
         // Extract projections from the call and hook control users to temporary node
-        CallProjections projs;
-        call->extract_projections(&projs, true, true);
-        Node* ctl = projs.fallthrough_catchproj;
-        Node* mem = projs.fallthrough_memproj;
+        CallProjections* projs = call->extract_projections(true, true);
+        Node* ctl = projs->fallthrough_catchproj;
+        Node* mem = projs->fallthrough_memproj;
         Node* ctl_hook = new Node(1);
         igvn->replace_in_uses(ctl, ctl_hook);
         Node* vtptr = ValueTypePtrNode::make_from_oop(*phase, ctl, mem, in(1));

@@ -540,7 +540,7 @@ public:
 
 // Simple container for the outgoing projections of a call.  Useful
 // for serious surgery on calls.
-class CallProjections : public StackObj {
+class CallProjections {
 public:
   Node* fallthrough_proj;
   Node* fallthrough_catchproj;
@@ -549,8 +549,26 @@ public:
   Node* catchall_catchproj;
   Node* catchall_memproj;
   Node* catchall_ioproj;
-  Node* resproj;
   Node* exobj;
+  uint nb_resproj;
+  Node* resproj[1]; // at least one projection
+
+  CallProjections(uint nbres) {
+    fallthrough_proj      = NULL;
+    fallthrough_catchproj = NULL;
+    fallthrough_memproj   = NULL;
+    fallthrough_ioproj    = NULL;
+    catchall_catchproj    = NULL;
+    catchall_memproj      = NULL;
+    catchall_ioproj       = NULL;
+    exobj                 = NULL;
+    nb_resproj            = nbres;
+    resproj[0]            = NULL;
+    for (uint i = 1; i < nb_resproj; i++) {
+      resproj[i]          = NULL;
+    }
+  }
+
 };
 
 class CallGenerator;
@@ -634,7 +652,7 @@ public:
   // Collect all the interesting edges from a call for use in
   // replacing the call by something else.  Used by macro expansion
   // and the late inlining support.
-  void extract_projections(CallProjections* projs, bool separate_io_proj, bool do_asserts = true);
+  CallProjections* extract_projections(bool separate_io_proj, bool do_asserts = true);
 
   virtual uint match_edge(uint idx) const;
 

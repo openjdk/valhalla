@@ -881,16 +881,21 @@ Node *CallNode::result_cast() {
 }
 
 
-void CallNode::extract_projections(CallProjections* projs, bool separate_io_proj, bool do_asserts) {
-  projs->fallthrough_proj      = NULL;
-  projs->fallthrough_catchproj = NULL;
-  projs->fallthrough_ioproj    = NULL;
-  projs->catchall_ioproj       = NULL;
-  projs->catchall_catchproj    = NULL;
-  projs->fallthrough_memproj   = NULL;
-  projs->catchall_memproj      = NULL;
-  projs->resproj               = NULL;
-  projs->exobj                 = NULL;
+CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_asserts) {
+  uint max_res = TypeFunc::Parms-1;
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    ProjNode *pn = fast_out(i)->as_Proj();
+    max_res = MAX2(max_res, pn->_con);
+  }
+
+  assert(max_res < _tf->range_cc()->cnt(), "result out of bounds");
+
+  uint projs_size = sizeof(CallProjections);
+  if (max_res > TypeFunc::Parms) {
+    projs_size += (max_res-TypeFunc::Parms)*sizeof(Node*);
+  }
+  char* projs_storage = resource_allocate_bytes(projs_size);
+  CallProjections* projs = new(projs_storage)CallProjections(max_res - TypeFunc::Parms + 1);
 
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     ProjNode *pn = fast_out(i)->as_Proj();
@@ -937,10 +942,12 @@ void CallNode::extract_projections(CallProjections* projs, bool separate_io_proj
         projs->fallthrough_memproj = pn;
       break;
     case TypeFunc::Parms:
-      projs->resproj = pn;
+      projs->resproj[0] = pn;
       break;
     default:
-      assert(false, "unexpected projection from allocation node.");
+      assert(pn->_con <= max_res, "unexpected projection from allocation node.");
+      projs->resproj[pn->_con-TypeFunc::Parms] = pn;
+      break;
     }
   }
 
@@ -957,6 +964,7 @@ void CallNode::extract_projections(CallProjections* projs, bool separate_io_proj
     assert(!do_asserts || projs->catchall_memproj    != NULL, "must be found");
     assert(!do_asserts || projs->catchall_ioproj     != NULL, "must be found");
   }
+  return projs;
 }
 
 Node *CallNode::Ideal(PhaseGVN *phase, bool can_reshape) {
@@ -1443,15 +1451,15 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       outcnt() != 0 && result_cast() == NULL) {
     // Remove allocation by replacing the projection nodes with its inputs
     PhaseIterGVN* igvn = phase->is_IterGVN();
-    CallProjections projs;
-    extract_projections(&projs, true);
-    igvn->replace_node(projs.fallthrough_catchproj, in(TypeFunc::Control));
-    igvn->replace_node(projs.fallthrough_memproj, in(TypeFunc::Memory));
-    igvn->replace_node(projs.catchall_memproj, phase->C->top());
-    igvn->replace_node(projs.fallthrough_ioproj, in(TypeFunc::I_O));
-    igvn->replace_node(projs.catchall_ioproj, phase->C->top());
-    igvn->replace_node(projs.catchall_catchproj, phase->C->top());
-    igvn->replace_node(projs.resproj, phase->C->top());
+    CallProjections* projs = extract_projections(true);
+    assert(projs->nb_resproj == 1, "unexpected number of results");
+    igvn->replace_node(projs->fallthrough_catchproj, in(TypeFunc::Control));
+    igvn->replace_node(projs->fallthrough_memproj, in(TypeFunc::Memory));
+    igvn->replace_node(projs->catchall_memproj, phase->C->top());
+    igvn->replace_node(projs->fallthrough_ioproj, in(TypeFunc::I_O));
+    igvn->replace_node(projs->catchall_ioproj, phase->C->top());
+    igvn->replace_node(projs->catchall_catchproj, phase->C->top());
+    igvn->replace_node(projs->resproj[0], phase->C->top());
     igvn->remove_dead_node(this);
     return NULL;
   }

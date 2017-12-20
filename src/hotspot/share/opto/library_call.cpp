@@ -5036,11 +5036,10 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     _reexecute_sp = saved_reexecute_sp;
 
     // Remove the allocation from above the guards
-    CallProjections callprojs;
-    alloc->extract_projections(&callprojs, true);
+    CallProjections* callprojs = alloc->extract_projections(true);
     InitializeNode* init = alloc->initialization();
     Node* alloc_mem = alloc->in(TypeFunc::Memory);
-    C->gvn_replace_by(callprojs.fallthrough_ioproj, alloc->in(TypeFunc::I_O));
+    C->gvn_replace_by(callprojs->fallthrough_ioproj, alloc->in(TypeFunc::I_O));
     C->gvn_replace_by(init->proj_out(TypeFunc::Memory), alloc_mem);
     C->gvn_replace_by(init->proj_out(TypeFunc::Control), alloc->in(0));
 
@@ -5052,7 +5051,7 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     set_all_memory(mem);
     alloc->set_req(TypeFunc::Memory, mem);
     set_control(init->proj_out(TypeFunc::Control));
-    set_i_o(callprojs.fallthrough_ioproj);
+    set_i_o(callprojs->fallthrough_ioproj);
 
     // Update memory as done in GraphKit::set_output_for_allocation()
     const TypeInt* length_type = _gvn.find_int_type(alloc->in(AllocateNode::ALength));
