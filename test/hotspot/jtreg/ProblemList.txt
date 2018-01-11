@@ -93,7 +93,11 @@ serviceability/sa/TestRevPtrsForInvokeDynamic.java 8191270 generic-all
 
 
 # Valhalla TODO:
+serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
+serviceability/sa/ClhsdbInspect.java 8190936 generic-all
+serviceability/sa/ClhsdbJdis.java 8190936 generic-all
 serviceability/sa/ClhsdbJstack.java 8190936 generic-all
+serviceability/sa/ClhsdbPrintAs.java 8190936 generic-all
 serviceability/sa/ClhsdbPrintStatics.java 8190936 generic-all
 serviceability/sa/ClhsdbSource.java 8190936 generic-all
 serviceability/sa/ClhsdbSymbol.java 8190936 generic-all
