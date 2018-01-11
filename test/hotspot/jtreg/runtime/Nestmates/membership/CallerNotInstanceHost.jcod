@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 class TestNestmateMembership$CallerNotInstanceHost {
   0xCAFEBABE;
   0; // minor version
-  53; // version
+  55; // version
   [] { // Constant Pool
     ; // first element is empty
     Field #36 #37; // #1
@@ -44,7 +44,7 @@ class TestNestmateMembership$CallerNotInstanceHost {
     class #49; // #13
     class #51; // #14
     Utf8 "oa"; // #15
-    Utf8 "[Ljava/lang/Object;"; // #16
+    Utf8 "[LInvalidNestHost;"; // #16
     Utf8 "f"; // #17
     Utf8 "I"; // #18
     Utf8 "m"; // #19

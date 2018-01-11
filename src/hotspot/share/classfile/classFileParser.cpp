@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3178,15 +3178,6 @@ u2 ClassFileParser::parse_classfile_nest_members_attribute(const ClassFileStream
       class_info_index, CHECK_0);
     nest_members->at_put(index++, class_info_index);
   }
-  if (_need_verify) {
-    for (int i = 0; i < length; i++) {
-      for (int j = i + 1; j < length; j++) {
-        guarantee_property((nest_members->at(i) != nest_members->at(j)),
-                           "Duplicate entry in NestMembers in class file %s",
-                           CHECK_0);
-      }
-    }
-  }
   assert(index == size, "wrong size");
 
   // Restore buffer's current position.
@@ -3369,35 +3360,6 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
       inner_classes_attribute_start = cfs->current();
       inner_classes_attribute_length = attribute_length;
       cfs->skip_u1(inner_classes_attribute_length, CHECK);
-    } else if (tag == vmSymbols::tag_nest_members()) {
-      // Check for NestMembers tag
-      if (parsed_nest_members_attribute) {
-        classfile_parse_error("Multiple NestMembers attributes in class file %s", CHECK);
-      } else {
-        parsed_nest_members_attribute = true;
-      }
-      if (parsed_nest_host_attribute) {
-        classfile_parse_error("Conflicting NestHost and NestMembers attributes in class file %s", CHECK);
-      }
-      nest_members_attribute_start = cfs->current();
-      nest_members_attribute_length = attribute_length;
-      cfs->skip_u1(nest_members_attribute_length, CHECK);
-    } else if (tag == vmSymbols::tag_nest_host()) {
-      if (parsed_nest_host_attribute) {
-        classfile_parse_error("Multiple NestHost attributes in class file %s", CHECK);
-      } else {
-        parsed_nest_host_attribute = true;
-      }
-      if (parsed_nest_members_attribute) {
-        classfile_parse_error("Conflicting NestMembers and NestHost attributes in class file %s", CHECK);
-      }
-      cfs->guarantee_more(2, CHECK);
-      u2 class_info_index = cfs->get_u2_fast();
-      check_property(
-        valid_klass_reference_at(class_info_index),
-        "Nest-host class_info_index %u has bad constant type in class file %s",
-        class_info_index, CHECK);
-      _nest_host = class_info_index;
     } else if (tag == vmSymbols::tag_synthetic()) {
       // Check for Synthetic tag
       // Shouldn't we check that the synthetic flags wasn't already set? - not required in spec
@@ -3507,6 +3469,37 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           assert(runtime_invisible_type_annotations != NULL, "null invisible type annotations");
         }
         cfs->skip_u1(attribute_length, CHECK);
+      } else if (_major_version >= JAVA_10_VERSION) {
+        if (tag == vmSymbols::tag_nest_members()) {
+          // Check for NestMembers tag
+          if (parsed_nest_members_attribute) {
+            classfile_parse_error("Multiple NestMembers attributes in class file %s", CHECK);
+          } else {
+            parsed_nest_members_attribute = true;
+          }
+          if (parsed_nest_host_attribute) {
+            classfile_parse_error("Conflicting NestHost and NestMembers attributes in class file %s", CHECK);
+          }
+          nest_members_attribute_start = cfs->current();
+          nest_members_attribute_length = attribute_length;
+          cfs->skip_u1(nest_members_attribute_length, CHECK);
+        } else if (tag == vmSymbols::tag_nest_host()) {
+          if (parsed_nest_host_attribute) {
+            classfile_parse_error("Multiple NestHost attributes in class file %s", CHECK);
+          } else {
+            parsed_nest_host_attribute = true;
+          }
+          if (parsed_nest_members_attribute) {
+            classfile_parse_error("Conflicting NestMembers and NestHost attributes in class file %s", CHECK);
+          }
+          cfs->guarantee_more(2, CHECK);
+          u2 class_info_index = cfs->get_u2_fast();
+          check_property(
+                         valid_klass_reference_at(class_info_index),
+                         "Nest-host class_info_index %u has bad constant type in class file %s",
+                         class_info_index, CHECK);
+          _nest_host = class_info_index;
+        }
       } else {
         // Unknown attribute
         cfs->skip_u1(attribute_length, CHECK);
@@ -3547,7 +3540,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
                             cfs,
                             nest_members_attribute_start,
                             CHECK);
-    if (_need_verify && _major_version >= JAVA_10_VERSION) {
+    if (_need_verify) {
       guarantee_property(
         nest_members_attribute_length == sizeof(num_of_classes) + sizeof(u2) * num_of_classes,
         "Wrong NestMembers attribute length in class file %s", CHECK);

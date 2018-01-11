@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 class TestReflectionAPI$MemberNotOurHost {
   0xCAFEBABE;
   0; // minor version
-  53; // version
+  55; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #3 #12; // #1
@@ -46,6 +46,9 @@ class TestReflectionAPI$MemberNotOurHost {
     Utf8 "InnerClasses"; // #15
     Utf8 "java/lang/Object"; // #16
     Utf8 "TestReflectionAPI"; // #17
+    // Added
+    Utf8 "InvalidNestHost"; // #18
+    class #18; // #19
   } // Constant Pool
 
   0x0020; // access
@@ -90,7 +93,7 @@ class TestReflectionAPI$MemberNotOurHost {
     } // end SourceFile
     ;
     Attr(#10) { // NestHost
-      0x0003;  // Modified #3
+      0x0013;  // Modified #19
     } // end NestHost
     ;
     Attr(#15) { // InnerClasses

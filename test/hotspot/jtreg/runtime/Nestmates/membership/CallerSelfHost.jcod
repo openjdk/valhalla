@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,9 @@
  * questions.
  */
 
-// NestHost attribute refers to class with no nest
+// NestHost attribute refers to current class
 
-class TestNestmateMembership$CallerNotOurHost {
+class TestNestmateMembership$CallerSelfHost {
   0xCAFEBABE;
   0; // minor version
   55; // version
@@ -50,21 +50,21 @@ class TestNestmateMembership$CallerNotOurHost {
     Utf8 "Code"; // #19
     Utf8 "LineNumberTable"; // #20
     Utf8 "invokeTarget"; // #21
-    Utf8 "invokeTargetNotOurHost"; // #22
+    Utf8 "invokeTargetSelfHost"; // #22
     Utf8 "<init>"; // #23
     Utf8 "newTarget"; // #24
-    Utf8 "newTargetNotOurHost"; // #25
+    Utf8 "newTargetSelfHost"; // #25
     Utf8 "getFieldTarget"; // #26
-    Utf8 "getFieldTargetNotOurHost"; // #27
+    Utf8 "getFieldTargetSelfHost"; // #27
     Utf8 "putFieldTarget"; // #28
-    Utf8 "putFieldTargetNotOurHost"; // #29
+    Utf8 "putFieldTargetSelfHost"; // #29
     Utf8 "SourceFile"; // #30
     Utf8 "TestNestmateMembership.java"; // #31
     Utf8 "NestHost"; // #32
     class #50; // #33
     class #51; // #34
     NameAndType #52 #53; // #35
-    Utf8 "CallerNotOurHost.m() - java version"; // #36
+    Utf8 "CallerSelfHost.m() - java version"; // #36
     class #54; // #37
     NameAndType #55 #56; // #38
     NameAndType #17 #18; // #39
@@ -72,11 +72,11 @@ class TestNestmateMembership$CallerNotOurHost {
     Utf8 "TestNestmateMembership$Target"; // #41
     Utf8 "Target"; // #42
     Utf8 "InnerClasses"; // #43
-    Utf8 "TestNestmateMembership$TargetNotOurHost"; // #44
-    Utf8 "TargetNotOurHost"; // #45
+    Utf8 "TestNestmateMembership$TargetSelfHost"; // #44
+    Utf8 "TargetSelfHost"; // #45
     NameAndType #15 #16; // #46
-    Utf8 "TestNestmateMembership$CallerNotOurHost"; // #47
-    Utf8 "CallerNotOurHost"; // #48
+    Utf8 "TestNestmateMembership$CallerSelfHost"; // #47
+    Utf8 "CallerSelfHost"; // #48
     Utf8 "java/lang/Object"; // #49
     Utf8 "TestNestmateMembership"; // #50
     Utf8 "java/lang/System"; // #51
@@ -85,9 +85,6 @@ class TestNestmateMembership$CallerNotOurHost {
     Utf8 "java/io/PrintStream"; // #54
     Utf8 "println"; // #55
     Utf8 "(Ljava/lang/String;)V"; // #56
-    //  Added
-    Utf8 "InvalidNestHost"; // #57
-    class #57; // #58
   } // Constant Pool
 
   0x0020; // access
@@ -367,7 +364,7 @@ class TestNestmateMembership$CallerNotOurHost {
     } // end SourceFile
     ;
     Attr(#32) { // NestHost
-      0x003A; // modified - #58
+      0x000D; // modified - #13
     } // end NestHost
     ;
     Attr(#43) { // InnerClasses
@@ -378,4 +375,4 @@ class TestNestmateMembership$CallerNotOurHost {
       }
     } // end InnerClasses
   } // Attributes
-} // end class TestNestmateMembership$CallerNotOurHost
+} // end class TestNestmateMembership$CallerSelfHost

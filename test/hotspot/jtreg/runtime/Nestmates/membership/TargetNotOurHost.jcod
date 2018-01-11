@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 class TestNestmateMembership$TargetNotOurHost {
   0xCAFEBABE;
   0; // minor version
-  53; // version
+  55; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #6 #18; // #1
@@ -63,6 +63,9 @@ class TestNestmateMembership$TargetNotOurHost {
     Utf8 "java/io/PrintStream"; // #32
     Utf8 "println"; // #33
     Utf8 "(Ljava/lang/String;)V"; // #34
+    //  Added
+    Utf8 "InvalidNestHost"; // #35
+    class #35; // #36
   } // Constant Pool
 
   0x0020; // access
@@ -140,7 +143,7 @@ class TestNestmateMembership$TargetNotOurHost {
     } // end SourceFile
     ;
     Attr(#16) { // NestHost
-      0x0006; // modified - #6
+      0x0024; // modified - #36
     } // end NestHost
     ;
     Attr(#26) { // InnerClasses

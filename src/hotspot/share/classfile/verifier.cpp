@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2786,35 +2786,38 @@ void ClassVerifier::verify_invoke_instructions(
     }
   } else if (opcode == Bytecodes::_invokespecial
              && !is_same_or_direct_interface(current_class(), current_type(), ref_class_type)
-             && !ref_class_type.equals(VerificationType::reference_type(current_class()->super()->name()))) {
-     bool subtype = false;
-     bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
-     if (!current_class()->is_anonymous()) {
-       subtype = ref_class_type.is_assignable_from(current_type(), this, false, CHECK_VERIFY(this));
-     } else {
-       VerificationType host_klass_type =
-           VerificationType::reference_type(current_class()->host_klass()->name());
-       subtype = ref_class_type.is_assignable_from(host_klass_type, this, false, CHECK_VERIFY(this));
+             && !ref_class_type.equals(VerificationType::reference_type(
+                  current_class()->super()->name()))) {
+    bool subtype = false;
+    bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
+    if (!current_class()->is_anonymous()) {
+      subtype = ref_class_type.is_assignable_from(
+                 current_type(), this, false, CHECK_VERIFY(this));
+    } else {
+      VerificationType host_klass_type =
+                        VerificationType::reference_type(current_class()->host_klass()->name());
+      subtype = ref_class_type.is_assignable_from(host_klass_type, this, false, CHECK_VERIFY(this));
 
-       // If invokespecial of IMR, need to recheck for same or
-       // direct interface relative to the host class
-       have_imr_indirect = (have_imr_indirect &&
-                            !is_same_or_direct_interface(current_class()->host_klass(),
-                                                         host_klass_type, ref_class_type));
-     }
-     if (!subtype) {
-       verify_error(ErrorContext::bad_code(bci),
-                    "Bad invokespecial instruction: "
-                    "current class isn't assignable to reference class.");
-        return;
-     } else if (have_imr_indirect) {
-       verify_error(ErrorContext::bad_code(bci),
-                    "Bad invokespecial instruction: "
-                    "interface method reference is in an indirect superinterface.");
+      // If invokespecial of IMR, need to recheck for same or
+      // direct interface relative to the host class
+      have_imr_indirect = (have_imr_indirect &&
+                           !is_same_or_direct_interface(
+                             current_class()->host_klass(),
+                             host_klass_type, ref_class_type));
+    }
+    if (!subtype) {
+      verify_error(ErrorContext::bad_code(bci),
+          "Bad invokespecial instruction: "
+          "current class isn't assignable to reference class.");
        return;
-     }
-  }
+    } else if (have_imr_indirect) {
+      verify_error(ErrorContext::bad_code(bci),
+          "Bad invokespecial instruction: "
+          "interface method reference is in an indirect superinterface.");
+      return;
+    }
 
+  }
   // Match method descriptor with operand stack
   for (int i = nargs - 1; i >= 0; i--) {  // Run backwards
     current_frame->pop_stack(sig_types[i], CHECK_VERIFY(this));
@@ -2828,7 +2831,7 @@ void ClassVerifier::verify_invoke_instructions(
         CHECK_VERIFY(this));
       if (was_recursively_verified()) return;
     } else {   // other methods
-      // Ensures that target class is assignable to current class (4.9.2)
+      // Ensures that target class is assignable to method class.
       if (opcode == Bytecodes::_invokespecial) {
         if (!current_class()->is_anonymous()) {
           current_frame->pop_stack(current_type(), CHECK_VERIFY(this));
@@ -2841,10 +2844,10 @@ void ClassVerifier::verify_invoke_instructions(
             VerificationType::reference_type(current_class()->host_klass()->name());
           bool subtype = hosttype.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
-            verify_error(ErrorContext::bad_type(current_frame->offset(),
-                                                current_frame->stack_top_ctx(),
-                                                TypeOrigin::implicit(top)),
-                         "Bad type on operand stack");
+            verify_error( ErrorContext::bad_type(current_frame->offset(),
+              current_frame->stack_top_ctx(),
+              TypeOrigin::implicit(top)),
+              "Bad type on operand stack");
             return;
           }
         }

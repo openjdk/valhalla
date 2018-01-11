@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@
  *          ConflictingAttributesInNestMember.jcod
  *          BadNestMembersLength.jcod
  *          BadNestMembersEntry.jcod
- *          DuplicateNestMemberEntry.jcod
  *          BadNestHost.jcod
  * @run main TestNestmateAttributes
  */
@@ -45,7 +44,6 @@ public class TestNestmateAttributes {
             "NestmateAttributeHolder$ConflictingAttributesInNestMember",
             "BadNestMembersLength",
             "BadNestMembersEntry",
-            "DuplicateNestMemberEntry",
             "NestmateAttributeHolder$BadNestHost",
         };
 
@@ -54,12 +52,11 @@ public class TestNestmateAttributes {
             "Multiple NestMembers attributes in class file",
             "Conflicting NestMembers and NestHost attributes",
             "Conflicting NestHost and NestMembers attributes",
-            "Wrong NestMembers attribute length", 
+            "Wrong NestMembers attribute length",
             "Nest member class_info_index 9 has bad constant type",
-            "Duplicate entry in NestMembers ",
             "Nest-host class_info_index 10 has bad constant type",
         };
-        
+
         for (int i = 0; i < badClasses.length; i++ ) {
             try {
                 Class c = Class.forName(badClasses[i]);

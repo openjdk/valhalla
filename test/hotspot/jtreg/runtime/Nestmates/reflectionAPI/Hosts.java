@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,4 +48,16 @@ class HostOfMemberNotOurHost {
 class HostOfMemberMalformedHost {
     // Malformed NestHost class
     static class MemberMalformedHost {}
+}
+
+// Host lists itself as a member along
+// with real member.
+class HostWithSelfMember {
+    static class Member {}
+}
+
+// Host lists duplicate members.
+class HostWithDuplicateMembers {
+    static class Member1 {}
+    static interface Member2 {}
 }

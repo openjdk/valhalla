@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -135,6 +135,20 @@ public class InvokeInterfaceSuccessTest extends SelectionResolutionTest {
                         Template.CallsiteUnrelatedToMethodref,
                         Template.IfaceMethodrefSelection,
                         Template.SelectionOverrideAbstract)
+                /*                ,
+                // Group 175: private method in interface [was ICCE case up to JDK 11]
+                // Can't get this to work for some reason.
+                new TestGroup.Simple(initBuilder,
+                        Template.ResultCombo(EnumSet.of(Template.Kind.INTERFACE),
+                                             EnumSet.of(MethodData.Access.PRIVATE),
+                                             EnumSet.of(MethodData.Context.INSTANCE),
+                                             EnumSet.of(ClassData.Package.SAME)),
+                        Template.OverrideAbstractExpectedIface,
+                        Template.MethodrefEqualsExpected,
+                        Template.IgnoredAbstract,
+                        Template.CallsiteEqualsMethodref,
+                        Template.IfaceMethodrefSelection)
+                */
             );
 
     private InvokeInterfaceSuccessTest() {

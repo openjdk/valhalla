@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -818,9 +818,6 @@ static void trace_method_resolution(const char* prefix,
 #endif // PRODUCT
 }
 
-// FIXME: update to correct version
-#define VIRTUAL_PRIVATE_ACCESS_VERSION 53
-
 // Do linktime resolution of a method in the interface within the context of the specied bytecode.
 methodHandle LinkResolver::resolve_interface_method(const LinkInfo& link_info, Bytecodes::Code code, TRAPS) {
 
@@ -883,21 +880,6 @@ methodHandle LinkResolver::resolve_interface_method(const LinkInfo& link_info, B
                  Method::name_and_sig_as_C_string(resolved_klass,
                  resolved_method->name(), resolved_method->signature()));
     THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
-  }
-
-  if (code == Bytecodes::_invokeinterface && resolved_method->is_private()) {
-    Klass* current_klass = link_info.current_klass();
-    assert(current_klass != NULL, "current_klass should not be null for invokeinterface");
-    if (InstanceKlass::cast(current_klass)->major_version() < VIRTUAL_PRIVATE_ACCESS_VERSION) {
-      ResourceMark rm(THREAD);
-      char buf[200];
-      jio_snprintf(buf, sizeof(buf), "private interface method requires invokespecial, not invokeinterface: method %s, caller-class:%s",
-                   Method::name_and_sig_as_C_string(resolved_klass,
-                                                    resolved_method->name(),
-                                                    resolved_method->signature()),
-                   current_klass->internal_name());
-      THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
-    }
   }
 
   if (log_develop_is_enabled(Trace, itables)) {

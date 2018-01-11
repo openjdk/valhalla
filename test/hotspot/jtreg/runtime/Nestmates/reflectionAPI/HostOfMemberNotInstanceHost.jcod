@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,14 @@
 class HostOfMemberNotInstanceHost$MemberNotInstanceHost {
   0xCAFEBABE;
   0; // minor version
-  53; // version
+  55; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #3 #14; // #1
     class #15; // #2
     class #18; // #3
     Utf8 "oa"; // #4
-    Utf8 "[Ljava/lang/Object;"; // #5
+    Utf8 "[LInvalidNestHost;"; // #5
     Utf8 "<init>"; // #6
     Utf8 "()V"; // #7
     Utf8 "Code"; // #8

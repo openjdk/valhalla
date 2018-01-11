@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,42 +21,37 @@
  * questions.
  */
 
-/* Source: NestmateAttributeHolder.java
+// Modify NestMembers attribute to contain multiple duplicates
 
-public class NestmateAttributeHolder {
-    public static class TwoNestHost {
-    }
-}
-*/
-
-// NestMembers attribute has two entries for the same class
-
-class DuplicateNestMemberEntry {
+class HostWithDuplicateMembers {
   0xCAFEBABE;
   0; // minor version
-  53; // version
+  55; // version
   [] { // Constant Pool
     ; // first element is empty
-    Method #3 #14; // #1    
-    class #15; // #2    
-    class #16; // #3    
-    class #17; // #4    
-    Utf8 "TwoNestHost"; // #5    
-    Utf8 "InnerClasses"; // #6    
-    Utf8 "<init>"; // #7    
-    Utf8 "()V"; // #8    
-    Utf8 "Code"; // #9    
-    Utf8 "LineNumberTable"; // #10    
-    Utf8 "SourceFile"; // #11    
-    Utf8 "DuplicateNestMemberEntry.java"; // #12    
-    Utf8 "NestMembers"; // #13    
-    NameAndType #7 #8; // #14    
-    Utf8 "DuplicateNestMemberEntry"; // #15    
-    Utf8 "java/lang/Object"; // #16    
-    Utf8 "DuplicateNestMemberEntry$TwoNestHost"; // #17    
+    Method #3 #16; // #1
+    class #17; // #2
+    class #18; // #3
+    class #19; // #4
+    Utf8 "Member2"; // #5
+    Utf8 "InnerClasses"; // #6
+    class #20; // #7
+    Utf8 "Member1"; // #8
+    Utf8 "<init>"; // #9
+    Utf8 "()V"; // #10
+    Utf8 "Code"; // #11
+    Utf8 "LineNumberTable"; // #12
+    Utf8 "SourceFile"; // #13
+    Utf8 "Hosts.java"; // #14
+    Utf8 "NestMembers"; // #15
+    NameAndType #9 #10; // #16
+    Utf8 "HostWithDuplicateMembers"; // #17
+    Utf8 "java/lang/Object"; // #18
+    Utf8 "HostWithDuplicateMembers$Member2"; // #19
+    Utf8 "HostWithDuplicateMembers$Member1"; // #20
   } // Constant Pool
 
-  0x0021; // access
+  0x0020; // access
   #2;// this_cpx
   #3;// super_cpx
 
@@ -68,11 +63,11 @@ class DuplicateNestMemberEntry {
 
   [] { // methods
     { // Member
-      0x0001; // access
-      #7; // name_cpx
-      #8; // sig_cpx
+      0x0000; // access
+      #9; // name_cpx
+      #10; // sig_cpx
       [] { // Attributes
-        Attr(#9) { // Code
+        Attr(#11) { // Code
           1; // max_stack
           1; // max_locals
           Bytes[]{
@@ -81,9 +76,9 @@ class DuplicateNestMemberEntry {
           [] { // Traps
           } // end Traps
           [] { // Attributes
-            Attr(#10) { // LineNumberTable
+            Attr(#12) { // LineNumberTable
               [] { // LineNumberTable
-                0  1;
+                0  60;
               }
             } // end LineNumberTable
           } // Attributes
@@ -93,18 +88,20 @@ class DuplicateNestMemberEntry {
   } // methods
 
   [] { // Attributes
-    Attr(#11) { // SourceFile
-      #12;
+    Attr(#13) { // SourceFile
+      #14;
     } // end SourceFile
     ;
-    Attr(#13) { // NestMembers
-      0x000200040004; // duplicate entry
+    Attr(#15) { // NestMembers
+      0x0006000700040007;  // modified
+      0x000400070004;
     } // end NestMembers
     ;
     Attr(#6) { // InnerClasses
       [] { // InnerClasses
-        #4 #2 #5 9;
+        #4 #2 #5 1544;
+        #7 #2 #8 8;
       }
     } // end InnerClasses
   } // Attributes
-} // end class DuplicateNestMemberEntry
+} // end class HostWithDuplicateMembers

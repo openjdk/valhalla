@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -242,16 +242,17 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
 
       const char* error = NULL;
 
-      // Need to check we have an instance class first
-      if (k->is_instance_klass()) {
-        nest_host_k = InstanceKlass::cast(k);
+      // JVMS 5.4.4 indicates package check comes first
+      if (is_same_class_package(k)) {
 
-        // FIXME: an exception from this is perhaps impossible
-        bool is_member = nest_host_k->has_nest_member(this, CHECK_NULL);
-        if (is_member) {
-          // Finally check we're in the same package - as there could be collusion
-          // between untrusted types.
-          if (is_same_class_package(nest_host_k)) {
+        // Now check actual membership. We can't be a member if our "host" is
+        // not an instance class.
+        if (k->is_instance_klass()) {
+          nest_host_k = InstanceKlass::cast(k);
+
+          // FIXME: an exception from this is perhaps impossible
+          bool is_member = nest_host_k->has_nest_member(this, CHECK_NULL);
+          if (is_member) {
             // save resolved nest-host value
             _nest_host = nest_host_k;
 
@@ -262,16 +263,11 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
             }
             return nest_host_k;
           }
-          else {
-            error = "types are in different packages";
-          }
         }
-        else {
-          error = "current type is not listed as a nest member";
-        }
+        error = "current type is not listed as a nest member";
       }
       else {
-        error = "nest-host is not an instance class!";
+        error = "types are in different packages";
       }
 
       if (log_is_enabled(Trace, class, nestmates)) {
@@ -314,18 +310,18 @@ bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 
   assert(this != k, "this should be handled by higher-level code");
 
-  // Per the JVMS we first resolve and validate the current class, then
+  // Per JVMS 5.4.4 we first resolve and validate the current class, then
   // the target class k. Resolution exceptions will be passed on by upper
-  // layers. IllegalAccessErrors from membership validation failures will
-  // also be passed through.
+  // layers. IncompatibleClassChangeErrors from membership validation failures
+  // will also be passed through.
 
-  Symbol* iae = vmSymbols::java_lang_IllegalAccessError();
-  InstanceKlass* cur_host = nest_host(iae, THREAD);
+  Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+  InstanceKlass* cur_host = nest_host(icce, THREAD);
   if (cur_host == NULL || HAS_PENDING_EXCEPTION) {
     return false;
   }
 
-  Klass* k_nest_host = k->nest_host(iae, THREAD);
+  Klass* k_nest_host = k->nest_host(icce, THREAD);
   if (k_nest_host == NULL || HAS_PENDING_EXCEPTION) {
     return false;
   }

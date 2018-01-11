@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
  *          PackagedNestHost2.java
  *          SampleNest.java
  *          Hosts.java
+ *          InvalidNestHost.java
  *
  * @compile MemberNoHost.jcod
  *          MemberMissingHost.jcod
@@ -45,6 +46,8 @@
  *          HostOfMemberNotInstanceHost.jcod
  *          HostOfMemberNotOurHost.jcod
  *          HostOfMemberMalformedHost.jcod
+ *          HostWithSelfMember.jcod
+ *          HostWithDuplicateMembers.jcod
  *
  * @run main/othervm TestReflectionAPI
  */
@@ -61,6 +64,7 @@
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 
 public class TestReflectionAPI {
 
@@ -154,7 +158,18 @@ public class TestReflectionAPI {
         checkSingletonNests(good);
 
         // More thorough correctness check
-        checkNest(SampleNest.class, SampleNest.nestedTypes());
+        checkNest(SampleNest.class, SampleNest.nestedTypes(), false);
+
+        // Special cases - legal but not produced by javac
+        checkNest(HostWithSelfMember.class,
+                  new Class<?>[] { HostWithSelfMember.class,
+                          HostWithSelfMember.Member.class },
+                  true);
+        checkNest(HostWithDuplicateMembers.class,
+                  new Class<?>[] { HostWithDuplicateMembers.class,
+                          HostWithDuplicateMembers.Member1.class,
+                          HostWithDuplicateMembers.Member2.class },
+                  true);
 
         // Hosts with "bad" members
         Class<?>[] bad = {
@@ -177,9 +192,9 @@ public class TestReflectionAPI {
             "Unable to load nest-host class (NestHost) of " +
             "HostOfMemberMissingHost$MemberMissingHost",
             "Type HostOfMemberNotOurHost$MemberNotOurHost is not a nest member " +
-            "of java.lang.Object: current type is not listed as a nest member",
+            "of InvalidNestHost: current type is not listed as a nest member",
             "Type HostOfMemberNotInstanceHost$MemberNotInstanceHost is not a nest " +
-            "member of [Ljava.lang.Object;: nest-host is not an instance class!",
+            "member of [LInvalidNestHost;: current type is not listed as a nest member",
             "Incompatible magic value 3735928559 in class file MalformedHost",
         };
         for (int i = 0; i < bad.length; i++) {
@@ -226,7 +241,7 @@ public class TestReflectionAPI {
 
     static Comparator<Class<?>> cmp = Comparator.comparing(Class::getName);
 
-    static void checkNest(Class<?> host, Class<?>[] unsortedTypes) {
+    static void checkNest(Class<?> host, Class<?>[] unsortedTypes, boolean expectDups) {
         Class<?>[] members = host.getNestMembers();
         Arrays.sort(members, cmp);
         Class<?>[] nestedTypes = unsortedTypes.clone();
@@ -234,8 +249,20 @@ public class TestReflectionAPI {
         printMembers(host, members);
         printDeclared(host, nestedTypes);
         if (!Arrays.equals(members, nestedTypes)) {
-            throw new Error("Class " + host.getName() + " has different members " +
-                            "compared to declared classes");
+            if (!expectDups) {
+                throw new Error("Class " + host.getName() + " has different members " +
+                                "compared to declared classes");
+            }
+            else {
+                // get rid of duplicates
+                Class<?>[] memberSet =
+                    new HashSet<Class<?>>(Arrays.asList(members)).toArray(new Class<?>[0]);
+                Arrays.sort(memberSet, cmp);
+                if (!Arrays.equals(memberSet, nestedTypes)) {
+                    throw new Error("Class " + host.getName() + " has different members " +
+                                "compared to declared classes, even after duplicate removal");
+                }
+            }
         }
         // verify all the relationships that must hold for nest members
         for (Class<?> a : members) {
