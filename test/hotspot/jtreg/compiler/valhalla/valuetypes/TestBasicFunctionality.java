@@ -427,7 +427,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     // trap: verify that deoptimization causes the value type to be
     // correctly allocated.
     @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = LOAD + ALLOC + STORE)
-    @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC}, matchCount = {2}, failOn = LOAD)
+    @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC}, matchCount = {1}, failOn = LOAD)
     public long test20(boolean deopt) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2[] va = new MyValue2[3];
@@ -728,5 +728,70 @@ public class TestBasicFunctionality extends ValueTypeTest {
     public void test34_verifier(boolean warmup) throws Throwable {
         test34(true, MyValue1.createWithFieldsInline(rI, rL));
         test34(false, MyValue1.createWithFieldsInline(rI, rL));
+    }
+
+    // Verify that the default value type is never allocated.
+    // C2 code should load and use the default oop from the java mirror.
+    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
+    public MyValue3 test35(MyValue3[] va) {
+        // Explicitly create default value
+        MyValue3 vt = MyValue3.createDefault();
+        va[0] = vt;
+        staticVal3 = vt;
+        vt.verify(vt);
+
+        // Load default value from uninitialized value array
+        MyValue3[] dva = new MyValue3[1];
+        staticVal3_copy = dva[0];
+        va[1] = dva[0];
+        dva[0].verify(dva[0]);
+        return vt;
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        MyValue3 vt = MyValue3.createDefault();
+        MyValue3[] va = new MyValue3[2];
+        va[0] = MyValue3.create();
+        va[1] = MyValue3.create();
+        MyValue3 res = test35(va);
+        res.verify(vt);
+        staticVal3.verify(vt);
+        staticVal3_copy.verify(vt);
+        va[0].verify(vt);
+        va[1].verify(vt);
+    }
+
+    // Same as above but manually initialize value type fields to default.
+    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
+    public MyValue3 test36(MyValue3 vt, MyValue3[] va) {
+        vt = MyValue3.setC(vt, (char)0);
+        vt = MyValue3.setBB(vt, (byte)0);
+        vt = MyValue3.setS(vt, (short)0);
+        vt = MyValue3.setI(vt, 0);
+        vt = MyValue3.setL(vt, 0);
+        vt = MyValue3.setO(vt, null);
+        vt = MyValue3.setF1(vt, 0);
+        vt = MyValue3.setF2(vt, 0);
+        vt = MyValue3.setF3(vt, 0);
+        vt = MyValue3.setF4(vt, 0);
+        vt = MyValue3.setF5(vt, 0);
+        vt = MyValue3.setF6(vt, 0);
+        vt = MyValue3.setV1(vt, MyValue3Inline.createDefault());
+        va[0] = vt;
+        staticVal3 = vt;
+        vt.verify(vt);
+        return vt;
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) {
+        MyValue3 vt = MyValue3.createDefault();
+        MyValue3[] va = new MyValue3[1];
+        va[0] = MyValue3.create();
+        MyValue3 res = test36(va[0], va);
+        res.verify(vt);
+        staticVal3.verify(vt);
+        va[0].verify(vt);
     }
 }

@@ -471,6 +471,7 @@ ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* kl
 
 Node* ValueTypeNode::load_default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
   // Load the default oop from the java mirror of the given ValueKlass
+  assert(!vk->is__Value(), "__Value has no default oop");
   const TypeInstPtr* tip = TypeInstPtr::make(vk->java_mirror());
   Node* base = gvn.makecon(tip);
   Node* adr = gvn.transform(new AddPNode(base, base, gvn.MakeConX(vk->default_value_offset())));
@@ -493,7 +494,24 @@ ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
     }
     vt->set_field_value(i, value);
   }
-  return gvn.transform(vt)->as_ValueType();
+  vt = gvn.transform(vt)->as_ValueType();
+  assert(vt->is_default(gvn), "must be the default value type");
+  return vt;
+}
+
+
+bool ValueTypeNode::is_default(PhaseGVN& gvn) const {
+  if (value_klass()->is__Value()) {
+    return false;
+  }
+  for (uint i = 0; i < field_count(); ++i) {
+    Node* value = field_value(i);
+    if (!gvn.type(value)->is_zero_type() &&
+        !(value->is_ValueType() && value->as_ValueType()->is_default(gvn))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, ciValueKlass* vk, bool null_check, bool buffer_check) {
@@ -724,6 +742,16 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
 }
 
 Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  Node* oop = get_oop();
+
+  if (is_default(*phase) && !oop->is_Load() &&
+      !(oop->is_DecodeN() && oop->in(1)->is_Load())) {
+    // Use the pre-allocated oop for default value types
+    Node* oop = load_default_oop(*phase, value_klass());
+    set_oop(oop);
+    return this;
+  }
+
   if (!is_allocated(phase) && !value_klass()->is_bufferable()) {
     // Save base oop if fields are loaded from memory and the value
     // type is not buffered (in this case we should not use the oop).
@@ -737,6 +765,20 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   if (can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
+
+    if (is_default(*phase)) {
+      // Search for allocations of the default value type
+      for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+        AllocateNode* alloc = fast_out(i)->isa_Allocate();
+        if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
+          // Replace allocation be pre-allocated oop
+          Node* res = alloc->result_cast();
+          Node* oop = load_default_oop(*phase, value_klass());
+          igvn->replace_node(res, oop);
+        }
+      }
+    }
+
     if (is_allocated(igvn)) {
       // Value type is heap allocated, search for safepoint uses
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
@@ -760,6 +802,7 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
     if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
+      assert(!is_default(*igvn), "default value type allocation");
       Node* res_dom = NULL;
       if (is_allocated(igvn)) {
         // The value type is already allocated but still connected to an AllocateNode.

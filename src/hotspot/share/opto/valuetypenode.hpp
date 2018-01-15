@@ -106,6 +106,9 @@ private:
   // Checks if the value type is loaded from memory and if so returns the oop
   Node* is_loaded(PhaseGVN* phase, ciValueKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
 
+  // Checks if the value type fields are all set to default values
+  bool is_default(PhaseGVN& gvn) const;
+
   const TypeValueTypePtr* value_type_ptr() const { return TypeValueTypePtr::make(TypePtr::BotPTR, value_klass()); }
   ciValueKlass* value_klass() const { return type()->is_valuetype()->value_klass(); }
 
