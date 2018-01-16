@@ -3469,7 +3469,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           assert(runtime_invisible_type_annotations != NULL, "null invisible type annotations");
         }
         cfs->skip_u1(attribute_length, CHECK);
-      } else if (_major_version >= JAVA_10_VERSION) {
+      } else if (_major_version >= JAVA_11_VERSION) {
         if (tag == vmSymbols::tag_nest_members()) {
           // Check for NestMembers tag
           if (parsed_nest_members_attribute) {
