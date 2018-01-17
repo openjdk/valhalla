@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -4199,6 +4199,19 @@ void TemplateTable::invokeinterface(int byte_no) {
   const Register Rklass  = R3_tmp;
 
   prepare_invoke(byte_no, Rinterf, Rindex, Rrecv, Rflags);
+
+  // Check for private method invocation - indicated by vfinal
+  Label notVFinal;
+  __ tbz(flags, ConstantPoolCacheEntry::is_vfinal_shift, notVFinal);
+
+  // do the call - the index is actually the method to call
+
+  __ null_check(Rrecv, Rtemp);
+
+  __ profile_final_call(R0_tmp);
+  __ jump_from_interpreted(Rindex);
+
+  __ bind(notVFinal);
 
   // Special case of invokeinterface called for virtual method of
   // java.lang.Object.  See cpCacheOop.cpp for details.

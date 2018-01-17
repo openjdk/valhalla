@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3090,6 +3090,28 @@ void TemplateTable::invokeinterface(int byte_no) {
   assert_different_registers(Rscratch, G5_method);
 
   prepare_invoke(byte_no, Rinterface, Rret, Rindex, O0_recv, O1_flags);
+
+  // Check for private method invocation - indicated by vfinal
+  Label notVFinal;
+  __ set((1 << ConstantPoolCacheEntry::is_vfinal_shift), Rscratch);
+  __ btst(O1_flags, Rscratch);
+  __ br(Assembler::zero, false, Assembler::pt, notVFinal);
+  __ delayed()->nop();
+
+   __ null_check(O0_recv);
+
+   // do the call - the index (f2) contains the Method*
+   __ mov(Rindex, G5_method);
+
+  {
+    Register Rcall = Rinterface;
+    assert_different_registers(Rcall, G5_method, Gargs, Rret);
+
+    __ profile_arguments_type(G5_method, Rcall, Gargs, true);
+    __ profile_final_call(Rscratch);
+    __ call_from_interpreter(Rcall, Gargs, Rret);
+  }
+ __ bind(notVFinal);
 
   // get receiver klass
   __ null_check(O0_recv, oopDesc::klass_offset_in_bytes());

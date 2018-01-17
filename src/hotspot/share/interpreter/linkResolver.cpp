@@ -1380,11 +1380,12 @@ void LinkResolver::runtime_resolve_virtual_method(CallInfo& result,
     // a default or miranda method; therefore, it must have a valid vtable index.
     assert(!resolved_method->has_itable_index(), "");
     vtable_index = resolved_method->vtable_index();
-    // We could get a negative vtable_index for final methods,
-    // because as an optimization they are they are never put in the vtable,
-    // unless they override an existing method.
-    // If we do get a negative, it means the resolved method is the the selected
-    // method, and it can never be changed by an override.
+    // We could get a negative vtable_index of nonvirtual_vtable_index for private
+    // methods, or for final methods. Private methods never appear in the vtable
+    // and never override other methods. As an optimization, final methods are
+    // never put in the vtable, unless they override an existing method.
+    // So if we do get nonvirtual_vtable_index, it means the selected method is the
+    // resolved method, and it can never be changed by an override.
     if (vtable_index == Method::nonvirtual_vtable_index) {
       assert(resolved_method->can_be_statically_bound(), "cannot override this method");
       selected_method = resolved_method;
@@ -1510,13 +1511,23 @@ void LinkResolver::runtime_resolve_interface_method(CallInfo& result,
                             recv_klass, resolved_klass, sel_method, true);
   }
   // setup result
-  if (!resolved_method->has_itable_index()) {
+  if (resolved_method->has_vtable_index()) {
     int vtable_index = resolved_method->vtable_index();
+    log_develop_trace(itables)("  -- vtable index: %d", vtable_index);
     assert(vtable_index == sel_method->vtable_index(), "sanity check");
     result.set_virtual(resolved_klass, recv_klass, resolved_method, sel_method, vtable_index, CHECK);
-  } else {
+  } else if (resolved_method->has_itable_index()) {
     int itable_index = resolved_method()->itable_index();
+    log_develop_trace(itables)("  -- itable index: %d", itable_index);
     result.set_interface(resolved_klass, recv_klass, resolved_method, sel_method, itable_index, CHECK);
+  } else {
+    int index = resolved_method->vtable_index();
+    log_develop_trace(itables)("  -- non itable/vtable index: %d", index);
+    assert(index == Method::nonvirtual_vtable_index, "Oops hit another case!");
+    assert(resolved_method()->is_private(), "Should only have non-virtual invokeinterface for private methods!");
+    assert(resolved_method()->can_be_statically_bound(), "Should only have non-virtual invokeinterface for statically bound methods!");
+    // This sets up the nonvirtual form of "virtual" call (as needed for final and private methods)
+    result.set_virtual(resolved_klass, resolved_klass, resolved_method, resolved_method, index, CHECK);
   }
 }
 

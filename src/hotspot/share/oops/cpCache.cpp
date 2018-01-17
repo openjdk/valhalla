@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -173,13 +173,29 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
 
   switch (invoke_code) {
     case Bytecodes::_invokeinterface:
-      // We get here from InterpreterRuntime::resolve_invoke when an invokeinterface
-      // instruction somehow links to a non-interface method (in Object).
-      // In that case, the method has no itable index and must be invoked as a virtual.
-      // Set a flag to keep track of this corner case.
-      change_to_virtual = true;
+      if (vtable_index == Method::nonvirtual_vtable_index) {
+        // Should be a private interface method invocation
+        assert(method->is_private(), "unexpected non-private method");
+        assert(method->can_be_statically_bound(), "unexpected non-statically-bound method");
+        // set_f2_as_vfinal_method checks if is_vfinal flag is true.
+        set_method_flags(as_TosState(method->result_type()),
+                         (                             1      << is_vfinal_shift) |
+                         ((method->is_final_method() ? 1 : 0) << is_final_shift),
+                         method()->size_of_parameters());
+        set_f2_as_vfinal_method(method());
+        byte_no = 2;
+        break;
+      }
+      else {
+        // We get here from InterpreterRuntime::resolve_invoke when an invokeinterface
+        // instruction somehow links to a non-interface method (in Object).
+        // In that case, the method has no itable index and must be invoked as a virtual.
+        // Set a flag to keep track of this corner case.
+        assert(method->is_public(), "Calling non-public method in Object with invokeinterface");
+        change_to_virtual = true;
 
-      // ...and fall through as if we were handling invokevirtual:
+        // ...and fall through as if we were handling invokevirtual:
+      }
     case Bytecodes::_invokevirtual:
       {
         if (!is_vtable_call) {
@@ -253,7 +269,14 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
       // interface call.
       if (method->is_public()) set_bytecode_1(invoke_code);
     } else {
-      assert(invoke_code == Bytecodes::_invokevirtual, "");
+      assert(invoke_code == Bytecodes::_invokevirtual ||
+             (method->is_private() && invoke_code == Bytecodes::_invokeinterface), "");
+      if (method->is_private() && invoke_code == Bytecodes::_invokeinterface) {
+        // We set bytecode_1() to _invokeinterface, because that is the
+        // bytecode # used by the interpreter to see if it is resolved.
+        // We set bytecode_2() to _invokevirtual.
+        set_bytecode_1(invoke_code);
+      }
     }
     // set up for invokevirtual, even if linking for invokeinterface also:
     set_bytecode_2(Bytecodes::_invokevirtual);

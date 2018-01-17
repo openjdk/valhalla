@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -3283,9 +3283,23 @@ void TemplateTable::invokeinterface(int byte_no) {
                  r2, r3); // recv, flags
 
   // r0: interface klass (from f1)
-  // rmethod: itable index (from f2)
+  // rmethod: itable index (from f2) or Method*
   // r2: receiver
   // r3: flags
+
+  // Check for private method invocation - indicated by vfinal
+  Label notVFinal;
+  __ tbz(flags, ConstantPoolCacheEntry::is_vfinal_shift, notVFinal);
+
+  // do the call - the index is actually the method to call
+
+  __ null_check(r2);
+
+  __ profile_final_call(r0);
+  __ profile_arguments_type(r0, rmethod, r4, true);
+  __ jump_from_interpreted(rmethod, r0);
+
+  __ bind(notVFinal);
 
   // Special case of invokeinterface called for virtual method of
   // java.lang.Object.  See cpCacheOop.cpp for details.

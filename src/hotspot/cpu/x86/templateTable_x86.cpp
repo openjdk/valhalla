@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3712,13 +3712,30 @@ void TemplateTable::fast_invokevfinal(int byte_no) {
 void TemplateTable::invokeinterface(int byte_no) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-  prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 itable index
+  prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 itable index or Method*
                  rcx, rdx); // recv, flags
 
   // rax: interface klass (from f1)
-  // rbx: itable index (from f2)
+  // rbx: itable index or Method* (from f2)
   // rcx: receiver
   // rdx: flags
+
+  // Check for private method invocation - indicated by vfinal
+  Label notVFinal;
+  __ movl(rlocals, rdx);
+  __ andl(rlocals, (1 << ConstantPoolCacheEntry::is_vfinal_shift));
+  __ jcc(Assembler::zero, notVFinal);
+
+  // do the call - rbx is actually the method to call
+
+  __ null_check(rcx);
+
+  __ profile_final_call(rdx);
+  __ profile_arguments_type(rdx, rbx, rbcp, true);
+
+  __ jump_from_interpreted(rbx, rdx);
+
+  __ bind(notVFinal);
 
   // Special case of invokeinterface called for virtual method of
   // java.lang.Object.  See cpCacheOop.cpp for details.

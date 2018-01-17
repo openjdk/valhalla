@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, 2017 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -3530,6 +3530,23 @@ void TemplateTable::invokeinterface(int byte_no) {
                  Rflags           = R7_ARG5;
 
   prepare_invoke(byte_no, Rinterface_klass, Rret_addr, Rindex, Rreceiver, Rflags, Rscratch1);
+
+  // Check for private method invocation - indicated by vfinal
+  Label LnotVFinal;
+
+  __ testbitdi(CCR0, R0, Rflags, ConstantPoolCacheEntry::is_vfinal_shift);
+  __ bfalse(CCR0, LnotVFinal);
+
+  __ null_check_throw(Rreceiver, -1, Rscratch3);
+
+  Register Rscratch = Rflags; // Rflags is dead now.
+
+  __ profile_final_call(Rscratch1, Rscratch);
+  __ profile_arguments_type(Rindex, Rscratch, Rrecv_klass /* scratch */, true);
+
+  __ call_from_interpreter(Rindex, Rret_addr, Rscratch, Rrecv_klass /* scratch */);
+
+  __ bind(LnotVFinal);
 
   // Get receiver klass.
   __ null_check_throw(Rreceiver, oopDesc::klass_offset_in_bytes(), Rscratch3);

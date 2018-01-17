@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -3565,12 +3565,28 @@ void TemplateTable::invokeinterface(int byte_no) {
   BLOCK_COMMENT("invokeinterface {");
 
   // Destroys Z_ARG1 and Z_ARG2, thus use Z_ARG4 and copy afterwards.
-  prepare_invoke(byte_no, Z_ARG4, index,  // Get f1 klassOop, f2 itable index.
+  prepare_invoke(byte_no, Z_ARG4, index,  // Get f1 klassOop, f2 itable index or Method*
                  receiver, flags);
 
   // Z_R14 (== Z_bytecode) : return entry
 
   __ z_lgr(interface, Z_ARG4);
+
+  // Check for private method invocation - indicated by vfinal
+  Label notVFinal;
+  __ testbit(flags, ConstantPoolCacheEntry::is_vfinal_shift);
+  __ z_brz(notVFinal);
+
+   // Do the call - the index is actually the method to call.
+  const Register method = index;  // Method must be Z_ARG3.
+
+  __ null_check(receiver);
+
+  __ profile_final_call(Z_tmp_2);
+  __ profile_arguments_type(Z_tmp_2, method, Z_ARG5, true);
+  __ jump_from_interpreted(method, Z_tmp_2);
+
+  __ bind(notVFinal);
 
   // Special case of invokeinterface called for virtual method of
   // java.lang.Object. See cpCacheOop.cpp for details.
