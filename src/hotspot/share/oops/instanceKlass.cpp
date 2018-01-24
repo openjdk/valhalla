@@ -2472,7 +2472,8 @@ void InstanceKlass::set_source_debug_extension(const char* array, int length) {
 }
 
 address InstanceKlass::static_field_addr(int offset) {
-  return (address)(offset + InstanceMirrorKlass::offset_of_static_fields() + cast_from_oop<intptr_t>(java_mirror()));
+  assert(offset >= InstanceMirrorKlass::offset_of_static_fields(), "has already been adjusted");
+  return (address)(offset + cast_from_oop<intptr_t>(java_mirror()));
 }
 
 
@@ -3630,6 +3631,15 @@ void JNIid::verify(Klass* holder) {
   }
 }
 
+oop InstanceKlass::klass_holder_phantom() {
+  oop* addr;
+  if (is_anonymous()) {
+    addr = _java_mirror.ptr_raw();
+  } else {
+    addr = &class_loader_data()->_class_loader;
+  }
+  return RootAccess<IN_CONCURRENT_ROOT | ON_PHANTOM_OOP_REF>::oop_load(addr);
+}
 
 #ifdef ASSERT
 void InstanceKlass::set_init_state(ClassState state) {
