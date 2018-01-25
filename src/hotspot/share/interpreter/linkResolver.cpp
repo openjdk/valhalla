@@ -1128,7 +1128,8 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
     return NULL;
   }
 
-  // check that invokespecial's interface method reference is in an indirect superinterface
+  // ensure that invokespecial's interface method reference is in
+  // a direct superinterface, not an indirect superinterface
   Klass* current_klass = link_info.current_klass();
   if (current_klass != NULL && resolved_klass->is_interface()) {
     InstanceKlass* ck = InstanceKlass::cast(current_klass);
@@ -1163,26 +1164,6 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
                                                   resolved_method->name(),
                                                   resolved_method->signature()));
     THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
-  }
-
-  // For private method invocation we should only find the method in the resolved class.
-  // If that is not the case then we have a found a supertype method that we have nestmate
-  // access to.
-  // FIXME: the "ignoring xxx" part is for debugging only
-  if (resolved_method->is_private() && resolved_method->method_holder() != resolved_klass) {
-    ResourceMark rm(THREAD);
-    DEBUG_ONLY(bool is_nestmate = InstanceKlass::cast(link_info.current_klass())->has_nestmate_access_to(InstanceKlass::cast(resolved_klass), THREAD);)
-    assert(is_nestmate, "was only expecting nestmates here!");
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_NoSuchMethodError(),
-      "%s: method %s%s not found (ignoring %s)",
-      resolved_klass->external_name(),
-      resolved_method->name()->as_C_string(),
-      resolved_method->signature()->as_C_string(),
-      resolved_method->method_holder()->external_name()
-    );
-    return NULL;
   }
 
   if (log_develop_is_enabled(Trace, itables)) {
@@ -1220,9 +1201,7 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
         // This check is not performed for super.invoke for interface methods
         // in super interfaces.
         current_klass->is_subclass_of(resolved_klass) &&
-        current_klass != resolved_klass &&
-        // c) check the method is not private - we don't re-resolve private methods
-        !resolved_method->is_private()
+        current_klass != resolved_klass
         ) {
       // Lookup super method
       Klass* super_klass = current_klass->super();
@@ -1248,8 +1227,8 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
     // The verifier checks that the sender is a subtype of the class in the I/MR operand.
     // The verifier also checks that the receiver is a subtype of the sender, if the sender is
     // a class.  If the sender is an interface, the check has to be performed at runtime.
-    InstanceKlass* cur_ik = InstanceKlass::cast(current_klass);
-    InstanceKlass* sender = cur_ik->is_anonymous() ? cur_ik->host_klass() : cur_ik;
+    InstanceKlass* sender = InstanceKlass::cast(current_klass);
+    sender = sender->is_anonymous() ? sender->host_klass() : sender;
     if (sender->is_interface() && recv.not_null()) {
       Klass* receiver_klass = recv->klass();
       if (!receiver_klass->is_subtype_of(sender)) {
