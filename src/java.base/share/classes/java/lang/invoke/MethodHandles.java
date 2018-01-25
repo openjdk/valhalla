@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -835,7 +835,7 @@ public class MethodHandles {
             }
             // Allow nestmate lookups to be created without special privilege:
             if ((newModes & PRIVATE) != 0
-                && !VerifyAccess.isSamePackageMember(this.lookupClass, requestedLookupClass)) {
+                && !Reflection.areNestMates(this.lookupClass, requestedLookupClass)) {
                 newModes &= ~(PRIVATE|PROTECTED);
             }
             if ((newModes & PUBLIC) != 0
@@ -2216,17 +2216,13 @@ return mh1;
             return "member is private to package";
         }
 
-        private static final boolean ALLOW_NESTMATE_ACCESS = false; // experiment with protected nestmate access
-
         private void checkSpecialCaller(Class<?> specialCaller, Class<?> refc) throws IllegalAccessException {
             int allowedModes = this.allowedModes;
             if (allowedModes == TRUSTED)  return;
             if (!hasPrivateAccess()
                 || (specialCaller != lookupClass()
                        // ensure non-abstract methods in superinterfaces can be special-invoked
-                    && !(refc != null && refc.isInterface() && refc.isAssignableFrom(specialCaller))
-                    && !(ALLOW_NESTMATE_ACCESS &&
-                         VerifyAccess.isSamePackageMember(specialCaller, lookupClass()))))
+                    && !(refc != null && refc.isInterface() && refc.isAssignableFrom(specialCaller))))
                 throw new MemberName(specialCaller).
                     makeAccessException("no private access for invokespecial", this);
         }
@@ -2237,9 +2233,7 @@ return mh1;
             if (!method.isProtected() || method.isStatic()
                 || allowedModes == TRUSTED
                 || method.getDeclaringClass() == lookupClass()
-                || VerifyAccess.isSamePackage(method.getDeclaringClass(), lookupClass())
-                || (ALLOW_NESTMATE_ACCESS &&
-                    VerifyAccess.isSamePackageMember(method.getDeclaringClass(), lookupClass())))
+                || VerifyAccess.isSamePackage(method.getDeclaringClass(), lookupClass()))
                 return false;
             return true;
         }

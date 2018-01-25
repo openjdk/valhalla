@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,23 +61,29 @@ public class VerifyAccess {
      * the defining class should be passed for both arguments ({@code defc == refc}).
      * <h3>JVM Specification, 5.4.4 "Access Control"</h3>
      * A field or method R is accessible to a class or interface D if
-     * and only if any of the following conditions is true:<ul>
-     * <li>R is public.
+     * and only if any of the following is true:
+     * <ul>
+     * <li>R is public.</li>
      * <li>R is protected and is declared in a class C, and D is either
-     *     a subclass of C or C itself.  Furthermore, if R is not
-     *     static, then the symbolic reference to R must contain a
-     *     symbolic reference to a class T, such that T is either a
-     *     subclass of D, a superclass of D or D itself.
-     * <li>R is either protected or has default access (that is,
-     *     neither public nor protected nor private), and is declared
-     *     by a class in the same runtime package as D.
-     * <li>R is private and is declared in D.
+     *     a subclass of C or C itself. Furthermore, if R is not static,
+     *     then the symbolic reference to R must contain a symbolic
+     *     reference to a class T, such that T is either a subclass of D,
+     *     a superclass of D, or D itself.
+     *     <p>During verification, it was also required that, even if T is
+     *     a superclass of D, the target reference of a protected instance
+     *     field access or method invocation must be an instance of D or a
+     *     subclass of D (4.10.1.8).</p></li>
+     * <li>R is either protected or has default access (that is, neither
+     *     public nor protected nor private), and is declared by a class
+     *     in the same run-time package as D.</li>
+     * <li>R is private and is declared in D by a class or interface
+     *     belonging to the same nest as D.</li>
      * </ul>
-     * This discussion of access control omits a related restriction
-     * on the target of a protected field access or method invocation
-     * (the target must be of class D or a subtype of D). That
-     * requirement is checked as part of the verification process
-     * (5.4.1); it is not part of link-time access control.
+     * If a referenced field or method is not accessible, access checking
+     * throws an IllegalAccessError. If an exception is thrown while
+     * attempting to determine the nest host of a class or interface,
+     * access checking fails for the same reason.
+     *
      * @param refc the class used in the symbolic reference to the proposed member
      * @param defc the class in which the proposed member is actually defined
      * @param mods modifier flags for the proposed member
@@ -97,9 +103,9 @@ public class VerifyAccess {
             return false;
         }
         // Usually refc and defc are the same, but verify defc also in case they differ.
-        if (defc == lookupClass &&
-            (allowedModes & PRIVATE) != 0)
+        if (defc == lookupClass)
             return true;        // easy check; all self-access is OK
+
         switch (mods & ALL_ACCESS_MODES) {
         case PUBLIC:
             return true;  // already checked above
@@ -125,9 +131,9 @@ public class VerifyAccess {
             return ((allowedModes & PACKAGE_ALLOWED) != 0 &&
                     isSamePackage(defc, lookupClass));
         case PRIVATE:
-            // Loosened rules for privates follows access rules for nestmates.
+            // Rules for privates follows access rules for nestmates.
             return ((allowedModes & PRIVATE) != 0 &&
-                    isSamePackageMember(defc, lookupClass));
+                    Reflection.areNestMates(defc, lookupClass));
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
         }
@@ -328,22 +334,6 @@ public class VerifyAccess {
         if (class1.getClassLoader() != class2.getClassLoader())
             return false;
         return Objects.equals(class1.getPackageName(), class2.getPackageName());
-    }
-
-    /**
-     * Test if two classes are defined as part of the same package member (top-level class).
-     * If this is true, they can share private access with each other.
-     * @param class1 a class
-     * @param class2 another class
-     * @return whether they are identical or nested together
-     */
-    public static boolean isSamePackageMember(Class<?> class1, Class<?> class2) {
-        if (class1 == class2)
-            return true;
-        if (!isSamePackage(class1, class2))
-            return false;
-        
-        return Reflection.areNestMates(class1, class2);
     }
 
     private static boolean loadersAreRelated(ClassLoader loader1, ClassLoader loader2,
