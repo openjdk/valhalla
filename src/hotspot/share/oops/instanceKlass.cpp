@@ -232,7 +232,7 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
           log_trace(class, nestmates)("%s - NoClassDefFoundError", buf);
           THROW_MSG_CAUSE_NULL(vmSymbols::java_lang_NoClassDefFoundError(), buf, exc_h);
         }
-        // other exceptions pass through (OOME, StackOverflowError etc)
+        // All other exceptions pass through (OOME, StackOverflowError, LinkageErrors etc).
         return NULL;
       }
 
