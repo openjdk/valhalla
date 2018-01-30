@@ -3904,8 +3904,15 @@ public final class Class<T> implements java.io.Serializable,
      * of its nest. The nest host will always be the zeroeth element.
      *
      * <p>Each listed nest member must be validated by checking its own
-     * declared {@linkplain #getNestHost() nest host}. Any exceptions that occur
-     * as part of this process will be thrown.
+     * declared nest host. Any exceptions that occur as part of this process
+     * will be thrown.
+     *
+     * <p>The list of nest members in the classfile is permitted to
+     * contain duplicates, or to explicitly include the nest host. It is not
+     * required that an implementation of this method removes these duplicates.
+     *
+     * @implNote This implementation does not remove duplicate nest members if they
+     * are present.
      *
      * @return an array of all classes and interfaces in the same nest as
      * this class
