@@ -33,6 +33,7 @@ import javax.tools.JavaFileObject;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.tools.javac.code.*;
@@ -294,7 +295,19 @@ public class Attr extends JCTree.Visitor {
             if (v.isResourceVariable()) { //TWR resource
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
-                log.error(pos, Errors.CantAssignValToFinalVar(v));
+                boolean complain = true;
+                /* Allow updates to blank final fields inside value factories.
+                   This really results in copy on write and not mutation of the
+                   final field
+                */
+                if (v.getKind() == ElementKind.FIELD && (v.flags() & HASINIT) == 0) {
+                    if (env.enclMethod != null && (env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
+                        if (v.owner == env.enclMethod.sym.owner)
+                            complain = false;
+                    }
+                }
+                if (complain)
+                    log.error(pos, Errors.CantAssignValToFinalVar(v));
             }
         }
     }
@@ -1138,6 +1151,9 @@ public class Attr extends JCTree.Visitor {
                 // Field initializer expression need to be entered.
                 annotate.queueScanTreeAndTypeAnnotate(tree.init, env, tree.sym, tree.pos());
                 annotate.flush();
+            }
+            if (types.isValue(tree.sym.owner.type) && (tree.mods.flags & (Flags.FINAL | Flags.STATIC)) == 0) {
+                log.error(tree.pos(), "value.field.must.be.final");
             }
         }
 
@@ -2016,6 +2032,39 @@ public class Attr extends JCTree.Visitor {
 
             chk.checkRefTypes(tree.typeargs, typeargtypes);
 
+            // FIXME(Srikanth): Above checkRefTypes call is missing in mvt branch ??
+            // identity hash code is uncomputable for value instances.
+            final Symbol symbol = TreeInfo.symbol(tree.meth);
+            if (symbol != null && symbol.name == names.identityHashCode && symbol.owner.flatName() == names.java_lang_System) {
+                if (tree.args.length() == 1 && types.isValue(tree.args.head.type))
+                    log.error(tree.pos(), "value.does.not.support", "identityHashCode");
+            }
+
+            /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
+            */
+            if (types.isValue(qualifier)) {
+                int argSize = argtypes.size();
+                Name name = symbol.name;
+                switch (name.toString()) {
+                    case "wait":
+                        if (argSize == 0
+                                || (types.isConvertible(argtypes.head, syms.longType) &&
+                                (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
+                            log.error(tree.pos(),"value.does.not.support", name);
+                        }
+                        break;
+                    case "notify":
+                    case "notifyAll":
+                    case "clone":
+                    case "finalize":
+                        if (argSize == 0)
+                            log.error(tree.pos(),"value.does.not.support", name);
+                        break;
+                }
+            }
+
+
+
             // Check that value of resulting type is admissible in the
             // current context.  Also, capture the return type
             Type capturedRes = resultInfo.checkContext.inferenceContext().cachedCapture(tree, restype, true);
@@ -2200,6 +2249,10 @@ public class Attr extends JCTree.Visitor {
                  ((JCVariableDecl) env.tree).init != tree))
                 log.error(tree.pos(), Errors.EnumCantBeInstantiated);
 
+            if (tree.creationMode == CreationMode.NEW && types.isValue(clazztype)) {
+                log.error(tree.pos(), Errors.GarbledValueReferenceInstantiation);
+            }
+
             boolean isSpeculativeDiamondInferenceRound = TreeInfo.isDiamond(tree) &&
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             boolean skipNonDiamondPath = false;
@@ -2299,6 +2352,22 @@ public class Attr extends JCTree.Visitor {
                     instantiatedContext -> {
                         tree.constructorType = instantiatedContext.asInstType(tree.constructorType);
                     });
+        }
+        if (tree.creationMode == CreationMode.DEFAULT_VALUE) {
+            if (tree.constructor != null && tree.constructor.isConstructor()) {
+                final List<Type> parameterTypes = tree.constructorType.getParameterTypes();
+                if (!parameterTypes.isEmpty()) {
+                    log.error(tree.pos, "invalid.arguments.to.make.default");
+                }
+                if (!types.isValue(TreeInfo.symbol(tree.clazz).type)) {
+                    log.error(tree.pos, "make.default.with.nonvalue");
+                } else if (env.enclMethod != null && env.enclMethod.sym.owner != TreeInfo.symbol(tree.clazz)) {
+                    log.error(tree.pos, "make.default.with.wrong.value.type", TreeInfo.symbol(tree.clazz));
+                }
+            }
+            if (env.enclMethod != null && (env.enclMethod.mods.flags & STATICVALUEFACTORY) == 0) {
+                log.error(tree.pos, "make.default.in.nonfactory");
+            }
         }
         chk.validate(tree.typeargs, localEnv);
     }
@@ -3407,6 +3476,9 @@ public class Attr extends JCTree.Visitor {
             if ((opc == ByteCodes.if_acmpeq || opc == ByteCodes.if_acmpne)) {
                 if (!types.isCastable(left, right, new Warner(tree.pos()))) {
                     log.error(tree.pos(), Errors.IncomparableTypes(left, right));
+                }
+                if (types.isValue(left) || types.isValue(right)) {
+                    log.error(tree.pos(), "value.does.not.support", tree.operator.name.toString());
                 }
             }
 

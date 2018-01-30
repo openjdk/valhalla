@@ -1,0 +1,3 @@
+CheckCyclicMembership.java:15:33: compiler.err.cyclic.value.type.membership: CheckCyclicMembership
+CheckCyclicMembership.java:13:37: compiler.err.cyclic.value.type.membership: CheckCyclicMembership.InnerValue
+2 errors

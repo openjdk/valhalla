@@ -98,6 +98,9 @@ public class Flags {
     /** Added in SE8, represents constructs implicitly declared in source. */
     public static final int MANDATED     = 1<<15;
 
+    /** Marks a type as a value-type */
+    public static final int VALUE        = 1<<16;
+
     public static final int StandardFlags = 0x0fff;
 
     // Because the following access flags are overloaded with other
@@ -107,6 +110,7 @@ public class Flags {
     public static final int ACC_SUPER    = 0x0020;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
+    public static final int ACC_VALUE    = 0x0100;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************
@@ -121,6 +125,11 @@ public class Flags {
      *  has an initializer part.
      */
     public static final int HASINIT          = 1<<18;
+
+    /** Flag is set for a method symbol that acts as a static factory method for a value type
+     *  (contrast with vminit methods flagged as STATICVALUEFACTORY)
+     */
+    public static final int STATICVALUEFACTORY = 1<<19;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -317,7 +326,7 @@ public class Flags {
      */
     public static final int
         AccessFlags           = PUBLIC | PROTECTED | PRIVATE,
-        LocalClassFlags       = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC,
+        LocalClassFlags       = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC | VALUE,
         MemberClassFlags      = LocalClassFlags | INTERFACE | AccessFlags,
         ClassFlags            = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
         InterfaceVarFlags     = FINAL | STATIC | PUBLIC,
@@ -326,9 +335,9 @@ public class Flags {
         ConstructorFlags      = AccessFlags,
         InterfaceMethodFlags  = ABSTRACT | PUBLIC,
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
-                                SYNCHRONIZED | FINAL | STRICTFP;
+                                SYNCHRONIZED | FINAL | STRICTFP | STATICVALUEFACTORY;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | STATICVALUEFACTORY,
         ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
@@ -353,6 +362,8 @@ public class Flags {
             if (0 != (flags & NATIVE))    modifiers.add(Modifier.NATIVE);
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
+            if (0 != (flags & VALUE))     modifiers.add(Modifier.VALUE);
+            if (0 != (flags & STATICVALUEFACTORY))     modifiers.add(Modifier.STATICVALUEFACTORY);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
@@ -394,9 +405,11 @@ public class Flags {
         ANNOTATION(Flags.ANNOTATION),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
+        STATICVALUEFACTORY(Flags.STATICVALUEFACTORY),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
+        VALUE(Flags.VALUE),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),
         COMPOUND(Flags.COMPOUND),

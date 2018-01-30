@@ -99,6 +99,7 @@ public class Names {
     public final Name getMessage;
     public final Name hasNext;
     public final Name hashCode;
+    public final Name identityHashCode;
     public final Name init;
     public final Name initCause;
     public final Name iterator;
@@ -120,6 +121,7 @@ public class Names {
     public final Name java_lang_Enum;
     public final Name java_lang_Object;
     public final Name java_lang_invoke_MethodHandle;
+    public final Name java_lang_System;
 
     // names of builtin classes
     public final Name Array;
@@ -261,6 +263,7 @@ public class Names {
         getMessage = fromString("getMessage");
         hasNext = fromString("hasNext");
         hashCode = fromString("hashCode");
+        identityHashCode = fromString("identityHashCode");
         init = fromString("<init>");
         initCause = fromString("initCause");
         iterator = fromString("iterator");
@@ -283,6 +286,7 @@ public class Names {
         java_lang_Enum = fromString("java.lang.Enum");
         java_lang_Object = fromString("java.lang.Object");
         java_lang_invoke_MethodHandle = fromString("java.lang.invoke.MethodHandle");
+        java_lang_System = fromString("java.lang.System");
 
         // names of builtin classes
         Array = fromString("Array");
