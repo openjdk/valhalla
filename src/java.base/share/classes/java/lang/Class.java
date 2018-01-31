@@ -3853,7 +3853,7 @@ public final class Class<T> implements java.io.Serializable,
      * is a member of the nest consisting only of itself, and is the
      * nest host. Every class and interface is a member of exactly one nest.
      *
-     * @return the nest host of this class, or {@code this} if we can not
+     * @return the nest host of this class, or {@code this} if we cannot
      * obtain a valid nest host
      *
      * @since 11
