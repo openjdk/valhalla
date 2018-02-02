@@ -38,6 +38,7 @@
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueArrayKlass.inline.hpp"
 #include "runtime/atomic.hpp"
 
 PSOldGen*            ParCompactionManager::_old_gen = NULL;
@@ -234,6 +235,15 @@ void TypeArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
   assert(obj->is_typeArray(),"must be a type array");
   // Performance tweak: We skip iterating over the klass pointer since we
   // know that Universe::TypeArrayKlass never moves.
+}
+
+void ValueArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
+  assert(obj->is_valueArray(),"must be a value array");
+  cm->follow_klass(this);
+  if (contains_oops()) { // CMH: parallel version (like objArrayTask) missing, treat as single obj for now
+    ParCompactionManager::MarkAndPushClosure cl(cm);
+    ValueArrayKlass::oop_oop_iterate_elements<true>(valueArrayOop(obj), &cl);
+  }
 }
 
 void ParCompactionManager::follow_marking_stacks() {

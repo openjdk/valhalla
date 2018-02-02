@@ -298,6 +298,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void classes_do(void f(Klass*));
   void loaded_classes_do(KlassClosure* klass_closure);
   void classes_do(void f(InstanceKlass*));
+  void value_classes_do(void f(ValueKlass*));
   void methods_do(void f(Method*));
   void modules_do(void f(ModuleEntry*));
   void packages_do(void f(PackageEntry*));

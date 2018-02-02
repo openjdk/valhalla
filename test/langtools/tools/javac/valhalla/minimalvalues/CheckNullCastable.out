@@ -1,0 +1,9 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckNullCastable.java:10:54: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullCastable)
+CheckNullCastable.java:11:17: compiler.warn.incomparable.types: CheckNullCastable, compiler.misc.type.null
+CheckNullCastable.java:11:17: compiler.warn.value.does.not.support: !=
+CheckNullCastable.java:12:18: compiler.warn.incomparable.types: compiler.misc.type.null, CheckNullCastable
+CheckNullCastable.java:12:18: compiler.warn.value.does.not.support: !=
+1 error
+6 warnings

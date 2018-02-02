@@ -135,8 +135,9 @@ enum MemoryType {
   mtLogging           = 0x0F,  // memory for logging
   mtArguments         = 0x10,  // memory for argument processing
   mtModule            = 0x11,  // memory for module processing
-  mtNone              = 0x12,  // undefined
-  mt_number_of_types  = 0x13   // number of memory types (mtDontTrack
+  mtValueTypes        = 0x12,  // memory for buffered value types
+  mtNone              = 0x13,  // undefined
+  mt_number_of_types  = 0x14   // number of memory types (mtDontTrack
                                  // is not included as validate type)
 };
 

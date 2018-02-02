@@ -1,0 +1,5 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckExtends.java:8:7: compiler.warn.value.may.not.extend
+1 error
+2 warnings

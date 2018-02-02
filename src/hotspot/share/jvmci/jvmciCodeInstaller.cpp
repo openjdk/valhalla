@@ -1108,7 +1108,7 @@ void CodeInstaller::record_scope(jint pc_offset, Handle position, ScopeMode scop
     throw_exception = BytecodeFrame::rethrowException(frame) == JNI_TRUE;
   }
 
-  _debug_recorder->describe_scope(pc_offset, method, NULL, bci, reexecute, throw_exception, false, return_oop,
+  _debug_recorder->describe_scope(pc_offset, method, NULL, bci, reexecute, throw_exception, false, return_oop, false,
                                   locals_token, expressions_token, monitors_token);
 }
 
@@ -1165,7 +1165,7 @@ void CodeInstaller::site_Call(CodeBuffer& buffer, jint pc_offset, Handle site, T
     OopMap *map = create_oop_map(debug_info, CHECK);
     _debug_recorder->add_safepoint(next_pc_offset, map);
 
-    bool return_oop = hotspot_method.not_null() && getMethodFromHotSpotMethod(hotspot_method())->is_returning_oop();
+    bool return_oop = hotspot_method.not_null() && getMethodFromHotSpotMethod(hotspot_method())->may_return_oop();
 
     record_scope(next_pc_offset, debug_info, CodeInstaller::FullFrame, return_oop, CHECK);
   }

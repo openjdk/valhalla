@@ -1178,16 +1178,16 @@ Node* PhaseIterGVN::register_new_node_with_optimizer(Node* n, Node* orig) {
 //------------------------------transform--------------------------------------
 // Non-recursive: idealize Node 'n' with respect to its inputs and its value
 Node *PhaseIterGVN::transform( Node *n ) {
-  if (_delay_transform) {
-    // Register the node but don't optimize for now
-    register_new_node_with_optimizer(n);
-    return n;
-  }
-
   // If brand new node, make space in type array, and give it a type.
   ensure_type_or_null(n);
   if (type_or_null(n) == NULL) {
     set_type_bottom(n);
+  }
+
+  if (_delay_transform) {
+    // Add the node to the worklist but don't optimize for now
+    _worklist.push(n);
+    return n;
   }
 
   return transform_old(n);
@@ -1421,6 +1421,9 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (cast != NULL && cast->has_range_check()) {
         C->remove_range_check_cast(cast);
       }
+      if (dead->is_ValueTypeBase()) {
+        C->remove_value_type(dead);
+      }
     }
   } // while (_stack.is_nonempty())
 }
@@ -1478,6 +1481,17 @@ void PhaseIterGVN::subsume_node( Node *old, Node *nn ) {
 #endif
   _worklist.remove(temp);   // this can be necessary
   temp->destruct();         // reuse the _idx of this little guy
+}
+
+void PhaseIterGVN::replace_in_uses(Node* n, Node* m) {
+  for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+    Node* u = n->fast_out(i);
+    if (u != n) {
+      rehash_node_delayed(u);
+      int nb = u->replace_edge(n, m);
+      --i, imax -= nb;
+    }
+  }
 }
 
 //------------------------------add_users_to_worklist--------------------------
@@ -1625,6 +1639,14 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       Node* imem = use->as_Initialize()->proj_out_or_null(TypeFunc::Memory);
       if (imem != NULL)  add_users_to_worklist0(imem);
     }
+    if (use_op == Op_CastP2X) {
+      for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
+        Node* u = use->fast_out(i2);
+        if (u->Opcode() == Op_AndX) {
+          _worklist.push(u);
+        }
+      }
+    }
     // Loading the java mirror from a klass oop requires two loads and the type
     // of the mirror load depends on the type of 'n'. See LoadNode::Value().
     if (use_op == Op_LoadP && use->bottom_type()->isa_rawptr()) {
@@ -1769,6 +1791,14 @@ void PhaseCCP::analyze() {
           PhiNode* phi = countedloop_phi_from_cmp((CmpINode*)m, n);
           if (phi != NULL) {
             worklist.push(phi);
+          }
+        }
+        if (m_op == Op_CastP2X) {
+          for (DUIterator_Fast i2max, i2 = m->fast_outs(i2max); i2 < i2max; i2++) {
+            Node* u = m->fast_out(i2);
+            if (u->Opcode() == Op_AndX) {
+              worklist.push(u);
+            }
           }
         }
         // Loading the java mirror from a klass oop requires two loads and the type

@@ -62,7 +62,9 @@ class   ciType;
 class    ciReturnAddress;
 class    ciKlass;
 class     ciInstanceKlass;
+class       ciValueKlass;
 class     ciArrayKlass;
+class       ciValueArrayKlass;
 class       ciObjArrayKlass;
 class       ciTypeArrayKlass;
 
@@ -114,7 +116,9 @@ friend class ciType;                   \
 friend class ciReturnAddress;          \
 friend class ciKlass;                  \
 friend class ciInstanceKlass;          \
+friend class ciValueKlass;             \
 friend class ciArrayKlass;             \
+friend class ciValueArrayKlass;        \
 friend class ciObjArrayKlass;          \
 friend class ciTypeArrayKlass;         \
 

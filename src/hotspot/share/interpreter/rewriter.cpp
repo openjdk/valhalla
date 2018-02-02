@@ -164,7 +164,7 @@ void Rewriter::rewrite_Object_init(const methodHandle& method, TRAPS) {
 void Rewriter::rewrite_member_reference(address bcp, int offset, bool reverse) {
   address p = bcp + offset;
   if (!reverse) {
-    int  cp_index    = Bytes::get_Java_u2(p);
+    int cp_index    = Bytes::get_Java_u2(p);
     int  cache_index = cp_entry_to_cp_cache(cp_index);
     Bytes::put_native_u2(p, cache_index);
     if (!_method_handle_invokers.is_empty())
@@ -199,7 +199,6 @@ void Rewriter::rewrite_invokespecial(address bcp, int offset, bool reverse, bool
     rewrite_member_reference(bcp, offset, reverse);
   }
 }
-
 
 // Adjust the invocation bytecode for a signature-polymorphic method (MethodHandle.invoke, etc.)
 void Rewriter::maybe_rewrite_invokehandle(address opc, int cp_index, int cache_index, bool reverse) {
@@ -455,6 +454,7 @@ void Rewriter::scan_method(Method* method, bool reverse, bool* invokespecial_err
       // fall through
       case Bytecodes::_getstatic      : // fall through
       case Bytecodes::_getfield       : // fall through
+        case Bytecodes::_vwithfield     : // fall through but may require more checks for correctness
       case Bytecodes::_invokevirtual  : // fall through
       case Bytecodes::_invokestatic   :
       case Bytecodes::_invokeinterface:

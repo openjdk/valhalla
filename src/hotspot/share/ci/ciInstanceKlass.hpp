@@ -65,7 +65,10 @@ private:
 
   ciConstantPoolCache*   _field_cache;  // cached map index->field
   GrowableArray<ciField*>* _nonstatic_fields;
+
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
+
+  ciInstanceKlass*       _vcc_klass; // points to the value-capable class corresponding to the current derived value type class.
 
   // The possible values of the _implementor fall into following three cases:
   //   NULL: no implementor.
@@ -102,8 +105,8 @@ protected:
 
   void compute_shared_init_state();
   bool compute_shared_has_subklass();
-  int  compute_nonstatic_fields();
-  GrowableArray<ciField*>* compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields);
+  virtual int compute_nonstatic_fields();
+  GrowableArray<ciField*>* compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten = true);
 
   // Update the init_state for shared klasses
   void update_if_shared(InstanceKlass::ClassState expected) {
@@ -185,14 +188,16 @@ public:
 
   ciInstanceKlass* get_canonical_holder(int offset);
   ciField* get_field_by_offset(int field_offset, bool is_static);
+  ciType*  get_field_type_by_offset(int field_offset);
   ciField* get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static);
 
   // total number of nonstatic fields (including inherited):
   int nof_nonstatic_fields() {
-    if (_nonstatic_fields == NULL)
+    if (_nonstatic_fields == NULL) {
       return compute_nonstatic_fields();
-    else
+    } else {
       return _nonstatic_fields->length();
+    }
   }
 
   bool has_injected_fields() {
@@ -212,7 +217,7 @@ public:
   bool has_finalizable_subclass();
 
   bool contains_field_offset(int offset) {
-    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size());
+    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size(), is_valuetype());
   }
 
   // Get the instance of java.lang.Class corresponding to
@@ -233,6 +238,7 @@ public:
 
   bool is_leaf_type();
   ciInstanceKlass* implementor();
+  ciInstanceKlass* vcc_klass();
 
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;

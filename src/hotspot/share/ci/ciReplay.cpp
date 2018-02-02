@@ -34,6 +34,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
@@ -704,14 +705,25 @@ class CompileReplay : public StackObj {
           }
           break;
         }
+
+        case JVM_CONSTANT_UnresolvedValue: {
+          if (tag == JVM_CONSTANT_Value) {
+            tty->print_cr("Resolving value type %s at %d", cp->klass_name_at(i)->as_utf8(), i);
+            Klass* k = cp->klass_at(i, CHECK);
+          }
+          break;
+        }
+
         case JVM_CONSTANT_Long:
         case JVM_CONSTANT_Double:
           parsed_two_word = i + 1;
 
         case JVM_CONSTANT_ClassIndex:
+        case JVM_CONSTANT_ValueIndex:
         case JVM_CONSTANT_StringIndex:
         case JVM_CONSTANT_String:
         case JVM_CONSTANT_UnresolvedClassInError:
+        case JVM_CONSTANT_UnresolvedValueInError:
         case JVM_CONSTANT_Fieldref:
         case JVM_CONSTANT_Methodref:
         case JVM_CONSTANT_InterfaceMethodref:
@@ -738,6 +750,16 @@ class CompileReplay : public StackObj {
           }
           break;
 
+        case JVM_CONSTANT_Value:
+          if (tag == JVM_CONSTANT_Value) {
+          } else if (tag == JVM_CONSTANT_UnresolvedValue) {
+            tty->print_cr("Warning: entry was unresolved in the replay data");
+          } else {
+            report_error("Unexpected tag");
+            return;
+          }
+          break;
+
         case 0:
           if (parsed_two_word == i) continue;
 
@@ -749,10 +771,158 @@ class CompileReplay : public StackObj {
     }
   }
 
+  class ValueTypeFieldInitializer : public FieldClosure {
+    oop _vt;
+    CompileReplay* _replay;
+  public:
+    ValueTypeFieldInitializer(oop vt, CompileReplay* replay)
+  : _vt(vt), _replay(replay) {}
+
+    void do_field(fieldDescriptor* fd) {
+      BasicType bt = fd->field_type();
+      const char* string_value = bt != T_VALUETYPE ? _replay->parse_escaped_string() : NULL;
+      switch (bt) {
+      case T_BYTE: {
+        int value = atoi(string_value);
+        _vt->byte_field_put(fd->offset(), value);
+        break;
+      }
+      case T_BOOLEAN: {
+        int value = atoi(string_value);
+        _vt->bool_field_put(fd->offset(), value);
+        break;
+      }
+      case T_SHORT: {
+        int value = atoi(string_value);
+        _vt->short_field_put(fd->offset(), value);
+        break;
+      }
+      case T_CHAR: {
+        int value = atoi(string_value);
+        _vt->char_field_put(fd->offset(), value);
+        break;
+      }
+      case T_INT: {
+        int value = atoi(string_value);
+        _vt->int_field_put(fd->offset(), value);
+        break;
+      }
+      case T_LONG: {
+        jlong value;
+        if (sscanf(string_value, JLONG_FORMAT, &value) != 1) {
+          fprintf(stderr, "Error parsing long: %s\n", string_value);
+          break;
+        }
+        _vt->long_field_put(fd->offset(), value);
+        break;
+      }
+      case T_FLOAT: {
+        float value = atof(string_value);
+        _vt->float_field_put(fd->offset(), value);
+        break;
+      }
+      case T_DOUBLE: {
+        double value = atof(string_value);
+        _vt->double_field_put(fd->offset(), value);
+        break;
+      }
+      case T_ARRAY:
+      case T_OBJECT: {
+        Thread* THREAD = Thread::current();
+        bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
+        assert(res, "should succeed for arrays & objects");
+        break;
+      }
+      case T_VALUETYPE: {
+        Thread* THREAD = Thread::current();
+        SignatureStream ss(fd->signature(), false);
+        InstanceKlass* holder = fd->field_holder();
+        Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
+                               Handle(THREAD, holder->protection_domain()),
+                               SignatureStream::ReturnNull, THREAD);
+        assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
+        ValueKlass* vk = ValueKlass::cast(k);
+        if (fd->is_flatten()) {
+          int field_offset = fd->offset() - vk->first_field_offset();
+          oop obj = (oop)((address)_vt + field_offset);
+          ValueTypeFieldInitializer init_fields(obj, _replay);
+          vk->do_nonstatic_fields(&init_fields);
+        } else {
+          oop value = vk->allocate_instance(THREAD);
+          _vt->obj_field_put(fd->offset(), value);
+        }
+        break;
+      }
+      default: {
+        fatal("Unhandled type: %s", type2name(bt));
+      }
+      }
+    }
+  };
+
+  bool process_staticfield_reference(const char* field_signature, oop java_mirror, fieldDescriptor* fd, TRAPS) {
+    if (field_signature[0] == '[') {
+      int length = parse_int("array length");
+      oop value = NULL;
+
+      if (field_signature[1] == '[') {
+        // multi dimensional array
+        Klass* k = resolve_klass(field_signature, CHECK_(true));
+        ArrayKlass* kelem = (ArrayKlass *)k;
+        int rank = 0;
+        while (field_signature[rank] == '[') {
+          rank++;
+        }
+        jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
+        dims[0] = length;
+        for (int i = 1; i < rank; i++) {
+          dims[i] = 1; // These aren't relevant to the compiler
+        }
+        value = kelem->multi_allocate(rank, dims, CHECK_(true));
+      } else {
+        if (strcmp(field_signature, "[B") == 0) {
+          value = oopFactory::new_byteArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[Z") == 0) {
+          value = oopFactory::new_boolArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[C") == 0) {
+          value = oopFactory::new_charArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[S") == 0) {
+          value = oopFactory::new_shortArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[F") == 0) {
+          value = oopFactory::new_singleArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[D") == 0) {
+          value = oopFactory::new_doubleArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[I") == 0) {
+          value = oopFactory::new_intArray(length, CHECK_(true));
+        } else if (strcmp(field_signature, "[J") == 0) {
+          value = oopFactory::new_longArray(length, CHECK_(true));
+        } else if (field_signature[0] == '[' && field_signature[1] == 'L') {
+          Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
+          value = oopFactory::new_objArray(kelem, length, CHECK_(true));
+        } else {
+          report_error("unhandled array staticfield");
+        }
+      }
+      java_mirror->obj_field_put(fd->offset(), value);
+      return true;
+    } else if (strcmp(field_signature, "Ljava/lang/String;") == 0) {
+      const char* string_value = parse_escaped_string();
+      Handle value = java_lang_String::create_from_str(string_value, CHECK_(true));
+      java_mirror->obj_field_put(fd->offset(), value());
+      return true;
+    } else if (field_signature[0] == 'L') {
+      Klass* k = resolve_klass(field_signature, CHECK_(true));
+      oop value = InstanceKlass::cast(k)->allocate_instance(CHECK_(true));
+      java_mirror->obj_field_put(fd->offset(), value);
+      return true;
+    }
+    return false;
+  }
+
   // Initialize a class and fill in the value for a static field.
   // This is useful when the compile was dependent on the value of
   // static fields but it's impossible to properly rerun the static
-  // initiailizer.
+  // initializer.
   void process_staticfield(TRAPS) {
     InstanceKlass* k = (InstanceKlass *)parse_klass(CHECK);
 
@@ -776,89 +946,52 @@ class CompileReplay : public StackObj {
     }
 
     oop java_mirror = k->java_mirror();
-    if (field_signature[0] == '[') {
-      int length = parse_int("array length");
-      oop value = NULL;
-
-      if (field_signature[1] == '[') {
-        // multi dimensional array
-        ArrayKlass* kelem = (ArrayKlass *)parse_klass(CHECK);
-        if (kelem == NULL) {
-          return;
-        }
-        int rank = 0;
-        while (field_signature[rank] == '[') {
-          rank++;
-        }
-        jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
-        dims[0] = length;
-        for (int i = 1; i < rank; i++) {
-          dims[i] = 1; // These aren't relevant to the compiler
-        }
-        value = kelem->multi_allocate(rank, dims, CHECK);
-      } else {
-        if (strcmp(field_signature, "[B") == 0) {
-          value = oopFactory::new_byteArray(length, CHECK);
-        } else if (strcmp(field_signature, "[Z") == 0) {
-          value = oopFactory::new_boolArray(length, CHECK);
-        } else if (strcmp(field_signature, "[C") == 0) {
-          value = oopFactory::new_charArray(length, CHECK);
-        } else if (strcmp(field_signature, "[S") == 0) {
-          value = oopFactory::new_shortArray(length, CHECK);
-        } else if (strcmp(field_signature, "[F") == 0) {
-          value = oopFactory::new_singleArray(length, CHECK);
-        } else if (strcmp(field_signature, "[D") == 0) {
-          value = oopFactory::new_doubleArray(length, CHECK);
-        } else if (strcmp(field_signature, "[I") == 0) {
-          value = oopFactory::new_intArray(length, CHECK);
-        } else if (strcmp(field_signature, "[J") == 0) {
-          value = oopFactory::new_longArray(length, CHECK);
-        } else if (field_signature[0] == '[' && field_signature[1] == 'L') {
-          Klass* kelem = resolve_klass(field_signature + 1, CHECK);
-          value = oopFactory::new_objArray(kelem, length, CHECK);
-        } else {
-          report_error("unhandled array staticfield");
-        }
+    if (strcmp(field_signature, "I") == 0) {
+      const char* string_value = parse_escaped_string();
+      int value = atoi(string_value);
+      java_mirror->int_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "B") == 0) {
+      const char* string_value = parse_escaped_string();
+      int value = atoi(string_value);
+      java_mirror->byte_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "C") == 0) {
+      const char* string_value = parse_escaped_string();
+      int value = atoi(string_value);
+      java_mirror->char_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "S") == 0) {
+      const char* string_value = parse_escaped_string();
+      int value = atoi(string_value);
+      java_mirror->short_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "Z") == 0) {
+      const char* string_value = parse_escaped_string();
+      int value = atoi(string_value);
+      java_mirror->bool_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "J") == 0) {
+      const char* string_value = parse_escaped_string();
+      jlong value;
+      if (sscanf(string_value, JLONG_FORMAT, &value) != 1) {
+        fprintf(stderr, "Error parsing long: %s\n", string_value);
+        return;
       }
+      java_mirror->long_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "F") == 0) {
+      const char* string_value = parse_escaped_string();
+      float value = atof(string_value);
+      java_mirror->float_field_put(fd.offset(), value);
+    } else if (strcmp(field_signature, "D") == 0) {
+      const char* string_value = parse_escaped_string();
+      double value = atof(string_value);
+      java_mirror->double_field_put(fd.offset(), value);
+    } else if (field_signature[0] == 'Q') {
+      Klass* kelem = resolve_klass(field_signature, CHECK);
+      ValueKlass* vk = ValueKlass::cast(kelem);
+      oop value = vk->allocate_instance(CHECK);
+      ValueTypeFieldInitializer init_fields(value, this);
+      vk->do_nonstatic_fields(&init_fields);
       java_mirror->obj_field_put(fd.offset(), value);
     } else {
-      const char* string_value = parse_escaped_string();
-      if (strcmp(field_signature, "I") == 0) {
-        int value = atoi(string_value);
-        java_mirror->int_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "B") == 0) {
-        int value = atoi(string_value);
-        java_mirror->byte_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "C") == 0) {
-        int value = atoi(string_value);
-        java_mirror->char_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "S") == 0) {
-        int value = atoi(string_value);
-        java_mirror->short_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "Z") == 0) {
-        int value = atoi(string_value);
-        java_mirror->bool_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "J") == 0) {
-        jlong value;
-        if (sscanf(string_value, JLONG_FORMAT, &value) != 1) {
-          fprintf(stderr, "Error parsing long: %s\n", string_value);
-          return;
-        }
-        java_mirror->long_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "F") == 0) {
-        float value = atof(string_value);
-        java_mirror->float_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "D") == 0) {
-        double value = atof(string_value);
-        java_mirror->double_field_put(fd.offset(), value);
-      } else if (strcmp(field_signature, "Ljava/lang/String;") == 0) {
-        Handle value = java_lang_String::create_from_str(string_value, CHECK);
-        java_mirror->obj_field_put(fd.offset(), value());
-      } else if (field_signature[0] == 'L') {
-        Klass* k = resolve_klass(string_value, CHECK);
-        oop value = InstanceKlass::cast(k)->allocate_instance(CHECK);
-        java_mirror->obj_field_put(fd.offset(), value);
-      } else {
+      bool res = process_staticfield_reference(field_signature, java_mirror, &fd, CHECK);
+      if (!res)  {
         report_error("unhandled staticfield");
       }
     }

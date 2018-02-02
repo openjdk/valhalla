@@ -59,6 +59,8 @@ compiler/aot/DeoptimizationTest.java 8175791 windows-all
 applications/ctw/modules/java_desktop.java 8189604 windows-all
 applications/ctw/modules/jdk_jconsole.java 8189604 windows-all
 
+compiler/codegen/Test6896617.java 8193608 generic-all
+
 #############################################################################
 
 # :hotspot_gc
@@ -90,6 +92,29 @@ serviceability/jdwp/AllModulesCommandTest.java 8170541 generic-all
 serviceability/sa/sadebugd/SADebugDTest.java 8163805 generic-all
 serviceability/jvmti/ModuleAwareAgents/ClassFileLoadHook/MAAClassFileLoadHook.java 8173936 generic-all
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8191270 generic-all
+
+
+# Valhalla TODO:
+serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
+serviceability/sa/ClhsdbInspect.java 8190936 generic-all
+serviceability/sa/ClhsdbJdis.java 8190936 generic-all
+serviceability/sa/ClhsdbJstack.java 8190936 generic-all
+serviceability/sa/ClhsdbPrintAs.java 8190936 generic-all
+serviceability/sa/ClhsdbPrintStatics.java 8190936 generic-all
+serviceability/sa/ClhsdbSource.java 8190936 generic-all
+serviceability/sa/ClhsdbSymbol.java 8190936 generic-all
+serviceability/sa/ClhsdbWhere.java 8190936 generic-all
+serviceability/sa/JhsdbThreadInfoTest.java 8190936 generic-all
+serviceability/sa/TestClassDump.java 8190936 generic-all
+serviceability/sa/TestClhsdbJstackLock.java 8190936 generic-all
+serviceability/sa/TestCpoolForInvokeDynamic.java 8190936 generic-all
+serviceability/sa/TestHeapDumpForInvokeDynamic.java 8190936 generic-all
+serviceability/sa/TestHeapDumpForLargeArray.java 8190936 generic-all
+serviceability/sa/TestIntConstant.java 8190936 generic-all
+serviceability/sa/TestJhsdbJstackLock.java 8190936 generic-all
+serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
+
+
 #############################################################################
 
 # :hotspot_misc

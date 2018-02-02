@@ -55,6 +55,7 @@
 # include "ci/ciType.hpp"
 # include "ci/ciTypeArrayKlass.hpp"
 # include "ci/ciUtilities.hpp"
+# include "ci/ciValueArrayKlass.hpp"
 # include "ci/compilerInterface.hpp"
 # include "classfile/classFileParser.hpp"
 # include "classfile/classFileStream.hpp"

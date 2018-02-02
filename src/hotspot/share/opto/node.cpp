@@ -537,6 +537,9 @@ Node *Node::clone() const {
   if (n->is_SafePoint()) {
     n->as_SafePoint()->clone_replaced_nodes();
   }
+  if (n->is_ValueTypeBase()) {
+    C->add_value_type(n);
+  }
   return n;                     // Return the clone
 }
 
@@ -611,6 +614,9 @@ void Node::destruct() {
   CastIINode* cast = isa_CastII();
   if (cast != NULL && cast->has_range_check()) {
     compile->remove_range_check_cast(cast);
+  }
+  if (is_ValueTypeBase()) {
+    compile->remove_value_type(this);
   }
 
   if (is_SafePoint()) {
@@ -1351,6 +1357,9 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
       CastIINode* cast = dead->isa_CastII();
       if (cast != NULL && cast->has_range_check()) {
         igvn->C->remove_range_check_cast(cast);
+      }
+      if (dead->is_ValueTypeBase()) {
+        igvn->C->remove_value_type(dead);
       }
       igvn->C->record_dead_node(dead->_idx);
       // Kill all inputs to the dead guy

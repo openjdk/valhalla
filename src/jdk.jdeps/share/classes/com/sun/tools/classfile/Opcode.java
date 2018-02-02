@@ -242,6 +242,19 @@ public enum Opcode {
     IFNONNULL(0xc7, BRANCH),
     GOTO_W(0xc8, BRANCH_W),
     JSR_W(0xc9, BRANCH_W),
+
+    VLOAD(203, LOCAL),
+    VSTORE(204, LOCAL),
+    VALOAD(205),
+    VASTORE(206),
+    VRETURN(207),
+
+    VDEFAULT(208, CPREF_W),
+    VWITHFIELD(209, CPREF_W),
+
+    VBOX(210, CPREF_W),
+    VUNBOX(211, CPREF_W),
+
     // impdep 0xfe: PicoJava nonpriv
     // impdep 0xff: Picojava priv
 
@@ -258,6 +271,8 @@ public enum Opcode {
     ASTORE_W(0xc43a, WIDE_LOCAL),
     IINC_W(0xc484, WIDE_LOCAL_SHORT),
     RET_W(0xc4a9, WIDE_LOCAL),
+    VLOAD_W(0xc4cb, WIDE_LOCAL),
+    VSTORE_W(0xc4cc, WIDE_LOCAL),
 
     // PicoJava nonpriv instructions
     LOAD_UBYTE(PICOJAVA, 0xfe00),

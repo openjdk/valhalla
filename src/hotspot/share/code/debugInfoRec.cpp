@@ -287,6 +287,7 @@ void DebugInformationRecorder::describe_scope(int         pc_offset,
                                               bool        rethrow_exception,
                                               bool        is_method_handle_invoke,
                                               bool        return_oop,
+                                              bool        return_vt,
                                               DebugToken* locals,
                                               DebugToken* expressions,
                                               DebugToken* monitors) {
@@ -303,6 +304,7 @@ void DebugInformationRecorder::describe_scope(int         pc_offset,
   last_pd->set_rethrow_exception(rethrow_exception);
   last_pd->set_is_method_handle_invoke(is_method_handle_invoke);
   last_pd->set_return_oop(return_oop);
+  last_pd->set_return_vt(return_vt);
 
   // serialize sender stream offest
   stream()->write_int(sender_stream_offset);

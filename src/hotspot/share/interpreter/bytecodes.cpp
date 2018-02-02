@@ -484,11 +484,21 @@ void Bytecodes::initialize() {
   def(_goto_w              , "goto_w"              , "boooo", NULL    , T_VOID   ,  0, false);
   def(_jsr_w               , "jsr_w"               , "boooo", NULL    , T_INT    ,  0, false);
   def(_breakpoint          , "breakpoint"          , ""     , NULL    , T_VOID   ,  0, true);
+  def(_vload               , "vload"               , "bi"   , "wbii"  , T_VALUETYPE,1, false);
+  def(_vstore              , "vstore"              , "bi"   , "wbii"  , T_VOID   , -1, false);
+  def(_vaload              , "vaload"              , "b"    , NULL    , T_VALUETYPE, -1, true);
+  def(_vastore             , "vastore"             , "b"    , NULL    , T_VOID   , -3, true );
+  def(_vreturn             , "vreturn"             , "b"    , NULL    , T_VALUETYPE, -1, true);
+  def(_vbox                , "vbox"                , "bkk"  , NULL    , T_OBJECT ,  0, true );
+  def(_vunbox              , "vunbox"              , "bkk"  , NULL    , T_VALUETYPE,0, true );
+  def(_vdefault            , "vdefault"            , "bkk"  , NULL    , T_VALUETYPE, 1, true);
+  def(_vwithfield          , "vwithfield"          , "bJJ"  , NULL    , T_VALUETYPE, -1, true );
 
   //  JVM bytecodes
   //  bytecode               bytecode name           format   wide f.   result tp  stk traps  std code
 
   def(_fast_agetfield      , "fast_agetfield"      , "bJJ"  , NULL    , T_OBJECT ,  0, true , _getfield       );
+  def(_fast_qgetfield      , "fast_qgetfield"      , "bJJ"  , NULL    , T_VALUETYPE, 0, true, _getfield       );
   def(_fast_bgetfield      , "fast_bgetfield"      , "bJJ"  , NULL    , T_INT    ,  0, true , _getfield       );
   def(_fast_cgetfield      , "fast_cgetfield"      , "bJJ"  , NULL    , T_CHAR   ,  0, true , _getfield       );
   def(_fast_dgetfield      , "fast_dgetfield"      , "bJJ"  , NULL    , T_DOUBLE ,  0, true , _getfield       );
@@ -498,6 +508,7 @@ void Bytecodes::initialize() {
   def(_fast_sgetfield      , "fast_sgetfield"      , "bJJ"  , NULL    , T_SHORT  ,  0, true , _getfield       );
 
   def(_fast_aputfield      , "fast_aputfield"      , "bJJ"  , NULL    , T_OBJECT ,  0, true , _putfield       );
+  def(_fast_qputfield      , "fast_qputfield"      , "bJJ"  , NULL    , T_VALUETYPE, 0, true, _putfield       );
   def(_fast_bputfield      , "fast_bputfield"      , "bJJ"  , NULL    , T_INT    ,  0, true , _putfield       );
   def(_fast_zputfield      , "fast_zputfield"      , "bJJ"  , NULL    , T_INT    ,  0, true , _putfield       );
   def(_fast_cputfield      , "fast_cputfield"      , "bJJ"  , NULL    , T_CHAR   ,  0, true , _putfield       );

@@ -47,6 +47,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueArrayKlass.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -1915,7 +1916,8 @@ JVM_ENTRY(jclass, JVM_ConstantPoolGetClassAt(JNIEnv *env, jobject obj, jobject u
   constantPoolHandle cp = constantPoolHandle(THREAD, reflect_ConstantPool::get_cp(JNIHandles::resolve_non_null(obj)));
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
-  if (!tag.is_klass() && !tag.is_unresolved_klass()) {
+  if (!tag.is_klass() && !tag.is_unresolved_klass() &&
+      !tag.is_value_type() && !tag.is_unresolved_value_type()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Klass* k = cp->klass_at(index, CHECK_NULL);
@@ -1929,7 +1931,8 @@ JVM_ENTRY(jclass, JVM_ConstantPoolGetClassAtIfLoaded(JNIEnv *env, jobject obj, j
   constantPoolHandle cp = constantPoolHandle(THREAD, reflect_ConstantPool::get_cp(JNIHandles::resolve_non_null(obj)));
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
-  if (!tag.is_klass() && !tag.is_unresolved_klass()) {
+  if (!tag.is_klass() && !tag.is_unresolved_klass() &&
+      !tag.is_value_type() && !tag.is_unresolved_value_type()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Klass* k = ConstantPool::klass_at_if_loaded(cp, index);
@@ -2206,6 +2209,9 @@ JVM_ENTRY(jbyte, JVM_ConstantPoolGetTagAt(JNIEnv *env, jobject obj, jobject unus
   // sun.reflect.ConstantPool will return only tags from the JVM spec, not internal ones.
   if (tag.is_klass_or_reference()) {
       result = JVM_CONSTANT_Class;
+  } else if (tag.is_value_type_or_reference()) {
+      // Return Class, JVM_CONSTANT_Value not externally visible
+      result = JVM_CONSTANT_Class;
   } else if (tag.is_string_index()) {
       result = JVM_CONSTANT_String;
   } else if (tag.is_method_type_in_error()) {
@@ -2248,6 +2254,48 @@ JVM_ENTRY(jobject, JVM_AssertionStatusDirectives(JNIEnv *env, jclass unused))
   return JNIHandles::make_local(env, asd);
 JVM_END
 
+// Arrays support /////////////////////////////////////////////////////////////
+
+JVM_ENTRY(jboolean, JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject array))
+  JVMWrapper("JVM_ArrayIsAccessAtomic");
+  oop o = JNIHandles::resolve(array);
+  Klass* k = o->klass();
+  if ((o == NULL) || (!k->is_array_klass())) {
+    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
+  }
+  if (k->is_valueArray_klass()) {
+    return ValueArrayKlass::cast(k)->is_atomic();
+  }
+  return true;
+JVM_END
+
+JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array))
+  JVMWrapper("JVM_ArrayEnsureAccessAtomic");
+  oop o = JNIHandles::resolve(array);
+  Klass* k = o->klass();
+  if ((o == NULL) || (!k->is_array_klass())) {
+    THROW_0(vmSymbols::java_lang_IllegalArgumentException());
+  }
+  if (k->is_valueArray_klass()) {
+    ValueArrayKlass* vk = ValueArrayKlass::cast(k);
+    if (!vk->is_atomic()) {
+      /**
+       * Need to decide how to implement:
+       *
+       * 1) Change to objArrayOop layout, therefore oop->klass() differs so
+       * then "<atomic>[Qfoo;" klass needs to subclass "[Qfoo;" to pass through
+       * "checkcast" & "instanceof"
+       *
+       * 2) Use extra header in the valueArrayOop to flag atomicity required and
+       * possibly per instance lock structure. Said info, could be placed in
+       * "trailer" rather than disturb the current arrayOop
+       */
+      Unimplemented();
+    }
+  }
+  return array;
+JVM_END
+
 // Verification ////////////////////////////////////////////////////////////////////////////////
 
 // Reflection for the verifier /////////////////////////////////////////////////////////////////
@@ -2278,7 +2326,8 @@ JVM_QUICK_ENTRY(void, JVM_GetClassCPTypes(JNIEnv *env, jclass cls, unsigned char
     ConstantPool* cp = InstanceKlass::cast(k)->constants();
     for (int index = cp->length() - 1; index >= 0; index--) {
       constantTag tag = cp->tag_at(index);
-      types[index] = (tag.is_unresolved_klass()) ? JVM_CONSTANT_Class : tag.value();
+      // For a value type return Class, JVM_CONSTANT_Value not externally visible
+      types[index] = (tag.is_unresolved_klass() || tag.is_unresolved_value_type()) ? JVM_CONSTANT_Class : tag.value();
     }
   }
 JVM_END

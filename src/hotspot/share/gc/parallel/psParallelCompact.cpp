@@ -60,6 +60,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueArrayKlass.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
@@ -3115,6 +3116,14 @@ void ObjArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
 
 void TypeArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   assert(obj->is_typeArray(),"must be a type array");
+}
+
+void ValueArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
+  assert(obj->is_valueArray(),"must be a value array");
+  if (contains_oops()) {
+    PSParallelCompact::AdjustPointerClosure closure(cm);
+    oop_oop_iterate_elements<true>(valueArrayOop(obj), &closure);
+  }
 }
 
 ParMarkBitMapClosure::IterationStatus

@@ -321,37 +321,37 @@ StringConcat* StringConcat::merge(StringConcat* other, Node* arg) {
 
 void StringConcat::eliminate_call(CallNode* call) {
   Compile* C = _stringopts->C;
-  CallProjections projs;
-  call->extract_projections(&projs, false);
-  if (projs.fallthrough_catchproj != NULL) {
-    C->gvn_replace_by(projs.fallthrough_catchproj, call->in(TypeFunc::Control));
+  CallProjections* projs = call->extract_projections(false);
+  if (projs->fallthrough_catchproj != NULL) {
+    C->gvn_replace_by(projs->fallthrough_catchproj, call->in(TypeFunc::Control));
   }
-  if (projs.fallthrough_memproj != NULL) {
-    C->gvn_replace_by(projs.fallthrough_memproj, call->in(TypeFunc::Memory));
+  if (projs->fallthrough_memproj != NULL) {
+    C->gvn_replace_by(projs->fallthrough_memproj, call->in(TypeFunc::Memory));
   }
-  if (projs.catchall_memproj != NULL) {
-    C->gvn_replace_by(projs.catchall_memproj, C->top());
+  if (projs->catchall_memproj != NULL) {
+    C->gvn_replace_by(projs->catchall_memproj, C->top());
   }
-  if (projs.fallthrough_ioproj != NULL) {
-    C->gvn_replace_by(projs.fallthrough_ioproj, call->in(TypeFunc::I_O));
+  if (projs->fallthrough_ioproj != NULL) {
+    C->gvn_replace_by(projs->fallthrough_ioproj, call->in(TypeFunc::I_O));
   }
-  if (projs.catchall_ioproj != NULL) {
-    C->gvn_replace_by(projs.catchall_ioproj, C->top());
+  if (projs->catchall_ioproj != NULL) {
+    C->gvn_replace_by(projs->catchall_ioproj, C->top());
   }
-  if (projs.catchall_catchproj != NULL) {
+  if (projs->catchall_catchproj != NULL) {
     // EA can't cope with the partially collapsed graph this
     // creates so put it on the worklist to be collapsed later.
-    for (SimpleDUIterator i(projs.catchall_catchproj); i.has_next(); i.next()) {
+    for (SimpleDUIterator i(projs->catchall_catchproj); i.has_next(); i.next()) {
       Node *use = i.get();
       int opc = use->Opcode();
       if (opc == Op_CreateEx || opc == Op_Region) {
         _stringopts->record_dead_node(use);
       }
     }
-    C->gvn_replace_by(projs.catchall_catchproj, C->top());
+    C->gvn_replace_by(projs->catchall_catchproj, C->top());
   }
-  if (projs.resproj != NULL) {
-    C->gvn_replace_by(projs.resproj, C->top());
+  if (projs->resproj[0] != NULL) {
+    assert(projs->nb_resproj == 1, "unexpected number of results");
+    C->gvn_replace_by(projs->resproj[0], C->top());
   }
   C->gvn_replace_by(call, C->top());
 }

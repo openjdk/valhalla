@@ -35,13 +35,17 @@ hotspot_gc = \
   gc
 
 hotspot_runtime = \
-  runtime
+  runtime \
 
 hotspot_handshake = \
   runtime/handshake
 
 hotspot_serviceability = \
   serviceability
+
+hotspot_valhalla = \
+  runtime/valhalla \
+  compiler/valhalla
 
 hotspot_misc = \
   / \
@@ -106,6 +110,7 @@ hotspot_tier1_compiler_3 = \
   compiler/types/ \
   compiler/uncommontrap/ \
   compiler/unsafe/ \
+  compiler/valhalla/ \
   -compiler/intrinsics/bmi \
   -compiler/intrinsics/mathexact \
   -compiler/intrinsics/sha \

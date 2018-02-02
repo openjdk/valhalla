@@ -2202,6 +2202,20 @@ public final class System {
                 return StringCoding.getBytesUTF8NoRepl(s);
             }
 
+            public Class<?> loadValueTypeClass(Module module, ClassLoader cl, String name) {
+                try {
+                    // VM support to define DVT
+                    Class<?> c = Class.forName0(name, false, cl, Object.class);
+                    // catch if the given name is not the name of a DVT class
+                    if (!c.isDerivedValueClass()) {
+                        throw new InternalError(c.getName() + " not a value type");
+                    }
+                    return c;
+                } catch (ClassNotFoundException e) {
+                    throw new InternalError(e);
+                }
+            }
+
         });
     }
 }

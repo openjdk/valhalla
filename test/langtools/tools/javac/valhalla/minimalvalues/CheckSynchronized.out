@@ -1,0 +1,7 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckSynchronized.java:9:23: compiler.warn.mod.not.allowed.here: synchronized
+CheckSynchronized.java:12:9: compiler.warn.type.found.req: CheckSynchronized, (compiler.misc.type.req.ref)
+CheckSynchronized.java:15:9: compiler.warn.type.found.req: CheckSynchronized, (compiler.misc.type.req.ref)
+1 error
+4 warnings

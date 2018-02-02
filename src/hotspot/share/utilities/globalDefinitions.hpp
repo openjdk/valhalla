@@ -498,6 +498,15 @@ const bool support_IRIW_for_not_multiple_copy_atomic_cpu = false;
 
 
 //----------------------------------------------------------------------------------------------------
+// Prototyping
+// "Code Missing Here" macro, un-define when integrating back from prototyping stage and break
+// compilation on purpose (i.e. "forget me not")
+#define PROTOTYPE
+#ifdef PROTOTYPE
+#define CMH(m)
+#endif
+
+//----------------------------------------------------------------------------------------------------
 // Miscellaneous
 
 // 6302670 Eliminate Hotspot __fabsf dependency
@@ -574,12 +583,14 @@ enum BasicType {
   T_LONG        = 11,
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_VOID        = 14,
-  T_ADDRESS     = 15,
-  T_NARROWOOP   = 16,
-  T_METADATA    = 17,
-  T_NARROWKLASS = 18,
-  T_CONFLICT    = 19, // for stack value type with conflicting contents
+  T_VALUETYPE   = 14,
+  T_VOID        = 15,
+  T_ADDRESS     = 16,
+  T_NARROWOOP   = 17,
+  T_METADATA    = 18,
+  T_NARROWKLASS = 19,
+  T_VALUETYPEPTR= 20, // the compiler needs a way to identify buffered values
+  T_CONFLICT    = 21, // for stack value type with conflicting contents
   T_ILLEGAL     = 99
 };
 
@@ -610,6 +621,7 @@ inline BasicType char2type(char c) {
   case 'V': return T_VOID;
   case 'L': return T_OBJECT;
   case '[': return T_ARRAY;
+  case 'Q': return T_VALUETYPE;
   }
   return T_ILLEGAL;
 }
@@ -640,7 +652,8 @@ enum BasicTypeSize {
   T_ARRAY_size       = 1,
   T_NARROWOOP_size   = 1,
   T_NARROWKLASS_size = 1,
-  T_VOID_size        = 0
+  T_VOID_size        = 0,
+  T_VALUETYPE_size   = 1
 };
 
 
@@ -663,13 +676,20 @@ enum ArrayElementSize {
 #ifdef _LP64
   T_OBJECT_aelem_bytes      = 8,
   T_ARRAY_aelem_bytes       = 8,
+  T_VALUETYPE_aelem_bytes   = 8,
 #else
   T_OBJECT_aelem_bytes      = 4,
   T_ARRAY_aelem_bytes       = 4,
+  T_VALUETYPE_aelem_bytes   = 4,
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
-  T_VOID_aelem_bytes        = 0
+  T_VOID_aelem_bytes        = 0,
+#ifdef _LP64
+  T_VALUETYPEPTR_aelem_bytes= 8
+#else
+  T_VALUETYPEPTR_aelem_bytes= 4
+#endif
 };
 
 extern int _type2aelembytes[T_CONFLICT+1]; // maps a BasicType to nof bytes used by its array element
@@ -691,6 +711,7 @@ class JavaValue {
     jint     i;
     jlong    l;
     jobject  h;
+    jvaluetype q;
   } JavaCallValue;
 
  private:
@@ -761,8 +782,10 @@ enum TosState {         // describes the tos cache contents
   ftos = 6,             // float tos cached
   dtos = 7,             // double tos cached
   atos = 8,             // object cached
-  vtos = 9,             // tos not cached
+  qtos = 9,             // value type cached
+  vtos = 10,            // tos not cached,
   number_of_states,
+  ptos = 12,            // polymorphic tos cache (atos or qtos)
   ilgl                  // illegal state: should not occur
 };
 
@@ -777,6 +800,7 @@ inline TosState as_TosState(BasicType type) {
     case T_LONG   : return ltos;
     case T_FLOAT  : return ftos;
     case T_DOUBLE : return dtos;
+    case T_VALUETYPE : return qtos;
     case T_VOID   : return vtos;
     case T_ARRAY  : // fall through
     case T_OBJECT : return atos;
@@ -795,6 +819,7 @@ inline BasicType as_BasicType(TosState state) {
     case ftos : return T_FLOAT;
     case dtos : return T_DOUBLE;
     case atos : return T_OBJECT;
+    case qtos : return T_VALUETYPE;
     case vtos : return T_VOID;
     default   : return T_ILLEGAL;
   }
@@ -1074,6 +1099,16 @@ inline int log2_long(jlong x) {
 inline int exact_log2(intptr_t x) {
   assert(is_power_of_2(x), "x must be a power of 2: " INTPTR_FORMAT, x);
   return log2_intptr(x);
+}
+
+// the argument doesn't need to be a power of two
+inline int upper_log2(intptr_t x) {
+  int shift = log2_intptr(x);
+  intptr_t y = 1 << shift;
+  if (y < x) {
+    shift++;
+  }
+  return shift;
 }
 
 //* the argument must be exactly a power of 2

@@ -55,6 +55,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
  class FieldAllocationCount;
  class FieldAnnotationCollector;
  class FieldLayoutInfo;
+ class OopMapBlocksBuilder;
 
  public:
   // The ClassFileParser has an associated "publicity" level
@@ -158,6 +159,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   bool _has_nonstatic_concrete_methods;
   bool _declares_nonstatic_concrete_methods;
   bool _has_final_method;
+  bool _has_value_fields;
 
   // precomputed flags
   bool _has_finalizer;
@@ -225,6 +227,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
 
   void parse_fields(const ClassFileStream* const cfs,
                     bool is_interface,
+                    bool is_concrete_value_type,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
@@ -393,6 +396,11 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
                              const Symbol* sig,
                              TRAPS) const;
 
+  void throwValueTypeLimitation(THREAD_AND_LOCATION_DECL,
+                                const char* msg,
+                                const Symbol* name = NULL,
+                                const Symbol* sig  = NULL) const;
+
   void verify_constantvalue(const ConstantPool* const cp,
                             int constantvalue_index,
                             int signature_index,
@@ -456,6 +464,11 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
              _cp->tag_at(index).is_klass_or_reference();
   }
 
+  bool valid_value_type_reference_at(int index) const {
+    return _cp->is_within_bounds(index) &&
+             _cp->tag_at(index).is_value_type_or_reference();
+  }
+
   // Checks that the cpool index is in range and is a utf8
   bool valid_symbol_at(int cpool_index) const {
     return _cp->is_within_bounds(cpool_index) &&
@@ -495,6 +508,9 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
                      FieldLayoutInfo* info,
                      TRAPS);
 
+  // Check if the class file supports value types
+  bool supports_value_types() const;
+
  public:
   ClassFileParser(ClassFileStream* stream,
                   Symbol* name,
@@ -525,6 +541,11 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
 
   bool is_anonymous() const { return _host_klass != NULL; }
   bool is_interface() const { return _access_flags.is_interface(); }
+  bool is_value_type() const { return _access_flags.is_value_type(); }
+  bool is_value_capable_class() const;
+  bool has_value_fields() const { return _has_value_fields; }
+
+  u2 java_fields_count() const { return _java_fields_count; }
 
   const InstanceKlass* host_klass() const { return _host_klass; }
   const GrowableArray<Handle>* cp_patches() const { return _cp_patches; }

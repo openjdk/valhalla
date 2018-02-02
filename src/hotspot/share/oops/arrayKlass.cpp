@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/javaClasses.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -33,6 +34,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/arrayKlass.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayOop.hpp"
@@ -94,6 +96,41 @@ ArrayKlass::ArrayKlass(Symbol* name) :
     TRACE_INIT_ID(this);
 }
 
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
+  Symbol* name = NULL;
+  if (!element_klass->is_instance_klass() ||
+      (name = InstanceKlass::cast(element_klass)->array_name()) == NULL) {
+
+    ResourceMark rm(THREAD);
+    char *name_str = element_klass->name()->as_C_string();
+    int len = element_klass->name()->utf8_length();
+    char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
+    int idx = 0;
+    new_str[idx++] = '[';
+    if (element_klass->is_instance_klass()) { // it could be an array or simple type
+      // Temporary hack, for arrays of value types, this code should be removed
+      // once value types have their own array types
+      if (element_klass->is_value()) {
+        new_str[idx++] = 'Q';
+      } else {
+        new_str[idx++] = 'L';
+      }
+    }
+    memcpy(&new_str[idx], name_str, len * sizeof(char));
+    idx += len;
+    if (element_klass->is_instance_klass()) {
+      new_str[idx++] = ';';
+    }
+    new_str[idx++] = '\0';
+    name = SymbolTable::new_permanent_symbol(new_str, CHECK_NULL);
+    if (element_klass->is_instance_klass() || element_klass->is_value()) {
+      InstanceKlass* ik = InstanceKlass::cast(element_klass);
+      ik->set_array_name(name);
+    }
+  }
+
+  return name;
+}
 
 // Initialization of vtables and mirror object is done separatly from base_create_array_klass,
 // since a GC can happen. At this point all instance variables of the ArrayKlass must be setup.

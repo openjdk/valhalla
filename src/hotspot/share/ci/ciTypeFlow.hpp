@@ -335,14 +335,16 @@ public:
              type_at_tos()->is_array_klass(), "must be array type");
       pop();
     }
-    // pop_objArray and pop_typeArray narrow the tos to ciObjArrayKlass
-    // or ciTypeArrayKlass (resp.).  In the rare case that an explicit
+    // pop_valueOrobjArray and pop_typeArray narrow the tos to ciObjArrayKlass,
+    // ciValueArrayKlass or ciTypeArrayKlass (resp.). In the rare case that an explicit
     // null is popped from the stack, we return NULL.  Caller beware.
-    ciObjArrayKlass* pop_objArray() {
+    ciArrayKlass* pop_objOrValueArray() {
       ciType* array = pop_value();
       if (array == null_type())  return NULL;
-      assert(array->is_obj_array_klass(), "must be object array type");
-      return array->as_obj_array_klass();
+      // Value type arrays may contain oop or flattened representation
+      assert(array->is_obj_array_klass() || (ValueArrayFlatten && array->is_value_array_klass()),
+          "must be value or object array type");
+      return array->as_array_klass();
     }
     ciTypeArrayKlass* pop_typeArray() {
       ciType* array = pop_value();
@@ -356,7 +358,7 @@ public:
     void      do_null_assert(ciKlass* unloaded_klass);
 
     // Helper convenience routines.
-    void do_aaload(ciBytecodeStream* str);
+    void do_aload(ciBytecodeStream* str);
     void do_checkcast(ciBytecodeStream* str);
     void do_getfield(ciBytecodeStream* str);
     void do_getstatic(ciBytecodeStream* str);
@@ -365,10 +367,14 @@ public:
     void do_ldc(ciBytecodeStream* str);
     void do_multianewarray(ciBytecodeStream* str);
     void do_new(ciBytecodeStream* str);
+    void do_vdefault(ciBytecodeStream* str);
+    void do_vwithfield(ciBytecodeStream* str);
     void do_newarray(ciBytecodeStream* str);
     void do_putfield(ciBytecodeStream* str);
     void do_putstatic(ciBytecodeStream* str);
     void do_ret(ciBytecodeStream* str);
+    void do_vunbox(ciBytecodeStream* str);
+    void do_vbox(ciBytecodeStream* str);
 
     void overwrite_local_double_long(int index) {
       // Invalidate the previous local if it contains first half of

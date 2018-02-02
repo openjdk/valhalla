@@ -60,6 +60,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -151,7 +152,9 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
                                        nonstatic_oop_map_size(parser.total_oop_map_count()),
                                        parser.is_interface(),
                                        parser.is_anonymous(),
-                                       should_store_fingerprint(parser.is_anonymous()));
+                                       should_store_fingerprint(parser.is_anonymous()),
+                                       parser.has_value_fields() ? parser.java_fields_count() : 0,
+                                       parser.is_value_type());
 
   const Symbol* const class_name = parser.class_name();
   assert(class_name != NULL, "invariant");
@@ -165,17 +168,17 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     if (class_name == vmSymbols::java_lang_Class()) {
       // mirror
       ik = new (loader_data, size, THREAD) InstanceMirrorKlass(parser);
-    }
-    else if (is_class_loader(class_name, parser)) {
+    } else if (is_class_loader(class_name, parser)) {
       // class loader
       ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
-    }
-    else {
+    } else if (parser.is_value_type()) {
+      // value type
+      ik = new (loader_data, size, THREAD) ValueKlass(parser);
+    } else {
       // normal
       ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
     }
-  }
-  else {
+  } else {
     // reference
     ik = new (loader_data, size, THREAD) InstanceRefKlass(parser);
   }
@@ -189,6 +192,13 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   assert(ik != NULL, "invariant");
 
   const bool publicize = !parser.is_internal();
+#ifdef ASSERT
+  assert(ik->size() == size, "");
+  ik->bounds_check((address) ik->start_of_vtable(), false, size);
+  ik->bounds_check((address) ik->start_of_itable(), false, size);
+  ik->bounds_check((address) ik->end_of_itable(), true, size);
+  ik->bounds_check((address) ik->end_of_nonstatic_oop_maps(), true, size);
+#endif //ASSERT
 
   // Add all classes to our internal class loader list here,
   // including classes in the bootstrap (NULL) class loader.
@@ -198,6 +208,29 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   return ik;
 }
 
+#ifndef PRODUCT
+bool InstanceKlass::bounds_check(address addr, bool edge_ok, intptr_t size_in_bytes) const {
+  const char* bad = NULL;
+  address end = NULL;
+  if (addr < (address)this) {
+    bad = "before";
+  } else if (addr == (address)this) {
+    if (edge_ok)  return true;
+    bad = "just before";
+  } else if (addr == (end = (address)this + sizeof(intptr_t) * (size_in_bytes < 0 ? size() : size_in_bytes))) {
+    if (edge_ok)  return true;
+    bad = "just after";
+  } else if (addr > end) {
+    bad = "after";
+  } else {
+    return true;
+  }
+  tty->print_cr("%s object bounds: " INTPTR_FORMAT " [" INTPTR_FORMAT ".." INTPTR_FORMAT "]",
+      bad, (intptr_t)addr, (intptr_t)this, (intptr_t)end);
+  Verbose = WizardMode = true; this->print(); //@@
+  return false;
+}
+#endif //PRODUCT
 
 // copy method ordering from resource area to Metaspace
 void InstanceKlass::copy_method_ordering(const intArray* m, TRAPS) {
@@ -224,13 +257,18 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind) :
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
-  _reference_type(parser.reference_type()) {
+  _reference_type(parser.reference_type()),
+  _extra_flags(0) {
     set_vtable_length(parser.vtable_size());
     set_kind(kind);
     set_access_flags(parser.access_flags());
     set_is_anonymous(parser.is_anonymous());
     set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
+    if (parser.has_value_fields()) {
+      set_has_value_fields();
+    }
+    _java_fields_count = parser.java_fields_count();
 
     assert(NULL == _methods, "underlying memory not zeroed?");
     assert(is_instance_klass(), "is layout incorrect?");
@@ -571,6 +609,61 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
     interk->link_class_impl(throw_verifyerror, CHECK_false);
   }
 
+  // If a value type is referenced by a class (either as a field type or a
+  // method argument or return type) this value type must be loaded during
+  // the linking of this class because size and properties of the value type
+  // must be known in order to be able to perform value type optimizations
+
+  // Note: circular dependencies between value types are not handled yet
+
+  // Note: one case is not handled yet: arrays of value types => FixMe
+
+  // Note: the current implementation is not optimized because the search for
+  // value types is performed on all classes. It would be more efficient to
+  // detect value types during verification and 'tag' the classes for which
+  // value type loading is required. However, this optimization won't be
+  // applicable to classes that are not verified
+
+  // First step: fields
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+    ResourceMark rm(THREAD);
+    if (fs.field_descriptor().field_type() == T_VALUETYPE) {
+      Symbol* signature = fs.field_descriptor().signature();
+      // Get current loader and protection domain first.
+      oop loader = class_loader();
+      oop prot_domain = protection_domain();
+      Klass* klass = SystemDictionary::resolve_or_fail(signature,
+          Handle(THREAD, loader), Handle(THREAD, prot_domain), true,
+          THREAD);
+      if (klass == NULL) {
+        THROW_(vmSymbols::java_lang_LinkageError(), false);
+      }
+    }
+  }
+
+  // Second step: methods arguments and return types
+  //  for (int i = 0; i < this_k->constants()->length(); i++) {
+  //    if (this_k->constants()->tag_at(i).is_method()) {
+  //      Symbol* signature = this_k->constants()->signature_ref_at(i);
+  //      ResourceMark rm(THREAD);
+  //      for (SignatureStream ss(signature); !ss.is_done(); ss.next()) {
+  //        if (ss.type() == T_VALUETYPE) {
+  //          Symbol* sig = ss.as_symbol(THREAD);
+  //          // Get current loader and protection domain first.
+  //          oop loader = this_k->class_loader();
+  //          oop protection_domain = this_k->protection_domain();
+  //
+  //          bool ok = SystemDictionary::resolve_or_fail(sig,
+  //              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+  //              THREAD);
+  //          if (!ok) {
+  //            THROW_(vmSymbols::java_lang_LinkageError(), false);
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
+
   // in case the class is linked in the process of linking its superclasses
   if (is_linked()) {
     return true;
@@ -596,6 +689,11 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
     //
 
     if (!is_linked()) {
+      // The VCC must be linked before the DVT
+      if (get_vcc_klass() != NULL) {
+          InstanceKlass::cast(get_vcc_klass())->link_class(CHECK_false);
+      }
+
       if (!is_rewritten()) {
         {
           bool verify_ok = verify_code(throw_verifyerror, THREAD);
@@ -641,6 +739,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
         // itable().verify(tty, true);
       }
 #endif
+
       set_init_state(linked);
       if (JvmtiExport::should_post_class_prepare()) {
         Thread *thread = THREAD;
@@ -702,6 +801,11 @@ void InstanceKlass::initialize_super_interfaces(TRAPS) {
 
 void InstanceKlass::initialize_impl(TRAPS) {
   HandleMark hm(THREAD);
+
+  // ensure outer VCC is initialized, possible some crafty code referred to VT 1st
+  if (get_vcc_klass() != NULL) {
+    get_vcc_klass()->initialize(CHECK);
+  }
 
   // Make sure klass is linked (verified) before initialization
   // A class could already be verified, since it has been reflected upon.
@@ -1112,7 +1216,7 @@ void InstanceKlass::mask_for(const methodHandle& method, int bci,
   // Lock-free access requires load_acquire.
   OopMapCache* oop_map_cache = OrderAccess::load_acquire(&_oop_map_cache);
   if (oop_map_cache == NULL) {
-    MutexLocker x(OopMapCacheAlloc_lock);
+    MutexLockerEx x(OopMapCacheAlloc_lock,  Mutex::_no_safepoint_check_flag);
     // Check if _oop_map_cache was allocated while we were waiting for this lock
     if ((oop_map_cache = _oop_map_cache) == NULL) {
       oop_map_cache = new OopMapCache();
@@ -2289,7 +2393,7 @@ const char* InstanceKlass::signature_name() const {
 
   // Add L as type indicator
   int dest_index = 0;
-  dest[dest_index++] = 'L';
+  dest[dest_index++] = is_value_type_klass() ? 'Q' : 'L';
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {
@@ -2843,20 +2947,55 @@ static const char* state_names[] = {
   "allocated", "loaded", "linked", "being_initialized", "fully_initialized", "initialization_error"
 };
 
-static void print_vtable(intptr_t* start, int len, outputStream* st) {
+static void print_vtable(address self, intptr_t* start, int len, outputStream* st) {
+  ResourceMark rm;
+  int* forward_refs = NEW_RESOURCE_ARRAY(int, len);
+  for (int i = 0; i < len; i++)  forward_refs[i] = 0;
   for (int i = 0; i < len; i++) {
     intptr_t e = start[i];
     st->print("%d : " INTPTR_FORMAT, i, e);
+    if (forward_refs[i] != 0) {
+      int from = forward_refs[i];
+      int off = (int) start[from];
+      st->print(" (offset %d <= [%d])", off, from);
+    }
     if (e != 0 && ((Metadata*)e)->is_metaspace_object()) {
       st->print(" ");
       ((Metadata*)e)->print_value_on(st);
+    } else if (self != NULL && e > 0 && e < 0x10000) {
+      address location = self + e;
+      int index = (int)((intptr_t*)location - start);
+      st->print(" (offset %d => [%d])", (int)e, index);
+      if (index >= 0 && index < len)
+        forward_refs[index] = i;
     }
     st->cr();
   }
 }
 
 static void print_vtable(vtableEntry* start, int len, outputStream* st) {
-  return print_vtable(reinterpret_cast<intptr_t*>(start), len, st);
+  return print_vtable(NULL, reinterpret_cast<intptr_t*>(start), len, st);
+}
+
+template<typename T>
+ static void print_array_on(outputStream* st, Array<T>* array) {
+   if (array == NULL) { st->print_cr("NULL"); return; }
+   array->print_value_on(st); st->cr();
+   if (Verbose || WizardMode) {
+     for (int i = 0; i < array->length(); i++) {
+       st->print("%d : ", i); array->at(i)->print_value_on(st); st->cr();
+     }
+   }
+ }
+
+static void print_array_on(outputStream* st, Array<int>* array) {
+  if (array == NULL) { st->print_cr("NULL"); return; }
+  array->print_value_on(st); st->cr();
+  if (Verbose || WizardMode) {
+    for (int i = 0; i < array->length(); i++) {
+      st->print("%d : %d", i, array->at(i)); st->cr();
+    }
+  }
 }
 
 void InstanceKlass::print_on(outputStream* st) const {
@@ -2866,6 +3005,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"instance size:     %d", size_helper());                        st->cr();
   st->print(BULLET"klass size:        %d", size());                               st->cr();
   st->print(BULLET"access:            "); access_flags().print_on(st);            st->cr();
+  st->print(BULLET"misc flags:        0x%x", _misc_flags);                        st->cr();
   st->print(BULLET"state:             "); st->print_cr("%s", state_names[_init_state]);
   st->print(BULLET"name:              "); name()->print_value_on(st);             st->cr();
   st->print(BULLET"super:             "); super()->print_value_on_maybe_null(st); st->cr();
@@ -2892,26 +3032,14 @@ void InstanceKlass::print_on(outputStream* st) const {
   }
 
   st->print(BULLET"arrays:            "); array_klasses()->print_value_on_maybe_null(st); st->cr();
-  st->print(BULLET"methods:           "); methods()->print_value_on(st);                  st->cr();
-  if (Verbose || WizardMode) {
-    Array<Method*>* method_array = methods();
-    for (int i = 0; i < method_array->length(); i++) {
-      st->print("%d : ", i); method_array->at(i)->print_value(); st->cr();
-    }
-  }
-  st->print(BULLET"method ordering:   "); method_ordering()->print_value_on(st);      st->cr();
-  st->print(BULLET"default_methods:   "); default_methods()->print_value_on(st);      st->cr();
-  if (Verbose && default_methods() != NULL) {
-    Array<Method*>* method_array = default_methods();
-    for (int i = 0; i < method_array->length(); i++) {
-      st->print("%d : ", i); method_array->at(i)->print_value(); st->cr();
-    }
-  }
+  st->print(BULLET"methods:           "); print_array_on(st, methods());
+  st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
+  st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
   if (default_vtable_indices() != NULL) {
-    st->print(BULLET"default vtable indices:   "); default_vtable_indices()->print_value_on(st);       st->cr();
+    st->print(BULLET"default vtable indices:   "); print_array_on(st, default_vtable_indices());
   }
-  st->print(BULLET"local interfaces:  "); local_interfaces()->print_value_on(st);      st->cr();
-  st->print(BULLET"trans. interfaces: "); transitive_interfaces()->print_value_on(st); st->cr();
+  st->print(BULLET"local interfaces:  "); print_array_on(st, local_interfaces());
+  st->print(BULLET"trans. interfaces: "); print_array_on(st, transitive_interfaces());
   st->print(BULLET"constants:         "); constants()->print_value_on(st);         st->cr();
   if (class_loader_data() != NULL) {
     st->print(BULLET"class loader data:  ");
@@ -2957,7 +3085,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"vtable length      %d  (start addr: " INTPTR_FORMAT ")", vtable_length(), p2i(start_of_vtable())); st->cr();
   if (vtable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_vtable(), vtable_length(), st);
   st->print(BULLET"itable length      %d (start addr: " INTPTR_FORMAT ")", itable_length(), p2i(start_of_itable())); st->cr();
-  if (itable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_itable(), itable_length(), st);
+  if (itable_length() > 0 && (Verbose || WizardMode))  print_vtable(NULL, start_of_itable(), itable_length(), st);
   st->print_cr(BULLET"---- static fields (%d words):", static_field_size());
   FieldPrinter print_static_field(st);
   ((InstanceKlass*)this)->do_local_static_fields(&print_static_field);
@@ -3763,3 +3891,104 @@ JvmtiCachedClassFileData* InstanceKlass::get_archived_class_data() {
 }
 #endif
 #endif
+
+#define THROW_DVT_ERROR(s) \
+  Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_IncompatibleClassChangeError(), \
+      "ValueCapableClass class '%s' %s", external_name(),(s)); \
+      return
+
+void InstanceKlass::create_value_capable_class(Handle class_loader, Handle protection_domain, TRAPS) {
+  ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
+
+  if (!EnableMVT) {
+    return; // Silent fail
+  }
+  // Validate VCC...
+  if (!has_nonstatic_fields()) {
+    THROW_DVT_ERROR("has no instance fields");
+  }
+  if (is_value()) {
+    THROW_DVT_ERROR("is already a value type");
+  }
+  if (!access_flags().is_final()) {
+    THROW_DVT_ERROR("is not a final class");
+  }
+  if (super() != SystemDictionary::Object_klass()) {
+    THROW_DVT_ERROR("does not derive from Object only");
+  }
+
+  // All non-static are final
+  GrowableArray<Handle>* fields = new GrowableArray<Handle>(THREAD, java_fields_count()*2);
+  GrowableArray<jint>* fields_access = new GrowableArray<jint>(THREAD, java_fields_count()*2);
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+    AccessFlags access_flags = fs.access_flags();
+    if (access_flags.is_static()) {
+      continue;
+    }
+    if (!access_flags.is_final()) {
+      THROW_DVT_ERROR("contains non-final instance field");
+    }
+    jint flags = access_flags.get_flags();
+    // Remember the field name, signature, access modifiers
+    Handle h = java_lang_String::create_from_symbol(fs.name(), CHECK);
+    fields->append(h);
+    h = java_lang_String::create_from_symbol(fs.signature(), CHECK);
+    fields->append(h);
+    fields_access->append(access_flags.get_flags());
+  }
+
+  // Generate DVT...
+  log_debug(load)("Cooking DVT for VCC %s", external_name());
+  const char*  this_name     = name()->as_C_string();
+
+  // Assemble the Java args...field descriptor array
+  objArrayOop fdarr_oop = oopFactory::new_objectArray(fields->length(), CHECK);
+  objArrayHandle fdarr(THREAD, fdarr_oop);
+  for (int i = 0; i < fields->length(); i++) {
+    fdarr->obj_at_put(i, fields->at(i)());
+  }
+  //...field access modifiers array
+  typeArrayOop faarr_oop = oopFactory::new_intArray(fields_access->length(), CHECK);
+  typeArrayHandle faarr(THREAD, faarr_oop);
+  for (int i = 0; i < fields_access->length(); i++) {
+    faarr->int_at_put(i, fields_access->at(i));
+  }
+
+  Handle vcc_name_h = java_lang_String::create_from_symbol(name(), CHECK);
+  // Upcall to our Java helper...
+  JavaValue result(T_OBJECT);
+  JavaCallArguments args(5);
+  args.push_oop(vcc_name_h);
+  args.push_oop(class_loader);
+  args.push_oop(protection_domain);
+  args.push_oop(fdarr);
+  args.push_oop(faarr);
+  JavaCalls::call_static(&result,
+                         SystemDictionary::Valhalla_MVT1_0_klass(),
+                         vmSymbols::valhalla_shady_MVT1_0_createDerivedValueType(),
+                         vmSymbols::valhalla_shady_MVT1_0_createDerivedValueType_signature(),
+                         &args,
+                         CHECK);
+  Handle returned(THREAD, (oop) result.get_jobject());
+  if (returned.is_null()) {
+    THROW_DVT_ERROR("unknown error deriving value type");
+  }
+  TempNewSymbol dvt_name_sym = java_lang_String::as_symbol(returned(), CHECK);
+
+  Klass* dvt_klass = SystemDictionary::resolve_or_null(dvt_name_sym,
+                                                       class_loader,
+                                                       protection_domain,
+                                                       CHECK);
+  if (!dvt_klass->is_value()) {
+    THROW_DVT_ERROR("failed to resolve derived value type");
+  }
+  /**
+   * Found it, let's point to each other to denote "is_derive_vt()"...
+   */
+  ValueKlass* vt_klass = ValueKlass::cast(dvt_klass);
+  assert(vt_klass->class_loader() == class_loader(), "DVT Not the same class loader as VCC");
+  vt_klass->set_vcc_klass(this);
+  log_debug(load)("Cooked DVT %s for VCC %s", vt_klass->external_name(), external_name());
+}
+

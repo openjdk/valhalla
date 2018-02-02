@@ -243,10 +243,22 @@ class Bytecodes: AllStatic {
     _jsr_w                = 201, // 0xc9
     _breakpoint           = 202, // 0xca
 
+    // value-type bytecodes
+    _vload                = 203, // 0xcb
+    _vstore               = 204, // 0xcc
+    _vaload               = 205, // 0xcd
+    _vastore              = 206, // 0xce
+    _vreturn              = 207, // 0xcf
+    _vdefault             = 208, // 0xd0
+    _vwithfield           = 209, // 0xd1
+    _vbox                 = 210, // 0xd2
+    _vunbox               = 211, // 0xd3
+
     number_of_java_codes,
 
     // JVM bytecodes
     _fast_agetfield       = number_of_java_codes,
+    _fast_qgetfield       ,
     _fast_bgetfield       ,
     _fast_cgetfield       ,
     _fast_dgetfield       ,
@@ -256,6 +268,7 @@ class Bytecodes: AllStatic {
     _fast_sgetfield       ,
 
     _fast_aputfield       ,
+    _fast_qputfield       ,
     _fast_bputfield       ,
     _fast_zputfield       ,
     _fast_cputfield       ,

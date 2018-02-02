@@ -28,6 +28,7 @@
 #endif
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "classfile/symbolTable.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
@@ -485,6 +486,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
+    case T_VALUETYPEPTR:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -516,6 +518,88 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
   }
 
   return align_up(stk_args, 2);
+}
+
+// Same as java_calling_convention() but for multiple return
+// values. There's no way to store them on the stack so if we don't
+// have enough registers, multiple values can't be returned.
+const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j+1;
+const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
+int SharedRuntime::java_return_convention(const BasicType *sig_bt,
+                                          VMRegPair *regs,
+                                          int total_args_passed) {
+  // Create the mapping between argument positions and
+  // registers.
+  static const Register INT_ArgReg[java_return_convention_max_int] = {
+    rax, j_rarg5, j_rarg4, j_rarg3, j_rarg2, j_rarg1, j_rarg0
+  };
+  static const XMMRegister FP_ArgReg[java_return_convention_max_float] = {
+    j_farg0, j_farg1, j_farg2, j_farg3,
+    j_farg4, j_farg5, j_farg6, j_farg7
+  };
+
+
+  uint int_args = 0;
+  uint fp_args = 0;
+
+  for (int i = 0; i < total_args_passed; i++) {
+    switch (sig_bt[i]) {
+    case T_BOOLEAN:
+    case T_CHAR:
+    case T_BYTE:
+    case T_SHORT:
+    case T_INT:
+      if (int_args < Argument::n_int_register_parameters_j+1) {
+        regs[i].set1(INT_ArgReg[int_args]->as_VMReg());
+        int_args++;
+      } else {
+        return -1;
+      }
+      break;
+    case T_VOID:
+      // halves of T_LONG or T_DOUBLE
+      assert(i != 0 && (sig_bt[i - 1] == T_LONG || sig_bt[i - 1] == T_DOUBLE), "expecting half");
+      regs[i].set_bad();
+      break;
+    case T_LONG:
+      assert(sig_bt[i + 1] == T_VOID, "expecting half");
+      // fall through
+    case T_OBJECT:
+    case T_ARRAY:
+    case T_ADDRESS:
+    case T_METADATA:
+    case T_VALUETYPEPTR:
+      if (int_args < Argument::n_int_register_parameters_j+1) {
+        regs[i].set2(INT_ArgReg[int_args]->as_VMReg());
+        int_args++;
+      } else {
+        return -1;
+      }
+      break;
+    case T_FLOAT:
+      if (fp_args < Argument::n_float_register_parameters_j) {
+        regs[i].set1(FP_ArgReg[fp_args]->as_VMReg());
+        fp_args++;
+      } else {
+        return -1;
+      }
+      break;
+    case T_DOUBLE:
+      assert(sig_bt[i + 1] == T_VOID, "expecting half");
+      if (fp_args < Argument::n_float_register_parameters_j) {
+        regs[i].set2(FP_ArgReg[fp_args]->as_VMReg());
+        fp_args++;
+      } else {
+        return -1;
+      }
+      break;
+    default:
+      ShouldNotReachHere();
+      break;
+    }
+  }
+
+  return int_args + fp_args;
 }
 
 // Patch the callers callsite with entry to compiled code if it exists.
@@ -560,13 +644,117 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ bind(L);
 }
 
+// For each value type argument, sig includes the list of fields of
+// the value type. This utility function computes the number of
+// arguments for the call if value types are passed by reference (the
+// calling convention the interpreter expects).
+static int compute_total_args_passed_int(const GrowableArray<SigEntry>& sig_extended) {
+  int total_args_passed = 0;
+  if (ValueTypePassFieldsAsArgs) {
+    for (int i = 0; i < sig_extended.length(); i++) {
+      BasicType bt = sig_extended.at(i)._bt;
+      if (bt == T_VALUETYPE) {
+        // In sig_extended, a value type argument starts with:
+        // T_VALUETYPE, followed by the types of the fields of the
+        // value type and T_VOID to mark the end of the value
+        // type. Value types are flattened so, for instance, in the
+        // case of a value type with an int field and a value type
+        // field that itself has 2 fields, an int and a long:
+        // T_VALUETYPE T_INT T_VALUETYPE T_INT T_LONG T_VOID (second
+        // slot for the T_LONG) T_VOID (inner T_VALUETYPE) T_VOID
+        // (outer T_VALUETYPE)
+        total_args_passed++;
+        int vt = 1;
+        do {
+          i++;
+          BasicType bt = sig_extended.at(i)._bt;
+          BasicType prev_bt = sig_extended.at(i-1)._bt;
+          if (bt == T_VALUETYPE) {
+            vt++;
+          } else if (bt == T_VOID &&
+                     prev_bt != T_LONG &&
+                     prev_bt != T_DOUBLE) {
+            vt--;
+          }
+        } while (vt != 0);
+      } else {
+        total_args_passed++;
+      }
+    }
+  } else {
+    total_args_passed = sig_extended.length();
+  }
+  return total_args_passed;
+}
+
+
+static void gen_c2i_adapter_helper(MacroAssembler* masm,
+                                   BasicType bt,
+                                   BasicType prev_bt,
+                                   size_t size_in_bytes,
+                                   const VMRegPair& reg_pair,
+                                   const Address& to,
+                                   int extraspace,
+                                   bool is_oop) {
+  assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
+  if (bt == T_VOID) {
+    assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
+    return;
+  }
+
+  // Say 4 args:
+  // i   st_off
+  // 0   32 T_LONG
+  // 1   24 T_VOID
+  // 2   16 T_OBJECT
+  // 3    8 T_BOOL
+  // -    0 return address
+  //
+  // However to make thing extra confusing. Because we can fit a long/double in
+  // a single slot on a 64 bt vm and it would be silly to break them up, the interpreter
+  // leaves one slot empty and only stores to a single slot. In this case the
+  // slot that is occupied is the T_VOID slot. See I said it was confusing.
+
+  bool wide = (size_in_bytes == wordSize);
+  VMReg r_1 = reg_pair.first();
+  VMReg r_2 = reg_pair.second();
+  assert(r_2->is_valid() == wide, "invalid size");
+  if (!r_1->is_valid()) {
+    assert(!r_2->is_valid(), "must be invalid");
+    return;
+  }
+
+  if (!r_1->is_XMMRegister()) {
+    Register val = rax;
+    assert_different_registers(to.base(), val);
+    if(r_1->is_stack()) {
+      int ld_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
+      __ load_sized_value(val, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
+    } else {
+      val = r_1->as_Register();
+    }
+    if (is_oop) {
+      __ store_heap_oop(to, val);
+    } else {
+      __ store_sized_value(to, val, size_in_bytes);
+    }
+  } else {
+    if (wide) {
+      __ movdbl(to, r_1->as_XMMRegister());
+    } else {
+      __ movflt(to, r_1->as_XMMRegister());
+    }
+  }
+}
 
 static void gen_c2i_adapter(MacroAssembler *masm,
-                            int total_args_passed,
-                            int comp_args_on_stack,
-                            const BasicType *sig_bt,
+                            const GrowableArray<SigEntry>& sig_extended,
                             const VMRegPair *regs,
-                            Label& skip_fixup) {
+                            Label& skip_fixup,
+                            address start,
+                            OopMapSet*& oop_maps,
+                            int& frame_complete,
+                            int& frame_size_in_words) {
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -576,11 +764,57 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
+  bool has_value_argument = false;
+  if (ValueTypePassFieldsAsArgs) {
+    // Is there a value type argument?
+    for (int i = 0; i < sig_extended.length() && !has_value_argument; i++) {
+      has_value_argument = (sig_extended.at(i)._bt == T_VALUETYPE);
+    }
+    if (has_value_argument) {
+      // There is at least a value type argument: we're coming from
+      // compiled code so we have no buffers to back the value
+      // types. Allocate the buffers here with a runtime call.
+      oop_maps = new OopMapSet();
+      OopMap* map = NULL;
+
+      map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+
+      frame_complete = __ offset();
+
+      __ set_last_Java_frame(noreg, noreg, NULL);
+
+      __ mov(c_rarg0, r15_thread);
+      __ mov(c_rarg1, rbx);
+
+      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
+
+      oop_maps->add_gc_map((int)(__ pc() - start), map);
+      __ reset_last_Java_frame(false);
+
+      RegisterSaver::restore_live_registers(masm);
+
+      Label no_exception;
+      __ cmpptr(Address(r15_thread, Thread::pending_exception_offset()), (int32_t)NULL_WORD);
+      __ jcc(Assembler::equal, no_exception);
+
+      __ movptr(Address(r15_thread, JavaThread::vm_result_offset()), (int)NULL_WORD);
+      __ movptr(rax, Address(r15_thread, Thread::pending_exception_offset()));
+      __ jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+      __ bind(no_exception);
+
+      // We get an array of objects from the runtime call
+      __ get_vm_result(r13, r15_thread); // Use r13 as temporary because r10 is trashed by movptr()
+      __ get_vm_result_2(rbx, r15_thread); // TODO: required to keep the callee Method live?
+      __ mov(r10, r13);
+    }
+  }
+
   // Since all args are passed on the stack, total_args_passed *
   // Interpreter::stackElementSize is the space we need. Plus 1 because
   // we also account for the return address location since
   // we store it first rather than hold it in rax across all the shuffling
-
+  int total_args_passed = compute_total_args_passed_int(sig_extended);
   int extraspace = (total_args_passed * Interpreter::stackElementSize) + wordSize;
 
   // stack is aligned, keep it that way
@@ -598,97 +832,94 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   __ movptr(Address(rsp, 0), rax);
 
   // Now write the args into the outgoing interpreter space
-  for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
-      continue;
-    }
 
-    // offset to start parameters
-    int st_off   = (total_args_passed - i) * Interpreter::stackElementSize;
-    int next_off = st_off - Interpreter::stackElementSize;
-
-    // Say 4 args:
-    // i   st_off
-    // 0   32 T_LONG
-    // 1   24 T_VOID
-    // 2   16 T_OBJECT
-    // 3    8 T_BOOL
-    // -    0 return address
-    //
-    // However to make thing extra confusing. Because we can fit a long/double in
-    // a single slot on a 64 bt vm and it would be silly to break them up, the interpreter
-    // leaves one slot empty and only stores to a single slot. In this case the
-    // slot that is occupied is the T_VOID slot. See I said it was confusing.
-
-    VMReg r_1 = regs[i].first();
-    VMReg r_2 = regs[i].second();
-    if (!r_1->is_valid()) {
-      assert(!r_2->is_valid(), "");
-      continue;
-    }
-    if (r_1->is_stack()) {
-      // memory to memory use rax
-      int ld_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
-      if (!r_2->is_valid()) {
-        // sign extend??
-        __ movl(rax, Address(rsp, ld_off));
-        __ movptr(Address(rsp, st_off), rax);
-
-      } else {
-
-        __ movq(rax, Address(rsp, ld_off));
-
-        // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
-        // T_DOUBLE and T_LONG use two slots in the interpreter
-        if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
-          // ld_off == LSW, ld_off+wordSize == MSW
-          // st_off == MSW, next_off == LSW
-          __ movq(Address(rsp, next_off), rax);
+  // next_arg_comp is the next argument from the compiler point of
+  // view (value type fields are passed in registers/on the stack). In
+  // sig_extended, a value type argument starts with: T_VALUETYPE,
+  // followed by the types of the fields of the value type and T_VOID
+  // to mark the end of the value type. ignored counts the number of
+  // T_VALUETYPE/T_VOID. next_vt_arg is the next value type argument:
+  // used to get the buffer for that argument from the pool of buffers
+  // we allocated above and want to pass to the
+  // interpreter. next_arg_int is the next argument from the
+  // interpreter point of view (value types are passed by reference).
+  bool has_oop_field = false;
+  for (int next_arg_comp = 0, ignored = 0, next_vt_arg = 0, next_arg_int = 0;
+       next_arg_comp < sig_extended.length(); next_arg_comp++) {
+    assert(ignored <= next_arg_comp, "shouldn't skip over more slot than there are arguments");
+    assert(next_arg_int < total_args_passed, "more arguments for the interpreter than expected?");
+    BasicType bt = sig_extended.at(next_arg_comp)._bt;
+    int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
+    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+      int next_off = st_off - Interpreter::stackElementSize;
+      const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
+      const VMRegPair reg_pair = regs[next_arg_comp-ignored];
+      size_t size_in_bytes = reg_pair.second()->is_valid() ? 8 : 4;
+      gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
+                             size_in_bytes, reg_pair, Address(rsp, offset), extraspace, false);
+      next_arg_int++;
 #ifdef ASSERT
-          // Overwrite the unused slot with known junk
-          __ mov64(rax, CONST64(0xdeadffffdeadaaaa));
-          __ movptr(Address(rsp, st_off), rax);
-#endif /* ASSERT */
-        } else {
-          __ movq(Address(rsp, st_off), rax);
-        }
-      }
-    } else if (r_1->is_Register()) {
-      Register r = r_1->as_Register();
-      if (!r_2->is_valid()) {
-        // must be only an int (or less ) so move only 32bits to slot
-        // why not sign extend??
-        __ movl(Address(rsp, st_off), r);
-      } else {
-        // Two VMREgs|OptoRegs can be T_OBJECT, T_ADDRESS, T_DOUBLE, T_LONG
-        // T_DOUBLE and T_LONG use two slots in the interpreter
-        if ( sig_bt[i] == T_LONG || sig_bt[i] == T_DOUBLE) {
-          // long/double in gpr
-#ifdef ASSERT
-          // Overwrite the unused slot with known junk
-          __ mov64(rax, CONST64(0xdeadffffdeadaaab));
-          __ movptr(Address(rsp, st_off), rax);
-#endif /* ASSERT */
-          __ movq(Address(rsp, next_off), r);
-        } else {
-          __ movptr(Address(rsp, st_off), r);
-        }
-      }
-    } else {
-      assert(r_1->is_XMMRegister(), "");
-      if (!r_2->is_valid()) {
-        // only a float use just part of the slot
-        __ movflt(Address(rsp, st_off), r_1->as_XMMRegister());
-      } else {
-#ifdef ASSERT
+      if (bt == T_LONG || bt == T_DOUBLE) {
         // Overwrite the unused slot with known junk
-        __ mov64(rax, CONST64(0xdeadffffdeadaaac));
+        __ mov64(rax, CONST64(0xdeadffffdeadaaaa));
         __ movptr(Address(rsp, st_off), rax);
-#endif /* ASSERT */
-        __ movdbl(Address(rsp, next_off), r_1->as_XMMRegister());
       }
+#endif /* ASSERT */
+    } else {
+      ignored++;
+      // get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
+      __ load_heap_oop(r11, Address(r10, index));
+      next_vt_arg++; next_arg_int++;
+      int vt = 1;
+      // write fields we get from compiled code in registers/stack
+      // slots to the buffer: we know we are done with that value type
+      // argument when we hit the T_VOID that acts as an end of value
+      // type delimiter for this value type. Value types are flattened
+      // so we might encounter embedded value types. Each entry in
+      // sig_extended contains a field offset in the buffer.
+      do {
+        next_arg_comp++;
+        BasicType bt = sig_extended.at(next_arg_comp)._bt;
+        BasicType prev_bt = sig_extended.at(next_arg_comp-1)._bt;
+        if (bt == T_VALUETYPE) {
+          vt++;
+          ignored++;
+        } else if (bt == T_VOID &&
+                   prev_bt != T_LONG &&
+                   prev_bt != T_DOUBLE) {
+          vt--;
+          ignored++;
+        } else {
+          int off = sig_extended.at(next_arg_comp)._offset;
+          assert(off > 0, "offset in object should be positive");
+          size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
+          bool is_oop = (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY);
+          has_oop_field = has_oop_field || is_oop;
+          gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
+                                 size_in_bytes, regs[next_arg_comp-ignored], Address(r11, off), extraspace, is_oop);
+        }
+      } while (vt != 0);
+      // pass the buffer to the interpreter
+      __ movptr(Address(rsp, st_off), r11);
     }
+  }
+
+  // If a value type was allocated and initialized, apply post barrier to all oop fields
+  if (has_value_argument && has_oop_field) {
+    __ push(r13); // save senderSP
+    __ push(rbx); // save callee
+    // Allocate argument register save area
+    if (frame::arg_reg_save_area_bytes != 0) {
+      __ subptr(rsp, frame::arg_reg_save_area_bytes);
+    }
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::apply_post_barriers), r15_thread, r10);
+    // De-allocate argument register save area
+    if (frame::arg_reg_save_area_bytes != 0) {
+      __ addptr(rsp, frame::arg_reg_save_area_bytes);
+    }
+    __ pop(rbx); // restore callee
+    __ pop(r13); // restore sender SP
   }
 
   // Schedule the branch target address early.
@@ -709,10 +940,60 @@ static void range_check(MacroAssembler* masm, Register pc_reg, Register temp_reg
   __ bind(L_fail);
 }
 
+static void gen_i2c_adapter_helper(MacroAssembler* masm,
+                                   BasicType bt,
+                                   BasicType prev_bt,
+                                   size_t size_in_bytes,
+                                   const VMRegPair& reg_pair,
+                                   const Address& from,
+                                   bool is_oop) {
+  assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
+  if (bt == T_VOID) {
+    // Longs and doubles are passed in native word order, but misaligned
+    // in the 32-bit build.
+    assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
+    return;
+  }
+  assert(!reg_pair.second()->is_valid() || reg_pair.first()->next() == reg_pair.second(),
+         "scrambled load targets?");
+
+  bool wide = (size_in_bytes == wordSize);
+  VMReg r_1 = reg_pair.first();
+  VMReg r_2 = reg_pair.second();
+  assert(r_2->is_valid() == wide, "invalid size");
+  if (!r_1->is_valid()) {
+    assert(!r_2->is_valid(), "must be invalid");
+    return;
+  }
+
+  bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
+  if (!r_1->is_XMMRegister()) {
+    // We can use r13 as a temp here because compiled code doesn't need r13 as an input
+    // and if we end up going thru a c2i because of a miss a reasonable value of r13
+    // will be generated.
+    Register dst = r_1->is_stack() ? r13 : r_1->as_Register();
+    if (is_oop) {
+      __ load_heap_oop(dst, from);
+    } else {
+      __ load_sized_value(dst, from, size_in_bytes, is_signed);
+    }
+    if (r_1->is_stack()) {
+      // Convert stack slot to an SP offset (+ wordSize to account for return address)
+      int st_off = reg_pair.first()->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+      __ movq(Address(rsp, st_off), dst);
+    }
+  } else {
+    if (wide) {
+      __ movdbl(r_1->as_XMMRegister(), from);
+    } else {
+      __ movflt(r_1->as_XMMRegister(), from);
+    }
+  }
+}
+
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
-                                    int total_args_passed,
                                     int comp_args_on_stack,
-                                    const BasicType *sig_bt,
+                                    const GrowableArray<SigEntry>& sig_extended,
                                     const VMRegPair *regs) {
 
   // Note: r13 contains the senderSP on entry. We must preserve it since
@@ -818,84 +1099,64 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   }
 #endif // INCLUDE_JVMCI
 
+  int total_args_passed = compute_total_args_passed_int(sig_extended);
   // Now generate the shuffle code.  Pick up all register args and move the
   // rest through the floating point stack top.
-  for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_VOID) {
-      // Longs and doubles are passed in native word order, but misaligned
-      // in the 32-bit build.
-      assert(i > 0 && (sig_bt[i-1] == T_LONG || sig_bt[i-1] == T_DOUBLE), "missing half");
-      continue;
-    }
 
-    // Pick up 0, 1 or 2 words from SP+offset.
-
-    assert(!regs[i].second()->is_valid() || regs[i].first()->next() == regs[i].second(),
-            "scrambled load targets?");
-    // Load in argument order going down.
-    int ld_off = (total_args_passed - i)*Interpreter::stackElementSize;
-    // Point to interpreter value (vs. tag)
-    int next_off = ld_off - Interpreter::stackElementSize;
-    //
-    //
-    //
-    VMReg r_1 = regs[i].first();
-    VMReg r_2 = regs[i].second();
-    if (!r_1->is_valid()) {
-      assert(!r_2->is_valid(), "");
-      continue;
-    }
-    if (r_1->is_stack()) {
-      // Convert stack slot to an SP offset (+ wordSize to account for return address )
-      int st_off = regs[i].first()->reg2stack()*VMRegImpl::stack_slot_size + wordSize;
-
-      // We can use r13 as a temp here because compiled code doesn't need r13 as an input
-      // and if we end up going thru a c2i because of a miss a reasonable value of r13
-      // will be generated.
-      if (!r_2->is_valid()) {
-        // sign extend???
-        __ movl(r13, Address(saved_sp, ld_off));
-        __ movptr(Address(rsp, st_off), r13);
-      } else {
-        //
-        // We are using two optoregs. This can be either T_OBJECT, T_ADDRESS, T_LONG, or T_DOUBLE
-        // the interpreter allocates two slots but only uses one for thr T_LONG or T_DOUBLE case
-        // So we must adjust where to pick up the data to match the interpreter.
-        //
-        // Interpreter local[n] == MSW, local[n+1] == LSW however locals
-        // are accessed as negative so LSW is at LOW address
-
-        // ld_off is MSW so get LSW
-        const int offset = (sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
-                           next_off : ld_off;
-        __ movq(r13, Address(saved_sp, offset));
-        // st_off is LSW (i.e. reg.first())
-        __ movq(Address(rsp, st_off), r13);
-      }
-    } else if (r_1->is_Register()) {  // Register argument
-      Register r = r_1->as_Register();
-      assert(r != rax, "must be different");
-      if (r_2->is_valid()) {
-        //
-        // We are using two VMRegs. This can be either T_OBJECT, T_ADDRESS, T_LONG, or T_DOUBLE
-        // the interpreter allocates two slots but only uses one for thr T_LONG or T_DOUBLE case
-        // So we must adjust where to pick up the data to match the interpreter.
-
-        const int offset = (sig_bt[i]==T_LONG||sig_bt[i]==T_DOUBLE)?
-                           next_off : ld_off;
-
-        // this can be a misaligned move
-        __ movq(r, Address(saved_sp, offset));
-      } else {
-        // sign extend and use a full word?
-        __ movl(r, Address(saved_sp, ld_off));
-      }
+  // next_arg_comp is the next argument from the compiler point of
+  // view (value type fields are passed in registers/on the stack). In
+  // sig_extended, a value type argument starts with: T_VALUETYPE,
+  // followed by the types of the fields of the value type and T_VOID
+  // to mark the end of the value type. ignored counts the number of
+  // T_VALUETYPE/T_VOID. next_arg_int is the next argument from the
+  // interpreter point of view (value types are passed by reference).
+  for (int next_arg_comp = 0, ignored = 0, next_arg_int = 0; next_arg_comp < sig_extended.length(); next_arg_comp++) {
+    assert(ignored <= next_arg_comp, "shouldn't skip over more slot than there are arguments");
+    assert(next_arg_int < total_args_passed, "more arguments from the interpreter than expected?");
+    BasicType bt = sig_extended.at(next_arg_comp)._bt;
+    int ld_off = (total_args_passed - next_arg_int)*Interpreter::stackElementSize;
+    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+      // Load in argument order going down.
+      // Point to interpreter value (vs. tag)
+      int next_off = ld_off - Interpreter::stackElementSize;
+      int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : ld_off;
+      const VMRegPair reg_pair = regs[next_arg_comp-ignored];
+      size_t size_in_bytes = reg_pair.second()->is_valid() ? 8 : 4;
+      gen_i2c_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
+                             size_in_bytes, reg_pair, Address(saved_sp, offset), false);
+      next_arg_int++;
     } else {
-      if (!r_2->is_valid()) {
-        __ movflt(r_1->as_XMMRegister(), Address(saved_sp, ld_off));
-      } else {
-        __ movdbl(r_1->as_XMMRegister(), Address(saved_sp, next_off));
-      }
+      next_arg_int++;
+      ignored++;
+      // get the buffer for that value type
+      __ movptr(r10, Address(saved_sp, ld_off));
+      int vt = 1;
+      // load fields to registers/stack slots from the buffer: we know
+      // we are done with that value type argument when we hit the
+      // T_VOID that acts as an end of value type delimiter for this
+      // value type. Value types are flattened so we might encounter
+      // embedded value types. Each entry in sig_extended contains a
+      // field offset in the buffer.
+      do {
+        next_arg_comp++;
+        BasicType bt = sig_extended.at(next_arg_comp)._bt;
+        BasicType prev_bt = sig_extended.at(next_arg_comp-1)._bt;
+        if (bt == T_VALUETYPE) {
+          vt++;
+          ignored++;
+        } else if (bt == T_VOID &&
+                   prev_bt != T_LONG &&
+                   prev_bt != T_DOUBLE) {
+          vt--;
+          ignored++;
+        } else {
+          int off = sig_extended.at(next_arg_comp)._offset;
+          assert(off > 0, "offset in object should be positive");
+          size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
+          bool is_oop = (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY);
+          gen_i2c_adapter_helper(masm, bt, prev_bt, size_in_bytes, regs[next_arg_comp - ignored], Address(r10, off), is_oop);
+        }
+      } while (vt != 0);
     }
   }
 
@@ -912,7 +1173,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ movptr(Address(r15_thread, JavaThread::callee_target_offset()), rbx);
 
   // put Method* where a c2i would expect should we end up there
-  // only needed becaus eof c2 resolve stubs return Method* as a result in
+  // only needed because of c2 resolve stubs return Method* as a result in
   // rax
   __ mov(rax, rbx);
   __ jmp(r11);
@@ -920,14 +1181,14 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                                            int total_args_passed,
                                                             int comp_args_on_stack,
-                                                            const BasicType *sig_bt,
+                                                            const GrowableArray<SigEntry>& sig_extended,
                                                             const VMRegPair *regs,
-                                                            AdapterFingerPrint* fingerprint) {
+                                                            AdapterFingerPrint* fingerprint,
+                                                            AdapterBlob*& new_adapter) {
   address i2c_entry = __ pc();
 
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
+  gen_i2c_adapter(masm, comp_args_on_stack, sig_extended, regs);
 
   // -------------------------------------------------------------------------
   // Generate a C2I adapter.  On entry we know rbx holds the Method* during calls
@@ -964,10 +1225,54 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   address c2i_entry = __ pc();
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  OopMapSet* oop_maps = NULL;
+  int frame_complete = CodeOffsets::frame_never_safe;
+  int frame_size_in_words = 0;
+  gen_c2i_adapter(masm, sig_extended, regs, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
 
   __ flush();
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+  new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps);
+
+  // If value types are passed as fields, save the extended signature as symbol in
+  // the AdapterHandlerEntry to be used by nmethod::preserve_callee_argument_oops().
+  Symbol* extended_signature = NULL;
+  if (ValueTypePassFieldsAsArgs) {
+    bool has_value_argument = false;
+    Thread* THREAD = Thread::current();
+    ResourceMark rm(THREAD);
+    int length = sig_extended.length();
+    char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
+    int idx = 0;
+    sig_str[idx++] = '(';
+    for (int index = 0; index < length; index++) {
+      BasicType bt = sig_extended.at(index)._bt;
+      if (bt == T_VALUETYPE) {
+        has_value_argument = true;
+      } else if (bt == T_VALUETYPEPTR) {
+        // non-flattened value type field
+        sig_str[idx++] = type2char(T_VALUETYPE);
+        sig_str[idx++] = ';';
+      } else if (bt == T_VOID) {
+        // Ignore
+      } else {
+        if (bt == T_ARRAY) {
+          bt = T_OBJECT; // We don't know the element type, treat as Object
+        }
+        sig_str[idx++] = type2char(bt);
+        if (bt == T_OBJECT) {
+          sig_str[idx++] = ';';
+        }
+      }
+    }
+    sig_str[idx++] = ')';
+    sig_str[idx++] = '\0';
+    if (has_value_argument) {
+      // Extended signature is only required if a value type argument is passed
+      extended_signature = SymbolTable::new_permanent_symbol(sig_str, THREAD);
+    }
+  }
+
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, extended_signature);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -3926,3 +4231,100 @@ void OptoRuntime::generate_exception_blob() {
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
 #endif // COMPILER2
+
+BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
+  BufferBlob* buf = BufferBlob::create("value types pack/unpack", 16 * K);
+  CodeBuffer buffer(buf);
+  short buffer_locs[20];
+  buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
+                                         sizeof(buffer_locs)/sizeof(relocInfo));
+
+  MacroAssembler _masm(&buffer);
+  MacroAssembler* masm = &_masm;
+
+  const Array<SigEntry>* sig_vk = vk->extended_sig();
+  const Array<VMRegPair>* regs = vk->return_regs();
+
+  int pack_fields_off = __ offset();
+
+  int j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_VALUETYPE) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG ||
+          sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    int off = sig_vk->at(i)._offset;
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    VMReg r_2 = pair.second();
+    Address to(rax, off);
+    if (bt == T_FLOAT) {
+      __ movflt(to, r_1->as_XMMRegister());
+    } else if (bt == T_DOUBLE) {
+      __ movdbl(to, r_1->as_XMMRegister());
+    } else if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
+      __ store_heap_oop(to, r_1->as_Register());
+    } else {
+      assert(is_java_primitive(bt), "unexpected basic type");
+      size_t size_in_bytes = type2aelembytes(bt);
+      __ store_sized_value(to, r_1->as_Register(), size_in_bytes);
+    }
+    j++;
+  }
+  assert(j == regs->length(), "missed a field?");
+
+  __ ret(0);
+
+  int unpack_fields_off = __ offset();
+
+  j = 1;
+  for (int i = 0; i < sig_vk->length(); i++) {
+    BasicType bt = sig_vk->at(i)._bt;
+    if (bt == T_VALUETYPE) {
+      continue;
+    }
+    if (bt == T_VOID) {
+      if (sig_vk->at(i-1)._bt == T_LONG ||
+          sig_vk->at(i-1)._bt == T_DOUBLE) {
+        j++;
+      }
+      continue;
+    }
+    int off = sig_vk->at(i)._offset;
+    VMRegPair pair = regs->at(j);
+    VMReg r_1 = pair.first();
+    VMReg r_2 = pair.second();
+    Address from(rax, off);
+    if (bt == T_FLOAT) {
+      __ movflt(r_1->as_XMMRegister(), from);
+    } else if (bt == T_DOUBLE) {
+      __ movdbl(r_1->as_XMMRegister(), from);
+    } else if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
+      __ load_heap_oop(r_1->as_Register(), from);
+    } else {
+      assert(is_java_primitive(bt), "unexpected basic type");
+      size_t size_in_bytes = type2aelembytes(bt);
+      __ load_sized_value(r_1->as_Register(), from, size_in_bytes, bt != T_CHAR && bt != T_BOOLEAN);
+    }
+    j++;
+  }
+  assert(j == regs->length(), "missed a field?");
+
+  if (StressValueTypeReturnedAsFields) {
+    __ load_klass(rax, rax);
+    __ orptr(rax, 1);
+  }
+
+  __ ret(0);
+
+  __ flush();
+
+  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
+}

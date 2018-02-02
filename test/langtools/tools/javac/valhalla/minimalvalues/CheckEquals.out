@@ -1,0 +1,6 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckEquals.java:10:19: compiler.warn.value.does.not.support: ==
+CheckEquals.java:10:31: compiler.warn.value.does.not.support: !=
+1 error
+3 warnings

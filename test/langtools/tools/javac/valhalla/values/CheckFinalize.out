@@ -1,0 +1,3 @@
+CheckFinalize.java:9:5: compiler.err.method.does.not.override.superclass
+CheckFinalize.java:15:12: compiler.err.value.does.not.support: finalize
+2 errors

@@ -48,7 +48,6 @@ IdealKit::IdealKit(GraphKit* gkit, bool delay_all_transforms, bool has_declarati
   _cvstate = NULL;
   // We can go memory state free or else we need the entire memory state
   assert(_initial_memory == NULL || _initial_memory->Opcode() == Op_MergeMem, "memory must be pre-split");
-  assert(!_gvn.is_IterGVN(), "IdealKit can't be used during Optimize phase");
   int init_size = 5;
   _pending_cvstates = new (C->node_arena()) GrowableArray<Node*>(C->node_arena(), init_size, 0, 0);
   DEBUG_ONLY(_state = new (C->node_arena()) GrowableArray<int>(C->node_arena(), init_size, 0, 0));
@@ -296,7 +295,7 @@ Node* IdealKit::transform(Node* n) {
     return delay_transform(n);
   } else {
     n = gvn().transform(n);
-    C->record_for_igvn(n);
+    gvn().record_for_igvn(n);
     return n;
   }
 }
@@ -305,7 +304,7 @@ Node* IdealKit::transform(Node* n) {
 Node* IdealKit::delay_transform(Node* n) {
   // Delay transform until IterativeGVN
   gvn().set_type(n, n->bottom_type());
-  C->record_for_igvn(n);
+  gvn().record_for_igvn(n);
   return n;
 }
 

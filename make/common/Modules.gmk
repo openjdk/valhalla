@@ -113,6 +113,7 @@ PLATFORM_MODULES += \
     jdk.dynalink \
     jdk.httpserver \
     jdk.incubator.httpclient \
+    jdk.incubator.mvt \
     jdk.internal.vm.compiler.management \
     jdk.jsobject \
     jdk.localedata \
@@ -156,6 +157,7 @@ DOCS_MODULES += \
     jdk.hotspot.agent \
     jdk.httpserver \
     jdk.incubator.httpclient \
+    jdk.incubator.mvt \
     jdk.jartool \
     jdk.javadoc \
     jdk.jcmd \

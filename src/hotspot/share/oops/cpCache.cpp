@@ -128,6 +128,7 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        TosState field_type,
                                        bool is_final,
                                        bool is_volatile,
+                                       bool is_flatten,
                                        Klass* root_klass) {
   set_f1(field_holder);
   set_f2(field_offset);
@@ -135,7 +136,8 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
          "field index does not fit in low flag bits");
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
-                  ((is_final    ? 1 : 0) << is_final_shift),
+                  ((is_final    ? 1 : 0) << is_final_shift) |
+                  ((is_flatten  ? 1 : 0) << is_flatten_field),
                   field_index);
   set_bytecode_1(get_code);
   set_bytecode_2(put_code);
@@ -253,11 +255,12 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
       // Otherwise, the method needs to be reresolved with caller for each
       // interface call.
       if (method->is_public()) set_bytecode_1(invoke_code);
+      invoke_code = Bytecodes::_invokevirtual;
     } else {
       assert(invoke_code == Bytecodes::_invokevirtual, "");
     }
     // set up for invokevirtual, even if linking for invokeinterface also:
-    set_bytecode_2(Bytecodes::_invokevirtual);
+    set_bytecode_2(invoke_code);
   } else {
     ShouldNotReachHere();
   }

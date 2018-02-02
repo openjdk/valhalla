@@ -270,23 +270,27 @@ void BufferBlob::free(BufferBlob *blob) {
   MemoryService::track_code_cache_memory_usage();
 }
 
+BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps)
+  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, frame_complete, frame_size, oop_maps)
+{}
+
 
 //----------------------------------------------------------------------------------------------------
 // Implementation of AdapterBlob
 
-AdapterBlob::AdapterBlob(int size, CodeBuffer* cb) :
-  BufferBlob("I2C/C2I adapters", size, cb) {
+AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps) :
+  BufferBlob("I2C/C2I adapters", size, cb, frame_complete, frame_size, oop_maps) {
   CodeCache::commit(this);
 }
 
-AdapterBlob* AdapterBlob::create(CodeBuffer* cb) {
+AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   AdapterBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(AdapterBlob));
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) AdapterBlob(size, cb);
+    blob = new (size) AdapterBlob(size, cb, frame_complete, frame_size, oop_maps);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -312,6 +316,30 @@ MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
     if (blob == NULL) {
       vm_exit_out_of_memory(size, OOM_MALLOC_ERROR, "CodeCache: no room for method handle adapter blob");
     }
+  }
+  // Track memory usage statistic after releasing CodeCache_lock
+  MemoryService::track_code_cache_memory_usage();
+
+  return blob;
+}
+
+//----------------------------------------------------------------------------------------------------
+// Implementation of BufferedValueTypeBlob
+BufferedValueTypeBlob::BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int unpack_fields_off) :
+  BufferBlob("buffered value type", size, cb),
+  _pack_fields_off(pack_fields_off),
+  _unpack_fields_off(unpack_fields_off) {
+  CodeCache::commit(this);
+}
+
+BufferedValueTypeBlob* BufferedValueTypeBlob::create(CodeBuffer* cb, int pack_fields_off, int unpack_fields_off) {
+  ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
+
+  BufferedValueTypeBlob* blob = NULL;
+  unsigned int size = CodeBlob::allocation_size(cb, sizeof(BufferedValueTypeBlob));
+  {
+    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    blob = new (size) BufferedValueTypeBlob(size, cb, pack_fields_off, unpack_fields_off);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();

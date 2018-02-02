@@ -80,7 +80,7 @@ public:
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual void  calling_convention( BasicType* sig_bt, VMRegPair *parm_reg, uint length ) const;
   virtual const RegMask &in_RegMask(uint) const;
-  virtual Node *match( const ProjNode *proj, const Matcher *m );
+  virtual Node *match(const ProjNode *proj, const Matcher *m, const RegMask* mask);
   virtual uint ideal_reg() const { return 0; }
 #ifndef PRODUCT
   virtual void  dump_spec(outputStream *st) const;
@@ -540,7 +540,7 @@ public:
 
 // Simple container for the outgoing projections of a call.  Useful
 // for serious surgery on calls.
-class CallProjections : public StackObj {
+class CallProjections {
 public:
   Node* fallthrough_proj;
   Node* fallthrough_catchproj;
@@ -549,8 +549,26 @@ public:
   Node* catchall_catchproj;
   Node* catchall_memproj;
   Node* catchall_ioproj;
-  Node* resproj;
   Node* exobj;
+  uint nb_resproj;
+  Node* resproj[1]; // at least one projection
+
+  CallProjections(uint nbres) {
+    fallthrough_proj      = NULL;
+    fallthrough_catchproj = NULL;
+    fallthrough_memproj   = NULL;
+    fallthrough_ioproj    = NULL;
+    catchall_catchproj    = NULL;
+    catchall_memproj      = NULL;
+    catchall_ioproj       = NULL;
+    exobj                 = NULL;
+    nb_resproj            = nbres;
+    resproj[0]            = NULL;
+    for (uint i = 1; i < nb_resproj; i++) {
+      resproj[i]          = NULL;
+    }
+  }
+
 };
 
 class CallGenerator;
@@ -572,7 +590,7 @@ public:
   const char *_name;           // Printable name, if _method is NULL
 
   CallNode(const TypeFunc* tf, address addr, const TypePtr* adr_type)
-    : SafePointNode(tf->domain()->cnt(), NULL, adr_type),
+    : SafePointNode(tf->domain_cc()->cnt(), NULL, adr_type),
       _tf(tf),
       _entry_point(addr),
       _cnt(COUNT_UNKNOWN),
@@ -599,7 +617,7 @@ public:
   virtual uint        cmp( const Node &n ) const;
   virtual uint        size_of() const = 0;
   virtual void        calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const;
-  virtual Node       *match( const ProjNode *proj, const Matcher *m );
+  virtual Node       *match(const ProjNode *proj, const Matcher *m, const RegMask* mask);
   virtual uint        ideal_reg() const { return NotAMachineReg; }
   // Are we guaranteed that this node is a safepoint?  Not true for leaf calls and
   // for some macro nodes whose expansion does not have a safepoint on the fast path.
@@ -618,21 +636,23 @@ public:
   virtual bool        may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase);
   // Does this node have a use of n other than in debug information?
   bool                has_non_debug_use(Node *n);
+  bool                has_debug_use(Node *n);
   // Returns the unique CheckCastPP of a call
   // or result projection is there are several CheckCastPP
   // or returns NULL if there is no one.
   Node *result_cast();
   // Does this node returns pointer?
   bool returns_pointer() const {
-    const TypeTuple *r = tf()->range();
-    return (r->cnt() > TypeFunc::Parms &&
+    const TypeTuple *r = tf()->range_sig();
+    return (!tf()->returns_value_type_as_fields() &&
+            r->cnt() > TypeFunc::Parms &&
             r->field_at(TypeFunc::Parms)->isa_ptr());
   }
 
   // Collect all the interesting edges from a call for use in
   // replacing the call by something else.  Used by macro expansion
   // and the late inlining support.
-  void extract_projections(CallProjections* projs, bool separate_io_proj, bool do_asserts = true);
+  CallProjections* extract_projections(bool separate_io_proj, bool do_asserts = true);
 
   virtual uint match_edge(uint idx) const;
 
@@ -702,6 +722,17 @@ public:
       init_flags(Flag_is_macro);
       C->add_macro_node(this);
     }
+    const TypeTuple *r = tf->range_sig();
+    if (ValueTypeReturnedAsFields &&
+        method != NULL &&
+        method->is_method_handle_intrinsic() &&
+        r->cnt() > TypeFunc::Parms &&
+        r->field_at(TypeFunc::Parms)->isa_valuetypeptr() &&
+        r->field_at(TypeFunc::Parms)->is_valuetypeptr()->is__Value()) {
+      init_flags(Flag_is_macro);
+      C->add_macro_node(this);
+    }
+
     _is_scalar_replaceable = false;
     _is_non_escaping = false;
   }
@@ -811,6 +842,7 @@ public:
   {
   }
   virtual int   Opcode() const;
+  virtual uint match_edge(uint idx) const;
 };
 
 
@@ -834,6 +866,7 @@ public:
     KlassNode,                        // type (maybe dynamic) of the obj.
     InitialTest,                      // slow-path test (may be constant)
     ALength,                          // array length (or TOP if none)
+    ValueNode,
     ParmLimit
   };
 
@@ -843,6 +876,7 @@ public:
     fields[KlassNode]   = TypeInstPtr::NOTNULL;
     fields[InitialTest] = TypeInt::BOOL;
     fields[ALength]     = t;  // length (can be a bad length)
+    fields[ValueNode]   = Type::BOTTOM;
 
     const TypeTuple *domain = TypeTuple::make(ParmLimit, fields);
 
@@ -863,7 +897,7 @@ public:
 
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
-               Node *size, Node *klass_node, Node *initial_test);
+               Node *size, Node *klass_node, Node *initial_test, ValueTypeBaseNode* value_node = NULL);
   // Expansion modifies the JVMState, so we need to clone it
   virtual void  clone_jvms(Compile* C) {
     if (jvms() != NULL) {
@@ -874,6 +908,8 @@ public:
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegP; }
   virtual bool        guaranteed_safepoint()  { return false; }
+
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
   // allocations do not modify their arguments
   virtual bool        may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) { return false;}
@@ -1068,7 +1104,7 @@ public:
 
     const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0,fields);
 
-    return TypeFunc::make(domain,range);
+    return TypeFunc::make(domain, range);
   }
 
   virtual int Opcode() const;

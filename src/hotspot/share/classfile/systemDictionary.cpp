@@ -62,6 +62,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiEnvBase.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "prims/methodHandles.hpp"
@@ -74,6 +75,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/orderAccess.inline.hpp"
+#include "runtime/os.hpp"
 #include "runtime/signature.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/diagnosticCommand.hpp"
@@ -253,9 +255,9 @@ Klass* SystemDictionary::resolve_or_null(Symbol* class_name, Handle class_loader
          class_loader.is_null() ? "null" : class_loader->klass()->name()->as_C_string());
   if (FieldType::is_array(class_name)) {
     return resolve_array_class_or_null(class_name, class_loader, protection_domain, THREAD);
-  } else if (FieldType::is_obj(class_name)) {
+  } else if (FieldType::is_obj(class_name) || FieldType::is_valuetype(class_name)) {
     ResourceMark rm(THREAD);
-    // Ignore wrapping L and ;.
+    // Ignore wrapping L and ;. (and Q and ; for value types);
     TempNewSymbol name = SymbolTable::new_symbol(class_name->as_C_string() + 1,
                                    class_name->utf8_length() - 2, CHECK_NULL);
     return resolve_instance_class_or_null(name, class_loader, protection_domain, THREAD);
@@ -280,7 +282,7 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
   // dimension and object_key in FieldArrayInfo are assigned as a side-effect
   // of this call
   BasicType t = FieldType::get_array_info(class_name, fd, CHECK_NULL);
-  if (t == T_OBJECT) {
+  if (t == T_OBJECT  || t == T_VALUETYPE) {
     // naked oop "k" is OK here -- we assign back into it
     k = SystemDictionary::resolve_instance_class_or_null(fd.object_key(),
                                                          class_loader,
@@ -294,6 +296,34 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
     k = TypeArrayKlass::cast(k)->array_klass(fd.dimension(), CHECK_NULL);
   }
   return k;
+}
+
+// Temporary Minimal Value Type support code. Attempt to load VCC for DVT descriptor
+Klass* SystemDictionary::resolve_dvt_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS) {
+  assert(EnableMVT && FieldType::is_dvt_postfix(class_name), "Invariant");
+
+  ResourceMark rm(THREAD);
+  // Given a "Q-type" descriptor and EnableMVT, original exception is not so interesting
+  CLEAR_PENDING_EXCEPTION;
+
+  TempNewSymbol vcc_name = SymbolTable::new_symbol(FieldType::dvt_unmangle_vcc(class_name), CHECK_NULL);
+  Klass* vcc = do_resolve_instance_class_or_null(vcc_name, class_loader, protection_domain, CHECK_NULL);
+  if (vcc == NULL) {
+    return NULL;
+  }
+  Klass* dvt = do_resolve_instance_class_or_null(class_name, class_loader, protection_domain, CHECK_NULL);
+  if ((dvt !=NULL) && dvt->is_value() && (ValueKlass::cast(dvt)->get_vcc_klass() == vcc)) {
+    return dvt;
+  }
+  if (vcc->is_instance_klass() && (!InstanceKlass::cast(vcc)->has_vcc_annotation())) {
+    static const char not_vcc_msg[] =
+        "Failed to resolve %s, found possible ValueCapableClass name mangle match is not ValueCapableClass annotated: %s";
+    size_t buflen = strlen(not_vcc_msg) + class_name->utf8_length() + vcc_name->utf8_length();
+    char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
+    jio_snprintf(buf, buflen, not_vcc_msg, class_name->as_C_string(), vcc_name->as_C_string());
+    THROW_MSG_NULL(vmSymbols::java_lang_NoClassDefFoundError(), buf);
+  }
+  return NULL;
 }
 
 
@@ -649,16 +679,27 @@ static void class_define_event(InstanceKlass* k,
 #endif // INCLUDE_TRACE
 }
 
-// Be careful when modifying this code: once you have run
-// placeholders()->find_and_add(PlaceholderTable::LOAD_INSTANCE),
-// you need to find_and_remove it before returning.
-// So be careful to not exit with a CHECK_ macro betweeen these calls.
 Klass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                         Handle class_loader,
                                                         Handle protection_domain,
                                                         TRAPS) {
+  Klass* k = do_resolve_instance_class_or_null(name, class_loader, protection_domain, THREAD);
+  if (EnableMVT && (k == NULL) && FieldType::is_dvt_postfix(name)) {
+    k = resolve_dvt_or_null(name, class_loader, protection_domain, THREAD);
+  }
+  return k;
+}
+
+// Be careful when modifying this code: once you have run
+// placeholders()->find_and_add(PlaceholderTable::LOAD_INSTANCE),
+// you need to find_and_remove it before returning.
+// So be careful to not exit with a CHECK_ macro betweeen these calls.
+Klass* SystemDictionary::do_resolve_instance_class_or_null(Symbol* name,
+                                                        Handle class_loader,
+                                                        Handle protection_domain,
+                                                        TRAPS) {
   assert(name != NULL && !FieldType::is_array(name) &&
-         !FieldType::is_obj(name), "invalid class name");
+         !FieldType::is_obj(name)  && !FieldType::is_valuetype(name), "invalid class name");
 
   EventClassLoad class_load_start_event;
 
@@ -983,7 +1024,7 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
     // side-effect of this call
     FieldArrayInfo fd;
     BasicType t = FieldType::get_array_info(class_name, fd, CHECK_(NULL));
-    if (t != T_OBJECT) {
+    if (t != T_OBJECT  && t != T_VALUETYPE) {
       k = Universe::typeArrayKlassObj(t);
     } else {
       k = SystemDictionary::find(fd.object_key(), class_loader, protection_domain, THREAD);
@@ -2081,6 +2122,20 @@ bool SystemDictionary::initialize_wk_klass(WKID id, int init_opt, TRAPS) {
     must_load = (init_opt < SystemDictionary::Opt);
   }
 
+  if (init_opt == SystemDictionary::ValhallaClasses) {
+    if (EnableValhalla || EnableMVT) {
+      must_load = true;
+    } else {
+      return false;
+    }
+  } else if (init_opt == SystemDictionary::MVTClasses) {
+    if (EnableMVT) {
+      must_load = true;
+    } else {
+      return false;
+    }
+  }
+
   if ((*klassp) == NULL) {
     Klass* k;
     if (must_load) {
@@ -2336,7 +2391,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     // constraint table. The element Klass*s are.
     FieldArrayInfo fd;
     BasicType t = FieldType::get_array_info(class_name, fd, CHECK_(NULL));
-    if (t != T_OBJECT) {
+    if (t != T_OBJECT && t != T_VALUETYPE) {
       klass = Universe::typeArrayKlassObj(t);
     } else {
       MutexLocker mu(SystemDictionary_lock, THREAD);

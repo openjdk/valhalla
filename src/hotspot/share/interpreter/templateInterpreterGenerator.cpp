@@ -50,7 +50,8 @@ static const BasicType types[Interpreter::number_of_result_handlers] = {
   T_VOID   ,
   T_FLOAT  ,
   T_DOUBLE ,
-  T_OBJECT
+  T_OBJECT ,
+  T_VALUETYPE
 };
 
 void TemplateInterpreterGenerator::generate_all() {
@@ -77,6 +78,7 @@ void TemplateInterpreterGenerator::generate_all() {
                  generate_trace_code(ltos),
                  generate_trace_code(ftos),
                  generate_trace_code(dtos),
+                 generate_trace_code(qtos),
                  generate_trace_code(vtos)
                  );
   }
@@ -98,6 +100,7 @@ void TemplateInterpreterGenerator::generate_all() {
                    generate_return_entry_for(ltos, i, index_size),
                    generate_return_entry_for(ftos, i, index_size),
                    generate_return_entry_for(dtos, i, index_size),
+                   generate_return_entry_for(qtos, i, index_size),
                    generate_return_entry_for(vtos, i, index_size)
                    );
     }
@@ -106,7 +109,7 @@ void TemplateInterpreterGenerator::generate_all() {
   { CodeletMark cm(_masm, "invoke return entry points");
     // These states are in order specified in TosState, except btos/ztos/ctos/stos are
     // really the same as itos since there is no top of stack optimization for these types
-    const TosState states[] = {itos, itos, itos, itos, itos, ltos, ftos, dtos, atos, vtos, ilgl};
+    const TosState states[] = {itos, itos, itos, itos, itos, ltos, ftos, dtos, atos, qtos, vtos, ilgl};
     const int invoke_length = Bytecodes::length_for(Bytecodes::_invokestatic);
     const int invokeinterface_length = Bytecodes::length_for(Bytecodes::_invokeinterface);
     const int invokedynamic_length = Bytecodes::length_for(Bytecodes::_invokedynamic);
@@ -132,6 +135,7 @@ void TemplateInterpreterGenerator::generate_all() {
                  generate_earlyret_entry_for(ltos),
                  generate_earlyret_entry_for(ftos),
                  generate_earlyret_entry_for(dtos),
+                 generate_earlyret_entry_for(qtos),
                  generate_earlyret_entry_for(vtos)
                  );
   }
@@ -162,6 +166,7 @@ void TemplateInterpreterGenerator::generate_all() {
                  generate_safept_entry_for(ltos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint)),
                  generate_safept_entry_for(ftos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint)),
                  generate_safept_entry_for(dtos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint)),
+                 generate_safept_entry_for(qtos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint)),
                  generate_safept_entry_for(vtos, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_safepoint))
                  );
   }
@@ -251,6 +256,7 @@ void TemplateInterpreterGenerator::generate_all() {
                    generate_deopt_entry_for(ltos, i),
                    generate_deopt_entry_for(ftos, i),
                    generate_deopt_entry_for(dtos, i),
+                   generate_deopt_entry_for(qtos, i),
                    generate_deopt_entry_for(vtos, i)
                    );
     }
@@ -294,7 +300,7 @@ void TemplateInterpreterGenerator::set_safepoints_for_all_bytes() {
 
 void TemplateInterpreterGenerator::set_unimplemented(int i) {
   address e = _unimplemented_bytecode;
-  EntryPoint entry(e, e, e, e, e, e, e, e, e, e);
+  EntryPoint entry(e, e, e, e, e, e, e, e, e, e, e);
   Interpreter::_normal_table.set_entry(i, entry);
   Interpreter::_wentry_point[i] = _unimplemented_bytecode;
 }
@@ -314,13 +320,14 @@ void TemplateInterpreterGenerator::set_entry_points(Bytecodes::Code code) {
   address lep = _illegal_bytecode_sequence;
   address fep = _illegal_bytecode_sequence;
   address dep = _illegal_bytecode_sequence;
+  address qep = _illegal_bytecode_sequence;
   address vep = _unimplemented_bytecode;
   address wep = _unimplemented_bytecode;
   // code for short & wide version of bytecode
   if (Bytecodes::is_defined(code)) {
     Template* t = TemplateTable::template_for(code);
     assert(t->is_valid(), "just checking");
-    set_short_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep);
+    set_short_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, qep, vep);
   }
   if (Bytecodes::wide_is_defined(code)) {
     Template* t = TemplateTable::template_for_wide(code);
@@ -328,7 +335,7 @@ void TemplateInterpreterGenerator::set_entry_points(Bytecodes::Code code) {
     set_wide_entry_point(t, wep);
   }
   // set entry points
-  EntryPoint entry(bep, zep, cep, sep, aep, iep, lep, fep, dep, vep);
+  EntryPoint entry(bep, zep, cep, sep, aep, iep, lep, fep, dep, qep, vep);
   Interpreter::_normal_table.set_entry(code, entry);
   Interpreter::_wentry_point[code] = wep;
 }
@@ -341,7 +348,7 @@ void TemplateInterpreterGenerator::set_wide_entry_point(Template* t, address& we
 }
 
 
-void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& vep) {
+void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& bep, address& cep, address& sep, address& aep, address& iep, address& lep, address& fep, address& dep, address& qep, address& vep) {
   assert(t->is_valid(), "template must exist");
   switch (t->tos_in()) {
     case btos:
@@ -355,7 +362,9 @@ void TemplateInterpreterGenerator::set_short_entry_points(Template* t, address& 
     case ltos: vep = __ pc(); __ pop(ltos); lep = __ pc(); generate_and_dispatch(t); break;
     case ftos: vep = __ pc(); __ pop(ftos); fep = __ pc(); generate_and_dispatch(t); break;
     case dtos: vep = __ pc(); __ pop(dtos); dep = __ pc(); generate_and_dispatch(t); break;
-    case vtos: set_vtos_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep);     break;
+    case qtos: vep = __ pc(); __ pop(qtos); qep = __ pc(); generate_and_dispatch(t); break;
+    case vtos: set_vtos_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, qep, vep);     break;
+    case ptos: vep = __ pc(); __ pop(ptos); aep = __ pc(); qep = __ pc(); generate_and_dispatch(t); break;
     default  : ShouldNotReachHere();                                                 break;
   }
 }

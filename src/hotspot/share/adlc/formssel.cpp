@@ -890,7 +890,8 @@ uint InstructForm::oper_input_base(FormDict &globals) {
       strcmp(_matrule->_opType,"TailCall"  )==0 ||
       strcmp(_matrule->_opType,"TailJump"  )==0 ||
       strcmp(_matrule->_opType,"SafePoint" )==0 ||
-      strcmp(_matrule->_opType,"Halt"      )==0 )
+      strcmp(_matrule->_opType,"Halt"      )==0 ||
+      strcmp(_matrule->_opType,"CallLeafNoFP")==0)
     return AdlcVMDeps::Parms;   // Skip the machine-state edges
 
   if( _matrule->_rChild &&

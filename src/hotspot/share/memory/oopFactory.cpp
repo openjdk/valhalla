@@ -33,8 +33,11 @@
 #include "memory/universe.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
+#include "oops/valueArrayKlass.hpp"
 
 
 typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {
@@ -79,11 +82,43 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
 
 objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
   assert(klass->is_klass(), "must be instance class");
+  assert(!klass->is_value() || (!ValueKlass::cast(klass)->flatten_array()),
+           "Did not expect flatten array of value klass");
   if (klass->is_array_klass()) {
     return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
   } else {
     return InstanceKlass::cast(klass)->allocate_objArray(1, length, THREAD);
   }
+}
+
+arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
+  assert(klass->is_value(), "Klass must be value type");
+  Klass* array_klass = klass->array_klass(CHECK_NULL); // Flat value array or object array ?
+  assert(array_klass->is_valueArray_klass() || array_klass->is_objArray_klass(),
+         "Expect an array class here");
+
+  if (array_klass->is_valueArray_klass()) {
+    return (arrayOop) ValueArrayKlass::cast(array_klass)->allocate(length, true, THREAD);
+  }
+
+  ValueKlass* vklass = ValueKlass::cast(klass);
+  objArrayOop array = oopFactory::new_objArray(klass, length, CHECK_NULL);
+  if (length == 0) {
+    return array;
+  }
+
+  // Populate default values...
+  objArrayHandle array_h(THREAD, array);
+  instanceOop value = (instanceOop)vklass->default_value();
+  for (int i = 0; i < length; i++) {
+    array_h->obj_at_put(i, value);
+  }
+  return array_h();
+}
+
+arrayOop oopFactory::new_array(Klass* klass, int length, TRAPS) {
+  return (klass->is_value()) ? new_valueArray(klass, length, THREAD) :
+      (arrayOop)new_objArray(klass, length, THREAD);
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {

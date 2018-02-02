@@ -43,7 +43,8 @@ ciObjArrayKlass::ciObjArrayKlass(Klass* k) : ciArrayKlass(k) {
   Klass* element_Klass = get_ObjArrayKlass()->bottom_klass();
   _base_element_klass = CURRENT_ENV->get_klass(element_Klass);
   assert(_base_element_klass->is_instance_klass() ||
-         _base_element_klass->is_type_array_klass(), "bad base klass");
+         _base_element_klass->is_type_array_klass() ||
+         _base_element_klass->is_value_array_klass(), "bad base klass");
   if (dimension() == 1) {
     _element_klass = _base_element_klass;
   } else {
@@ -65,7 +66,8 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
                  dimension, T_OBJECT) {
     _base_element_klass = base_element_klass;
     assert(_base_element_klass->is_instance_klass() ||
-           _base_element_klass->is_type_array_klass(), "bad base klass");
+           _base_element_klass->is_type_array_klass() ||
+           _base_element_klass->is_value_array_klass(), "bad base klass");
     if (dimension == 1) {
       _element_klass = base_element_klass;
     } else {

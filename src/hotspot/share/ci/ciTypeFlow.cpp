@@ -31,6 +31,7 @@
 #include "ci/ciStreams.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciTypeFlow.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/bytecodes.hpp"
@@ -548,12 +549,12 @@ void ciTypeFlow::StateVector::push_translate(ciType* type) {
 }
 
 // ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_aaload
-void ciTypeFlow::StateVector::do_aaload(ciBytecodeStream* str) {
+// ciTypeFlow::StateVector::do_aload
+void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
   pop_int();
-  ciObjArrayKlass* array_klass = pop_objArray();
+  ciArrayKlass* array_klass = pop_objOrValueArray();
   if (array_klass == NULL) {
-    // Did aaload on a null reference; push a null and ignore the exception.
+    // Did aload on a null reference; push a null and ignore the exception.
     // This instruction will never continue normally.  All we have to do
     // is report a value that will meet correctly with any downstream
     // reference types on paths that will truly be executed.  This null type
@@ -771,6 +772,42 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 }
 
 // ------------------------------------------------------------------
+// ciTypeFlow::StateVector::do_vdefault
+void ciTypeFlow::StateVector::do_vdefault(ciBytecodeStream* str) {
+  bool will_link;
+  ciKlass* klass = str->get_klass(will_link);
+  assert(klass->is_valuetype(), "should be value type");
+  if (!will_link || str->is_unresolved_value_type()) {
+    trap(str, klass, str->get_klass_index());
+  } else {
+    push_object(klass);
+  }
+}
+
+// ------------------------------------------------------------------
+// ciTypeFlow::StateVector::do_vwithfield
+void ciTypeFlow::StateVector::do_vwithfield(ciBytecodeStream* str) {
+  bool will_link;
+  ciField* field = str->get_field(will_link);
+  ciKlass* klass = field->holder();
+  assert(klass->is_valuetype(), "should be value type");
+  if (!will_link) {
+    trap(str, klass, str->get_field_holder_index());
+  } else {
+    ciType* type = pop_value();
+    ciType* field_type = field->type();
+    assert(field_type->is_loaded(), "field type must be loaded");
+    if (field_type->is_two_word()) {
+      ciType* type2 = pop_value();
+      assert(type2->is_two_word(), "must be 2nd half");
+      assert(type == half_type(type2), "must be 2nd half");
+    }
+    pop_object();
+    push_object(klass);
+  }
+}
+
+// ------------------------------------------------------------------
 // ciTypeFlow::StateVector::do_newarray
 void ciTypeFlow::StateVector::do_newarray(ciBytecodeStream* str) {
   pop_int();
@@ -815,6 +852,26 @@ void ciTypeFlow::StateVector::do_ret(ciBytecodeStream* str) {
   ciType* address = type_at(index);
   assert(address->is_return_address(), "bad return address");
   set_type_at(index, bottom_type());
+}
+
+void ciTypeFlow::StateVector::do_vunbox(ciBytecodeStream* str) {
+  bool will_link;
+  ciKlass* klass = str->get_klass(will_link);
+  // TODO: Handle case when class is not loaded.
+  guarantee(will_link, "Class to which the value-capable class will unbox to must be loaded for JIT compilation");
+  assert(klass->is_instance_klass(), "must be an instance class");
+  pop_object();
+  push_object(klass->as_instance_klass());
+}
+
+void ciTypeFlow::StateVector::do_vbox(ciBytecodeStream* str) {
+  bool will_link;
+  ciKlass* klass = str->get_klass(will_link);
+  // TODO: Handle case when class is not loaded.
+  guarantee(will_link, "Class to which value type will box to must be loaded for JIT compilation");
+  assert(klass->is_instance_klass(), "must be an instance class");
+  pop_object();
+  push_object(klass->as_instance_klass());
 }
 
 // ------------------------------------------------------------------
@@ -875,13 +932,15 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
   }
 
   switch(str->cur_bc()) {
-  case Bytecodes::_aaload: do_aaload(str);                       break;
+  case Bytecodes::_vaload:
+  case Bytecodes::_aaload: do_aload(str);                           break;
 
+  case Bytecodes::_vastore:
   case Bytecodes::_aastore:
     {
       pop_object();
       pop_int();
-      pop_objArray();
+      pop_objOrValueArray();
       break;
     }
   case Bytecodes::_aconst_null:
@@ -889,6 +948,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       push_null();
       break;
     }
+  case Bytecodes::_vload:
   case Bytecodes::_aload:   load_local_object(str->get_index());    break;
   case Bytecodes::_aload_0: load_local_object(0);                   break;
   case Bytecodes::_aload_1: load_local_object(1);                   break;
@@ -903,11 +963,12 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       if (!will_link) {
         trap(str, element_klass, str->get_klass_index());
       } else {
-        push_object(ciObjArrayKlass::make(element_klass));
+        push_object(ciArrayKlass::make(element_klass));
       }
       break;
     }
   case Bytecodes::_areturn:
+  case Bytecodes::_vreturn:
   case Bytecodes::_ifnonnull:
   case Bytecodes::_ifnull:
     {
@@ -933,6 +994,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       push_int();
       break;
     }
+  case Bytecodes::_vstore:
   case Bytecodes::_astore:   store_local_object(str->get_index());  break;
   case Bytecodes::_astore_0: store_local_object(0);                 break;
   case Bytecodes::_astore_1: store_local_object(1);                 break;
@@ -1435,6 +1497,9 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
 
   case Bytecodes::_new:      do_new(str);                           break;
 
+  case Bytecodes::_vdefault: do_vdefault(str);                      break;
+  case Bytecodes::_vwithfield: do_vwithfield(str);                  break;
+
   case Bytecodes::_newarray: do_newarray(str);                      break;
 
   case Bytecodes::_pop:
@@ -1462,6 +1527,16 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       push(value2);
       break;
     }
+  case Bytecodes::_vunbox:
+     {
+       do_vunbox(str);
+       break;
+     }
+     case Bytecodes::_vbox:
+     {
+       do_vbox(str);
+       break;
+     }
   case Bytecodes::_wide:
   default:
     {
@@ -1745,9 +1820,13 @@ ciTypeFlow::Block::successors(ciBytecodeStream* str,
         break;
       }
 
-      case Bytecodes::_athrow:     case Bytecodes::_ireturn:
-      case Bytecodes::_lreturn:    case Bytecodes::_freturn:
-      case Bytecodes::_dreturn:    case Bytecodes::_areturn:
+      case Bytecodes::_athrow:
+      case Bytecodes::_ireturn:
+      case Bytecodes::_lreturn:
+      case Bytecodes::_freturn:
+      case Bytecodes::_dreturn:
+      case Bytecodes::_areturn:
+      case Bytecodes::_vreturn:
       case Bytecodes::_return:
         _successors =
           new (arena) GrowableArray<Block*>(arena, 1, 0, NULL);
@@ -2185,6 +2264,7 @@ bool ciTypeFlow::can_trap(ciBytecodeStream& str) {
     case Bytecodes::_freturn:
     case Bytecodes::_dreturn:
     case Bytecodes::_areturn:
+    case Bytecodes::_vreturn:
     case Bytecodes::_return:
       // We can assume the monitor stack is empty in this analysis.
       return false;

@@ -71,7 +71,7 @@ Node* PhaseMacroExpand::make_leaf_call(Node* ctrl, Node* mem,
                                        Node* parm2, Node* parm3,
                                        Node* parm4, Node* parm5,
                                        Node* parm6, Node* parm7) {
-  int size = call_type->domain()->cnt();
+  int size = call_type->domain_sig()->cnt();
   Node* call = new CallLeafNoFPNode(call_type, call_addr, call_name, adr_type);
   call->init_req(TypeFunc::Control, ctrl);
   call->init_req(TypeFunc::I_O    , top());
@@ -139,6 +139,10 @@ inline Node* PhaseMacroExpand::generate_slow_guard(Node** ctrl, Node* test, Regi
   return generate_guard(ctrl, test, region, PROB_UNLIKELY_MAG(3));
 }
 
+inline Node* PhaseMacroExpand::generate_fair_guard(Node** ctrl, Node* test, RegionNode* region) {
+  return generate_guard(ctrl, test, region, PROB_FAIR);
+}
+
 void PhaseMacroExpand::generate_negative_guard(Node** ctrl, Node* index, RegionNode* region) {
   if ((*ctrl)->is_top())
     return;                // already stopped
@@ -182,6 +186,20 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
   Node* is_notp = generate_guard(ctrl, bol_le, NULL, PROB_MIN);
 
   return is_notp;
+}
+
+Node* PhaseMacroExpand::generate_valueArray_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region) {
+  if ((*ctrl)->is_top())  return NULL;
+
+  Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
+  Node* kls = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS));
+  Node* layout_val = make_load(NULL, mem, kls, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
+
+  layout_val = transform_later(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+  Node* cmp = transform_later(new CmpINode(layout_val, intcon(Klass::_lh_array_tag_vt_value)));
+  Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+
+  return generate_fair_guard(ctrl, bol, region);
 }
 
 void PhaseMacroExpand::finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type) {
@@ -236,6 +254,17 @@ address PhaseMacroExpand::basictype2arraycopy(BasicType t,
   return StubRoutines::select_arraycopy_function(t, aligned, disjoint, name, dest_uninitialized);
 }
 
+bool PhaseMacroExpand::can_try_zeroing_elimination(AllocateArrayNode* alloc,
+                                                   Node* src,
+                                                   Node* dest) const {
+  return ReduceBulkZeroing
+    && !(UseTLAB && ZeroTLAB) // pointless if already zeroed
+    && !src->eqv_uncast(dest)
+    && alloc != NULL
+    && _igvn.find_int_con(alloc->in(AllocateNode::ALength), 1) > 0
+    && alloc->maybe_set_complete(&_igvn);
+}
+
 #define XTOP LP64_ONLY(COMMA top())
 
 // Generate an optimized call to arraycopy.
@@ -280,6 +309,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                                            Node* copy_length,
                                            bool disjoint_bases,
                                            bool length_never_negative,
+                                           bool vt_with_oops_field,
                                            RegionNode* slow_region) {
   if (slow_region == NULL) {
     slow_region = new RegionNode(1);
@@ -294,13 +324,8 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
   // (Note:  Because tightly_coupled_allocation performs checks on the
   // out-edges of the dest, we need to avoid making derived pointers
   // from it until we have checked its uses.)
-  if (ReduceBulkZeroing
-      && !(UseTLAB && ZeroTLAB) // pointless if already zeroed
-      && basic_elem_type != T_CONFLICT // avoid corner case
-      && !src->eqv_uncast(dest)
-      && alloc != NULL
-      && _igvn.find_int_con(alloc->in(AllocateNode::ALength), 1) > 0
-      && alloc->maybe_set_complete(&_igvn)) {
+  if (can_try_zeroing_elimination(alloc, src, dest) &&
+      basic_elem_type != T_CONFLICT /* avoid corner case */) {
     // "You break it, you buy it."
     InitializeNode* init = alloc->initialization();
     assert(init->is_complete(), "we just did this");
@@ -712,6 +737,12 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // other threads.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarStoreStore);
   } else if (InsertMemBarAfterArraycopy) {
+    insert_mem_bar(ctrl, &out_mem, Op_MemBarCPUOrder);
+  } else if (adr_type == TypeRawPtr::BOTTOM) {
+    // Do not let reads from the destination float above the arraycopy.
+    // Since we cannot type the arrays, we don't know which slices
+    // might be affected.  We could restrict this barrier only to those
+    // memory slices which pertain to array elements--but don't bother.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarCPUOrder);
   }
 
@@ -1164,8 +1195,14 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   if (top_src != NULL && top_src->klass() != NULL) {
     src_elem = top_src->klass()->as_array_klass()->element_type()->basic_type();
   }
-  if (src_elem  == T_ARRAY)  src_elem  = T_OBJECT;
-  if (dest_elem == T_ARRAY)  dest_elem = T_OBJECT;
+  if (src_elem == T_ARRAY ||
+      (src_elem == T_VALUETYPE && top_src->klass()->is_obj_array_klass())) {
+    src_elem = T_OBJECT;
+  }
+  if (dest_elem == T_ARRAY ||
+      (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass())) {
+    dest_elem = T_OBJECT;
+  }
 
   if (ac->is_arraycopy_validated() &&
       dest_elem != T_CONFLICT &&
@@ -1184,30 +1221,39 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       transform_later(merge_mem);
     }
 
+    RegionNode* slow_region = new RegionNode(1);
+    transform_later(slow_region);
+
+    generate_valueArray_guard(&ctrl, merge_mem, dest, slow_region);
+
     // Call StubRoutines::generic_arraycopy stub.
     Node* mem = generate_arraycopy(ac, NULL, &ctrl, merge_mem, &io,
                                    TypeRawPtr::BOTTOM, T_CONFLICT,
                                    src, src_offset, dest, dest_offset, length,
                                    // If a  negative length guard was generated for the ArrayCopyNode,
                                    // the length of the array can never be negative.
-                                   false, ac->has_negative_length_guard());
+                                   false, ac->has_negative_length_guard(), false,
+                                   slow_region);
 
-    // Do not let reads from the destination float above the arraycopy.
-    // Since we cannot type the arrays, we don't know which slices
-    // might be affected.  We could restrict this barrier only to those
-    // memory slices which pertain to array elements--but don't bother.
-    if (!InsertMemBarAfterArraycopy) {
-      // (If InsertMemBarAfterArraycopy, there is already one in place.)
-      insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
-    }
     return;
   }
 
   assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID), "validated but different basic types");
 
+  bool vt_with_oops_field = false;
+  if (dest_elem == T_VALUETYPE) {
+    const TypeValueType* vt = top_dest->elem()->is_valuetype();
+    vt_with_oops_field = vt->value_klass()->contains_oops();
+  }
+
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
-  if (src_elem != dest_elem || dest_elem == T_VOID) {
+  //
+  // We have no stub to copy flattened value type arrays with oop
+  // fields if we need to emit write barriers.
+  //
+  if (src_elem != dest_elem || dest_elem == T_VOID ||
+      (vt_with_oops_field && (!can_try_zeroing_elimination(alloc, src, dest) || !GraphKit::use_ReduceInitialCardMarks()))) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
     {
@@ -1234,11 +1280,14 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (8) dest_offset + length must not exceed length of dest.
   // (9) each element of an oop array must be assignable
 
-  {
-    Node* mem = ac->in(TypeFunc::Memory);
-    merge_mem = MergeMemNode::make(mem);
-    transform_later(merge_mem);
+  Node* mem = ac->in(TypeFunc::Memory);
+  if (dest_elem == T_VALUETYPE) {
+    // copy modifies more than 1 slice
+    insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
   }
+
+  merge_mem = MergeMemNode::make(mem);
+  transform_later(merge_mem);
 
   RegionNode* slow_region = new RegionNode(1);
   transform_later(slow_region);
@@ -1282,7 +1331,32 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   }
   // This is where the memory effects are placed:
   const TypePtr* adr_type = NULL;
-  if (ac->_dest_type != TypeOopPtr::BOTTOM) {
+
+  if (dest_elem == T_VALUETYPE) {
+    assert(top_dest->klass()->is_value_array_klass(), "inconsistent");
+    int elem_size = ((ciValueArrayKlass*)top_dest->klass())->element_byte_size();
+    if (elem_size >= 8) {
+      if (elem_size > 8) {
+        // treat as array of long but scale length, src offset and dest offset
+        assert((elem_size % 8) == 0, "not a power of 2?");
+        int factor = elem_size / 8;
+        length = transform_later(new MulINode(length, intcon(factor)));
+        src_offset = transform_later(new MulINode(src_offset, intcon(factor)));
+        dest_offset = transform_later(new MulINode(dest_offset, intcon(factor)));
+        elem_size = 8;
+      }
+      dest_elem = T_LONG;
+    } else if (elem_size == 4) {
+      dest_elem = T_INT;
+    } else if (elem_size == 2) {
+      dest_elem = T_CHAR;
+    } else if (elem_size == 1) {
+      dest_elem = T_BYTE;
+    } else {
+      ShouldNotReachHere();
+    }
+    adr_type = TypeRawPtr::BOTTOM;
+  } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
   } else {
     adr_type = TypeAryPtr::get_array_body_type(dest_elem);
@@ -1293,5 +1367,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                      src, src_offset, dest, dest_offset, length,
                      // If a  negative length guard was generated for the ArrayCopyNode,
                      // the length of the array can never be negative.
-                     false, ac->has_negative_length_guard(), slow_region);
+                     false, ac->has_negative_length_guard(), vt_with_oops_field,
+                     slow_region);
 }

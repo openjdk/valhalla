@@ -108,6 +108,9 @@ public final class HotSpotConstantPool implements ConstantPool, MetaspaceWrapper
         Class(config().jvmConstantClass),
         UnresolvedClass(config().jvmConstantUnresolvedClass),
         UnresolvedClassInError(config().jvmConstantUnresolvedClassInError),
+        Value(config().jvmConstantValue),
+        UnresolvedValue(config().jvmConstantUnresolvedValue),
+        UnresolvedValueInError(config().jvmConstantUnresolvedValueInError),
         String(config().jvmConstantString),
         Fieldref(config().jvmConstantFieldref),
         MethodRef(config().jvmConstantMethodref),
@@ -507,6 +510,9 @@ public final class HotSpotConstantPool implements ConstantPool, MetaspaceWrapper
             case Class:
             case UnresolvedClass:
             case UnresolvedClassInError:
+            case Value:
+            case UnresolvedValue:
+            case UnresolvedValueInError:
                 final int opcode = -1;  // opcode is not used
                 return lookupType(cpi, opcode);
             case String:
@@ -704,11 +710,15 @@ public final class HotSpotConstantPool implements ConstantPool, MetaspaceWrapper
                 index = getUncachedKlassRefIndexAt(index);
                 // Read the tag only once because it could change between multiple reads.
                 final JVM_CONSTANT klassTag = getTagAt(index);
-                assert klassTag == JVM_CONSTANT.Class || klassTag == JVM_CONSTANT.UnresolvedClass || klassTag == JVM_CONSTANT.UnresolvedClassInError : klassTag;
+                assert klassTag == JVM_CONSTANT.Class || klassTag == JVM_CONSTANT.UnresolvedClass || klassTag == JVM_CONSTANT.UnresolvedClassInError ||
+                       klassTag == JVM_CONSTANT.Value || klassTag == JVM_CONSTANT.UnresolvedValue || klassTag == JVM_CONSTANT.UnresolvedValueInError : klassTag;
                 // fall through
             case Class:
             case UnresolvedClass:
             case UnresolvedClassInError:
+            case Value:
+            case UnresolvedValue:
+            case UnresolvedValueInError:
                 final HotSpotResolvedObjectTypeImpl type = compilerToVM().resolveTypeInPool(this, index);
                 Class<?> klass = type.mirror();
                 if (!klass.isPrimitive() && !klass.isArray()) {

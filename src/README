@@ -1,0 +1,51 @@
+
+*** Project Valhalla "Minimal Value Types" Early Access ***
+
+This is an "early access" build, from "Project Valhalla" [1], aimed at testing a
+"Value Types" implementation within the JVM without the introduction of language
+features. Otherwise known as "Minimal Value Types" (MVT) [2].
+
+This build is intend for a number of expert users with active interest in the
+Valhalla project, and is provided as a convenience to users needing to build
+from source code (branch "mvt") [3].
+
+Warning, not only is this build based on an incomplete version of "JDK 10",
+there has been less than comprehensive testing carried out.
+
+* System Limitations
+
+- platforms: x64 Linux, x64 Mac OS X
+- no VarHandles (work-in-progress for an update)
+- no support for atomic fields containing value types (work-in-progress for an
+  update)
+- no JNI, unsafe, jvmti, redefineclasses, reflection
+- -Xint and C2 only, no C1, no tiered-compilation
+- interpreter is not optimized, focus is on JIT optimization
+- Need additional USE CASES for optimizations
+- Working on additional test cases
+
+* EA disclaimer
+
+- EA release functionality might not be released in a GA binary.  Any EA
+  functionality might be changed or removed
+- EA builds do not imply that the feature is being considered to any scheduled
+  OpenJDK release
+- The list of supported platforms at GA might be different than the platforms
+  supported during EA
+- These binaries have not been tested to the same level to which Oracle would
+  test a GA binary.  It has been produced for gathering feedback.  Use for any
+  other purpose is at your own risk
+- These binaries might be missing security vulnerabilities fixes available in GA
+  binaries or in other OpenJDK projects
+- Oracle does not provide support for these binaries
+
+* Filing Bugs
+
+Send email to valhalla-dev@openjdk.java.net
+
+Current known issues [4]
+
+[1] https://wiki.openjdk.java.net/display/valhalla/Main
+[2] https://wiki.openjdk.java.net/display/valhalla/Minimal+Value+Types
+[3] http://hg.openjdk.java.net/valhalla/valhalla/
+[4] https://bugs.openjdk.java.net/issues/?filter=31435

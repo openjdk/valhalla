@@ -76,7 +76,12 @@ jdk_lang = \
     jdk/internal/jimage \
     jdk/internal/math \
     jdk/modules \
-    vm
+    vm \
+    valhalla
+
+# valhalla and mvt tests
+jdk_valhalla = \
+    valhalla
 
 # All of the java.util package
 jdk_util = \

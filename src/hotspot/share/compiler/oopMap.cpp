@@ -32,6 +32,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/valueKlass.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/align.hpp"
@@ -359,6 +360,7 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
 
   // We want coop and oop oop_types
   int mask = OopMapValue::oop_value | OopMapValue::narrowoop_value;
+  BufferedValuesDealiaser* dealiaser = NULL;
   {
     for (OopMapStream oms(map,mask); !oms.is_done(); oms.next()) {
       omv = oms.current();
@@ -380,7 +382,8 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
         }
 #ifdef ASSERT
         if ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
-            !Universe::heap()->is_in_or_null(*loc)) {
+            (!Universe::heap()->is_in_or_null(*loc)
+                && !VTBuffer::is_in_vt_buffer(*loc))) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");
           // try to dump out some helpful debugging information
           trace_codeblob_maps(fr, reg_map);
@@ -389,10 +392,19 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           omv.reg()->print();
           tty->print_cr("loc = %p *loc = %p\n", loc, (address)*loc);
           // do the real assert.
-          assert(Universe::heap()->is_in_or_null(*loc), "found non oop pointer");
+          assert(Universe::heap()->is_in_or_null(*loc) || VTBuffer::is_in_vt_buffer(*loc),
+                 "found non oop pointer");
         }
 #endif // ASSERT
-        oop_fn->do_oop(loc);
+        if (!VTBuffer::is_in_vt_buffer(*loc)) {
+          oop_fn->do_oop(loc);
+        } else {
+          assert((*loc)->is_value(), "Sanity check");
+          if (dealiaser == NULL) {
+            dealiaser = Thread::current()->buffered_values_dealiaser();
+          }
+          dealiaser->oops_do(oop_fn, *loc);
+        }
       } else if ( omv.type() == OopMapValue::narrowoop_value ) {
         narrowOop *nl = (narrowOop*)loc;
 #ifndef VM_LITTLE_ENDIAN

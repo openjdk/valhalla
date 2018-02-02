@@ -1,0 +1,9 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckNullAssign.java:11:32: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+CheckNullAssign.java:12:15: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+CheckNullAssign.java:13:13: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+CheckNullAssign.java:14:13: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+CheckNullAssign.java:15:16: compiler.warn.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullAssign)
+1 error
+6 warnings

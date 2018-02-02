@@ -65,6 +65,7 @@
 #include "opto/runtime.hpp"
 #include "opto/stringopts.hpp"
 #include "opto/type.hpp"
+#include "opto/valuetypenode.hpp"
 #include "opto/vectornode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -403,6 +404,10 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
     if (!useful.member(n)) {
       remove_expensive_node(n);
     }
+  }
+  // Remove useless value type nodes
+  if (_value_type_nodes != NULL) {
+    _value_type_nodes->remove_useless_nodes(useful.member_set());
   }
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
@@ -759,7 +764,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
     } else {
       // Normal case.
       init_tf(TypeFunc::make(method()));
-      StartNode* s = new StartNode(root(), tf()->domain());
+      StartNode* s = new StartNode(root(), tf()->domain_cc());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
       if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && UseG1GC) {
@@ -1179,6 +1184,7 @@ void Compile::Init(int aliaslevel) {
   _predicate_opaqs = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+  _value_type_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
   register_library_intrinsics();
 }
 
@@ -1420,16 +1426,18 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     if ( offset != Type::OffsetBot &&
          offset > arrayOopDesc::length_offset_in_bytes() ) {
       offset = Type::OffsetBot; // Flatten constant access into array body only
-      tj = ta = TypeAryPtr::make(ptr, ta->ary(), ta->klass(), true, offset, ta->instance_id());
+      tj = ta = TypeAryPtr::make(ptr, ta->ary(), ta->klass(), true, Type::Offset(offset), ta->field_offset(), ta->instance_id());
     }
   } else if( ta && _AliasLevel >= 2 ) {
     // For arrays indexed by constant indices, we flatten the alias
     // space to include all of the array body.  Only the header, klass
     // and array length can be accessed un-aliased.
+    // For flattened value type array, each field has its own slice so
+    // we must include the field offset.
     if( offset != Type::OffsetBot ) {
       if( ta->const_oop() ) { // MethodData* or Method*
         offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),ta->ary(),ta->klass(),false,offset);
+        tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),ta->ary(),ta->klass(),false,Type::Offset(offset), ta->field_offset());
       } else if( offset == arrayOopDesc::length_offset_in_bytes() ) {
         // range is OK as-is.
         tj = ta = TypeAryPtr::RANGE;
@@ -1443,35 +1451,35 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         ptr = TypePtr::BotPTR;
       } else {                  // Random constant offset into array body
         offset = Type::OffsetBot;   // Flatten constant access into array body
-        tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,offset);
+        tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,Type::Offset(offset), ta->field_offset());
       }
     }
     // Arrays of fixed size alias with arrays of unknown size.
     if (ta->size() != TypeInt::POS) {
       const TypeAry *tary = TypeAry::make(ta->elem(), TypeInt::POS);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,ta->klass(),false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,ta->klass(),false,Type::Offset(offset), ta->field_offset());
     }
     // Arrays of known objects become arrays of unknown objects.
     if (ta->elem()->isa_narrowoop() && ta->elem() != TypeNarrowOop::BOTTOM) {
       const TypeAry *tary = TypeAry::make(TypeNarrowOop::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     if (ta->elem()->isa_oopptr() && ta->elem() != TypeInstPtr::BOTTOM) {
       const TypeAry *tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size());
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
     // cannot be distinguished by bytecode alone.
     if (ta->elem() == TypeInt::BOOL) {
       const TypeAry *tary = TypeAry::make(TypeInt::BYTE, ta->size());
       ciKlass* aklass = ciTypeArrayKlass::make(T_BYTE);
-      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,aklass,false,offset);
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,aklass,false,Type::Offset(offset), ta->field_offset());
     }
     // During the 2nd round of IterGVN, NotNull castings are removed.
     // Make sure the Bottom and NotNull variants alias the same.
     // Also, make sure exact and non-exact variants alias the same.
     if (ptr == TypePtr::NotNull || ta->klass_is_exact() || ta->speculative() != NULL) {
-      tj = ta = TypeAryPtr::make(TypePtr::BotPTR,ta->ary(),ta->klass(),false,offset);
+      tj = ta = TypeAryPtr::make(TypePtr::BotPTR,ta->ary(),ta->klass(),false,Type::Offset(offset), ta->field_offset());
     }
   }
 
@@ -1485,7 +1493,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         // No constant oop pointers (such as Strings); they alias with
         // unknown strings.
         assert(!is_known_inst, "not scalarizable allocation");
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,offset);
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
       }
     } else if( is_known_inst ) {
       tj = to; // Keep NotNull and klass_is_exact for instance type
@@ -1493,17 +1501,17 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // During the 2nd round of IterGVN, NotNull castings are removed.
       // Make sure the Bottom and NotNull variants alias the same.
       // Also, make sure exact and non-exact variants alias the same.
-      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,offset);
+      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
     }
     if (to->speculative() != NULL) {
-      tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),to->offset(), to->instance_id());
+      tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),Type::Offset(to->offset()), to->instance_id());
     }
     // Canonicalize the holder of this field
     if (offset >= 0 && offset < instanceOopDesc::base_offset_in_bytes()) {
       // First handle header references such as a LoadKlassNode, even if the
       // object's klass is unloaded at compile time (4965979).
       if (!is_known_inst) { // Do it only for non-instance types
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, offset);
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset));
       }
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
@@ -1517,11 +1525,46 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       ciInstanceKlass *canonical_holder = k->get_canonical_holder(offset);
       if (!k->equals(canonical_holder) || tj->offset() != offset) {
         if( is_known_inst ) {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, offset, to->instance_id());
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), to->instance_id());
         } else {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, offset);
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset));
         }
       }
+    }
+  }
+
+  // Value type pointers need flattening
+  const TypeValueTypePtr* tv = tj->isa_valuetypeptr();
+  if (tv != NULL && _AliasLevel >= 2) {
+    assert(tv->speculative() == NULL, "should not have speculative type information");
+    ciValueKlass* vk = tv->klass()->as_value_klass();
+    if (ptr == TypePtr::Constant) {
+      assert(!is_known_inst, "not scalarizable allocation");
+      tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, tv->value_klass(), NULL, Type::Offset(offset));
+    } else if (is_known_inst) {
+      tj = tv; // Keep NotNull and klass_is_exact for instance type
+    } else if (ptr == TypePtr::NotNull || tv->klass_is_exact()) {
+      // During the 2nd round of IterGVN, NotNull castings are removed.
+      // Make sure the Bottom and NotNull variants alias the same.
+      // Also, make sure exact and non-exact variants alias the same.
+      tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, tv->value_klass(), tv->const_oop(), Type::Offset(offset));
+    }
+    // Canonicalize the holder of this field
+    if (offset >= 0 && offset < instanceOopDesc::base_offset_in_bytes()) {
+      // First handle header references such as a LoadKlassNode, even if the
+      // object's klass is unloaded at compile time (4965979).
+      if (!is_known_inst) { // Do it only for non-instance types
+        tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, env()->___Value_klass()->as_value_klass(), NULL, Type::Offset(offset));
+      }
+    } else if (offset < 0 || offset >= vk->size_helper() * wordSize) {
+      // Static fields are in the space above the normal instance
+      // fields in the java.lang.Class instance.
+      tv = NULL;
+      tj = TypeOopPtr::BOTTOM;
+      offset = tj->offset();
+    } else {
+      ciInstanceKlass* canonical_holder = vk->get_canonical_holder(offset);
+      assert(vk->equals(canonical_holder), "value types should not inherit fields");
     }
   }
 
@@ -1536,15 +1579,15 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
       tj = tk = TypeKlassPtr::make(TypePtr::NotNull,
                                    TypeKlassPtr::OBJECT->klass(),
-                                   offset);
+                                   Type::Offset(offset));
     }
 
     ciKlass* klass = tk->klass();
-    if( klass->is_obj_array_klass() ) {
+    if (klass != NULL && klass->is_obj_array_klass()) {
       ciKlass* k = TypeAryPtr::OOPS->klass();
       if( !k || !k->is_loaded() )                  // Only fails for some -Xcomp runs
         k = TypeInstPtr::BOTTOM->klass();
-      tj = tk = TypeKlassPtr::make( TypePtr::NotNull, k, offset );
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset));
     }
 
     // Check for precise loads from the primary supertype array and force them
@@ -1560,7 +1603,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
          offset < (int)(primary_supers_offset + Klass::primary_super_limit() * wordSize)) ||
         offset == (int)in_bytes(Klass::secondary_super_cache_offset())) {
       offset = in_bytes(Klass::secondary_super_cache_offset());
-      tj = tk = TypeKlassPtr::make( TypePtr::NotNull, tk->klass(), offset );
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset));
     }
   }
 
@@ -1780,8 +1823,9 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
 
     // Check for final fields.
     const TypeInstPtr* tinst = flat->isa_instptr();
+    const TypeValueTypePtr* vtptr = flat->isa_valuetypeptr();
+    ciField* field = NULL;
     if (tinst && tinst->offset() >= instanceOopDesc::base_offset_in_bytes()) {
-      ciField* field;
       if (tinst->const_oop() != NULL &&
           tinst->klass() == ciEnv::current()->Class_klass() &&
           tinst->offset() >= (tinst->klass()->as_instance_klass()->size_helper() * wordSize)) {
@@ -1792,14 +1836,18 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         ciInstanceKlass *k = tinst->klass()->as_instance_klass();
         field = k->get_field_by_offset(tinst->offset(), false);
       }
-      assert(field == NULL ||
-             original_field == NULL ||
-             (field->holder() == original_field->holder() &&
-              field->offset() == original_field->offset() &&
-              field->is_static() == original_field->is_static()), "wrong field?");
-      // Set field() and is_rewritable() attributes.
-      if (field != NULL)  alias_type(idx)->set_field(field);
+    } else if (vtptr) {
+      // Value type field
+      ciValueKlass* vk = vtptr->klass()->as_value_klass();
+      field = vk->get_field_by_offset(vtptr->offset(), false);
     }
+    assert(field == NULL ||
+           original_field == NULL ||
+           (field->holder() == original_field->holder() &&
+            field->offset() == original_field->offset() &&
+            field->is_static() == original_field->is_static()), "wrong field?");
+    // Set field() and is_rewritable() attributes.
+    if (field != NULL)  alias_type(idx)->set_field(field);
   }
 
   // Fill the cache for next time.
@@ -1955,6 +2003,33 @@ void Compile::remove_range_check_casts(PhaseIterGVN &igvn) {
     igvn.replace_node(cast, cast->in(1));
   }
   assert(range_check_cast_count() == 0, "should be empty");
+}
+
+void Compile::add_value_type(Node* n) {
+  assert(n->is_ValueTypeBase(), "unexpected node");
+  if (_value_type_nodes != NULL) {
+    _value_type_nodes->push(n);
+  }
+}
+
+void Compile::remove_value_type(Node* n) {
+  assert(n->is_ValueTypeBase(), "unexpected node");
+  if (_value_type_nodes != NULL) {
+    _value_type_nodes->remove(n);
+  }
+}
+
+void Compile::process_value_types(PhaseIterGVN &igvn) {
+  // Make value types scalar in safepoints
+  while (_value_type_nodes->size() != 0) {
+    ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
+    vt->make_scalar_in_safepoints(igvn.C->root(), &igvn);
+    if (vt->is_ValueTypePtr()) {
+      igvn.replace_node(vt, vt->get_oop());
+    }
+  }
+  _value_type_nodes = NULL;
+  igvn.optimize();
 }
 
 // StringOpts and late inlining of string methods
@@ -2204,6 +2279,11 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
+  if (_value_type_nodes->size() > 0) {
+    // Do this once all inlining is over to avoid getting inconsistent debug info
+    process_value_types(igvn);
+  }
+
   // Perform escape analysis
   if (_do_escape_analysis && ConnectionGraph::has_candidates(this)) {
     if (has_loops()) {
@@ -2347,7 +2427,6 @@ void Compile::Optimize() {
 
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
 }
-
 
 //------------------------------Code_Gen---------------------------------------
 // Given a graph, generate code for it
@@ -2660,6 +2739,7 @@ void Compile::eliminate_redundant_card_marks(Node* n) {
     }
   }
 }
+
 
 //------------------------------final_graph_reshaping_impl----------------------
 // Implement items 1-5 from final_graph_reshaping below.
@@ -3332,6 +3412,14 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     }
     break;
   }
+#ifdef ASSERT
+  case Op_ValueTypePtr:
+  case Op_ValueType: {
+    n->dump(-1);
+    assert(false, "value type node was not removed");
+    break;
+  }
+#endif
   default:
     assert( !n->is_Call(), "" );
     assert( !n->is_Mem(), "" );
@@ -4058,11 +4146,11 @@ void Compile::ConstantTable::fill_jump_table(CodeBuffer& cb, MachConstantNode* n
 // (2) subklass does not overlap with superklass => always fail
 // (3) superklass has NO subtypes and we can check with a simple compare.
 int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
-  if (StressReflectiveCode) {
+  if (StressReflectiveCode || superk == NULL || subk == NULL) {
     return SSC_full_test;       // Let caller generate the general case.
   }
 
-  if (superk == env()->Object_klass()) {
+  if (!EnableMVT && !EnableValhalla && superk == env()->Object_klass()) {
     return SSC_always_true;     // (0) this test cannot fail
   }
 

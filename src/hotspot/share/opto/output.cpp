@@ -287,7 +287,9 @@ void Compile::shorten_branches(uint* blk_starts, int& code_size, int& reloc_size
           MachCallNode *mcall = mach->as_MachCall();
           // This destination address is NOT PC-relative
 
-          mcall->method_set((intptr_t)mcall->entry_point());
+          if (mcall->entry_point() != NULL) {
+            mcall->method_set((intptr_t)mcall->entry_point());
+          }
 
           if (mcall->is_MachCallJava() && mcall->as_MachCallJava()->_method) {
             stub_size  += CompiledStaticCall::to_interp_stub_size();
@@ -632,6 +634,7 @@ void Compile::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
     array->append(new ConstantOopWriteValue(NULL));
     break;
   case Type::AryPtr:
+  case Type::ValueTypePtr:
   case Type::InstPtr:          // fall through
     array->append(new ConstantOopWriteValue(t->isa_oopptr()->const_oop()->constant_encoding()));
     break;
@@ -725,6 +728,7 @@ void Compile::Process_OopMap_Node(MachNode *mach, int current_offset) {
   int safepoint_pc_offset = current_offset;
   bool is_method_handle_invoke = false;
   bool return_oop = false;
+  bool return_vt = false;
 
   // Add the safepoint in the DebugInfoRecorder
   if( !mach->is_MachCall() ) {
@@ -742,8 +746,11 @@ void Compile::Process_OopMap_Node(MachNode *mach, int current_offset) {
     }
 
     // Check if a call returns an object.
-    if (mcall->returns_pointer()) {
+    if (mcall->returns_pointer() || mcall->returns_vt()) {
       return_oop = true;
+    }
+    if (mcall->returns_vt()) {
+      return_vt = true;
     }
     safepoint_pc_offset += mcall->ret_addr_offset();
     debug_info()->add_safepoint(safepoint_pc_offset, mcall->_oop_map);
@@ -859,7 +866,7 @@ void Compile::Process_OopMap_Node(MachNode *mach, int current_offset) {
     // Now we can describe the scope.
     methodHandle null_mh;
     bool rethrow_exception = false;
-    debug_info()->describe_scope(safepoint_pc_offset, null_mh, scope_method, jvms->bci(), jvms->should_reexecute(), rethrow_exception, is_method_handle_invoke, return_oop, locvals, expvals, monvals);
+    debug_info()->describe_scope(safepoint_pc_offset, null_mh, scope_method, jvms->bci(), jvms->should_reexecute(), rethrow_exception, is_method_handle_invoke, return_oop, return_vt, locvals, expvals, monvals);
   } // End jvms loop
 
   // Mark the end of the scope set.
@@ -1232,8 +1239,10 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
         if (is_mcall) {
           MachCallNode *mcall = mach->as_MachCall();
 
-          // This destination address is NOT PC-relative
-          mcall->method_set((intptr_t)mcall->entry_point());
+          if (mcall->entry_point() != NULL) {
+            // This destination address is NOT PC-relative
+            mcall->method_set((intptr_t)mcall->entry_point());
+          }
 
           // Save the return address
           call_returns[block->_pre_order] = current_offset + mcall->ret_addr_offset();

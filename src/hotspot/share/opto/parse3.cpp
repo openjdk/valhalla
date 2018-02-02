@@ -27,6 +27,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "memory/universe.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/valueArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/memnode.hpp"
@@ -34,6 +35,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
 
@@ -83,6 +85,15 @@ void Parse::do_field_access(bool is_get, bool is_field) {
   assert(will_link, "getfield: typeflow responsibility");
 
   ciInstanceKlass* field_holder = field->holder();
+
+  if (is_field && field_holder->is_valuetype()) {
+    assert(is_get, "value type field store not supported");
+    BasicType bt = field->layout_type();
+    ValueTypeNode* vt = pop()->as_ValueType();
+    Node* value = vt->field_value_by_offset(field->offset());
+    push_node(bt, value);
+    return;
+  }
 
   if (is_field == field->is_static()) {
     // Interpreter will throw java_lang_IncompatibleClassChangeError
@@ -144,7 +155,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
   }
 }
 
-
 void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
 
@@ -166,6 +176,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
 
   ciType* field_klass = field->type();
   bool is_vol = field->is_volatile();
+  bool flattened = field->is_flattened();
 
   // Compute address and memory type.
   int offset = field->offset_in_bytes();
@@ -176,8 +187,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   const Type *type;
 
   bool must_assert_null = false;
-
-  if( bt == T_OBJECT ) {
+  if (bt == T_OBJECT || bt == T_VALUETYPE) {
     if (!field->type()->is_loaded()) {
       type = TypeInstPtr::BOTTOM;
       must_assert_null = true;
@@ -194,6 +204,15 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
       assert(type != NULL, "field singleton type must be consistent");
     } else {
       type = TypeOopPtr::make_from_klass(field_klass->as_klass());
+      if (bt == T_VALUETYPE && field->is_static()) {
+        // Check if static value type field is already initialized
+        assert(!flattened, "static fields should not be flattened");
+        ciInstance* mirror = field->holder()->java_mirror();
+        ciObject* val = mirror->field_value(field).as_object();
+        if (!val->is_null_object()) {
+          type = type->join_speculative(TypePtr::NOTNULL);
+        }
+      }
     }
   } else {
     type = Type::get_const_basic_type(bt);
@@ -201,11 +220,18 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   if (support_IRIW_for_not_multiple_copy_atomic_cpu && field->is_volatile()) {
     insert_mem_bar(Op_MemBarVolatile);   // StoreLoad barrier
   }
+
   // Build the load.
   //
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
   bool needs_atomic_access = is_vol || AlwaysAtomicAccesses;
-  Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, needs_atomic_access);
+  Node* ld = NULL;
+   if (flattened) {
+    // Load flattened value type
+    ld = ValueTypeNode::make_from_flattened(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
+  } else {
+    ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, needs_atomic_access);
+  }
 
   // Adjust Java stack
   if (type2size[bt] == 1)
@@ -248,6 +274,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
 
 void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool is_vol = field->is_volatile();
+  bool is_flattened = field->is_flattened();
   // If reference is volatile, prevent following memory ops from
   // floating down past the volatile write.  Also prevents commoning
   // another volatile read.
@@ -274,18 +301,23 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     StoreNode::release_if_reference(bt);
 
   // Store the value.
-  Node* store;
-  if (bt == T_OBJECT) {
+  if (bt == T_OBJECT || bt == T_VALUETYPE) {
     const TypeOopPtr* field_type;
     if (!field->type()->is_loaded()) {
       field_type = TypeInstPtr::BOTTOM;
     } else {
       field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
     }
-    store = store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, mo);
+    if (is_flattened) {
+      // Store flattened value type to a non-static field
+      assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
+      val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
+    } else {
+      store_oop_to_object(control(), obj, adr, adr_type, val, field_type, bt, mo);
+    }
   } else {
     bool needs_atomic_access = is_vol || AlwaysAtomicAccesses;
-    store = store_to_memory(control(), adr, val, bt, adr_type, mo, needs_atomic_access);
+    store_to_memory(control(), adr, val, bt, adr_type, mo, needs_atomic_access);
   }
 
   // If reference is volatile, prevent following volatiles ops from
@@ -330,22 +362,30 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 }
 
 //=============================================================================
-void Parse::do_anewarray() {
+
+void Parse::do_newarray() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
 
   // Uncommon Trap when class that array contains is not loaded
   // we need the loaded class for the rest of graph; do not
   // initialize the container class (see Java spec)!!!
-  assert(will_link, "anewarray: typeflow responsibility");
+  assert(will_link, "newarray: typeflow responsibility");
 
-  ciObjArrayKlass* array_klass = ciObjArrayKlass::make(klass);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {
     // Generate uncommon_trap for unloaded array_class
     uncommon_trap(Deoptimization::Reason_unloaded,
                   Deoptimization::Action_reinterpret,
                   array_klass);
+    return;
+  } else if (array_klass->element_klass() != NULL &&
+             array_klass->element_klass()->is_valuetype() &&
+             !array_klass->element_klass()->as_value_klass()->is_initialized()) {
+    uncommon_trap(Deoptimization::Reason_uninitialized,
+                  Deoptimization::Action_reinterpret,
+                  NULL);
     return;
   }
 
@@ -506,4 +546,85 @@ void Parse::do_multianewarray() {
   // Possible improvements:
   // - Make a fast path for small multi-arrays.  (W/ implicit init. loops.)
   // - Issue CastII against length[*] values, to TypeInt::POS.
+}
+
+void Parse::do_vbox() {
+  // Obtain target value-capable class
+  bool will_link;
+  ciInstanceKlass* dst_vcc = iter().get_klass(will_link)->as_instance_klass();
+  assert(will_link, "vbox: Target value-capable class must be loaded");
+
+  // Obtain source value type instance and type
+  const ValueTypeNode* vt = peek()->as_ValueType();
+  ciValueKlass* src_vk = vt->type()->is_valuetype()->value_klass();
+  assert(src_vk != NULL && src_vk->is_loaded() && src_vk->exact_klass(),
+         "vbox: Source class must be a value type and must be loaded and exact");
+
+  // Verify that the vcc derived from the source value klass is equal to the target vcc
+  const ciInstanceKlass* src_vcc = src_vk->vcc_klass();
+  assert(src_vcc, "vbox: Source value-capable class must not be null");
+  if (!src_vcc->equals(dst_vcc)) {
+    builtin_throw(Deoptimization::Reason_class_check);
+    assert(stopped(), "A ClassCastException must be always thrown on this path");
+    return;
+  }
+
+  // Create new object
+  pop();
+  kill_dead_locals();
+  Node* kls = makecon(TypeKlassPtr::make(dst_vcc));
+  Node* obj = new_instance(kls);
+
+  // Store all field values to the newly created object.
+  // The code below relies on the assumption that the VCC has the
+  // same memory layout as the derived value type.
+  vt->store(this, obj, obj, dst_vcc);
+
+  // Push the new object onto the stack
+  push(obj);
+}
+
+void Parse::do_vunbox() {
+  // Obtain target value klass
+  bool will_link;
+  ciValueKlass* dst_vk = iter().get_klass(will_link)->as_value_klass();
+  assert(will_link, "vunbox: Derived value type must be loaded");
+
+  // Obtain source value-capable class instance and type
+  Node* vcc = null_check(peek());
+  if (stopped()) {
+    return; // Always null
+  }
+  ciKlass* src_vcc = gvn().type(vcc)->isa_oopptr()->klass();
+  assert(src_vcc != NULL && src_vcc->is_instance_klass() && src_vcc->is_loaded(),
+         "vunbox: Source class must be an instance type and must be loaded");
+
+  // Verify that the source vcc is equal to the vcc derived from the target value klass
+  ciInstanceKlass* dst_vcc = dst_vk->vcc_klass();
+  assert(dst_vcc != NULL && dst_vcc->exact_klass(), "vunbox: Target value-capable class must not be null and exact");
+  if (!src_vcc->equals(dst_vcc)) {
+    if (src_vcc->exact_klass()) {
+      // Source vcc is exact and therefore always incompatible with dst_vcc
+      builtin_throw(Deoptimization::Reason_class_check);
+      assert(stopped(), "A ClassCastException must be always thrown on this path");
+      return;
+    } else {
+      // Emit a runtime check to verify that the dynamic type of vcc is equal to dst_vcc
+      Node* exact_vcc = vcc;
+      Node* slow_ctl  = type_check_receiver(vcc, dst_vcc, 1.0, &exact_vcc);
+      {
+        PreserveJVMState pjvms(this);
+        set_control(slow_ctl);
+        builtin_throw(Deoptimization::Reason_class_check);
+      }
+      replace_in_map(vcc, exact_vcc);
+      vcc = exact_vcc;
+    }
+  }
+
+  // Create a value type node with the corresponding type and push it onto the stack
+  pop();
+  kill_dead_locals();
+  ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, dst_vk, vcc, vcc, dst_vcc, dst_vk->first_field_offset());
+  push(vt);
 }

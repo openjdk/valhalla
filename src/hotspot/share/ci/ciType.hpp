@@ -29,8 +29,8 @@
 
 // ciType
 //
-// This class represents either a class (T_OBJECT), array (T_ARRAY),
-// or one of the primitive types such as T_INT.
+// This class represents either a class (T_OBJECT), value (T_VALUETYPE),
+// array (T_ARRAY), or one of the primitive types such as T_INT.
 class ciType : public ciMetadata {
   CI_PACKAGE_ACCESS
   friend class ciKlass;
@@ -67,7 +67,7 @@ public:
   ciKlass*  box_klass();
 
   // Returns true if this is not a klass or array (i.e., not a reference type).
-  bool is_primitive_type() const            { return basic_type() != T_OBJECT && basic_type() != T_ARRAY; }
+  bool is_primitive_type() const            { return basic_type() != T_OBJECT && basic_type() != T_ARRAY && basic_type() != T_VALUETYPE; }
   int size() const                          { return type2size[basic_type()]; }
   bool is_void() const                      { return basic_type() == T_VOID; }
   bool is_one_word() const                  { return size() == 1; }
@@ -76,6 +76,7 @@ public:
   // What kind of ciObject is this?
   bool is_type() const                      { return true; }
   bool is_classless() const                 { return is_primitive_type(); }
+  bool is__Value() const;
 
   const char* name();
   virtual void print_name_on(outputStream* st);

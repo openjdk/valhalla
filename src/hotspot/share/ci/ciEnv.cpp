@@ -33,6 +33,7 @@
 #include "ci/ciNullObject.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciUtilities.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -394,7 +395,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // Now we need to check the SystemDictionary
   Symbol* sym = name->get_symbol();
-  if (sym->byte_at(0) == 'L' &&
+  if ((sym->byte_at(0) == 'L' || sym->byte_at(0) == 'Q') &&
     sym->byte_at(sym->utf8_length()-1) == ';') {
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
@@ -449,7 +450,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   // to be loaded if their element klasses are loaded, except when memory
   // is exhausted.
   if (sym->byte_at(0) == '[' &&
-      (sym->byte_at(1) == '[' || sym->byte_at(1) == 'L')) {
+      (sym->byte_at(1) == '[' || sym->byte_at(1) == 'L' || sym->byte_at(1) == 'Q')) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     TempNewSymbol elem_sym = SymbolTable::new_symbol(sym->as_utf8()+1,
@@ -464,14 +465,18 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      return ciObjArrayKlass::make_impl(elem_klass);
+      if (elem_klass->is_valuetype() && elem_klass->as_value_klass()->flatten_array()) {
+        return ciValueArrayKlass::make_impl(elem_klass);
+      } else {
+        return ciObjArrayKlass::make_impl(elem_klass);
+      }
     }
   }
 
   if (found_klass == NULL && !cpool.is_null() && cpool->has_preresolution()) {
     // Look inside the constant pool for pre-resolved class entries.
     for (int i = cpool->length() - 1; i >= 1; i--) {
-      if (cpool->tag_at(i).is_klass()) {
+      if (cpool->tag_at(i).is_klass() || cpool->tag_at(i).is_value_type()) {
         Klass* kls = cpool->resolved_klass_at(i);
         if (kls->name() == sym) {
           found_klass = kls;
@@ -490,6 +495,22 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // Not yet loaded into the VM, or not governed by loader constraints.
   // Make a CI representative for it.
+  int i = 0;
+  while (sym->byte_at(i) == '[') {
+    i++;
+  }
+  if (i > 0 && sym->byte_at(i) == 'Q') {
+    assert(EnableValhalla || EnableMVT, "only for value types");
+    // An unloaded array class of value types is an ObjArrayKlass, an
+    // unloaded value type class is an InstanceKlass. For consistency,
+    // make the signature of the unloaded array of value type use L
+    // rather than Q.
+    char *new_name = CURRENT_THREAD_ENV->name_buffer(sym->utf8_length()+1);
+    strncpy(new_name, (char*)sym->base(), sym->utf8_length());
+    new_name[i] = 'L';
+    new_name[sym->utf8_length()] = '\0';
+    return get_unloaded_klass(accessing_klass, ciSymbol::make(new_name));
+  }
   return get_unloaded_klass(accessing_klass, name);
 }
 
@@ -625,7 +646,8 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
       assert (constant->is_instance(), "must be an instance, or not? ");
       return ciConstant(T_OBJECT, constant);
     }
-  } else if (tag.is_klass() || tag.is_unresolved_klass()) {
+  } else if (tag.is_klass() || tag.is_unresolved_klass() ||
+             tag.is_value_type() || tag.is_unresolved_value_type()) {
     // 4881222: allow ldc to take a class type
     ciKlass* klass = get_klass_by_index_impl(cpool, index, ignore_will_link, accessor);
     if (HAS_PENDING_EXCEPTION) {

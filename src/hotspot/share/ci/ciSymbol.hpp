@@ -46,6 +46,7 @@ class ciSymbol : public ciBaseObject {
   friend class ciMethod;
   friend class ciField;
   friend class ciObjArrayKlass;
+  friend class ciValueArrayKlass;
 
 private:
   const vmSymbols::SID _sid;

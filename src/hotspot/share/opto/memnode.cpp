@@ -42,6 +42,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/regmask.hpp"
+#include "opto/valuetypenode.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/vmError.hpp"
@@ -229,7 +230,7 @@ static Node *step_through_mergemem(PhaseGVN *phase, MergeMemNode *mmem,  const T
                        phase->C->must_alias(adr_check, alias_idx );
     // Sometimes dead array references collapse to a[-1], a[-2], or a[-3]
     if( !consistent && adr_check != NULL && !adr_check->empty() &&
-               tp->isa_aryptr() &&        tp->offset() == Type::OffsetBot &&
+        tp->isa_aryptr() &&        tp->offset() == Type::OffsetBot &&
         adr_check->isa_aryptr() && adr_check->offset() != Type::OffsetBot &&
         ( adr_check->offset() == arrayOopDesc::length_offset_in_bytes() ||
           adr_check->offset() == oopDesc::klass_offset_in_bytes() ||
@@ -810,6 +811,7 @@ Node *LoadNode::make(PhaseGVN& gvn, Node *ctl, Node *mem, Node *adr, const TypeP
   case T_FLOAT:   load = new LoadFNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency); break;
   case T_DOUBLE:  load = new LoadDNode (ctl, mem, adr, adr_type, rt,            mo, control_dependency); break;
   case T_ADDRESS: load = new LoadPNode (ctl, mem, adr, adr_type, rt->is_ptr(),  mo, control_dependency); break;
+  case T_VALUETYPE:
   case T_OBJECT:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
@@ -1047,6 +1049,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
       // (This is one of the few places where a generic PhaseTransform
       // can create new nodes.  Think of it as lazily manifesting
       // virtually pre-existing constants.)
+      assert(memory_type() != T_VALUETYPE, "should not be used for value types");
       return phase->zerocon(memory_type());
     }
 
@@ -1102,6 +1105,33 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
 //------------------------------Identity---------------------------------------
 // Loads are identity if previous store is to same address
 Node* LoadNode::Identity(PhaseGVN* phase) {
+  // Loading from a ValueTypePtr? The ValueTypePtr has the values of
+  // all fields as input. Look for the field with matching offset.
+  Node* addr = in(Address);
+  intptr_t offset;
+  Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
+  if (base != NULL && base->is_ValueTypePtr()) {
+    Node* value = base->as_ValueTypePtr()->field_value_by_offset((int)offset, true);
+    if (value->is_ValueType()) {
+      // Non-flattened value type field
+      ValueTypeNode* vt = value->as_ValueType();
+      if (vt->is_allocated(phase)) {
+        value = vt->get_oop();
+      } else {
+        // Not yet allocated, bail out
+        value = NULL;
+      }
+    }
+    if (value != NULL) {
+      if (Opcode() == Op_LoadN) {
+        // Encode oop value if we are loading a narrow oop
+        assert(!phase->type(value)->isa_narrowoop(), "should already be decoded");
+        value = phase->transform(new EncodePNode(value, bottom_type()));
+      }
+      return value;
+    }
+  }
+
   // If the previous store-maker is the right kind of Store, and the store is
   // to the same address, then we are equal to the value stored.
   Node* mem = in(Memory);
@@ -1714,6 +1744,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // expression (LShiftL quux 3) independently optimized to the constant 8.
     if ((t->isa_int() == NULL) && (t->isa_long() == NULL)
         && (_type->isa_vect() == NULL)
+        && t->isa_valuetype() == NULL
         && Opcode() != Op_LoadKlass && Opcode() != Op_LoadNKlass) {
       // t might actually be lower than _type, if _type is a unique
       // concrete subclass of abstract class t.
@@ -1765,6 +1796,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   } else if (tp->base() == Type::KlassPtr) {
     assert( off != Type::OffsetBot ||
             // arrays can be cast to Objects
+            tp->is_klassptr()->klass() == NULL ||
             tp->is_klassptr()->klass()->is_java_lang_Object() ||
             // also allow array-loading from the primary supertype
             // array during subtype checks
@@ -1782,7 +1814,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
     if (tkls != NULL && !StressReflectiveCode) {
       ciKlass* klass = tkls->klass();
-      if (klass->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
+      if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
         assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
         assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
         return TypeInstPtr::make(klass->java_mirror());
@@ -1793,7 +1825,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   const TypeKlassPtr *tkls = tp->isa_klassptr();
   if (tkls != NULL && !StressReflectiveCode) {
     ciKlass* klass = tkls->klass();
-    if (klass->is_loaded() && tkls->klass_is_exact()) {
+    if (tkls->is_loaded() && tkls->klass_is_exact()) {
       // We are loading a field from a Klass metaobject whose identity
       // is known at compile time (the type is "exact" or "precise").
       // Check for fields we know are maintained as constants by the VM.
@@ -1820,7 +1852,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // We can still check if we are loading from the primary_supers array at a
     // shallow enough depth.  Even though the klass is not exact, entries less
     // than or equal to its super depth are correct.
-    if (klass->is_loaded() ) {
+    if (tkls->is_loaded()) {
       ciType *inner = klass;
       while( inner->is_obj_array_klass() )
         inner = inner->as_obj_array_klass()->base_element_type();
@@ -2107,7 +2139,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       }
 
       // Return root of possible klass
-      return TypeKlassPtr::make(TypePtr::NotNull, ik, 0/*offset*/);
+      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0));
     }
   }
 
@@ -2139,7 +2171,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, 0/*offset*/);
+        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
       } else {                  // Found a type-array?
         //assert(!UseExactTypes, "this code should be useless with exact types");
         assert( ak->is_type_array_klass(), "" );
@@ -2151,9 +2183,10 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   // Check for loading klass from an array klass
   const TypeKlassPtr *tkls = tp->isa_klassptr();
   if (tkls != NULL && !StressReflectiveCode) {
-    ciKlass* klass = tkls->klass();
-    if( !klass->is_loaded() )
+    if (!tkls->is_loaded()) {
       return _type;             // Bail out if not loaded
+    }
+    ciKlass* klass = tkls->klass();
     if( klass->is_obj_array_klass() &&
         tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
@@ -2163,7 +2196,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
-      return TypeKlassPtr::make(tkls->ptr(), elem, 0/*offset*/);
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0));
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -2365,6 +2398,7 @@ StoreNode* StoreNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const
   case T_DOUBLE:  return new StoreDNode(ctl, mem, adr, adr_type, val, mo);
   case T_METADATA:
   case T_ADDRESS:
+  case T_VALUETYPE:
   case T_OBJECT:
 #ifdef _LP64
     if (adr->bottom_type()->is_ptr_to_narrowoop()) {
@@ -3030,7 +3064,7 @@ const Type* MemBarNode::Value(PhaseGVN* phase) const {
 
 //------------------------------match------------------------------------------
 // Construct projections for memory.
-Node *MemBarNode::match( const ProjNode *proj, const Matcher *m ) {
+Node *MemBarNode::match(const ProjNode *proj, const Matcher *m, const RegMask* mask) {
   switch (proj->_con) {
   case TypeFunc::Control:
   case TypeFunc::Memory:

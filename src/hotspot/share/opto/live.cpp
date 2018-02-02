@@ -337,7 +337,7 @@ void PhaseChaitin::verify_base_ptrs( ResourceArea *a ) const {
                     // Derived is NULL+offset
                     assert(!is_derived || check->bottom_type()->is_ptr()->ptr() == TypePtr::Null,"Bad derived pointer");
                   } else {
-                    assert(check->bottom_type()->is_ptr()->_offset == 0,"Bad base pointer");
+                    assert(check->bottom_type()->is_ptr()->offset() == 0,"Bad base pointer");
                     // Base either ConP(NULL) or loadConP
                     if (check->is_Mach()) {
                       assert(check->as_Mach()->ideal_Opcode() == Op_ConP,"Bad base pointer");
@@ -346,7 +346,7 @@ void PhaseChaitin::verify_base_ptrs( ResourceArea *a ) const {
                              check->bottom_type()->is_ptr()->ptr() == TypePtr::Null,"Bad base pointer");
                     }
                   }
-                } else if( check->bottom_type()->is_ptr()->_offset == 0 ) {
+                } else if (check->bottom_type()->is_ptr()->offset() == 0) {
                   if(check->is_Proj() || (check->is_Mach() &&
                      (check->as_Mach()->ideal_Opcode() == Op_CreateEx ||
                       check->as_Mach()->ideal_Opcode() == Op_ThreadLocal ||

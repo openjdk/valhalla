@@ -58,7 +58,9 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_method_data() const       { return false; }
   virtual bool is_klass() const             { return false; }
   virtual bool is_instance_klass() const    { return false; }
+  virtual bool is_valuetype() const         { return false; }
   virtual bool is_array_klass() const       { return false; }
+  virtual bool is_value_array_klass() const { return false; }
   virtual bool is_obj_array_klass() const   { return false; }
   virtual bool is_type_array_klass() const  { return false; }
   virtual void dump_replay_data(outputStream* st) { /* do nothing */ }
@@ -95,6 +97,10 @@ class ciMetadata: public ciBaseObject {
     assert(is_array_klass(), "bad cast");
     return (ciArrayKlass*)this;
   }
+  ciValueArrayKlass*       as_value_array_klass() {
+    assert(is_value_array_klass(), "bad cast");
+    return (ciValueArrayKlass*)this;
+  }
   ciObjArrayKlass*         as_obj_array_klass() {
     assert(is_obj_array_klass(), "bad cast");
     return (ciObjArrayKlass*)this;
@@ -102,6 +108,10 @@ class ciMetadata: public ciBaseObject {
   ciTypeArrayKlass*        as_type_array_klass() {
     assert(is_type_array_klass(), "bad cast");
     return (ciTypeArrayKlass*)this;
+  }
+  ciValueKlass*            as_value_klass() {
+    assert(is_valuetype(), "bad cast");
+    return (ciValueKlass*)this;
   }
 
   Metadata* constant_encoding() { return _metadata; }

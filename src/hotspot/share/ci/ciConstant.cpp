@@ -56,6 +56,7 @@ void ciConstant::print() {
   case T_DOUBLE:
     tty->print("%lf", _value._double);
     break;
+  case T_VALUETYPE:
   case T_OBJECT:
   case T_ARRAY:
     _value._object->print();

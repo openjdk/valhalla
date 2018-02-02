@@ -66,6 +66,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.hpp"
@@ -289,6 +290,16 @@ void ClassLoaderData::classes_do(void f(InstanceKlass*)) {
   for (Klass* k = OrderAccess::load_acquire(&_klasses); k != NULL; k = k->next_link()) {
     if (k->is_instance_klass()) {
       f(InstanceKlass::cast(k));
+    }
+    assert(k != k->next_link(), "no loops!");
+  }
+}
+
+void ClassLoaderData::value_classes_do(void f(ValueKlass*)) {
+  // Lock-free access requires load_acquire
+  for (Klass* k = OrderAccess::load_acquire(&_klasses); k != NULL; k = k->next_link()) {
+    if (k->is_value()) {
+      f(ValueKlass::cast(k));
     }
     assert(k != k->next_link(), "no loops!");
   }
@@ -556,6 +567,7 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
 void ClassLoaderData::unload() {
   _unloading = true;
 
+  value_classes_do(ValueKlass::cleanup);
   // Tell serviceability tools these classes are unloading
   classes_do(InstanceKlass::notify_unload_class);
 
@@ -805,7 +817,11 @@ void ClassLoaderData::free_deallocate_list() {
       } else if (m->is_constantPool()) {
         MetadataFactory::free_metadata(this, (ConstantPool*)m);
       } else if (m->is_klass()) {
-        MetadataFactory::free_metadata(this, (InstanceKlass*)m);
+        if (!((Klass*)m)->is_value()) {
+          MetadataFactory::free_metadata(this, (InstanceKlass*)m);
+        } else {
+          MetadataFactory::free_metadata(this, (ValueKlass*)m);
+        }
       } else {
         ShouldNotReachHere();
       }

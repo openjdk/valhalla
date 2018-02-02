@@ -50,7 +50,7 @@ class PSPromotionManager;
 // _indices   [ b2 | b1 |  index  ]  index = constant_pool_index
 // _f1        [  entry specific   ]  metadata ptr (method or klass)
 // _f2        [  entry specific   ]  vtable or res_ref index, or vfinal method ptr
-// _flags     [tos|0|F=1|0|0|0|f|v|0 |0000|field_index] (for field entries)
+// _flags     [tos|0|F=1|0|0|i|f|v|0 |0000|field_index] (for field entries)
 // bit length [ 4 |1| 1 |1|1|1|1|1|1 |1     |-3-|----16-----]
 // _flags     [tos|0|F=0|M|A|I|f|0|vf|indy_rf|000|00000|psize] (for method entries)
 // bit length [ 4 |1| 1 |1|1|1|1|1|1 |-4--|--8--|--8--]
@@ -76,6 +76,7 @@ class PSPromotionManager;
 //
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
+// i  flag true if field is inlined (flatten)
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
 // f2 flag true if f2 contains an oop (e.g., virtual final method)
@@ -93,7 +94,8 @@ class PSPromotionManager;
 // ftos: 6
 // dtos: 7
 // atos: 8
-// vtos: 9
+// qtos: 9
+// vtos: 10
 //
 // Entry specific: field entries:
 // _indices = get (b1 section) and put (b2 section) bytecodes, original constant pool index
@@ -184,6 +186,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
     has_method_type_shift      = 25,  // (M) does the call site have a MethodType?
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
+    is_flatten_field           = 23,  // (i) is the value field flatten?
     is_final_shift             = 22,  // (f) is the field or method final?
     is_volatile_shift          = 21,  // (v) is the field volatile?
     is_vfinal_shift            = 20,  // (vf) did the call resolve to a final method?
@@ -223,6 +226,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
     TosState        field_type,                  // the (machine) field type
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
+    bool            is_flatten,                  // the field is flatten (value field)
     Klass*          root_klass                   // needed by the GC to dirty the klass
   );
 
@@ -321,6 +325,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
       case Bytecodes::_invokeinterface : return 1;
       case Bytecodes::_putstatic       :    // fall through
       case Bytecodes::_putfield        :    // fall through
+      case Bytecodes::_vwithfield      :    // fall through
       case Bytecodes::_invokevirtual   : return 2;
       default                          : break;
     }
@@ -354,11 +359,13 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   int       f2_as_index() const                  { assert(!is_vfinal(), ""); return (int) _f2; }
   Method*   f2_as_vfinal_method() const          { assert(is_vfinal(), ""); return (Method*)_f2; }
   Method*   f2_as_interface_method() const       { assert(bytecode_1() == Bytecodes::_invokeinterface, ""); return (Method*)_f2; }
+  int       f2_as_offset() const                 { assert(is_field_entry(),  ""); return (int)_f2; }
   intx flags_ord() const                         { return (intx)OrderAccess::load_acquire(&_flags); }
   int  field_index() const                       { assert(is_field_entry(),  ""); return (_flags & field_index_mask); }
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
+  bool is_flatten() const                        { return  (_flags & (1 << is_flatten_field))       != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
   bool indy_resolution_failed() const            { intx flags = flags_ord(); return (flags & (1 << indy_resolution_failed_shift)) != 0; }
@@ -368,6 +375,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   bool is_field_entry() const                    { return (_flags & (1 << is_field_entry_shift))    != 0; }
   bool is_long() const                           { return flag_state() == ltos; }
   bool is_double() const                         { return flag_state() == dtos; }
+  bool is_valuetype() const                      { return flag_state() == qtos; }
   TosState flag_state() const                    { assert((uint)number_of_states <= (uint)tos_state_mask+1, "");
                                                    return (TosState)((_flags >> tos_state_shift) & tos_state_mask); }
   void set_indy_resolution_failed();

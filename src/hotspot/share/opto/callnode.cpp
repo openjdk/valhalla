@@ -39,6 +39,8 @@
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "opto/valuetypenode.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -72,7 +74,7 @@ const RegMask &StartNode::in_RegMask(uint) const {
 
 //------------------------------match------------------------------------------
 // Construct projections for incoming parameters, and their RegMask info
-Node *StartNode::match( const ProjNode *proj, const Matcher *match ) {
+Node *StartNode::match(const ProjNode *proj, const Matcher *match, const RegMask* mask) {
   switch (proj->_con) {
   case TypeFunc::Control:
   case TypeFunc::I_O:
@@ -368,6 +370,7 @@ static void format_helper( PhaseRegAlloc *regalloc, outputStream* st, Node *n, c
       st->print(" %s%d]=#NULL",msg,i);
       break;
     case Type::AryPtr:
+    case Type::ValueTypePtr:
     case Type::InstPtr:
       st->print(" %s%d]=#Ptr" INTPTR_FORMAT,msg,i,p2i(t->isa_oopptr()->const_oop()));
       break;
@@ -685,14 +688,23 @@ void CallNode::dump_spec(outputStream *st) const {
 }
 #endif
 
-const Type *CallNode::bottom_type() const { return tf()->range(); }
+const Type *CallNode::bottom_type() const { return tf()->range_cc(); }
 const Type* CallNode::Value(PhaseGVN* phase) const {
-  if (phase->type(in(0)) == Type::TOP)  return Type::TOP;
-  return tf()->range();
+  if (!in(0) || phase->type(in(0)) == Type::TOP) {
+    return Type::TOP;
+  }
+  return tf()->range_cc();
 }
 
 //------------------------------calling_convention-----------------------------
-void CallNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
+void CallNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt) const {
+  if (_entry_point == StubRoutines::store_value_type_fields_to_buf()) {
+    // The call to that stub is a special case: its inputs are
+    // multiple values returned from a call and so it should follow
+    // the return convention.
+    SharedRuntime::java_return_convention(sig_bt, parm_regs, argcnt);
+    return;
+  }
   // Use the standard compiler calling convention
   Matcher::calling_convention( sig_bt, parm_regs, argcnt, true );
 }
@@ -701,28 +713,38 @@ void CallNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint
 //------------------------------match------------------------------------------
 // Construct projections for control, I/O, memory-fields, ..., and
 // return result(s) along with their RegMask info
-Node *CallNode::match( const ProjNode *proj, const Matcher *match ) {
-  switch (proj->_con) {
+Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask* mask) {
+  uint con = proj->_con;
+  const TypeTuple *range_cc = tf()->range_cc();
+  if (con >= TypeFunc::Parms) {
+    if (is_CallRuntime()) {
+      if (con == TypeFunc::Parms) {
+        uint ideal_reg = range_cc->field_at(TypeFunc::Parms)->ideal_reg();
+        OptoRegPair regs = match->c_return_value(ideal_reg,true);
+        RegMask rm = RegMask(regs.first());
+        if (OptoReg::is_valid(regs.second())) {
+          rm.Insert(regs.second());
+        }
+        return new MachProjNode(this,con,rm,ideal_reg);
+      } else {
+        assert(con == TypeFunc::Parms+1, "only one return value");
+        assert(range_cc->field_at(TypeFunc::Parms+1) == Type::HALF, "");
+        return new MachProjNode(this,con, RegMask::Empty, (uint)OptoReg::Bad);
+      }
+    } else {
+      // The Call may return multiple values (value type fields): we
+      // create one projection per returned values.
+      assert(con <= TypeFunc::Parms+1 || ValueTypeReturnedAsFields, "only for multi value return");
+      uint ideal_reg = range_cc->field_at(con)->ideal_reg();
+      return new MachProjNode(this, con, mask[con-TypeFunc::Parms], ideal_reg);
+    }
+  }
+
+  switch (con) {
   case TypeFunc::Control:
   case TypeFunc::I_O:
   case TypeFunc::Memory:
     return new MachProjNode(this,proj->_con,RegMask::Empty,MachProjNode::unmatched_proj);
-
-  case TypeFunc::Parms+1:       // For LONG & DOUBLE returns
-    assert(tf()->range()->field_at(TypeFunc::Parms+1) == Type::HALF, "");
-    // 2nd half of doubles and longs
-    return new MachProjNode(this,proj->_con, RegMask::Empty, (uint)OptoReg::Bad);
-
-  case TypeFunc::Parms: {       // Normal returns
-    uint ideal_reg = tf()->range()->field_at(TypeFunc::Parms)->ideal_reg();
-    OptoRegPair regs = is_CallRuntime()
-      ? match->c_return_value(ideal_reg,true)  // Calls into C runtime
-      : match->  return_value(ideal_reg,true); // Calls into compiled Java code
-    RegMask rm = RegMask(regs.first());
-    if( OptoReg::is_valid(regs.second()) )
-      rm.Insert( regs.second() );
-    return new MachProjNode(this,proj->_con,rm,ideal_reg);
-  }
 
   case TypeFunc::ReturnAdr:
   case TypeFunc::FramePtr:
@@ -744,7 +766,7 @@ uint CallNode::match_edge(uint idx) const {
 bool CallNode::may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) {
   assert((t_oop != NULL), "sanity");
   if (is_call_to_arraycopystub() && strcmp(_name, "unsafe_arraycopy") != 0) {
-    const TypeTuple* args = _tf->domain();
+    const TypeTuple* args = _tf->domain_sig();
     Node* dest = NULL;
     // Stubs that can be called once an ArrayCopyNode is expanded have
     // different signatures. Look for the second pointer argument,
@@ -792,7 +814,7 @@ bool CallNode::may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) {
           return true;
         }
       }
-      const TypeTuple* d = tf()->domain();
+      const TypeTuple* d = tf()->domain_cc();
       for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
         const TypeInstPtr* inst_t = d->field_at(i)->isa_instptr();
         if ((inst_t != NULL) && (!inst_t->klass_is_exact() ||
@@ -808,8 +830,18 @@ bool CallNode::may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) {
 
 // Does this call have a direct reference to n other than debug information?
 bool CallNode::has_non_debug_use(Node *n) {
-  const TypeTuple * d = tf()->domain();
+  const TypeTuple * d = tf()->domain_cc();
   for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+    Node *arg = in(i);
+    if (arg == n) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool CallNode::has_debug_use(Node *n) {
+  for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
     Node *arg = in(i);
     if (arg == n) {
       return true;
@@ -849,16 +881,21 @@ Node *CallNode::result_cast() {
 }
 
 
-void CallNode::extract_projections(CallProjections* projs, bool separate_io_proj, bool do_asserts) {
-  projs->fallthrough_proj      = NULL;
-  projs->fallthrough_catchproj = NULL;
-  projs->fallthrough_ioproj    = NULL;
-  projs->catchall_ioproj       = NULL;
-  projs->catchall_catchproj    = NULL;
-  projs->fallthrough_memproj   = NULL;
-  projs->catchall_memproj      = NULL;
-  projs->resproj               = NULL;
-  projs->exobj                 = NULL;
+CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_asserts) {
+  uint max_res = TypeFunc::Parms-1;
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    ProjNode *pn = fast_out(i)->as_Proj();
+    max_res = MAX2(max_res, pn->_con);
+  }
+
+  assert(max_res < _tf->range_cc()->cnt(), "result out of bounds");
+
+  uint projs_size = sizeof(CallProjections);
+  if (max_res > TypeFunc::Parms) {
+    projs_size += (max_res-TypeFunc::Parms)*sizeof(Node*);
+  }
+  char* projs_storage = resource_allocate_bytes(projs_size);
+  CallProjections* projs = new(projs_storage)CallProjections(max_res - TypeFunc::Parms + 1);
 
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     ProjNode *pn = fast_out(i)->as_Proj();
@@ -905,10 +942,12 @@ void CallNode::extract_projections(CallProjections* projs, bool separate_io_proj
         projs->fallthrough_memproj = pn;
       break;
     case TypeFunc::Parms:
-      projs->resproj = pn;
+      projs->resproj[0] = pn;
       break;
     default:
-      assert(false, "unexpected projection from allocation node.");
+      assert(pn->_con <= max_res, "unexpected projection from allocation node.");
+      projs->resproj[pn->_con-TypeFunc::Parms] = pn;
+      break;
     }
   }
 
@@ -925,6 +964,7 @@ void CallNode::extract_projections(CallProjections* projs, bool separate_io_proj
     assert(!do_asserts || projs->catchall_memproj    != NULL, "must be found");
     assert(!do_asserts || projs->catchall_ioproj     != NULL, "must be found");
   }
+  return projs;
 }
 
 Node *CallNode::Ideal(PhaseGVN *phase, bool can_reshape) {
@@ -1064,6 +1104,13 @@ void CallRuntimeNode::dump_spec(outputStream *st) const {
 
 //------------------------------calling_convention-----------------------------
 void CallRuntimeNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
+  if (_entry_point == NULL) {
+    // The call to that stub is a special case: its inputs are
+    // multiple values returned from a call and so it should follow
+    // the return convention.
+    SharedRuntime::java_return_convention(sig_bt, parm_regs, argcnt);
+    return;
+  }
   Matcher::c_calling_convention( sig_bt, parm_regs, argcnt );
 }
 
@@ -1079,6 +1126,12 @@ void CallLeafNode::dump_spec(outputStream *st) const {
   CallNode::dump_spec(st);
 }
 #endif
+
+uint CallLeafNoFPNode::match_edge(uint idx) const {
+  // Null entry point is a special case for which the target is in a
+  // register. Need to match that edge.
+  return entry_point() == NULL && idx == TypeFunc::Parms;
+}
 
 //=============================================================================
 
@@ -1129,7 +1182,31 @@ SafePointNode* SafePointNode::next_exception() const {
 //------------------------------Ideal------------------------------------------
 // Skip over any collapsed Regions
 Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  return remove_dead_region(phase, can_reshape) ? this : NULL;
+  if (remove_dead_region(phase, can_reshape)) {
+    return this;
+  }
+  if (jvms() != NULL) {
+    bool progress = false;
+    // A ValueTypeNode that was already heap allocated in the debug
+    // info?  Reference the object directly. Helps removal of useless
+    // value type allocations with incremental inlining.
+    for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
+      Node *arg = in(i);
+      if (arg->is_ValueType()) {
+        ValueTypeNode* vt = arg->as_ValueType();
+        Node* in_oop = vt->get_oop();
+        const Type* oop_type = phase->type(in_oop);
+        if (!TypePtr::NULL_PTR->higher_equal(oop_type)) {
+          set_req(i, in_oop);
+          progress = true;
+        }
+      }
+    }
+    if (progress) {
+      return this;
+    }
+  }
+  return NULL;
 }
 
 //------------------------------Identity---------------------------------------
@@ -1327,7 +1404,8 @@ uint AllocateNode::size_of() const { return sizeof(*this); }
 
 AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
                            Node *ctrl, Node *mem, Node *abio,
-                           Node *size, Node *klass_node, Node *initial_test)
+                           Node *size, Node *klass_node,
+                           Node* initial_test, ValueTypeBaseNode* value_node)
   : CallNode(atype, NULL, TypeRawPtr::BOTTOM)
 {
   init_class_id(Class_Allocate);
@@ -1346,6 +1424,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   init_req( KlassNode          , klass_node);
   init_req( InitialTest        , initial_test);
   init_req( ALength            , topnode);
+  init_req( ValueNode          , value_node);
   C->add_macro_node(this);
 }
 
@@ -1366,9 +1445,34 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
   }
 }
 
+Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  // Check for unused value type allocation
+  if (can_reshape && in(AllocateNode::ValueNode) != NULL &&
+      outcnt() != 0 && result_cast() == NULL) {
+    // Remove allocation by replacing the projection nodes with its inputs
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    CallProjections* projs = extract_projections(true);
+    assert(projs->nb_resproj == 1, "unexpected number of results");
+    igvn->replace_node(projs->fallthrough_catchproj, in(TypeFunc::Control));
+    igvn->replace_node(projs->fallthrough_memproj, in(TypeFunc::Memory));
+    igvn->replace_node(projs->catchall_memproj, phase->C->top());
+    igvn->replace_node(projs->fallthrough_ioproj, in(TypeFunc::I_O));
+    igvn->replace_node(projs->catchall_ioproj, phase->C->top());
+    igvn->replace_node(projs->catchall_catchproj, phase->C->top());
+    igvn->replace_node(projs->resproj[0], phase->C->top());
+    igvn->remove_dead_node(this);
+    return NULL;
+  }
+
+  return CallNode::Ideal(phase, can_reshape);
+}
+
 //=============================================================================
 Node* AllocateArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (remove_dead_region(phase, can_reshape))  return this;
+  Node* res = SafePointNode::Ideal(phase, can_reshape);
+  if (res != NULL) {
+    return res;
+  }
   // Don't bother trying to transform a dead node
   if (in(0) && in(0)->is_top())  return NULL;
 
@@ -2029,7 +2133,8 @@ bool CallNode::may_modify_arraycopy_helper(const TypeOopPtr* dest_t, const TypeO
       return true;
     }
 
-    dest_t = dest_t->add_offset(Type::OffsetBot)->is_oopptr();
+    dest_t = dest_t->is_aryptr()->with_field_offset(Type::OffsetBot)->add_offset(Type::OffsetBot)->is_oopptr();
+    t_oop = t_oop->is_aryptr()->with_field_offset(Type::OffsetBot);
     uint dest_alias = phase->C->get_alias_index(dest_t);
     uint t_oop_alias = phase->C->get_alias_index(t_oop);
 

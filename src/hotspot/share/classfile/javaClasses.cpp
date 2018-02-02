@@ -47,6 +47,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayOop.hpp"
+#include "oops/valueArrayKlass.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
@@ -862,7 +863,11 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 
     // It might also have a component mirror.  This mirror must already exist.
     if (k->is_array_klass()) {
-      if (k->is_typeArray_klass()) {
+      if (k->is_valueArray_klass()) {
+        Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
+        comp_mirror = Handle(THREAD, element_klass->java_mirror());
+      }
+      else if (k->is_typeArray_klass()) {
         BasicType type = TypeArrayKlass::cast(k)->element_type();
         comp_mirror = Handle(THREAD, Universe::java_mirror(type));
       } else {
@@ -1037,18 +1042,26 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
   assert(java_lang_Class::is_instance(java_class), "must be a Class object");
   Symbol* name = NULL;
   bool is_instance = false;
+  bool is_value = false;
   if (is_primitive(java_class)) {
     name = vmSymbols::type_signature(primitive_type(java_class));
   } else {
     Klass* k = as_Klass(java_class);
     is_instance = k->is_instance_klass();
+    is_value = k->is_value();
     name = k->name();
   }
   if (name == NULL) {
     st->print("<null>");
     return;
   }
-  if (is_instance)  st->print("L");
+  if (is_instance)  {
+    if (is_value) {
+      st->print("Q");
+    } else {
+      st->print("L");
+    }
+  }
   st->write((char*) name->base(), (int) name->utf8_length());
   if (is_instance)  st->print(";");
 }

@@ -34,6 +34,7 @@
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -55,7 +56,7 @@
 // Run with +PrintInterpreter to get the VM to print out the size.
 // Max size with JVMTI
 #ifdef AMD64
-int TemplateInterpreter::InterpreterCodeSize = JVMCI_ONLY(268) NOT_JVMCI(256) * 1024;
+int TemplateInterpreter::InterpreterCodeSize = JVMCI_ONLY(280) NOT_JVMCI(268) * 1024;
 #else
 int TemplateInterpreter::InterpreterCodeSize = 224 * 1024;
 #endif // AMD64
@@ -203,6 +204,61 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // and NULL it as marker that esp is now tos until next java call
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
 
+  if (state == qtos && ValueTypeReturnedAsFields) {
+#ifndef _LP64
+    __ super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+#else
+    // A value type is being returned. If fields are in registers we
+    // need to allocate a value type instance and initialize it with
+    // the value of the fields.
+    Label skip, slow_case;
+    // We only need a new buffered value if a new one is not returned
+    __ testptr(rax, 1);
+    __ jcc(Assembler::zero, skip);
+
+    // Try to allocate a new buffered value (from the heap)
+    if (UseTLAB) {
+      __ mov(rbx, rax);
+      __ andptr(rbx, -2);
+
+      __ movl(r14, Address(rbx, Klass::layout_helper_offset()));
+
+      __ movptr(r13, Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())));
+      __ lea(r14, Address(r13, r14, Address::times_1));
+      __ cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
+      __ jcc(Assembler::above, slow_case);
+      __ movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
+
+      if (UseBiasedLocking) {
+        __ movptr(rax, Address(rbx, Klass::prototype_header_offset()));
+        __ movptr(Address(r13, oopDesc::mark_offset_in_bytes ()), rax);
+      } else {
+        __ movptr(Address(r13, oopDesc::mark_offset_in_bytes ()),
+                  (intptr_t)markOopDesc::prototype());
+      }
+      __ xorl(rax, rax); // use zero reg to clear memory (shorter code)
+      __ store_klass_gap(r13, rax);  // zero klass gap for compressed oops
+      __ mov(rax, rbx);
+      __ store_klass(r13, rbx);  // klass
+
+      // We have our new buffered value, initialize its fields with a
+      // value class specific handler
+      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_offset()));
+      __ mov(rax, r13);
+      __ call(rbx);
+      __ jmp(skip);
+    }
+
+    __ bind(slow_case);
+    // We failed to allocate a new value, fall back to a runtime
+    // call. Some oop field may be live in some registers but we can't
+    // tell. That runtime call will take care of preserving them
+    // across a GC if there's one.
+    __ super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+    __ bind(skip);
+#endif
+  }
+
   __ restore_bcp();
   __ restore_locals();
 
@@ -345,6 +401,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_DOUBLE : /* nothing to do */        break;
 #endif // _LP64
 
+  case T_VALUETYPE: // fall through (value types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ movptr(rax, Address(rbp, frame::interpreter_frame_oop_temp_offset*wordSize));
@@ -682,6 +739,10 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   __ movptr(rdx, Address(rdx, ConstMethod::constants_offset()));
   __ movptr(rdx, Address(rdx, ConstantPool::cache_offset_in_bytes()));
   __ push(rdx); // set constant pool cache
+  const Register thread1 = NOT_LP64(rdx) LP64_ONLY(r15_thread);
+  NOT_LP64(__ get_thread(thread1));
+  __ movptr(rdx, Address(thread1, JavaThread::vt_alloc_ptr_offset()));
+  __ push(rdx); // value type allocation pointer when activation is created
   __ push(rlocals); // set locals pointer
   if (native_call) {
     __ push(0); // no bcp
@@ -1803,10 +1864,12 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
                                                          address& lep,
                                                          address& fep,
                                                          address& dep,
+                                                         address& qep,
                                                          address& vep) {
   assert(t->is_valid() && t->tos_in() == vtos, "illegal template");
   Label L;
   aep = __ pc();  __ push_ptr();   __ jmp(L);
+  qep = __ pc();  __ push_ptr();   __ jmp(L);
 #ifndef _LP64
   fep = __ pc(); __ push(ftos); __ jmp(L);
   dep = __ pc(); __ push(dtos); __ jmp(L);

@@ -462,7 +462,7 @@ public:
 
   // Idealize new Node 'n' with respect to its inputs and its value
   virtual Node *transform( Node *a_node );
-  virtual void record_for_igvn(Node *n) { }
+  virtual void record_for_igvn(Node *n) { _worklist.push(n); }
 
   virtual PhaseIterGVN *is_IterGVN() { return this; }
 
@@ -513,6 +513,8 @@ public:
     hash_delete(old); // Yank from hash before hacking edges
     subsume_node(old, nn);
   }
+
+  void replace_in_uses(Node* n, Node* m);
 
   // Delayed node rehash: remove a node from the hash table and rehash it during
   // next optimizing pass

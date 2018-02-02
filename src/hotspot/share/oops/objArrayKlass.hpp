@@ -37,7 +37,6 @@ class ObjArrayKlass : public ArrayKlass {
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to ObjArrayKlass::metaspace_pointers_do().
-  Klass* _element_klass;            // The klass of the elements of this array type
   Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
 
   // Constructor
@@ -47,20 +46,12 @@ class ObjArrayKlass : public ArrayKlass {
   // For dummy objects
   ObjArrayKlass() {}
 
-  // Instance variables
-  Klass* element_klass() const      { return _element_klass; }
-  void set_element_klass(Klass* k)  { _element_klass = k; }
-  Klass** element_klass_addr()      { return &_element_klass; }
-
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }
 
   ModuleEntry* module() const;
   PackageEntry* package() const;
-
-  // Compiler/Interpreter offset
-  static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ObjArrayKlass, _element_klass)); }
 
   // Dispatched operation
   bool can_be_primary_super_slow() const;

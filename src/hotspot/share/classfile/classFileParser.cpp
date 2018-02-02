@@ -55,6 +55,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/javaCalls.hpp"
@@ -86,6 +87,7 @@
 
 #define JAVA_CLASSFILE_MAGIC              0xCAFEBABE
 #define JAVA_MIN_SUPPORTED_VERSION        45
+#define JAVA_MAX_SUPPORTED_MINOR_VERSION  1
 
 // Used for two backward compatibility reasons:
 // - to check for new additions to the class file format in JDK1.5
@@ -148,10 +150,16 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
     // so we don't need bounds-check for reading tag.
     const u1 tag = cfs->get_u1_fast();
     switch (tag) {
-      case JVM_CONSTANT_Class : {
+      case JVM_CONSTANT_Class: {
         cfs->guarantee_more(3, CHECK);  // name_index, tag/access_flags
         const u2 name_index = cfs->get_u2_fast();
         cp->klass_index_at_put(index, name_index);
+        break;
+      }
+      case JVM_CONSTANT_Value: {  // may be present in a retransform situation
+        cfs->guarantee_more(3, CHECK);  // name_index, tag/access_flags
+        const u2 name_index = cfs->get_u2_fast();
+        cp->value_type_index_at_put(index, name_index);
         break;
       }
       case JVM_CONSTANT_Fieldref: {
@@ -403,8 +411,9 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
   for (index = 1; index < length; index++) {          // Index 0 is unused
     const jbyte tag = cp->tag_at(index).value();
     switch (tag) {
-      case JVM_CONSTANT_Class: {
-        ShouldNotReachHere();     // Only JVM_CONSTANT_ClassIndex should be present
+      case JVM_CONSTANT_Class:
+      case JVM_CONSTANT_Value: {
+        ShouldNotReachHere();     // Only JVM_CONSTANT_[Class|Value]Index should be present
         break;
       }
       case JVM_CONSTANT_Fieldref:
@@ -415,7 +424,10 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
         if (!_need_verify) break;
         const int klass_ref_index = cp->klass_ref_index_at(index);
         const int name_and_type_ref_index = cp->name_and_type_ref_index_at(index);
-        check_property(valid_klass_reference_at(klass_ref_index),
+        check_property(valid_klass_reference_at(klass_ref_index) ||
+                       (valid_value_type_reference_at(klass_ref_index) &&
+                        ((EnableMVT && (tag == JVM_CONSTANT_Fieldref)) ||
+                         EnableValhalla)),
                        "Invalid constant pool index %u in class file %s",
                        klass_ref_index, CHECK);
         check_property(valid_cp_range(name_and_type_ref_index, length) &&
@@ -465,7 +477,45 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
         check_property(valid_symbol_at(class_index),
           "Invalid constant pool index %u in class file %s",
           class_index, CHECK);
-        cp->unresolved_klass_at_put(index, class_index, num_klasses++);
+
+        Symbol* const name = cp->symbol_at(class_index);
+        const unsigned int name_len = name->utf8_length();
+
+        // check explicitly for ;Qjava/lang/__Value;
+        if (name_len == 20 &&
+            name->equals(";Qjava/lang/__Value;")) {
+            cp->symbol_at_put(class_index, vmSymbols::java_lang____Value());
+            cp->unresolved_value_type_at_put(index, class_index, num_klasses++);
+        } else if (EnableValhalla || EnableMVT) {
+          const char* derive_vt_classname_postfix = "$Value;";
+          // check for a value type
+          // check for name > 3 to rule out ";Q;" where no name is present
+          // check for name = 9 to rule out ";Q$Value;" where no name is present for EnableMVT
+          if (name_len != 0 &&
+              name_len > 3 &&
+              name->starts_with(";Q") &&
+              ((EnableValhalla && (name->byte_at(name_len-1) == ';')) ||
+               (EnableMVT &&
+                ClassLoader::string_ends_with(name->as_utf8(), derive_vt_classname_postfix) &&
+                name_len != 9))) {
+            Symbol* const strippedsym = SymbolTable::new_symbol(name, 2, name_len-1, CHECK);
+            assert(strippedsym != NULL, "failure to create value type stripped name");
+            cp->symbol_at_put(class_index, strippedsym);
+            cp->unresolved_value_type_at_put(index, class_index, num_klasses++);
+          } else {
+            cp->unresolved_klass_at_put(index, class_index, num_klasses++);
+          }
+        } else {
+          cp->unresolved_klass_at_put(index, class_index, num_klasses++);
+        }
+        break;
+      }
+      case JVM_CONSTANT_ValueIndex: {
+        const int class_index = cp->value_type_index_at(index);
+        check_property(valid_symbol_at(class_index),
+          "Invalid constant pool index %u in class file %s",
+          class_index, CHECK);
+        cp->unresolved_value_type_at_put(index, class_index, num_klasses++);
         break;
       }
       case JVM_CONSTANT_StringIndex: {
@@ -597,7 +647,8 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
   for (index = 1; index < length; index++) {
     const jbyte tag = cp->tag_at(index).value();
     switch (tag) {
-      case JVM_CONSTANT_UnresolvedClass: {
+      case JVM_CONSTANT_UnresolvedClass:
+      case JVM_CONSTANT_UnresolvedValue: {
         const Symbol* const class_name = cp->klass_name_at(index);
         // check the name, even if _cp_patches will overwrite it
         verify_legal_class_name(class_name, CHECK);
@@ -1001,6 +1052,7 @@ public:
     _jdk_internal_vm_annotation_Contended,
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
+    _jdk_incubator_mvt_ValueCapableClass,
     _annotation_LIMIT
   };
   const Location _location;
@@ -1036,6 +1088,8 @@ public:
 
   void set_stable(bool stable) { set_annotation(_field_Stable); }
   bool is_stable() const { return has_annotation(_field_Stable); }
+
+  bool is_value_capable_class() const { return has_annotation(_jdk_incubator_mvt_ValueCapableClass); }
 };
 
 // This class also doubles as a holder for metadata cleanup.
@@ -1388,11 +1442,13 @@ enum FieldAllocationType {
   STATIC_SHORT,         // shorts
   STATIC_WORD,          // ints
   STATIC_DOUBLE,        // aligned long or double
+  STATIC_VALUETYPE,     // Value types
   NONSTATIC_OOP,
   NONSTATIC_BYTE,
   NONSTATIC_SHORT,
   NONSTATIC_WORD,
   NONSTATIC_DOUBLE,
+  NONSTATIC_VALUETYPE,
   MAX_FIELD_ALLOCATION_TYPE,
   BAD_ALLOCATION_TYPE = -1
 };
@@ -1412,12 +1468,14 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   NONSTATIC_DOUBLE,    // T_LONG        = 11,
   NONSTATIC_OOP,       // T_OBJECT      = 12,
   NONSTATIC_OOP,       // T_ARRAY       = 13,
-  BAD_ALLOCATION_TYPE, // T_VOID        = 14,
-  BAD_ALLOCATION_TYPE, // T_ADDRESS     = 15,
-  BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 16,
-  BAD_ALLOCATION_TYPE, // T_METADATA    = 17,
-  BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 18,
-  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 19,
+  NONSTATIC_VALUETYPE, // T_VALUETYPE   = 14,
+  BAD_ALLOCATION_TYPE, // T_VOID        = 15,
+  BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
+  BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
+  BAD_ALLOCATION_TYPE, // T_METADATA    = 18,
+  BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 19,
+  BAD_ALLOCATION_TYPE, // T_VALUETYPEPTR= 20,
+  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 21,
   BAD_ALLOCATION_TYPE, // 0
   BAD_ALLOCATION_TYPE, // 1
   BAD_ALLOCATION_TYPE, // 2
@@ -1432,12 +1490,14 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   STATIC_DOUBLE,       // T_LONG        = 11,
   STATIC_OOP,          // T_OBJECT      = 12,
   STATIC_OOP,          // T_ARRAY       = 13,
-  BAD_ALLOCATION_TYPE, // T_VOID        = 14,
-  BAD_ALLOCATION_TYPE, // T_ADDRESS     = 15,
-  BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 16,
-  BAD_ALLOCATION_TYPE, // T_METADATA    = 17,
-  BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 18,
-  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 19,
+  STATIC_VALUETYPE,    // T_VALUETYPE   = 14,
+  BAD_ALLOCATION_TYPE, // T_VOID        = 15,
+  BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
+  BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
+  BAD_ALLOCATION_TYPE, // T_METADATA    = 18,
+  BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 19,
+  BAD_ALLOCATION_TYPE, // T_VALUETYPEPTR= 20,
+  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 21,
 };
 
 static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type) {
@@ -1472,6 +1532,7 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
 // _fields_type_annotations fields
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    bool is_interface,
+                                   bool is_concrete_value_type,
                                    FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
@@ -1494,7 +1555,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   int num_injected = 0;
   const InjectedField* const injected = JavaClasses::get_injected(_class_name,
                                                                   &num_injected);
-  const int total_fields = length + num_injected;
+
+  const int total_fields = length + num_injected + (is_concrete_value_type ? 1 : 0);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1546,6 +1608,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       signature_index, CHECK);
     const Symbol* const sig = cp->symbol_at(signature_index);
     verify_legal_field_signature(name, sig, CHECK);
+    if (sig->starts_with("Q")) {
+      _has_value_fields = true;
+    }
 
     u2 constantvalue_index = 0;
     bool is_synthetic = false;
@@ -1650,6 +1715,19 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       field->set_allocation_type(atype);
       index++;
     }
+  }
+
+  if (is_concrete_value_type) {
+    index = length + num_injected;
+    FieldInfo* const field = FieldInfo::from_field_array(fa, index);
+    field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
+                      vmSymbols::default_value_name_enum,
+                      vmSymbols::java_lang___Value_signature_enum,
+                      0);
+    const BasicType type = FieldType::basic_type(vmSymbols::java_lang___Value_signature());
+    const FieldAllocationType atype = fac->update(true, type);
+    field->set_allocation_type(atype);
+    index++;
   }
 
   assert(NULL == _fields, "invariant");
@@ -2077,6 +2155,12 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (RestrictReservedStack && !privileged) break; // honor privileges
       return _jdk_internal_vm_annotation_ReservedStackAccess;
     }
+    case vmSymbols::VM_SYMBOL_ENUM_NAME(jdk_incubator_mvt_ValueCapableClass_signature) : {
+      if (_location != _in_class) {
+        break;
+      }
+      return _jdk_incubator_mvt_ValueCapableClass;
+    }
     default: {
       break;
     }
@@ -2119,6 +2203,9 @@ void MethodAnnotationCollector::apply_to(const methodHandle& m) {
 void ClassFileParser::ClassAnnotationCollector::apply_to(InstanceKlass* ik) {
   assert(ik != NULL, "invariant");
   ik->set_is_contended(is_contended());
+  if (is_value_capable_class()) {
+    ik->set_has_vcc_annotation();
+  }
 }
 
 #define MAX_ARGS_SIZE 255
@@ -3087,14 +3174,16 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     // Inner class index
     const u2 inner_class_info_index = cfs->get_u2_fast();
     check_property(
-      valid_klass_reference_at(inner_class_info_index),
+      (valid_klass_reference_at(inner_class_info_index) ||
+       (EnableValhalla && valid_value_type_reference_at(inner_class_info_index))),
       "inner_class_info_index %u has bad constant type in class file %s",
       inner_class_info_index, CHECK_0);
     // Outer class index
     const u2 outer_class_info_index = cfs->get_u2_fast();
     check_property(
       outer_class_info_index == 0 ||
-        valid_klass_reference_at(outer_class_info_index),
+        (valid_klass_reference_at(outer_class_info_index) ||
+         (EnableValhalla && valid_value_type_reference_at(outer_class_info_index))),
       "outer_class_info_index %u has bad constant type in class file %s",
       outer_class_info_index, CHECK_0);
     // Inner class name
@@ -3107,14 +3196,20 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       guarantee_property(inner_class_info_index != outer_class_info_index,
                          "Class is both outer and inner class in class file %s", CHECK_0);
     }
-    // Access flags
-    jint flags;
+
+    jint recognized_modifiers = RECOGNIZED_INNER_CLASS_MODIFIERS;
     // JVM_ACC_MODULE is defined in JDK-9 and later.
     if (_major_version >= JAVA_9_VERSION) {
-      flags = cfs->get_u2_fast() & (RECOGNIZED_INNER_CLASS_MODIFIERS | JVM_ACC_MODULE);
-    } else {
-      flags = cfs->get_u2_fast() & RECOGNIZED_INNER_CLASS_MODIFIERS;
+      recognized_modifiers |= JVM_ACC_MODULE;
     }
+    // JVM_ACC_VALUE is defined for class file version 53.1 and later
+    if (supports_value_types()) {
+      recognized_modifiers |= JVM_ACC_VALUE;
+    }
+
+    // Access flags
+    jint flags = cfs->get_u2_fast() & recognized_modifiers;
+
     if ((flags & JVM_ACC_INTERFACE) && _major_version < JAVA_6_VERSION) {
       // Set abstract bit for old class files for backward compatibility
       flags |= JVM_ACC_ABSTRACT;
@@ -3571,19 +3666,21 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
   const InstanceKlass* super_klass = NULL;
 
   if (super_class_index == 0) {
-    check_property(_class_name == vmSymbols::java_lang_Object(),
+    check_property(_class_name == vmSymbols::java_lang_Object()
+                   || (_access_flags.get_flags() & JVM_ACC_VALUE),
                    "Invalid superclass index %u in class file %s",
                    super_class_index,
                    CHECK_NULL);
   } else {
-    check_property(valid_klass_reference_at(super_class_index),
+    check_property((valid_klass_reference_at(super_class_index) ||
+                    ((EnableValhalla || EnableMVT) && valid_value_type_reference_at(super_class_index))),
                    "Invalid superclass index %u in class file %s",
                    super_class_index,
                    CHECK_NULL);
     // The class name should be legal because it is checked when parsing constant pool.
     // However, make sure it is not an array type.
     bool is_array = false;
-    if (cp->tag_at(super_class_index).is_klass()) {
+    if (cp->tag_at(super_class_index).is_klass() || cp->tag_at(super_class_index).is_value_type()) {
       super_klass = InstanceKlass::cast(cp->resolved_klass_at(super_class_index));
       if (need_verify)
         is_array = super_klass->is_array_klass();
@@ -3596,39 +3693,6 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
     }
   }
   return super_klass;
-}
-
-static unsigned int compute_oop_map_count(const InstanceKlass* super,
-                                          unsigned int nonstatic_oop_map_count,
-                                          int first_nonstatic_oop_offset) {
-
-  unsigned int map_count =
-    NULL == super ? 0 : super->nonstatic_oop_map_count();
-  if (nonstatic_oop_map_count > 0) {
-    // We have oops to add to map
-    if (map_count == 0) {
-      map_count = nonstatic_oop_map_count;
-    }
-    else {
-      // Check whether we should add a new map block or whether the last one can
-      // be extended
-      const OopMapBlock* const first_map = super->start_of_nonstatic_oop_maps();
-      const OopMapBlock* const last_map = first_map + map_count - 1;
-
-      const int next_offset = last_map->offset() + last_map->count() * heapOopSize;
-      if (next_offset == first_nonstatic_oop_offset) {
-        // There is no gap bettwen superklass's last oop field and first
-        // local oop field, merge maps.
-        nonstatic_oop_map_count -= 1;
-      }
-      else {
-        // Superklass didn't end with a oop field, add extra maps
-        assert(next_offset < first_nonstatic_oop_offset, "just checking");
-      }
-      map_count += nonstatic_oop_map_count;
-    }
-  }
-  return map_count;
 }
 
 #ifndef PRODUCT
@@ -3671,15 +3735,157 @@ static void print_field_layout(const Symbol* name,
 // Values needed for oopmap and InstanceKlass creation
 class ClassFileParser::FieldLayoutInfo : public ResourceObj {
  public:
-  int*          nonstatic_oop_offsets;
-  unsigned int* nonstatic_oop_counts;
-  unsigned int  nonstatic_oop_map_count;
-  unsigned int  total_oop_map_count;
+  OopMapBlocksBuilder* oop_map_blocks;
   int           instance_size;
   int           nonstatic_field_size;
   int           static_field_size;
   bool          has_nonstatic_fields;
 };
+
+// Utility to collect and compact oop maps during layout
+class ClassFileParser::OopMapBlocksBuilder : public ResourceObj {
+ public:
+  OopMapBlock*  nonstatic_oop_maps;
+  unsigned int  nonstatic_oop_map_count;
+  unsigned int  max_nonstatic_oop_maps;
+
+ public:
+  OopMapBlocksBuilder(unsigned int  max_blocks, TRAPS) {
+    max_nonstatic_oop_maps = max_blocks;
+    nonstatic_oop_map_count = 0;
+    if (max_blocks == 0) {
+      nonstatic_oop_maps = NULL;
+    } else {
+      nonstatic_oop_maps = NEW_RESOURCE_ARRAY_IN_THREAD(
+        THREAD, OopMapBlock, max_nonstatic_oop_maps);
+      memset(nonstatic_oop_maps, 0, sizeof(OopMapBlock) * max_blocks);
+    }
+  }
+
+  OopMapBlock* last_oop_map() const {
+    assert(nonstatic_oop_map_count > 0, "Has no oop maps");
+    return nonstatic_oop_maps + (nonstatic_oop_map_count - 1);
+  }
+
+  // addition of super oop maps
+  void initialize_inherited_blocks(OopMapBlock* blocks, unsigned int nof_blocks) {
+    assert(nof_blocks && nonstatic_oop_map_count == 0 &&
+        nof_blocks <= max_nonstatic_oop_maps, "invariant");
+
+    memcpy(nonstatic_oop_maps, blocks, sizeof(OopMapBlock) * nof_blocks);
+    nonstatic_oop_map_count += nof_blocks;
+  }
+
+  // collection of oops
+  void add(int offset, int count) {
+    if (nonstatic_oop_map_count == 0) {
+      nonstatic_oop_map_count++;
+    }
+    OopMapBlock*  nonstatic_oop_map = last_oop_map();
+    if (nonstatic_oop_map->count() == 0) {  // Unused map, set it up
+      nonstatic_oop_map->set_offset(offset);
+      nonstatic_oop_map->set_count(count);
+    } else if (nonstatic_oop_map->is_contiguous(offset)) { // contiguous, add
+      nonstatic_oop_map->increment_count(count);
+    } else { // Need a new one...
+      nonstatic_oop_map_count++;
+      assert(nonstatic_oop_map_count <= max_nonstatic_oop_maps, "range check");
+      nonstatic_oop_map = last_oop_map();
+      nonstatic_oop_map->set_offset(offset);
+      nonstatic_oop_map->set_count(count);
+    }
+  }
+
+  // general purpose copy, e.g. into allocated instanceKlass
+  void copy(OopMapBlock* dst) {
+    if (nonstatic_oop_map_count != 0) {
+      memcpy(dst, nonstatic_oop_maps, sizeof(OopMapBlock) * nonstatic_oop_map_count);
+    }
+  }
+
+  // Sort and compact adjacent blocks
+  void compact(TRAPS) {
+    if (nonstatic_oop_map_count <= 1) {
+      return;
+    }
+    /*
+     * Since field layout sneeks in oops before values, we will be able to condense
+     * blocks. There is potential to compact between super, own refs and values
+     * containing refs.
+     *
+     * Currently compaction is slightly limited due to values being 8 byte aligned.
+     * This may well change: FixMe if doesn't, the code below is fairly general purpose
+     * and maybe it doesn't need to be.
+     */
+    qsort(nonstatic_oop_maps, nonstatic_oop_map_count, sizeof(OopMapBlock),
+        (_sort_Fn)OopMapBlock::compare_offset);
+    if (nonstatic_oop_map_count < 2) {
+      return;
+    }
+
+     //Make a temp copy, and iterate through and copy back into the orig
+    ResourceMark rm(THREAD);
+    OopMapBlock* oop_maps_copy = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, OopMapBlock,
+        nonstatic_oop_map_count);
+    OopMapBlock* oop_maps_copy_end = oop_maps_copy + nonstatic_oop_map_count;
+    copy(oop_maps_copy);
+    OopMapBlock*  nonstatic_oop_map = nonstatic_oop_maps;
+    unsigned int new_count = 1;
+    oop_maps_copy++;
+    while(oop_maps_copy < oop_maps_copy_end) {
+      assert(nonstatic_oop_map->offset() < oop_maps_copy->offset(), "invariant");
+      if (nonstatic_oop_map->is_contiguous(oop_maps_copy->offset())) {
+        nonstatic_oop_map->increment_count(oop_maps_copy->count());
+      } else {
+        nonstatic_oop_map++;
+        new_count++;
+        nonstatic_oop_map->set_offset(oop_maps_copy->offset());
+        nonstatic_oop_map->set_count(oop_maps_copy->count());
+      }
+      oop_maps_copy++;
+    }
+    assert(new_count <= nonstatic_oop_map_count, "end up with more maps after compact() ?");
+    nonstatic_oop_map_count = new_count;
+  }
+
+  void print_on(outputStream* st) const {
+    st->print_cr("  OopMapBlocks: %3d  /%3d", nonstatic_oop_map_count, max_nonstatic_oop_maps);
+    if (nonstatic_oop_map_count > 0) {
+      OopMapBlock* map = nonstatic_oop_maps;
+      OopMapBlock* last_map = last_oop_map();
+      assert(map <= last_map, "Last less than first");
+      while (map <= last_map) {
+        st->print_cr("    Offset: %3d  -%3d Count: %3d", map->offset(),
+            map->offset() + map->offset_span() - heapOopSize, map->count());
+        map++;
+      }
+    }
+  }
+
+  void print_value_on(outputStream* st) const {
+    print_on(st);
+  }
+
+};
+
+void ClassFileParser::throwValueTypeLimitation(THREAD_AND_LOCATION_DECL,
+                                               const char* msg,
+                                               const Symbol* name,
+                                               const Symbol* sig) const {
+
+  ResourceMark rm(THREAD);
+  if (name == NULL || sig == NULL) {
+    Exceptions::fthrow(THREAD_AND_LOCATION_ARGS,
+        vmSymbols::java_lang_ClassFormatError(),
+        "class: %s - %s", _class_name->as_C_string(), msg);
+  }
+  else {
+    Exceptions::fthrow(THREAD_AND_LOCATION_ARGS,
+        vmSymbols::java_lang_ClassFormatError(),
+        "\"%s\" sig: \"%s\" class: %s - %s", name->as_C_string(), sig->as_C_string(),
+        _class_name->as_C_string(), msg);
+  }
+}
 
 // Layout fields and fill in FieldLayoutInfo.  Could use more refactoring!
 void ClassFileParser::layout_fields(ConstantPool* cp,
@@ -3693,6 +3899,12 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Field size and offset computation
   int nonstatic_field_size = _super_klass == NULL ? 0 :
                                _super_klass->nonstatic_field_size();
+  int next_nonstatic_valuetype_offset = 0;
+  int first_nonstatic_valuetype_offset = 0;
+
+  // Fields that are value types are handled differently depending if they are static or not:
+  // - static fields are oops
+  // - non-static fields are embedded
 
   // Count the contended fields by type.
   //
@@ -3713,8 +3925,9 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   // Calculate the starting byte offsets
   int next_static_oop_offset    = InstanceMirrorKlass::offset_of_static_fields();
+  // Value types in static fields are not embedded, they are handled with oops
   int next_static_double_offset = next_static_oop_offset +
-                                      ((fac->count[STATIC_OOP]) * heapOopSize);
+                                  ((fac->count[STATIC_OOP] + fac->count[STATIC_VALUETYPE]) * heapOopSize);
   if ( fac->count[STATIC_DOUBLE] &&
        (Universe::field_type_should_be_aligned(T_DOUBLE) ||
         Universe::field_type_should_be_aligned(T_LONG)) ) {
@@ -3731,6 +3944,16 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int nonstatic_fields_start  = instanceOopDesc::base_offset_in_bytes() +
                                 nonstatic_field_size * heapOopSize;
 
+  // First field of value types is aligned on a long boundary in order to ease
+  // in-lining of value types (with header removal) in packed arrays and
+  // flatten value types
+  int initial_value_type_padding = 0;
+  if (is_value_type() || is_value_capable_class()) {
+    int old = nonstatic_fields_start;
+    nonstatic_fields_start = align_up(nonstatic_fields_start, BytesPerLong);
+    initial_value_type_padding = nonstatic_fields_start - old;
+  }
+
   int next_nonstatic_field_offset = nonstatic_fields_start;
 
   const bool is_contended_class     = parsed_annotations->is_contended();
@@ -3738,6 +3961,14 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Class is contended, pad before all the fields
   if (is_contended_class) {
     next_nonstatic_field_offset += ContendedPaddingWidth;
+  }
+
+  // Temporary value types restrictions
+  if (is_value_type() || is_value_capable_class()) {
+    if (is_contended_class) {
+      throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support @Contended annotation yet");
+      return;
+    }
   }
 
   // Compute the non-contended fields count.
@@ -3750,16 +3981,72 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   unsigned int nonstatic_byte_count   = fac->count[NONSTATIC_BYTE]   - fac_contended.count[NONSTATIC_BYTE];
   unsigned int nonstatic_oop_count    = fac->count[NONSTATIC_OOP]    - fac_contended.count[NONSTATIC_OOP];
 
+  int static_value_type_count = 0;
+  int nonstatic_value_type_count = 0;
+  int* nonstatic_value_type_indexes = NULL;
+  Klass** nonstatic_value_type_klasses = NULL;
+  unsigned int value_type_oop_map_count = 0;
+  int not_flattened_value_types = 0;
+
+  int max_nonstatic_value_type = fac->count[NONSTATIC_VALUETYPE] + 1;
+
+  nonstatic_value_type_indexes = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, int,
+                                                              max_nonstatic_value_type);
+  for (int i = 0; i < max_nonstatic_value_type; i++) {
+    nonstatic_value_type_indexes[i] = -1;
+  }
+  nonstatic_value_type_klasses = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, Klass*,
+                                                              max_nonstatic_value_type);
+
+  for (AllFieldStream fs(_fields, _cp); !fs.done(); fs.next()) {
+    if (fs.allocation_type() == STATIC_VALUETYPE) {
+      static_value_type_count++;
+    } else if (fs.allocation_type() == NONSTATIC_VALUETYPE) {
+      Symbol* signature = fs.signature();
+      Klass* klass = SystemDictionary::resolve_or_fail(signature,
+                                                       Handle(THREAD, _loader_data->class_loader()),
+                                                       _protection_domain, true, CHECK);
+      assert(klass != NULL, "Sanity check");
+      assert(klass->access_flags().is_value_type(), "Value type expected");
+      ValueKlass* vk = ValueKlass::cast(klass);
+      // Conditions to apply flattening or not should be defined in a single place
+      if ((ValueFieldMaxFlatSize < 0) || vk->size_helper() <= ValueFieldMaxFlatSize) {
+        nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
+        nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
+        nonstatic_value_type_count++;
+
+        ValueKlass* vklass = ValueKlass::cast(klass);
+        if (vklass->contains_oops()) {
+          value_type_oop_map_count += vklass->nonstatic_oop_map_count();
+        }
+        fs.set_flattening(true);
+      } else {
+        not_flattened_value_types++;
+        fs.set_flattening(false);
+      }
+    }
+  }
+
+  // Adjusting non_static_oop_count to take into account not flattened value types;
+  nonstatic_oop_count += not_flattened_value_types;
+
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
                                         fac->count[NONSTATIC_SHORT] + fac->count[NONSTATIC_BYTE] +
-                                        fac->count[NONSTATIC_OOP];
+                                        fac->count[NONSTATIC_OOP] + fac->count[NONSTATIC_VALUETYPE];
 
   const bool super_has_nonstatic_fields =
           (_super_klass != NULL && _super_klass->has_nonstatic_fields());
   const bool has_nonstatic_fields =
     super_has_nonstatic_fields || (nonstatic_fields_count != 0);
+  const bool has_nonstatic_value_fields = nonstatic_value_type_count > 0;
 
+  if (is_value_type() && (!has_nonstatic_fields)) {
+    // There are a number of fixes required throughout the type system and JIT
+    if (class_name() != vmSymbols::java_lang____Value()) {
+      throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support zero instance size yet");
+    }
+  }
 
   // Prepare list of oops for oop map generation.
   //
@@ -3769,15 +4056,18 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // we pessimistically allocate the maps to fit all the oops into the
   // distinct regions.
   //
-  // TODO: We add +1 to always allocate non-zero resource arrays; we need
-  // to figure out if we still need to do this.
-  unsigned int nonstatic_oop_map_count = 0;
-  unsigned int max_nonstatic_oop_maps  = fac->count[NONSTATIC_OOP] + 1;
+  int super_oop_map_count = (_super_klass == NULL) ? 0 :_super_klass->nonstatic_oop_map_count();
+  int max_oop_map_count =
+      super_oop_map_count +
+      fac->count[NONSTATIC_OOP] +
+      value_type_oop_map_count +
+      not_flattened_value_types;
 
-  int* nonstatic_oop_offsets = NEW_RESOURCE_ARRAY_IN_THREAD(
-            THREAD, int, max_nonstatic_oop_maps);
-  unsigned int* const nonstatic_oop_counts  = NEW_RESOURCE_ARRAY_IN_THREAD(
-            THREAD, unsigned int, max_nonstatic_oop_maps);
+  OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count, THREAD);
+  if (super_oop_map_count > 0) {
+    nonstatic_oop_maps->initialize_inherited_blocks(_super_klass->start_of_nonstatic_oop_maps(),
+                                                    _super_klass->nonstatic_oop_map_count());
+  }
 
   int first_nonstatic_oop_offset = 0; // will be set for first oop field
 
@@ -3826,13 +4116,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     next_nonstatic_double_offset = next_nonstatic_field_offset;
   } else if( allocation_style == 2 ) {
     // Fields allocation: oops fields in super and sub classes are together.
-    if( nonstatic_field_size > 0 && _super_klass != NULL &&
-        _super_klass->nonstatic_oop_map_size() > 0 ) {
-      const unsigned int map_count = _super_klass->nonstatic_oop_map_count();
-      const OopMapBlock* const first_map = _super_klass->start_of_nonstatic_oop_maps();
-      const OopMapBlock* const last_map = first_map + map_count - 1;
-      const int next_offset = last_map->offset() + (last_map->count() * heapOopSize);
-      if (next_offset == next_nonstatic_field_offset) {
+    if( nonstatic_field_size > 0 && super_oop_map_count > 0 ) {
+      if (next_nonstatic_field_offset == nonstatic_oop_maps->last_oop_map()->end_offset()) {
         allocation_style = 0;   // allocate oops first
         next_nonstatic_oop_offset    = next_nonstatic_field_offset;
         next_nonstatic_double_offset = next_nonstatic_oop_offset +
@@ -3915,6 +4200,16 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     next_nonstatic_padded_offset = next_nonstatic_oop_offset + (nonstatic_oop_count * heapOopSize);
   }
 
+  // Aligning embedded value types
+  // bug below, the current algorithm to layout embedded value types always put them at the
+  // end of the layout, which doesn't match the different allocation policies the VM is
+  // supposed to provide => FixMe
+  // Note also that the current alignment policy is to make each value type starting on a
+  // 64 bits boundary. This could be optimized later. For instance, it could be nice to
+  // align value types according to their most constrained internal type.
+  next_nonstatic_valuetype_offset = align_up(next_nonstatic_padded_offset, BytesPerLong);
+  int next_value_type_index = 0;
+
   // Iterate over fields again and compute correct offsets.
   // The field allocation type was temporarily stored in the offset slot.
   // oop fields are located before non-oop fields (static and non-static).
@@ -3931,6 +4226,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
     // pack the rest of the fields
     switch (atype) {
+      // Value types in static fields are handled with oops
+      case STATIC_VALUETYPE:   // Fallthrough
       case STATIC_OOP:
         real_offset = next_static_oop_offset;
         next_static_oop_offset += heapOopSize;
@@ -3951,6 +4248,31 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         real_offset = next_static_double_offset;
         next_static_double_offset += BytesPerLong;
         break;
+      case NONSTATIC_VALUETYPE:
+        if (fs.is_flatten()) {
+          Klass* klass = nonstatic_value_type_klasses[next_value_type_index];
+          assert(klass != NULL, "Klass should have been loaded and resolved earlier");
+          assert(klass->access_flags().is_value_type(),"Must be a value type");
+          ValueKlass* vklass = ValueKlass::cast(klass);
+          real_offset = next_nonstatic_valuetype_offset;
+          next_nonstatic_valuetype_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
+          // aligning next value type on a 64 bits boundary
+          next_nonstatic_valuetype_offset = align_up(next_nonstatic_valuetype_offset, BytesPerLong);
+          next_value_type_index += 1;
+
+          if (vklass->contains_oops()) { // add flatten oop maps
+            int diff = real_offset - vklass->first_field_offset();
+            const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
+            const OopMapBlock* const last_map = map + vklass->nonstatic_oop_map_count();
+            while (map < last_map) {
+              nonstatic_oop_maps->add(map->offset() + diff, map->count());
+              map++;
+            }
+          }
+          break;
+        } else {
+          // Fall through
+        }
       case NONSTATIC_OOP:
         if( nonstatic_oop_space_count > 0 ) {
           real_offset = nonstatic_oop_space_offset;
@@ -3960,26 +4282,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           real_offset = next_nonstatic_oop_offset;
           next_nonstatic_oop_offset += heapOopSize;
         }
-
-        // Record this oop in the oop maps
-        if( nonstatic_oop_map_count > 0 &&
-            nonstatic_oop_offsets[nonstatic_oop_map_count - 1] ==
-            real_offset -
-            int(nonstatic_oop_counts[nonstatic_oop_map_count - 1]) *
-            heapOopSize ) {
-          // This oop is adjacent to the previous one, add to current oop map
-          assert(nonstatic_oop_map_count - 1 < max_nonstatic_oop_maps, "range check");
-          nonstatic_oop_counts[nonstatic_oop_map_count - 1] += 1;
-        } else {
-          // This oop is not adjacent to the previous one, create new oop map
-          assert(nonstatic_oop_map_count < max_nonstatic_oop_maps, "range check");
-          nonstatic_oop_offsets[nonstatic_oop_map_count] = real_offset;
-          nonstatic_oop_counts [nonstatic_oop_map_count] = 1;
-          nonstatic_oop_map_count += 1;
-          if( first_nonstatic_oop_offset == 0 ) { // Undefined
-            first_nonstatic_oop_offset = real_offset;
-          }
-        }
+        nonstatic_oop_maps->add(real_offset, 1);
         break;
       case NONSTATIC_BYTE:
         if( nonstatic_byte_space_count > 0 ) {
@@ -4088,30 +4391,17 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
             next_nonstatic_padded_offset += BytesPerLong;
             break;
 
+            // Value types in static fields are handled with oops
+          case NONSTATIC_VALUETYPE:
+            throwValueTypeLimitation(THREAD_AND_LOCATION,
+                                     "@Contended annotation not supported for value types yet", fs.name(), fs.signature());
+            return;
+
           case NONSTATIC_OOP:
             next_nonstatic_padded_offset = align_up(next_nonstatic_padded_offset, heapOopSize);
             real_offset = next_nonstatic_padded_offset;
             next_nonstatic_padded_offset += heapOopSize;
-
-            // Record this oop in the oop maps
-            if( nonstatic_oop_map_count > 0 &&
-                nonstatic_oop_offsets[nonstatic_oop_map_count - 1] ==
-                real_offset -
-                int(nonstatic_oop_counts[nonstatic_oop_map_count - 1]) *
-                heapOopSize ) {
-              // This oop is adjacent to the previous one, add to current oop map
-              assert(nonstatic_oop_map_count - 1 < max_nonstatic_oop_maps, "range check");
-              nonstatic_oop_counts[nonstatic_oop_map_count - 1] += 1;
-            } else {
-              // This oop is not adjacent to the previous one, create new oop map
-              assert(nonstatic_oop_map_count < max_nonstatic_oop_maps, "range check");
-              nonstatic_oop_offsets[nonstatic_oop_map_count] = real_offset;
-              nonstatic_oop_counts [nonstatic_oop_map_count] = 1;
-              nonstatic_oop_map_count += 1;
-              if( first_nonstatic_oop_offset == 0 ) { // Undefined
-                first_nonstatic_oop_offset = real_offset;
-              }
-            }
+            nonstatic_oop_maps->add(real_offset, 1);
             break;
 
           default:
@@ -4146,12 +4436,24 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // This helps to alleviate memory contention effects for subclass fields
   // and/or adjacent object.
   if (is_contended_class) {
+    assert(!is_value_type() && !is_value_capable_class(), "@Contended not supported for value types yet");
     next_nonstatic_padded_offset += ContendedPaddingWidth;
   }
 
-  int notaligned_nonstatic_fields_end = next_nonstatic_padded_offset;
+  int notaligned_nonstatic_fields_end;
+  if (nonstatic_value_type_count != 0) {
+    notaligned_nonstatic_fields_end = next_nonstatic_valuetype_offset;
+  } else {
+    notaligned_nonstatic_fields_end = next_nonstatic_padded_offset;
+  }
 
-  int nonstatic_fields_end      = align_up(notaligned_nonstatic_fields_end, heapOopSize);
+  int nonstatic_field_sz_align = heapOopSize;
+  if (is_value_type() || is_value_capable_class()) {
+    if ((notaligned_nonstatic_fields_end - nonstatic_fields_start) > heapOopSize) {
+      nonstatic_field_sz_align = BytesPerLong; // value copy of fields only uses jlong copy
+    }
+  }
+  int nonstatic_fields_end      = align_up(notaligned_nonstatic_fields_end, nonstatic_field_sz_align);
   int instance_end              = align_up(notaligned_nonstatic_fields_end, wordSize);
   int static_fields_end         = align_up(next_static_byte_offset, wordSize);
 
@@ -4163,8 +4465,9 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int instance_size             = align_object_size(instance_end / wordSize);
 
   assert(instance_size == align_object_size(align_up(
-         (instanceOopDesc::base_offset_in_bytes() + nonstatic_field_size*heapOopSize),
-          wordSize) / wordSize), "consistent layout helper value");
+         (instanceOopDesc::base_offset_in_bytes() + nonstatic_field_size*heapOopSize)
+         + initial_value_type_padding, wordSize) / wordSize), "consistent layout helper value");
+
 
   // Invariant: nonstatic_field end/start should only change if there are
   // nonstatic fields in the class, or if the class is contended. We compare
@@ -4175,12 +4478,11 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
          (nonstatic_fields_count > 0), "double-check nonstatic start/end");
 
   // Number of non-static oop map blocks allocated at end of klass.
-  const unsigned int total_oop_map_count =
-    compute_oop_map_count(_super_klass, nonstatic_oop_map_count,
-                          first_nonstatic_oop_offset);
+  nonstatic_oop_maps->compact(THREAD);
 
 #ifndef PRODUCT
-  if (PrintFieldLayout) {
+  if ((PrintFieldLayout && !is_value_type()) ||
+      (PrintValueLayout && (is_value_type() || has_nonstatic_value_fields))) {
     print_field_layout(_class_name,
           _fields,
           cp,
@@ -4188,61 +4490,18 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           nonstatic_fields_start,
           nonstatic_fields_end,
           static_fields_end);
+    nonstatic_oop_maps->print_on(tty);
+    tty->print("\n");
   }
 
 #endif
   // Pass back information needed for InstanceKlass creation
-  info->nonstatic_oop_offsets = nonstatic_oop_offsets;
-  info->nonstatic_oop_counts = nonstatic_oop_counts;
-  info->nonstatic_oop_map_count = nonstatic_oop_map_count;
-  info->total_oop_map_count = total_oop_map_count;
+  info->oop_map_blocks = nonstatic_oop_maps;
   info->instance_size = instance_size;
   info->static_field_size = static_field_size;
   info->nonstatic_field_size = nonstatic_field_size;
   info->has_nonstatic_fields = has_nonstatic_fields;
 }
-
-static void fill_oop_maps(const InstanceKlass* k,
-                          unsigned int nonstatic_oop_map_count,
-                          const int* nonstatic_oop_offsets,
-                          const unsigned int* nonstatic_oop_counts) {
-
-  assert(k != NULL, "invariant");
-
-  OopMapBlock* this_oop_map = k->start_of_nonstatic_oop_maps();
-  const InstanceKlass* const super = k->superklass();
-  const unsigned int super_count = super ? super->nonstatic_oop_map_count() : 0;
-  if (super_count > 0) {
-    // Copy maps from superklass
-    OopMapBlock* super_oop_map = super->start_of_nonstatic_oop_maps();
-    for (unsigned int i = 0; i < super_count; ++i) {
-      *this_oop_map++ = *super_oop_map++;
-    }
-  }
-
-  if (nonstatic_oop_map_count > 0) {
-    if (super_count + nonstatic_oop_map_count > k->nonstatic_oop_map_count()) {
-      // The counts differ because there is no gap between superklass's last oop
-      // field and the first local oop field.  Extend the last oop map copied
-      // from the superklass instead of creating new one.
-      nonstatic_oop_map_count--;
-      nonstatic_oop_offsets++;
-      this_oop_map--;
-      this_oop_map->set_count(this_oop_map->count() + *nonstatic_oop_counts++);
-      this_oop_map++;
-    }
-
-    // Add new map blocks, fill them
-    while (nonstatic_oop_map_count-- > 0) {
-      this_oop_map->set_offset(*nonstatic_oop_offsets++);
-      this_oop_map->set_count(*nonstatic_oop_counts++);
-      this_oop_map++;
-    }
-    assert(k->start_of_nonstatic_oop_maps() + k->nonstatic_oop_map_count() ==
-           this_oop_map, "sanity");
-  }
-}
-
 
 void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   assert(ik != NULL, "invariant");
@@ -4317,6 +4576,11 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   }
 }
 
+bool ClassFileParser::supports_value_types() const {
+  // Value types are only supported by class file version 53.1 and later
+  return _major_version > JAVA_9_VERSION || (_major_version == JAVA_9_VERSION && _minor_version >= 1);
+}
+
 // Attach super classes and interface classes to class loader data
 static void record_defined_class_dependencies(const InstanceKlass* defined_klass,
                                               TRAPS) {
@@ -4339,6 +4603,13 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
       const int length = local_interfaces->length();
       for (int i = 0; i < length; i++) {
         defining_loader_data->record_dependency(local_interfaces->at(i), CHECK);
+      }
+    }
+
+    for(int i = 0; i < defined_klass->java_fields_count(); i++) {
+      if (defined_klass->field_signature(i)->starts_with("Q")  && (((defined_klass->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
+        const Klass* klass = defined_klass->get_value_field_klass(i);
+        defining_loader_data->record_dependency(klass, CHECK);
       }
     }
   }
@@ -4595,7 +4866,9 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
+  const bool is_value_type = (flags & JVM_ACC_VALUE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
+  assert(supports_value_types() || !is_value_type, "JVM_ACC_VALUE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4641,7 +4914,7 @@ static bool has_illegal_visibility(jint flags) {
           (is_protected && is_private));
 }
 
-static bool is_supported_version(u2 major, u2 minor){
+static bool is_supported_version(u2 major, u2 minor) {
   const u2 max_version = JVM_CLASSFILE_MAJOR_VERSION;
   return (major >= JAVA_MIN_SUPPORTED_VERSION) &&
          (major <= max_version) &&
@@ -4931,7 +5204,8 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_LONG:
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
-    case JVM_SIGNATURE_CLASS: {
+    case JVM_SIGNATURE_CLASS:
+    case JVM_SIGNATURE_VALUE_CLASS: {
       if (_major_version < JAVA_1_5_VERSION) {
         // Skip over the class name if one is there
         const char* const p = skip_over_field_name(signature + 1, true, --length);
@@ -5181,7 +5455,7 @@ int ClassFileParser::static_field_size() const {
 
 int ClassFileParser::total_oop_map_count() const {
   assert(_field_info != NULL, "invariant");
-  return _field_info->total_oop_map_count;
+  return _field_info->oop_map_blocks->nonstatic_oop_map_count;
 }
 
 jint ClassFileParser::layout_size() const {
@@ -5305,6 +5579,12 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
     }
   }
 
+  if (ik->is_value() && (ik->name() != vmSymbols::java_lang____Value())) {
+    ValueKlass* vk = ValueKlass::cast(ik);
+    oop val = ik->allocate_instance(CHECK_NULL);
+    vk->set_default_value(val);
+  }
+
   return ik;
 }
 
@@ -5315,7 +5595,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   assert(_field_info != NULL, "invariant");
   assert(ik->static_field_size() == _field_info->static_field_size, "sanity");
-  assert(ik->nonstatic_oop_map_count() == _field_info->total_oop_map_count,
+  assert(ik->nonstatic_oop_map_count() == _field_info->oop_map_blocks->nonstatic_oop_map_count,
     "sanity");
 
   assert(ik->is_instance_klass(), "sanity");
@@ -5329,7 +5609,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   ik->set_nonstatic_field_size(_field_info->nonstatic_field_size);
   ik->set_has_nonstatic_fields(_field_info->has_nonstatic_fields);
   assert(_fac != NULL, "invariant");
-  ik->set_static_oop_field_count(_fac->count[STATIC_OOP]);
+  ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_VALUETYPE]);
 
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
@@ -5415,10 +5695,10 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   // Compute transitive closure of interfaces this class implements
   // Do final class setup
-  fill_oop_maps(ik,
-                _field_info->nonstatic_oop_map_count,
-                _field_info->nonstatic_oop_offsets,
-                _field_info->nonstatic_oop_counts);
+  OopMapBlocksBuilder* oop_map_blocks = _field_info->oop_map_blocks;
+  if (oop_map_blocks->nonstatic_oop_map_count > 0) {
+    oop_map_blocks->copy(ik->start_of_nonstatic_oop_maps());
+  }
 
   // Fill in has_finalizer, has_vanilla_constructor, and layout_helper
   set_precomputed_flags(ik);
@@ -5462,12 +5742,41 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
                                              CHECK);
   }
 
+  if (is_value_type()) {
+    ValueKlass* vk = ValueKlass::cast(ik);
+    vk->set_if_bufferable();
+    vk->initialize_calling_convention();
+  }
+
+  // Valhalla shady value type conversion
+  if (_parsed_annotations->is_value_capable_class()) {
+    ik->create_value_capable_class(Handle(THREAD, _loader_data->class_loader()),
+                                 _protection_domain, CHECK);
+  }
+
   // Add read edges to the unnamed modules of the bootstrap and app class loaders.
   if (changed_by_loadhook && !module_handle.is_null() && module_entry->is_named() &&
       !module_entry->has_default_read_edges()) {
     if (!module_entry->set_has_default_read_edges()) {
       // We won a potential race
       JvmtiExport::add_default_read_edges(module_handle, THREAD);
+    }
+  }
+
+  int nfields = ik->java_fields_count();
+  if (ik->is_value() && (ik->name() != vmSymbols::java_lang____Value())) nfields++;
+  for(int i = 0; i < nfields; i++) {
+    if (ik->field_signature(i)->starts_with("Q")) {
+      if ((((ik->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
+        Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
+                                                         Handle(THREAD, ik->class_loader()),
+                                                         Handle(THREAD, ik->protection_domain()), true, CHECK);
+        assert(klass != NULL, "Sanity check");
+        assert(klass->access_flags().is_value_type(), "Value type expected");
+        ik->set_value_field_klass(i, klass);
+      } else if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)) {
+        ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
+      }
     }
   }
 
@@ -5642,7 +5951,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
-  _max_bootstrap_specifier_index(-1) {
+  _max_bootstrap_specifier_index(-1),
+  _has_value_fields(false) {
 
   _class_name = name != NULL ? name : vmSymbols::unknown_class_name();
 
@@ -5839,14 +6149,18 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // ACCESS FLAGS
   stream->guarantee_more(8, CHECK);  // flags, this_class, super_class, infs_len
 
-  // Access flags
-  jint flags;
+  jint recognized_modifiers = JVM_RECOGNIZED_CLASS_MODIFIERS;
   // JVM_ACC_MODULE is defined in JDK-9 and later.
   if (_major_version >= JAVA_9_VERSION) {
-    flags = stream->get_u2_fast() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_MODULE);
-  } else {
-    flags = stream->get_u2_fast() & JVM_RECOGNIZED_CLASS_MODIFIERS;
+    recognized_modifiers |= JVM_ACC_MODULE;
   }
+  // JVM_ACC_VALUE is defined for class file version 53.1 and later
+  if (supports_value_types()) {
+    recognized_modifiers |= JVM_ACC_VALUE;
+  }
+
+  // Access flags
+  jint flags = stream->get_u2_fast() & recognized_modifiers;
 
   if ((flags & JVM_ACC_INTERFACE) && _major_version < JAVA_6_VERSION) {
     // Set abstract bit for old class files for backward compatibility
@@ -5867,8 +6181,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
   check_property(
-    valid_cp_range(_this_class_index, cp_size) &&
-      cp->tag_at(_this_class_index).is_unresolved_klass(),
+    (valid_cp_range(_this_class_index, cp_size) &&
+     (cp->tag_at(_this_class_index).is_unresolved_klass() ||
+      cp->tag_at(_this_class_index).is_unresolved_value_type())),
     "Invalid this class index %u in constant pool in class file %s",
     _this_class_index, CHECK);
 
@@ -5983,6 +6298,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   _fac = new FieldAllocationCount();
   parse_fields(stream,
                _access_flags.is_interface(),
+               _access_flags.is_value_type() && (_class_name != vmSymbols::java_lang____Value()),
                _fac,
                cp,
                cp_size,
@@ -6076,8 +6392,27 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       );
       return;
     }
+
+    // For a java/lang/__Value super class, the class inheriting, must be a value class
+    if ((EnableValhalla || EnableMVT) &&
+        _super_klass->name() == vmSymbols::java_lang____Value()) {
+      guarantee_property((_access_flags.get_flags() & JVM_ACC_VALUE) != 0,
+                         "Only a value class can inherit from java/lang/__Value",
+                         CHECK);
+    }
+
+    // For a value class, only java/lang/__Value is an acceptable super class
+    if ((EnableValhalla || EnableMVT) &&
+        _access_flags.get_flags() & JVM_ACC_VALUE) {
+      guarantee_property(_super_klass->name() == vmSymbols::java_lang____Value(),
+                         "Value class can only inherit java/lang/__Value",
+                         CHECK);
+    }
+
     // Make sure super class is not final
-    if (_super_klass->is_final()) {
+    if (_super_klass->is_final()
+        && !(_super_klass->name() == vmSymbols::java_lang____Value()
+        && (_access_flags.get_flags() & JVM_ACC_VALUE))) {
       THROW_MSG(vmSymbols::java_lang_VerifyError(), "Cannot inherit from final class");
     }
   }
@@ -6153,6 +6488,11 @@ const ClassFileStream* ClassFileParser::clone_stream() const {
 
   return _stream->clone();
 }
+
+bool ClassFileParser::is_value_capable_class() const {
+  return _parsed_annotations->is_value_capable_class();
+}
+
 // ----------------------------------------------------------------------------
 // debugging
 

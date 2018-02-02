@@ -49,6 +49,7 @@ typedef class   instanceOopDesc*            instanceOop;
 typedef class   arrayOopDesc*                    arrayOop;
 typedef class     objArrayOopDesc*            objArrayOop;
 typedef class     typeArrayOopDesc*            typeArrayOop;
+typedef class     valueArrayOopDesc*            valueArrayOop;
 
 #else
 
@@ -192,6 +193,7 @@ DEF_OOP(instance);
 DEF_OOP(array);
 DEF_OOP(objArray);
 DEF_OOP(typeArray);
+DEF_OOP(valueArray);
 
 #endif // CHECK_UNHANDLED_OOPS
 
@@ -225,8 +227,10 @@ class   InstanceKlass;
 class     InstanceMirrorKlass;
 class     InstanceClassLoaderKlass;
 class     InstanceRefKlass;
+class     ValueKlass;
 class   ArrayKlass;
 class     ObjArrayKlass;
 class     TypeArrayKlass;
+class     ValueArrayKlass;
 
 #endif // SHARE_VM_OOPS_OOPSHIERARCHY_HPP

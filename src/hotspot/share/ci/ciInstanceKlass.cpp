@@ -27,12 +27,14 @@
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciUtilities.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
+#include "oops/valueKlass.hpp"
 #include "runtime/fieldDescriptor.hpp"
 
 // ciInstanceKlass
@@ -61,8 +63,9 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
   _is_anonymous = ik->is_anonymous();
-  _nonstatic_fields = NULL; // initialized lazily by compute_nonstatic_fields:
+  _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
+  _vcc_klass = NULL;
   _implementor = NULL; // we will fill these lazily
 
   // Ensure that the metadata wrapped by the ciMetadata is kept alive by GC.
@@ -118,8 +121,9 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _init_state = (InstanceKlass::ClassState)0;
   _nonstatic_field_size = -1;
   _has_nonstatic_fields = false;
-  _nonstatic_fields = NULL;
+  _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
+  _vcc_klass = NULL;
   _is_anonymous = false;
   _loader = loader;
   _protection_domain = protection_domain;
@@ -415,6 +419,29 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
 }
 
 // ------------------------------------------------------------------
+// ciInstanceKlass::get_field_type_by_offset
+ciType* ciInstanceKlass::get_field_type_by_offset(int field_offset) {
+  ASSERT_IN_VM;
+  fieldDescriptor fd;
+  InstanceKlass* klass = get_instanceKlass();
+  // Important: We cannot get the field type via get_field_by_offset() because if the field
+  // is another value type, the offset would refer to the first field of that value type due
+  // to flattening. Instead, do a SystemDictionary lookup for the type of the declared field.
+  bool found = klass->find_field_from_offset(field_offset, false, &fd);
+  assert(found, "field not found");
+  BasicType field_type = fd.field_type();
+  if (is_java_primitive(field_type)) {
+    // Primitive type
+    return ciType::make(field_type);
+  } else {
+    // Do a SystemDictionary lookup for the type
+    ciEnv* env = CURRENT_ENV;
+    ciSymbol* signature = env->get_symbol(fd.signature());
+    return env->get_klass_by_name_impl(this, constantPoolHandle(), signature, false);
+  }
+}
+
+// ------------------------------------------------------------------
 // ciInstanceKlass::get_field_by_name
 ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static) {
   VM_ENTRY_MARK;
@@ -481,18 +508,11 @@ int ciInstanceKlass::compute_nonstatic_fields() {
     }
   }
 
-  int flen = fields->length();
-
-  // Now sort them by offset, ascending.
-  // (In principle, they could mix with superclass fields.)
-  fields->sort(sort_field_by_offset);
   _nonstatic_fields = fields;
-  return flen;
+  return fields->length();
 }
 
-GrowableArray<ciField*>*
-ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
-                                               super_fields) {
+GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten) {
   ASSERT_IN_VM;
   Arena* arena = CURRENT_ENV->arena();
   int flen = 0;
@@ -510,6 +530,7 @@ ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
   if (super_fields != NULL) {
     flen += super_fields->length();
   }
+
   fields = new (arena) GrowableArray<ciField*>(arena, flen, 0, NULL);
   if (super_fields != NULL) {
     fields->appendAll(super_fields);
@@ -518,10 +539,33 @@ ciInstanceKlass::compute_nonstatic_fields_impl(GrowableArray<ciField*>*
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
-    ciField* field = new (arena) ciField(&fd);
-    fields->append(field);
+    if (fd.is_flatten() && flatten) {
+      assert(fd.field_type() == T_VALUETYPE, "flattening is only supported for value type fields");
+      // Value type fields are embedded
+      int field_offset = fd.offset();
+      // Get ValueKlass and adjust number of fields
+      ciValueKlass* vk = get_field_type_by_offset(field_offset)->as_value_klass();
+      flen += vk->nof_nonstatic_fields() - 1;
+      // Iterate over fields of the flattened value type and copy them to 'this'
+      for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
+        ciField* flattened_field = vk->nonstatic_field_at(i);
+        // Adjust offset to account for missing oop header
+        int offset = field_offset + (flattened_field->offset() - vk->first_field_offset());
+        // A flattened field can be treated as final if the non-flattened
+        // field is declared final or the holder klass is a value type itself.
+        bool is_final = fd.is_final() || is_valuetype();
+        ciField* field = new (arena) ciField(flattened_field, this, offset, is_final);
+        fields->append(field);
+      }
+    } else {
+      ciField* field = new (arena) ciField(&fd);
+      fields->append(field);
+    }
   }
   assert(fields->length() == flen, "sanity");
+  // Now sort them by offset, ascending.
+  // (In principle, they could mix with superclass fields.)
+  fields->sort(sort_field_by_offset);
   return fields;
 }
 
@@ -622,6 +666,20 @@ ciInstanceKlass* ciInstanceKlass::host_klass() {
   return NULL;
 }
 
+ciInstanceKlass* ciInstanceKlass::vcc_klass() {
+  InstanceKlass* ik = get_instanceKlass();
+  if (ik->has_vcc_klass()) {
+    if (_vcc_klass == NULL) {
+      VM_ENTRY_MARK;
+      InstanceKlass* k = InstanceKlass::cast(ik->get_vcc_klass());
+      _vcc_klass = CURRENT_THREAD_ENV->get_instance_klass(k);
+    }
+    return _vcc_klass;
+  } else {
+    return NULL;
+  }
+}
+
 // Utility class for printing of the contents of the static fields for
 // use by compilation replay.  It only prints out the information that
 // could be consumed by the compiler, so for primitive types it prints
@@ -630,75 +688,114 @@ ciInstanceKlass* ciInstanceKlass::host_klass() {
 // only value which statically unchangeable.  For all other reference
 // types it simply prints out the dynamic type.
 
-class StaticFinalFieldPrinter : public FieldClosure {
+class StaticFieldPrinter : public FieldClosure {
+protected:
   outputStream* _out;
+public:
+  StaticFieldPrinter(outputStream* out) :
+    _out(out) {
+  }
+  void do_field_helper(fieldDescriptor* fd, oop obj, bool flattened);
+};
+
+class StaticFinalFieldPrinter : public StaticFieldPrinter {
   const char*   _holder;
  public:
   StaticFinalFieldPrinter(outputStream* out, const char* holder) :
-    _out(out),
-    _holder(holder) {
+    StaticFieldPrinter(out), _holder(holder) {
   }
   void do_field(fieldDescriptor* fd) {
     if (fd->is_final() && !fd->has_initial_value()) {
       ResourceMark rm;
-      oop mirror = fd->field_holder()->java_mirror();
-      _out->print("staticfield %s %s %s ", _holder, fd->name()->as_quoted_ascii(), fd->signature()->as_quoted_ascii());
-      switch (fd->field_type()) {
-        case T_BYTE:    _out->print_cr("%d", mirror->byte_field(fd->offset()));   break;
-        case T_BOOLEAN: _out->print_cr("%d", mirror->bool_field(fd->offset()));   break;
-        case T_SHORT:   _out->print_cr("%d", mirror->short_field(fd->offset()));  break;
-        case T_CHAR:    _out->print_cr("%d", mirror->char_field(fd->offset()));   break;
-        case T_INT:     _out->print_cr("%d", mirror->int_field(fd->offset()));    break;
-        case T_LONG:    _out->print_cr(INT64_FORMAT, (int64_t)(mirror->long_field(fd->offset())));   break;
-        case T_FLOAT: {
-          float f = mirror->float_field(fd->offset());
-          _out->print_cr("%d", *(int*)&f);
-          break;
-        }
-        case T_DOUBLE: {
-          double d = mirror->double_field(fd->offset());
-          _out->print_cr(INT64_FORMAT, *(int64_t*)&d);
-          break;
-        }
-        case T_ARRAY: {
-          oop value =  mirror->obj_field_acquire(fd->offset());
-          if (value == NULL) {
-            _out->print_cr("null");
-          } else {
-            typeArrayOop ta = (typeArrayOop)value;
-            _out->print("%d", ta->length());
-            if (value->is_objArray()) {
-              objArrayOop oa = (objArrayOop)value;
-              const char* klass_name  = value->klass()->name()->as_quoted_ascii();
-              _out->print(" %s", klass_name);
-            }
-            _out->cr();
-          }
-          break;
-        }
-        case T_OBJECT: {
-          oop value =  mirror->obj_field_acquire(fd->offset());
-          if (value == NULL) {
-            _out->print_cr("null");
-          } else if (value->is_instance()) {
-            if (value->is_a(SystemDictionary::String_klass())) {
-              const char* ascii_value = java_lang_String::as_quoted_ascii(value);
-              _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
-            } else {
-              const char* klass_name  = value->klass()->name()->as_quoted_ascii();
-              _out->print_cr("%s", klass_name);
-            }
-          } else {
-            ShouldNotReachHere();
-          }
-          break;
-        }
-        default:
-          ShouldNotReachHere();
-        }
+      InstanceKlass* holder = fd->field_holder();
+      oop mirror = holder->java_mirror();
+      _out->print("staticfield %s %s ", _holder, fd->name()->as_quoted_ascii());
+      BasicType bt = fd->field_type();
+      if (bt != T_OBJECT && bt != T_ARRAY) {
+        _out->print("%s ", fd->signature()->as_quoted_ascii());
+      }
+      do_field_helper(fd, mirror, false);
+      _out->cr();
     }
   }
 };
+
+class ValueTypeFieldPrinter : public StaticFieldPrinter {
+  oop _obj;
+public:
+  ValueTypeFieldPrinter(outputStream* out, oop obj) :
+    StaticFieldPrinter(out), _obj(obj) {
+  }
+  void do_field(fieldDescriptor* fd) {
+    do_field_helper(fd, _obj, true);
+    _out->print(" ");
+  }
+};
+
+void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool flattened) {
+  BasicType bt = fd->field_type();
+  switch (bt) {
+    case T_BYTE:    _out->print("%d", mirror->byte_field(fd->offset()));   break;
+    case T_BOOLEAN: _out->print("%d", mirror->bool_field(fd->offset()));   break;
+    case T_SHORT:   _out->print("%d", mirror->short_field(fd->offset()));  break;
+    case T_CHAR:    _out->print("%d", mirror->char_field(fd->offset()));   break;
+    case T_INT:     _out->print("%d", mirror->int_field(fd->offset()));    break;
+    case T_LONG:    _out->print(INT64_FORMAT, (int64_t)(mirror->long_field(fd->offset())));   break;
+    case T_FLOAT: {
+      float f = mirror->float_field(fd->offset());
+      _out->print("%d", *(int*)&f);
+      break;
+    }
+    case T_DOUBLE: {
+      double d = mirror->double_field(fd->offset());
+      _out->print(INT64_FORMAT, *(int64_t*)&d);
+      break;
+    }
+    case T_ARRAY:
+    case T_OBJECT: {
+      oop value =  mirror->obj_field_acquire(fd->offset());
+      if (value == NULL) {
+        _out->print("null");
+      } else {
+        _out->print("%s", value->klass()->signature_name());
+        if (value->is_array()) {
+          _out->print(" %d", ((arrayOop)value)->length());
+        } else {
+          assert(value->is_instance() && bt == T_OBJECT, "what else?");
+          if (value->is_a(SystemDictionary::String_klass())) {
+            const char* ascii_value = java_lang_String::as_quoted_ascii(value);
+            _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
+          }
+        }
+      }
+      break;
+    }
+    case T_VALUETYPE: {
+      ResetNoHandleMark rnhm;
+      Thread* THREAD = Thread::current();
+      SignatureStream ss(fd->signature(), false);
+      Symbol* name = ss.as_symbol(THREAD);
+      assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
+      InstanceKlass* holder = fd->field_holder();
+      Klass* k = SystemDictionary::find(name, Handle(THREAD, holder->class_loader()),
+                                        Handle(THREAD, holder->protection_domain()), THREAD);
+      assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
+      ValueKlass* vk = ValueKlass::cast(k);
+      oop obj;
+      if (flattened) {
+        int field_offset = fd->offset() - vk->first_field_offset();
+        obj = (oop)((address)mirror + field_offset);
+      } else {
+        obj =  mirror->obj_field_acquire(fd->offset());
+      }
+      ValueTypeFieldPrinter print_field(_out, obj);
+      vk->do_nonstatic_fields(&print_field);
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+  }
+}
 
 
 void ciInstanceKlass::dump_replay_data(outputStream* out) {

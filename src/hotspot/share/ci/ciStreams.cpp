@@ -170,7 +170,10 @@ int ciBytecodeStream::get_klass_index() const {
   case Bytecodes::_anewarray:
   case Bytecodes::_multianewarray:
   case Bytecodes::_new:
+  case Bytecodes::_vdefault:
   case Bytecodes::_newarray:
+  case Bytecodes::_vunbox:
+  case Bytecodes::_vbox:
     return get_index_u2();
   default:
     ShouldNotReachHere();
@@ -181,8 +184,8 @@ int ciBytecodeStream::get_klass_index() const {
 // ------------------------------------------------------------------
 // ciBytecodeStream::get_klass
 //
-// If this bytecode is a new, newarray, multianewarray, instanceof,
-// or checkcast, get the referenced klass.
+// If this bytecode is a new, newarray, multianewarray, instanceof, vbox,
+// vunbox, or checkcast, get the referenced klass.
 ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
   VM_ENTRY_MARK;
   constantPoolHandle cpool(_method->get_Method()->constants());
@@ -266,7 +269,8 @@ int ciBytecodeStream::get_field_index() {
   assert(cur_bc() == Bytecodes::_getfield ||
          cur_bc() == Bytecodes::_putfield ||
          cur_bc() == Bytecodes::_getstatic ||
-         cur_bc() == Bytecodes::_putstatic, "wrong bc");
+         cur_bc() == Bytecodes::_putstatic ||
+         cur_bc() == Bytecodes::_vwithfield, "wrong bc");
   return get_index_u2_cpcache();
 }
 

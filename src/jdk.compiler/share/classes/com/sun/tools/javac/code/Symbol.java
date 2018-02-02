@@ -425,6 +425,13 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         return name == name.table.names.init;
     }
 
+    /**
+     * Is this a value capable class ?
+    */
+    public boolean isValueCapable() {
+        return (flags() & VALUE_CAPABLE) != 0;
+    }
+
     /** The fully qualified name of this symbol.
      *  This is the same as the symbol's name except for class symbols,
      *  which are handled separately.

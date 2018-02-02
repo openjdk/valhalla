@@ -100,6 +100,7 @@ class fieldDescriptor VALUE_OBJ_CLASS_SPEC {
   bool is_final()                 const    { return access_flags().is_final(); }
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
+  bool is_flatten()               const    { return field()->is_flatten(); }
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 

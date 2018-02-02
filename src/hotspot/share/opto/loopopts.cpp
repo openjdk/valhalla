@@ -38,6 +38,7 @@
 #include "opto/opaquenode.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
+#include "opto/valuetypenode.hpp"
 
 //=============================================================================
 //------------------------------split_thru_phi---------------------------------
@@ -54,6 +55,12 @@ Node *PhaseIdealLoop::split_thru_phi( Node *n, Node *region, int policy ) {
   // induction Phi and prevent optimizations (vectorization)
   if (n->Opcode() == Op_CastII && n->as_CastII()->has_range_check() &&
       region->is_CountedLoop() && n->in(1) == region->as_CountedLoop()->phi()) {
+    return NULL;
+  }
+
+  // Value types should not be split through Phis because they cannot be merged
+  // through Phi nodes but each value input needs to be merged individually.
+  if (n->is_ValueType()) {
     return NULL;
   }
 
@@ -1358,6 +1365,12 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
   }
 
   try_move_store_after_loop(n);
+
+  // Remove multiple allocations of the same value type
+  if (n->is_ValueType() && EliminateAllocations) {
+    n->as_ValueType()->remove_redundant_allocations(&_igvn, this);
+    return; // n is now dead
+  }
 
   // Check for Opaque2's who's loop has disappeared - who's input is in the
   // same loop nest as their output.  Remove 'em, they are no longer useful.

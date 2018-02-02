@@ -397,6 +397,7 @@
   declare_constant(JVM_CONSTANT_Long)                                     \
   declare_constant(JVM_CONSTANT_Double)                                   \
   declare_constant(JVM_CONSTANT_Class)                                    \
+  declare_constant(JVM_CONSTANT_Value)                                    \
   declare_constant(JVM_CONSTANT_String)                                   \
   declare_constant(JVM_CONSTANT_Fieldref)                                 \
   declare_constant(JVM_CONSTANT_Methodref)                                \
@@ -410,9 +411,12 @@
   declare_constant(JVM_CONSTANT_Invalid)                                  \
   declare_constant(JVM_CONSTANT_InternalMin)                              \
   declare_constant(JVM_CONSTANT_UnresolvedClass)                          \
+  declare_constant(JVM_CONSTANT_UnresolvedValue)                          \
   declare_constant(JVM_CONSTANT_ClassIndex)                               \
+  declare_constant(JVM_CONSTANT_ValueIndex)                               \
   declare_constant(JVM_CONSTANT_StringIndex)                              \
   declare_constant(JVM_CONSTANT_UnresolvedClassInError)                   \
+  declare_constant(JVM_CONSTANT_UnresolvedValueInError)                   \
   declare_constant(JVM_CONSTANT_MethodHandleInError)                      \
   declare_constant(JVM_CONSTANT_MethodTypeInError)                        \
   declare_constant(JVM_CONSTANT_InternalMax)                              \

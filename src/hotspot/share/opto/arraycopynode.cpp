@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/graphKit.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
@@ -108,10 +109,14 @@ intptr_t ArrayCopyNode::get_length_if_constant(PhaseGVN *phase) const {
 }
 
 int ArrayCopyNode::get_count(PhaseGVN *phase) const {
-  Node* src = in(ArrayCopyNode::Src);
-  const Type* src_type = phase->type(src);
-
   if (is_clonebasic()) {
+    Node* src = in(ArrayCopyNode::Src);
+    const Type* src_type = phase->type(src);
+
+    if (src_type == Type::TOP) {
+      return -1;
+    }
+
     if (src_type->isa_instptr()) {
       const TypeInstPtr* inst_src = src_type->is_instptr();
       ciInstanceKlass* ik = inst_src->klass()->as_instance_klass();
@@ -132,7 +137,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // array must be too.
 
       assert((get_length_if_constant(phase) == -1) == !ary_src->size()->is_con() ||
-             phase->is_IterGVN(), "inconsistent");
+             phase->is_IterGVN() || phase->C->inlining_incrementally(), "inconsistent");
 
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();
@@ -244,17 +249,17 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (src_elem  == T_ARRAY)  src_elem  = T_OBJECT;
-    if (dest_elem == T_ARRAY)  dest_elem = T_OBJECT;
+    if (src_elem  == T_ARRAY ||
+        (src_elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass())) {
+      src_elem  = T_OBJECT;
+    }
+    if (dest_elem == T_ARRAY ||
+        (dest_elem == T_VALUETYPE && ary_dest->klass()->is_obj_array_klass())) {
+      dest_elem = T_OBJECT;
+    }
 
     if (src_elem != dest_elem || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
-      return false;
-    }
-
-    if (dest_elem == T_OBJECT && (!is_alloc_tightly_coupled() || !GraphKit::use_ReduceInitialCardMarks())) {
-      // It's an object array copy but we can't emit the card marking
-      // that is needed
       return false;
     }
 
@@ -264,6 +269,10 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     base_dest = dest;
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
+    if (dest_elem == T_VALUETYPE) {
+      ciValueArrayKlass* vak = ary_src->klass()->as_value_array_klass();
+      shift = vak->log2_element_size();
+    }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
 
     adr_src = src;
@@ -275,14 +284,11 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     Node* src_scale = phase->transform(new LShiftXNode(src_offset, phase->intcon(shift)));
     Node* dest_scale = phase->transform(new LShiftXNode(dest_offset, phase->intcon(shift)));
 
+    adr_src = phase->transform(new AddPNode(base_src, adr_src, phase->MakeConX(header)));
+    adr_dest = phase->transform(new AddPNode(base_dest, adr_dest, phase->MakeConX(header)));
+
     adr_src = phase->transform(new AddPNode(base_src, adr_src, src_scale));
     adr_dest = phase->transform(new AddPNode(base_dest, adr_dest, dest_scale));
-
-    adr_src = new AddPNode(base_src, adr_src, phase->MakeConX(header));
-    adr_dest = new AddPNode(base_dest, adr_dest, phase->MakeConX(header));
-
-    adr_src = phase->transform(adr_src);
-    adr_dest = phase->transform(adr_dest);
 
     copy_type = dest_elem;
   } else {
@@ -299,7 +305,10 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     assert(phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con() == phase->type(dest->in(AddPNode::Offset))->is_intptr_t()->get_con(), "same start offset?");
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    if (elem == T_ARRAY)  elem = T_OBJECT;
+    if (elem == T_ARRAY ||
+        (elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass())) {
+      elem = T_OBJECT;
+    }
 
     int diff = arrayOopDesc::base_offset_in_bytes(elem) - phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con();
     assert(diff >= 0, "clone should not start after 1st array element");
@@ -314,41 +323,115 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
   return true;
 }
 
-const TypePtr* ArrayCopyNode::get_address_type(PhaseGVN *phase, Node* n) {
+const TypeAryPtr* ArrayCopyNode::get_address_type(PhaseGVN *phase, Node* n) {
   const Type* at = phase->type(n);
   assert(at != Type::TOP, "unexpected type");
-  const TypePtr* atp = at->isa_ptr();
+  const TypeAryPtr* atp = at->is_aryptr();
   // adjust atp to be the correct array element address type
-  atp = atp->add_offset(Type::OffsetBot);
+  atp = atp->add_offset(Type::OffsetBot)->is_aryptr();
   return atp;
 }
 
-void ArrayCopyNode::array_copy_test_overlap(PhaseGVN *phase, bool can_reshape, bool disjoint_bases, int count, Node*& forward_ctl, Node*& backward_ctl) {
-  Node* ctl = in(TypeFunc::Control);
+void ArrayCopyNode::array_copy_test_overlap(GraphKit& kit, bool disjoint_bases, int count, Node*& backward_ctl) {
+  Node* ctl = kit.control();
   if (!disjoint_bases && count > 1) {
+    PhaseGVN& gvn = kit.gvn();
     Node* src_offset = in(ArrayCopyNode::SrcPos);
     Node* dest_offset = in(ArrayCopyNode::DestPos);
     assert(src_offset != NULL && dest_offset != NULL, "should be");
-    Node* cmp = phase->transform(new CmpINode(src_offset, dest_offset));
-    Node *bol = phase->transform(new BoolNode(cmp, BoolTest::lt));
+    Node* cmp = gvn.transform(new CmpINode(src_offset, dest_offset));
+    Node *bol = gvn.transform(new BoolNode(cmp, BoolTest::lt));
     IfNode *iff = new IfNode(ctl, bol, PROB_FAIR, COUNT_UNKNOWN);
 
-    phase->transform(iff);
+    gvn.transform(iff);
 
-    forward_ctl = phase->transform(new IfFalseNode(iff));
-    backward_ctl = phase->transform(new IfTrueNode(iff));
-  } else {
-    forward_ctl = ctl;
+    kit.set_control(gvn.transform(new IfFalseNode(iff)));
+    backward_ctl = gvn.transform(new IfTrueNode(iff));
   }
 }
 
-Node* ArrayCopyNode::array_copy_forward(PhaseGVN *phase,
+void ArrayCopyNode::copy(GraphKit& kit,
+                         const TypeAryPtr* atp_src,
+                         const TypeAryPtr* atp_dest,
+                         int i,
+                         Node* base_src,
+                         Node* base_dest,
+                         Node* adr_src,
+                         Node* adr_dest,
+                         BasicType copy_type,
+                         const Type* value_type) {
+  if (copy_type == T_VALUETYPE) {
+    ciValueArrayKlass* vak = atp_src->klass()->as_value_array_klass();
+    ciValueKlass* vk = vak->element_klass()->as_value_klass();
+    for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
+      ciField* field = vk->nonstatic_field_at(j);
+      int off_in_vt = field->offset() - vk->first_field_offset();
+      Node* off  = kit.MakeConX(off_in_vt + i * vak->element_byte_size());
+      ciType* ft = field->type();
+      BasicType bt = type2field[ft->basic_type()];
+      if (bt == T_VALUETYPE) {
+        bt = T_OBJECT;
+      }
+      const Type* rt = Type::get_const_type(ft);
+      const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
+      Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
+      Node* v = kit.make_load(kit.control(), next_src, rt, bt, adr_type, MemNode::unordered);
+
+      Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
+      if (is_java_primitive(bt)) {
+        kit.store_to_memory(kit.control(), next_dest, v, bt, adr_type, MemNode::unordered);
+      } else {
+        const TypeOopPtr* val_type = Type::get_const_type(ft)->is_oopptr();
+        kit.store_oop_to_array(kit.control(), base_dest, next_dest, adr_type, v,
+                               val_type, bt, StoreNode::release_if_reference(T_OBJECT));
+      }
+    }
+  } else {
+    Node* off  = kit.MakeConX(type2aelembytes(copy_type) * i);
+    Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
+    Node* v = kit.make_load(kit.control(), next_src, value_type, copy_type, atp_src, MemNode::unordered);
+    Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
+    if (copy_type == T_OBJECT && (!is_alloc_tightly_coupled() || !GraphKit::use_ReduceInitialCardMarks())) {
+      kit.store_oop_to_array(kit.control(), base_dest, next_dest, atp_dest, v,
+                             value_type->make_ptr()->is_oopptr(), copy_type,
+                             StoreNode::release_if_reference(T_OBJECT));
+    } else {
+      kit.store_to_memory(kit.control(), next_dest, v, copy_type, atp_dest, MemNode::unordered);
+    }
+  }
+}
+
+
+void ArrayCopyNode::array_copy_forward(GraphKit& kit,
+                                       bool can_reshape,
+                                       const TypeAryPtr* atp_src,
+                                       const TypeAryPtr* atp_dest,
+                                       Node* adr_src,
+                                       Node* base_src,
+                                       Node* adr_dest,
+                                       Node* base_dest,
+                                       BasicType copy_type,
+                                       const Type* value_type,
+                                       int count) {
+  if (!kit.stopped()) {
+    // copy forward
+    if (count > 0) {
+      for (int i = 0; i < count; i++) {
+        copy(kit, atp_src, atp_dest, i, base_src, base_dest, adr_src, adr_dest, copy_type, value_type);
+      }
+    } else if(can_reshape) {
+      PhaseGVN& gvn = kit.gvn();
+      assert(gvn.is_IterGVN(), "");
+      gvn.record_for_igvn(adr_src);
+      gvn.record_for_igvn(adr_dest);
+    }
+  }
+}
+
+void ArrayCopyNode::array_copy_backward(GraphKit& kit,
                                         bool can_reshape,
-                                        Node* forward_ctl,
-                                        Node* start_mem_src,
-                                        Node* start_mem_dest,
-                                        const TypePtr* atp_src,
-                                        const TypePtr* atp_dest,
+                                        const TypeAryPtr* atp_src,
+                                        const TypeAryPtr* atp_dest,
                                         Node* adr_src,
                                         Node* base_src,
                                         Node* adr_dest,
@@ -356,74 +439,21 @@ Node* ArrayCopyNode::array_copy_forward(PhaseGVN *phase,
                                         BasicType copy_type,
                                         const Type* value_type,
                                         int count) {
-  Node* mem = phase->C->top();
-  if (!forward_ctl->is_top()) {
-    // copy forward
-    mem = start_mem_dest;
-
-    if (count > 0) {
-      Node* v = LoadNode::make(*phase, forward_ctl, start_mem_src, adr_src, atp_src, value_type, copy_type, MemNode::unordered);
-      v = phase->transform(v);
-      mem = StoreNode::make(*phase, forward_ctl, mem, adr_dest, atp_dest, v, copy_type, MemNode::unordered);
-      mem = phase->transform(mem);
-      for (int i = 1; i < count; i++) {
-        Node* off  = phase->MakeConX(type2aelembytes(copy_type) * i);
-        Node* next_src = phase->transform(new AddPNode(base_src,adr_src,off));
-        Node* next_dest = phase->transform(new AddPNode(base_dest,adr_dest,off));
-        v = LoadNode::make(*phase, forward_ctl, mem, next_src, atp_src, value_type, copy_type, MemNode::unordered);
-        v = phase->transform(v);
-        mem = StoreNode::make(*phase, forward_ctl,mem,next_dest,atp_dest,v, copy_type, MemNode::unordered);
-        mem = phase->transform(mem);
-      }
-    } else if(can_reshape) {
-      PhaseIterGVN* igvn = phase->is_IterGVN();
-      igvn->_worklist.push(adr_src);
-      igvn->_worklist.push(adr_dest);
-    }
-  }
-  return mem;
-}
-
-Node* ArrayCopyNode::array_copy_backward(PhaseGVN *phase,
-                                         bool can_reshape,
-                                         Node* backward_ctl,
-                                         Node* start_mem_src,
-                                         Node* start_mem_dest,
-                                         const TypePtr* atp_src,
-                                         const TypePtr* atp_dest,
-                                         Node* adr_src,
-                                         Node* base_src,
-                                         Node* adr_dest,
-                                         Node* base_dest,
-                                         BasicType copy_type,
-                                         const Type* value_type,
-                                         int count) {
-  Node* mem = phase->C->top();
-  if (!backward_ctl->is_top()) {
+  if (!kit.stopped()) {
     // copy backward
-    mem = start_mem_dest;
+    PhaseGVN& gvn = kit.gvn();
 
     if (count > 0) {
-      for (int i = count-1; i >= 1; i--) {
-        Node* off  = phase->MakeConX(type2aelembytes(copy_type) * i);
-        Node* next_src = phase->transform(new AddPNode(base_src,adr_src,off));
-        Node* next_dest = phase->transform(new AddPNode(base_dest,adr_dest,off));
-        Node* v = LoadNode::make(*phase, backward_ctl, mem, next_src, atp_src, value_type, copy_type, MemNode::unordered);
-        v = phase->transform(v);
-        mem = StoreNode::make(*phase, backward_ctl,mem,next_dest,atp_dest,v, copy_type, MemNode::unordered);
-        mem = phase->transform(mem);
+      for (int i = count-1; i >= 0; i--) {
+        copy(kit, atp_src, atp_dest, i, base_src, base_dest, adr_src, adr_dest, copy_type, value_type);
       }
-      Node* v = LoadNode::make(*phase, backward_ctl, mem, adr_src, atp_src, value_type, copy_type, MemNode::unordered);
-      v = phase->transform(v);
-      mem = StoreNode::make(*phase, backward_ctl, mem, adr_dest, atp_dest, v, copy_type, MemNode::unordered);
-      mem = phase->transform(mem);
     } else if(can_reshape) {
-      PhaseIterGVN* igvn = phase->is_IterGVN();
-      igvn->_worklist.push(adr_src);
-      igvn->_worklist.push(adr_dest);
+      PhaseGVN& gvn = kit.gvn();
+      assert(gvn.is_IterGVN(), "");
+      gvn.record_for_igvn(adr_src);
+      gvn.record_for_igvn(adr_dest);
     }
   }
-  return mem;
 }
 
 bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
@@ -447,17 +477,16 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
     } else {
       // replace fallthrough projections of the ArrayCopyNode by the
       // new memory, control and the input IO.
-      CallProjections callprojs;
-      extract_projections(&callprojs, true, false);
+      CallProjections* callprojs = extract_projections(true, false);
 
-      if (callprojs.fallthrough_ioproj != NULL) {
-        igvn->replace_node(callprojs.fallthrough_ioproj, in(TypeFunc::I_O));
+      if (callprojs->fallthrough_ioproj != NULL) {
+        igvn->replace_node(callprojs->fallthrough_ioproj, in(TypeFunc::I_O));
       }
-      if (callprojs.fallthrough_memproj != NULL) {
-        igvn->replace_node(callprojs.fallthrough_memproj, mem);
+      if (callprojs->fallthrough_memproj != NULL) {
+        igvn->replace_node(callprojs->fallthrough_memproj, mem);
       }
-      if (callprojs.fallthrough_catchproj != NULL) {
-        igvn->replace_node(callprojs.fallthrough_catchproj, ctl);
+      if (callprojs->fallthrough_catchproj != NULL) {
+        igvn->replace_node(callprojs->fallthrough_catchproj, ctl);
       }
 
       // The ArrayCopyNode is not disconnected. It still has the
@@ -472,7 +501,13 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
   } else {
     if (in(TypeFunc::Control) != ctl) {
       // we can't return new memory and control from Ideal at parse time
-      assert(!is_clonebasic(), "added control for clone?");
+#ifdef ASSERT
+      Node* src = in(ArrayCopyNode::Src);
+      const Type* src_type = phase->type(src);
+      const TypeAryPtr* ary_src = src_type->isa_aryptr();
+      BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
+      assert(!is_clonebasic() || (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+#endif
       return false;
     }
   }
@@ -542,60 +577,80 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return NULL;
   }
 
+  JVMState* new_jvms = NULL;
+  SafePointNode* new_map = NULL;
+  if (!is_clonebasic()) {
+    new_jvms =  jvms()->clone_shallow(phase->C);
+    new_map = new SafePointNode(req(), new_jvms);
+    for (uint i = TypeFunc::FramePtr; i < req(); i++) {
+      new_map->init_req(i, in(i));
+    }
+    new_jvms->set_map(new_map);
+  } else {
+    new_jvms =  new (phase->C) JVMState(0);
+    new_map = new SafePointNode(TypeFunc::Parms, new_jvms);
+    new_jvms->set_map(new_map);
+  }
+  new_map->set_control(in(TypeFunc::Control));
+  new_map->set_memory(MergeMemNode::make(in(TypeFunc::Memory)));
+  new_map->set_i_o(in(TypeFunc::I_O));
+
   Node* src = in(ArrayCopyNode::Src);
   Node* dest = in(ArrayCopyNode::Dest);
-  const TypePtr* atp_src = get_address_type(phase, src);
-  const TypePtr* atp_dest = get_address_type(phase, dest);
+  const TypeAryPtr* atp_src = get_address_type(phase, src);
+  const TypeAryPtr* atp_dest = get_address_type(phase, dest);
   uint alias_idx_src = phase->C->get_alias_index(atp_src);
   uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
-
-  Node *in_mem = in(TypeFunc::Memory);
-  Node *start_mem_src = in_mem;
-  Node *start_mem_dest = in_mem;
-  if (in_mem->is_MergeMem()) {
-    start_mem_src = in_mem->as_MergeMem()->memory_at(alias_idx_src);
-    start_mem_dest = in_mem->as_MergeMem()->memory_at(alias_idx_dest);
-  }
-
 
   if (can_reshape) {
     assert(!phase->is_IterGVN()->delay_transform(), "cannot delay transforms");
     phase->is_IterGVN()->set_delay_transform(true);
   }
 
+  GraphKit kit(new_jvms, phase);
+
+  SafePointNode* backward_map = NULL;
+  SafePointNode* forward_map = NULL;
   Node* backward_ctl = phase->C->top();
-  Node* forward_ctl = phase->C->top();
-  array_copy_test_overlap(phase, can_reshape, disjoint_bases, count, forward_ctl, backward_ctl);
 
-  Node* forward_mem = array_copy_forward(phase, can_reshape, forward_ctl,
-                                         start_mem_src, start_mem_dest,
-                                         atp_src, atp_dest,
-                                         adr_src, base_src, adr_dest, base_dest,
-                                         copy_type, value_type, count);
+  array_copy_test_overlap(kit, disjoint_bases, count, backward_ctl);
 
-  Node* backward_mem = array_copy_backward(phase, can_reshape, backward_ctl,
-                                           start_mem_src, start_mem_dest,
-                                           atp_src, atp_dest,
-                                           adr_src, base_src, adr_dest, base_dest,
-                                           copy_type, value_type, count);
+  {
+    PreserveJVMState pjvms(&kit);
 
-  Node* ctl = NULL;
-  if (!forward_ctl->is_top() && !backward_ctl->is_top()) {
-    ctl = new RegionNode(3);
-    mem = new PhiNode(ctl, Type::MEMORY, atp_dest);
-    ctl->init_req(1, forward_ctl);
-    mem->init_req(1, forward_mem);
-    ctl->init_req(2, backward_ctl);
-    mem->init_req(2, backward_mem);
-    ctl = phase->transform(ctl);
-    mem = phase->transform(mem);
-  } else if (!forward_ctl->is_top()) {
-    ctl = forward_ctl;
-    mem = forward_mem;
+    array_copy_forward(kit, can_reshape,
+                       atp_src, atp_dest,
+                       adr_src, base_src, adr_dest, base_dest,
+                       copy_type, value_type, count);
+
+    forward_map = kit.stop();
+  }
+
+  kit.set_control(backward_ctl);
+  array_copy_backward(kit, can_reshape,
+                      atp_src, atp_dest,
+                      adr_src, base_src, adr_dest, base_dest,
+                      copy_type, value_type, count);
+
+  backward_map = kit.stop();
+
+  if (!forward_map->control()->is_top() && !backward_map->control()->is_top()) {
+    assert(forward_map->i_o() == backward_map->i_o(), "need a phi on IO?");
+    Node* ctl = new RegionNode(3);
+    Node* mem = new PhiNode(ctl, Type::MEMORY, TypePtr::BOTTOM);
+    kit.set_map(forward_map);
+    ctl->init_req(1, kit.control());
+    mem->init_req(1, kit.reset_memory());
+    kit.set_map(backward_map);
+    ctl->init_req(2, kit.control());
+    mem->init_req(2, kit.reset_memory());
+    kit.set_control(phase->transform(ctl));
+    kit.set_all_memory(phase->transform(mem));
+  } else if (!forward_map->control()->is_top()) {
+    kit.set_map(forward_map);
   } else {
-    assert(!backward_ctl->is_top(), "no copy?");
-    ctl = backward_ctl;
-    mem = backward_mem;
+    assert(!backward_map->control()->is_top(), "no copy?");
+    kit.set_map(backward_map);
   }
 
   if (can_reshape) {
@@ -603,11 +658,9 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     phase->is_IterGVN()->set_delay_transform(false);
   }
 
-  MergeMemNode* out_mem = MergeMemNode::make(in_mem);
-  out_mem->set_memory_at(alias_idx_dest, mem);
-  mem = out_mem;
-
-  if (!finish_transform(phase, can_reshape, ctl, mem)) {
+  mem = kit.map()->memory();
+  if (!finish_transform(phase, can_reshape, kit.control(), mem)) {
+    phase->record_for_igvn(this);
     return NULL;
   }
 

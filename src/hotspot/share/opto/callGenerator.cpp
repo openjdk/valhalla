@@ -39,6 +39,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 // Utility function.
@@ -116,7 +117,7 @@ class DirectCallGenerator : public CallGenerator {
  private:
   CallStaticJavaNode* _call_node;
   // Force separate memory and I/O projections for the exceptional
-  // paths to facilitate late inlinig.
+  // paths to facilitate late inlining.
   bool                _separate_io_proj;
 
  public:
@@ -124,6 +125,14 @@ class DirectCallGenerator : public CallGenerator {
     : CallGenerator(method),
       _separate_io_proj(separate_io_proj)
   {
+    if (method->signature()->return_type()->is__Value()) {
+      // If that call has not been optimized by the time optimizations
+      // are over, we'll need to add a call to create a value type
+      // instance from the klass returned by the call. Separating
+      // memory and I/O projections for exceptions is required to
+      // perform that graph transformation.
+      _separate_io_proj = true;
+    }
   }
   virtual JVMState* generate(JVMState* jvms);
 
@@ -133,6 +142,7 @@ class DirectCallGenerator : public CallGenerator {
 JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
   kit.C->print_inlining_update(this);
+  PhaseGVN& gvn = kit.gvn();
   bool is_static = method()->is_static();
   address target = is_static ? SharedRuntime::get_resolve_static_call_stub()
                              : SharedRuntime::get_resolve_opt_virtual_call_stub();
@@ -151,9 +161,11 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   }
   _call_node = call;  // Save the call node in case we need it later
   if (!is_static) {
-    // Make an explicit receiver null_check as part of this call.
-    // Since we share a map with the caller, his JVMS gets adjusted.
-    kit.null_check_receiver_before_call(method());
+    if (!kit.argument(0)->is_ValueType()) {
+      // Make an explicit receiver null_check as part of this call.
+      // Since we share a map with the caller, his JVMS gets adjusted.
+      kit.null_check_receiver_before_call(method());
+    }
     if (kit.stopped()) {
       // And dump it back to the caller, decorated with any exceptions:
       return kit.transfer_exceptions_into_jvms();
@@ -168,7 +180,19 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
-  kit.push_node(method()->return_type()->basic_type(), ret);
+  // Check if return value is a value type pointer
+  const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
+  if (vtptr != NULL) {
+    if (!vtptr->is__Value()) {
+      // Create ValueTypeNode from the oop and replace the return value
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret, vtptr->value_klass());
+      kit.push_node(T_VALUETYPE, vt);
+    } else {
+      kit.push_node(T_VALUETYPE, ret);
+    }
+  } else {
+    kit.push_node(method()->return_type()->basic_type(), ret);
+  }
   return kit.transfer_exceptions_into_jvms();
 }
 
@@ -191,7 +215,7 @@ public:
 JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
   Node* receiver = kit.argument(0);
-
+  PhaseGVN& gvn = kit.gvn();
   kit.C->print_inlining_update(this);
 
   if (kit.C->log() != NULL) {
@@ -251,7 +275,17 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call);
   Node* ret = kit.set_results_for_java_call(call);
-  kit.push_node(method()->return_type()->basic_type(), ret);
+  // Check if return value is a value type pointer
+  const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
+  if (vtptr != NULL) {
+    // Create ValueTypeNode from the oop and replace the return value
+    Node* ctl = kit.control();
+    ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret, vtptr->value_klass());
+    kit.set_control(ctl);
+    kit.push_node(T_VALUETYPE, vt);
+  } else {
+    kit.push_node(method()->return_type()->basic_type(), ret);
+  }
 
   // Represent the effect of an implicit receiver null_check
   // as part of this call.  Since we share a map with the caller,
@@ -349,7 +383,7 @@ void LateInlineCallGenerator::do_late_inline() {
     return;
   }
 
-  const TypeTuple *r = call->tf()->domain();
+  const TypeTuple *r = call->tf()->domain_cc();
   for (int i1 = 0; i1 < method()->arg_size(); i1++) {
     if (call->in(TypeFunc::Parms + i1)->is_top() && r->field_at(TypeFunc::Parms + i1) != Type::HALF) {
       assert(Compile::current()->inlining_incrementally(), "shouldn't happen during parsing");
@@ -363,18 +397,22 @@ void LateInlineCallGenerator::do_late_inline() {
   }
 
   // check for unreachable loop
-  CallProjections callprojs;
-  call->extract_projections(&callprojs, true);
-  if (callprojs.fallthrough_catchproj == call->in(0) ||
-      callprojs.catchall_catchproj == call->in(0) ||
-      callprojs.fallthrough_memproj == call->in(TypeFunc::Memory) ||
-      callprojs.catchall_memproj == call->in(TypeFunc::Memory) ||
-      callprojs.fallthrough_ioproj == call->in(TypeFunc::I_O) ||
-      callprojs.catchall_ioproj == call->in(TypeFunc::I_O) ||
-      (callprojs.resproj != NULL && call->find_edge(callprojs.resproj) != -1) ||
-      (callprojs.exobj != NULL && call->find_edge(callprojs.exobj) != -1)) {
+  CallProjections* callprojs = call->extract_projections(true);
+  if (callprojs->fallthrough_catchproj == call->in(0) ||
+      callprojs->catchall_catchproj == call->in(0) ||
+      callprojs->fallthrough_memproj == call->in(TypeFunc::Memory) ||
+      callprojs->catchall_memproj == call->in(TypeFunc::Memory) ||
+      callprojs->fallthrough_ioproj == call->in(TypeFunc::I_O) ||
+      callprojs->catchall_ioproj == call->in(TypeFunc::I_O) ||
+      (callprojs->exobj != NULL && call->find_edge(callprojs->exobj) != -1)) {
     return;
   }
+  for (uint i = 0; i < callprojs->nb_resproj; i++) {
+    if (callprojs->resproj[i] != NULL && call->find_edge(callprojs->resproj[i]) != -1) {
+      return;
+    }
+  }
+
 
   Compile* C = Compile::current();
   // Remove inlined methods from Compiler's lists.
@@ -391,26 +429,52 @@ void LateInlineCallGenerator::do_late_inline() {
     map->init_req(i1, call->in(i1));
   }
 
+  PhaseGVN& gvn = *C->initial_gvn();
   // Make sure the state is a MergeMem for parsing.
   if (!map->in(TypeFunc::Memory)->is_MergeMem()) {
     Node* mem = MergeMemNode::make(map->in(TypeFunc::Memory));
-    C->initial_gvn()->set_type_bottom(mem);
+    gvn.set_type_bottom(mem);
     map->set_req(TypeFunc::Memory, mem);
   }
 
-  uint nargs = method()->arg_size();
   // blow away old call arguments
   Node* top = C->top();
-  for (uint i1 = 0; i1 < nargs; i1++) {
-    map->set_req(TypeFunc::Parms + i1, top);
+  for (uint i1 = TypeFunc::Parms; i1 < call->_tf->domain_cc()->cnt(); i1++) {
+    map->set_req(i1, top);
   }
   jvms->set_map(map);
 
   // Make enough space in the expression stack to transfer
   // the incoming arguments and return value.
   map->ensure_stack(jvms, jvms->method()->max_stack());
+  const TypeTuple *domain_sig = call->_tf->domain_sig();
+  uint nargs = method()->arg_size();
+  assert(domain_sig->cnt() - TypeFunc::Parms == nargs, "inconsistent signature");
+
+  uint j = TypeFunc::Parms;
   for (uint i1 = 0; i1 < nargs; i1++) {
-    map->set_argument(jvms, i1, call->in(TypeFunc::Parms + i1));
+    const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
+    if (!ValueTypePassFieldsAsArgs) {
+      Node* arg = call->in(TypeFunc::Parms + i1);
+      if (t->isa_valuetypeptr()) {
+        Node* ctl = map->control();
+        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg, gvn.type(arg)->is_valuetypeptr()->value_klass());
+        map->set_control(ctl);
+      }
+      map->set_argument(jvms, i1, arg);
+    } else {
+      if (t->isa_valuetypeptr() && !t->is_valuetypeptr()->is__Value()) {
+        ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
+        Node* ctl = map->control();
+        ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), call, vk, j, true);
+        map->set_control(ctl);
+        map->set_argument(jvms, i1, vt);
+        j += vk->value_arg_slots();
+      } else {
+        map->set_argument(jvms, i1, call->in(j));
+        j++;
+      }
+    }
   }
 
   C->print_inlining_assert_ready();
@@ -444,7 +508,8 @@ void LateInlineCallGenerator::do_late_inline() {
 
   // Find the result object
   Node* result = C->top();
-  int   result_size = method()->return_type()->size();
+  ciType* return_type = _inline_cg->method()->return_type();
+  int result_size = return_type->size();
   if (result_size != 0 && !kit.stopped()) {
     result = (result_size == 1) ? kit.pop() : kit.pop_pair();
   }
@@ -452,6 +517,46 @@ void LateInlineCallGenerator::do_late_inline() {
   C->set_has_loops(C->has_loops() || _inline_cg->method()->has_loops());
   C->env()->notice_inlined_method(_inline_cg->method());
   C->set_inlining_progress(true);
+
+  if (return_type->is_valuetype()) {
+    const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
+    bool returned_as_fields = call->tf()->returns_value_type_as_fields();
+    if (result->is_ValueType()) {
+      ValueTypeNode* vt = result->as_ValueType();
+      if (!returned_as_fields) {
+        vt = vt->allocate(&kit)->as_ValueType();
+        result = ValueTypePtrNode::make_from_value_type(gvn, vt);
+      } else {
+        // Return of multiple values (the fields of a value type)
+        vt->replace_call_results(&kit, call, C);
+        if (gvn.type(vt->get_oop()) == TypePtr::NULL_PTR) {
+          result = vt->tagged_klass(gvn);
+        } else {
+          result = vt->get_oop();
+        }
+      }
+    } else if (gvn.type(result)->isa_valuetypeptr() && returned_as_fields) {
+      assert(!vt_t->is_valuetypeptr()->is__Value(), "__Value not supported");
+      Node* cast = new CheckCastPPNode(NULL, result, vt_t);
+      gvn.record_for_igvn(cast);
+      Node* ctl = kit.control();
+      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(gvn, ctl, kit.merged_memory(), gvn.transform(cast));
+      kit.set_control(ctl);
+      vtptr->replace_call_results(&kit, call, C);
+      result = cast;
+    } else if (!return_type->is__Value()) {
+      assert(result->is_top(), "what else?");
+      for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
+        ProjNode *pn = call->fast_out(i)->as_Proj();
+        uint con = pn->_con;
+        if (con >= TypeFunc::Parms) {
+          gvn.hash_delete(pn);
+          pn->set_req(0, C->top());
+          --i; --imax;
+        }
+      }
+    }
+  }
 
   kit.replace_call(call, result, true);
 }
@@ -491,7 +596,7 @@ class LateInlineMHCallGenerator : public LateInlineCallGenerator {
 
 bool LateInlineMHCallGenerator::do_late_inline_check(JVMState* jvms) {
 
-  CallGenerator* cg = for_method_handle_inline(jvms, _caller, method(), _input_not_const);
+  CallGenerator* cg = for_method_handle_inline(jvms, _caller, method(), _input_not_const, AlwaysIncrementalInline);
 
   Compile::current()->print_inlining_update_delayed(this);
 
@@ -499,7 +604,7 @@ bool LateInlineMHCallGenerator::do_late_inline_check(JVMState* jvms) {
     _attempt++;
   }
 
-  if (cg != NULL && cg->is_inline()) {
+  if (cg != NULL && (cg->is_inline() || cg->is_inlined_method_handle_intrinsic(jvms, cg->method()))) {
     assert(!cg->is_late_inline(), "we're doing late inlining");
     _inline_cg = cg;
     Compile::current()->dec_number_of_mh_late_inlines();
@@ -801,7 +906,7 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
 CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool delayed_forbidden) {
   assert(callee->is_method_handle_intrinsic(), "for_method_handle_call mismatch");
   bool input_not_const;
-  CallGenerator* cg = CallGenerator::for_method_handle_inline(jvms, caller, callee, input_not_const);
+  CallGenerator* cg = CallGenerator::for_method_handle_inline(jvms, caller, callee, input_not_const, false);
   Compile* C = Compile::current();
   if (cg != NULL) {
     if (!delayed_forbidden && AlwaysIncrementalInline) {
@@ -814,8 +919,8 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   ciCallProfile profile = caller->call_profile_at_bci(bci);
   int call_site_count = caller->scale_count(profile.count());
 
-  if (IncrementalInline && call_site_count > 0 &&
-      (input_not_const || !C->inlining_incrementally() || C->over_inlining_cutoff())) {
+  if (IncrementalInline && (AlwaysIncrementalInline ||
+                            (call_site_count > 0 && (input_not_const || !C->inlining_incrementally() || C->over_inlining_cutoff())))) {
     return CallGenerator::for_mh_late_inline(caller, callee, input_not_const);
   } else {
     // Out-of-line call.
@@ -823,7 +928,29 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const) {
+static void cast_argument(int arg_nb, ciType* t, GraphKit& kit) {
+  PhaseGVN& gvn = kit.gvn();
+  Node* arg = kit.argument(arg_nb);
+  const Type* arg_type = arg->bottom_type();
+  const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
+  if (t->is_valuetype()) {
+    assert(!(arg_type->isa_valuetype() && t->is__Value()), "need a pointer to the value type");
+    if (arg_type->isa_valuetypeptr() && !t->is__Value()) {
+      // Value type arguments cannot be NULL
+      sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
+      Node* cast = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, cast, t->as_value_klass());
+      kit.set_argument(arg_nb, vt);
+    } else {
+      assert(t->is__Value() || arg->is_ValueType(), "inconsistent argument");
+    }
+  } else if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
+    Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
+    kit.set_argument(arg_nb, cast_obj);
+  }
+}
+
+CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const, bool delayed_forbidden) {
   GraphKit kit(jvms);
   PhaseGVN& gvn = kit.gvn();
   Compile* C = kit.C;
@@ -850,7 +977,10 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
                                               false /* call_does_dispatch */,
                                               jvms,
                                               true /* allow_inline */,
-                                              PROB_ALWAYS);
+                                              PROB_ALWAYS,
+                                              NULL,
+                                              true,
+                                              delayed_forbidden);
         return cg;
       } else {
         print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
@@ -885,25 +1015,13 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         const int receiver_skip = target->is_static() ? 0 : 1;
         // Cast receiver to its type.
         if (!target->is_static()) {
-          Node* arg = kit.argument(0);
-          const TypeOopPtr* arg_type = arg->bottom_type()->isa_oopptr();
-          const Type*       sig_type = TypeOopPtr::make_from_klass(signature->accessing_klass());
-          if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
-            Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-            kit.set_argument(0, cast_obj);
-          }
+          cast_argument(0, signature->accessing_klass(), kit);
         }
         // Cast reference arguments to its type.
         for (int i = 0, j = 0; i < signature->count(); i++) {
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
-            Node* arg = kit.argument(receiver_skip + j);
-            const TypeOopPtr* arg_type = arg->bottom_type()->isa_oopptr();
-            const Type*       sig_type = TypeOopPtr::make_from_klass(t->as_klass());
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
-              Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-              kit.set_argument(receiver_skip + j, cast_obj);
-            }
+            cast_argument(receiver_skip + j, t, kit);
           }
           j += t->size();  // long and double take two slots
         }
@@ -934,7 +1052,9 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         CallGenerator* cg = C->call_generator(target, vtable_index, call_does_dispatch, jvms,
                                               true /* allow_inline */,
                                               PROB_ALWAYS,
-                                              speculative_receiver_type);
+                                              speculative_receiver_type,
+                                              true,
+                                              delayed_forbidden);
         return cg;
       } else {
         print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),

@@ -115,6 +115,7 @@
   template(ICBufferFull)                          \
   template(ScavengeMonitors)                      \
   template(PrintMetadata)                         \
+  template(VTBufferStats)                         \
 
 class VM_Operation: public CHeapObj<mtInternal> {
  public:
@@ -474,6 +475,16 @@ class VM_PrintCompileQueue: public VM_Operation {
   VM_PrintCompileQueue(outputStream* st) : _out(st) {}
   VMOp_Type type() const { return VMOp_PrintCompileQueue; }
   Mode evaluation_mode() const { return _safepoint; }
+  void doit();
+};
+
+class VM_VTBufferStats: public VM_Operation {
+private:
+  outputStream* _out;
+public:
+  VM_VTBufferStats()                  { _out = tty; }
+  VM_VTBufferStats(outputStream* out) { _out = out; }
+  VMOp_Type type() const              {  return VMOp_VTBufferStats; }
   void doit();
 };
 

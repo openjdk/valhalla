@@ -345,7 +345,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    return oopFactory::new_objArray(k, length, THREAD);
+    return oopFactory::new_array(k, length, THREAD);
   }
 }
 
@@ -680,6 +680,14 @@ bool Reflection::verify_field_access(const Klass* current_class,
     assert(!(host_class->is_instance_klass() &&
            InstanceKlass::cast(host_class)->is_anonymous()),
            "host_class should not be anonymous");
+
+    // For Minimal Value Types check if the field class is a value type
+    // if so check if it has a Value Capable Class that is the host class,
+    // if so use the field class the host class
+    if (field_class->is_value() &&
+        InstanceKlass::cast(field_class)->get_vcc_klass() == host_class) {
+      host_class = field_class;
+    }
   }
   if (host_class == field_class) {
     return true;
@@ -767,7 +775,7 @@ static oop get_mirror_from_signature(const methodHandle& method,
                                      TRAPS) {
 
 
-  if (T_OBJECT == ss->type() || T_ARRAY == ss->type()) {
+  if (T_OBJECT == ss->type() || T_ARRAY == ss->type() || T_VALUETYPE == ss->type()) {
     Symbol* name = ss->as_symbol(CHECK_NULL);
     oop loader = method->method_holder()->class_loader();
     oop protection_domain = method->method_holder()->protection_domain();
@@ -821,7 +829,7 @@ static objArrayHandle get_exception_types(const methodHandle& method, TRAPS) {
 static Handle new_type(Symbol* signature, Klass* k, TRAPS) {
   // Basic types
   BasicType type = vmSymbols::signature_type(signature);
-  if (type != T_OBJECT) {
+  if (type != T_OBJECT && type != T_VALUETYPE) {
     return Handle(THREAD, Universe::java_mirror(type));
   }
 

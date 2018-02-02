@@ -1,0 +1,7 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckFinal.java:9:1: compiler.warn.value.must.be.final
+CheckFinal.java:10:9: compiler.warn.value.field.must.be.final
+CheckFinal.java:15:17: compiler.warn.value.field.must.be.final
+1 error
+4 warnings

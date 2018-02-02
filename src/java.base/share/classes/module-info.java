@@ -128,7 +128,6 @@ module java.base {
     exports javax.security.auth.x500;
     exports javax.security.cert;
 
-
     // additional qualified exports may be inserted at build time
     // see make/gensrc/GenModuleInfo.gmk
 
@@ -316,6 +315,7 @@ module java.base {
     exports sun.util.resources to
         jdk.localedata;
 
+    exports valhalla.shady to jdk.incubator.mvt;
 
     // the service types defined by the APIs in this module
 

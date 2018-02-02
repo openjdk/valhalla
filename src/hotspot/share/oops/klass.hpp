@@ -85,7 +85,7 @@ class Klass : public Metadata {
   // distinct bytes, as follows:
   //    MSB:[tag, hsz, ebt, log2(esz)]:LSB
   // where:
-  //    tag is 0x80 if the elements are oops, 0xC0 if non-oops
+  //    tag is 0x80 if the elements are oops, 0xC0 if non-oops, 0xA0 if value types
   //    hsz is array header size in bytes (i.e., offset of first element)
   //    ebt is the BasicType of the elements
   //    esz is the element size in bytes
@@ -298,12 +298,13 @@ protected:
     _lh_element_type_mask       = right_n_bits(BitsPerByte),  // shifted mask
     _lh_header_size_shift       = BitsPerByte*2,
     _lh_header_size_mask        = right_n_bits(BitsPerByte),  // shifted mask
-    _lh_array_tag_bits          = 2,
-    _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits,
-    _lh_array_tag_obj_value     = ~0x01   // 0x80000000 >> 30
+    _lh_array_tag_bits          = 3,
+    _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits
   };
 
-  static const unsigned int _lh_array_tag_type_value = 0Xffffffff; // ~0x00,  // 0xC0000000 >> 30
+  static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
+  static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
+  static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -320,12 +321,13 @@ protected:
     return (jint)lh < (jint)_lh_neutral_value;
   }
   static bool layout_helper_is_typeArray(jint lh) {
-    // _lh_array_tag_type_value == (lh >> _lh_array_tag_shift);
-    return (juint)lh >= (juint)(_lh_array_tag_type_value << _lh_array_tag_shift);
+    return (juint) _lh_array_tag_type_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_objArray(jint lh) {
-    // _lh_array_tag_obj_value == (lh >> _lh_array_tag_shift);
-    return (jint)lh < (jint)(_lh_array_tag_type_value << _lh_array_tag_shift);
+    return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
+  }
+  static bool layout_helper_is_valueArray(jint lh) {
+    return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static int layout_helper_header_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
@@ -336,7 +338,7 @@ protected:
   static BasicType layout_helper_element_type(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int btvalue = (lh >> _lh_element_type_shift) & _lh_element_type_mask;
-    assert(btvalue >= T_BOOLEAN && btvalue <= T_OBJECT, "sanity");
+    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_VALUETYPE, "sanity");
     return (BasicType) btvalue;
   }
 
@@ -357,7 +359,7 @@ protected:
   static int layout_helper_log2_element_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-    assert(l2esz <= LogBytesPerLong,
+    assert(layout_helper_element_type(lh) == T_VALUETYPE || l2esz <= LogBytesPerLong,
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }
@@ -513,7 +515,10 @@ protected:
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
+  virtual bool is_valueArray_klass_slow()   const { return false; }
 #endif // ASSERT
+  // current implementation uses this method even in non debug builds
+  virtual bool is_value_slow()          const { return false; }
  public:
 
   // Fast non-virtual versions
@@ -539,6 +544,11 @@ protected:
   inline  bool is_typeArray_klass()           const { return assert_same_query(
                                                     layout_helper_is_typeArray(layout_helper()),
                                                     is_typeArray_klass_slow()); }
+  inline  bool is_value()                     const { return is_value_slow(); } //temporary hack
+  inline  bool is_valueArray_klass()          const { return assert_same_query(
+                                                    layout_helper_is_valueArray(layout_helper()),
+                                                    is_valueArray_klass_slow()); }
+
   #undef assert_same_query
 
   // Access flags

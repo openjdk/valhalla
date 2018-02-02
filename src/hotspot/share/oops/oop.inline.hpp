@@ -29,6 +29,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/generation.hpp"
+#include "memory/vtBuffer.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
@@ -232,6 +233,8 @@ bool oopDesc::is_instance()  const { return klass()->is_instance_klass();  }
 bool oopDesc::is_array()     const { return klass()->is_array_klass();     }
 bool oopDesc::is_objArray()  const { return klass()->is_objArray_klass();  }
 bool oopDesc::is_typeArray() const { return klass()->is_typeArray_klass(); }
+bool oopDesc::is_value()     const { return klass()->is_value(); }
+bool oopDesc::is_valueArray()  const { return klass()->is_valueArray_klass(); }
 
 void*      oopDesc::field_base(int offset)          const { return (void*)&((char*)this)[offset]; }
 
@@ -367,6 +370,7 @@ bool oopDesc::is_unlocked() const {
 bool oopDesc::has_bias_pattern() const {
   return mark()->has_bias_pattern();
 }
+
 
 // Used only for markSweep, scavenging
 bool oopDesc::is_gc_marked() const {

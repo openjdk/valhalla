@@ -1,0 +1,6 @@
+CheckMakeDefault.java:11:20: compiler.err.make.default.with.nonvalue
+CheckMakeDefault.java:28:16: compiler.err.make.default.in.nonfactory
+CheckMakeDefault.java:32:18: compiler.err.invalid.arguments.to.make.default
+CheckMakeDefault.java:33:19: compiler.err.make.default.with.nonvalue
+CheckMakeDefault.java:34:8: compiler.err.make.default.with.wrong.value.type: Point.SinnerValue
+5 errors

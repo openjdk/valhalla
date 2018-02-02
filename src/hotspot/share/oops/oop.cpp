@@ -122,7 +122,12 @@ unsigned int oopDesc::new_hash(juint seed) {
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (!check_obj_alignment(obj)) return false;
-  if (!Universe::heap()->is_in_reserved(obj)) return false;
+  if (!Universe::heap()->is_in_reserved(obj)) {
+    assert(obj->klass()->is_value(), "Only value type can be outside of the Java heap");
+    VTBufferChunk* chunk = VTBufferChunk::chunk(obj);
+    assert(chunk->is_valid(), "if not in the heap, should a buffered VT");
+    if (!VTBuffer::is_in_vt_buffer(obj)) return false;
+  }
   // obj is aligned and accessible in heap
   if (Universe::heap()->is_in_reserved(obj->klass_or_null())) return false;
 
@@ -136,7 +141,8 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (obj->mark() != NULL) {
     return true;
   }
-  return !SafepointSynchronize::is_at_safepoint();
+  return !SafepointSynchronize::is_at_safepoint()
+    || (obj->klass()->is_value() && VTBuffer::is_in_vt_buffer(obj)) ;
 }
 
 // used only for asserts and guarantees
@@ -167,6 +173,8 @@ bool oopDesc::is_instance_noinline()          const { return is_instance();     
 bool oopDesc::is_array_noinline()             const { return is_array();               }
 bool oopDesc::is_objArray_noinline()          const { return is_objArray();            }
 bool oopDesc::is_typeArray_noinline()         const { return is_typeArray();           }
+bool oopDesc::is_value_noinline()             const { return is_value();               }
+bool oopDesc::is_valueArray_noinline()        const { return is_valueArray();          }
 
 bool oopDesc::has_klass_gap() {
   // Only has a klass gap when compressed class pointers are used.

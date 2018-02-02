@@ -1,0 +1,8 @@
+CheckValueModifier.java:19:14: compiler.err.illegal.combination.of.modifiers: interface, value
+CheckValueModifier.java:20:15: compiler.err.illegal.combination.of.modifiers: interface, value
+CheckValueModifier.java:21:14: compiler.err.mod.not.allowed.here: value
+CheckValueModifier.java:22:23: compiler.err.illegal.combination.of.modifiers: abstract, value
+CheckValueModifier.java:15:18: compiler.err.mod.not.allowed.here: value
+CheckValueModifier.java:16:18: compiler.err.mod.not.allowed.here: value
+CheckValueModifier.java:17:25: compiler.err.mod.not.allowed.here: value
+7 errors

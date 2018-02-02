@@ -370,6 +370,17 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
           (n->is_CallStaticJava() &&
            n->as_CallStaticJava()->is_boxing_method())) {
         add_call_node(n->as_Call());
+      } else if (n->as_Call()->tf()->returns_value_type_as_fields()) {
+        bool returns_oop = false;
+        for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax && !returns_oop; i++) {
+          ProjNode* pn = n->fast_out(i)->as_Proj();
+          if (pn->_con >= TypeFunc::Parms && pn->bottom_type()->isa_ptr()) {
+            returns_oop = true;
+          }
+        }
+        if (returns_oop) {
+          add_call_node(n->as_Call());
+        }
       }
     }
     return;
@@ -474,8 +485,10 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
     }
     case Op_Proj: {
       // we are only interested in the oop result projection from a call
-      if (n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->is_Call() &&
-          n->in(0)->as_Call()->returns_pointer()) {
+      if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() &&
+          (n->in(0)->as_Call()->returns_pointer() || n->bottom_type()->isa_ptr())) {
+        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
+               n->in(0)->as_Call()->tf()->returns_value_type_as_fields(), "what kind of oop return is it?");
         add_local_var_and_edge(n, PointsToNode::NoEscape,
                                n->in(0), delayed_worklist);
       }
@@ -681,8 +694,10 @@ void ConnectionGraph::add_final_edges(Node *n) {
     }
     case Op_Proj: {
       // we are only interested in the oop result projection from a call
-      if (n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->is_Call() &&
-          n->in(0)->as_Call()->returns_pointer()) {
+      if (n->as_Proj()->_con >= TypeFunc::Parms && n->in(0)->is_Call() &&
+          (n->in(0)->as_Call()->returns_pointer()|| n->bottom_type()->isa_ptr())) {
+        assert((n->as_Proj()->_con == TypeFunc::Parms && n->in(0)->as_Call()->returns_pointer()) ||
+               n->in(0)->as_Call()->tf()->returns_value_type_as_fields(), "what kind of oop return is it?");
         add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0), NULL);
         break;
       }
@@ -797,7 +812,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
 }
 
 void ConnectionGraph::add_call_node(CallNode* call) {
-  assert(call->returns_pointer(), "only for call which returns pointer");
+  assert(call->returns_pointer() || call->tf()->returns_value_type_as_fields(), "only for call which returns pointer");
   uint call_idx = call->_idx;
   if (call->is_Allocate()) {
     Node* k = call->in(AllocateNode::KlassNode);
@@ -884,7 +899,7 @@ void ConnectionGraph::add_call_node(CallNode* call) {
         ptnode_adr(call_idx)->set_scalar_replaceable(false);
       } else {
         // Determine whether any arguments are returned.
-        const TypeTuple* d = call->tf()->domain();
+        const TypeTuple* d = call->tf()->domain_cc();
         bool ret_arg = false;
         for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
           if (d->field_at(i)->isa_ptr() != NULL &&
@@ -931,7 +946,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
     case Op_CallLeaf: {
       // Stub calls, objects do not escape but they are not scale replaceable.
       // Adjust escape state for outgoing arguments.
-      const TypeTuple * d = call->tf()->domain();
+      const TypeTuple * d = call->tf()->domain_sig();
       bool src_has_oops = false;
       for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
         const Type* at = d->field_at(i);
@@ -1059,7 +1074,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       // fall-through if not a Java method or no analyzer information
       if (call_analyzer != NULL) {
         PointsToNode* call_ptn = ptnode_adr(call->_idx);
-        const TypeTuple* d = call->tf()->domain();
+        const TypeTuple* d = call->tf()->domain_cc();
         for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
           const Type* at = d->field_at(i);
           int k = i - TypeFunc::Parms;
@@ -1103,7 +1118,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       // Fall-through here if not a Java method or no analyzer information
       // or some other type of call, assume the worst case: all arguments
       // globally escape.
-      const TypeTuple* d = call->tf()->domain();
+      const TypeTuple* d = call->tf()->domain_cc();
       for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
         const Type* at = d->field_at(i);
         if (at->isa_oopptr() != NULL) {
@@ -2049,8 +2064,9 @@ void ConnectionGraph::add_arraycopy(Node *n, PointsToNode::EscapeState es,
 
 bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
   const Type* adr_type = n->as_AddP()->bottom_type();
+  int field_offset = adr_type->isa_aryptr() ? adr_type->isa_aryptr()->field_offset().get() : Type::OffsetBot;
   BasicType bt = T_INT;
-  if (offset == Type::OffsetBot) {
+  if (offset == Type::OffsetBot && field_offset == Type::OffsetBot) {
     // Check only oop fields.
     if (!adr_type->isa_aryptr() ||
         (adr_type->isa_aryptr()->klass() == NULL) ||
@@ -2061,8 +2077,8 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     }
   } else if (offset != oopDesc::klass_offset_in_bytes()) {
-    if (adr_type->isa_instptr()) {
-      ciField* field = _compile->alias_type(adr_type->isa_instptr())->field();
+    if (adr_type->isa_instptr() || adr_type->isa_valuetypeptr()) {
+      ciField* field = _compile->alias_type(adr_type->is_ptr())->field();
       if (field != NULL) {
         bt = field->layout_type();
       } else {
@@ -2081,7 +2097,13 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         // Ignore first AddP.
       } else {
         const Type* elemtype = adr_type->isa_aryptr()->elem();
-        bt = elemtype->array_element_basic_type();
+        if (elemtype->isa_valuetype() && field_offset != Type::OffsetBot) {
+          ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
+          field_offset += vk->first_field_offset();
+          bt = vk->get_field_by_offset(field_offset, false)->layout_type();
+        } else {
+          bt = elemtype->array_element_basic_type();
+        }
       }
     } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
       // Allocation initialization, ThreadLocal field access, unsafe access
@@ -2092,7 +2114,9 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     }
   }
-  return (bt == T_OBJECT || bt == T_NARROWOOP || bt == T_ARRAY);
+  // TODO enable when using T_VALUETYPEPTR
+  //assert(bt != T_VALUETYPE, "should not have valuetype here");
+  return (bt == T_OBJECT || bt == T_VALUETYPE || bt == T_VALUETYPEPTR || bt == T_NARROWOOP || bt == T_ARRAY);
 }
 
 // Returns unique pointed java object or NULL.
@@ -2392,7 +2416,7 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
     assert(offs != Type::OffsetBot, "offset must be a constant");
     t = base_t->add_offset(offs)->is_oopptr();
   }
-  int inst_id =  base_t->instance_id();
+  int inst_id = base_t->instance_id();
   assert(!t->is_known_instance() || t->instance_id() == inst_id,
                              "old type must be non-instance or match new type");
 
@@ -2416,7 +2440,13 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
       !base_t->klass()->is_subtype_of(t->klass())) {
      return false; // bail out
   }
-  const TypeOopPtr *tinst = base_t->add_offset(t->offset())->is_oopptr();
+  const TypePtr* tinst = base_t->add_offset(t->offset());
+  if (tinst->isa_aryptr() && t->isa_aryptr()) {
+    // In the case of a flattened value type array, each field has its
+    // own slice so we need to keep track of the field being accessed.
+    tinst = tinst->is_aryptr()->with_field_offset(t->is_aryptr()->field_offset().get());
+  }
+
   // Do NOT remove the next line: ensure a new alias index is allocated
   // for the instance type. Note: C++ will not remove it since the call
   // has side effect.
@@ -3003,7 +3033,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       n->raise_bottom_type(tinst);
       igvn->hash_insert(n);
       record_for_optimizer(n);
-      if (alloc->is_Allocate() && (t->isa_instptr() || t->isa_aryptr())) {
+      if (alloc->is_Allocate() && (t->isa_instptr() || t->isa_aryptr() || t->isa_valuetypeptr())) {
 
         // First, put on the worklist all Field edges from Connection Graph
         // which is more accurate than putting immediate users from Ideal Graph.
@@ -3150,6 +3180,14 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           // EncodeISOArray overwrites destination array
           memnode_worklist.append_if_missing(use);
         }
+      } else if (use->Opcode() == Op_Return) {
+        assert(_compile->tf()->returns_value_type_as_fields(), "must return a value type");
+        // Get ValueKlass by removing the tag bit from the metadata pointer
+        Node* klass = use->in(TypeFunc::Parms);
+        intptr_t ptr = igvn->type(klass)->isa_rawptr()->get_con();
+        clear_nth_bit(ptr, 0);
+        assert(Metaspace::contains((void*)ptr), "should be klass");
+        assert(((ValueKlass*)ptr)->contains_oops(), "returned value type must contain a reference field");
       } else {
         uint op = use->Opcode();
         if ((op == Op_StrCompressedCopy || op == Op_StrInflatedCopy) &&
@@ -3160,7 +3198,8 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_CastP2X || op == Op_StoreCM ||
               op == Op_FastLock || op == Op_AryEq || op == Op_StrComp || op == Op_HasNegatives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
-              op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar)) {
+              op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
+              op == Op_ValueType)) {
           n->dump();
           use->dump();
           assert(false, "EA: missing allocation reference path");
@@ -3299,7 +3338,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
 
   //  Phase 3:  Process MergeMem nodes from mergemem_worklist.
   //            Walk each memory slice moving the first node encountered of each
-  //            instance type to the the input corresponding to its alias index.
+  //            instance type to the input corresponding to its alias index.
   uint length = _mergemem_worklist.length();
   for( uint next = 0; next < length; ++next ) {
     MergeMemNode* nmm = _mergemem_worklist.at(next);
@@ -3371,8 +3410,8 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
   //            the Memory input of memnodes
   // First update the inputs of any non-instance Phi's from
   // which we split out an instance Phi.  Note we don't have
-  // to recursively process Phi's encounted on the input memory
-  // chains as is done in split_memory_phi() since they  will
+  // to recursively process Phi's encountered on the input memory
+  // chains as is done in split_memory_phi() since they will
   // also be processed here.
   for (int j = 0; j < orig_phis.length(); j++) {
     PhiNode *phi = orig_phis.at(j);

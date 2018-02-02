@@ -46,6 +46,8 @@ class OopClosure : public Closure {
  public:
   virtual void do_oop(oop* o) = 0;
   virtual void do_oop(narrowOop* o) = 0;
+  virtual void do_oop_no_buffering(oop* o) { do_oop(o); }
+  virtual void do_oop_no_buffering(narrowOop* o) { do_oop(o); }
 };
 
 class DoNothingClosure : public OopClosure {
@@ -133,6 +135,11 @@ class NoHeaderExtendedOopClosure : public ExtendedOopClosure {
                                  _wrapped_closure->do_oop(p); }
   void do_oop(narrowOop* p)    { assert(false, "Only the _nv versions should be used");
                                  _wrapped_closure->do_oop(p);}
+};
+
+class BufferedValueClosure : public Closure {
+public:
+  virtual void do_buffered_value(oop* p) = 0;
 };
 
 class KlassClosure : public Closure {

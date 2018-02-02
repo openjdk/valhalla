@@ -96,6 +96,11 @@ JRE_COMPACT3_MODULES_LIST := $(call CommaList, $(JRE_COMPACT3_MODULES))
 
 BASE_RELEASE_FILE := $(JDK_OUTPUTDIR)/release
 
+$(JDK_IMAGE_DIR)/README: $(TOPDIR)/src/README
+	$(install-file)
+
+JDK_TARGETS += $(JDK_IMAGE_DIR)/README
+
 JMODS := $(wildcard $(IMAGES_OUTPUTDIR)/jmods/*.jmod)
 
 # Use this file inside the image as target for make rule

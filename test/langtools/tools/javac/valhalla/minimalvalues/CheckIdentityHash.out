@@ -1,0 +1,8 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckIdentityHash.java:14:32: compiler.warn.value.does.not.support: identityHashCode
+CheckIdentityHash.java:15:32: compiler.warn.value.does.not.support: identityHashCode
+CheckIdentityHash.java:16:42: compiler.warn.value.does.not.support: identityHashCode
+CheckIdentityHash.java:17:42: compiler.warn.value.does.not.support: identityHashCode
+1 error
+5 warnings

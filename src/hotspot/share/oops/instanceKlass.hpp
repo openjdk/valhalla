@@ -68,6 +68,7 @@ class jniIdMapBase;
 class JNIid;
 class JvmtiCachedClassFieldMap;
 class SuperTypeClosure;
+class BufferedValueTypeBlob;
 
 // This is used in iterators below.
 class FieldClosure: public StackObj {
@@ -99,10 +100,26 @@ class OopMapBlock VALUE_OBJ_CLASS_SPEC {
   uint count() const         { return _count; }
   void set_count(uint count) { _count = count; }
 
+  void increment_count(int diff)     { _count += diff; }
+
+  int offset_span() const { return _count * heapOopSize; }
+
+  int end_offset() const {
+    return offset() + offset_span();
+  }
+
+  bool is_contiguous(int another_offset) const {
+    return another_offset == end_offset();
+  }
+
   // sizeof(OopMapBlock) in words.
   static const int size_in_words() {
     return align_up((int)sizeof(OopMapBlock), wordSize) >>
       LogBytesPerWord;
+  }
+
+  static int compare_offset(const OopMapBlock* a, const OopMapBlock* b) {
+    return a->offset() - b->offset();
   }
 
  private:
@@ -192,13 +209,25 @@ class InstanceKlass: public Klass {
   // _is_marked_dependent can be set concurrently, thus cannot be part of the
   // _misc_flags.
   bool            _is_marked_dependent;  // used for marking during flushing and deoptimization
-  bool            _is_being_redefined;   // used for locking redefinition
 
-  // The low two bits of _misc_flags contains the kind field.
-  // This can be used to quickly discriminate among the four kinds of
+ public:
+  enum {
+    _extra_is_being_redefined   = 1 << 0, // used for locking redefinition
+    _extra_has_resolved_methods = 1 << 1, // resolved methods table entries added for this class
+    _extra_has_value_fields     = 1 << 2, // has value fields and related embedded section is not empty
+    _extra_is_bufferable        = 1 << 3, // value can be buffered out side of the Java heap
+    _extra_has_vcc_klass        = 1 << 4, // has a pointer to its Value Capable Class (MVT)
+    _extra_has_vcc_annotation   = 1 << 5
+  };
+
+ protected:
+  u1              _extra_flags;
+
+  // The low three bits of _misc_flags contains the kind field.
+  // This can be used to quickly discriminate among the five kinds of
   // InstanceKlass.
 
-  static const unsigned _misc_kind_field_size = 2;
+  static const unsigned _misc_kind_field_size = 3;
   static const unsigned _misc_kind_field_pos  = 0;
   static const unsigned _misc_kind_field_mask = (1u << _misc_kind_field_size) - 1u;
 
@@ -206,24 +235,25 @@ class InstanceKlass: public Klass {
   static const unsigned _misc_kind_reference    = 1; // InstanceRefKlass
   static const unsigned _misc_kind_class_loader = 2; // InstanceClassLoaderKlass
   static const unsigned _misc_kind_mirror       = 3; // InstanceMirrorKlass
+  static const unsigned _misc_kind_value_type   = 4; // ValueKlass
 
   // Start after _misc_kind field.
   enum {
-    _misc_rewritten                           = 1 << 2,  // methods rewritten.
-    _misc_has_nonstatic_fields                = 1 << 3,  // for sizing with UseCompressedOops
-    _misc_should_verify_class                 = 1 << 4,  // allow caching of preverification
-    _misc_is_anonymous                        = 1 << 5,  // has embedded _host_klass field
-    _misc_is_contended                        = 1 << 6,  // marked with contended annotation
-    _misc_has_nonstatic_concrete_methods      = 1 << 7,  // class/superclass/implemented interfaces has non-static, concrete methods
-    _misc_declares_nonstatic_concrete_methods = 1 << 8,  // directly declares non-static, concrete methods
-    _misc_has_been_redefined                  = 1 << 9,  // class has been redefined
-    _misc_has_passed_fingerprint_check        = 1 << 10, // when this class was loaded, the fingerprint computed from its
+    _misc_rewritten                           = 1 << 3,  // methods rewritten.
+    _misc_has_nonstatic_fields                = 1 << 4,  // for sizing with UseCompressedOops
+    _misc_should_verify_class                 = 1 << 5,  // allow caching of preverification
+    _misc_is_anonymous                        = 1 << 6,  // has embedded _host_klass field
+    _misc_is_contended                        = 1 << 7,  // marked with contended annotation
+    _misc_has_nonstatic_concrete_methods      = 1 << 8,  // class/superclass/implemented interfaces has non-static, concrete methods
+    _misc_declares_nonstatic_concrete_methods = 1 << 9,  // directly declares non-static, concrete methods
+    _misc_has_been_redefined                  = 1 << 10,  // class has been redefined
+    _misc_has_passed_fingerprint_check        = 1 << 11, // when this class was loaded, the fingerprint computed from its
                                                          // code source was found to be matching the value recorded by AOT.
-    _misc_is_scratch_class                    = 1 << 11, // class is the redefined scratch class
-    _misc_is_shared_boot_class                = 1 << 12, // defining class loader is boot class loader
-    _misc_is_shared_platform_class            = 1 << 13, // defining class loader is platform class loader
-    _misc_is_shared_app_class                 = 1 << 14, // defining class loader is app class loader
-    _misc_has_resolved_methods                = 1 << 15  // resolved methods table entries added for this class
+    _misc_is_scratch_class                    = 1 << 12, // class is the redefined scratch class
+    _misc_is_shared_boot_class                = 1 << 13, // defining class loader is boot class loader
+    _misc_is_shared_platform_class            = 1 << 14, // defining class loader is platform class loader
+    _misc_is_shared_app_class                 = 1 << 15  // defining class loader is app class loader
+    // u2 _misc_flags full (see _extra_flags)
   };
   u2 loader_type_bits() {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -354,6 +384,28 @@ class InstanceKlass: public Klass {
     }
   }
 
+  bool has_value_fields() const          {
+    return (_extra_flags & _extra_has_value_fields) != 0;
+  }
+  void set_has_value_fields()  {
+    _extra_flags |= _extra_has_value_fields;
+  }
+
+  bool has_vcc_klass() const {
+    return (_extra_flags & _extra_has_vcc_klass) != 0;
+  }
+  void set_has_vcc_klass() {
+    _extra_flags |= _extra_has_vcc_klass;
+  }
+
+  bool has_vcc_annotation() const {
+    return (_extra_flags &_extra_has_vcc_annotation) != 0;
+  }
+
+  void set_has_vcc_annotation() {
+    _extra_flags |= _extra_has_vcc_annotation;
+  }
+
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
   void set_nonstatic_field_size(int size)  { _nonstatic_field_size = size; }
@@ -413,9 +465,11 @@ class InstanceKlass: public Klass {
 
  public:
   int     field_offset      (int index) const { return field(index)->offset(); }
+  bool    field_flattened   (int index) const { return field(index)->is_flatten(); }
   int     field_access_flags(int index) const { return field(index)->access_flags(); }
   Symbol* field_name        (int index) const { return field(index)->name(constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
+  bool    is_field_flatten  (int index) const { return field(index)->is_flatten(); }
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }
@@ -500,6 +554,8 @@ class InstanceKlass: public Klass {
   bool is_marked_dependent() const         { return _is_marked_dependent; }
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
 
+  static ByteSize extra_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _extra_flags)); }
+
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called
   void initialize(TRAPS);
@@ -533,7 +589,7 @@ class InstanceKlass: public Klass {
 
   // find a non-static or static field given its offset within the class.
   bool contains_field_offset(int offset) {
-    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size());
+    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size(), is_value());
   }
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
@@ -701,8 +757,16 @@ class InstanceKlass: public Klass {
 
 #if INCLUDE_JVMTI
   // Redefinition locking.  Class can only be redefined by one thread at a time.
-  bool is_being_redefined() const          { return _is_being_redefined; }
-  void set_is_being_redefined(bool value)  { _is_being_redefined = value; }
+  bool is_being_redefined() const          {
+    return (_extra_flags & _extra_is_being_redefined);
+  }
+  void set_is_being_redefined(bool value)  {
+    if (value) {
+      _extra_flags |= _extra_is_being_redefined;
+    } else {
+      _extra_flags &= ~_extra_is_being_redefined;
+    }
+  }
 
   // RedefineClasses() support for previous versions:
   void add_previous_version(InstanceKlass* ik, int emcp_method_count);
@@ -756,11 +820,11 @@ class InstanceKlass: public Klass {
   }
 
   bool has_resolved_methods() const {
-    return (_misc_flags & _misc_has_resolved_methods) != 0;
+    return (_extra_flags & _extra_has_resolved_methods) != 0;
   }
 
   void set_has_resolved_methods() {
-    _misc_flags |= _misc_has_resolved_methods;
+    _extra_flags |= _extra_has_resolved_methods;
   }
 private:
 
@@ -783,6 +847,7 @@ public:
   bool is_reference_instance_klass() const    { return is_kind(_misc_kind_reference); }
   bool is_mirror_instance_klass() const       { return is_kind(_misc_kind_mirror); }
   bool is_class_loader_instance_klass() const { return is_kind(_misc_kind_class_loader); }
+  bool is_value_type_klass()            const { return is_kind(_misc_kind_value_type); }
 
 #if INCLUDE_JVMTI
 
@@ -1049,32 +1114,42 @@ public:
 
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
-                  bool is_interface, bool is_anonymous, bool has_stored_fingerprint) {
+                  bool is_interface, bool is_anonymous, bool has_stored_fingerprint,
+                  int java_fields, bool is_value_type) {
     return align_metadata_size(header_size() +
+           (is_value_type ? (int)sizeof(address) : 0) +
+           (is_value_type ? (int)sizeof(address) : 0) +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
            (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
            (is_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
-           (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0));
+           (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
+           (java_fields * (int)sizeof(Klass*)/wordSize) +
+           (is_value_type ? (int)sizeof(Klass*) : 0) +
+           (is_value_type ? (int)sizeof(intptr_t)*3 : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
                                                nonstatic_oop_map_size(),
                                                is_interface(),
                                                is_anonymous(),
-                                               has_stored_fingerprint());
+                                               has_stored_fingerprint(),
+                                               has_value_fields() ? java_fields_count() : 0,
+                                               is_value());
   }
 #if INCLUDE_SERVICES
   virtual void collect_statistics(KlassSizeStats *sz) const;
 #endif
 
-  intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
+  intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + (is_value() ? 3 : 0 ) + vtable_length(); }
   intptr_t* end_of_itable()     const { return start_of_itable() + itable_length(); }
 
   int  itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
 
   address static_field_addr(int offset);
+
+  bool bounds_check(address addr, bool edge_ok = false, intptr_t size_in_bytes = -1) const PRODUCT_RETURN0;
 
   OopMapBlock* start_of_nonstatic_oop_maps() const {
     return (OopMapBlock*)(start_of_itable() + itable_length());
@@ -1124,8 +1199,96 @@ public:
     }
   }
 
+  address adr_value_fields_klasses() const {
+    if (has_value_fields()) {
+      address adr_fing = adr_fingerprint();
+      if (adr_fing != NULL) {
+        return adr_fingerprint() + sizeof(u8);
+      }
+
+      InstanceKlass** adr_host = adr_host_klass();
+      if (adr_host != NULL) {
+        return (address)(adr_host + 1);
+      }
+
+      Klass** adr_impl = adr_implementor();
+      if (adr_impl != NULL) {
+        return (address)(adr_impl + 1);
+      }
+
+      return (address)end_of_nonstatic_oop_maps();
+    } else {
+      return NULL;
+    }
+  }
+
+  address adr_vcc_klass() const {
+    if (has_vcc_klass()) {
+      address adr_jf = adr_value_fields_klasses();
+      if (adr_jf != NULL) {
+        return adr_jf + this->java_fields_count() * sizeof(Klass*);
+      }
+
+      address adr_fing = adr_fingerprint();
+      if (adr_fing != NULL) {
+        return adr_fingerprint() + sizeof(u8);
+      }
+
+      InstanceKlass** adr_host = adr_host_klass();
+      if (adr_host != NULL) {
+        return (address)(adr_host + 1);
+      }
+
+      Klass** adr_impl = adr_implementor();
+      if (adr_impl != NULL) {
+        return (address)(adr_impl + 1);
+      }
+
+      return (address)end_of_nonstatic_oop_maps();
+    } else {
+      return NULL;
+    }
+  }
+
+  Klass* get_value_field_klass(int idx) const {
+    assert(has_value_fields(), "Sanity checking");
+    Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
+    assert(k != NULL, "Should always be set before being read");
+    assert(k->is_value(), "Must be a value type");
+    return k;
+  }
+
+  Klass* get_value_field_klass_or_null(int idx) const {
+    assert(has_value_fields(), "Sanity checking");
+    Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
+    assert(k == NULL || k->is_value(), "Must be a value type");
+    return k;
+  }
+
+  void set_value_field_klass(int idx, Klass* k) {
+    assert(has_value_fields(), "Sanity checking");
+    assert(k != NULL, "Should not be set to NULL");
+    assert(((Klass**)adr_value_fields_klasses())[idx] == NULL, "Should not be set twice");
+    ((Klass**)adr_value_fields_klasses())[idx] = k;
+  }
+
+  Klass* get_vcc_klass() const {
+    if (has_vcc_klass()) {
+      Klass* k = *(Klass**)adr_vcc_klass();
+      assert(k == NULL || !k->is_value(), "Must not be a value type");
+      return k;
+    }
+    return NULL;
+  }
+
+  void set_vcc_klass(Klass* k) {
+    assert(has_vcc_klass(), "Sanity checking");
+    assert(k == NULL || !k->is_value(), "Must not be a value type");
+    *(Klass**)adr_vcc_klass()= k;
+  }
+
   // Use this to return the size of an instance in heap words:
-  int size_helper() const {
+  virtual int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
 
@@ -1312,12 +1475,14 @@ private:
   void eager_initialize_impl                     ();
   /* jni_id_for_impl for jfieldID only */
   JNIid* jni_id_for_impl                         (int offset);
-
+protected:
   // Returns the array class for the n'th dimension
-  Klass* array_klass_impl(bool or_null, int n, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, int n, TRAPS);
 
   // Returns the array class with this class as element type
-  Klass* array_klass_impl(bool or_null, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, TRAPS);
+
+private:
 
   // find a local method (returns NULL if not found)
   Method* find_method_impl(const Symbol* name,
@@ -1349,6 +1514,9 @@ public:
 
   // jvm support
   jint compute_modifier_flags(TRAPS) const;
+
+  //Valhalla prototype ValueCapableClass
+  void create_value_capable_class(Handle class_loader, Handle protection_domain, TRAPS);
 
 public:
   // JVMTI support

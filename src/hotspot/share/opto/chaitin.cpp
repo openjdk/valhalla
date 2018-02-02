@@ -1729,10 +1729,10 @@ Node *PhaseChaitin::find_base_for_derived( Node **derived_base_map, Node *derive
   // can't happen at run-time but the optimizer cannot deduce it so
   // we have to handle it gracefully.
   assert(!derived->bottom_type()->isa_narrowoop() ||
-          derived->bottom_type()->make_ptr()->is_ptr()->_offset == 0, "sanity");
+         derived->bottom_type()->make_ptr()->is_ptr()->offset() == 0, "sanity");
   const TypePtr *tj = derived->bottom_type()->isa_ptr();
   // If its an OOP with a non-zero offset, then it is derived.
-  if( tj == NULL || tj->_offset == 0 ) {
+  if (tj == NULL || tj->offset() == 0) {
     derived_base_map[derived->_idx] = derived;
     return derived;
   }
@@ -1898,9 +1898,9 @@ bool PhaseChaitin::stretch_base_pointer_live_ranges(ResourceArea *a) {
           Node *derived = lrgs(neighbor)._def;
           const TypePtr *tj = derived->bottom_type()->isa_ptr();
           assert(!derived->bottom_type()->isa_narrowoop() ||
-                  derived->bottom_type()->make_ptr()->is_ptr()->_offset == 0, "sanity");
+                 derived->bottom_type()->make_ptr()->is_ptr()->offset() == 0, "sanity");
           // If its an OOP with a non-zero offset, then it is derived.
-          if( tj && tj->_offset != 0 && tj->isa_oop_ptr() ) {
+          if (tj && tj->offset() != 0 && tj->isa_oop_ptr()) {
             Node *base = find_base_for_derived(derived_base_map, derived, maxlrg);
             assert(base->_idx < _lrg_map.size(), "");
             // Add reaching DEFs of derived pointer and base pointer as a
@@ -2192,7 +2192,7 @@ void PhaseChaitin::dump_for_spill_split_recycle() const {
 
 void PhaseChaitin::dump_frame() const {
   const char *fp = OptoReg::regname(OptoReg::c_frame_pointer);
-  const TypeTuple *domain = C->tf()->domain();
+  const TypeTuple *domain = C->tf()->domain_cc();
   const int        argcnt = domain->cnt() - TypeFunc::Parms;
 
   // Incoming arguments in registers dump

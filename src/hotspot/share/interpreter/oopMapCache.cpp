@@ -246,6 +246,7 @@ class MaskFillerForNative: public NativeSignatureIterator {
   void pass_float()                              { /* ignore */ }
   void pass_double()                             { /* ignore */ }
   void pass_object()                             { set_one(offset()); }
+  void pass_valuetype()                          { set_one(offset()); }
 
   MaskFillerForNative(const methodHandle& method, uintptr_t* mask, int size) : NativeSignatureIterator(method) {
     _mask   = mask;
@@ -274,7 +275,7 @@ bool OopMapCacheEntry::verify_mask(CellTypeState* vars, CellTypeState* stack, in
   st.print("Locals (%d): ", max_locals);
   for(int i = 0; i < max_locals; i++) {
     bool v1 = is_oop(i)               ? true : false;
-    bool v2 = vars[i].is_reference()  ? true : false;
+    bool v2 = vars[i].is_reference() || vars[i].is_valuetype() ? true : false;
     assert(v1 == v2, "locals oop mask generation error");
     st.print("%d", v1 ? 1 : 0);
   }
@@ -283,7 +284,7 @@ bool OopMapCacheEntry::verify_mask(CellTypeState* vars, CellTypeState* stack, in
   st.print("Stack (%d): ", stack_top);
   for(int j = 0; j < stack_top; j++) {
     bool v1 = is_oop(max_locals + j)  ? true : false;
-    bool v2 = stack[j].is_reference() ? true : false;
+    bool v2 = stack[j].is_reference() || stack[j].is_valuetype( )? true : false;
     assert(v1 == v2, "stack oop mask generation error");
     st.print("%d", v1 ? 1 : 0);
   }
@@ -365,14 +366,15 @@ void OopMapCacheEntry::set_mask(CellTypeState *vars, CellTypeState *stack, int s
     }
 
     // set oop bit
-    if ( cell->is_reference()) {
+    // Note: the interpreter handles value types with oops too
+    if ( cell->is_reference() || cell->is_valuetype()) {
       value |= (mask << oop_bit_number );
     }
 
     // set dead bit
     if (!cell->is_live()) {
       value |= (mask << dead_bit_number);
-      assert(!cell->is_reference(), "dead value marked as oop");
+      assert(!cell->is_reference() && !cell->is_valuetype(), "dead value marked as oop");
     }
   }
 

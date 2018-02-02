@@ -257,12 +257,12 @@ OopMap *OopFlow::build_oop_map( Node *n, int max_reg, PhaseRegAlloc *regalloc, i
         regalloc->C->record_method_not_compilable("illegal oopMap register name");
         continue;
       }
-      if( t->is_ptr()->_offset == 0 ) { // Not derived?
+      if (t->is_ptr()->offset() == 0) { // Not derived?
         if( mcall ) {
           // Outgoing argument GC mask responsibility belongs to the callee,
           // not the caller.  Inspect the inputs to the call, to see if
           // this live-range is one of them.
-          uint cnt = mcall->tf()->domain()->cnt();
+          uint cnt = mcall->tf()->domain_cc()->cnt();
           uint j;
           for( j = TypeFunc::Parms; j < cnt; j++)
             if( mcall->in(j) == def )
@@ -332,7 +332,7 @@ OopMap *OopFlow::build_oop_map( Node *n, int max_reg, PhaseRegAlloc *regalloc, i
           // Outgoing argument GC mask responsibility belongs to the callee,
           // not the caller.  Inspect the inputs to the call, to see if
           // this live-range is one of them.
-        uint cnt = mcall->tf()->domain()->cnt();
+        uint cnt = mcall->tf()->domain_cc()->cnt();
         uint j;
         for( j = TypeFunc::Parms; j < cnt; j++)
           if( mcall->in(j) == def )

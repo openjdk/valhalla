@@ -119,9 +119,17 @@ public:
     add_narrowOop(p);
   }
 
+  virtual void do_oop_no_buffering(narrowOop* o) {
+    _oc->do_oop(o);
+  }
+
   virtual void do_oop(oop* p)       {
     process_buffer_if_full();
     add_oop(p);
+  }
+
+  virtual void do_oop_no_buffering(oop* o) {
+    _oc->do_oop(o);
   }
 
   void done() {

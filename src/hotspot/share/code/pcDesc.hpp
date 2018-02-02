@@ -43,7 +43,8 @@ class PcDesc VALUE_OBJ_CLASS_SPEC {
     PCDESC_reexecute               = 1 << 0,
     PCDESC_is_method_handle_invoke = 1 << 1,
     PCDESC_return_oop              = 1 << 2,
-    PCDESC_rethrow_exception       = 1 << 3
+    PCDESC_rethrow_exception       = 1 << 3,
+    PCDESC_return_vt               = 1 << 4
   };
 
   int _flags;
@@ -89,6 +90,9 @@ class PcDesc VALUE_OBJ_CLASS_SPEC {
 
   bool     return_oop()                    const { return (_flags & PCDESC_return_oop) != 0;     }
   void set_return_oop(bool z)                    { set_flag(PCDESC_return_oop, z); }
+
+  bool     return_vt()                     const { return (_flags & PCDESC_return_vt) != 0;     }
+  void set_return_vt(bool z)                     { set_flag(PCDESC_return_vt, z); }
 
   // Returns the real pc
   address real_pc(const CompiledMethod* code) const;

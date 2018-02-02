@@ -43,13 +43,30 @@ class ArrayKlass: public Klass {
   Klass* volatile _lower_dimension;   // Refers the (n-1)'th-dimensional array (if present).
 
  protected:
+  Klass* _element_klass;            // The klass of the elements of this array type
+                                    // The element type must be registered for both object arrays
+                                    // (incl. object arrays with value type elements) and value type
+                                    // arrays containing flattened value types. However, the element
+                                    // type must not be registered for arrays of primitive types.
+                                    // TODO: Update the class hierarchy so that element klass appears
+                                    // only in array that contain non-primitive types.
   // Constructors
   // The constructor with the Symbol argument does the real array
   // initialization, the other is a dummy
   ArrayKlass(Symbol* name);
   ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
+  // Create array_name for element klass, creates a permanent symbol, returns result
+  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
+
  public:
+  // Instance variables
+  virtual Klass* element_klass() const      { return _element_klass; }
+  virtual void set_element_klass(Klass* k)  { _element_klass = k; }
+
+  // Compiler/Interpreter offset
+  static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ArrayKlass, _element_klass)); }
+
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
 

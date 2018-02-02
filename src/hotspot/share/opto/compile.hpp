@@ -47,6 +47,7 @@
 class AddPNode;
 class Block;
 class Bundle;
+class CallNode;
 class C2Compiler;
 class CallGenerator;
 class CloneMap;
@@ -82,6 +83,7 @@ class TypeInt;
 class TypePtr;
 class TypeOopPtr;
 class TypeFunc;
+class ValueTypeBaseNode;
 class Unique_Node_List;
 class nmethod;
 class WarmCallInfo;
@@ -415,6 +417,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
+  Unique_Node_List*     _value_type_nodes;      // List of ValueType nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -808,6 +811,12 @@ class Compile : public Phase {
   int   range_check_cast_count()       const { return _range_check_casts->length(); }
   // Remove all range check dependent CastIINodes.
   void  remove_range_check_casts(PhaseIterGVN &igvn);
+
+  // Keep track of value type nodes for later processing
+  void add_value_type(Node* n);
+  void remove_value_type(Node* n);
+  void process_value_types(PhaseIterGVN &igvn);
+  bool can_add_value_type() const { return _value_type_nodes != NULL; }
 
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
@@ -1337,7 +1346,6 @@ class Compile : public Phase {
   // supporting clone_map
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
-
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP

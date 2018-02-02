@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.jvm;
 
+import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.tools.javac.tree.TreeInfo.PosKind;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -1603,6 +1604,7 @@ public class Gen extends JCTree.Visitor {
     public void visitReturn(JCReturn tree) {
         int limit = code.nextreg;
         final Env<GenContext> targetEnv;
+        final Type returnType = env.enclMethod.sym.getReturnType();
 
         /* Save and then restore the location of the return in case a finally
          * is expanded (with unwind()) in the middle of our bytecodes.
@@ -1618,7 +1620,7 @@ public class Gen extends JCTree.Visitor {
             targetEnv = unwind(env.enclMethod, env);
             code.pendingStatPos = tmpPos;
             r.load();
-            code.emitop0(ireturn + Code.truncate(Code.typecode(pt)));
+            code.emitop0(types.isValue(returnType) ? vreturn : ireturn + Code.truncate(Code.typecode(pt)));
         } else {
             targetEnv = unwind(env.enclMethod, env);
             code.pendingStatPos = tmpPos;
@@ -1728,15 +1730,23 @@ public class Gen extends JCTree.Visitor {
         Assert.check(tree.encl == null && tree.def == null);
         setTypeAnnotationPositions(tree.pos);
 
-        code.emitop2(new_, makeRef(tree.pos(), tree.type));
-        code.emitop0(dup);
+        Type newType = tree.type;
 
-        // Generate code for all arguments, where the expected types are
-        // the parameters of the constructor's external type (that is,
-        // any implicit outer instance appears as first parameter).
-        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+        if (types.isValue(newType)) {
+            Assert.check(tree.creationMode == CreationMode.DEFAULT_VALUE);
+            Assert.check(tree.constructorType.getParameterTypes().isEmpty());
+            code.emitop2(vdefault, makeRef(tree.pos(), newType));
+        } else {
+            code.emitop2(new_, makeRef(tree.pos(), tree.type));
+            code.emitop0(dup);
 
-        items.makeMemberItem(tree.constructor, true).invoke();
+            // Generate code for all arguments, where the expected types are
+            // the parameters of the constructor's external type (that is,
+            // any implicit outer instance appears as first parameter).
+            genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+
+            items.makeMemberItem(tree.constructor, true).invoke();
+        }
         result = items.makeStackItem(tree.type);
     }
 
@@ -2033,9 +2043,14 @@ public class Gen extends JCTree.Visitor {
     public void visitIdent(JCIdent tree) {
         Symbol sym = tree.sym;
         if (tree.name == names._this || tree.name == names._super) {
-            Item res = tree.name == names._this
-                ? items.makeThisItem()
-                : items.makeSuperItem();
+            Item res;
+            if (tree.name == names._this) {
+                res = items.makeThisItem(env.enclClass.sym.type);
+            } else {
+                Symbol superSym = sym.kind == MTH ?
+                        tree.sym.owner : tree.type.tsym;
+                res = items.makeSuperItem(types.asSuper(env.enclClass.sym.type, superSym));
+            }
             if (sym.kind == MTH) {
                 // Generate code to address the constructor.
                 res.load();
@@ -2051,7 +2066,7 @@ public class Gen extends JCTree.Visitor {
                 sym = binaryQualifier(sym, env.enclClass.type);
             result = items.makeStaticItem(sym);
         } else {
-            items.makeThisItem().load();
+            items.makeThisItem(env.enclClass.sym.type).load();
             sym = binaryQualifier(sym, env.enclClass.type);
             result = items.makeMemberItem(sym, (sym.flags() & PRIVATE) != 0);
         }
@@ -2076,9 +2091,14 @@ public class Gen extends JCTree.Visitor {
         // resulting from a qualified super?
         boolean accessSuper = isAccessSuper(env.enclMethod);
 
-        Item base = (selectSuper)
-            ? items.makeSuperItem()
-            : genExpr(tree.selected, tree.selected.type);
+        Item base;
+        if (selectSuper) {
+            Type selType = tree.selected.type;
+            Type superType = types.asSuper(env.enclClass.type.tsym.type, selType.tsym);
+            base = items.makeSuperItem(superType == null ? selType : superType);
+        } else {
+            base = genExpr(tree.selected, tree.selected.type);
+        }
 
         if (sym.kind == VAR && ((VarSymbol) sym).getConstValue() != null) {
             // We are seeing a variable that is constant but its selecting
@@ -2111,10 +2131,17 @@ public class Gen extends JCTree.Visitor {
                     code.emitop0(arraylength);
                     result = items.makeStackItem(syms.intType);
                 } else {
+                    boolean requireCopyOnWrite = false;
+                    if (sym.kind == VAR && (sym.flags() & FINAL) != 0) {
+                        if ((env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
+                            if (sym.owner == env.enclClass.sym)
+                                requireCopyOnWrite = true;
+                        }
+                    }
                     result = items.
                         makeMemberItem(sym,
                                        (sym.flags() & PRIVATE) != 0 ||
-                                       selectSuper || accessSuper);
+                                       selectSuper || accessSuper, (requireCopyOnWrite ? base : null));
                 }
             }
         }

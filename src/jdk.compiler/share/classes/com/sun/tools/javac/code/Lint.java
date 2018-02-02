@@ -285,6 +285,11 @@ public class Lint
         UNCHECKED("unchecked"),
 
         /**
+         * Warn about value incompatible/unfriendly operations on value capable types.
+         */
+        VALUES("values"),
+
+        /**
          * Warn about potentially unsafe vararg methods
          */
         VARARGS("varargs");

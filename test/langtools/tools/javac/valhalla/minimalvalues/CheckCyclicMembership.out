@@ -1,0 +1,7 @@
+- compiler.warn.incubating.modules: jdk.incubator.mvt
+- compiler.err.warnings.and.werror
+CheckCyclicMembership.java:15:33: compiler.warn.cyclic.value.type.membership: CheckCyclicMembership
+CheckCyclicMembership.java:13:37: compiler.warn.cyclic.value.type.membership: CheckCyclicMembership.InnerValue
+CheckCyclicMembership.java:13:37: compiler.warn.cyclic.value.type.membership: CheckCyclicMembership
+1 error
+4 warnings

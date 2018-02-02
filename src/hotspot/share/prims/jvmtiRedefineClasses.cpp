@@ -332,6 +332,29 @@ void VM_RedefineClasses::append_entry(const constantPoolHandle& scratch_cp,
       (*merge_cp_length_p)++;
     } break;
 
+    // this is an indirect CP entry so it needs special handling
+    case JVM_CONSTANT_Value:
+    case JVM_CONSTANT_UnresolvedValue:
+    {
+      int name_i = scratch_cp->klass_name_index_at(scratch_i);
+      int new_name_i = find_or_append_indirect_entry(scratch_cp, name_i, merge_cp_p,
+                                                     merge_cp_length_p, THREAD);
+
+      if (new_name_i != name_i) {
+        log_trace(redefine, class, constantpool)
+          ("Value type entry@%d name_index change: %d to %d",
+           *merge_cp_length_p, name_i, new_name_i);
+      }
+
+      (*merge_cp_p)->temp_unresolved_value_type_at_put(*merge_cp_length_p, new_name_i);
+      if (scratch_i != *merge_cp_length_p) {
+        // The new entry in *merge_cp_p is at a different index than
+        // the new entry in scratch_cp so we need to map the index values.
+        map_index(scratch_cp, scratch_i, *merge_cp_length_p);
+      }
+      (*merge_cp_length_p)++;
+    } break;
+
     // these are direct CP entries so they can be directly appended,
     // but double and long take two constant pool entries
     case JVM_CONSTANT_Double:  // fall through
@@ -529,6 +552,7 @@ void VM_RedefineClasses::append_entry(const constantPoolHandle& scratch_cp,
     // At this stage, Class or UnresolvedClass could be in scratch_cp, but not
     // ClassIndex
     case JVM_CONSTANT_ClassIndex: // fall through
+    case JVM_CONSTANT_ValueIndex: // fall through
 
     // Invalid is used as the tag for the second constant pool entry
     // occupied by JVM_CONSTANT_Double or JVM_CONSTANT_Long. It should
@@ -538,9 +562,11 @@ void VM_RedefineClasses::append_entry(const constantPoolHandle& scratch_cp,
     // At this stage, String could be here, but not StringIndex
     case JVM_CONSTANT_StringIndex: // fall through
 
-    // At this stage JVM_CONSTANT_UnresolvedClassInError should not be
-    // here
+    // At this stage JVM_CONSTANT_UnresolvedClassInError should not be here
     case JVM_CONSTANT_UnresolvedClassInError: // fall through
+
+    // At this stage JVM_CONSTANT_UnresolvedValueInError should not be here
+    case JVM_CONSTANT_UnresolvedValueInError: // fall through
 
     default:
     {
@@ -989,12 +1015,14 @@ bool VM_RedefineClasses::is_unresolved_class_mismatch(const constantPoolHandle& 
        int index1, const constantPoolHandle& cp2, int index2) {
 
   jbyte t1 = cp1->tag_at(index1).value();
-  if (t1 != JVM_CONSTANT_Class && t1 != JVM_CONSTANT_UnresolvedClass) {
+  if (t1 != JVM_CONSTANT_Class && t1 != JVM_CONSTANT_UnresolvedClass &&
+      t1 != JVM_CONSTANT_Value && t1 != JVM_CONSTANT_UnresolvedValue) {
     return false;  // wrong entry type; not our special case
   }
 
   jbyte t2 = cp2->tag_at(index2).value();
-  if (t2 != JVM_CONSTANT_Class && t2 != JVM_CONSTANT_UnresolvedClass) {
+  if (t2 != JVM_CONSTANT_Class && t2 != JVM_CONSTANT_UnresolvedClass &&
+      t2 != JVM_CONSTANT_Value && t2 != JVM_CONSTANT_UnresolvedValue) {
     return false;  // wrong entry type; not our special case
   }
 
@@ -1278,6 +1306,7 @@ bool VM_RedefineClasses::merge_constant_pools(const constantPoolHandle& old_cp,
     // perfect fit for ConstantPool*::copy_cp_to(), but we need to
     // handle one special case:
     // - revert JVM_CONSTANT_Class to JVM_CONSTANT_UnresolvedClass
+    // - revert JVM_CONSTANT_Value to JVM_CONSTANT_UnresolvedValue
     // This will make verification happy.
 
     int old_i;  // index into old_cp
@@ -1293,6 +1322,15 @@ bool VM_RedefineClasses::merge_constant_pools(const constantPoolHandle& old_cp,
         // May be resolving while calling this so do the same for
         // JVM_CONSTANT_UnresolvedClass (klass_name_at() deals with transition)
         (*merge_cp_p)->temp_unresolved_klass_at_put(old_i,
+          old_cp->klass_name_index_at(old_i));
+        break;
+
+      case JVM_CONSTANT_Value:
+      case JVM_CONSTANT_UnresolvedValue:
+        // revert the copy to JVM_CONSTANT_UnresolvedValue
+        // May be resolving while calling this so do the same for
+        // JVM_CONSTANT_UnresolvedValue (klass_name_at() deals with transition)
+        (*merge_cp_p)->temp_unresolved_value_type_at_put(old_i,
           old_cp->klass_name_index_at(old_i));
         break;
 

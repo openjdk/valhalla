@@ -31,6 +31,7 @@
 #include "oops/arrayOop.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/typeArrayOop.hpp"
+#include "oops/valueArrayOop.hpp"
 
 // ciArray
 //
@@ -44,6 +45,7 @@ protected:
   ciArray(    arrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
   ciArray( objArrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
   ciArray(typeArrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
+  ciArray(valueArrayHandle h_a): ciObject(h_a), _length(h_a()->length()) {}
 
   ciArray(ciKlass* klass, int len) : ciObject(klass), _length(len) {}
 

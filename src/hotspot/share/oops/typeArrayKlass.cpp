@@ -45,6 +45,7 @@
 #include "utilities/macros.hpp"
 
 bool TypeArrayKlass::compute_is_subtype_of(Klass* k) {
+  ShouldNotReachHere();
   if (!k->is_typeArray_klass()) {
     return ArrayKlass::compute_is_subtype_of(k);
   }
