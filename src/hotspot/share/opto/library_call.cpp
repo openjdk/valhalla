@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1510,7 +1510,7 @@ bool LibraryCallKit::inline_string_copy(bool compress) {
     // escape analysis can go from the MemBarStoreStoreNode to the
     // AllocateNode and eliminate the MemBarStoreStoreNode if possible
     // based on the escape status of the AllocateNode.
-    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
   }
   if (compress) {
     set_result(_gvn.transform(count));
@@ -1604,7 +1604,7 @@ bool LibraryCallKit::inline_string_toBytesU() {
       // escape analysis can go from the MemBarStoreStoreNode to the
       // AllocateNode and eliminate the MemBarStoreStoreNode if possible
       // based on the escape status of the AllocateNode.
-      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     } else {
       insert_mem_bar(Op_MemBarCPUOrder);
     }
@@ -1690,7 +1690,7 @@ bool LibraryCallKit::inline_string_getCharsU() {
       // escape analysis can go from the MemBarStoreStoreNode to the
       // AllocateNode and eliminate the MemBarStoreStoreNode if possible
       // based on the escape status of the AllocateNode.
-      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
     } else {
       insert_mem_bar(Op_MemBarCPUOrder);
     }
@@ -4756,7 +4756,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
     // escape analysis can go from the MemBarStoreStoreNode to the
     // AllocateNode and eliminate the MemBarStoreStoreNode if possible
     // based on the escape status of the AllocateNode.
-    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out(AllocateNode::RawAddress));
+    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
   } else {
     insert_mem_bar(Op_MemBarCPUOrder);
   }
@@ -5075,7 +5075,7 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     Node *mem = reset_memory();
     set_all_memory(mem);
     alloc->set_req(TypeFunc::Memory, mem);
-    set_control(init->proj_out(TypeFunc::Control));
+    set_control(init->proj_out_or_null(TypeFunc::Control));
     set_i_o(callprojs->fallthrough_ioproj);
 
     // Update memory as done in GraphKit::set_output_for_allocation()
@@ -5086,8 +5086,8 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     }
     const TypePtr* telemref = ary_type->add_offset(Type::OffsetBot);
     int            elemidx  = C->get_alias_index(telemref);
-    set_memory(init->proj_out(TypeFunc::Memory), Compile::AliasIdxRaw);
-    set_memory(init->proj_out(TypeFunc::Memory), elemidx);
+    set_memory(init->proj_out_or_null(TypeFunc::Memory), Compile::AliasIdxRaw);
+    set_memory(init->proj_out_or_null(TypeFunc::Memory), elemidx);
 
     Node* allocx = _gvn.transform(alloc);
     assert(allocx == alloc, "where has the allocation gone?");
@@ -5404,7 +5404,7 @@ LibraryCallKit::tightly_coupled_allocation(Node* ptr,
     // to finish initializing the allocated object.
     if ((ctl->is_IfFalse() || ctl->is_IfTrue()) && ctl->in(0)->is_If()) {
       IfNode* iff = ctl->in(0)->as_If();
-      Node* not_ctl = iff->proj_out(1 - ctl->as_Proj()->_con);
+      Node* not_ctl = iff->proj_out_or_null(1 - ctl->as_Proj()->_con);
       assert(not_ctl != NULL && not_ctl != ctl, "found alternate");
       if (slow_region != NULL && slow_region->find_edge(not_ctl) >= 1) {
         ctl = iff->in(0);       // This test feeds the known slow_region.

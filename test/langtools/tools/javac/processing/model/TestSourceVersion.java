@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 7025809 8028543 6415644 8028544 8029942 8193291
+ * @bug 7025809 8028543 6415644 8028544 8029942 8187951 8193291 8196551
  * @summary Test latest, latestSupported, underscore as keyword, etc.
  * @author  Joseph D. Darcy
  * @modules java.compiler
@@ -42,14 +42,24 @@ public class TestSourceVersion {
         testLatestSupported();
         testVersionVaryingKeywords();
         testRestrictedKeywords();
+        testVar();
     }
 
     private static void testLatestSupported() {
-        if (SourceVersion.latest() != RELEASE_11 ||
-            SourceVersion.latestSupported() != RELEASE_10)
+        SourceVersion[] values = SourceVersion.values();
+        SourceVersion last = values[values.length - 1];
+        SourceVersion latest = SourceVersion.latest();
+        SourceVersion latestSupported = SourceVersion.latestSupported();
+
+        if (latest == last &&
+            latestSupported == SourceVersion.valueOf("RELEASE_" + Runtime.version().feature()) &&
+            (latest == latestSupported || (latest.ordinal() - latestSupported.ordinal() == 1)) )
+            return;
+        else {
             throw new RuntimeException("Unexpected release value(s) found:\n" +
-                                       "latest:\t" + SourceVersion.latest() + "\n" +
-                                       "latestSupported:\t" + SourceVersion.latestSupported());
+                                       "latest:\t" + latest + "\n" +
+                                       "latestSupported:\t" + latestSupported);
+        }
     }
 
     private static void testVersionVaryingKeywords() {
@@ -93,6 +103,19 @@ public class TestSourceVersion {
                 check(false, isKeyword(key, version), "keyword", version);
                 check(true,  isName(key, version),    "name",    version);
             }
+        }
+    }
+
+    private static void testVar() {
+
+        for(SourceVersion version : SourceVersion.values()) {
+            check(false, isKeyword("var",     version), "keyword", version);
+            check(false, isKeyword("foo.var", version), "keyword", version);
+            check(false, isKeyword("var.foo", version), "keyword", version);
+
+            check(true, isName("var", version),     "name", version);
+            check(true, isName("foo.var", version), "name", version);
+            check(true, isName("var.foo", version), "name", version);
         }
     }
 

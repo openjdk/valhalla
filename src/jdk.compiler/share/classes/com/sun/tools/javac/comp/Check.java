@@ -3512,6 +3512,7 @@ public class Check {
                      types.hasSameArgs(sym.type, byName.type) ||
                      types.hasSameArgs(types.erasure(sym.type), types.erasure(byName.type)))) {
                 if ((sym.flags() & VARARGS) != (byName.flags() & VARARGS)) {
+                    sym.flags_field |= CLASH;
                     varargsDuplicateError(pos, sym, byName);
                     return true;
                 } else if (sym.kind == MTH && !types.hasSameArgs(sym.type, byName.type, false)) {

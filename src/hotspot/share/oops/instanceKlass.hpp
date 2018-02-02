@@ -665,9 +665,11 @@ class InstanceKlass: public Klass {
   InstanceKlass* host_klass() const              {
     InstanceKlass** hk = adr_host_klass();
     if (hk == NULL) {
+      assert(!is_anonymous(), "Anonymous classes have host klasses");
       return NULL;
     } else {
       assert(*hk != NULL, "host klass should always be set if the address is not null");
+      assert(is_anonymous(), "Only anonymous classes have host klasses");
       return *hk;
     }
   }
@@ -678,6 +680,9 @@ class InstanceKlass: public Klass {
     if (addr != NULL) {
       *addr = host;
     }
+  }
+  bool has_host_klass() const              {
+    return adr_host_klass() != NULL;
   }
   bool is_anonymous() const                {
     return (_misc_flags & _misc_is_anonymous) != 0;
@@ -695,6 +700,11 @@ class InstanceKlass: public Klass {
   oop klass_holder() const {
     return is_anonymous() ? java_mirror() : class_loader();
   }
+
+  // Load the klass_holder as a phantom. This is useful when a weak Klass
+  // pointer has been "peeked" and then must be kept alive before it may
+  // be used safely.
+  oop klass_holder_phantom();
 
   bool is_contended() const                {
     return (_misc_flags & _misc_is_contended) != 0;

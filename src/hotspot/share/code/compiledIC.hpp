@@ -45,11 +45,11 @@
 //          \                        /   \     /
 //       [4] \                      / [4] \->-/
 //            \->-  Megamorphic -<-/
-//                  (Method*)
+//              (CompiledICHolder*)
 //
-// The text in paranteses () refere to the value of the inline cache receiver (mov instruction)
+// The text in parentheses () refers to the value of the inline cache receiver (mov instruction)
 //
-// The numbers in square brackets refere to the kind of transition:
+// The numbers in square brackets refer to the kind of transition:
 // [1]: Initial fixup. Receiver it found from debug information
 // [2]: Compilation of a method
 // [3]: Recompilation of a method (note: only entry is changed. The Klass* must stay the same)
@@ -344,6 +344,7 @@ class CompiledStaticCall : public ResourceObj {
   // Code
   static address emit_to_interp_stub(CodeBuffer &cbuf, address mark = NULL);
   static int to_interp_stub_size();
+  static int to_trampoline_stub_size();
   static int reloc_to_interp_stub();
   static void emit_to_aot_stub(CodeBuffer &cbuf, address mark = NULL);
   static int to_aot_stub_size();
