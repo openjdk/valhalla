@@ -3081,15 +3081,15 @@ void TemplateTable::invokeinterface(int byte_no) {
   assert(byte_no == f1_byte, "use this argument");
 
   const Register Rinterface  = G1_scratch;
+  const Register Rmethod     = Lscratch;
   const Register Rret        = G3_scratch;
-  const Register Rindex      = Lscratch;
   const Register O0_recv     = O0;
   const Register O1_flags    = O1;
   const Register O2_Klass    = O2;
   const Register Rscratch    = G4_scratch;
   assert_different_registers(Rscratch, G5_method);
 
-  prepare_invoke(byte_no, Rinterface, Rret, Rindex, O0_recv, O1_flags);
+  prepare_invoke(byte_no, Rinterface, Rret, Rmethod, O0_recv, O1_flags);
 
   // get receiver klass
   __ null_check(O0_recv, oopDesc::klass_offset_in_bytes());
@@ -3109,55 +3109,40 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ bind(notMethod);
 
+  Register Rtemp = O1_flags;
+
+  Label L_no_such_interface;
+
+  // Receiver subtype check against REFC.
+  __ lookup_interface_method(// inputs: rec. class, interface, itable index
+                             O2_Klass, Rinterface, noreg,
+                             // outputs: temp reg1, temp reg2, temp reg3
+                             G5_method, Rscratch, Rtemp,
+                             L_no_such_interface,
+                             /*return_method=*/false);
+
   __ profile_virtual_call(O2_Klass, O4);
 
   //
   // find entry point to call
   //
 
-  // compute start of first itableOffsetEntry (which is at end of vtable)
-  const int base = in_bytes(Klass::vtable_start_offset());
-  Label search;
-  Register Rtemp = O1_flags;
+  // Get declaring interface class from method
+  __ ld_ptr(Rmethod, Method::const_offset(), Rinterface);
+  __ ld_ptr(Rinterface, ConstMethod::constants_offset(), Rinterface);
+  __ ld_ptr(Rinterface, ConstantPool::pool_holder_offset_in_bytes(), Rinterface);
 
-  __ ld(O2_Klass, in_bytes(Klass::vtable_length_offset()), Rtemp);
-  __ sll(Rtemp, LogBytesPerWord, Rtemp);   // Rscratch *= 4;
-  if (Assembler::is_simm13(base)) {
-    __ add(Rtemp, base, Rtemp);
-  } else {
-    __ set(base, Rscratch);
-    __ add(Rscratch, Rtemp, Rtemp);
-  }
-  __ add(O2_Klass, Rtemp, Rscratch);
+  // Get itable index from method
+  const Register Rindex = G5_method;
+  __ ld(Rmethod, Method::itable_index_offset(), Rindex);
+  __ sub(Rindex, Method::itable_index_max, Rindex);
+  __ neg(Rindex);
 
-  __ bind(search);
-
-  __ ld_ptr(Rscratch, itableOffsetEntry::interface_offset_in_bytes(), Rtemp);
-  {
-    Label ok;
-
-    // Check that entry is non-null.  Null entries are probably a bytecode
-    // problem.  If the interface isn't implemented by the receiver class,
-    // the VM should throw IncompatibleClassChangeError.  linkResolver checks
-    // this too but that's only if the entry isn't already resolved, so we
-    // need to check again.
-    __ br_notnull_short( Rtemp, Assembler::pt, ok);
-    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
-    __ should_not_reach_here();
-    __ bind(ok);
-  }
-
-  __ cmp(Rinterface, Rtemp);
-  __ brx(Assembler::notEqual, true, Assembler::pn, search);
-  __ delayed()->add(Rscratch, itableOffsetEntry::size() * wordSize, Rscratch);
-
-  // entry found and Rscratch points to it
-  __ ld(Rscratch, itableOffsetEntry::offset_offset_in_bytes(), Rscratch);
-
-  assert(itableMethodEntry::method_offset_in_bytes() == 0, "adjust instruction below");
-  __ sll(Rindex, exact_log2(itableMethodEntry::size() * wordSize), Rindex);       // Rindex *= 8;
-  __ add(Rscratch, Rindex, Rscratch);
-  __ ld_ptr(O2_Klass, Rscratch, G5_method);
+  __ lookup_interface_method(// inputs: rec. class, interface, itable index
+                             O2_Klass, Rinterface, Rindex,
+                             // outputs: method, scan temp reg, temp reg
+                             G5_method, Rscratch, Rtemp,
+                             L_no_such_interface);
 
   // Check for abstract method error.
   {
@@ -3174,6 +3159,10 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ profile_arguments_type(G5_method, Rcall, Gargs, true);
   __ profile_called_method(G5_method, Rscratch);
   __ call_from_interpreter(Rcall, Gargs, Rret);
+
+  __ bind(L_no_such_interface);
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
+  __ should_not_reach_here();
 }
 
 void TemplateTable::invokehandle(int byte_no) {
@@ -3270,11 +3259,19 @@ void TemplateTable::_new() {
   __ br(Assembler::notZero, false, Assembler::pn, slow_case);
   __ delayed()->nop();
 
-  // allocate the instance
-  // 1) Try to allocate in the TLAB
-  // 2) if fail, and the TLAB is not full enough to discard, allocate in the shared Eden
-  // 3) if the above fails (or is not applicable), go to a slow case
-  // (creates a new TLAB, etc.)
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //  Else If inline contiguous allocations are enabled:
+  //    Try to allocate in eden.
+  //    If fails due to heap end, go to slow path.
+  //
+  //  If TLAB is enabled OR inline contiguous is enabled:
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
 
   const bool allow_shared_alloc =
     Universe::heap()->supports_inline_contig_alloc();
@@ -3302,61 +3299,43 @@ void TemplateTable::_new() {
     }
     __ delayed()->st_ptr(RnewTopValue, G2_thread, in_bytes(JavaThread::tlab_top_offset()));
 
+    // Allocation does not fit in the TLAB.
+    __ ba_short(slow_case);
+  } else {
+    // Allocation in the shared Eden
     if (allow_shared_alloc) {
-      // Check if tlab should be discarded (refill_waste_limit >= free)
-      __ ld_ptr(G2_thread, in_bytes(JavaThread::tlab_refill_waste_limit_offset()), RtlabWasteLimitValue);
-      __ sub(RendValue, RoldTopValue, RfreeValue);
-      __ srlx(RfreeValue, LogHeapWordSize, RfreeValue);
-      __ cmp_and_brx_short(RtlabWasteLimitValue, RfreeValue, Assembler::greaterEqualUnsigned, Assembler::pt, slow_case); // tlab waste is small
+      Register RoldTopValue = G1_scratch;
+      Register RtopAddr = G3_scratch;
+      Register RnewTopValue = RallocatedObject;
+      Register RendValue = Rscratch;
 
-      // increment waste limit to prevent getting stuck on this slow path
-      if (Assembler::is_simm13(ThreadLocalAllocBuffer::refill_waste_limit_increment())) {
-        __ add(RtlabWasteLimitValue, ThreadLocalAllocBuffer::refill_waste_limit_increment(), RtlabWasteLimitValue);
-      } else {
-        // set64 does not use the temp register if the given constant is 32 bit. So
-        // we can just use any register; using G0 results in ignoring of the upper 32 bit
-        // of that value.
-        __ set64(ThreadLocalAllocBuffer::refill_waste_limit_increment(), G4_scratch, G0);
-        __ add(RtlabWasteLimitValue, G4_scratch, RtlabWasteLimitValue);
-      }
-      __ st_ptr(RtlabWasteLimitValue, G2_thread, in_bytes(JavaThread::tlab_refill_waste_limit_offset()));
-    } else {
-      // No allocation in the shared eden.
-      __ ba_short(slow_case);
+      __ set((intptr_t)Universe::heap()->top_addr(), RtopAddr);
+
+      Label retry;
+      __ bind(retry);
+      __ set((intptr_t)Universe::heap()->end_addr(), RendValue);
+      __ ld_ptr(RendValue, 0, RendValue);
+      __ ld_ptr(RtopAddr, 0, RoldTopValue);
+      __ add(RoldTopValue, Roffset, RnewTopValue);
+
+      // RnewTopValue contains the top address after the new object
+      // has been allocated.
+      __ cmp_and_brx_short(RnewTopValue, RendValue, Assembler::greaterUnsigned, Assembler::pn, slow_case);
+
+      __ cas_ptr(RtopAddr, RoldTopValue, RnewTopValue);
+
+      // if someone beat us on the allocation, try again, otherwise continue
+      __ cmp_and_brx_short(RoldTopValue, RnewTopValue, Assembler::notEqual, Assembler::pn, retry);
+
+      // bump total bytes allocated by this thread
+      // RoldTopValue and RtopAddr are dead, so can use G1 and G3
+      __ incr_allocated_bytes(Roffset, G1_scratch, G3_scratch);
     }
   }
 
-  // Allocation in the shared Eden
-  if (allow_shared_alloc) {
-    Register RoldTopValue = G1_scratch;
-    Register RtopAddr = G3_scratch;
-    Register RnewTopValue = RallocatedObject;
-    Register RendValue = Rscratch;
-
-    __ set((intptr_t)Universe::heap()->top_addr(), RtopAddr);
-
-    Label retry;
-    __ bind(retry);
-    __ set((intptr_t)Universe::heap()->end_addr(), RendValue);
-    __ ld_ptr(RendValue, 0, RendValue);
-    __ ld_ptr(RtopAddr, 0, RoldTopValue);
-    __ add(RoldTopValue, Roffset, RnewTopValue);
-
-    // RnewTopValue contains the top address after the new object
-    // has been allocated.
-    __ cmp_and_brx_short(RnewTopValue, RendValue, Assembler::greaterUnsigned, Assembler::pn, slow_case);
-
-    __ cas_ptr(RtopAddr, RoldTopValue, RnewTopValue);
-
-    // if someone beat us on the allocation, try again, otherwise continue
-    __ cmp_and_brx_short(RoldTopValue, RnewTopValue, Assembler::notEqual, Assembler::pn, retry);
-
-    // bump total bytes allocated by this thread
-    // RoldTopValue and RtopAddr are dead, so can use G1 and G3
-    __ incr_allocated_bytes(Roffset, G1_scratch, G3_scratch);
-  }
-
-  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+  // If UseTLAB or allow_shared_alloc are true, the object is created above and
+  // there is an initialize need. Otherwise, skip and go to the slow path.
+  if (UseTLAB || allow_shared_alloc) {
     // clear object fields
     __ bind(initialize_object);
     __ deccc(Roffset, sizeof(oopDesc));

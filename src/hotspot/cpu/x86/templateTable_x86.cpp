@@ -3712,11 +3712,11 @@ void TemplateTable::fast_invokevfinal(int byte_no) {
 void TemplateTable::invokeinterface(int byte_no) {
   transition(vtos, vtos);
   assert(byte_no == f1_byte, "use this argument");
-  prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 itable index
+  prepare_invoke(byte_no, rax, rbx,  // get f1 Klass*, f2 Method*
                  rcx, rdx); // recv, flags
 
-  // rax: interface klass (from f1)
-  // rbx: itable index (from f2)
+  // rax: reference klass (from f1)
+  // rbx: method (from f2)
   // rcx: receiver
   // rdx: flags
 
@@ -3738,10 +3738,28 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
   __ load_klass(rdx, rcx);
 
+  Label no_such_interface, no_such_method;
+
+  // Receiver subtype check against REFC.
+  // Superklass in rax. Subklass in rdx. Blows rcx, rdi.
+  __ lookup_interface_method(// inputs: rec. class, interface, itable index
+                             rdx, rax, noreg,
+                             // outputs: scan temp. reg, scan temp. reg
+                             rbcp, rlocals,
+                             no_such_interface,
+                             /*return_method=*/false);
+
   // profile this call
+  __ restore_bcp(); // rbcp was destroyed by receiver type check
   __ profile_virtual_call(rdx, rbcp, rlocals);
 
-  Label no_such_interface, no_such_method;
+  // Get declaring interface class from method, and itable index
+  __ movptr(rax, Address(rbx, Method::const_offset()));
+  __ movptr(rax, Address(rax, ConstMethod::constants_offset()));
+  __ movptr(rax, Address(rax, ConstantPool::pool_holder_offset_in_bytes()));
+  __ movl(rbx, Address(rbx, Method::itable_index_offset()));
+  __ subl(rbx, Method::itable_index_max);
+  __ negl(rbx);
 
   __ lookup_interface_method(// inputs: rec. class, interface, itable index
                              rdx, rax, rbx,
@@ -3851,7 +3869,6 @@ void TemplateTable::_new() {
   Label done;
   Label initialize_header;
   Label initialize_object;  // including clearing the fields
-  Label allocate_shared;
 
   __ get_cpool_and_tags(rcx, rax);
 
@@ -3877,12 +3894,19 @@ void TemplateTable::_new() {
   __ testl(rdx, Klass::_lh_instance_slow_path_bit);
   __ jcc(Assembler::notZero, slow_case);
 
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //  Else If inline contiguous allocations are enabled:
+  //    Try to allocate in eden.
+  //    If fails due to heap end, go to slow path.
   //
-  // Allocate the instance
-  // 1) Try to allocate in the TLAB
-  // 2) if fail and the object is large allocate in the shared Eden
-  // 3) if the above fails (or is not applicable), go to a slow case
-  // (creates a new TLAB, etc.)
+  //  If TLAB is enabled OR inline contiguous is enabled:
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
 
   const bool allow_shared_alloc =
     Universe::heap()->supports_inline_contig_alloc();
@@ -3898,7 +3922,7 @@ void TemplateTable::_new() {
     __ movptr(rax, Address(thread, in_bytes(JavaThread::tlab_top_offset())));
     __ lea(rbx, Address(rax, rdx, Address::times_1));
     __ cmpptr(rbx, Address(thread, in_bytes(JavaThread::tlab_end_offset())));
-    __ jcc(Assembler::above, allow_shared_alloc ? allocate_shared : slow_case);
+    __ jcc(Assembler::above, slow_case);
     __ movptr(Address(thread, in_bytes(JavaThread::tlab_top_offset())), rbx);
     if (ZeroTLAB) {
       // the fields have been already cleared
@@ -3907,40 +3931,40 @@ void TemplateTable::_new() {
       // initialize both the header and fields
       __ jmp(initialize_object);
     }
-  }
-
-  // Allocation in the shared Eden, if allowed.
-  //
-  // rdx: instance size in bytes
-  if (allow_shared_alloc) {
-    __ bind(allocate_shared);
-
-    ExternalAddress heap_top((address)Universe::heap()->top_addr());
-    ExternalAddress heap_end((address)Universe::heap()->end_addr());
-
-    Label retry;
-    __ bind(retry);
-    __ movptr(rax, heap_top);
-    __ lea(rbx, Address(rax, rdx, Address::times_1));
-    __ cmpptr(rbx, heap_end);
-    __ jcc(Assembler::above, slow_case);
-
-    // Compare rax, with the top addr, and if still equal, store the new
-    // top addr in rbx, at the address of the top addr pointer. Sets ZF if was
-    // equal, and clears it otherwise. Use lock prefix for atomicity on MPs.
+  } else {
+    // Allocation in the shared Eden, if allowed.
     //
-    // rax,: object begin
-    // rbx,: object end
     // rdx: instance size in bytes
-    __ locked_cmpxchgptr(rbx, heap_top);
+    if (allow_shared_alloc) {
+      ExternalAddress heap_top((address)Universe::heap()->top_addr());
+      ExternalAddress heap_end((address)Universe::heap()->end_addr());
 
-    // if someone beat us on the allocation, try again, otherwise continue
-    __ jcc(Assembler::notEqual, retry);
+      Label retry;
+      __ bind(retry);
+      __ movptr(rax, heap_top);
+      __ lea(rbx, Address(rax, rdx, Address::times_1));
+      __ cmpptr(rbx, heap_end);
+      __ jcc(Assembler::above, slow_case);
 
-    __ incr_allocated_bytes(thread, rdx, 0);
+      // Compare rax, with the top addr, and if still equal, store the new
+      // top addr in rbx, at the address of the top addr pointer. Sets ZF if was
+      // equal, and clears it otherwise. Use lock prefix for atomicity on MPs.
+      //
+      // rax,: object begin
+      // rbx,: object end
+      // rdx: instance size in bytes
+      __ locked_cmpxchgptr(rbx, heap_top);
+
+      // if someone beat us on the allocation, try again, otherwise continue
+      __ jcc(Assembler::notEqual, retry);
+
+      __ incr_allocated_bytes(thread, rdx, 0);
+    }
   }
 
-  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+  // If UseTLAB or allow_shared_alloc are true, the object is created above and
+  // there is an initialize need. Otherwise, skip and go to the slow path.
+  if (UseTLAB || allow_shared_alloc) {
     // The object is initialized before the header.  If the object size is
     // zero, go directly to the header initialization.
     __ bind(initialize_object);
