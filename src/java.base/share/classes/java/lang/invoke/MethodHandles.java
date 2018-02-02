@@ -835,7 +835,7 @@ public class MethodHandles {
             }
             // Allow nestmate lookups to be created without special privilege:
             if ((newModes & PRIVATE) != 0
-                && !Reflection.areNestMates(this.lookupClass, requestedLookupClass)) {
+                && !VerifyAccess.areNestMates(this.lookupClass, requestedLookupClass)) {
                 newModes &= ~(PRIVATE|PROTECTED);
             }
             if ((newModes & PUBLIC) != 0

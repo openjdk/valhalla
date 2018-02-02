@@ -133,7 +133,7 @@ public class VerifyAccess {
         case PRIVATE:
             // Rules for privates follows access rules for nestmates.
             return ((allowedModes & PRIVATE) != 0 &&
-                    Reflection.areNestMates(defc, lookupClass));
+                    areNestMates(defc, lookupClass));
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
         }
@@ -334,6 +334,33 @@ public class VerifyAccess {
         if (class1.getClassLoader() != class2.getClassLoader())
             return false;
         return Objects.equals(class1.getPackageName(), class2.getPackageName());
+    }
+
+    /**
+     * Test if two classes are defined as part of the same package member (top-level class).
+     * If this is true, they can share private access with each other.
+     * @param class1 a class
+     * @param class2 another class
+     * @return whether they are identical or nested together
+     */
+    public static boolean areNestMates(Class<?> class1, Class<?> class2) {
+        if (class1 == class2)
+            return true;
+        if (!isSamePackage(class1, class2))
+            return false;
+        if (Reflection.areNestMates(class1, class2))
+            return true;
+        // Could be pre-nestmate nested types
+        if (getOutermostEnclosingClass(class1) != getOutermostEnclosingClass(class2))
+            return false;
+        return true;
+    }
+
+    private static Class<?> getOutermostEnclosingClass(Class<?> c) {
+        Class<?> pkgmem = c;
+        for (Class<?> enc = c; (enc = enc.getEnclosingClass()) != null; )
+            pkgmem = enc;
+        return pkgmem;
     }
 
     private static boolean loadersAreRelated(ClassLoader loader1, ClassLoader loader2,

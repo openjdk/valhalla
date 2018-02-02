@@ -363,6 +363,11 @@ public class Reflection {
         return new IllegalAccessException(msg);
     }
 
+    /**
+     * Returns true if {@code currentClass} and {@code memberClass}
+     * are nestmates - that is, if they have the same nesthost as
+     * determined by the VM.
+     */
     public static native boolean areNestMates(Class<?> currentClass,
                                               Class<?> memberClass);
 }
