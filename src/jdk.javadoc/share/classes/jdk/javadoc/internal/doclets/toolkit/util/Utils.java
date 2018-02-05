@@ -89,7 +89,6 @@ import jdk.javadoc.internal.doclets.toolkit.Messages;
 import jdk.javadoc.internal.doclets.toolkit.WorkArounds;
 import jdk.javadoc.internal.tool.DocEnvImpl;
 
-import static com.sun.source.doctree.DocTree.Kind.VALUE;
 import static javax.lang.model.element.ElementKind.*;
 import static javax.lang.model.element.Modifier.*;
 import static javax.lang.model.type.TypeKind.*;

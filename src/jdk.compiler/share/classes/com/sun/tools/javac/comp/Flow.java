@@ -41,7 +41,6 @@ import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.tree.JCTree.*;
-import javax.lang.model.element.ElementKind;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
@@ -1540,7 +1539,6 @@ public class Flow {
         }
 
         private boolean isInitialConstructor = false;
-        private JCMethodDecl enclMethod = null;
 
         @Override
         protected void markDead() {
@@ -1626,15 +1624,7 @@ public class Flow {
                 }
                 inits.incl(sym.adr);
             } else if ((sym.flags() & FINAL) != 0) {
-                boolean complain = true;
-                if (sym.getKind() == ElementKind.FIELD && (sym.flags() & HASINIT) == 0) {
-                    if (enclMethod != null && (enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
-                        if (sym.owner == enclMethod.sym.owner)
-                            complain = false;
-                    }
-                }
-                if (complain)
-                    log.error(pos, Errors.VarMightAlreadyBeAssigned(sym));
+                log.error(pos, Errors.VarMightAlreadyBeAssigned(sym));
             }
         }
         //where
@@ -1874,10 +1864,8 @@ public class Flow {
 
                 Assert.check(pendingExits.isEmpty());
                 boolean lastInitialConstructor = isInitialConstructor;
-                JCMethodDecl lastEnclMethod = enclMethod;
                 try {
                     isInitialConstructor = TreeInfo.isInitialConstructor(tree);
-                    enclMethod = tree;
 
                     if (!isInitialConstructor) {
                         firstadr = nextadr;
@@ -1933,7 +1921,6 @@ public class Flow {
                     firstadr = firstadrPrev;
                     returnadr = returnadrPrev;
                     isInitialConstructor = lastInitialConstructor;
-                    enclMethod = lastEnclMethod;
                 }
             } finally {
                 lint = lintPrev;

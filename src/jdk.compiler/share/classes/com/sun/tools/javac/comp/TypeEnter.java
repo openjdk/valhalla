@@ -672,11 +672,8 @@ public class TypeEnter implements Completer {
             // Determine supertype.
             Type supertype;
             JCExpression extending;
-            final boolean isValueType = (tree.mods.flags & Flags.VALUE) != 0;
 
             if (tree.extending != null) {
-                if (isValueType)
-                    log.error(tree.pos(), "value.may.not.extend");
                 extending = clearTypeParams(tree.extending);
                 supertype = attr.attribBase(extending, baseEnv, true, false, true);
             } else {
@@ -849,9 +846,6 @@ public class TypeEnter implements Completer {
                 !env.toplevel.sourcefile.isNameCompatible(sym.name.toString(),JavaFileObject.Kind.SOURCE)) {
                 sym.flags_field |= AUXILIARY;
             }
-            if ((tree.mods.flags & Flags.VALUE) != 0 && (tree.mods.flags & Flags.FINAL) == 0) {
-                log.error(tree.pos(), "value.must.be.final");
-            }
         }
     }
 
@@ -948,9 +942,6 @@ public class TypeEnter implements Completer {
             if (allowTypeAnnos) {
                 typeAnnotations.organizeTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
                 typeAnnotations.validateTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
-            }
-            if (types.isValue(tree.sym.type)) {
-                chk.checkNonCyclicMembership(tree);
             }
         }
 

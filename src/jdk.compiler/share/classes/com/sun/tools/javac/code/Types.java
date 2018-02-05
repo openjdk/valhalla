@@ -983,10 +983,6 @@ public class Types {
        }
     }
 
-    public boolean isValue(Type t) {
-        return t.tsym != null && (t.tsym.flags_field & Flags.VALUE) != 0;
-    }
-
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -1107,7 +1103,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isValue(s)) ||
+                         s.hasTag(BOT) || s.hasTag(CLASS) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1677,7 +1673,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT) && !isValue(t))
+                if (s.hasTag(ERROR) || s.hasTag(BOT))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -5038,11 +5034,6 @@ public class Types {
                     break;
                 case CLASS:
                     append('L');
-                    // TODO(Srikanth): Fix commented if statement below.
-//                    if (types.isValue(type))
-//                        append('Q');
-//                    else
-//                        append('L');
                     assembleClassSig(type);
                     append(';');
                     break;
