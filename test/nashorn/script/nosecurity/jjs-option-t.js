@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,34 +20,38 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.graalvm.options;
 
 /**
- * Categorizes options according to user relevance.
- *
- * @since 1.0
+ * JDK-8147614: add jjs test for -t option.
+ * @test
+ * @option -scripting
+ * @run
+ * @summary Test -t flag and its basic functionality
  */
-public enum OptionCategory {
 
-    /**
-     * An option common for users to apply.
-     *
-     * @since 1.0
-     */
-    USER,
+load(__DIR__ + "jjs-common.js")
 
-    /**
-     * An option only relevant in corner cases and for fine-tuning.
-     *
-     * @since 1.0
-     */
-    EXPERT,
+var timezone = Java.type("java.util.TimeZone")
+var currentTimezone = timezone.getDefault().getID()
+var msg_flag = "print($OPTIONS._timezone.ID)"
+var e_outp = "Asia/Tokyo"
+var e_outn = currentTimezone
 
-    /**
-     * An option only relevant when debugging language or instrument implementations.
-     *
-     * @since 1.0
-     */
-    DEBUG
+var msg_func=<<EOD
+var d= new Date(0)
+print(d.getTimezoneOffset())
+EOD
 
-}
+var func_cond_p = <<'EOD'
+out==-540
+EOD
+
+var func_cond_n = <<'EOD'
+out==-timezone.getDefault().getRawOffset()/60000
+EOD
+
+var arg_p = "-t=Asia/Tokyo ${testfunc_file}"
+var arg_n = "${testfunc_file}"
+
+testjjs_flag_and_func("-t","=Asia/Tokyo")
+
