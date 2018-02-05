@@ -154,6 +154,8 @@ compiler.err.duplicate.module.on.path
 compiler.err.locn.module-info.not.allowed.on.patch.path
 compiler.misc.cant.resolve.modules
 compiler.misc.file.does.not.contain.module
+
+# Value types
 compiler.err.cyclic.value.type.membership
 compiler.err.garbled.value.reference.instantiation
 compiler.err.value.does.not.support

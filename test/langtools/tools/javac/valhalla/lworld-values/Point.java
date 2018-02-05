@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,25 @@
  * questions.
  */
 
-package java.lang;
-
-/**
- * Base class of all value types in prototype implementation.
+/*
+ * @test
+ * @summary Test basic syntax of values
+ *
+ * @compile Point.java
  */
-final public class __Value {
-    // Leave in a skeleton till all references to __Value get purged from the JDK/JVM code base in the L-world
+
+final __ByValue class Point {
+    static final Point origin = makePoint(10, 20);
+    final int x;
+    final int y;
+    Point () {
+        x = 10;
+        y = 20;
+    }
+    __ValueFactory static Point makePoint(int x, int y) {
+        Point p = __MakeDefault Point();
+        p.x = x;
+        p.y = y;
+        return p;
+    }
 }

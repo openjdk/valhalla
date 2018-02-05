@@ -113,7 +113,6 @@ public class Attr extends JCTree.Visitor {
     final Dependencies dependencies;
     final Annotate annotate;
     final ArgumentAttr argumentAttr;
-    private final ValueCapableClassAttr valueCapableClassAttr;
 
     public static Attr instance(Context context) {
         Attr instance = context.get(attrKey);
@@ -149,7 +148,6 @@ public class Attr extends JCTree.Visitor {
         typeEnvs = TypeEnvs.instance(context);
         dependencies = Dependencies.instance(context);
         argumentAttr = ArgumentAttr.instance(context);
-        valueCapableClassAttr = ValueCapableClassAttr.instance(context);
 
         Options options = Options.instance(context);
 
@@ -1081,8 +1079,8 @@ public class Attr extends JCTree.Visitor {
             } else {
                 // Add an implicit super() call unless an explicit call to
                 // super(...) or this(...) is given
-                // or we are compiling class java.lang.{Object, Value}.
-                if (tree.name == names.init && owner.type != syms.objectType && owner.type != syms.valueClassType) {
+                // or we are compiling class java.lang.Object.
+                if (tree.name == names.init && owner.type != syms.objectType) {
                     JCBlock body = tree.body;
                     if (body.stats.isEmpty() ||
                             !TreeInfo.isSelfCall(body.stats.head)) {
@@ -2032,11 +2030,35 @@ public class Attr extends JCTree.Visitor {
             Symbol msym = TreeInfo.symbol(tree.meth);
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
+            chk.checkRefTypes(tree.typeargs, typeargtypes);
             // identity hash code is uncomputable for value instances.
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null && symbol.name == names.identityHashCode && symbol.owner.flatName() == names.java_lang_System) {
                 if (tree.args.length() == 1 && types.isValue(tree.args.head.type))
                     log.error(tree.pos(), "value.does.not.support", "identityHashCode");
+            }
+
+            /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
+            */
+            if (types.isValue(qualifier)) {
+                int argSize = argtypes.size();
+                Name name = symbol.name;
+                switch (name.toString()) {
+                    case "wait":
+                        if (argSize == 0
+                                || (types.isConvertible(argtypes.head, syms.longType) &&
+                                (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
+                            log.error(tree.pos(),"value.does.not.support", name);
+                        }
+                        break;
+                    case "notify":
+                    case "notifyAll":
+                    case "clone":
+                    case "finalize":
+                        if (argSize == 0)
+                            log.error(tree.pos(),"value.does.not.support", name);
+                        break;
+                }
             }
 
             // Check that value of resulting type is admissible in the
@@ -4586,9 +4608,6 @@ public class Attr extends JCTree.Visitor {
         try {
             annotate.flush();
             attribClass(c);
-            final Env<AttrContext> env = typeEnvs.get(c);
-            if (c.owner.kind == PCK && env != null && env.info.lint != null && env.info.lint.isEnabled(LintCategory.VALUES))
-                valueCapableClassAttr.translate(env.tree);
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);
         }

@@ -122,7 +122,6 @@ public class Names {
     public final Name java_lang_Object;
     public final Name java_lang_invoke_MethodHandle;
     public final Name java_lang_System;
-    public final Name java_lang_Value;
 
     // names of builtin classes
     public final Name Array;
@@ -288,8 +287,6 @@ public class Names {
         java_lang_Object = fromString("java.lang.Object");
         java_lang_invoke_MethodHandle = fromString("java.lang.invoke.MethodHandle");
         java_lang_System = fromString("java.lang.System");
-        java_lang_Value = fromString("java.lang.__Value");
-
 
         // names of builtin classes
         Array = fromString("Array");

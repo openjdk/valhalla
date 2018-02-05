@@ -2175,7 +2175,7 @@ public class Check {
                     JCVariableDecl field = (JCVariableDecl) l.head;
                     if (!field.sym.isStatic()) {
                         Type fieldType = field.sym.type;
-                        if (types.isValue(fieldType) || types.isValueCapable(fieldType)) {
+                        if (types.isValue(fieldType)) {
                             checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
                         }
                     }
@@ -2189,20 +2189,14 @@ public class Check {
     // where
     private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {
         if ((c.flags_field & LOCKED) != 0) {
-            if (c.isValueCapable()) {
-                if (lint.isEnabled(LintCategory.VALUES)) {
-                    log.warning(LintCategory.VALUES, pos, Warnings.CyclicValueTypeMembership(c));
-                }
-            } else {
-                log.error(pos, Errors.CyclicValueTypeMembership(c));
-            }
+            log.error(pos, Errors.CyclicValueTypeMembership(c));
             return;
         }
         try {
             c.flags_field |= LOCKED;
             for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR &&
                     !s.isStatic() &&
-                    (types.isValue(s.type) || types.isValueCapable(s.type)), NON_RECURSIVE)) {
+                    (types.isValue(s.type)), NON_RECURSIVE)) {
                 checkNonCyclicMembership((ClassSymbol) fld.type.tsym, pos);
             }
         } finally {

@@ -987,11 +987,6 @@ public class Types {
         return t.tsym != null && (t.tsym.flags_field & Flags.VALUE) != 0;
     }
 
-    public boolean isValueCapable(Type t) {
-        return t != null && t.tsym != null && t.tsym.isValueCapable();
-    }
-
-
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -5042,10 +5037,13 @@ public class Types {
                     append('V');
                     break;
                 case CLASS:
+                    append('L');
+                    /* TODO(Srikanth): Figure out the right thing in the L-world
                     if (types.isValue(type))
                         append('Q');
                     else
                         append('L');
+                    */
                     assembleClassSig(type);
                     append(';');
                     break;

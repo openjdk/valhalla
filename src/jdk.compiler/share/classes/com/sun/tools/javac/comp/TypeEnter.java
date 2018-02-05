@@ -684,9 +684,9 @@ public class TypeEnter implements Completer {
                 supertype = ((tree.mods.flags & Flags.ENUM) != 0)
                 ? attr.attribBase(enumBase(tree.pos, sym), baseEnv,
                                   true, false, false)
-                : (sym.fullname == names.java_lang_Object || sym.fullname == names.java_lang_Value)
-                        ? Type.noType
-                        : isValueType ? syms.valueClassType : syms.objectType;
+                : (sym.fullname == names.java_lang_Object)
+                ? Type.noType
+                : syms.objectType;
             }
             ct.supertype_field = modelMissingTypes(baseEnv, supertype, extending, false);
 
@@ -1060,7 +1060,7 @@ public class TypeEnter implements Completer {
                 argtypes, based);
         List<JCVariableDecl> params = make.Params(argtypes, init);
         List<JCStatement> stats = List.nil();
-        if (c.type != syms.objectType && c.type != syms.valueClassType) {
+        if (c.type != syms.objectType) {
             stats = stats.prepend(SuperCall(make, typarams, params, based));
         }
         result = make.MethodDef(init, make.Block(0, stats));

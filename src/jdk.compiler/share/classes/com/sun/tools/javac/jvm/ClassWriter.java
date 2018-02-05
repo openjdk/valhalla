@@ -26,7 +26,6 @@
 package com.sun.tools.javac.jvm;
 
 import java.io.*;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -435,13 +434,7 @@ public class ClassWriter extends ClassFile {
                 if (c.type.hasTag(ARRAY)) {
                     poolbuf.appendChar(pool.put(typeSig(c.type)));
                 } else {
-                    Name className = names.fromUtf(externalize(c.flatname));
-                    if (types.isValue(c.type)) {
-                        className = names.fromString(";Q")
-                                .append(className)
-                                .append(names.fromString(";"));
-                    }
-                    poolbuf.appendChar(pool.put(className));
+                    poolbuf.appendChar(pool.put(names.fromUtf(externalize(c.flatname))));
                     enterInner(c);
                 }
             } else if (value instanceof NameAndType) {
@@ -1722,7 +1715,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~DEFAULT);
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & (ClassFlags | ACC_VALUE) & ~STRICTFP;
+            flags = flags & ClassFlags & ~STRICTFP;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1822,14 +1815,8 @@ public class ClassWriter extends ClassFile {
         acount += writeExtraClassAttributes(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
-        if (types.isValue(c.type)) {
-            //fixup classfile version for value capable classes
-            poolbuf.appendChar(1);
-            poolbuf.appendChar(53);
-        } else {
-            poolbuf.appendChar(target.minorVersion);
-            poolbuf.appendChar(target.majorVersion);
-        }
+        poolbuf.appendChar(target.minorVersion);
+        poolbuf.appendChar(target.majorVersion);
 
         writePool(c.pool);
 
@@ -1868,8 +1855,6 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & VALUE) != 0)
-            result |= ACC_VALUE;
         return result;
     }
 

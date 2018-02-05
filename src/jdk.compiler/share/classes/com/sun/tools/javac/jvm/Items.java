@@ -68,6 +68,8 @@ public class Items {
     /** Items that exist only once (flyweight pattern).
      */
     private final Item voidItem;
+    private final Item thisItem;
+    private final Item superItem;
     private final Item[] stackItem = new Item[TypeCodeCount];
 
     public Items(Pool pool, Code code, Symtab syms, Types types) {
@@ -77,6 +79,8 @@ public class Items {
         voidItem = new Item(VOIDcode) {
                 public String toString() { return "void"; }
             };
+        thisItem = new SelfItem(false);
+        superItem = new SelfItem(true);
         for (int i = 0; i < VOIDcode; i++) stackItem[i] = new StackItem(i);
         stackItem[VOIDcode] = voidItem;
         this.syms = syms;
@@ -89,14 +93,14 @@ public class Items {
     }
     /** Make an item representing `this'.
      */
-    Item makeThisItem(Type thisType) {
-        return new SelfItem(thisType, false);
+    Item makeThisItem() {
+        return thisItem;
     }
 
     /** Make an item representing `super'.
      */
-    Item makeSuperItem(Type superType) {
-        return new SelfItem(superType, true);
+    Item makeSuperItem() {
+        return superItem;
     }
 
     /** Make an item representing a value on stack.
@@ -146,19 +150,9 @@ public class Items {
      *  @param member       The represented symbol.
      *  @param nonvirtual   Is the reference not virtual? (true for constructors
      *                      and private members).
-     *  @param baseToCopyOnWrite Updates to fields imply copy on write to this receiver
-     */
-    Item makeMemberItem(Symbol member, boolean nonvirtual, Item baseToCopyOnWrite) {
-        return  baseToCopyOnWrite != null ? new CopyOnWriteMemberItem(baseToCopyOnWrite, member) : new MemberItem(member, nonvirtual);
-    }
-
-    /** Make an item representing an instance variable or method.
-     *  @param member       The represented symbol.
-     *  @param nonvirtual   Is the reference not virtual? (true for constructors
-     *                      and private members).
      */
     Item makeMemberItem(Symbol member, boolean nonvirtual) {
-        return makeMemberItem(member, nonvirtual, null);
+        return new MemberItem(member, nonvirtual);
     }
 
     /** Make an item representing a literal.
@@ -321,26 +315,18 @@ public class Items {
     /** An item representing an indexed expression.
      */
     class IndexedItem extends Item {
-        Type type;
 
         IndexedItem(Type type) {
             super(Code.typecode(type));
-            this.type = type;
         }
 
         Item load() {
-            if (types.isValue(type))
-                code.emitop0(vaload);
-            else
-                code.emitop0(iaload + typecode);
+            code.emitop0(iaload + typecode);
             return stackItem[typecode];
         }
 
         void store() {
-            if (types.isValue(type))
-                code.emitop0(vastore);
-            else
-                code.emitop0(iastore + typecode);
+            code.emitop0(iastore + typecode);
         }
 
         void duplicate() {
@@ -371,20 +357,14 @@ public class Items {
         /** Flag which determines whether this item represents `this' or `super'.
          */
         boolean isSuper;
-        Type type;
 
-        SelfItem(Type type, boolean isSuper) {
+        SelfItem(boolean isSuper) {
             super(OBJECTcode);
-            this.type = type;
             this.isSuper = isSuper;
         }
 
         Item load() {
-            if (types.isValue(type)) {
-                code.emitop1w(vload, 0);
-            } else {
-                code.emitop0(aload_0);
-            }
+            code.emitop0(aload_0);
             return stackItem[typecode];
         }
 
@@ -413,26 +393,18 @@ public class Items {
         }
 
         Item load() {
-            if (types.isValue(type)) {
-                code.emitop1w(vload, reg);
-            } else {
-                if (reg <= 3)
-                    code.emitop0(iload_0 + Code.truncate(typecode) * 4 + reg);
-                else
-                    code.emitop1w(iload + Code.truncate(typecode), reg);
-            }
+            if (reg <= 3)
+                code.emitop0(iload_0 + Code.truncate(typecode) * 4 + reg);
+            else
+                code.emitop1w(iload + Code.truncate(typecode), reg);
             return stackItem[typecode];
         }
 
         void store() {
-            if (types.isValue(type)) {
-                code.emitop1w(vstore, reg);
-            } else {
-                if (reg <= 3)
-                    code.emitop0(istore_0 + Code.truncate(typecode) * 4 + reg);
-                else
-                    code.emitop1w(istore + Code.truncate(typecode), reg);
-            }
+            if (reg <= 3)
+                code.emitop0(istore_0 + Code.truncate(typecode) * 4 + reg);
+            else
+                code.emitop1w(istore + Code.truncate(typecode), reg);
             code.setDefined(reg);
         }
 
@@ -579,21 +551,6 @@ public class Items {
 
         public String toString() {
             return "member(" + member + (nonvirtual ? " nonvirtual)" : ")");
-        }
-    }
-
-    class CopyOnWriteMemberItem extends MemberItem {
-
-        Item rcvItem;
-
-        CopyOnWriteMemberItem(Item rcvItem, Symbol member) {
-            super(member, false);
-            this.rcvItem = rcvItem;
-        }
-
-        void store() {
-            code.emitop2(vwithfield, pool.put(member));
-            rcvItem.store();
         }
     }
 

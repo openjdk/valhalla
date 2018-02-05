@@ -60,12 +60,12 @@ public enum Modifier {
      DEFAULT,
     /**
      * The modifier {@code __ByValue}
-     * @since 1.9
+     * @since 1.11
      */
     VALUE,
     /**
      * The modifier {@code __ValueFactory}
-     * @since 1.9
+     * @since 1.11
      */
     STATICVALUEFACTORY,
 

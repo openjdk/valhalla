@@ -91,9 +91,6 @@ public class Flags {
     /** Flag that marks attribute interfaces, added in classfile v49.0. */
     public static final int ANNOTATION   = 1<<13;
 
-    /** Flag to mark value factory methods. (vminit methods as opposed to static value factory methods) */
-    public static final int VALUEFACTORY = 1<<13;
-
     /** An enumeration type or an enumeration constant, added in
      *  classfile v49.0. */
     public static final int ENUM         = 1<<14;
@@ -130,7 +127,6 @@ public class Flags {
     public static final int HASINIT          = 1<<18;
 
     /** Flag is set for a method symbol that acts as a static factory method for a value type
-     *  (contrast with vminit methods flagged as STATICVALUEFACTORY)
      */
     public static final int STATICVALUEFACTORY = 1<<19;
 
@@ -232,7 +228,7 @@ public class Flags {
      */
     public static final long UNION = 1L<<39;
 
-    public static final long VALUE_CAPABLE = 1L<<40;
+    // Flag bit (1L << 40) is available.
 
     /**
      * Flag that marks an 'effectively final' local variable.
@@ -338,7 +334,7 @@ public class Flags {
         ConstructorFlags      = AccessFlags,
         InterfaceMethodFlags  = ABSTRACT | PUBLIC,
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
-                                SYNCHRONIZED | FINAL | STRICTFP | VALUEFACTORY | STATICVALUEFACTORY;
+                                SYNCHRONIZED | FINAL | STRICTFP | STATICVALUEFACTORY;
     public static final long
         ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | STATICVALUEFACTORY,
         ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
@@ -413,7 +409,6 @@ public class Flags {
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
         VALUE(Flags.VALUE),
-        VALUECAPABLE(Flags.VALUE_CAPABLE),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),
         COMPOUND(Flags.COMPOUND),
@@ -439,7 +434,6 @@ public class Flags {
         THROWS(Flags.THROWS),
         LAMBDA_METHOD(Flags.LAMBDA_METHOD),
         TYPE_TRANSLATED(Flags.TYPE_TRANSLATED),
-        VALUEFACTORY(Flags.VALUEFACTORY),
         MODULE(Flags.MODULE),
         AUTOMATIC_MODULE(Flags.AUTOMATIC_MODULE),
         SYSTEM_MODULE(Flags.SYSTEM_MODULE),

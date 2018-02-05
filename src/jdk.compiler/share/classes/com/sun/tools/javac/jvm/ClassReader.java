@@ -529,30 +529,13 @@ public class ClassReader {
         int index =  poolIdx[i];
         int len = getChar(index + 1);
         int start = index + 3;
-        if (buf[start + len - 1] == ';') {
-            //this is a type sig
-            int offset = -1;
-            boolean needsSymbol = true;
-            switch (buf[start]) {
-                case ';':
-                    //value
-                    offset = 1;
-                    break;
-                case '[':
-                    //array
-                    needsSymbol = false;
-                    offset = 0;
-                    break;
-                default:
-                    Assert.error();
-            }
-            Type t = sigToType(buf, start + offset, len);
-            return needsSymbol ? t.tsym : t;
-        } else {
-            //this is a class name
-            Assert.check(buf[start] != ';' && buf[start] != '[');
-            return enterClass(names.fromUtf(internalize(buf, start, len)));
-        }
+        Assert.check(buf[start] == '[' || buf[start + len - 1] != ';');
+        // by the above assertion, the following test can be
+        // simplified to (buf[start] == '[')
+        return (buf[start] == '[' || buf[start + len - 1] == ';')
+            ? (Object)sigToType(buf, start, len)
+            : (Object)enterClass(names.fromUtf(internalize(buf, start,
+                                                           len)));
     }
 
     /** Read signature and convert to type parameters.
@@ -741,7 +724,6 @@ public class ClassReader {
             sigp++;
             return syms.longType;
         case 'L':
-        case 'Q':
             {
                 // int oldsigp = sigp;
                 Type t = classSigToType();
@@ -802,7 +784,7 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L' && signature[sigp] != 'Q')
+        if (signature[sigp] != 'L')
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
@@ -1667,8 +1649,6 @@ public class ClassReader {
                     target = proxy;
                 } else if (proxy.type.tsym == syms.repeatableType.tsym) {
                     repeatable = proxy;
-                    } else if (sym.kind == TYP && proxy.type.tsym == syms.valueCapableClass.tsym) {
-                        sym.flags_field |= VALUE_CAPABLE;
                 } else if (proxy.type.tsym == syms.deprecatedType.tsym) {
                     sym.flags_field |= (DEPRECATED | DEPRECATED_ANNOTATION);
                     for (Pair<Name, Attribute> v : proxy.values) {
@@ -2939,8 +2919,6 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_VALUE) != 0)
-            flags = (flags ^ ACC_VALUE) | VALUE;
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }
 

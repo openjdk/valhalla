@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,11 +23,17 @@
  * questions.
  */
 
-package java.lang;
-
-/**
- * Base class of all value types in prototype implementation.
+/*
+ * @test
+ * @summary Check that value types have their super types wired to be j.l.Object
+ *
+ * @compile Point.java
+ * @compile CheckSuperCompileOnly.java
  */
-final public class __Value {
-    // Leave in a skeleton till all references to __Value get purged from the JDK/JVM code base in the L-world
+
+public class CheckSuperCompileOnly {
+    public static void main(String... args) {
+        final Point p = Point.makePoint(100, 200);
+        Object v = p;
+    }
 }

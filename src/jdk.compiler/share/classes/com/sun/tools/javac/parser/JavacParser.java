@@ -175,7 +175,6 @@ public class JavacParser implements Parser {
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
-        this.allowValueClasses = fac.options.isSet("enableValueTypes");
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -191,11 +190,6 @@ public class JavacParser implements Parser {
     /** Switch: should we fold strings?
      */
     boolean allowStringFolding;
-
-    /** Switch: should we allow value classes ?
-     */
-    boolean allowValueClasses;
-
 
     /** Switch: should we keep docComments?
      */
@@ -2819,7 +2813,7 @@ public class JavacParser implements Parser {
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
             case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
-            case VALUE       : checkValueClasses(); flag = Flags.VALUE; break;
+            case VALUE       : checkSourceLevel(Feature.VALUE_TYPES); flag = Flags.VALUE; break;
             case STATICVALUEFACTORY: flag = Flags.STATICVALUEFACTORY; break;
             case ERROR       : flag = 0; nextToken(); break;
             default: break loop;
@@ -4179,12 +4173,6 @@ public class JavacParser implements Parser {
 
     void checkSourceLevel(Feature feature) {
         checkSourceLevel(token.pos, feature);
-    }
-
-    void checkValueClasses() {
-        if (!allowValueClasses) {
-            log.error(token.pos, "value.types.disabled");
-        }
     }
 
     protected void checkSourceLevel(int pos, Feature feature) {
