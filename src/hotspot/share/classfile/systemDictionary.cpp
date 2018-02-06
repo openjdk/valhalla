@@ -112,6 +112,8 @@ bool        SystemDictionary::_has_checkPackageAccess     =  false;
 // lazily initialized klass variables
 InstanceKlass* volatile SystemDictionary::_abstract_ownable_synchronizer_klass = NULL;
 
+GrowableArray<Symbol*>* SystemDictionary::_value_based_classes    = NULL;
+
 // Default ProtectionDomainCacheSize value
 
 const int defaultProtectionDomainCacheSize = 1009;
@@ -2045,6 +2047,49 @@ void SystemDictionary::initialize(TRAPS) {
   _resolution_errors   = new ResolutionErrorTable(_resolution_error_size);
   _invoke_method_table = new SymbolPropertyTable(_invoke_method_size);
   _pd_cache_table = new ProtectionDomainCacheTable(defaultProtectionDomainCacheSize);
+
+  if (ValueBasedClasses == NULL) {
+    // Quick dirty hard-coded JDK value classes...
+    ValueBasedClasses = "java/lang/Runtime$Version,"
+      "java/time/Duration,"
+      "java/time/Instant,"
+      "java/time/LocalDate,"
+      "java/time/LocalDateTime,"
+      "java/time/LocalTime,"
+      "java/time/MonthDay,"
+      "java/time/OffsetDateTime,"
+      "java/time/OffsetTime,"
+      "java/time/Period,"
+      "java/time/Year,"
+      "java/time/YearMonth,"
+      "java/time/ZonedDateTime,"
+      "java/time/ZoneId,"
+      "java/time/ZoneOffset,"
+      "java/time/chrono/HijrahDate,"
+      "java/time/chrono/JapaneseDate,"
+      "java/time/chrono/MinguoDate,"
+      "java/time/chrono/ThaiBuddhistDate,"
+      "java/util/KeyValueHolder,"
+      "java/util/Optional,"
+      "java/util/OptionalDouble,"
+      "java/util/OptionalInt,"
+      "java/util/OptionalLong";
+  }
+  if (ValueBasedClasses != NULL) {
+    Symbol* name_sym;
+    _value_based_classes = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Symbol*>(3, true);
+    char* name = os::strdup_check_oom(ValueBasedClasses);
+    char* next = strchr(name, ',');
+    while (next != NULL) {
+      *next = '\0';
+      name_sym = SymbolTable::new_permanent_symbol(name, CHECK);
+      _value_based_classes->append(name_sym);
+      name = next + 1;
+      next = strchr(name, ',');
+    }
+    name_sym = SymbolTable::new_permanent_symbol(name, CHECK);
+    _value_based_classes->append(name_sym);
+  }
 
   // Allocate private object used as system class loader lock
   _system_loader_lock_obj = oopFactory::new_intArray(0, CHECK);

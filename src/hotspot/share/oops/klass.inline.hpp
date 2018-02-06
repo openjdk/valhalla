@@ -71,6 +71,14 @@ inline Klass* Klass::decode_klass(narrowKlass v) {
   return is_null(v) ? (Klass*)NULL : decode_klass_not_null(v);
 }
 
+inline bool Klass::decode_ptr_is_value_based(narrowKlass v) {
+	return (v & Universe::oop_metadata_odd_mask());
+}
+inline bool Klass::ptr_is_value_based(Klass* v) {
+	return ((uintptr_t)v & Universe::oop_metadata_odd_mask());
+}
+
+
 template <typename T>
 bool Klass::is_instanceof_or_null(T element) {
   if (oopDesc::is_null(element)) {

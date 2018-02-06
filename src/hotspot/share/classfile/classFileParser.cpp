@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -5911,6 +5911,10 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // Verification prevents us from creating names with dots in them, this
   // asserts that that's the case.
   assert(is_internal_format(_class_name), "external class name format used internally");
+
+  if (SystemDictionary::is_value_based_classname(_class_name)) {
+    _access_flags.set_is_value_based_class();
+  }
 
   if (!is_internal()) {
     LogTarget(Debug, class, preorder) lt;

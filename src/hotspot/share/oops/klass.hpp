@@ -161,8 +161,10 @@ protected:
 
   // Constructor
   Klass();
-
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool is_value, TRAPS) throw();
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
+    return operator new (size, loader_data, word_size, false, THREAD);
+  }
 
  public:
   enum DefaultsLookupMode { find_defaults, skip_defaults };
@@ -562,7 +564,8 @@ protected:
   void set_has_miranda_methods()        { _access_flags.set_has_miranda_methods(); }
   bool is_shared() const                { return access_flags().is_shared_class(); } // shadows MetaspaceObj::is_shared)()
   void set_is_shared()                  { _access_flags.set_is_shared_class(); }
-
+  bool is_value_based() const           { return access_flags().is_value_based_class(); }
+  void set_is_value_based()             { _access_flags.set_is_value_based_class(); }
   bool is_cloneable() const;
   void set_is_cloneable();
 
@@ -677,6 +680,9 @@ protected:
 
   static Klass* decode_klass_not_null(narrowKlass v);
   static Klass* decode_klass(narrowKlass v);
+
+  static bool decode_ptr_is_value_based(narrowKlass v);
+  static bool ptr_is_value_based(Klass* v);
 };
 
 // Helper to convert the oop iterate macro suffixes into bool values that can be used by template functions.

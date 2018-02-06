@@ -159,7 +159,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   assert(loader_data != NULL, "invariant");
 
   InstanceKlass* ik;
-
   // Allocation
   if (REF_NONE == parser.reference_type()) {
     if (class_name == vmSymbols::java_lang_Class()) {
@@ -172,7 +171,8 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     }
     else {
       // normal
-      ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
+      bool is_value = parser.access_flags().is_value_based_class();
+      ik = new (loader_data, size, is_value, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
     }
   }
   else {

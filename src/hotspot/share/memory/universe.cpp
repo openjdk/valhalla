@@ -166,6 +166,8 @@ NarrowPtrStruct Universe::_narrow_oop = { NULL, 0, true };
 NarrowPtrStruct Universe::_narrow_klass = { NULL, 0, true };
 address Universe::_narrow_ptrs_base;
 
+int Universe::_oop_metadata_odd_mask = 0;
+
 void Universe::basic_type_classes_do(void f(Klass*)) {
   f(boolArrayKlassObj());
   f(byteArrayKlassObj());

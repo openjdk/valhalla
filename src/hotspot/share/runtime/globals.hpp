@@ -4088,7 +4088,13 @@ public:
                                                                             \
   product(ccstr, AllocateHeapAt, NULL,                                      \
           "Path to the directoy where a temporary file will be created "    \
-          "to use as the backing store for Java Heap.")
+          "to use as the backing store for Java Heap.")                     \
+  /* Valhalla Experiments */                                                \
+  product(ccstrlist, ValueBasedClasses,                                     \
+          NULL,                                                             \
+         "A comma separated list of classes whom should be treated as "     \
+         "value-based")
+
 
 
 /*

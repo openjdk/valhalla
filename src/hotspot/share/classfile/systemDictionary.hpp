@@ -465,6 +465,11 @@ public:
 
   static void load_abstract_ownable_synchronizer_klass(TRAPS);
 
+  static bool is_value_based_classname(Symbol* name) {
+    if (_value_based_classes == NULL) return false;
+    return _value_based_classes->find(name) >= 0;
+  }
+
 protected:
   // Tells whether ClassLoader.loadClassInternal is present
   static bool has_loadClassInternal()       { return _has_loadClassInternal; }
@@ -716,6 +721,9 @@ protected:
 
   static bool _has_loadClassInternal;
   static bool _has_checkPackageAccess;
+
+  // List of value-based classes
+  static GrowableArray<Symbol*>* _value_based_classes;
 };
 
 #endif // SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP

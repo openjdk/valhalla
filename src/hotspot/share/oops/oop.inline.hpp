@@ -95,6 +95,15 @@ narrowKlass* oopDesc::compressed_klass_addr() {
   return &_metadata._compressed_klass;
 }
 
+// fast oop only test (does not load klass)
+bool oopDesc::klass_is_value_based() {
+	if (UseCompressedClassPointers) {
+		return Klass::decode_ptr_is_value_based(_metadata._compressed_klass);
+	} else {
+		return Klass::ptr_is_value_based(_metadata._klass);
+	}
+}
+
 #define CHECK_SET_KLASS(k)                                                \
   do {                                                                    \
     assert(Universe::is_bootstrapping() || k != NULL, "NULL Klass");      \

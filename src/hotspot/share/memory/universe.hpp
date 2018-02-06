@@ -196,6 +196,8 @@ class Universe: AllStatic {
   static struct NarrowPtrStruct _narrow_klass;
   static address _narrow_ptrs_base;
 
+  static int     _oop_metadata_odd_mask;
+
   // array of dummy objects used with +FullGCAlot
   debug_only(static objArrayOop _fullgc_alot_dummy_array;)
   // index of next entry to clear
@@ -438,7 +440,11 @@ class Universe: AllStatic {
   static void     set_narrow_klass_shift(int shift)       {
     assert(shift == 0 || shift == LogKlassAlignmentInBytes, "invalid shift for klass ptrs");
     _narrow_klass._shift   = shift;
+    _oop_metadata_odd_mask = (shift) ? 1 : KlassPtrEvenOddMask;
   }
+
+  static int oop_metadata_odd_mask() { return _oop_metadata_odd_mask; }
+
 
   // Reserve Java heap and determine CompressedOops mode
   static ReservedSpace reserve_heap(size_t heap_size, size_t alignment);
