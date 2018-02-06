@@ -103,8 +103,9 @@ public class VerifyAccess {
             return false;
         }
         // Usually refc and defc are the same, but verify defc also in case they differ.
-        if (defc == lookupClass)
-            return true;        // easy check; all self-access is OK
+        if (defc == lookupClass  &&
+            (allowedModes & PRIVATE) != 0)
+            return true;        // easy check; all self-access is OK with a private lookup
 
         switch (mods & ALL_ACCESS_MODES) {
         case PUBLIC:
