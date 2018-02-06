@@ -243,17 +243,8 @@ public enum Opcode {
     GOTO_W(0xc8, BRANCH_W),
     JSR_W(0xc9, BRANCH_W),
 
-    VLOAD(203, LOCAL),
-    VSTORE(204, LOCAL),
-    VALOAD(205),
-    VASTORE(206),
-    VRETURN(207),
-
-    VDEFAULT(208, CPREF_W),
-    VWITHFIELD(209, CPREF_W),
-
-    VBOX(210, CPREF_W),
-    VUNBOX(211, CPREF_W),
+    DEFAULTVALUE(203, CPREF_W),
+    WITHFIELD(204, CPREF_W),
 
     // impdep 0xfe: PicoJava nonpriv
     // impdep 0xff: Picojava priv

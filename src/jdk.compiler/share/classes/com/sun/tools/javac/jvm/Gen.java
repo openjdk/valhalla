@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.jvm;
 
+import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.tools.javac.tree.TreeInfo.PosKind;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -1728,15 +1729,23 @@ public class Gen extends JCTree.Visitor {
         Assert.check(tree.encl == null && tree.def == null);
         setTypeAnnotationPositions(tree.pos);
 
-        code.emitop2(new_, makeRef(tree.pos(), tree.type));
-        code.emitop0(dup);
+        Type newType = tree.type;
 
-        // Generate code for all arguments, where the expected types are
-        // the parameters of the constructor's external type (that is,
-        // any implicit outer instance appears as first parameter).
-        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+        if (types.isValue(newType)) {
+            Assert.check(tree.creationMode == CreationMode.DEFAULT_VALUE);
+            Assert.check(tree.constructorType.getParameterTypes().isEmpty());
+            code.emitop2(defaultvalue, makeRef(tree.pos(), newType));
+        } else {
+            code.emitop2(new_, makeRef(tree.pos(), tree.type));
+            code.emitop0(dup);
 
-        items.makeMemberItem(tree.constructor, true).invoke();
+            // Generate code for all arguments, where the expected types are
+            // the parameters of the constructor's external type (that is,
+            // any implicit outer instance appears as first parameter).
+            genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+
+            items.makeMemberItem(tree.constructor, true).invoke();
+        }
         result = items.makeStackItem(tree.type);
     }
 
@@ -2111,10 +2120,17 @@ public class Gen extends JCTree.Visitor {
                     code.emitop0(arraylength);
                     result = items.makeStackItem(syms.intType);
                 } else {
+                    boolean requireCopyOnWrite = false;
+                    if (sym.kind == VAR && (sym.flags() & FINAL) != 0) {
+                        if ((env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
+                            if (sym.owner == env.enclClass.sym)
+                                requireCopyOnWrite = true;
+                        }
+                    }
                     result = items.
                         makeMemberItem(sym,
                                        (sym.flags() & PRIVATE) != 0 ||
-                                       selectSuper || accessSuper);
+                                       selectSuper || accessSuper, (requireCopyOnWrite ? base : null));
                 }
             }
         }

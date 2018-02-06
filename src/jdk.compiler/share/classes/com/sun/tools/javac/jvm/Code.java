@@ -1024,6 +1024,17 @@ public class Code {
             }
             state.push(uninitializedObject(sym.erasure(types), cp-3));
             break;
+        case defaultvalue:
+            if (pool.pool[od] instanceof UniqueType) {
+                // Required by change in Gen.makeRef to allow
+                // annotated types.
+                // TODO: is this needed anywhere else?
+                sym = ((UniqueType)(pool.pool[od])).type.tsym;
+            } else {
+                sym = (Symbol)(pool.pool[od]);
+            }
+            state.push(sym.erasure(types));
+            break;
         case sipush:
             state.push(syms.intType);
             break;
@@ -1049,6 +1060,9 @@ public class Code {
             break;
         case goto_:
             markDead();
+            break;
+        case withfield:
+            state.pop(((Symbol)(pool.pool[od])).erasure(types));
             break;
         case putfield:
             state.pop(((Symbol)(pool.pool[od])).erasure(types));
@@ -2431,6 +2445,8 @@ public class Code {
             mnem[goto_w] = "goto_w";
             mnem[jsr_w] = "jsr_w";
             mnem[breakpoint] = "breakpoint";
+            mnem[defaultvalue] = "defaultvalue";
+            mnem[withfield] = "withfield";
         }
     }
 }

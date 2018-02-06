@@ -2919,6 +2919,8 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
+        if ((flags & ACC_VALUE) != 0)
+            flags = (flags ^ ACC_VALUE) | VALUE;
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }
 

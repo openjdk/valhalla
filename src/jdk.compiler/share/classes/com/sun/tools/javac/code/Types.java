@@ -5038,12 +5038,6 @@ public class Types {
                     break;
                 case CLASS:
                     append('L');
-                    /* TODO(Srikanth): Figure out the right thing in the L-world
-                    if (types.isValue(type))
-                        append('Q');
-                    else
-                        append('L');
-                    */
                     assembleClassSig(type);
                     append(';');
                     break;

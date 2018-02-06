@@ -1715,7 +1715,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~DEFAULT);
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & ClassFlags & ~STRICTFP;
+            flags = flags & (ClassFlags | ACC_VALUE) & ~STRICTFP;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1855,6 +1855,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
+        if ((flags & VALUE) != 0)
+            result |= ACC_VALUE;
         return result;
     }
 
