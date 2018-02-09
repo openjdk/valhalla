@@ -3492,6 +3492,9 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           if (parsed_nest_members_attribute) {
             classfile_parse_error("Conflicting NestMembers and NestHost attributes in class file %s", CHECK);
           }
+          if (_need_verify) {
+            guarantee_property(attribute_length == 2, "Wrong NestHost attribute length in class file %s", CHECK);
+          }
           cfs->guarantee_more(2, CHECK);
           u2 class_info_index = cfs->get_u2_fast();
           check_property(

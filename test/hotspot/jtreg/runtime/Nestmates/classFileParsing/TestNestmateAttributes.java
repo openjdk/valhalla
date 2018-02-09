@@ -32,6 +32,7 @@
  *          BadNestMembersLength.jcod
  *          BadNestMembersEntry.jcod
  *          BadNestHost.jcod
+ *          BadNestHostLength.jcod
  * @run main TestNestmateAttributes
  */
 
@@ -45,6 +46,7 @@ public class TestNestmateAttributes {
             "BadNestMembersLength",
             "BadNestMembersEntry",
             "NestmateAttributeHolder$BadNestHost",
+            "NestmateAttributeHolder$BadNestHostLength",
         };
 
         String[] messages = new String[] {
@@ -55,6 +57,7 @@ public class TestNestmateAttributes {
             "Wrong NestMembers attribute length",
             "Nest member class_info_index 9 has bad constant type",
             "Nest-host class_info_index 10 has bad constant type",
+            "Wrong NestHost attribute length",
         };
 
         for (int i = 0; i < badClasses.length; i++ ) {
