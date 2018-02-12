@@ -175,3 +175,4 @@ compiler.warn.value.does.not.support
 compiler.warn.value.field.must.be.final
 compiler.warn.value.may.not.extend
 compiler.warn.value.must.be.final
+compiler.err.value.factory.must.be.member.of.value.type

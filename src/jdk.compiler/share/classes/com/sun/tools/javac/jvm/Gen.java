@@ -2123,7 +2123,7 @@ public class Gen extends JCTree.Visitor {
                     boolean requireCopyOnWrite = false;
                     if (sym.kind == VAR && (sym.flags() & FINAL) != 0) {
                         if ((env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
-                            if (sym.owner == env.enclClass.sym)
+                            if (sym.owner == env.enclClass.sym && types.isValue(sym.owner.type))
                                 requireCopyOnWrite = true;
                         }
                     }

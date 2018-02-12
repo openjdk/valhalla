@@ -296,13 +296,13 @@ public class Attr extends JCTree.Visitor {
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
                 boolean complain = true;
-                /* Allow updates to blank final fields inside value factories.
+                /* Allow updates to blank final instance fields inside value factories.
                    This really results in copy on write and not mutation of the
                    final field
                 */
-                if (v.getKind() == ElementKind.FIELD && (v.flags() & HASINIT) == 0) {
+                if (v.getKind() == ElementKind.FIELD && (v.flags() & (HASINIT | STATIC)) == 0) {
                     if (env.enclMethod != null && (env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
-                        if (v.owner == env.enclMethod.sym.owner)
+                        if (v.owner == env.enclMethod.sym.owner && types.isValue(v.owner.type))
                             complain = false;
                     }
                 }

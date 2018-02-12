@@ -231,11 +231,15 @@ public class MemberEnter extends JCTree.Visitor {
 
         if ((tree.mods.flags & STATICVALUEFACTORY) != 0) {
             if ((tree.mods.flags & STATIC) == 0) {
-                log.error(tree.pos(), "value.factory.must.be.static");
+                log.error(tree.pos(), Errors.ValueFactoryMustBeStatic);
             }
             final Type returnType = m.getReturnType();
-            if (returnType != null && returnType.tsym != m.owner) {
-                log.error(tree.restype != null ? tree.restype.pos() : tree.pos(), "type.found.req", returnType.tsym, m.owner);
+            if (returnType != null) {
+                if (returnType.tsym != m.owner) {
+                    log.error(tree.restype != null ? tree.restype.pos() : tree.pos(), "type.found.req", returnType.tsym, m.owner);
+                } else if (!types.isValue(m.owner.type)) {
+                    log.error(tree.pos(), Errors.ValueFactoryMustBeMemberOfValueType);
+                }
             }
         }
     }
