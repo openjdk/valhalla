@@ -6,6 +6,8 @@
  */
 __ByValue final class Point {
 
+    __ByValue interface I {}
+    __ByValue abstract class A {}
     static final class Sinner {
         __ValueFactory static Sinner make() {
             return __MakeDefault Sinner(); // NO: Sinner is not a value class.
