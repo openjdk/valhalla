@@ -2032,6 +2032,8 @@ public class Attr extends JCTree.Visitor {
             Symbol msym = TreeInfo.symbol(tree.meth);
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
+            chk.checkRefTypes(tree.typeargs, typeargtypes);
+
             // identity hash code is uncomputable for value instances.
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null && symbol.name == names.identityHashCode && symbol.owner.flatName() == names.java_lang_System) {
