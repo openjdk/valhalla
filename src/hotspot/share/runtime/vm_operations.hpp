@@ -115,6 +115,7 @@
   template(ICBufferFull)                          \
   template(ScavengeMonitors)                      \
   template(PrintMetadata)                         \
+  template(GTestExecuteAtSafepoint)               \
   template(VTBufferStats)                         \
 
 class VM_Operation: public CHeapObj<mtInternal> {
@@ -285,6 +286,17 @@ class VM_ScavengeMonitors: public VM_ForceSafepoint {
   VMOp_Type type() const                         { return VMOp_ScavengeMonitors; }
   Mode evaluation_mode() const                   { return _async_safepoint; }
   bool is_cheap_allocated() const                { return true; }
+};
+
+// Base class for invoking parts of a gtest in a safepoint.
+// Derived classes provide the doit method.
+// Typically also need to transition the gtest thread from native to VM.
+class VM_GTestExecuteAtSafepoint: public VM_Operation {
+ public:
+  VMOp_Type type() const                         { return VMOp_GTestExecuteAtSafepoint; }
+
+ protected:
+  VM_GTestExecuteAtSafepoint() {}
 };
 
 class VM_Deoptimize: public VM_Operation {

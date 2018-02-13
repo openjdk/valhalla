@@ -34,6 +34,7 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.OperatorSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.jvm.ByteCodes;
+import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.*;
@@ -90,10 +91,10 @@ public class ValueCapableClassAttr extends TreeTranslator {
             }
             if (inValue) {
                 if (tree.extending != null) {
-                    log.warning(LintCategory.VALUES, tree.pos(), "value.may.not.extend");
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueMayNotExtend);
                 }
                 if ((tree.mods.flags & Flags.FINAL) == 0) {
-                    log.warning(LintCategory.VALUES, tree.pos(), "value.must.be.final");
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueMustBeFinal);
                 }
                 chk.checkNonCyclicMembership(tree);
             }
@@ -109,7 +110,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
             currentMethod = tree;
             if (tree.sym != null && tree.sym.owner.isValueCapable()) {
                 if ((tree.sym.flags() & (Flags.SYNCHRONIZED | Flags.STATIC)) == Flags.SYNCHRONIZED) {
-                    log.warning(LintCategory.VALUES, tree.pos(), "mod.not.allowed.here", asFlagSet(Flags.SYNCHRONIZED));
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.ModNotAllowedHere(asFlagSet(Flags.SYNCHRONIZED)));
                 }
                 if (tree.sym.attribute(syms.overrideType.tsym) != null) {
                     MethodSymbol m = tree.sym;
@@ -126,7 +127,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
                                     case "toString":
                                         break;
                                     default:
-                                        log.warning(LintCategory.VALUES, tree.pos(), "value.does.not.support", "overriding java.lang.Object's method: " + sym.name.toString());
+                                        log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueDoesNotSupport(sym.name));
                                         break;
                                 }
                             }
@@ -144,12 +145,12 @@ public class ValueCapableClassAttr extends TreeTranslator {
     public void visitVarDef(JCVariableDecl tree) {
         if (tree.sym != null && tree.sym.owner.kind == TYP && tree.sym.owner.isValueCapable()) {
             if ((tree.mods.flags & (Flags.FINAL | Flags.STATIC)) == 0) {
-                log.warning(LintCategory.VALUES, tree.pos(), "value.field.must.be.final");
+                log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueFieldMustBeFinal);
             }
         }
         if (tree.init != null && tree.init.type != null && tree.init.type.hasTag(TypeTag.BOT)) {
             if (types.isValueCapable(tree.vartype.type))
-                log.warning(LintCategory.VALUES, tree.init.pos(), "prob.found.req", diags.fragment("inconvertible.types", syms.botType, tree.vartype.type));
+                log.warning(LintCategory.VALUES, tree.init.pos(), Warnings.ProbFoundReq(diags.fragment("inconvertible.types"), syms.botType, tree.vartype.type));
         }
         super.visitVarDef(tree);
     }
@@ -159,7 +160,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
         if (tree.rhs.type != null && tree.rhs.type.hasTag(TypeTag.BOT)) {
             Type lType = tree.lhs.type;
             if (lType != null && types.isValueCapable(lType)) {
-                log.warning(LintCategory.VALUES, tree.rhs.pos(), "prob.found.req", diags.fragment("inconvertible.types", syms.botType, lType));
+                log.warning(LintCategory.VALUES, tree.rhs.pos(), Warnings.ProbFoundReq(diags.fragment("inconvertible.types"), syms.botType, lType));
             }
         }
         super.visitAssign(tree);
@@ -169,7 +170,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
     public void visitReturn(JCReturn tree) {
         if (currentMethod != null && tree.expr != null && tree.expr.type != null && tree.expr.type.hasTag(TypeTag.BOT)) {
             if (currentMethod.restype != null && types.isValueCapable(currentMethod.restype.type)) {
-                log.warning(LintCategory.VALUES, tree.expr.pos(), "prob.found.req", diags.fragment("inconvertible.types", syms.botType, currentMethod.restype.type));
+                log.warning(LintCategory.VALUES, tree.expr.pos(), Warnings.ProbFoundReq(diags.fragment("inconvertible.types"), syms.botType, currentMethod.restype.type));
             }
         }
         super.visitReturn(tree);
@@ -179,7 +180,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
     public void visitTypeTest(JCInstanceOf tree) {
         if (tree.expr.type.hasTag(TypeTag.BOT)) {
             if (types.isValueCapable(tree.clazz.type)) {
-                log.warning(LintCategory.VALUES, tree.expr.pos(), "prob.found.req", diags.fragment("inconvertible.types", syms.botType, tree.clazz.type));
+                log.warning(LintCategory.VALUES, tree.expr.pos(), Warnings.ProbFoundReq(diags.fragment("inconvertible.types"), syms.botType, tree.clazz.type));
             }
         }
         super.visitTypeTest(tree);
@@ -189,7 +190,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
     public void visitTypeCast(JCTypeCast tree) {
         if (tree.expr.type != null && tree.expr.type.hasTag(TypeTag.BOT) &&
                 tree.clazz.type != null && types.isValueCapable(tree.clazz.type)) {
-            log.warning(LintCategory.VALUES, tree.expr.pos(), "prob.found.req", diags.fragment("inconvertible.types", syms.botType, tree.clazz.type));
+            log.warning(LintCategory.VALUES, tree.expr.pos(), Warnings.ProbFoundReq(diags.fragment("inconvertible.types"), syms.botType, tree.clazz.type));
         }
         super.visitTypeCast(tree);
     }
@@ -206,14 +207,14 @@ public class ValueCapableClassAttr extends TreeTranslator {
             if ((opc == ByteCodes.if_acmpeq || opc == ByteCodes.if_acmpne)) {
                 if ((left.hasTag(TypeTag.BOT) && types.isValueCapable(right)) ||
                         (right.hasTag(TypeTag.BOT) && types.isValueCapable(left))) {
-                    log.warning(LintCategory.VALUES, tree.pos(), "incomparable.types", left, right);
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.IncomparableTypes(left, right));
                 }
             }
             // this is likely to change.
             if (operator.name.contentEquals("==") || operator.name.contentEquals("!=")) {
                 if (types.isValueCapable(tree.lhs.type) ||
                         types.isValueCapable(tree.rhs.type))
-                    log.warning(LintCategory.VALUES, tree.pos(), "value.does.not.support", tree.operator.name.toString());
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueDoesNotSupport(tree.operator.name));
             }
         }
         super.visitBinary(tree);
@@ -222,7 +223,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
     @Override
     public void visitSynchronized(JCSynchronized tree) {
         if (types.isValueCapable(tree.lock.type)) {
-            log.warning(LintCategory.VALUES, tree.pos(), "type.found.req", tree.lock.type, diags.fragment("type.req.ref"));
+            log.warning(LintCategory.VALUES, tree.pos(), Warnings.TypeFoundReq(tree.lock.type, diags.fragment("type.req.ref")));
         }
         super.visitSynchronized(tree);
     }
@@ -232,7 +233,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
         if (method != null && method.kind != ERR) {
             if (method.name.contentEquals("identityHashCode") && method.owner.type == syms.systemType) {
                 if ((tree.args.length() == 1) && types.isValueCapable(tree.args.head.type))
-                    log.warning(LintCategory.VALUES, tree.pos(), "value.does.not.support", "identityHashCode");
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueDoesNotSupport(method.name));
             }
 
             if (method.name != names.init && method.name != names.getClass && method.owner.type == syms.objectType) {
@@ -248,7 +249,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
                         break;
                 }
                 if (receiverIsValue) {
-                    log.warning(LintCategory.VALUES, tree.pos(), "value.does.not.support", "calling java.lang.Object's method: " + method.name.toString());
+                    log.warning(LintCategory.VALUES, tree.pos(), Warnings.ValueDoesNotSupport(method.name));
                 }
             }
             final List<Type> parameterTypes = method.type.getParameterTypes();
@@ -258,7 +259,7 @@ public class ValueCapableClassAttr extends TreeTranslator {
                     Type param = i < parameterTypes.size() ? parameterTypes.get(i) :
                             types.elemtype(parameterTypes.get(parameterTypes.size() - 1));
                     if (types.isValueCapable(param))
-                        log.warning(LintCategory.VALUES, arg.pos(), "prob.found.req", diags.fragment("inconvertible.types", syms.botType, param));
+                        log.warning(LintCategory.VALUES, arg.pos(), Warnings.ProbFoundReq(diags.fragment("inconvertible.types"), syms.botType, param));
                 }
             }
         }

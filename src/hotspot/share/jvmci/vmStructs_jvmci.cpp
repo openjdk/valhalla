@@ -119,6 +119,7 @@
   nonstatic_field(ConstantPool,                _tags,                                  Array<u1>*)                                   \
   nonstatic_field(ConstantPool,                _pool_holder,                           InstanceKlass*)                               \
   nonstatic_field(ConstantPool,                _length,                                int)                                          \
+  nonstatic_field(ConstantPool,                _flags,                                 int)                                          \
                                                                                                                                      \
   nonstatic_field(ConstMethod,                 _constants,                             ConstantPool*)                                \
   nonstatic_field(ConstMethod,                 _flags,                                 u2)                                           \
@@ -419,6 +420,7 @@
   declare_constant(JVM_CONSTANT_UnresolvedValueInError)                   \
   declare_constant(JVM_CONSTANT_MethodHandleInError)                      \
   declare_constant(JVM_CONSTANT_MethodTypeInError)                        \
+  declare_constant(JVM_CONSTANT_DynamicInError)                           \
   declare_constant(JVM_CONSTANT_InternalMax)                              \
                                                                           \
   declare_constant(ArrayData::array_len_off_set)                          \
@@ -456,6 +458,7 @@
   declare_constant(CodeInstaller::INVOKE_INVALID)                         \
                                                                           \
   declare_constant(ConstantPool::CPCACHE_INDEX_TAG)                       \
+  declare_constant(ConstantPool::_has_dynamic_constant)                   \
                                                                           \
   declare_constant(ConstMethod::_has_linenumber_table)                    \
   declare_constant(ConstMethod::_has_localvariable_table)                 \
