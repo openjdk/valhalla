@@ -676,7 +676,7 @@ public class TypeEnter implements Completer {
 
             if (tree.extending != null) {
                 if (isValueType)
-                    log.error(tree.pos(), "value.may.not.extend");
+                    log.error(tree.pos(), Errors.ValueMayNotExtend);
                 extending = clearTypeParams(tree.extending);
                 supertype = attr.attribBase(extending, baseEnv, true, false, true);
             } else {
@@ -850,7 +850,7 @@ public class TypeEnter implements Completer {
                 sym.flags_field |= AUXILIARY;
             }
             if ((tree.mods.flags & Flags.VALUE) != 0 && (tree.mods.flags & Flags.FINAL) == 0) {
-                log.error(tree.pos(), "value.must.be.final");
+                log.error(tree.pos(), Errors.ValueMustBeFinal);
             }
         }
     }
