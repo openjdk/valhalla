@@ -120,6 +120,7 @@ public class NoAbortForBadClassFile extends TestRunner {
 
         new toolbox.JavacTask(tb)
                 .outdir(out)
+                .options("-source", "10", "-target", "10")
                 .files(tb.findJavaFiles(src))
                 .run(Expect.SUCCESS)
                 .writeAll()

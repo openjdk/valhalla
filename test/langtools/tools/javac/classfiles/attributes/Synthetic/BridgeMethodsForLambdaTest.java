@@ -32,7 +32,7 @@
  * @library /tools/lib /tools/javac/lib ../lib
  * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
  * @build BridgeMethodsForLambdaTest SyntheticTestDriver ExpectedClass ExpectedClasses
- * @run main SyntheticTestDriver BridgeMethodsForLambdaTest 1
+ * @run main SyntheticTestDriver BridgeMethodsForLambdaTest
  */
 
 import java.util.Comparator;
@@ -58,15 +58,14 @@ import java.util.stream.IntStream;
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner1",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()", "run()"},
         expectedFields = "lambda1",
-        expectedNumberOfSyntheticMethods = 4,
+        expectedNumberOfSyntheticMethods = 1,
         expectedNumberOfSyntheticFields = 1)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner2",
         expectedMethods = {"<init>()", "staticFunction()"},
         expectedFields = "lambda1",
-        expectedNumberOfSyntheticMethods = 3)
+        expectedNumberOfSyntheticMethods = 1)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner3",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()"},
-        expectedNumberOfSyntheticMethods = 1,
         expectedNumberOfSyntheticFields = 1)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner4",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()"},

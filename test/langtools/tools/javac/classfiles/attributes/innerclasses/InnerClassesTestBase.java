@@ -199,7 +199,7 @@ public abstract class InnerClassesTestBase extends TestResult {
         printf("Testing :\n%s\n", test.getSource());
         try {
             Map<String, Set<String>> class2Flags = test.getFlags();
-            ClassFile cf = readClassFile(compile(test.getSource())
+            ClassFile cf = readClassFile(compile(getCompileOptions(), test.getSource())
                     .getClasses().get(classToTest));
             InnerClasses_attribute innerClasses = (InnerClasses_attribute)
                     cf.getAttribute(Attribute.InnerClasses);
@@ -322,6 +322,10 @@ public abstract class InnerClassesTestBase extends TestResult {
                 .collect(Collectors.toSet());
         type.addSpecificFlags(flags);
         return flags;
+    }
+
+    protected List<String> getCompileOptions() {
+        return Collections.emptyList();
     }
 
     private List<List<Modifier>> getAllCombinations(Modifier[] accessModifiers, Modifier[] otherModifiers) {

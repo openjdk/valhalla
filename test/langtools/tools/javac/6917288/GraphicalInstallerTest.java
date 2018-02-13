@@ -47,7 +47,6 @@ public class GraphicalInstallerTest {
         }
 
         check(classes,
-            "GraphicalInstaller$1.class",
             "GraphicalInstaller$1X$1.class",
             "GraphicalInstaller$1X.class",
             "GraphicalInstaller$BackgroundInstaller.class",

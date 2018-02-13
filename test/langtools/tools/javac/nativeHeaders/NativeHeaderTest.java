@@ -122,7 +122,7 @@ public class NativeHeaderTest {
 
         // double check the synthetic class was generated
         checkEqual("generatedClasses",
-                createSet("C.class", "C$1.class", "C$Inner.class"),
+                createSet("C.class", "C$Inner.class"),
                 createSet(classesDir.list()));
     }
 

@@ -32,7 +32,7 @@
  * @library /tools/lib /tools/javac/lib ../lib
  * @build toolbox.ToolBox InMemoryFileManager TestResult
  * @build AccessToPrivateInnerClassMembersTest SyntheticTestDriver ExpectedClass ExpectedClasses
- * @run main SyntheticTestDriver AccessToPrivateInnerClassMembersTest 1
+ * @run main SyntheticTestDriver AccessToPrivateInnerClassMembersTest
  */
 
 /**
@@ -51,12 +51,10 @@
 @ExpectedClass(className = "AccessToPrivateInnerClassMembersTest$Inner1",
         expectedMethods = {"<init>(AccessToPrivateInnerClassMembersTest)", "function()"},
         expectedFields = "var",
-        expectedNumberOfSyntheticMethods = 4,
         expectedNumberOfSyntheticFields = 1)
 @ExpectedClass(className = "AccessToPrivateInnerClassMembersTest$Inner2",
         expectedMethods = {"function()", "staticFunction()", "<init>()"},
-        expectedFields = {"staticVar", "var"},
-        expectedNumberOfSyntheticMethods = 7)
+        expectedFields = {"staticVar", "var"})
 public class AccessToPrivateInnerClassMembersTest {
 
     private class Inner1 {

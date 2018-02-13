@@ -30,14 +30,30 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox InMemoryFileManager TestBase SourceFileTestBase
- * @run main SyntheticClassTest
+ * @compile -source 10 -target 10 SyntheticClassTest.java
+ * @run main SyntheticClassTest true
+ * @clean SyntheticClassTest$1
+ * @compile SyntheticClassTest.java
+ * @run main SyntheticClassTest false
  */
+
+import java.nio.file.NoSuchFileException;
 
 public class SyntheticClassTest extends SourceFileTestBase {
     public static void main(String[] args) throws Exception {
+        boolean expectSynthetic = Boolean.parseBoolean(args[0]);
         new Inner();
 
-        new SyntheticClassTest().test("SyntheticClassTest$1", "SyntheticClassTest.java");
+        try {
+            new SyntheticClassTest().test("SyntheticClassTest$1", "SyntheticClassTest.java");
+            if (!expectSynthetic) {
+                throw new AssertionError("Synthetic class should not have been emitted!");
+            }
+        } catch (NoSuchFileException ex) {
+            if (expectSynthetic) {
+                throw new AssertionError("Synthetic class should have been emitted!");
+            }
+        }
     }
 
     static class Inner {

@@ -69,7 +69,14 @@ public class T6917288 {
             return;
         }
 
-        check(classesDir, "Test.class", "Test$Inner.class", "Test$1.class");
+        switch (k) {
+            case ALWAYS:
+            case TRUE:
+                check(classesDir, "Test.class", "Test$Inner.class", "Test$1.class");
+                break;
+            default:
+                check(classesDir, "Test.class", "Test$Inner.class");
+        }
     }
 
     /**
