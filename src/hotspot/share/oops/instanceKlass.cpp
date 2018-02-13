@@ -2436,7 +2436,7 @@ void InstanceKlass::release_C_heap_structures() {
   }
 
   // deallocate the cached class file
-  if (_cached_class_file != NULL && !MetaspaceShared::is_in_shared_space(_cached_class_file)) {
+  if (_cached_class_file != NULL && !MetaspaceShared::is_in_shared_metaspace(_cached_class_file)) {
     os::free(_cached_class_file);
     _cached_class_file = NULL;
   }
@@ -3941,7 +3941,7 @@ Method* InstanceKlass::method_with_orig_idnum(int idnum, int version) {
 
 #if INCLUDE_JVMTI
 JvmtiCachedClassFileData* InstanceKlass::get_cached_class_file() {
-  if (MetaspaceShared::is_in_shared_space(_cached_class_file)) {
+  if (MetaspaceShared::is_in_shared_metaspace(_cached_class_file)) {
     // Ignore the archived class stream data
     return NULL;
   } else {
@@ -3963,7 +3963,7 @@ JvmtiCachedClassFileData* InstanceKlass::get_archived_class_data() {
     return _cached_class_file;
   } else {
     assert(this->is_shared(), "class should be shared");
-    if (MetaspaceShared::is_in_shared_space(_cached_class_file)) {
+    if (MetaspaceShared::is_in_shared_metaspace(_cached_class_file)) {
       return _cached_class_file;
     } else {
       return NULL;
