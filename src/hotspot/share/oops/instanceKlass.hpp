@@ -135,10 +135,7 @@ class InstanceKlass: public Klass {
     initialization_error                // error happened during initialization
   };
 
-  static int number_of_instance_classes() { return _total_instanceKlass_count; }
-
  private:
-  static volatile int _total_instanceKlass_count;
   static InstanceKlass* allocate_instance_klass(const ClassFileParser& parser, TRAPS);
 
  protected:
