@@ -351,14 +351,11 @@ public class VerifyAccess {
      * @param class2 another class
      * @return whether they are identical or nested together
      */
-    public static boolean areNestMates(Class<?> class1, Class<?> class2) {
+    public static boolean isSamePackageMember(Class<?> class1, Class<?> class2) {
         if (class1 == class2)
             return true;
         if (!isSamePackage(class1, class2))
             return false;
-        if (Reflection.areNestMates(class1, class2))
-            return true;
-        // Could be pre-nestmate nested types
         if (getOutermostEnclosingClass(class1) != getOutermostEnclosingClass(class2))
             return false;
         return true;
