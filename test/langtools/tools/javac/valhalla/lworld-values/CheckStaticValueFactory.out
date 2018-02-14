@@ -2,7 +2,7 @@ CheckStaticValueFactory.java:7:32: compiler.err.mod.not.allowed.here: staticvalu
 CheckStaticValueFactory.java:19:30: compiler.err.mod.not.allowed.here: staticvaluefactory
 CheckStaticValueFactory.java:24:20: compiler.err.mod.not.allowed.here: staticvaluefactory
 CheckStaticValueFactory.java:27:26: compiler.err.value.factory.must.be.static
-CheckStaticValueFactory.java:31:27: compiler.err.type.found.req: java.lang.String, Point
+CheckStaticValueFactory.java:31:27: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, Point)
 CheckStaticValueFactory.java:14:34: compiler.err.mod.not.allowed.here: staticvaluefactory
 CheckStaticValueFactory.java:32:20: compiler.err.make.default.with.nonvalue
 CheckStaticValueFactory.java:40:9: compiler.err.cant.assign.val.to.final.var: z
