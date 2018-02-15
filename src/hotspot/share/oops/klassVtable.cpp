@@ -96,14 +96,13 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
      vtable_length += *num_new_mirandas * vtableEntry::size();
   }
 
-  if (Universe::is_bootstrapping() && vtable_length == 0 && classname != vmSymbols::java_lang____Value()) {
+  if (Universe::is_bootstrapping() && vtable_length == 0) {
     // array classes don't have their superclass set correctly during
     // bootstrapping
     vtable_length = Universe::base_vtable_size();
   }
 
-  if (super == NULL && vtable_length != Universe::base_vtable_size()
-      && !class_flags.is_value_type()) {
+  if (super == NULL && vtable_length != Universe::base_vtable_size()) {
     if (Universe::is_bootstrapping()) {
       // Someone is attempting to override java.lang.Object incorrectly on the
       // bootclasspath.  The JVM cannot recover from this error including throwing
@@ -119,8 +118,7 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
     }
   }
   assert(vtable_length % vtableEntry::size() == 0, "bad vtable length");
-  assert(vtable_length >= Universe::base_vtable_size()
-         || class_flags.is_value_type(), "vtable too small");
+  assert(vtable_length >= Universe::base_vtable_size(), "vtable too small");
 
   *vtable_length_ret = vtable_length;
 }

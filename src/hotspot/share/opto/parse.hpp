@@ -529,15 +529,12 @@ class Parse : public GraphKit {
   // implementation of object creation bytecodes
   void emit_guard_for_new(ciInstanceKlass* klass);
   void do_new();
-  void do_vdefault();
-  void do_vwithfield();
+  void do_defaultvalue();
+  void do_withfield();
   void do_newarray(BasicType elemtype);
   void do_newarray();
   void do_multianewarray();
   Node* expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, int ndimensions, int nargs);
-
-  void do_vbox();
-  void do_vunbox();
 
   // implementation of jsr/ret
   void do_jsr();

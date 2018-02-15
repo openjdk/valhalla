@@ -374,7 +374,7 @@ bool ciField::will_link(ciMethod* accessing_method,
   VM_ENTRY_MARK;
   assert(bc == Bytecodes::_getstatic || bc == Bytecodes::_putstatic ||
          bc == Bytecodes::_getfield  || bc == Bytecodes::_putfield  ||
-         bc == Bytecodes::_vwithfield, "unexpected bytecode");
+         bc == Bytecodes::_withfield, "unexpected bytecode");
 
   if (_offset == -1) {
     // at creation we couldn't link to our holder so we need to

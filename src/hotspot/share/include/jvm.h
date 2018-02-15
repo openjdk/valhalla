@@ -1087,7 +1087,8 @@ typedef jint (*check_format_fn_t)(char *class_name,
                                         JVM_ACC_ABSTRACT | \
                                         JVM_ACC_ANNOTATION | \
                                         JVM_ACC_ENUM | \
-                                        JVM_ACC_SYNTHETIC)
+                                        JVM_ACC_SYNTHETIC | \
+                                        JVM_ACC_VALUE)
 
 #define JVM_RECOGNIZED_FIELD_MODIFIERS (JVM_ACC_PUBLIC | \
                                         JVM_ACC_PRIVATE | \
@@ -1097,7 +1098,8 @@ typedef jint (*check_format_fn_t)(char *class_name,
                                         JVM_ACC_VOLATILE | \
                                         JVM_ACC_TRANSIENT | \
                                         JVM_ACC_ENUM | \
-                                        JVM_ACC_SYNTHETIC)
+                                        JVM_ACC_SYNTHETIC | \
+                                        JVM_ACC_FLATTENABLE)
 
 #define JVM_RECOGNIZED_METHOD_MODIFIERS (JVM_ACC_PUBLIC | \
                                          JVM_ACC_PRIVATE | \

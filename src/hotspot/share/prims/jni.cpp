@@ -984,9 +984,6 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
           case obj_parm:
             get_object();
             break;
-          case valuetype_parm:
-            get_valuetype();
-            break;
           case long_parm:
             get_long();
             break;
@@ -1074,9 +1071,6 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
             break;
           case obj_parm:
             get_object();
-            break;
-          case valuetype_parm:
-            get_valuetype();
             break;
           case long_parm:
             get_long();

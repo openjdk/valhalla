@@ -2691,7 +2691,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       if (!method->is_static()) {  // Pass in receiver first
         if (holder->is_value()) {
           ValueKlass* vk = ValueKlass::cast(holder);
-          if (!ValueTypePassFieldsAsArgs || vk->is__Value()) {
+          if (!ValueTypePassFieldsAsArgs) {
             // If we don't pass value types as arguments or if the holder of
             // the method is __Value, we must pass a reference.
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
@@ -2706,7 +2706,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
         if (ss.type() == T_VALUETYPE) {
           Symbol* name = ss.as_symbol(CHECK_NULL);
-          if (!ValueTypePassFieldsAsArgs || (name == vmSymbols::java_lang____Value())) {
+          if (!ValueTypePassFieldsAsArgs) {
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
           } else {
             // Method handle intrinsics with a __Value argument may be created during
@@ -2951,7 +2951,6 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
             Handle protection_domain(THREAD, method->method_holder()->protection_domain());
             Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
             assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
-            assert(ValueKlass::cast(k)->is__Value(), "other values not supported");
           }
 #endif
           bt = T_VALUETYPEPTR;
@@ -3051,7 +3050,6 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
     case 'S': sig_bt[cnt++] = T_SHORT;   break;
     case 'Z': sig_bt[cnt++] = T_BOOLEAN; break;
     case 'V': sig_bt[cnt++] = T_VOID;    break;
-    case 'Q':
     case 'L':                   // Oop
       while (*s++ != ';');   // Skip signature
       sig_bt[cnt++] = T_OBJECT;
@@ -3061,7 +3059,7 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
         while (*s >= '0' && *s <= '9') s++;
       } while (*s++ == '[');   // Nested arrays?
       // Skip element type
-      if (s[-1] == 'L' || s[-1] == 'Q')
+      if (s[-1] == 'L')
         while (*s++ != ';'); // Skip signature
       sig_bt[cnt++] = T_ARRAY;
       break;
@@ -3505,7 +3503,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
     methodHandle callee = inv.static_target(thread);
     assert(!thread->has_pending_exception(), "call resolution should work");
     ValueKlass* verif_vk2 = callee->returned_value_type(thread);
-    assert(verif_vk == verif_vk2 || verif_vk2->is__Value(), "Bad value klass");
+    assert(verif_vk == verif_vk2, "Bad value klass");
 #endif
   }
   JRT_BLOCK_END;

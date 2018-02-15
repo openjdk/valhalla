@@ -40,7 +40,7 @@
 // Signature  = "(" {Parameter} ")" ReturnType.
 // Parameter  = FieldType.
 // ReturnType = FieldType | "V".
-// FieldType  = "B" | "C" | "D" | "F" | "I" | "J" | "S" | "Z" | "L" ClassName ";" | "Q" ValueTypeName ";" | "[" FieldType.
+// FieldType  = "B" | "C" | "D" | "F" | "I" | "J" | "S" | "Z" | "L" ClassName ";" | "[" FieldType.
 // ClassName  = string.
 
 
@@ -97,15 +97,6 @@ int SignatureIterator::parse_type() {
       if (_parameter_index < 0 ) _return_type = T_OBJECT;
       size = T_OBJECT_size;
       break;
-    case 'Q':
-      { int begin = ++_index;
-        Symbol* sig = _signature;
-        while (sig->byte_at(_index++) != ';') ;
-        do_valuetype(begin, _index);
-      }
-      if (_parameter_index < 0 ) _return_type = T_VALUETYPE;
-      size = T_VALUETYPE_size;
-      break;
     case '[':
       { int begin = ++_index;
         skip_optional_size();
@@ -114,7 +105,7 @@ int SignatureIterator::parse_type() {
           _index++;
           skip_optional_size();
         }
-        if (sig->byte_at(_index) == 'L' || sig->byte_at(_index) == 'Q') {
+        if (sig->byte_at(_index) == 'L') {
           while (sig->byte_at(_index++) != ';') ;
         } else {
           _index++;
@@ -201,10 +192,6 @@ void SignatureIterator::iterate_parameters( uint64_t fingerprint ) {
         do_object(0, 0);
         _parameter_index += T_OBJECT_size;
         break;
-      case valuetype_parm:
-        do_valuetype(0,0);
-        _parameter_index += T_VALUETYPE_size;
-        break;
       case long_parm:
         do_long();
         _parameter_index += T_LONG_size;
@@ -255,7 +242,6 @@ void SignatureIterator::iterate_returntype() {
           _index++;
         }
         break;
-      case 'Q':
       case 'L':
         {
           while (sig->byte_at(_index++) != ';') ;
@@ -269,7 +255,7 @@ void SignatureIterator::iterate_returntype() {
             _index++;
             skip_optional_size();
           }
-          if (sig->byte_at(_index) == 'L' || sig->byte_at(_index) == 'Q') {
+          if (sig->byte_at(_index) == 'L') {
             while (sig->byte_at(_index++) != ';') ;
           } else {
             _index++;
@@ -333,12 +319,6 @@ void SignatureStream::next_non_primitive(int t) {
       while (sig->byte_at(_end++) != ';');
       break;
     }
-    case 'Q': {
-      _type = T_VALUETYPE;
-      Symbol* sig = _signature;
-      while (sig->byte_at(_end++) != ';');
-      break;
-    }
     case '[': {
       _type = T_ARRAY;
       Symbol* sig = _signature;
@@ -390,7 +370,7 @@ Symbol* SignatureStream::as_symbol(TRAPS) {
     begin++;
     end--;
     if (begin == end) {
-      return (_type == T_OBJECT) ? vmSymbols::java_lang_Object() : vmSymbols::java_lang____Value();
+      return vmSymbols::java_lang_Object();
     }
   }
 
@@ -433,7 +413,7 @@ Symbol* SignatureStream::as_symbol_or_null() {
     begin++;
     end--;
     if (begin == end) {
-      return (_type == T_OBJECT) ? vmSymbols::java_lang_Object() : vmSymbols::java_lang____Value();
+      return vmSymbols::java_lang_Object();
     }
   }
 
@@ -512,7 +492,6 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
     case 'B': case 'C': case 'D': case 'F': case 'I':
     case 'J': case 'S': case 'Z': case 'V':
       return index + 1;
-    case 'Q':
     case 'L':
       for (index = index + 1; index < limit; ++index) {
         char c = type[index];

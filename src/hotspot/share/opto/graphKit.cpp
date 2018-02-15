@@ -587,7 +587,7 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
       ex_obj = env()->ArrayIndexOutOfBoundsException_instance();
       break;
     case Deoptimization::Reason_class_check:
-      if (java_bc() == Bytecodes::_aastore || java_bc() == Bytecodes::_vastore) {
+      if (java_bc() == Bytecodes::_aastore) {
         ex_obj = env()->ArrayStoreException_instance();
       } else {
         ex_obj = env()->ClassCastException_instance();
@@ -1086,7 +1086,7 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
     }
     break;
 
-  case Bytecodes::_vwithfield: {
+  case Bytecodes::_withfield: {
     bool ignored_will_link;
     ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
     int      size  = field->type()->size();
@@ -1100,7 +1100,6 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
   case Bytecodes::_freturn:
   case Bytecodes::_dreturn:
   case Bytecodes::_areturn:
-  case Bytecodes::_vreturn:
     assert(rsize == -depth, "");
     inputs = rsize;
     break;

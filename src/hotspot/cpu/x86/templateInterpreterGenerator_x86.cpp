@@ -204,7 +204,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // and NULL it as marker that esp is now tos until next java call
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
 
-  if (state == qtos && ValueTypeReturnedAsFields) {
+  if (/*state == qtos*/ false && ValueTypeReturnedAsFields) {
 #ifndef _LP64
     __ super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
 #else
@@ -1864,12 +1864,10 @@ void TemplateInterpreterGenerator::set_vtos_entry_points(Template* t,
                                                          address& lep,
                                                          address& fep,
                                                          address& dep,
-                                                         address& qep,
                                                          address& vep) {
   assert(t->is_valid() && t->tos_in() == vtos, "illegal template");
   Label L;
   aep = __ pc();  __ push_ptr();   __ jmp(L);
-  qep = __ pc();  __ push_ptr();   __ jmp(L);
 #ifndef _LP64
   fep = __ pc(); __ push(ftos); __ jmp(L);
   dep = __ pc(); __ push(dtos); __ jmp(L);

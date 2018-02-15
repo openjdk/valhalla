@@ -29,7 +29,15 @@ import jdk.test.lib.Asserts;
  * @summary Value Type creation test
  * @library /test/lib
  * @compile  -XDenableValueTypes ValueTypeCreation.java Point.java Long8Value.java Person.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
+ * @run main/othervm -Xint -XX:+EnableValhalla -XX:+PrintValueLayout runtime.valhalla.valuetypes.ValueTypeCreation
+ */
+
+
+
+
+
+
+/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  */
 public class ValueTypeCreation {

@@ -66,8 +66,7 @@ bool FieldType::is_valid_array_signature(Symbol* sig) {
       // If it is an array, the type is the last character
       return (i + 1 == len);
     case 'L':
-    case 'Q':
-      // If it is an object or a value type, the last character must be a ';'
+      // If it is a class name, the last character must be a ';'
       return sig->byte_at(len - 1) == ';';
   }
 

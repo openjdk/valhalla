@@ -71,7 +71,7 @@ void TemplateInterpreter::initialize() {
 // Implementation of EntryPoint
 
 EntryPoint::EntryPoint() {
-  assert(number_of_states == 11, "check the code below");
+  assert(number_of_states == 10 , "check the code below");
   _entry[btos] = NULL;
   _entry[ztos] = NULL;
   _entry[ctos] = NULL;
@@ -81,13 +81,12 @@ EntryPoint::EntryPoint() {
   _entry[ltos] = NULL;
   _entry[ftos] = NULL;
   _entry[dtos] = NULL;
-  _entry[qtos] = NULL;
   _entry[vtos] = NULL;
 }
 
 
-EntryPoint::EntryPoint(address bentry, address zentry, address centry, address sentry, address aentry, address ientry, address lentry, address fentry, address dentry, address qentry, address ventry) {
-  assert(number_of_states == 11, "check the code below");
+EntryPoint::EntryPoint(address bentry, address zentry, address centry, address sentry, address aentry, address ientry, address lentry, address fentry, address dentry, address ventry) {
+  assert(number_of_states == 10, "check the code below");
   _entry[btos] = bentry;
   _entry[ztos] = zentry;
   _entry[ctos] = centry;
@@ -97,7 +96,6 @@ EntryPoint::EntryPoint(address bentry, address zentry, address centry, address s
   _entry[ltos] = lentry;
   _entry[ftos] = fentry;
   _entry[dtos] = dentry;
-  _entry[qtos] = qentry;
   _entry[vtos] = ventry;
 }
 
@@ -149,7 +147,6 @@ EntryPoint DispatchTable::entry(int i) const {
       _table[ltos][i],
       _table[ftos][i],
       _table[dtos][i],
-      _table[qtos][i],
       _table[vtos][i]
     );
 }
@@ -157,7 +154,7 @@ EntryPoint DispatchTable::entry(int i) const {
 
 void DispatchTable::set_entry(int i, EntryPoint& entry) {
   assert(0 <= i && i < length, "index out of bounds");
-  assert(number_of_states == 11, "check the code below");
+  assert(number_of_states == 10, "check the code below");
   _table[btos][i] = entry.entry(btos);
   _table[ztos][i] = entry.entry(ztos);
   _table[ctos][i] = entry.entry(ctos);
@@ -167,7 +164,6 @@ void DispatchTable::set_entry(int i, EntryPoint& entry) {
   _table[ltos][i] = entry.entry(ltos);
   _table[ftos][i] = entry.entry(ftos);
   _table[dtos][i] = entry.entry(dtos);
-  _table[qtos][i] = entry.entry(qtos);
   _table[vtos][i] = entry.entry(vtos);
 }
 

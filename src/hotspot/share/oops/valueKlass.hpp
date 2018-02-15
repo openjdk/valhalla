@@ -41,7 +41,7 @@ class ValueKlass: public InstanceKlass {
   // Constructor
   ValueKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type) {
-    set_has_vcc_klass();
+    _adr_valueklass_fixed_block = valueklass_static_bloc();
     // Addresses used for value type calling convention
     *((Array<SigEntry>**)adr_extended_sig()) = NULL;
     *((Array<VMRegPair>**)adr_return_regs()) = NULL;
@@ -49,48 +49,52 @@ class ValueKlass: public InstanceKlass {
     *((address*)adr_unpack_handler()) = NULL;
     assert(pack_handler() == NULL, "pack handler not null");
     *((int*)adr_default_value_offset()) = 0;
+
+  }
+
+  ValueKlassFixedBlock* valueklass_static_bloc() const {
+    address adr_jf = adr_value_fields_klasses();
+    if (adr_jf != NULL) {
+      return (ValueKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
+    }
+
+    address adr_fing = adr_fingerprint();
+    if (adr_fing != NULL) {
+      return (ValueKlassFixedBlock*)(adr_fingerprint() + sizeof(u8));
+    }
+
+    InstanceKlass** adr_host = adr_host_klass();
+    if (adr_host != NULL) {
+      return (ValueKlassFixedBlock*)(adr_host + 1);
+    }
+
+    Klass** adr_impl = adr_implementor();
+    if (adr_impl != NULL) {
+      return (ValueKlassFixedBlock*)(adr_impl + 1);
+    }
+
+    return (ValueKlassFixedBlock*)end_of_nonstatic_oop_maps();
   }
 
   address adr_extended_sig() const {
-    address adr_vcc = adr_vcc_klass();
-    if (adr_vcc == NULL) {
-      address adr_jf = adr_value_fields_klasses();
-      if (adr_jf != NULL) {
-        return adr_jf + this->java_fields_count() * sizeof(Klass*);
-      }
-
-      address adr_fing = adr_fingerprint();
-      if (adr_fing != NULL) {
-        return adr_fingerprint() + sizeof(u8);
-      }
-
-      InstanceKlass** adr_host = adr_host_klass();
-      if (adr_host != NULL) {
-        return (address)(adr_host + 1);
-      }
-
-      Klass** adr_impl = adr_implementor();
-      if (adr_impl != NULL) {
-        return (address)(adr_impl + 1);
-      }
-
-      return (address)end_of_nonstatic_oop_maps();
-    } else {
-      return adr_vcc + sizeof(Klass*);
-    }
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _extended_sig));
   }
 
   address adr_return_regs() const {
-    return adr_extended_sig() + sizeof(intptr_t);
+    ValueKlassFixedBlock* vkst = valueklass_static_bloc();
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _return_regs));
   }
 
   // pack and unpack handlers for value types return
   address adr_pack_handler() const {
-    return (address)this + in_bytes(pack_handler_offset());
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _pack_handler));
   }
 
   address adr_unpack_handler() const {
-    return (address)this + in_bytes(unpack_handler_offset());
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _unpack_handler));
   }
 
   address pack_handler() const {
@@ -102,7 +106,8 @@ class ValueKlass: public InstanceKlass {
   }
 
   address adr_default_value_offset() const {
-    return (address)this + in_bytes(default_value_offset_offset());
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _default_value_offset));
   }
 
   // static Klass* array_klass_impl(InstanceKlass* this_k, bool or_null, int n, TRAPS);
@@ -121,7 +126,6 @@ class ValueKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_value_slow() const        { return true; }
-  bool is__Value() const { return (this == SystemDictionary::___Value_klass()); }
 
   // Casting from Klass*
   static ValueKlass* cast(Klass* k) {
@@ -161,12 +165,14 @@ class ValueKlass: public InstanceKlass {
   void set_if_bufferable() {
     bool bufferable;
 
-    int size_in_heap_words = size_helper();
-    int base_offset = instanceOopDesc::base_offset_in_bytes();
-    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
-    bufferable = size_in_bytes <= BigValueTypeThreshold;
-    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
-    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
+//    int size_in_heap_words = size_helper();
+//    int base_offset = instanceOopDesc::base_offset_in_bytes();
+//    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
+//    bufferable = size_in_bytes <= BigValueTypeThreshold;
+//    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
+//    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
+
+    bufferable = false;
     if (bufferable) {
       _extra_flags |= _extra_is_bufferable;
     } else {
@@ -198,9 +204,6 @@ class ValueKlass: public InstanceKlass {
   // store the value of this klass contained with src into dst, raw data ptr
   void value_store(void* src, void* dst, size_t raw_byte_size, bool dst_is_heap, bool dst_uninitialized);
 
-  oop unbox(Handle src, InstanceKlass* target_klass, TRAPS);
-  oop box(Handle src, InstanceKlass* target_klass, TRAPS);
-
   // GC support...
 
   void iterate_over_inside_oops(OopClosure* f, oop value);
@@ -215,11 +218,9 @@ class ValueKlass: public InstanceKlass {
   // calling convention support
   void initialize_calling_convention();
   Array<SigEntry>* extended_sig() const {
-    assert(!is__Value(), "make no sense for __Value");
     return *((Array<SigEntry>**)adr_extended_sig());
   }
   Array<VMRegPair>* return_regs() const {
-    assert(!is__Value(), "make no sense for __Value");
     return *((Array<VMRegPair>**)adr_return_regs());
   }
   bool can_be_returned_as_fields() const;
@@ -231,14 +232,17 @@ class ValueKlass: public InstanceKlass {
   // pack and unpack handlers. Need to be loadable from generated code
   // so at a fixed offset from the base of the klass pointer.
   static ByteSize pack_handler_offset() {
+    fatal("Should be re-implemented using the ValueKlassStaticBlock indirection");
     return in_ByteSize(InstanceKlass::header_size() * wordSize);
   }
 
   static ByteSize unpack_handler_offset() {
+    fatal("Should be re-implemented using the ValueKlassStaticBlock indirection");
     return in_ByteSize((InstanceKlass::header_size()+1) * wordSize);
   }
 
   static ByteSize default_value_offset_offset() {
+    fatal("Should be re-implemented using the ValueKlassStaticBlock indirection");
     return in_ByteSize((InstanceKlass::header_size()+2) * wordSize);
   }
 

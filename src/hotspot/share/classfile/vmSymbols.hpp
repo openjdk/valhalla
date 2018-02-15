@@ -122,7 +122,6 @@
   template(getBootClassPathEntryForClass_name,        "getBootClassPathEntryForClass")            \
   template(jdk_internal_vm_PostVMInitHook,            "jdk/internal/vm/PostVMInitHook")           \
   template(sun_net_www_ParseUtil,                     "sun/net/www/ParseUtil")                    \
-  template(java_lang____Value,                        "java/lang/__Value")                        \
                                                                                                   \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
@@ -319,15 +318,8 @@
   NOT_LP64(  do_alias(intptr_signature,               int_signature)  )                           \
   LP64_ONLY( do_alias(intptr_signature,               long_signature) )                           \
                                                                                                   \
- /* support for valhalla "shady" value types */                                                   \
-  template(jdk_incubator_mvt_ValueCapableClass,           "jdk/incubator/mvt/ValueCapableClass")    \
-  template(jdk_incubator_mvt_ValueCapableClass_signature, "Ljdk/incubator/mvt/ValueCapableClass;")  \
-  template(valhalla_shady_MVT1_0,                        "valhalla/shady/MinimalValueTypes_1_0")  \
-  template(valhalla_shady_MVT1_0_createDerivedValueType,           "createDerivedValueType")      \
-  template(valhalla_shady_MVT1_0_createDerivedValueType_signature, "(Ljava/lang/String;Ljava/lang/ClassLoader;Ljava/security/ProtectionDomain;[Ljava/lang/String;[I)Ljava/lang/String;") \
                                                                                                   \
-                                                                                                                                      \
-  /* Support for JVMCI */                                                                                                             \
+  /* Support for JVMCI */                                                                         \
   JVMCI_VM_SYMBOLS_DO(template, do_alias)                                                         \
                                                                                                   \
   template(java_lang_StackWalker,                     "java/lang/StackWalker")                    \
@@ -450,7 +442,6 @@
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
   template(default_value_name,                        ".default")                                 \
-  template(java_lang___Value_signature,               "Qjava/lang/__Value;")                      \
                                                                                                   \
   /* name symbols needed by intrinsics */                                                         \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, template, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \

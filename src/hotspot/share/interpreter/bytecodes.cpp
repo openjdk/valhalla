@@ -484,15 +484,8 @@ void Bytecodes::initialize() {
   def(_goto_w              , "goto_w"              , "boooo", NULL    , T_VOID   ,  0, false);
   def(_jsr_w               , "jsr_w"               , "boooo", NULL    , T_INT    ,  0, false);
   def(_breakpoint          , "breakpoint"          , ""     , NULL    , T_VOID   ,  0, true);
-  def(_vload               , "vload"               , "bi"   , "wbii"  , T_VALUETYPE,1, false);
-  def(_vstore              , "vstore"              , "bi"   , "wbii"  , T_VOID   , -1, false);
-  def(_vaload              , "vaload"              , "b"    , NULL    , T_VALUETYPE, -1, true);
-  def(_vastore             , "vastore"             , "b"    , NULL    , T_VOID   , -3, true );
-  def(_vreturn             , "vreturn"             , "b"    , NULL    , T_VALUETYPE, -1, true);
-  def(_vbox                , "vbox"                , "bkk"  , NULL    , T_OBJECT ,  0, true );
-  def(_vunbox              , "vunbox"              , "bkk"  , NULL    , T_VALUETYPE,0, true );
-  def(_vdefault            , "vdefault"            , "bkk"  , NULL    , T_VALUETYPE, 1, true);
-  def(_vwithfield          , "vwithfield"          , "bJJ"  , NULL    , T_VALUETYPE, -1, true );
+  def(_defaultvalue        , "defaultvalue"        , "bkk"  , NULL    , T_OBJECT ,  1, true);
+  def(_withfield           , "withfield"           , "bJJ"  , NULL    , T_OBJECT , -1, true );
 
   //  JVM bytecodes
   //  bytecode               bytecode name           format   wide f.   result tp  stk traps  std code

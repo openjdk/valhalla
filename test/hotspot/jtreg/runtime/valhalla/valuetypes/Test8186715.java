@@ -30,6 +30,10 @@ package runtime.valhalla.valuetypes;
  * @library /test/lib
  * @compile -XDenableValueTypes Test8186715.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
+ */
+
+
+/*
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
  */
 

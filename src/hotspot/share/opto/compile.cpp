@@ -1554,7 +1554,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // First handle header references such as a LoadKlassNode, even if the
       // object's klass is unloaded at compile time (4965979).
       if (!is_known_inst) { // Do it only for non-instance types
-        tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, env()->___Value_klass()->as_value_klass(), NULL, Type::Offset(offset));
+        // tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, env()->___Value_klass()->as_value_klass(), NULL, Type::Offset(offset));
+        tj = tv = NULL;
       }
     } else if (offset < 0 || offset >= vk->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance

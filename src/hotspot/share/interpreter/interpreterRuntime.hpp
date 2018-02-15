@@ -112,8 +112,8 @@ class InterpreterRuntime: AllStatic {
   static void    anewarray     (JavaThread* thread, ConstantPool* pool, int index, jint size);
   static void    multianewarray(JavaThread* thread, jint* first_size_address);
   static void    register_finalizer(JavaThread* thread, oopDesc* obj);
-  static void    vdefault      (JavaThread* thread, ConstantPool* pool, int index);
-  static int     vwithfield    (JavaThread* thread, ConstantPoolCache* cp_cache);
+  static void    defaultvalue  (JavaThread* thread, ConstantPool* pool, int index);
+  static int     withfield     (JavaThread* thread, ConstantPoolCache* cp_cache);
   static void    qgetfield     (JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
   static void    qputfield     (JavaThread* thread, oopDesc* obj, oopDesc* value, ConstantPoolCache* cp_cache);
   static void    qputstatic    (JavaThread* thread, oopDesc* value, int offset, oopDesc* mirror);
@@ -130,11 +130,6 @@ class InterpreterRuntime: AllStatic {
   // vaload/vastore
   static void value_array_load(JavaThread* thread, arrayOopDesc* array, int index);
   static void value_array_store(JavaThread* thread, arrayOopDesc* array, int index, void* val);
-
-  // Valhalla MVT VCC<->DVT
-  static void    vbox  (JavaThread* thread, ConstantPool* pool, int index, oopDesc* value);
-  static void    vunbox(JavaThread* thread, ConstantPool* pool, int index, oopDesc* obj);
-
 
   // Quicken instance-of and check-cast bytecodes
   static void    quicken_io_cc(JavaThread* thread);

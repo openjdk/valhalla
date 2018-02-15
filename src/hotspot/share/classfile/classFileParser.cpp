@@ -496,33 +496,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
         Symbol* const name = cp->symbol_at(class_index);
         const unsigned int name_len = name->utf8_length();
 
-        // check explicitly for ;Qjava/lang/__Value;
-        if (name_len == 20 &&
-            name->equals(";Qjava/lang/__Value;")) {
-            cp->symbol_at_put(class_index, vmSymbols::java_lang____Value());
-            cp->unresolved_value_type_at_put(index, class_index, num_klasses++);
-        } else if (EnableValhalla || EnableMVT) {
-          const char* derive_vt_classname_postfix = "$Value;";
-          // check for a value type
-          // check for name > 3 to rule out ";Q;" where no name is present
-          // check for name = 9 to rule out ";Q$Value;" where no name is present for EnableMVT
-          if (name_len != 0 &&
-              name_len > 3 &&
-              name->starts_with(";Q") &&
-              ((EnableValhalla && (name->byte_at(name_len-1) == ';')) ||
-               (EnableMVT &&
-                ClassLoader::string_ends_with(name->as_utf8(), derive_vt_classname_postfix) &&
-                name_len != 9))) {
-            Symbol* const strippedsym = SymbolTable::new_symbol(name, 2, name_len-1, CHECK);
-            assert(strippedsym != NULL, "failure to create value type stripped name");
-            cp->symbol_at_put(class_index, strippedsym);
-            cp->unresolved_value_type_at_put(index, class_index, num_klasses++);
-          } else {
-            cp->unresolved_klass_at_put(index, class_index, num_klasses++);
-          }
-        } else {
-          cp->unresolved_klass_at_put(index, class_index, num_klasses++);
-        }
+        cp->unresolved_klass_at_put(index, class_index, num_klasses++);
         break;
       }
       case JVM_CONSTANT_ValueIndex: {
@@ -1103,7 +1077,6 @@ public:
     _jdk_internal_vm_annotation_Contended,
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
-    _jdk_incubator_mvt_ValueCapableClass,
     _annotation_LIMIT
   };
   const Location _location;
@@ -1139,8 +1112,6 @@ public:
 
   void set_stable(bool stable) { set_annotation(_field_Stable); }
   bool is_stable() const { return has_annotation(_field_Stable); }
-
-  bool is_value_capable_class() const { return has_annotation(_jdk_incubator_mvt_ValueCapableClass); }
 };
 
 // This class also doubles as a holder for metadata cleanup.
@@ -1493,13 +1464,13 @@ enum FieldAllocationType {
   STATIC_SHORT,         // shorts
   STATIC_WORD,          // ints
   STATIC_DOUBLE,        // aligned long or double
-  STATIC_VALUETYPE,     // Value types
+  STATIC_FLATTENABLE,   // flattenable field
   NONSTATIC_OOP,
   NONSTATIC_BYTE,
   NONSTATIC_SHORT,
   NONSTATIC_WORD,
   NONSTATIC_DOUBLE,
-  NONSTATIC_VALUETYPE,
+  NONSTATIC_FLATTENABLE,
   MAX_FIELD_ALLOCATION_TYPE,
   BAD_ALLOCATION_TYPE = -1
 };
@@ -1519,7 +1490,6 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   NONSTATIC_DOUBLE,    // T_LONG        = 11,
   NONSTATIC_OOP,       // T_OBJECT      = 12,
   NONSTATIC_OOP,       // T_ARRAY       = 13,
-  NONSTATIC_VALUETYPE, // T_VALUETYPE   = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1541,7 +1511,6 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   STATIC_DOUBLE,       // T_LONG        = 11,
   STATIC_OOP,          // T_OBJECT      = 12,
   STATIC_OOP,          // T_ARRAY       = 13,
-  STATIC_VALUETYPE,    // T_VALUETYPE   = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1659,8 +1628,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       signature_index, CHECK);
     const Symbol* const sig = cp->symbol_at(signature_index);
     verify_legal_field_signature(name, sig, CHECK);
-    if (sig->starts_with("Q")) {
-      _has_value_fields = true;
+    if (access_flags.is_flattenable()) {
+      _has_flattenable_fields = true;
     }
 
     u2 constantvalue_index = 0;
@@ -1773,9 +1742,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
     field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
                       vmSymbols::default_value_name_enum,
-                      vmSymbols::java_lang___Value_signature_enum,
+                      vmSymbols::java_lang_Object_enum,
                       0);
-    const BasicType type = FieldType::basic_type(vmSymbols::java_lang___Value_signature());
+    const BasicType type = FieldType::basic_type(vmSymbols::object_signature());
     const FieldAllocationType atype = fac->update(true, type);
     field->set_allocation_type(atype);
     index++;
@@ -2206,12 +2175,6 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (RestrictReservedStack && !privileged) break; // honor privileges
       return _jdk_internal_vm_annotation_ReservedStackAccess;
     }
-    case vmSymbols::VM_SYMBOL_ENUM_NAME(jdk_incubator_mvt_ValueCapableClass_signature) : {
-      if (_location != _in_class) {
-        break;
-      }
-      return _jdk_incubator_mvt_ValueCapableClass;
-    }
     default: {
       break;
     }
@@ -2254,9 +2217,6 @@ void MethodAnnotationCollector::apply_to(const methodHandle& m) {
 void ClassFileParser::ClassAnnotationCollector::apply_to(InstanceKlass* ik) {
   assert(ik != NULL, "invariant");
   ik->set_is_contended(is_contended());
-  if (is_value_capable_class()) {
-    ik->set_has_vcc_annotation();
-  }
 }
 
 #define MAX_ARGS_SIZE 255
@@ -3978,7 +3938,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int next_static_oop_offset    = InstanceMirrorKlass::offset_of_static_fields();
   // Value types in static fields are not embedded, they are handled with oops
   int next_static_double_offset = next_static_oop_offset +
-                                  ((fac->count[STATIC_OOP] + fac->count[STATIC_VALUETYPE]) * heapOopSize);
+                                  ((fac->count[STATIC_OOP] + fac->count[STATIC_FLATTENABLE]) * heapOopSize);
   if ( fac->count[STATIC_DOUBLE] &&
        (Universe::field_type_should_be_aligned(T_DOUBLE) ||
         Universe::field_type_should_be_aligned(T_LONG)) ) {
@@ -3999,7 +3959,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // in-lining of value types (with header removal) in packed arrays and
   // flatten value types
   int initial_value_type_padding = 0;
-  if (is_value_type() || is_value_capable_class()) {
+  if (is_value_type()) {
     int old = nonstatic_fields_start;
     nonstatic_fields_start = align_up(nonstatic_fields_start, BytesPerLong);
     initial_value_type_padding = nonstatic_fields_start - old;
@@ -4015,7 +3975,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   }
 
   // Temporary value types restrictions
-  if (is_value_type() || is_value_capable_class()) {
+  if (is_value_type()) {
     if (is_contended_class) {
       throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support @Contended annotation yet");
       return;
@@ -4039,7 +3999,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   unsigned int value_type_oop_map_count = 0;
   int not_flattened_value_types = 0;
 
-  int max_nonstatic_value_type = fac->count[NONSTATIC_VALUETYPE] + 1;
+  int max_nonstatic_value_type = fac->count[NONSTATIC_FLATTENABLE] + 1;
 
   nonstatic_value_type_indexes = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, int,
                                                               max_nonstatic_value_type);
@@ -4050,9 +4010,9 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
                                                               max_nonstatic_value_type);
 
   for (AllFieldStream fs(_fields, _cp); !fs.done(); fs.next()) {
-    if (fs.allocation_type() == STATIC_VALUETYPE) {
+    if (fs.allocation_type() == STATIC_FLATTENABLE) {
       static_value_type_count++;
-    } else if (fs.allocation_type() == NONSTATIC_VALUETYPE) {
+    } else if (fs.allocation_type() == NONSTATIC_FLATTENABLE) {
       Symbol* signature = fs.signature();
       Klass* klass = SystemDictionary::resolve_or_fail(signature,
                                                        Handle(THREAD, _loader_data->class_loader()),
@@ -4061,7 +4021,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       assert(klass->access_flags().is_value_type(), "Value type expected");
       ValueKlass* vk = ValueKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
-      if ((ValueFieldMaxFlatSize < 0) || vk->size_helper() <= ValueFieldMaxFlatSize) {
+      if ( false &&  // Currently disabling flattening
+          ((ValueFieldMaxFlatSize < 0) || vk->size_helper() <= ValueFieldMaxFlatSize)) {
         nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
         nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
         nonstatic_value_type_count++;
@@ -4084,7 +4045,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
                                         fac->count[NONSTATIC_SHORT] + fac->count[NONSTATIC_BYTE] +
-                                        fac->count[NONSTATIC_OOP] + fac->count[NONSTATIC_VALUETYPE];
+                                        fac->count[NONSTATIC_OOP] + fac->count[NONSTATIC_FLATTENABLE];
 
   const bool super_has_nonstatic_fields =
           (_super_klass != NULL && _super_klass->has_nonstatic_fields());
@@ -4094,9 +4055,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   if (is_value_type() && (!has_nonstatic_fields)) {
     // There are a number of fixes required throughout the type system and JIT
-    if (class_name() != vmSymbols::java_lang____Value()) {
-      throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support zero instance size yet");
-    }
+    throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support zero instance size yet");
   }
 
   // Prepare list of oops for oop map generation.
@@ -4278,7 +4237,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     // pack the rest of the fields
     switch (atype) {
       // Value types in static fields are handled with oops
-      case STATIC_VALUETYPE:   // Fallthrough
+      case STATIC_FLATTENABLE:   // Fallthrough
       case STATIC_OOP:
         real_offset = next_static_oop_offset;
         next_static_oop_offset += heapOopSize;
@@ -4299,7 +4258,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         real_offset = next_static_double_offset;
         next_static_double_offset += BytesPerLong;
         break;
-      case NONSTATIC_VALUETYPE:
+      case NONSTATIC_FLATTENABLE:
         if (fs.is_flatten()) {
           Klass* klass = nonstatic_value_type_klasses[next_value_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
@@ -4443,7 +4402,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
             break;
 
             // Value types in static fields are handled with oops
-          case NONSTATIC_VALUETYPE:
+          case NONSTATIC_FLATTENABLE:
             throwValueTypeLimitation(THREAD_AND_LOCATION,
                                      "@Contended annotation not supported for value types yet", fs.name(), fs.signature());
             return;
@@ -4487,7 +4446,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // This helps to alleviate memory contention effects for subclass fields
   // and/or adjacent object.
   if (is_contended_class) {
-    assert(!is_value_type() && !is_value_capable_class(), "@Contended not supported for value types yet");
+    assert(!is_value_type(), "@Contended not supported for value types yet");
     next_nonstatic_padded_offset += ContendedPaddingWidth;
   }
 
@@ -4499,7 +4458,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   }
 
   int nonstatic_field_sz_align = heapOopSize;
-  if (is_value_type() || is_value_capable_class()) {
+  if (is_value_type()) {
     if ((notaligned_nonstatic_fields_end - nonstatic_fields_start) > heapOopSize) {
       nonstatic_field_sz_align = BytesPerLong; // value copy of fields only uses jlong copy
     }
@@ -4658,7 +4617,7 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
     }
 
     for(int i = 0; i < defined_klass->java_fields_count(); i++) {
-      if (defined_klass->field_signature(i)->starts_with("Q")  && (((defined_klass->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
+      if ((defined_klass->field_access_flags(i) & JVM_ACC_FLATTENABLE) != 0) {
         const Klass* klass = defined_klass->get_value_field_klass(i);
         defining_loader_data->record_dependency(klass, CHECK);
       }
@@ -5630,7 +5589,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
     }
   }
 
-  if (ik->is_value() && (ik->name() != vmSymbols::java_lang____Value())) {
+  if (ik->is_value()) {
     ValueKlass* vk = ValueKlass::cast(ik);
     oop val = ik->allocate_instance(CHECK_NULL);
     vk->set_default_value(val);
@@ -5660,7 +5619,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   ik->set_nonstatic_field_size(_field_info->nonstatic_field_size);
   ik->set_has_nonstatic_fields(_field_info->has_nonstatic_fields);
   assert(_fac != NULL, "invariant");
-  ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_VALUETYPE]);
+  ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_FLATTENABLE]);
 
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
@@ -5799,12 +5758,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
     vk->initialize_calling_convention();
   }
 
-  // Valhalla shady value type conversion
-  if (_parsed_annotations->is_value_capable_class()) {
-    ik->create_value_capable_class(Handle(THREAD, _loader_data->class_loader()),
-                                 _protection_domain, CHECK);
-  }
-
   // Add read edges to the unnamed modules of the bootstrap and app class loaders.
   if (changed_by_loadhook && !module_handle.is_null() && module_entry->is_named() &&
       !module_entry->has_default_read_edges()) {
@@ -5815,19 +5768,18 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   }
 
   int nfields = ik->java_fields_count();
-  if (ik->is_value() && (ik->name() != vmSymbols::java_lang____Value())) nfields++;
+  if (ik->is_value()) nfields++;
   for(int i = 0; i < nfields; i++) {
-    if (ik->field_signature(i)->starts_with("Q")) {
-      if ((((ik->field_access_flags(i) & JVM_ACC_STATIC)) == 0)) {
-        Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
-                                                         Handle(THREAD, ik->class_loader()),
-                                                         Handle(THREAD, ik->protection_domain()), true, CHECK);
-        assert(klass != NULL, "Sanity check");
-        assert(klass->access_flags().is_value_type(), "Value type expected");
-        ik->set_value_field_klass(i, klass);
-      } else if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)) {
-        ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
-      }
+    if (ik->field_access_flags(i) & JVM_ACC_FLATTENABLE) {
+      Klass* klass = SystemDictionary::resolve_or_fail(ik->field_signature(i),
+                                                       Handle(THREAD, ik->class_loader()),
+                                                       Handle(THREAD, ik->protection_domain()), true, CHECK);
+      assert(klass != NULL, "Sanity check");
+      assert(klass->access_flags().is_value_type(), "Value type expected");
+      ik->set_value_field_klass(i, klass);
+    } else if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
+        && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
+      ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
   }
 
@@ -6003,7 +5955,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
   _max_bootstrap_specifier_index(-1),
-  _has_value_fields(false) {
+  _has_flattenable_fields(false) {
 
   _class_name = name != NULL ? name : vmSymbols::unknown_class_name();
 
@@ -6349,7 +6301,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   _fac = new FieldAllocationCount();
   parse_fields(stream,
                _access_flags.is_interface(),
-               _access_flags.is_value_type() && (_class_name != vmSymbols::java_lang____Value()),
+               _access_flags.is_value_type(),
                _fac,
                cp,
                cp_size,
@@ -6444,26 +6396,16 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       return;
     }
 
-    // For a java/lang/__Value super class, the class inheriting, must be a value class
-    if ((EnableValhalla || EnableMVT) &&
-        _super_klass->name() == vmSymbols::java_lang____Value()) {
-      guarantee_property((_access_flags.get_flags() & JVM_ACC_VALUE) != 0,
-                         "Only a value class can inherit from java/lang/__Value",
-                         CHECK);
-    }
-
-    // For a value class, only java/lang/__Value is an acceptable super class
+    // For a value class, only java/lang/Object is an acceptable super class
     if ((EnableValhalla || EnableMVT) &&
         _access_flags.get_flags() & JVM_ACC_VALUE) {
-      guarantee_property(_super_klass->name() == vmSymbols::java_lang____Value(),
-                         "Value class can only inherit java/lang/__Value",
+      guarantee_property(_super_klass->name() == vmSymbols::java_lang_Object(),
+                         "Value class can only inherit java/lang/Object",
                          CHECK);
     }
 
     // Make sure super class is not final
-    if (_super_klass->is_final()
-        && !(_super_klass->name() == vmSymbols::java_lang____Value()
-        && (_access_flags.get_flags() & JVM_ACC_VALUE))) {
+    if (_super_klass->is_final()) {
       THROW_MSG(vmSymbols::java_lang_VerifyError(), "Cannot inherit from final class");
     }
   }
@@ -6538,10 +6480,6 @@ const ClassFileStream* ClassFileParser::clone_stream() const {
   assert(_stream != NULL, "invariant");
 
   return _stream->clone();
-}
-
-bool ClassFileParser::is_value_capable_class() const {
-  return _parsed_annotations->is_value_capable_class();
 }
 
 // ----------------------------------------------------------------------------

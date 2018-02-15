@@ -333,8 +333,8 @@ void Parse::do_new() {
   }
 }
 
-//------------------------------do_vdefault-------------------------------------
-void Parse::do_vdefault() {
+//------------------------------do_defaultvalue---------------------------------
+void Parse::do_defaultvalue() {
   bool will_link;
   ciValueKlass* vk = iter().get_klass(will_link)->as_value_klass();
   assert(will_link, "vdefault: typeflow responsibility");
@@ -342,8 +342,8 @@ void Parse::do_vdefault() {
   push(ValueTypeNode::make_default(_gvn, vk));
 }
 
-//------------------------------do_vwithfield-----------------------------------
-void Parse::do_vwithfield() {
+//------------------------------do_withfield------------------------------------
+void Parse::do_withfield() {
   bool will_link;
   ciField* field = iter().get_field(will_link);
   assert(will_link, "vdefault: typeflow responsibility");

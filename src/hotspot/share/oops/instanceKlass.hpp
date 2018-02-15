@@ -29,6 +29,7 @@
 #include "classfile/classLoaderData.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
+#include "code/vmreg.hpp"
 #include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
@@ -54,6 +55,7 @@
 //    [EMBEDDED implementor of the interface] only exist for interface
 //    [EMBEDDED host klass        ] only exist for an anonymous class (JSR 292 enabled)
 //    [EMBEDDED fingerprint       ] only if should_store_fingerprint()==true
+//    [EMBEDDED ValueKlassFixedBlock] only if is a ValueKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -128,6 +130,18 @@ class OopMapBlock VALUE_OBJ_CLASS_SPEC {
 };
 
 struct JvmtiCachedClassFileData;
+
+class SigEntry;
+
+class ValueKlassFixedBlock VALUE_OBJ_CLASS_SPEC {
+  Array<SigEntry>** _extended_sig;
+  Array<VMRegPair>** _return_regs;
+  address* _pack_handler;
+  address* _unpack_handler;
+  int* _default_value_offset;
+
+  friend class ValueKlass;
+};
 
 class InstanceKlass: public Klass {
   friend class VMStructs;
@@ -215,9 +229,7 @@ class InstanceKlass: public Klass {
     _extra_is_being_redefined   = 1 << 0, // used for locking redefinition
     _extra_has_resolved_methods = 1 << 1, // resolved methods table entries added for this class
     _extra_has_value_fields     = 1 << 2, // has value fields and related embedded section is not empty
-    _extra_is_bufferable        = 1 << 3, // value can be buffered out side of the Java heap
-    _extra_has_vcc_klass        = 1 << 4, // has a pointer to its Value Capable Class (MVT)
-    _extra_has_vcc_annotation   = 1 << 5
+    _extra_is_bufferable        = 1 << 3  // value can be buffered out side of the Java heap
   };
 
  protected:
@@ -339,6 +351,8 @@ class InstanceKlass: public Klass {
   //   have this embedded field.
   //
 
+  ValueKlassFixedBlock* _adr_valueklass_fixed_block;
+
   friend class SystemDictionary;
 
  public:
@@ -389,21 +403,6 @@ class InstanceKlass: public Klass {
   }
   void set_has_value_fields()  {
     _extra_flags |= _extra_has_value_fields;
-  }
-
-  bool has_vcc_klass() const {
-    return (_extra_flags & _extra_has_vcc_klass) != 0;
-  }
-  void set_has_vcc_klass() {
-    _extra_flags |= _extra_has_vcc_klass;
-  }
-
-  bool has_vcc_annotation() const {
-    return (_extra_flags &_extra_has_vcc_annotation) != 0;
-  }
-
-  void set_has_vcc_annotation() {
-    _extra_flags |= _extra_has_vcc_annotation;
   }
 
   // field sizes
@@ -1117,8 +1116,6 @@ public:
                   bool is_interface, bool is_anonymous, bool has_stored_fingerprint,
                   int java_fields, bool is_value_type) {
     return align_metadata_size(header_size() +
-           (is_value_type ? (int)sizeof(address) : 0) +
-           (is_value_type ? (int)sizeof(address) : 0) +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
@@ -1126,8 +1123,7 @@ public:
            (is_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
-           (is_value_type ? (int)sizeof(Klass*) : 0) +
-           (is_value_type ? (int)sizeof(intptr_t)*3 : 0));
+           (is_value_type ? (int)sizeof(struct ValueKlassFixedBlock) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1142,7 +1138,7 @@ public:
   virtual void collect_statistics(KlassSizeStats *sz) const;
 #endif
 
-  intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + (is_value() ? 3 : 0 ) + vtable_length(); }
+  intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
   intptr_t* end_of_itable()     const { return start_of_itable() + itable_length(); }
 
   int  itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
@@ -1222,34 +1218,6 @@ public:
     }
   }
 
-  address adr_vcc_klass() const {
-    if (has_vcc_klass()) {
-      address adr_jf = adr_value_fields_klasses();
-      if (adr_jf != NULL) {
-        return adr_jf + this->java_fields_count() * sizeof(Klass*);
-      }
-
-      address adr_fing = adr_fingerprint();
-      if (adr_fing != NULL) {
-        return adr_fingerprint() + sizeof(u8);
-      }
-
-      InstanceKlass** adr_host = adr_host_klass();
-      if (adr_host != NULL) {
-        return (address)(adr_host + 1);
-      }
-
-      Klass** adr_impl = adr_implementor();
-      if (adr_impl != NULL) {
-        return (address)(adr_impl + 1);
-      }
-
-      return (address)end_of_nonstatic_oop_maps();
-    } else {
-      return NULL;
-    }
-  }
-
   Klass* get_value_field_klass(int idx) const {
     assert(has_value_fields(), "Sanity checking");
     Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
@@ -1270,21 +1238,6 @@ public:
     assert(k != NULL, "Should not be set to NULL");
     assert(((Klass**)adr_value_fields_klasses())[idx] == NULL, "Should not be set twice");
     ((Klass**)adr_value_fields_klasses())[idx] = k;
-  }
-
-  Klass* get_vcc_klass() const {
-    if (has_vcc_klass()) {
-      Klass* k = *(Klass**)adr_vcc_klass();
-      assert(k == NULL || !k->is_value(), "Must not be a value type");
-      return k;
-    }
-    return NULL;
-  }
-
-  void set_vcc_klass(Klass* k) {
-    assert(has_vcc_klass(), "Sanity checking");
-    assert(k == NULL || !k->is_value(), "Must not be a value type");
-    *(Klass**)adr_vcc_klass()= k;
   }
 
   // Use this to return the size of an instance in heap words:
@@ -1514,9 +1467,6 @@ public:
 
   // jvm support
   jint compute_modifier_flags(TRAPS) const;
-
-  //Valhalla prototype ValueCapableClass
-  void create_value_capable_class(Handle class_loader, Handle protection_domain, TRAPS);
 
 public:
   // JVMTI support

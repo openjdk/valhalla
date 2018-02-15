@@ -153,7 +153,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
                                        parser.is_interface(),
                                        parser.is_anonymous(),
                                        should_store_fingerprint(parser.is_anonymous()),
-                                       parser.has_value_fields() ? parser.java_fields_count() : 0,
+                                       parser.has_flattenable_fields() ? parser.java_fields_count() : 0,
                                        parser.is_value_type());
 
   const Symbol* const class_name = parser.class_name();
@@ -258,14 +258,15 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind) :
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
   _reference_type(parser.reference_type()),
-  _extra_flags(0) {
+  _extra_flags(0),
+  _adr_valueklass_fixed_block(NULL) {
     set_vtable_length(parser.vtable_size());
     set_kind(kind);
     set_access_flags(parser.access_flags());
     set_is_anonymous(parser.is_anonymous());
     set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-    if (parser.has_value_fields()) {
+    if (parser.has_flattenable_fields()) {
       set_has_value_fields();
     }
     _java_fields_count = parser.java_fields_count();
@@ -627,7 +628,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
   // First step: fields
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     ResourceMark rm(THREAD);
-    if (fs.field_descriptor().field_type() == T_VALUETYPE) {
+    if (fs.field_descriptor().access_flags().is_flattenable()) {
       Symbol* signature = fs.field_descriptor().signature();
       // Get current loader and protection domain first.
       oop loader = class_loader();
@@ -689,11 +690,6 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
     //
 
     if (!is_linked()) {
-      // The VCC must be linked before the DVT
-      if (get_vcc_klass() != NULL) {
-          InstanceKlass::cast(get_vcc_klass())->link_class(CHECK_false);
-      }
-
       if (!is_rewritten()) {
         {
           bool verify_ok = verify_code(throw_verifyerror, THREAD);
@@ -801,11 +797,6 @@ void InstanceKlass::initialize_super_interfaces(TRAPS) {
 
 void InstanceKlass::initialize_impl(TRAPS) {
   HandleMark hm(THREAD);
-
-  // ensure outer VCC is initialized, possible some crafty code referred to VT 1st
-  if (get_vcc_klass() != NULL) {
-    get_vcc_klass()->initialize(CHECK);
-  }
 
   // Make sure klass is linked (verified) before initialization
   // A class could already be verified, since it has been reflected upon.
@@ -2393,7 +2384,7 @@ const char* InstanceKlass::signature_name() const {
 
   // Add L as type indicator
   int dest_index = 0;
-  dest[dest_index++] = is_value_type_klass() ? 'Q' : 'L';
+  dest[dest_index++] = 'L';
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {
@@ -3896,99 +3887,3 @@ JvmtiCachedClassFileData* InstanceKlass::get_archived_class_data() {
   Exceptions::fthrow(THREAD_AND_LOCATION, vmSymbols::java_lang_IncompatibleClassChangeError(), \
       "ValueCapableClass class '%s' %s", external_name(),(s)); \
       return
-
-void InstanceKlass::create_value_capable_class(Handle class_loader, Handle protection_domain, TRAPS) {
-  ResourceMark rm(THREAD);
-  HandleMark hm(THREAD);
-
-  if (!EnableMVT) {
-    return; // Silent fail
-  }
-  // Validate VCC...
-  if (!has_nonstatic_fields()) {
-    THROW_DVT_ERROR("has no instance fields");
-  }
-  if (is_value()) {
-    THROW_DVT_ERROR("is already a value type");
-  }
-  if (!access_flags().is_final()) {
-    THROW_DVT_ERROR("is not a final class");
-  }
-  if (super() != SystemDictionary::Object_klass()) {
-    THROW_DVT_ERROR("does not derive from Object only");
-  }
-
-  // All non-static are final
-  GrowableArray<Handle>* fields = new GrowableArray<Handle>(THREAD, java_fields_count()*2);
-  GrowableArray<jint>* fields_access = new GrowableArray<jint>(THREAD, java_fields_count()*2);
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
-    AccessFlags access_flags = fs.access_flags();
-    if (access_flags.is_static()) {
-      continue;
-    }
-    if (!access_flags.is_final()) {
-      THROW_DVT_ERROR("contains non-final instance field");
-    }
-    jint flags = access_flags.get_flags();
-    // Remember the field name, signature, access modifiers
-    Handle h = java_lang_String::create_from_symbol(fs.name(), CHECK);
-    fields->append(h);
-    h = java_lang_String::create_from_symbol(fs.signature(), CHECK);
-    fields->append(h);
-    fields_access->append(access_flags.get_flags());
-  }
-
-  // Generate DVT...
-  log_debug(load)("Cooking DVT for VCC %s", external_name());
-  const char*  this_name     = name()->as_C_string();
-
-  // Assemble the Java args...field descriptor array
-  objArrayOop fdarr_oop = oopFactory::new_objectArray(fields->length(), CHECK);
-  objArrayHandle fdarr(THREAD, fdarr_oop);
-  for (int i = 0; i < fields->length(); i++) {
-    fdarr->obj_at_put(i, fields->at(i)());
-  }
-  //...field access modifiers array
-  typeArrayOop faarr_oop = oopFactory::new_intArray(fields_access->length(), CHECK);
-  typeArrayHandle faarr(THREAD, faarr_oop);
-  for (int i = 0; i < fields_access->length(); i++) {
-    faarr->int_at_put(i, fields_access->at(i));
-  }
-
-  Handle vcc_name_h = java_lang_String::create_from_symbol(name(), CHECK);
-  // Upcall to our Java helper...
-  JavaValue result(T_OBJECT);
-  JavaCallArguments args(5);
-  args.push_oop(vcc_name_h);
-  args.push_oop(class_loader);
-  args.push_oop(protection_domain);
-  args.push_oop(fdarr);
-  args.push_oop(faarr);
-  JavaCalls::call_static(&result,
-                         SystemDictionary::Valhalla_MVT1_0_klass(),
-                         vmSymbols::valhalla_shady_MVT1_0_createDerivedValueType(),
-                         vmSymbols::valhalla_shady_MVT1_0_createDerivedValueType_signature(),
-                         &args,
-                         CHECK);
-  Handle returned(THREAD, (oop) result.get_jobject());
-  if (returned.is_null()) {
-    THROW_DVT_ERROR("unknown error deriving value type");
-  }
-  TempNewSymbol dvt_name_sym = java_lang_String::as_symbol(returned(), CHECK);
-
-  Klass* dvt_klass = SystemDictionary::resolve_or_null(dvt_name_sym,
-                                                       class_loader,
-                                                       protection_domain,
-                                                       CHECK);
-  if (!dvt_klass->is_value()) {
-    THROW_DVT_ERROR("failed to resolve derived value type");
-  }
-  /**
-   * Found it, let's point to each other to denote "is_derive_vt()"...
-   */
-  ValueKlass* vt_klass = ValueKlass::cast(dvt_klass);
-  assert(vt_klass->class_loader() == class_loader(), "DVT Not the same class loader as VCC");
-  vt_klass->set_vcc_klass(this);
-  log_debug(load)("Cooked DVT %s for VCC %s", vt_klass->external_name(), external_name());
-}
-

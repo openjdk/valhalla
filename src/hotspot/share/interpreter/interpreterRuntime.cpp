@@ -244,10 +244,10 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
   }
 }
 
-IRT_ENTRY(void, InterpreterRuntime::vdefault(JavaThread* thread, ConstantPool* pool, int index))
+IRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* thread, ConstantPool* pool, int index))
   // Getting the ValueKlass
   Klass* k = pool->klass_at(index, CHECK);
-  assert(k->is_value(), "vdefault argument must be the value type class");
+  assert(k->is_value(), "defaultvalue argument must be the value type class");
   ValueKlass* vklass = ValueKlass::cast(k);
 
   vklass->initialize(THREAD);
@@ -255,14 +255,14 @@ IRT_ENTRY(void, InterpreterRuntime::vdefault(JavaThread* thread, ConstantPool* p
   thread->set_vm_result(res);
 IRT_END
 
-IRT_ENTRY(int, InterpreterRuntime::vwithfield(JavaThread* thread, ConstantPoolCache* cp_cache))
+IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCache* cp_cache))
   LastFrameAccessor last_frame(thread);
   // Getting the ValueKlass
-  int index = ConstantPool::decode_cpcache_index(last_frame.get_index_u2_cpcache(Bytecodes::_vwithfield));
+  int index = ConstantPool::decode_cpcache_index(last_frame.get_index_u2_cpcache(Bytecodes::_withfield));
   ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(index);
-  assert(cp_entry->is_resolved(Bytecodes::_vwithfield), "Should have been resolved");
+  assert(cp_entry->is_resolved(Bytecodes::_withfield), "Should have been resolved");
   Klass* klass = cp_entry->f1_as_klass();
-  assert(klass->is_value(), "vwithfield only applies to value types");
+  assert(klass->is_value(), "withfield only applies to value types");
   ValueKlass* vklass = ValueKlass::cast(klass);
 
   // Getting Field information
@@ -341,54 +341,7 @@ IRT_ENTRY(int, InterpreterRuntime::vwithfield(JavaThread* thread, ConstantPoolCa
 
   // returning result
   thread->set_vm_result(new_value_h());
-  return (type2size[field_type] + type2size[T_VALUETYPE]) * AbstractInterpreter::stackElementSize;
-IRT_END
-
-IRT_ENTRY(void, InterpreterRuntime::vbox(JavaThread* thread, ConstantPool* pool, int index, oopDesc* value))
-  assert(EnableMVT, "vbox is supported only when the MVT programming model is enabled");
-  if (value == NULL) {
-    THROW(vmSymbols::java_lang_NullPointerException());
-  }
-
-  // Since the verifier is probably disabled, a few extra type check
-  Klass* target_klass = pool->klass_at(index, CHECK);
-  if (target_klass->is_value()) {
-    THROW_MSG(vmSymbols::java_lang_ClassCastException(), "vbox target is value type");
-  }
-  Klass* klass = value->klass();
-  if (!klass->is_value()) {
-    THROW_MSG(vmSymbols::java_lang_ClassCastException(), "vbox not from value type");
-  }
-  ValueKlass* vtklass = ValueKlass::cast(klass);
-  if (vtklass->get_vcc_klass() != target_klass) {
-    THROW_MSG(vmSymbols::java_lang_ClassCastException(), "vbox target is not derive value type box");
-  }
-  oop box = vtklass->box(Handle(THREAD, value),
-                         InstanceKlass::cast(target_klass),
-                         CHECK);
-  thread->set_vm_result(box);
-IRT_END
-
-IRT_ENTRY(void, InterpreterRuntime::vunbox(JavaThread* thread, ConstantPool* pool, int index, oopDesc* obj))
-assert(EnableMVT, "vunbox is supported only when the MVT programming model is enabled");
-  if (obj == NULL) {
-    THROW(vmSymbols::java_lang_NullPointerException());
-  }
-  Klass* target_klass = pool->klass_at(index, CHECK);
-  if (!target_klass->is_value()) {
-    THROW_MSG(vmSymbols::java_lang_ClassCastException(), "vunbox target is not value type");
-  }
-  Klass* klass = obj->klass();
-  if ((!klass->is_instance_klass()) || klass->is_value()) {
-    THROW_MSG(vmSymbols::java_lang_ClassCastException(), "vunbox source is not an instance");
-  }
-    if (klass != InstanceKlass::cast(target_klass)->get_vcc_klass()) {
-    THROW_MSG(vmSymbols::java_lang_ClassCastException(), "vunbox target is not derive value type");
-  }
-  oop value = ValueKlass::cast(target_klass)->unbox(Handle(THREAD, obj),
-                                                InstanceKlass::cast(target_klass),
-                                                CHECK);
-  thread->set_vm_result(value);
+  return (type2size[field_type] + type2size[T_OBJECT]) * AbstractInterpreter::stackElementSize;
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
@@ -668,10 +621,9 @@ IRT_ENTRY(void, InterpreterRuntime::check_areturn(JavaThread* thread, oopDesc* o
   if (obj != NULL) {
     Klass* k = obj->klass();
     if (k->is_value()) {
-      ResourceMark rm(thread);
-      tty->print_cr("areturn used on a value from %s", k->name()->as_C_string());
+      // ResourceMark rm(thread);
+      // tty->print_cr("areturn used on a value from %s", k->name()->as_C_string());
     }
-    assert(!k->is_value(), "areturn should never be used on values");
   }
   thread->set_vm_result(obj);
 IRT_END
@@ -1032,9 +984,9 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
   constantPoolHandle pool(thread, last_frame.method()->constants());
   methodHandle m(thread, last_frame.method());
   bool is_put    = (bytecode == Bytecodes::_putfield  || bytecode == Bytecodes::_nofast_putfield ||
-                    bytecode == Bytecodes::_putstatic || bytecode == Bytecodes::_vwithfield);
+                    bytecode == Bytecodes::_putstatic || bytecode == Bytecodes::_withfield);
   bool is_static = (bytecode == Bytecodes::_getstatic || bytecode == Bytecodes::_putstatic);
-  bool is_value  = bytecode == Bytecodes::_vwithfield;
+  bool is_value  = bytecode == Bytecodes::_withfield;
 
   {
     JvmtiHideSingleStepping jhss(thread);
@@ -1084,7 +1036,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
       get_code = Bytecodes::_getfield;
     }
     if (is_put && is_value) {
-        put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_vwithfield);
+        put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_withfield);
     } else if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
     }
@@ -1100,6 +1052,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
     info.is_flatten(),
+    info.is_flattenable(),
     pool->pool_holder()
   );
 }
@@ -1357,7 +1310,7 @@ IRT_ENTRY(void, InterpreterRuntime::resolve_from_cache(JavaThread* thread, Bytec
   case Bytecodes::_putstatic:
   case Bytecodes::_getfield:
   case Bytecodes::_putfield:
-  case Bytecodes::_vwithfield:
+  case Bytecodes::_withfield:
     resolve_get_put(thread, bytecode);
     break;
   case Bytecodes::_invokevirtual:

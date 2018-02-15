@@ -101,7 +101,6 @@ class CellTypeState VALUE_OBJ_CLASS_SPEC {
          ref_bit              = nth_bit(30),
          val_bit              = nth_bit(29),
          addr_bit             = nth_bit(28),
-         valuetype_bit        = nth_bit(27),
          live_bits_mask       = (int)(bits_mask & ~uninit_bit) };
 
   // These constants are used for manipulating the INFO portion of a
@@ -131,7 +130,6 @@ class CellTypeState VALUE_OBJ_CLASS_SPEC {
          ref_value            = ref_bit,
          ref_conflict         = ref_bit | info_conflict,
          val_value            = val_bit | info_conflict,
-         valuetype_conflict   = valuetype_bit | info_conflict,
          addr_value           = addr_bit,
          addr_conflict        = addr_bit | info_conflict };
 
@@ -183,19 +181,6 @@ class CellTypeState VALUE_OBJ_CLASS_SPEC {
     return make_any(ref_bit | not_bottom_info_bit | (bci & ref_data_mask));
   }
 
-
-  static CellTypeState make_slot_valuetype(int slot_num) {
-    assert(slot_num >= 0 && slot_num < valuetype_data_mask, "slot out of range");
-    return make_any(valuetype_bit | not_bottom_info_bit | valuetype_slot_bit |
-        (slot_num & valuetype_data_mask));
-  }
-
-  static CellTypeState make_line_valuetype(int bci) {
-    assert(bci >= 0 && bci < valuetype_data_mask, "line out of range");
-    return make_any(valuetype_bit | not_bottom_info_bit |
-        (bci & valuetype_data_mask));
-  }
-
   // Query methods:
   bool is_bottom() const                { return _state == 0; }
   bool is_live() const                  { return ((_state & live_bits_mask) != 0); }
@@ -218,13 +203,11 @@ class CellTypeState VALUE_OBJ_CLASS_SPEC {
   bool is_address() const               { return ((_state & bits_mask) == addr_bit); }
   bool is_reference() const             { return ((_state & bits_mask) == ref_bit); }
   bool is_value() const                 { return ((_state & bits_mask) == val_bit); }
-  bool is_valuetype() const             { return ((_state & bits_mask) == valuetype_bit); }
   bool is_uninit() const                { return ((_state & bits_mask) == (uint)uninit_bit); }
 
   bool can_be_address() const           { return ((_state & addr_bit) != 0); }
   bool can_be_reference() const         { return ((_state & ref_bit) != 0); }
   bool can_be_value() const             { return ((_state & val_bit) != 0); }
-  bool can_be_valuetype() const         { return ((_state & valuetype_bit) != 0); }
   bool can_be_uninit() const            { return ((_state & uninit_bit) != 0); }
 
   bool is_info_bottom() const           { return ((_state & not_bottom_info_bit) == 0); }
@@ -261,8 +244,6 @@ class CellTypeState VALUE_OBJ_CLASS_SPEC {
   static CellTypeState uninit;
   static CellTypeState ref;
   static CellTypeState value;
-  static CellTypeState valuetype;
-  static CellTypeState refOrValueType;
   static CellTypeState refUninit;
   static CellTypeState varUninit;
   static CellTypeState top;
@@ -417,15 +398,13 @@ class GenerateOopMap VALUE_OBJ_CLASS_SPEC {
   void  ppop_any                            (int poplen);
   void  pp                                  (CellTypeState *in, CellTypeState *out);
   void  pp_new_ref                          (CellTypeState *in, int bci);
-  void  pp_new_valuetype                    (CellTypeState *in, int bci);
   void  ppdupswap                           (int poplen, const char *out);
   void  do_ldc                              (int bci);
   void  do_astore                           (int idx);
-  void  do_vstore                           (int idx);
   void  do_jsr                              (int delta);
   void  do_field                            (int is_get, int is_static, int idx, int bci);
   void  do_method                           (int is_static, int idx, int bci);
-  void  do_vwithfield                       (int idx, int bci);
+  void  do_withfield                       (int idx, int bci);
   void  do_multianewarray                   (int dims, int bci);
   void  do_monitorenter                     (int bci);
   void  do_monitorexit                      (int bci);

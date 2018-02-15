@@ -239,7 +239,6 @@ void ciMethodBlocks::do_analysis() {
       case Bytecodes::_freturn     :
       case Bytecodes::_dreturn     :
       case Bytecodes::_areturn     :
-      case Bytecodes::_vreturn     :
       case Bytecodes::_return      :
         cur_block->set_control_bci(bci);
         if (s.next_bci() < limit_bci) {

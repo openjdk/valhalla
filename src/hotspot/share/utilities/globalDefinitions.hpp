@@ -583,15 +583,15 @@ enum BasicType {
   T_LONG        = 11,
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_VALUETYPE   = 14,
-  T_VOID        = 15,
-  T_ADDRESS     = 16,
-  T_NARROWOOP   = 17,
-  T_METADATA    = 18,
-  T_NARROWKLASS = 19,
-  T_VALUETYPEPTR= 20, // the compiler needs a way to identify buffered values
-  T_CONFLICT    = 21, // for stack value type with conflicting contents
-  T_ILLEGAL     = 99
+  T_VOID        = 14,
+  T_ADDRESS     = 15,
+  T_NARROWOOP   = 16,
+  T_METADATA    = 17,
+  T_NARROWKLASS = 18,
+  T_VALUETYPEPTR= 19, // the compiler needs a way to identify buffered values
+  T_CONFLICT    = 20, // for stack value type with conflicting contents
+  T_ILLEGAL     = 99,
+  T_VALUETYPE   = 100  // temporary hack for the transition for VVT to LWVT
 };
 
 inline bool is_java_primitive(BasicType t) {
@@ -625,7 +625,6 @@ inline BasicType char2type(char c) {
   case 'V': return T_VOID;
   case 'L': return T_OBJECT;
   case '[': return T_ARRAY;
-  case 'Q': return T_VALUETYPE;
   }
   return T_ILLEGAL;
 }
@@ -680,11 +679,9 @@ enum ArrayElementSize {
 #ifdef _LP64
   T_OBJECT_aelem_bytes      = 8,
   T_ARRAY_aelem_bytes       = 8,
-  T_VALUETYPE_aelem_bytes   = 8,
 #else
   T_OBJECT_aelem_bytes      = 4,
   T_ARRAY_aelem_bytes       = 4,
-  T_VALUETYPE_aelem_bytes   = 4,
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
@@ -786,10 +783,8 @@ enum TosState {         // describes the tos cache contents
   ftos = 6,             // float tos cached
   dtos = 7,             // double tos cached
   atos = 8,             // object cached
-  qtos = 9,             // value type cached
-  vtos = 10,            // tos not cached,
+  vtos = 9,             // tos not cached,
   number_of_states,
-  ptos = 12,            // polymorphic tos cache (atos or qtos)
   ilgl                  // illegal state: should not occur
 };
 
@@ -804,9 +799,9 @@ inline TosState as_TosState(BasicType type) {
     case T_LONG   : return ltos;
     case T_FLOAT  : return ftos;
     case T_DOUBLE : return dtos;
-    case T_VALUETYPE : return qtos;
     case T_VOID   : return vtos;
-    case T_ARRAY  : // fall through
+    case T_VALUETYPE: // fall through
+    case T_ARRAY  :   // fall through
     case T_OBJECT : return atos;
     default       : return ilgl;
   }
@@ -823,7 +818,6 @@ inline BasicType as_BasicType(TosState state) {
     case ftos : return T_FLOAT;
     case dtos : return T_DOUBLE;
     case atos : return T_OBJECT;
-    case qtos : return T_VALUETYPE;
     case vtos : return T_VOID;
     default   : return T_ILLEGAL;
   }

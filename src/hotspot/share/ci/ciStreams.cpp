@@ -170,10 +170,8 @@ int ciBytecodeStream::get_klass_index() const {
   case Bytecodes::_anewarray:
   case Bytecodes::_multianewarray:
   case Bytecodes::_new:
-  case Bytecodes::_vdefault:
+  case Bytecodes::_defaultvalue:
   case Bytecodes::_newarray:
-  case Bytecodes::_vunbox:
-  case Bytecodes::_vbox:
     return get_index_u2();
   default:
     ShouldNotReachHere();
@@ -271,7 +269,7 @@ int ciBytecodeStream::get_field_index() {
          cur_bc() == Bytecodes::_putfield ||
          cur_bc() == Bytecodes::_getstatic ||
          cur_bc() == Bytecodes::_putstatic ||
-         cur_bc() == Bytecodes::_vwithfield, "wrong bc");
+         cur_bc() == Bytecodes::_withfield, "wrong bc");
   return get_index_u2_cpcache();
 }
 

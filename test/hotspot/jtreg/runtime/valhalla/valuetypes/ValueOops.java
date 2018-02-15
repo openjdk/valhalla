@@ -53,6 +53,11 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
+ */
+
+
+
+/*
  * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops

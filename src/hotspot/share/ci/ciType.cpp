@@ -64,7 +64,7 @@ bool ciType::is_subtype_of(ciType* type) {
 // ciType::is__Value
 //
 bool ciType::is__Value() const {
-  return (this == ciEnv::____Value_klass);
+  return false;
 }
 
 // ------------------------------------------------------------------

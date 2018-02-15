@@ -166,9 +166,6 @@ template <bool nv, class OopClosureType>
 ALWAYSINLINE int InstanceKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   if (Devirtualizer<nv>::do_metadata(closure)) {
     Devirtualizer<nv>::do_klass(closure, this);
-    if (get_vcc_klass() != NULL) {
-      Devirtualizer<nv>::do_klass(closure, get_vcc_klass());
-    }
   }
 
   oop_oop_iterate_oop_maps<nv>(obj, closure);
@@ -193,9 +190,6 @@ ALWAYSINLINE int InstanceKlass::oop_oop_iterate_bounded(oop obj, OopClosureType*
   if (Devirtualizer<nv>::do_metadata(closure)) {
     if (mr.contains(obj)) {
       Devirtualizer<nv>::do_klass(closure, this);
-      if (get_vcc_klass() != NULL) {
-        Devirtualizer<nv>::do_klass(closure, get_vcc_klass());
-      }
     }
   }
 

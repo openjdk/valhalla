@@ -363,7 +363,7 @@ class VerificationType VALUE_OBJ_CLASS_SPEC {
     // 2. Check java/lang/__Value - from may be trying to be assigned to a __Value parameter
     assert(is_valuetype() && from.is_valuetype(), "Is value type assignable called with a non-value type");
     return (name() == from.name() ||
-            name() == vmSymbols::java_lang____Value());
+            name() == vmSymbols::java_lang_Object());
   }
 
  public:

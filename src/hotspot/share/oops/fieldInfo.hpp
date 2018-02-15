@@ -51,8 +51,9 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
 #define FIELDINFO_TAG_TYPE_PLAIN       2
 #define FIELDINFO_TAG_TYPE_CONTENDED   3
 #define FIELDINFO_TAG_TYPE_MASK        3
-#define FIELDINFO_TAG_MASK             7
+#define FIELDINFO_TAG_MASK            15
 #define FIELDINFO_FLATTENING_OFFSET    2
+#define FIELDINFO_FLATTENABLE_OFFSET   3
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits
@@ -234,6 +235,18 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
 
   bool is_flatten() {
     return ((_shorts[low_packed_offset] >> FIELDINFO_FLATTENING_OFFSET) & 1) != 0;
+  }
+
+  void set_flattenable(bool b) {
+      if (b) {
+        _shorts[low_packed_offset] |= 1 << FIELDINFO_FLATTENABLE_OFFSET;
+      } else {
+        _shorts[low_packed_offset] &= ~(1 << FIELDINFO_FLATTENABLE_OFFSET);
+      }
+    }
+
+  bool is_flattenable() {
+    return ((_shorts[low_packed_offset] >> FIELDINFO_FLATTENABLE_OFFSET) & 1) != 0;
   }
 
   void set_contended_group(u2 val) {

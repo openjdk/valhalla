@@ -32,6 +32,11 @@ import jdk.test.lib.Asserts;
  * @compile -XDenableValueTypes --add-modules jdk.incubator.mvt Point.java
  * @compile -XDenableValueTypes VWithFieldTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
+ */
+
+
+
+/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
  */
 

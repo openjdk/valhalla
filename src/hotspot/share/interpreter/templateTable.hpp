@@ -144,7 +144,6 @@ class TemplateTable: AllStatic {
   static void fload();
   static void dload();
   static void aload();
-  static void vload();
 
   static void locals_index_wide(Register reg);
   static void wide_iload();
@@ -152,14 +151,12 @@ class TemplateTable: AllStatic {
   static void wide_fload();
   static void wide_dload();
   static void wide_aload();
-  static void wide_vload();
 
   static void iaload();
   static void laload();
   static void faload();
   static void daload();
   static void aaload();
-  static void vaload();
   static void baload();
   static void caload();
   static void saload();
@@ -180,21 +177,18 @@ class TemplateTable: AllStatic {
   static void fstore();
   static void dstore();
   static void astore();
-  static void vstore();
 
   static void wide_istore();
   static void wide_lstore();
   static void wide_fstore();
   static void wide_dstore();
   static void wide_astore();
-  static void wide_vstore();
 
   static void iastore();
   static void lastore();
   static void fastore();
   static void dastore();
   static void aastore();
-  static void vastore();
   static void bastore();
   static void castore();
   static void sastore();
@@ -302,18 +296,15 @@ class TemplateTable: AllStatic {
   static void putstatic(int byte_no);
   static void pop_and_check_object(Register obj);
   static void condy_helper(Label& Done);  // shared by ldc instances
-  static void vwithfield();
+  static void withfield();
 
   static void _new();
-  static void vdefault();
+  static void defaultvalue();
   static void newarray();
   static void anewarray();
   static void arraylength();
   static void checkcast();
   static void instanceof();
-
-  static void _vbox();
-  static void _vunbox();
 
   static void athrow();
 
@@ -342,7 +333,7 @@ class TemplateTable: AllStatic {
   // initialization helpers
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(            ), char filler );
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(int arg     ), int arg     );
- static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg    );
+  static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(bool arg    ), bool arg    );
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(TosState tos), TosState tos);
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Operation op), Operation op);
   static void def(Bytecodes::Code code, int flags, TosState in, TosState out, void (*gen)(Condition cc), Condition cc);

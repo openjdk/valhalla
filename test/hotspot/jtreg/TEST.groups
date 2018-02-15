@@ -47,6 +47,12 @@ hotspot_valhalla = \
   runtime/valhalla \
   compiler/valhalla
 
+hotspot_valhalla_runtime = \
+  runtime/valhalla
+
+hotspot_valhalla_1 = \
+  runtime/valhalla/valuetypes/ValueTypeCreation.java
+
 hotspot_misc = \
   / \
  -applications \

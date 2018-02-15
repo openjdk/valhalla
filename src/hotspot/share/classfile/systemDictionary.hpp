@@ -190,8 +190,6 @@ class GCTimer;
   do_klass(CodeSource_klass,                            java_security_CodeSource,                  Pre                 ) \
   do_klass(ParseUtil_klass,                             sun_net_www_ParseUtil,                     Pre                 ) \
                                                                                                                          \
-  /* support for valhalla "shady" value type bytecode transformer */                                                     \
-  do_klass(Valhalla_MVT1_0_klass,                       valhalla_shady_MVT1_0,                     MVTClasses          ) \
                                                                                                                          \
   do_klass(StackTraceElement_klass,                     java_lang_StackTraceElement,               Opt                 ) \
                                                                                                                          \
@@ -214,7 +212,6 @@ class GCTimer;
   do_klass(Integer_klass,                               java_lang_Integer,                         Pre                 ) \
   do_klass(Long_klass,                                  java_lang_Long,                            Pre                 ) \
                                                                                                                          \
-  do_klass(___Value_klass,                              java_lang____Value,                        ValhallaClasses     ) \
                                                                                                                          \
   /* Extensions */                                                                                                       \
   WK_KLASSES_DO_EXT(do_klass)                                                                                            \
@@ -667,7 +664,6 @@ protected:
   static Klass* resolve_instance_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static Klass* do_resolve_instance_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static Klass* resolve_array_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
-  static Klass* resolve_dvt_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static InstanceKlass* handle_parallel_super_load(Symbol* class_name, Symbol* supername, Handle class_loader, Handle protection_domain, Handle lockObject, TRAPS);
   // Wait on SystemDictionary_lock; unlocks lockObject before
   // waiting; relocks lockObject with correct recursion count

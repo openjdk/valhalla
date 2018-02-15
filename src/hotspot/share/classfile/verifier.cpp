@@ -241,7 +241,6 @@ bool Verifier::is_eligible_for_verification(InstanceKlass* klass, bool should_ve
     // or defineClass specified not to verify by default (flags override passed arg)
     // We need to skip the following few for bootstrapping
     name != vmSymbols::java_lang_Object() &&
-    name != vmSymbols::java_lang____Value() &&
     name != vmSymbols::java_lang_Class() &&
     name != vmSymbols::java_lang_String() &&
     name != vmSymbols::java_lang_Throwable() &&
@@ -590,10 +589,6 @@ VerificationType ClassVerifier::object_type() const {
   return VerificationType::reference_type(vmSymbols::java_lang_Object());
 }
 
-VerificationType ClassVerifier::__value_type() const {
-  return VerificationType::valuetype_type(vmSymbols::java_lang____Value());
-}
-
 TypeOrigin ClassVerifier::ref_ctx(const char* sig, TRAPS) {
   VerificationType vt = VerificationType::reference_type(
       create_temporary_symbol(sig, (int)strlen(sig), THREAD));
@@ -748,8 +743,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             opcode != Bytecodes::_istore && opcode != Bytecodes::_astore &&
             opcode != Bytecodes::_lstore && opcode != Bytecodes::_fload  &&
             opcode != Bytecodes::_dload  && opcode != Bytecodes::_fstore &&
-            opcode != Bytecodes::_dstore && opcode != Bytecodes::_vstore &&
-            opcode != Bytecodes::_vload) {
+            opcode != Bytecodes::_dstore) {
           /* Unreachable?  RawBytecodeStream's raw_next() returns 'illegal'
            * if we encounter a wide instruction that modifies an invalid
            * opcode (not one of the ones listed above) */
@@ -863,15 +857,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_dload_3 :
           index = opcode - Bytecodes::_dload_0;
           verify_dload(index, &current_frame, CHECK_VERIFY(this));
-          no_control_flow = false; break;
-        case Bytecodes::_vload :
-          if (!vbytecodes_allowed) {
-            class_format_error(
-              "vload not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          verify_vload(bcs.get_index(), &current_frame, CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_aload :
           verify_aload(bcs.get_index(), &current_frame, CHECK_VERIFY(this));
@@ -1005,37 +990,37 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           }
           no_control_flow = false; break;
         }
-        case Bytecodes::_vaload : {
-          if (!vbytecodes_allowed) {
-            class_format_error(
-              "vaload not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          type = current_frame.pop_stack(
-            VerificationType::integer_type(), CHECK_VERIFY(this));
-          atype = current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
-          // The null check is strictly not be necessary, left in for future proofing.
-          // Will be reconsidered if type indexes are removed.
-          if (atype.is_null() || !atype.is_value_array()) {
-            verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(),
-                TypeOrigin::implicit(VerificationType::reference_check())),
-                bad_type_msg, "vaload");
-            return;
-          }
-          VerificationType component = atype.get_component(this, CHECK_VERIFY(this));
-          if (!component.is_valuetype()) {
-            verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(),
-                TypeOrigin::implicit(VerificationType::valuetype_check())),
-                bad_type_msg, "vaload");
-            return;  
-          } 
-          current_frame.push_stack(component, CHECK_VERIFY(this));
-          no_control_flow = false; break;
-        }
+//        case Bytecodes::_vaload : {
+//          if (!vbytecodes_allowed) {
+//            class_format_error(
+//              "vaload not supported by this class file version (%d.%d), class %s",
+//              _klass->major_version(), _klass->minor_version(), _klass->external_name());
+//            return;
+//          }
+//          type = current_frame.pop_stack(
+//            VerificationType::integer_type(), CHECK_VERIFY(this));
+//          atype = current_frame.pop_stack(
+//            VerificationType::reference_check(), CHECK_VERIFY(this));
+//          // The null check is strictly not be necessary, left in for future proofing.
+//          // Will be reconsidered if type indexes are removed.
+//          if (atype.is_null() || !atype.is_value_array()) {
+//            verify_error(ErrorContext::bad_type(bci,
+//                current_frame.stack_top_ctx(),
+//                TypeOrigin::implicit(VerificationType::reference_check())),
+//                bad_type_msg, "vaload");
+//            return;
+//          }
+//          VerificationType component = atype.get_component(this, CHECK_VERIFY(this));
+//          if (!component.is_valuetype()) {
+//            verify_error(ErrorContext::bad_type(bci,
+//                current_frame.stack_top_ctx(),
+//                TypeOrigin::implicit(VerificationType::valuetype_check())),
+//                bad_type_msg, "vaload");
+//            return;
+//          }
+//          current_frame.push_stack(component, CHECK_VERIFY(this));
+//          no_control_flow = false; break;
+//        }
         case Bytecodes::_istore :
           verify_istore(bcs.get_index(), &current_frame, CHECK_VERIFY(this));
           no_control_flow = false; break;
@@ -1075,15 +1060,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_dstore_3 :
           index = opcode - Bytecodes::_dstore_0;
           verify_dstore(index, &current_frame, CHECK_VERIFY(this));
-          no_control_flow = false; break;
-        case Bytecodes::_vstore :
-          if (!vbytecodes_allowed) {
-            class_format_error(
-              "vstore not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          verify_vstore(bcs.get_index(), &current_frame, CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_astore :
           verify_astore(bcs.get_index(), &current_frame, CHECK_VERIFY(this));
@@ -1211,28 +1187,28 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           }
           // 4938384: relaxed constraint in JVMS 3nd edition.
           no_control_flow = false; break;
-        case Bytecodes::_vastore :
-          if (!vbytecodes_allowed) {
-            class_format_error(
-              "vastore not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          type = current_frame.pop_stack(__value_type(), CHECK_VERIFY(this));
-          type2 = current_frame.pop_stack(
-            VerificationType::integer_type(), CHECK_VERIFY(this));
-          atype = current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
-          // The null check is strictly not be necessary, left in for future proofing.
-          // Will be reconsidered if type indexes are removed.
-          if (atype.is_null() || !atype.is_value_array()) {
-            verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(),
-                TypeOrigin::implicit(VerificationType::reference_check())),
-                bad_type_msg, "vastore");
-            return;
-          }
-          no_control_flow = false; break;
+//        case Bytecodes::_vastore :
+//          if (!vbytecodes_allowed) {
+//            class_format_error(
+//              "vastore not supported by this class file version (%d.%d), class %s",
+//              _klass->major_version(), _klass->minor_version(), _klass->external_name());
+//            return;
+//          }
+//          type = current_frame.pop_stack(__value_type(), CHECK_VERIFY(this));
+//          type2 = current_frame.pop_stack(
+//            VerificationType::integer_type(), CHECK_VERIFY(this));
+//          atype = current_frame.pop_stack(
+//            VerificationType::reference_check(), CHECK_VERIFY(this));
+//          // The null check is strictly not be necessary, left in for future proofing.
+//          // Will be reconsidered if type indexes are removed.
+//          if (atype.is_null() || !atype.is_value_array()) {
+//            verify_error(ErrorContext::bad_type(bci,
+//                current_frame.stack_top_ctx(),
+//                TypeOrigin::implicit(VerificationType::reference_check())),
+//                bad_type_msg, "vastore");
+//            return;
+//          }
+//          no_control_flow = false; break;
         case Bytecodes::_pop :
           current_frame.pop_stack(
             VerificationType::category1_check(), CHECK_VERIFY(this));
@@ -1684,18 +1660,18 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           verify_return_value(return_type, type, bci,
                               &current_frame, CHECK_VERIFY(this));
           no_control_flow = true; break;
-        case Bytecodes::_vreturn :
-          if (!vbytecodes_allowed) {
-            class_format_error(
-              "vreturn not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          type = current_frame.pop_stack(
-            VerificationType::valuetype_check(), CHECK_VERIFY(this));
-          verify_return_value(return_type, type, bci,
-                              &current_frame, CHECK_VERIFY(this));
-          no_control_flow = true; break;
+//        case Bytecodes::_vreturn :
+//          if (!vbytecodes_allowed) {
+//            class_format_error(
+//              "vreturn not supported by this class file version (%d.%d), class %s",
+//              _klass->major_version(), _klass->minor_version(), _klass->external_name());
+//            return;
+//          }
+//          type = current_frame.pop_stack(
+//            VerificationType::valuetype_check(), CHECK_VERIFY(this));
+//          verify_return_value(return_type, type, bci,
+//                              &current_frame, CHECK_VERIFY(this));
+//          no_control_flow = true; break;
         case Bytecodes::_return :
           if (return_type != VerificationType::bogus_type()) {
             verify_error(ErrorContext::bad_code(bci),
@@ -1724,7 +1700,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           verify_field_instructions(
             &bcs, &current_frame, cp, false, CHECK_VERIFY(this));
           no_control_flow = false; break;
-        case Bytecodes::_vwithfield :
+        case Bytecodes::_withfield :
           if (!vbytecodes_allowed) {
             class_format_error(
               "vwithfield not supported by this class file version (%d.%d), class %s",
@@ -1762,7 +1738,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           current_frame.push_stack(type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
-        case Bytecodes::_vdefault :
+        case Bytecodes::_defaultvalue :
         {
           if (!vbytecodes_allowed) {
             class_format_error(
@@ -1820,36 +1796,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           current_frame.pop_stack(object_type(), CHECK_VERIFY(this));
           current_frame.push_stack(
             VerificationType::integer_type(), CHECK_VERIFY(this));
-          no_control_flow = false; break;
-        }
-        case Bytecodes::_vbox : {
-          if (!EnableMVT || !vbytecodes_allowed) {
-            class_format_error(
-              "vbox not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          index = bcs.get_index_u2();
-          verify_cp_class_type(bci, index, cp, CHECK_VERIFY(this));
-          current_frame.pop_stack(VerificationType::valuetype_check(), CHECK_VERIFY(this));
-          VerificationType klass_type = cp_index_to_reference_type(
-            index, cp, CHECK_VERIFY(this));
-          current_frame.push_stack(klass_type, CHECK_VERIFY(this));
-          no_control_flow = false; break;
-        }
-        case Bytecodes::_vunbox : {
-          if (!EnableMVT || !vbytecodes_allowed) {
-            class_format_error(
-              "vunbox not supported by this class file version (%d.%d), class %s",
-              _klass->major_version(), _klass->minor_version(), _klass->external_name());
-            return;
-          }
-          index = bcs.get_index_u2();
-          verify_cp_value_type(bci, index, cp, CHECK_VERIFY(this));
-          current_frame.pop_stack(object_type(), CHECK_VERIFY(this));
-          VerificationType value_type = cp_index_to_valuetype(
-            index, cp, CHECK_VERIFY(this));
-          current_frame.push_stack(value_type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_monitorenter :
@@ -3333,12 +3279,6 @@ void ClassVerifier::verify_aload(u2 index, StackMapFrame* current_frame, TRAPS) 
   current_frame->push_stack(type, CHECK_VERIFY(this));
 }
 
-void ClassVerifier::verify_vload(u2 index, StackMapFrame* current_frame, TRAPS) {
-  VerificationType type = current_frame->get_local(
-    index, VerificationType::valuetype_check(), CHECK_VERIFY(this));
-  current_frame->push_stack(type, CHECK_VERIFY(this));
-}
-
 void ClassVerifier::verify_istore(u2 index, StackMapFrame* current_frame, TRAPS) {
   current_frame->pop_stack(
     VerificationType::integer_type(), CHECK_VERIFY(this));
@@ -3373,12 +3313,6 @@ void ClassVerifier::verify_dstore(u2 index, StackMapFrame* current_frame, TRAPS)
 void ClassVerifier::verify_astore(u2 index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->pop_stack(
     VerificationType::reference_check(), CHECK_VERIFY(this));
-  current_frame->set_local(index, type, CHECK_VERIFY(this));
-}
-
-void ClassVerifier::verify_vstore(u2 index, StackMapFrame* current_frame, TRAPS) {
-  VerificationType type = current_frame->pop_stack(
-    VerificationType::valuetype_check(), CHECK_VERIFY(this));
   current_frame->set_local(index, type, CHECK_VERIFY(this));
 }
 

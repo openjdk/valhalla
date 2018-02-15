@@ -135,11 +135,6 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
         name(), 2, name()->utf8_length() - 1,
         CHECK_(VerificationType::bogus_type()));
       return VerificationType::reference_type(component);
-    case 'Q':
-      component = context->create_temporary_symbol(
-        name(), 2, name()->utf8_length() - 1,
-        CHECK_(VerificationType::bogus_type()));
-      return VerificationType::valuetype_type(component);
     default:
       // Met an invalid type signature, e.g. [X
       return VerificationType::bogus_type();

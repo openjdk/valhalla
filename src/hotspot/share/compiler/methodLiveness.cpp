@@ -347,7 +347,6 @@ void MethodLiveness::init_basic_blocks() {
       case Bytecodes::_freturn:
       case Bytecodes::_dreturn:
       case Bytecodes::_areturn:
-      case Bytecodes::_vreturn:
       case Bytecodes::_return:
         // These opcodes are  not the normal predecessors of any other opcodes.
         break;
@@ -643,8 +642,8 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_goto_w:
     case Bytecodes::_aconst_null:
     case Bytecodes::_new:
-    case Bytecodes::_vdefault:
-    case Bytecodes::_vwithfield:
+    case Bytecodes::_defaultvalue:
+    case Bytecodes::_withfield:
     case Bytecodes::_iconst_m1:
     case Bytecodes::_iconst_0:
     case Bytecodes::_iconst_1:
@@ -671,7 +670,6 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_saload:
     case Bytecodes::_laload:
     case Bytecodes::_daload:
-    case Bytecodes::_vaload:
     case Bytecodes::_aaload:
     case Bytecodes::_iastore:
     case Bytecodes::_fastore:
@@ -680,7 +678,6 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_sastore:
     case Bytecodes::_lastore:
     case Bytecodes::_dastore:
-    case Bytecodes::_vastore:
     case Bytecodes::_aastore:
     case Bytecodes::_pop:
     case Bytecodes::_pop2:
@@ -784,15 +781,12 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_instanceof:
     case Bytecodes::_athrow:
     case Bytecodes::_areturn:
-    case Bytecodes::_vreturn:
     case Bytecodes::_monitorenter:
     case Bytecodes::_monitorexit:
     case Bytecodes::_ifnull:
     case Bytecodes::_ifnonnull:
     case Bytecodes::_multianewarray:
     case Bytecodes::_lookupswitch:
-    case Bytecodes::_vbox:
-    case Bytecodes::_vunbox:
       // These bytecodes have no effect on the method's locals.
       break;
 
@@ -834,7 +828,6 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_iinc:
     case Bytecodes::_fload:
     case Bytecodes::_aload:
-    case Bytecodes::_vload:
     case Bytecodes::_ret:
       load_one(instruction->get_index());
       break;
@@ -891,7 +884,6 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_istore:
     case Bytecodes::_fstore:
     case Bytecodes::_astore:
-    case Bytecodes::_vstore:
       store_one(instruction->get_index());
       break;
 

@@ -53,7 +53,6 @@ int ValueKlass::first_field_offset() const {
 }
 
 int ValueKlass::raw_value_byte_size() const {
-  assert(!is__Value(), "This is not the value type klass you are looking for");
   int heapOopAlignedSize = nonstatic_field_size() << LogBytesPerHeapOop;
   // If bigger than 64 bits or needs oop alignment, then use jlong aligned
   // which for values should be jlong aligned, asserts in raw_field_copy otherwise
@@ -265,32 +264,6 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
   }
 }
 
-oop ValueKlass::box(Handle src, InstanceKlass* target_klass, TRAPS) {
-  assert(src()->klass()->is_value(), "src must be a value type");
-  assert(!target_klass->is_value(), "target_klass must not be a value type");
-
-  target_klass->initialize(CHECK_0);
-  instanceOop box = target_klass->allocate_instance(CHECK_0);
-  value_store(data_for_oop(src()), data_for_oop(box), true, false);
-
-  assert(!box->klass()->is_value(), "Sanity check");
-  return box;
-}
-
-oop ValueKlass::unbox(Handle src, InstanceKlass* target_klass, TRAPS) {
-  assert(!src()->klass()->is_value(), "src must not be a value type");
-  assert(target_klass->is_value(), "target_klass must be a value type");
-  ValueKlass* vtklass = ValueKlass::cast(target_klass);
-
-  vtklass->initialize(CHECK_0);
-  bool in_heap;
-  instanceOop value = vtklass->allocate_buffered_or_heap_instance(&in_heap, CHECK_0);
-  value_store(data_for_oop(src()), data_for_oop(value), in_heap, false);
-
-  assert(value->klass()->is_value(), "Sanity check");
-  return value;
-}
-
 // Value type arguments are not passed by reference, instead each
 // field of the value type is passed as an argument. This helper
 // function collects the fields of the value types (including embedded
@@ -357,7 +330,7 @@ void ValueKlass::initialize_calling_convention() {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since value type klasses do
   // not have a vtable, the vtable offset is used to store these addresses.
-  guarantee(vtable_length() == 0, "vtables are not supported in value klasses");
+  //guarantee(vtable_length() == 0, "vtables are not supported in value klasses");
   if (ValueTypeReturnedAsFields || ValueTypePassFieldsAsArgs) {
     Thread* THREAD = Thread::current();
     assert(!HAS_PENDING_EXCEPTION, "should have no exception");
@@ -420,7 +393,7 @@ void ValueKlass::cleanup_blobs() {
 
 // Can this value type be returned as multiple values?
 bool ValueKlass::can_be_returned_as_fields() const {
-  return !is__Value() && (return_regs() != NULL);
+  return return_regs() != NULL;
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint

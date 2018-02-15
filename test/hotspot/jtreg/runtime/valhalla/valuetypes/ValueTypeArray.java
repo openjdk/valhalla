@@ -33,6 +33,9 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @compile -XDenableValueTypes ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
+ */
+
+/*
  * @run main/othervm -Xint -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray

@@ -667,17 +667,7 @@ ciInstanceKlass* ciInstanceKlass::host_klass() {
 }
 
 ciInstanceKlass* ciInstanceKlass::vcc_klass() {
-  InstanceKlass* ik = get_instanceKlass();
-  if (ik->has_vcc_klass()) {
-    if (_vcc_klass == NULL) {
-      VM_ENTRY_MARK;
-      InstanceKlass* k = InstanceKlass::cast(ik->get_vcc_klass());
-      _vcc_klass = CURRENT_THREAD_ENV->get_instance_klass(k);
-    }
-    return _vcc_klass;
-  } else {
-    return NULL;
-  }
+  return NULL;
 }
 
 // Utility class for printing of the contents of the static fields for

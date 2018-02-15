@@ -680,14 +680,6 @@ bool Reflection::verify_field_access(const Klass* current_class,
     assert(!(host_class->is_instance_klass() &&
            InstanceKlass::cast(host_class)->is_anonymous()),
            "host_class should not be anonymous");
-
-    // For Minimal Value Types check if the field class is a value type
-    // if so check if it has a Value Capable Class that is the host class,
-    // if so use the field class the host class
-    if (field_class->is_value() &&
-        InstanceKlass::cast(field_class)->get_vcc_klass() == host_class) {
-      host_class = field_class;
-    }
   }
   if (host_class == field_class) {
     return true;

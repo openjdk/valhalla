@@ -31,6 +31,10 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDenableValueTypes Point.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
+ */
+
+
+/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 public class UninitializedValueFieldsTest {

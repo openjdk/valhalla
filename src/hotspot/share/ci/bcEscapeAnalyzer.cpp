@@ -431,7 +431,6 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         break;
       }
       case Bytecodes::_aload:
-      case Bytecodes::_vload:
         state.apush(state._vars[s.get_index()]);
         break;
       case Bytecodes::_iload:
@@ -485,7 +484,6 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         set_method_escape(state.apop());
         state.lpush();
         break;
-      case Bytecodes::_vaload:
       case Bytecodes::_aaload:
         { state.spop();
           ArgumentMap array = state.apop();
@@ -519,7 +517,6 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         state.lpop();
         break;
       case Bytecodes::_astore:
-      case Bytecodes::_vstore:
         state._vars[s.get_index()] = state.apop();
         break;
       case Bytecodes::_astore_0:
@@ -565,17 +562,18 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         set_modified(arr, OFFSET_ANY, type2size[T_OBJECT]*HeapWordSize);
         break;
       }
-      case Bytecodes::_vastore:
-      {
-        set_global_escape(state.apop());
-        state.spop();
-        ArgumentMap arr = state.apop();
-        // If the array is flattened, a larger part of it is modified than
-        // the size of a reference. However, if OFFSET_ANY is given as
-        // parameter to set_modified(), size is not taken into account.
-        set_modified(arr, OFFSET_ANY, type2size[T_VALUETYPE]*HeapWordSize);
-        break;
-      }
+//      the vastore case below should be refactored to the aastore case above
+//      case Bytecodes::_vastore:
+//      {
+//        set_global_escape(state.apop());
+//        state.spop();
+//        ArgumentMap arr = state.apop();
+//        // If the array is flattened, a larger part of it is modified than
+//        // the size of a reference. However, if OFFSET_ANY is given as
+//        // parameter to set_modified(), size is not taken into account.
+//        set_modified(arr, OFFSET_ANY, type2size[T_VALUETYPE]*HeapWordSize);
+//        break;
+//      }
       case Bytecodes::_pop:
         state.raw_pop();
         break;
@@ -864,7 +862,6 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         fall_through = false;
         break;
       case Bytecodes::_areturn:
-      case Bytecodes::_vreturn:
         set_returned(state.apop());
         fall_through = false;
         break;
@@ -958,10 +955,10 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         }
         break;
       case Bytecodes::_new:
-      case Bytecodes::_vdefault:
+      case Bytecodes::_defaultvalue:
         state.apush(allocated_obj);
         break;
-      case Bytecodes::_vwithfield: {
+      case Bytecodes::_withfield: {
         bool will_link;
         ciField* field = s.get_field(will_link);
         BasicType field_type = field->type()->basic_type();
@@ -1042,11 +1039,6 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         break;
       }
       case Bytecodes::_breakpoint:
-        break;
-      case Bytecodes::_vbox:
-      case Bytecodes::_vunbox:
-        set_method_escape(state.apop());
-        state.apush(allocated_obj);
         break;
       default:
         ShouldNotReachHere();

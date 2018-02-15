@@ -121,7 +121,6 @@ class ComputeCallStack : public SignatureIterator {
   virtual void do_int   ()              { set(CellTypeState::value); };
   virtual void do_void  ()              { set(CellTypeState::bottom);};
   virtual void do_object(int begin, int end)  { set(CellTypeState::ref); };
-  virtual void do_valuetype (int begin, int end)  { set(CellTypeState::valuetype); };
   virtual void do_array (int begin, int end)  { set(CellTypeState::ref); };
 
   void do_double()                      { set(CellTypeState::value);
@@ -138,7 +137,7 @@ public:
     _effect = effect;
 
     if (!is_static) {
-      effect[_idx++] = CellTypeState::refOrValueType;
+      effect[_idx++] = CellTypeState::ref;
     }
 
     iterate_parameters();
@@ -178,7 +177,6 @@ class ComputeEntryStack : public SignatureIterator {
   virtual void do_void  ()              { set(CellTypeState::bottom);};
   virtual void do_object(int begin, int end)  { set(CellTypeState::make_slot_ref(_idx)); }
   virtual void do_array (int begin, int end)  { set(CellTypeState::make_slot_ref(_idx)); }
-  virtual void do_valuetype(int begin, int end)  { set(CellTypeState::make_slot_valuetype(_idx)); }
 
   void do_double()                      { set(CellTypeState::value);
                                           set(CellTypeState::value); }
@@ -300,8 +298,6 @@ CellTypeState CellTypeState::bottom      = CellTypeState::make_bottom();
 CellTypeState CellTypeState::uninit      = CellTypeState::make_any(uninit_value);
 CellTypeState CellTypeState::ref         = CellTypeState::make_any(ref_conflict);
 CellTypeState CellTypeState::value       = CellTypeState::make_any(val_value);
-CellTypeState CellTypeState::valuetype   = CellTypeState::make_any(valuetype_conflict);
-CellTypeState CellTypeState::refOrValueType = CellTypeState::make_any(valuetype_conflict | ref_conflict);
 CellTypeState CellTypeState::refUninit   = CellTypeState::make_any(ref_conflict | uninit_value);
 CellTypeState CellTypeState::top         = CellTypeState::make_top();
 CellTypeState CellTypeState::addr        = CellTypeState::make_any(addr_conflict);
@@ -310,15 +306,12 @@ CellTypeState CellTypeState::addr        = CellTypeState::make_any(addr_conflict
 static CellTypeState epsilonCTS[1] = { CellTypeState::bottom };
 static CellTypeState   refCTS   = CellTypeState::ref;
 static CellTypeState   valCTS   = CellTypeState::value;
-static CellTypeState valuetypeCTS = CellTypeState::valuetype;
 static CellTypeState    vCTS[2] = { CellTypeState::value, CellTypeState::bottom };
 static CellTypeState    rCTS[2] = { CellTypeState::ref,   CellTypeState::bottom };
-static CellTypeState    qCTS[2] = { CellTypeState::valuetype, CellTypeState::bottom };
 static CellTypeState   rrCTS[3] = { CellTypeState::ref,   CellTypeState::ref,   CellTypeState::bottom };
 static CellTypeState   vrCTS[3] = { CellTypeState::value, CellTypeState::ref,   CellTypeState::bottom };
 static CellTypeState   vvCTS[3] = { CellTypeState::value, CellTypeState::value, CellTypeState::bottom };
 static CellTypeState  rvrCTS[4] = { CellTypeState::ref,   CellTypeState::value, CellTypeState::ref,   CellTypeState::bottom };
-static CellTypeState  qvrCTS[4] = { CellTypeState::valuetype, CellTypeState::value, CellTypeState::ref, CellTypeState::bottom };
 static CellTypeState  vvrCTS[4] = { CellTypeState::value, CellTypeState::value, CellTypeState::ref,   CellTypeState::bottom };
 static CellTypeState  vvvCTS[4] = { CellTypeState::value, CellTypeState::value, CellTypeState::value, CellTypeState::bottom };
 static CellTypeState vvvrCTS[5] = { CellTypeState::value, CellTypeState::value, CellTypeState::value, CellTypeState::ref,   CellTypeState::bottom };
@@ -326,15 +319,10 @@ static CellTypeState vvvvCTS[5] = { CellTypeState::value, CellTypeState::value, 
 
 char CellTypeState::to_char() const {
   if (can_be_reference()) {
-    if (can_be_value() || can_be_address() || can_be_valuetype())
-      return '#';    // Conflict that needs to be rewritten
-    else
-      return 'r';
-  } else if (can_be_valuetype()) {
     if (can_be_value() || can_be_address())
       return '#';    // Conflict that needs to be rewritten
     else
-      return 'q';
+      return 'r';
   } else if (can_be_value())
     return 'v';
   else if (can_be_address())
@@ -362,11 +350,6 @@ void CellTypeState::print(outputStream *os) {
   }
   if (can_be_value()) {
     os->print("v");
-  } else {
-    os->print(" ");
-  }
-  if (can_be_valuetype()) {
-    os->print("q");
   } else {
     os->print(" ");
   }
@@ -612,7 +595,6 @@ bool GenerateOopMap::jump_targets_do(BytecodeStream *bcs, jmpFct_t jmpFct, int *
     case Bytecodes::_freturn:
     case Bytecodes::_dreturn:
     case Bytecodes::_areturn:
-    case Bytecodes::_vreturn:
     case Bytecodes::_return:
     case Bytecodes::_ret:
       break;
@@ -724,15 +706,13 @@ CellTypeState CellTypeState::merge(CellTypeState cts, int slot) const {
 
   // If the top bit is set, we don't need to do any more work.
   if (!result.is_info_top()) {
-    assert((result.can_be_address() || result.can_be_reference() || result.can_be_valuetype()),
+    assert((result.can_be_address() || result.can_be_reference()),
            "only addresses and references have non-top info");
 
     if (!equal(cts)) {
       // The two values being merged are different.  Raise to top.
       if (result.is_reference()) {
         result = CellTypeState::make_slot_ref(slot);
-      } else if (result.is_valuetype()) {
-        result = CellTypeState::make_slot_valuetype(slot);
       } else {
         result._state |= info_conflict;
       }
@@ -855,7 +835,7 @@ void GenerateOopMap::merge_state(GenerateOopMap *gom, int bci, int* data) {
 }
 
 void GenerateOopMap::set_var(int localNo, CellTypeState cts) {
-  assert(cts.is_reference() || cts.is_value() || cts.is_address() || cts.is_valuetype(),
+  assert(cts.is_reference() || cts.is_value() || cts.is_address(),
          "wrong celltypestate");
   if (localNo < 0 || localNo > _max_locals) {
     verify_error("variable write error: r%d", localNo);
@@ -1396,8 +1376,8 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_new:               ppush1(CellTypeState::make_line_ref(itr->bci()));
                                         break;
 
-    case Bytecodes::_vdefault:          ppush1(CellTypeState::make_line_valuetype(itr->bci())); break;
-    case Bytecodes::_vwithfield:        do_vwithfield(itr->get_index_u2_cpcache(), itr->bci()); break;
+    case Bytecodes::_defaultvalue:      ppush1(CellTypeState::make_line_ref(itr->bci())); break;
+    case Bytecodes::_withfield:         do_withfield(itr->get_index_u2_cpcache(), itr->bci()); break;
 
     case Bytecodes::_iconst_m1:
     case Bytecodes::_iconst_0:
@@ -1429,8 +1409,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_dload:             ppload(vvCTS,itr->get_index()); break;
 
     case Bytecodes::_aload:             ppload(rCTS, itr->get_index()); break;
-
-    case Bytecodes::_vload:             ppload(qCTS, itr->get_index()); break;
 
     case Bytecodes::_iload_0:
     case Bytecodes::_fload_0:           ppload(vCTS, 0);            break;
@@ -1465,7 +1443,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_daload:            pp(vrCTS, vvCTS); break;
 
     case Bytecodes::_aaload:            pp_new_ref(vrCTS, itr->bci()); break;
-    case Bytecodes::_vaload:            pp_new_valuetype(vrCTS, itr->bci()); break;
 
     case Bytecodes::_istore:
     case Bytecodes::_fstore:            ppstore(vCTS, itr->get_index()); break;
@@ -1474,7 +1451,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_dstore:            ppstore(vvCTS, itr->get_index()); break;
 
     case Bytecodes::_astore:            do_astore(itr->get_index());     break;
-    case Bytecodes::_vstore:            do_vstore(itr->get_index()); break;
 
     case Bytecodes::_istore_0:
     case Bytecodes::_fstore_0:          ppstore(vCTS, 0);           break;
@@ -1507,7 +1483,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_lastore:
     case Bytecodes::_dastore:           ppop(vvvrCTS);              break;
     case Bytecodes::_aastore:           ppop(rvrCTS);               break;
-    case Bytecodes::_vastore:           ppop(qvrCTS);               break;
 
     case Bytecodes::_pop:               ppop_any(1);                break;
     case Bytecodes::_pop2:              ppop_any(2);                break;
@@ -1649,16 +1624,9 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
                                         ppop1(refCTS);
                                         break;
 
-    case Bytecodes::_vreturn:           do_return_monitor_check();
-                                        ppop1(valuetypeCTS);
-                                        break;
-
     case Bytecodes::_ifnull:
     case Bytecodes::_ifnonnull:         ppop1(refCTS); break;
     case Bytecodes::_multianewarray:    do_multianewarray(*(itr->bcp()+3), itr->bci()); break;
-
-    case Bytecodes::_vbox:              pp_new_ref(qCTS, itr->bci());       break;
-    case Bytecodes::_vunbox:            pp_new_valuetype(rCTS, itr->bci()); break;
 
     case Bytecodes::_wide:              fatal("Iterator should skip this bytecode"); break;
     case Bytecodes::_ret:                                           break;
@@ -1675,9 +1643,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
 
 void GenerateOopMap::check_type(CellTypeState expected, CellTypeState actual) {
   if (!expected.equal_kind(actual)) {
-    // dirty hack for invokevirtual
-    if (expected.equal_kind(CellTypeState::refOrValueType) &&
-        (actual.equal_kind(CellTypeState::ref) || actual.equal_kind(CellTypeState::valuetype))) return;
     verify_error("wrong type on stack (found: %c expected: %c)", actual.to_char(), expected.to_char());
   }
 }
@@ -1696,7 +1661,7 @@ void GenerateOopMap::ppload(CellTypeState *out, int loc_no) {
   while(!(*out).is_bottom()) {
     CellTypeState out1 = *out++;
     CellTypeState vcts = get_var(loc_no);
-    assert(out1.can_be_reference() || out1.can_be_value() || out1.can_be_valuetype(),
+    assert(out1.can_be_reference() || out1.can_be_value(),
            "can only load refs. and values.");
     if (out1.is_reference()) {
       assert(loc_no>=0, "sanity check");
@@ -1765,7 +1730,7 @@ void GenerateOopMap::ppop(CellTypeState *out) {
 }
 
 void GenerateOopMap::ppush1(CellTypeState in) {
-  assert(in.is_reference() || in.is_value() || in.is_valuetype(), "sanity check");
+  assert(in.is_reference() || in.is_value(), "sanity check");
   push(in);
 }
 
@@ -1783,11 +1748,6 @@ void GenerateOopMap::pp(CellTypeState *in, CellTypeState *out) {
 void GenerateOopMap::pp_new_ref(CellTypeState *in, int bci) {
   ppop(in);
   ppush1(CellTypeState::make_line_ref(bci));
-}
-
-void GenerateOopMap::pp_new_valuetype(CellTypeState *in, int bci) {
-  ppop(in);
-  ppush1(CellTypeState::make_line_valuetype(bci));
 }
 
 void GenerateOopMap::ppop_any(int poplen) {
@@ -1958,15 +1918,6 @@ void GenerateOopMap::do_astore(int idx) {
   set_var(idx, r_or_p);
 }
 
-void GenerateOopMap::do_vstore(int idx) {
-  CellTypeState q = pop();
-  if (!q.is_valuetype()) {
-    verify_error("wrong type on stack (found: %c, expected: {q})", q.to_char());
-    return;
-  }
-  set_var(idx, q);
-}
-
 // Copies bottom/zero terminated CTS string from "src" into "dst".
 //   Does NOT terminate with a bottom. Returns the number of cells copied.
 int GenerateOopMap::copy_cts(CellTypeState *dst, CellTypeState *src) {
@@ -2003,7 +1954,7 @@ void GenerateOopMap::do_field(int is_get, int is_static, int idx, int bci) {
     i   = copy_cts(in, eff);
   }
   if (!is_static) {
-    in[i++] = CellTypeState::refOrValueType;
+    in[i++] = CellTypeState::ref;
   }
   in[i] = CellTypeState::bottom;
   assert(i<=3, "sanity check");
@@ -2047,7 +1998,7 @@ void GenerateOopMap::do_method(int is_static, int idx, int bci) {
   ppush(out);
 }
 
-void GenerateOopMap::do_vwithfield(int idx, int bci) {
+void GenerateOopMap::do_withfield(int idx, int bci) {
   // Dig up signature for field in constant pool
   ConstantPool* cp = method()->constants();
   int nameAndTypeIdx = cp->name_and_type_ref_index_at(idx);
@@ -2064,12 +2015,12 @@ void GenerateOopMap::do_vwithfield(int idx, int bci) {
 
   CellTypeState in[4];
   int i = copy_cts(in, eff);
-  in[i++] = CellTypeState::valuetype;
+  in[i++] = CellTypeState::ref;
   in[i] = CellTypeState::bottom;
   assert(i <= 3, "sanity check");
 
   CellTypeState out[2];
-  out[0] = CellTypeState::valuetype;
+  out[0] = CellTypeState::ref;
   out[1] = CellTypeState::bottom;
 
   pp(in, out);
@@ -2080,11 +2031,6 @@ CellTypeState *GenerateOopMap::sigchar_to_effect(char sigch, int bci, CellTypeSt
   // Object and array
   if (sigch=='L' || sigch=='[') {
     out[0] = CellTypeState::make_line_ref(bci);
-    out[1] = CellTypeState::bottom;
-    return out;
-  }
-  if (sigch == 'Q') {
-    out[0] = CellTypeState::make_line_valuetype(bci);
     out[1] = CellTypeState::bottom;
     return out;
   }

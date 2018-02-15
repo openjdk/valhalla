@@ -78,8 +78,7 @@ class SignatureIterator: public ResourceObj {
       float_parm           = 7,
       double_parm          = 8,
       obj_parm             = 9,
-      valuetype_parm       = 10,
-      done_parm            = 11,  // marker for end of parameters
+      done_parm            = 10,  // marker for end of parameters
 
     // max parameters is wordsize minus
     //    The sign bit, termination field, the result and static bit fields
@@ -116,7 +115,6 @@ class SignatureIterator: public ResourceObj {
   // Object types (begin indexes the first character of the entry, end indexes the first character after the entry)
   virtual void do_object(int begin, int end) = 0;
   virtual void do_array (int begin, int end) = 0;
-  virtual void do_valuetype(int begin, int end) = 0;
 
   static bool is_static(uint64_t fingerprint) {
     assert(fingerprint != (uint64_t)CONST64(-1), "invalid fingerprint");
@@ -146,7 +144,6 @@ class SignatureTypeNames : public SignatureIterator {
   void do_void()                       { type_name("void"    ); }
   void do_object(int begin, int end)   { type_name("jobject" ); }
   void do_array (int begin, int end)   { type_name("jobject" ); }
-  void do_valuetype(int begin, int end){ type_name("jvaluetype"); }
 
  public:
   SignatureTypeNames(Symbol* signature) : SignatureIterator(signature) {}
@@ -175,7 +172,6 @@ class SignatureInfo: public SignatureIterator {
   void do_void  ()                     { set(T_VOID_size   , T_VOID   ); }
   void do_object(int begin, int end)   { set(T_OBJECT_size , T_OBJECT ); }
   void do_array (int begin, int end)   { set(T_ARRAY_size  , T_ARRAY  ); }
-  void do_valuetype(int begin, int end){ set(T_VALUETYPE_size, T_VALUETYPE); }
 
  public:
   SignatureInfo(Symbol* signature) : SignatureIterator(signature) {
@@ -242,7 +238,6 @@ class Fingerprinter: public SignatureIterator {
 
   void do_object(int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
   void do_array (int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
-  void do_valuetype(int begin, int end) { _fingerprint |= (((uint64_t)valuetype_parm) << _shift_count); _shift_count += parameter_feature_size; }
 
   void do_void()    { ShouldNotReachHere(); }
 

@@ -1528,7 +1528,6 @@ void Parse::do_one_bytecode() {
     push( local(3) );
     break;
   case Bytecodes::_aload:
-  case Bytecodes::_vload:
     push( local(iter().get_index()) );
     break;
 
@@ -1606,7 +1605,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_fstore:
   case Bytecodes::_istore:
   case Bytecodes::_astore:
-  case Bytecodes::_vstore:
     set_local( iter().get_index(), pop() );
     break;
   // long stores
@@ -1725,7 +1723,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_iaload: array_load(T_INT);    break;
   case Bytecodes::_saload: array_load(T_SHORT);  break;
   case Bytecodes::_faload: array_load(T_FLOAT);  break;
-  case Bytecodes::_vaload: array_load(T_VALUETYPE); break;
   case Bytecodes::_aaload: array_load(T_OBJECT); break;
   case Bytecodes::_laload: {
     a = array_addressing(T_LONG, 0);
@@ -1746,27 +1743,28 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_iastore: array_store(T_INT);   break;
   case Bytecodes::_sastore: array_store(T_SHORT); break;
   case Bytecodes::_fastore: array_store(T_FLOAT); break;
-  case Bytecodes::_vastore: {
-    d = array_addressing(T_OBJECT, 1);
-    if (stopped())  return;     // guaranteed null or range check
-    array_store_check(true);
-    c = pop();                  // Oop to store
-    b = pop();                  // index (already used)
-    a = pop();                  // the array itself
-    const TypeAryPtr* arytype = _gvn.type(a)->is_aryptr();
-    const Type* elemtype = arytype->elem();
-
-    if (elemtype->isa_valuetype()) {
-      c->as_ValueType()->store_flattened(this, a, d);
-      break;
-    }
-
-    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-    Node* oop = c->as_ValueType()->allocate(this)->get_oop();
-    Node* store = store_oop_to_array(control(), a, d, adr_type, oop, elemtype->make_oopptr(), T_OBJECT,
-                                     StoreNode::release_if_reference(T_OBJECT));
-    break;
-  }
+//  The vastore case has to merged into the aastore case
+//  case Bytecodes::_vastore: {
+//    d = array_addressing(T_OBJECT, 1);
+//    if (stopped())  return;     // guaranteed null or range check
+//    array_store_check(true);
+//    c = pop();                  // Oop to store
+//    b = pop();                  // index (already used)
+//    a = pop();                  // the array itself
+//    const TypeAryPtr* arytype = _gvn.type(a)->is_aryptr();
+//    const Type* elemtype = arytype->elem();
+//
+//    if (elemtype->isa_valuetype()) {
+//      c->as_ValueType()->store_flattened(this, a, d);
+//      break;
+//    }
+//
+//    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
+//    Node* oop = c->as_ValueType()->allocate(this)->get_oop();
+//    Node* store = store_oop_to_array(control(), a, d, adr_type, oop, elemtype->make_oopptr(), T_OBJECT,
+//                                     StoreNode::release_if_reference(T_OBJECT));
+//    break;
+//  }
   case Bytecodes::_aastore: {
     d = array_addressing(T_OBJECT, 1);
     if (stopped())  return;     // guaranteed null or range check
@@ -2251,7 +2249,6 @@ void Parse::do_one_bytecode() {
 
   case Bytecodes::_ireturn:
   case Bytecodes::_areturn:
-  case Bytecodes::_vreturn:
   case Bytecodes::_freturn:
     return_current(pop());
     break;
@@ -2406,11 +2403,11 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_new:
     do_new();
     break;
-  case Bytecodes::_vdefault:
-    do_vdefault();
+  case Bytecodes::_defaultvalue:
+    do_defaultvalue();
     break;
-  case Bytecodes::_vwithfield:
-    do_vwithfield();
+  case Bytecodes::_withfield:
+    do_withfield();
     break;
 
   case Bytecodes::_jsr:
@@ -2429,14 +2426,6 @@ void Parse::do_one_bytecode() {
 
   case Bytecodes::_monitorexit:
     do_monitor_exit();
-    break;
-
-  case Bytecodes::_vunbox:
-    do_vunbox();
-    break;
-
-  case Bytecodes::_vbox:
-    do_vbox();
     break;
 
   case Bytecodes::_breakpoint:

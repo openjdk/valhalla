@@ -159,7 +159,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   bool _has_nonstatic_concrete_methods;
   bool _declares_nonstatic_concrete_methods;
   bool _has_final_method;
-  bool _has_value_fields;
+  bool _has_flattenable_fields;
 
   // precomputed flags
   bool _has_finalizer;
@@ -543,7 +543,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   bool is_interface() const { return _access_flags.is_interface(); }
   bool is_value_type() const { return _access_flags.is_value_type(); }
   bool is_value_capable_class() const;
-  bool has_value_fields() const { return _has_value_fields; }
+  bool has_flattenable_fields() const { return _has_flattenable_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 

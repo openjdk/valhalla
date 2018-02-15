@@ -435,13 +435,11 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_fload:
     case Bytecodes::_dload:
     case Bytecodes::_aload:
-    case Bytecodes::_vload:
     case Bytecodes::_istore:
     case Bytecodes::_lstore:
     case Bytecodes::_fstore:
     case Bytecodes::_dstore:
     case Bytecodes::_astore:
-    case Bytecodes::_vstore:
       st->print_cr(" #%d", get_index_special());
       break;
 
@@ -550,7 +548,7 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_getstatic:
     case Bytecodes::_putfield:
     case Bytecodes::_getfield:
-    case Bytecodes::_vwithfield:
+    case Bytecodes::_withfield:
       print_field_or_method(get_index_u2_cpcache(), st);
       break;
 
@@ -575,9 +573,7 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_new:
     case Bytecodes::_checkcast:
     case Bytecodes::_instanceof:
-    case Bytecodes::_vbox:
-    case Bytecodes::_vunbox:
-    case Bytecodes::_vdefault:
+    case Bytecodes::_defaultvalue:
       { int i = get_index_u2();
         ConstantPool* constants = method()->constants();
         Symbol* name = constants->klass_name_at(i);

@@ -110,11 +110,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS)
     if (element_klass->is_instance_klass()) { // it could be an array or simple type
       // Temporary hack, for arrays of value types, this code should be removed
       // once value types have their own array types
-      if (element_klass->is_value()) {
-        new_str[idx++] = 'Q';
-      } else {
-        new_str[idx++] = 'L';
-      }
+      new_str[idx++] = 'L';
     }
     memcpy(&new_str[idx], name_str, len * sizeof(char));
     idx += len;

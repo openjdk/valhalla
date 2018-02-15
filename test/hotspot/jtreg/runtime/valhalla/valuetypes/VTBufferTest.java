@@ -28,6 +28,10 @@
  * @build ValueTypeGenerator
  * @run main/othervm -Xint -XX:+EnableValhalla VTBufferTest generate-and-run
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:ValueTypesBufferMaxMemory=0 VTBufferTest generate-and-run
+ */
+
+
+/*
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:BigValueTypeThreshold=196 VTBufferTest generate-and-run
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:-ValueTypesThreadLocalRecycling VTBufferTest generate-and-run
  */

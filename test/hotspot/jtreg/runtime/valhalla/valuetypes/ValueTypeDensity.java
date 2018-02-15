@@ -36,6 +36,10 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI ValueTypeDensity
+ */
+
+
+/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI ValueTypeDensity

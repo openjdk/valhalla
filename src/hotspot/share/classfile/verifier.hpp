@@ -355,13 +355,11 @@ class ClassVerifier : public StackObj {
   void verify_fload (u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_dload (u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_aload (u2 index, StackMapFrame* current_frame, TRAPS);
-  void verify_vload (u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_istore(u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_lstore(u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_fstore(u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_dstore(u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_astore(u2 index, StackMapFrame* current_frame, TRAPS);
-  void verify_vstore(u2 index, StackMapFrame* current_frame, TRAPS);
   void verify_iinc  (u2 index, StackMapFrame* current_frame, TRAPS);
 
   bool name_in_supers(Symbol* ref_name, InstanceKlass* current);

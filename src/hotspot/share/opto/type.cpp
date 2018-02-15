@@ -604,7 +604,8 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeNarrowKlass::NULL_PTR = TypeNarrowKlass::make( TypePtr::NULL_PTR );
 
-  TypeValueTypePtr::NOTNULL = (EnableValhalla || EnableMVT) ? TypeValueTypePtr::make(TypePtr::NotNull, current->env()->___Value_klass()->as_value_klass()) : NULL;
+  // TypeValueTypePtr::NOTNULL = (EnableValhalla || EnableMVT) ? TypeValueTypePtr::make(TypePtr::NotNull, current->env()->___Value_klass()->as_value_klass()) : NULL;
+  TypeValueTypePtr::NOTNULL = NULL;
 
   mreg2type[Op_Node] = Type::BOTTOM;
   mreg2type[Op_Set ] = 0;
@@ -642,7 +643,6 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::_array_body_type[T_NARROWOOP] = NULL;
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
-  TypeAryPtr::_array_body_type[T_VALUETYPE] = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_VALUETYPEPTR] = NULL;
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
@@ -656,7 +656,8 @@ void Type::Initialize_shared(Compile* current) {
   TypeKlassPtr::OBJECT = TypeKlassPtr::make(TypePtr::NotNull, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::BOTTOM = (EnableValhalla || EnableMVT) ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
-  TypeKlassPtr::VALUE = TypeKlassPtr::make(TypePtr::NotNull, current->env()->___Value_klass(), Offset(0));
+  // TypeKlassPtr::VALUE = TypeKlassPtr::make(TypePtr::NotNull, current->env()->___Value_klass(), Offset(0));
+  TypeKlassPtr::VALUE = NULL;
 
   const Type **fi2c = TypeTuple::fields(2);
   fi2c[TypeFunc::Parms+0] = TypeInstPtr::BOTTOM; // Method*
@@ -696,7 +697,6 @@ void Type::Initialize_shared(Compile* current) {
   _const_basic_type[T_OBJECT]      = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VALUETYPEPTR]= TypeInstPtr::BOTTOM;
   _const_basic_type[T_ARRAY]       = TypeInstPtr::BOTTOM; // there is no separate bottom for arrays
-  _const_basic_type[T_VALUETYPE]   = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VOID]        = TypePtr::NULL_PTR;   // reflection represents void this way
   _const_basic_type[T_ADDRESS]     = TypeRawPtr::BOTTOM;  // both interpreter return addresses & random raw ptrs
   _const_basic_type[T_CONFLICT]    = Type::BOTTOM;        // why not?
@@ -714,7 +714,6 @@ void Type::Initialize_shared(Compile* current) {
   _zero_type[T_OBJECT]      = TypePtr::NULL_PTR;
   _zero_type[T_VALUETYPEPTR]= TypePtr::NULL_PTR;
   _zero_type[T_ARRAY]       = TypePtr::NULL_PTR; // null array is null oop
-  _zero_type[T_VALUETYPE]   = TypePtr::NULL_PTR;
   _zero_type[T_ADDRESS]     = TypePtr::NULL_PTR; // raw pointers use the same null
   _zero_type[T_VOID]        = Type::TOP;         // the only void value is no value at all
 

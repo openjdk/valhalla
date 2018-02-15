@@ -63,9 +63,6 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
   Klass* super_klass = NULL;
   if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
     Klass* element_super = element_klass->super();
-    if (element_super == SystemDictionary::___Value_klass()) {
-      element_super = NULL;
-    }
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
       super_klass = element_super->array_klass_or_null();

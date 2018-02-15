@@ -1060,12 +1060,6 @@ nmethod* CompileBroker::compile_method(const methodHandle& method, int osr_bci,
     }
   }
 
-  // Don't compile methods in __Value if value types are disabled
-  if (!EnableMVT && !EnableValhalla && method->method_holder()->name() == vmSymbols::java_lang____Value()) {
-    // This may happen with CompileTheWorld, ReplayCompiles or compilations triggered through the WhiteBox API
-    return NULL;
-  }
-
   // lock, make sure that the compilation
   // isn't prohibited in a straightforward way.
   AbstractCompiler* comp = CompileBroker::compiler(comp_level);

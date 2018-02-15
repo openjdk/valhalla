@@ -347,7 +347,6 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
   const Address val_addr(rcx, JvmtiThreadState::earlyret_value_offset());
 #ifdef _LP64
   switch (state) {
-    case qtos: // fall through
     case atos: movptr(rax, oop_addr);
                movptr(oop_addr, (int32_t)NULL_WORD);
                verify_oop(rax, state);              break;
@@ -369,7 +368,6 @@ void InterpreterMacroAssembler::load_earlyret_value(TosState state) {
   const Address val_addr1(rcx, JvmtiThreadState::earlyret_value_offset()
                              + in_ByteSize(wordSize));
   switch (state) {
-    case qtos: // fall through
     case atos: movptr(rax, oop_addr);
                movptr(oop_addr, NULL_WORD);
                verify_oop(rax, state);                break;
@@ -632,8 +630,6 @@ void InterpreterMacroAssembler::push_l(Register r) {
 
 void InterpreterMacroAssembler::pop(TosState state) {
   switch (state) {
-  case ptos: // Fall through
-  case qtos: // Fall through
   case atos: pop_ptr();                 break;
   case btos:
   case ztos:
@@ -652,7 +648,6 @@ void InterpreterMacroAssembler::pop(TosState state) {
 void InterpreterMacroAssembler::push(TosState state) {
   verify_oop(rax, state);
   switch (state) {
-  case qtos: // Fall through
   case atos: push_ptr();                break;
   case btos:
   case ztos:
@@ -689,7 +684,6 @@ void InterpreterMacroAssembler::pop_d() {
 
 void InterpreterMacroAssembler::pop(TosState state) {
   switch (state) {
-    case qtos:                                               // fall through
     case atos: pop_ptr(rax);                                 break;
     case btos:                                               // fall through
     case ztos:                                               // fall through
@@ -739,7 +733,6 @@ void InterpreterMacroAssembler::push_d() {
 void InterpreterMacroAssembler::push(TosState state) {
   verify_oop(rax, state);
   switch (state) {
-    case qtos:                                               // fall through
     case atos: push_ptr(rax); break;
     case btos:                                               // fall through
     case ztos:                                               // fall through

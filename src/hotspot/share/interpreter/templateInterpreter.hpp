@@ -47,7 +47,7 @@ class EntryPoint VALUE_OBJ_CLASS_SPEC {
  public:
   // Construction
   EntryPoint();
-  EntryPoint(address bentry, address zentry, address centry, address sentry, address aentry, address ientry, address lentry, address fentry, address dentry, address qentry, address ventry);
+  EntryPoint(address bentry, address zentry, address centry, address sentry, address aentry, address ientry, address lentry, address fentry, address dentry, address ventry);
 
   // Attributes
   address entry(TosState state) const;                // return target address for a given tosca state
@@ -158,7 +158,7 @@ class TemplateInterpreter: public AbstractInterpreter {
 
   // Code generation
 #ifndef PRODUCT
-  static address    trace_code    (TosState state)              { return _trace_code.entry(state == ptos ? atos : state); }
+  static address    trace_code    (TosState state)              { return _trace_code.entry(state); }
 #endif // !PRODUCT
   static address*   dispatch_table(TosState state)              { return _active_table.table_for(state); }
   static address*   dispatch_table()                            { return _active_table.table_for(); }

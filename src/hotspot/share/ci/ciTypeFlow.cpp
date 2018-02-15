@@ -932,10 +932,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
   }
 
   switch(str->cur_bc()) {
-  case Bytecodes::_vaload:
   case Bytecodes::_aaload: do_aload(str);                           break;
 
-  case Bytecodes::_vastore:
   case Bytecodes::_aastore:
     {
       pop_object();
@@ -948,7 +946,6 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       push_null();
       break;
     }
-  case Bytecodes::_vload:
   case Bytecodes::_aload:   load_local_object(str->get_index());    break;
   case Bytecodes::_aload_0: load_local_object(0);                   break;
   case Bytecodes::_aload_1: load_local_object(1);                   break;
@@ -968,7 +965,6 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       break;
     }
   case Bytecodes::_areturn:
-  case Bytecodes::_vreturn:
   case Bytecodes::_ifnonnull:
   case Bytecodes::_ifnull:
     {
@@ -994,7 +990,6 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       push_int();
       break;
     }
-  case Bytecodes::_vstore:
   case Bytecodes::_astore:   store_local_object(str->get_index());  break;
   case Bytecodes::_astore_0: store_local_object(0);                 break;
   case Bytecodes::_astore_1: store_local_object(1);                 break;
@@ -1497,8 +1492,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
 
   case Bytecodes::_new:      do_new(str);                           break;
 
-  case Bytecodes::_vdefault: do_vdefault(str);                      break;
-  case Bytecodes::_vwithfield: do_vwithfield(str);                  break;
+  case Bytecodes::_defaultvalue: do_vdefault(str);                  break;
+  case Bytecodes::_withfield: do_vwithfield(str);                   break;
 
   case Bytecodes::_newarray: do_newarray(str);                      break;
 
@@ -1527,16 +1522,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       push(value2);
       break;
     }
-  case Bytecodes::_vunbox:
-     {
-       do_vunbox(str);
-       break;
-     }
-     case Bytecodes::_vbox:
-     {
-       do_vbox(str);
-       break;
-     }
+
   case Bytecodes::_wide:
   default:
     {
@@ -1826,7 +1812,6 @@ ciTypeFlow::Block::successors(ciBytecodeStream* str,
       case Bytecodes::_freturn:
       case Bytecodes::_dreturn:
       case Bytecodes::_areturn:
-      case Bytecodes::_vreturn:
       case Bytecodes::_return:
         _successors =
           new (arena) GrowableArray<Block*>(arena, 1, 0, NULL);
@@ -2264,7 +2249,6 @@ bool ciTypeFlow::can_trap(ciBytecodeStream& str) {
     case Bytecodes::_freturn:
     case Bytecodes::_dreturn:
     case Bytecodes::_areturn:
-    case Bytecodes::_vreturn:
     case Bytecodes::_return:
       // We can assume the monitor stack is empty in this analysis.
       return false;
