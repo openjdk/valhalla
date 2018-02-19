@@ -51,6 +51,7 @@ public class AccessFlags {
     public static final int ACC_VARARGS       = 0x0080; //                      method
     public static final int ACC_VALUE         = 0x0100; // class
     public static final int ACC_NATIVE        = 0x0100; //                      method
+    public static final int ACC_FLATTENABLE   = 0x0100; //                      field
     public static final int ACC_INTERFACE     = 0x0200; // class, inner
     public static final int ACC_ABSTRACT      = 0x0400; // class, inner,        method
     public static final int ACC_STRICT        = 0x0800; //                      method
@@ -121,12 +122,12 @@ public class AccessFlags {
 
     private static final int[] fieldModifiers = {
         ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL,
-        ACC_VOLATILE, ACC_TRANSIENT
+        ACC_VOLATILE, ACC_TRANSIENT, ACC_FLATTENABLE
     };
 
     private static final int[] fieldFlags = {
         ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL,
-        ACC_VOLATILE, ACC_TRANSIENT, ACC_SYNTHETIC, ACC_ENUM
+        ACC_VOLATILE, ACC_TRANSIENT, ACC_SYNTHETIC, ACC_ENUM, ACC_FLATTENABLE
     };
 
     public Set<String> getFieldModifiers() {
@@ -205,7 +206,7 @@ public class AccessFlags {
             case ACC_VOLATILE:
                 return "volatile";
             case 0x100:
-                return (t == Kind.Class || t == Kind.InnerClass) ? "value" : "native";
+                return (t == Kind.Class || t == Kind.InnerClass) ? "value" : t == Kind.Field ? "@Flattenable" : "native";
             case ACC_ABSTRACT:
                 return "abstract";
             case ACC_STRICT:
@@ -236,7 +237,7 @@ public class AccessFlags {
         case 0x80:
             return (t == Kind.Field ? "ACC_TRANSIENT" : "ACC_VARARGS");
         case 0x100:
-            return (t == Kind.Class ? "ACC_VALUE" : "ACC_NATIVE");
+            return (t == Kind.Class ? "ACC_VALUE" : t == Kind.Field ? "ACC_FLATTENABLE" : "ACC_NATIVE");
         case ACC_INTERFACE:
             return "ACC_INTERFACE";
         case ACC_ABSTRACT:

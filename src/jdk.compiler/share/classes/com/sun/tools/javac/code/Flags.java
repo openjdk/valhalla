@@ -111,6 +111,7 @@ public class Flags {
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
     public static final int ACC_VALUE    = 0x0100;
+    public static final int ACC_FLATTENABLE = 0x0100;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************
@@ -228,7 +229,10 @@ public class Flags {
      */
     public static final long UNION = 1L<<39;
 
-    // Flag bit (1L << 40) is available.
+    /**
+     * Flag that marks field that is a value instance that can be inlined in the layout.
+     */
+    public static final long FLATTENABLE = 1L<<40;
 
     /**
      * Flag that marks an 'effectively final' local variable.
@@ -425,6 +429,7 @@ public class Flags {
         HYPOTHETICAL(Flags.HYPOTHETICAL),
         PROPRIETARY(Flags.PROPRIETARY),
         UNION(Flags.UNION),
+        FLATTENABLE(Flags.FLATTENABLE),
         EFFECTIVELY_FINAL(Flags.EFFECTIVELY_FINAL),
         CLASH(Flags.CLASH),
         AUXILIARY(Flags.AUXILIARY),

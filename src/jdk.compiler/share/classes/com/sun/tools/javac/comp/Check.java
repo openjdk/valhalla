@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 
+import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.tools.javac.code.*;
@@ -2900,6 +2901,15 @@ public class Check {
                 log.error(a.pos(), Errors.BadFunctionalIntfAnno);
             } else if (!s.isInterface() || (s.flags() & ANNOTATION) != 0) {
                 log.error(a.pos(), Errors.BadFunctionalIntfAnno1(Fragments.NotAFunctionalIntf(s)));
+            }
+        }
+        if (a.annotationType.type.tsym == syms.flattenableType.tsym) {
+            if (s.getKind() == ElementKind.FIELD) {  // != field barfed against above (AnnotationTypeNotApplicable)
+                if (!types.isValue(s.type)) {
+                   log.error(a.pos(), Errors.BadFlattenableAnno);
+                } else {
+                    s.flags_field |= Flags.FLATTENABLE;
+                }
             }
         }
     }

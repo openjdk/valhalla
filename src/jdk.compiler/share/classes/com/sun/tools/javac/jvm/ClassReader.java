@@ -2901,6 +2901,10 @@ public class ClassReader {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
+        if ((flags & ACC_FLATTENABLE) != 0) {
+            flags &= ~ACC_FLATTENABLE;
+            flags |= FLATTENABLE;
+        }
         return flags;
     }
 
