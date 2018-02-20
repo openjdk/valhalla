@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @summary null cannot be casted to and compared with value types.
+ * @summary Check that null can be casted to a value type; but cannot be compared with value types.
  *
  * @compile/fail/ref=CheckNullCastable.out -XDrawDiagnostics CheckNullCastable.java
  */

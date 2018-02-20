@@ -1107,7 +1107,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isValue(s)) ||
+                         s.hasTag(BOT) || s.hasTag(CLASS) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1677,7 +1677,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT) && !isValue(t))
+                if (s.hasTag(ERROR) || s.hasTag(BOT))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
