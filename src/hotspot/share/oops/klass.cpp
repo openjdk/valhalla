@@ -174,12 +174,12 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
   // Pad size in case need adjust to even/odd klass ptr
   uintptr_t addr = (uintptr_t) Metaspace::allocate(loader_data, word_size + (1 << LogKlassAlignment), MetaspaceObj::ClassType, THREAD);
   // values are odd, otherwise make even (and vice versa)
-  if (is_value ^ ((addr & KlassPtrEvenOddMask) >> LogKlassAlignmentInBytes)) {
+  if (is_value ^ (((addr & KlassPtrEvenOddMask) >> LogKlassAlignmentInBytes) != 0)) {
 	  addr += (1 << LogKlassAlignmentInBytes);
   }
-  assert(is_aligned(addr, (1 << LogKlassAlignmentInBytes)), "Klass base alignment incorrect");
-  assert(is_value || (addr & KlassPtrEvenOddMask) == 0,     "Klass even alignment incorrect");
-  assert((!is_value) || (addr & KlassPtrEvenOddMask),       "Klass odd alignment incorrect");
+  assert(is_aligned(addr, (1 << LogKlassAlignmentInBytes)),  "Klass base alignment incorrect");
+  assert(is_value || ((addr & KlassPtrEvenOddMask) == 0),    "Klass even alignment incorrect");
+  assert((!is_value) || ((addr & KlassPtrEvenOddMask) != 0), "Klass odd alignment incorrect");
   return (void*) addr;
 }
 

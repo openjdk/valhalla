@@ -72,10 +72,10 @@ inline Klass* Klass::decode_klass(narrowKlass v) {
 }
 
 inline bool Klass::decode_ptr_is_value_based(narrowKlass v) {
-	return (v & Universe::oop_metadata_odd_mask());
+	return (v & Universe::oop_metadata_odd_mask()) != 0;
 }
 inline bool Klass::ptr_is_value_based(Klass* v) {
-	return ((uintptr_t)v & Universe::oop_metadata_odd_mask());
+	return ((uintptr_t)v & Universe::oop_metadata_odd_mask()) != 0;
 }
 
 
