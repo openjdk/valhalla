@@ -298,13 +298,14 @@ public class Attr extends JCTree.Visitor {
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
                 boolean complain = true;
-                /* Allow updates to blank final instance fields inside value factories.
-                   This really results in copy on write and not mutation of the
-                   final field
+                /* Allow updates to instance fields of value classes by any method in the same nest -
+                   This does not result in mutation of final fields; the code generator would implement
+                   `copy on write' semantics via the opcode `withfield'. However for copy on write to
+                   work, the base must be writable.
                 */
-                if (v.getKind() == ElementKind.FIELD && (v.flags() & (HASINIT | STATIC)) == 0) {
-                    if (env.enclMethod != null && (env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
-                        if (v.owner == env.enclMethod.sym.owner && types.isValue(v.owner.type))
+                if (v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isValue(v.owner.type)) {
+                    if (env.enclClass.sym.outermostClass() == v.owner.outermostClass()) {
+                        if (haveMutableHandle(base, env))
                             complain = false;
                     }
                 }
@@ -313,6 +314,24 @@ public class Attr extends JCTree.Visitor {
             }
         }
     }
+        // where
+        private boolean haveMutableHandle (JCTree base, Env<AttrContext> env) {
+            if (base == null)
+                return false;
+            Symbol sym = TreeInfo.symbol(base);
+            if (sym != null && sym.name == names._this)
+                return false;
+            switch (base.getTag()) {
+                case IDENT:
+                    return sym != null && sym.kind == VAR && sym.getKind() != ElementKind.FIELD && (sym.flags() & FINAL) == 0;
+                case PARENS:
+                    return haveMutableHandle(((JCParens) base).expr, env);
+                case INDEXED:   // TODO
+                case SELECT:    // TODO
+                default:
+                    return false;
+            }
+        }
 
     /** Does tree represent a static reference to an identifier?
      *  It is assumed that tree is either a SELECT or an IDENT.
@@ -1174,8 +1193,11 @@ public class Attr extends JCTree.Visitor {
             deferredLintHandler.flush(tree.pos());
             chk.checkDeprecatedAnnotation(tree.pos(), v);
 
+            /* Don't want constant propagation/folding for instance fields of value classes,
+               as these can undergo updates via copy on write.
+            */
             if (tree.init != null) {
-                if ((v.flags_field & FINAL) == 0 ||
+                if ((v.flags_field & FINAL) == 0 || types.isValue(v.owner.type) ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
@@ -2359,12 +2381,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 if (!types.isValue(TreeInfo.symbol(tree.clazz).type)) {
                     log.error(tree.pos, "make.default.with.nonvalue");
-                } else if (env.enclMethod != null && env.enclMethod.sym.owner != TreeInfo.symbol(tree.clazz)) {
-                    log.error(tree.pos, "make.default.with.wrong.value.type", TreeInfo.symbol(tree.clazz));
                 }
-            }
-            if (env.enclMethod != null && (env.enclMethod.mods.flags & STATICVALUEFACTORY) == 0) {
-                log.error(tree.pos, "make.default.in.nonfactory");
             }
         }
         chk.validate(tree.typeargs, localEnv);

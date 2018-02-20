@@ -1630,11 +1630,9 @@ public class Flow {
                 inits.incl(sym.adr);
             } else if ((sym.flags() & FINAL) != 0) {
                 boolean complain = true;
-                if (sym.getKind() == ElementKind.FIELD && (sym.flags() & HASINIT) == 0) {
-                    if (enclMethod != null && (enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
-                        if (sym.owner == enclMethod.sym.owner)
-                            complain = false;
-                    }
+                if (sym.getKind() == ElementKind.FIELD && (sym.flags() & STATIC) == 0 && types.isValue(sym.owner.type)) {
+                    if (enclMethod != null && enclMethod.sym.owner.outermostClass() == sym.owner.outermostClass())
+                        complain = false;
                 }
                 if (complain)
                     log.error(pos, Errors.VarMightAlreadyBeAssigned(sym));

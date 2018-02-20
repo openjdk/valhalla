@@ -1,4 +1,0 @@
-CheckStaticFactoryNonValueClass.java:10:20: compiler.err.mod.not.allowed.here: staticvaluefactory
-CheckStaticFactoryNonValueClass.java:14:59: compiler.err.value.factory.must.be.member.of.value.type
-CheckStaticFactoryNonValueClass.java:16:9: compiler.err.cant.assign.val.to.final.var: x
-3 errors

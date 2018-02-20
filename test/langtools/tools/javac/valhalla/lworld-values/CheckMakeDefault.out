@@ -1,9 +1,6 @@
 CheckMakeDefault.java:9:15: compiler.err.illegal.combination.of.modifiers: interface, value
 CheckMakeDefault.java:10:24: compiler.err.illegal.combination.of.modifiers: abstract, value
-CheckMakeDefault.java:12:38: compiler.err.value.factory.must.be.member.of.value.type
 CheckMakeDefault.java:13:20: compiler.err.make.default.with.nonvalue
-CheckMakeDefault.java:30:16: compiler.err.make.default.in.nonfactory
 CheckMakeDefault.java:34:18: compiler.err.invalid.arguments.to.make.default
 CheckMakeDefault.java:35:19: compiler.err.make.default.with.nonvalue
-CheckMakeDefault.java:36:8: compiler.err.make.default.with.wrong.value.type: Point.SinnerValue
-8 errors
+5 errors

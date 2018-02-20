@@ -127,9 +127,7 @@ public class Flags {
      */
     public static final int HASINIT          = 1<<18;
 
-    /** Flag is set for a method symbol that acts as a static factory method for a value type
-     */
-    public static final int STATICVALUEFACTORY = 1<<19;
+    // Flag bit 19 is available.
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -338,9 +336,9 @@ public class Flags {
         ConstructorFlags      = AccessFlags,
         InterfaceMethodFlags  = ABSTRACT | PUBLIC,
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
-                                SYNCHRONIZED | FINAL | STRICTFP | STATICVALUEFACTORY;
+                                SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | STATICVALUEFACTORY,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE,
         ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
@@ -366,7 +364,6 @@ public class Flags {
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
             if (0 != (flags & VALUE))     modifiers.add(Modifier.VALUE);
-            if (0 != (flags & STATICVALUEFACTORY))     modifiers.add(Modifier.STATICVALUEFACTORY);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
@@ -408,7 +405,6 @@ public class Flags {
         ANNOTATION(Flags.ANNOTATION),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
-        STATICVALUEFACTORY(Flags.STATICVALUEFACTORY),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

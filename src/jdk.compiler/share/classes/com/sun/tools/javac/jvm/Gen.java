@@ -2121,11 +2121,8 @@ public class Gen extends JCTree.Visitor {
                     result = items.makeStackItem(syms.intType);
                 } else {
                     boolean requireCopyOnWrite = false;
-                    if (sym.kind == VAR && (sym.flags() & FINAL) != 0) {
-                        if ((env.enclMethod.mods.flags & STATICVALUEFACTORY) != 0) {
-                            if (sym.owner == env.enclClass.sym && types.isValue(sym.owner.type))
-                                requireCopyOnWrite = true;
-                        }
+                    if (sym.kind == VAR && (sym.flags() & (SYNTHETIC | FINAL)) == FINAL && types.isValue(sym.owner.type)) {
+                        requireCopyOnWrite = true;
                     }
                     result = items.
                         makeMemberItem(sym,

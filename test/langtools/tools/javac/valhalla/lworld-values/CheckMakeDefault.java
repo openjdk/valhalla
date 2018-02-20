@@ -6,16 +6,16 @@
  */
 __ByValue final class Point {
 
-    __ByValue interface I {}
-    __ByValue abstract class A {}
+    __ByValue interface I {} // Error
+    __ByValue abstract class A {} // Error
     static final class Sinner {
-        __ValueFactory static Sinner make() {
+        static Sinner make() {
             return __MakeDefault Sinner(); // NO: Sinner is not a value class.
         }
     }
 
     __ByValue static final class SinnerValue {
-        __ValueFactory static SinnerValue make() {
+        static SinnerValue make() {
             return __MakeDefault SinnerValue(); // OK.
         }
     }
@@ -27,13 +27,13 @@ __ByValue final class Point {
     Point (int x, int y) {}
 
     Point badFactory(int x, int y) {
-        return __MakeDefault Point(); // NO: Value created in a non-factory.
+        return __MakeDefault Point();
     }
 
-    __ValueFactory static Point make(int x, int y) {
+    static Point make(int x, int y) {
        Point p = __MakeDefault Point(10, 20); // NO arguments to default value creation
        String s = __MakeDefault String(); // NO: String cannot be produced in this factory.
-       __MakeDefault SinnerValue(); // NO: Wrong factory.
+       __MakeDefault SinnerValue();
        p = __MakeDefault Point();
        p.x = x;
        p.y = y;

@@ -164,7 +164,6 @@ public class Tokens {
         TRANSIENT("transient"),
         TRY("try"),
         VALUE("__ByValue"),
-        STATICVALUEFACTORY("__ValueFactory"),
         VDEFAULT("__MakeDefault"),
         VOID("void", Tag.NAMED),
         VOLATILE("volatile"),

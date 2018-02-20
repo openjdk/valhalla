@@ -229,20 +229,6 @@ public class MemberEnter extends JCTree.Visitor {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
-
-        if ((tree.mods.flags & STATICVALUEFACTORY) != 0) {
-            if ((tree.mods.flags & STATIC) == 0) {
-                log.error(tree.pos(), Errors.ValueFactoryMustBeStatic);
-            }
-            final Type returnType = m.getReturnType();
-            if (returnType != null) {
-                if (returnType.tsym != m.owner) {
-                    chk.checkType(tree.restype != null ? tree.restype.pos() : tree.pos(), returnType, m.owner.type);
-                } else if (!types.isValue(m.owner.type)) {
-                    log.error(tree.pos(), Errors.ValueFactoryMustBeMemberOfValueType);
-                }
-            }
-        }
     }
 
     /** Create a fresh environment for method bodies.
@@ -298,9 +284,12 @@ public class MemberEnter extends JCTree.Visitor {
         VarSymbol v = new VarSymbol(0, tree.name, vartype, enclScope.owner);
         v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;
+        /* Don't want constant propagation/folding for instance fields of value classes,
+           as these can undergo updates via copy on write.
+        */
         if (tree.init != null) {
             v.flags_field |= HASINIT;
-            if ((v.flags_field & FINAL) != 0 &&
+            if ((v.flags_field & FINAL) != 0 && !types.isValue(v.owner.type) &&
                 needsLazyConstValue(tree.init)) {
                 Env<AttrContext> initEnv = getInitEnv(tree, env);
                 initEnv.info.enclVar = v;

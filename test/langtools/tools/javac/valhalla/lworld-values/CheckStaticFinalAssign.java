@@ -10,7 +10,7 @@ __ByValue final class CheckStaticFinalAssign {
         x = 10;
     }
 
-    static __ValueFactory CheckStaticFinalAssign foo() {
+    static CheckStaticFinalAssign foo() {
        CheckStaticFinalAssign x = __MakeDefault CheckStaticFinalAssign();
        x.x = 100;
        return x;

@@ -38,7 +38,7 @@ final __ByValue class Point {
         x = 10;
         y = 20;
     }
-    __ValueFactory static Point makePoint(int x, int y) {
+    static Point makePoint(int x, int y) {
         Point p = __MakeDefault Point();
         p.x = x;
         p.y = y;

@@ -2799,7 +2799,6 @@ public class JavacParser implements Parser {
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
             case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
             case VALUE       : checkSourceLevel(Feature.VALUE_TYPES); flag = Flags.VALUE; break;
-            case STATICVALUEFACTORY: flag = Flags.STATICVALUEFACTORY; break;
             case ERROR       : flag = 0; nextToken(); break;
             default: break loop;
             }
