@@ -1,0 +1,3 @@
+CheckFlattenableFlagFromClass.java:11:13: compiler.err.illegal.null.assignment.to.flattenable.value
+CheckFlattenableFlagFromClass.java:12:17: compiler.err.illegal.null.assignment.to.flattenable.value
+2 errors

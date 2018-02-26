@@ -1,0 +1,10 @@
+FlattenableNegativeTest.java:13:38: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:17:21: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:22:17: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:28:23: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:29:24: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:31:21: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:32:19: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:33:23: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:34:22: compiler.err.illegal.null.assignment.to.flattenable.value
+9 errors
