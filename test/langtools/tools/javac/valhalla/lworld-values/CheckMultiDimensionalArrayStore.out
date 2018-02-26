@@ -1,0 +1,5 @@
+CheckMultiDimensionalArrayStore.java:11:41: compiler.err.illegal.null.assignment.to.flattenable.value
+CheckMultiDimensionalArrayStore.java:12:28: compiler.err.illegal.null.assignment.to.flattenable.value
+CheckMultiDimensionalArrayStore.java:14:36: compiler.err.illegal.null.assignment.to.flattenable.value
+CheckMultiDimensionalArrayStore.java:15:29: compiler.err.illegal.null.assignment.to.flattenable.value
+4 errors
