@@ -162,6 +162,7 @@ public class Tokens {
         THROW("throw"),
         THROWS("throws"),
         TRANSIENT("transient"),
+        FLATTENABLE("__Flattenable"),
         TRY("try"),
         VALUE("__ByValue"),
         VDEFAULT("__MakeDefault"),

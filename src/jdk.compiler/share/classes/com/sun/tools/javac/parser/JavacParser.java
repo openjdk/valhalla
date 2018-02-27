@@ -316,6 +316,7 @@ public class JavacParser implements Parser {
                 case PROTECTED:
                 case STATIC:
                 case TRANSIENT:
+                case FLATTENABLE:
                 case NATIVE:
                 case VOLATILE:
                 case SYNCHRONIZED:
@@ -2790,6 +2791,7 @@ public class JavacParser implements Parser {
             case PUBLIC      : flag = Flags.PUBLIC; break;
             case STATIC      : flag = Flags.STATIC; break;
             case TRANSIENT   : flag = Flags.TRANSIENT; break;
+            case FLATTENABLE : checkSourceLevel(Feature.VALUE_TYPES); flag = Flags.FLATTENABLE; break;
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;

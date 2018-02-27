@@ -1,4 +1,4 @@
-FlattenableNegativeTest.java:13:38: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:13:39: compiler.err.illegal.null.assignment.to.flattenable.value
 FlattenableNegativeTest.java:17:21: compiler.err.illegal.null.assignment.to.flattenable.value
 FlattenableNegativeTest.java:22:17: compiler.err.illegal.null.assignment.to.flattenable.value
 FlattenableNegativeTest.java:28:23: compiler.err.illegal.null.assignment.to.flattenable.value

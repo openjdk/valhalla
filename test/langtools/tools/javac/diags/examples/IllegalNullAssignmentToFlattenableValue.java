@@ -25,7 +25,7 @@
 
 
 class IllegalNullAssignmentToFlattenableValue {
-    @Flattenable V v = null;
+    __Flattenable V v = null;
     __ByValue final class V {
         final int x = 10;
     }

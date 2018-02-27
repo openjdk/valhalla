@@ -205,7 +205,6 @@ public class Symtab {
     public final Type systemType;
     public final Type autoCloseableType;
     public final Type trustMeType;
-    public final Type flattenableType;
     public final Type lambdaMetafactory;
     public final Type stringConcatFactory;
     public final Type repeatableType;
@@ -541,7 +540,6 @@ public class Symtab {
                                             List.of(exceptionType), methodClass),
                              autoCloseableType.tsym);
         trustMeType = enterClass("java.lang.SafeVarargs");
-        flattenableType = enterClass("java.lang.Flattenable");
         nativeHeaderType = enterClass("java.lang.annotation.Native");
         lambdaMetafactory = enterClass("java.lang.invoke.LambdaMetafactory");
         stringConcatFactory = enterClass("java.lang.invoke.StringConcatFactory");

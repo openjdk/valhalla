@@ -10,8 +10,8 @@ public class FlattenableNegativeTest {
         final int x = 10;
         
         __ByValue final class X {
-            @Flattenable final V v = null;  // Error: initialization illegal
-            @Flattenable final V v2 = v;    // OK, null not constant propagated.
+            __Flattenable final V v = null;  // Error: initialization illegal
+            __Flattenable final V v2 = v;    // OK, null not constant propagated.
 
             V foo(X x) {
                 x.v = null;  // Error: withfield attempt is illegal.
@@ -24,7 +24,7 @@ public class FlattenableNegativeTest {
         }
 
         class Y {
-            @Flattenable V v;
+            __Flattenable V v;
             V [] va = { null }; // Illegal array initialization
             V [] va2 = new V[] { null }; // Illegal array initialization
             void foo(X x) {

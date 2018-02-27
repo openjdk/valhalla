@@ -2903,15 +2903,6 @@ public class Check {
                 log.error(a.pos(), Errors.BadFunctionalIntfAnno1(Fragments.NotAFunctionalIntf(s)));
             }
         }
-        if (a.annotationType.type.tsym == syms.flattenableType.tsym) {
-            if (s.getKind() == ElementKind.FIELD) {  // != field barfed against above (AnnotationTypeNotApplicable)
-                if (!types.isValue(s.type)) {
-                   log.error(a.pos(), Errors.BadFlattenableAnno);
-                } else {
-                    s.flags_field |= Flags.FLATTENABLE;
-                }
-            }
-        }
     }
 
     public void validateTypeAnnotation(JCAnnotation a, boolean isTypeParameter) {

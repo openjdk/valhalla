@@ -41,9 +41,9 @@ public class FlattenableFlagTest {
         final int xx = 10;
     }
 
-    @Flattenable Value v1;
+    __Flattenable Value v1;
     Value v2;
-    @Flattenable Value v3;
+    __Flattenable Value v3;
   
     public static void main(String[] args) {
         new OutputChecker().run();
@@ -56,10 +56,11 @@ public class FlattenableFlagTest {
                                                     Paths.get(System.getProperty("test.classes"),
                                                         "FlattenableFlagTest.class").toString() };
                 runCheck(params, new String [] {
-                 "@Flattenable FlattenableFlagTest$Value v1;",
+                 "__Flattenable FlattenableFlagTest$Value v1;",
                  "flags: (0x0100) ACC_FLATTENABLE",
                  "FlattenableFlagTest$Value v2;",
-                 "@Flattenable FlattenableFlagTest$Value v3;",
+                 "flags: (0x0000)",
+                 "__Flattenable FlattenableFlagTest$Value v3;",
                  });
 
              }

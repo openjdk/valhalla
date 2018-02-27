@@ -64,10 +64,10 @@ public enum Modifier {
      */
     VALUE,
     /**
-     * The modifier {@code __ValueFactory}
+     * The modifier {@code __Flattenable}
      * @since 1.11
      */
-    STATICVALUEFACTORY,
+    FLATTENABLE,
 
     /** The modifier {@code static} */          STATIC,
     /** The modifier {@code final} */           FINAL,

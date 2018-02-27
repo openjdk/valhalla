@@ -331,18 +331,18 @@ public class Flags {
         MemberClassFlags      = LocalClassFlags | INTERFACE | AccessFlags,
         ClassFlags            = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
         InterfaceVarFlags     = FINAL | STATIC | PUBLIC,
-        VarFlags              = AccessFlags | FINAL | STATIC |
-                                VOLATILE | TRANSIENT | ENUM,
         ConstructorFlags      = AccessFlags,
         InterfaceMethodFlags  = ABSTRACT | PUBLIC,
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
                                 SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE,
-        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | FLATTENABLE,
+        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT | FLATTENABLE,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
         LocalVarFlags               = FINAL | PARAMETER,
+        VarFlags              = AccessFlags | FINAL | STATIC |
+                                VOLATILE | TRANSIENT | FLATTENABLE | ENUM,
         ReceiverParamFlags          = PARAMETER;
 
 
@@ -357,6 +357,7 @@ public class Flags {
             if (0 != (flags & STATIC))    modifiers.add(Modifier.STATIC);
             if (0 != (flags & FINAL))     modifiers.add(Modifier.FINAL);
             if (0 != (flags & TRANSIENT)) modifiers.add(Modifier.TRANSIENT);
+            if (0 != (flags & FLATTENABLE)) modifiers.add(Modifier.FLATTENABLE);
             if (0 != (flags & VOLATILE))  modifiers.add(Modifier.VOLATILE);
             if (0 != (flags & SYNCHRONIZED))
                                           modifiers.add(Modifier.SYNCHRONIZED);
