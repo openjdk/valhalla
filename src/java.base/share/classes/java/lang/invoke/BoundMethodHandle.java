@@ -27,15 +27,12 @@ package java.lang.invoke;
 
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.ValueConversions;
-import valhalla.shady.MinimalValueTypes_1_0;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.invoke.LambdaForm.BasicType;
 import static java.lang.invoke.LambdaForm.BasicType.*;
-import static java.lang.invoke.LambdaForm.BasicType.V_TYPE_NUM;
-import static java.lang.invoke.LambdaForm.BasicType.V_TYPE_NUM;
 import static java.lang.invoke.LambdaForm.BasicType.V_TYPE_NUM;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 import static java.lang.invoke.MethodHandleNatives.Constants.*;
@@ -111,10 +108,6 @@ import static java.lang.invoke.MethodHandleStatics.uncaughtException;
     /*non-public*/
     BoundMethodHandle bindArgumentD(int pos, double value) {
         return editor().bindArgumentD(this, pos, value);
-    }
-    /*non-public*/
-    BoundMethodHandle bindArgumentQ(int pos, Object value, MethodHandle unbox) {
-        return editor().bindArgumentQ(this, pos, value, unbox);
     }
     @Override
     BoundMethodHandle rebind() {
@@ -403,7 +396,7 @@ import static java.lang.invoke.MethodHandleStatics.uncaughtException;
         }
 
         static final List<MemberName> BMH_TRANSFORMS;
-        static final int TN_COPY_NO_EXTEND = V_TYPE_NUM - 1;
+        static final int TN_COPY_NO_EXTEND = V_TYPE_NUM;
         static {
             final Class<BoundMethodHandle> BMH = BoundMethodHandle.class;
             // copyWithExtendLIJFD + copyWith
@@ -421,7 +414,7 @@ import static java.lang.invoke.MethodHandleStatics.uncaughtException;
             }
 
             // as it happens, there is one transform per BasicType including V_TYPE
-            assert(BMH_TRANSFORMS.size() == TYPE_LIMIT - 1); // but exclude Q_TYPE
+            assert(BMH_TRANSFORMS.size() == TYPE_LIMIT);
         }
 
         /**

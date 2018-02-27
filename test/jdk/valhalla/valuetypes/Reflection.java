@@ -21,46 +21,50 @@
  * questions.
  */
 
+
 /*
  * @test
- * @summary test Class.forName on value types
+ * @summary test reflection on value types
  * @compile -XDenableValueTypes Point.java
- * @compile --add-modules jdk.incubator.mvt PersonVcc.java
- * @run main/othervm -XX:+EnableValhalla Reflection valhalla
- * @run main/othervm -XX:+EnableMVT Reflection MVT
+ * @run main/othervm -XX:+EnableValhalla Reflection
  */
+
+import java.lang.reflect.*;
 
 public class Reflection {
     public static void main(String... args) throws Exception {
-        Reflection test = args[0].equals("valhalla")
-                              ? new Reflection("Point", true)
-                              : new Reflection("PersonVcc$Value", false);
-        test.testNewInstance();
+        Reflection test = new Reflection("Point");
+        test.newInstance();
+        test.accessField();
     }
 
     private final Class<?> c;
-    private final boolean fullValueType;
-    Reflection(String cn, boolean fullValueType) {
-        this.fullValueType = fullValueType;
-        Class<?> vcc = null;
-        try {
-            vcc = Class.forName(cn);
-            System.out.format("loaded %s %s%n", vcc.getName(), vcc.getSuperclass().getName());
-            if (!fullValueType)
-                throw new RuntimeException("ClassNotFoundException not thrown: " + cn);;
-        } catch (ClassNotFoundException e) {
-            if (fullValueType)
-                throw new RuntimeException(cn + " not found");;
+    Reflection(String cn) throws Exception {
+        this.c = Class.forName(cn);
+        if (!c.isValue()) {
+            throw new RuntimeException(cn + " is not a value class");
         }
-        this.c = vcc;
     }
 
-    void testNewInstance() throws Exception {
+    void accessField() throws Exception {
+        Point o = Point.origin;
+        Field x = c.getField("x");
+        if (x.getInt(o) != o.x) {
+            throw new RuntimeException("Unexpected Point.x value: " +  x.getInt(o));
+        }
+
+        try {
+            x.setInt(o, 100);
+            throw new RuntimeException("IllegalAccessException not thrown");
+        } catch (IllegalAccessException e) {}
+    }
+
+    void newInstance() throws Exception {
         if (c == null) return;
 
         try {
-            c.newInstance();
-            throw new RuntimeException("Reflection expected to be unsupported");
-        } catch (InstantiationException e) {}
+            Object o = c.newInstance();
+            throw new RuntimeException("newInstance expected to be unsupported on value class");
+        } catch (UnsupportedOperationException e) {}
     }
 }

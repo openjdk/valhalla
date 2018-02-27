@@ -23,15 +23,15 @@
  * questions.
  */
 
-final __ByValue class Point {
+public final __ByValue class Point {
     static final Point origin = makePoint(10, 20);
-    final int x;
-    final int y;
+    public final int x;
+    public final int y;
     Point () {
         x = 10;
         y = 20;
     }
-    __ValueFactory static Point makePoint(int x, int y) {
+    /* __ValueFactory */ static Point makePoint(int x, int y) {
         Point p = __MakeDefault Point();
         p.x = x;
         p.y = y;

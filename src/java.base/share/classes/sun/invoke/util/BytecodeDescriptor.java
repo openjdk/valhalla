@@ -25,8 +25,6 @@
 
 package sun.invoke.util;
 
-import valhalla.shady.MinimalValueTypes_1_0;
-
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +84,7 @@ public class BytecodeDescriptor {
     private static Class<?> parseSig(String str, int[] i, int end, ClassLoader loader) {
         if (i[0] == end)  return null;
         char c = str.charAt(i[0]++);
-        if (c == 'L' || c == 'Q') {
+        if (c == 'L') {
             int begc = i[0], endc = str.indexOf(';', begc);
             if (endc < 0)  return null;
             i[0] = endc+1;
@@ -148,11 +146,7 @@ public class BytecodeDescriptor {
 
     private static void unparseSig(Class<?> t, StringBuilder sb) {
         char c = Wrapper.forBasicType(t).basicTypeChar();
-        if (MinimalValueTypes_1_0.isValueType(t)) {
-            //patch signatures for DVT
-            c = 'Q';
-        }
-        if (c != 'L' && c != 'Q') {
+        if (c != 'L') {
             sb.append(c);
         } else {
             boolean lsemi = (!t.isArray());

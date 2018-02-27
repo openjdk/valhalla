@@ -25,14 +25,12 @@
 
 package java.lang.invoke;
 
-import java.lang.invoke.LambdaForm.BasicType;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.Opcodes;
 import sun.invoke.util.Wrapper;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -46,7 +44,6 @@ class GenerateJLIClassesHelper {
         ArrayList<String> names = new ArrayList<>();
         HashSet<String> dedupSet = new HashSet<>();
         for (LambdaForm.BasicType type : LambdaForm.BasicType.values()) {
-            if (type == BasicType.Q_TYPE) continue;
             LambdaForm zero = LambdaForm.zeroForm(type);
             String name = zero.kind.defaultLambdaName
                    + "_" + zero.returnType().basicTypeChar();

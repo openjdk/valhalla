@@ -315,8 +315,6 @@ module java.base {
     exports sun.util.resources to
         jdk.localedata;
 
-    exports valhalla.shady to jdk.incubator.mvt;
-
     // the service types defined by the APIs in this module
 
     uses java.lang.System.LoggerFinder;

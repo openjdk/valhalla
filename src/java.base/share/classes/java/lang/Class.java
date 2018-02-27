@@ -64,7 +64,6 @@ import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.misc.VM;
 import jdk.internal.module.Resources;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.ConstantPool;
@@ -80,7 +79,6 @@ import sun.reflect.generics.scope.ClassScope;
 import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
-import valhalla.shady.MinimalValueTypes_1_0;
 
 /**
  * Instances of the class {@code Class} represent classes and
@@ -131,9 +129,10 @@ public final class Class<T> implements java.io.Serializable,
                               GenericDeclaration,
                               Type,
                               AnnotatedElement {
-    private static final int ANNOTATION= 0x00002000;
-    private static final int ENUM      = 0x00004000;
-    private static final int SYNTHETIC = 0x00001000;
+    private static final int ANNOTATION = 0x00002000;
+    private static final int ENUM       = 0x00004000;
+    private static final int SYNTHETIC  = 0x00001000;
+    private static final int VALUE_TYPE = 0x00000100;
 
     private static native void registerNatives();
     static {
@@ -289,11 +288,7 @@ public final class Class<T> implements java.io.Serializable,
     public static Class<?> forName(String className)
                 throws ClassNotFoundException {
         Class<?> caller = Reflection.getCallerClass();
-        Class<?> c = forName0(className, true, ClassLoader.getClassLoader(caller), caller);
-        if (c.isDerivedValueClass()) {
-            throw new ClassNotFoundException(className + " is a derived value class");
-        }
-        return c;
+        return forName0(className, true, ClassLoader.getClassLoader(caller), caller);
     }
 
 
@@ -376,15 +371,11 @@ public final class Class<T> implements java.io.Serializable,
                 }
             }
         }
-        Class<?> c = forName0(name, initialize, loader, caller);
-        if (c.isDerivedValueClass()) {
-            throw new ClassNotFoundException(name + " is a derived value class");
-        }
-        return c;
+        return forName0(name, initialize, loader, caller);
     }
 
     /** Called after security check for system loader access checks have been made. */
-    static native Class<?> forName0(String name, boolean initialize,
+    private static native Class<?> forName0(String name, boolean initialize,
                                     ClassLoader loader,
                                     Class<?> caller)
         throws ClassNotFoundException;
@@ -455,63 +446,32 @@ public final class Class<T> implements java.io.Serializable,
             cl = module.getClassLoader();
         }
 
-        Class<?> c;
         if (cl != null) {
-            c = cl.loadClass(module, name);
+            return cl.loadClass(module, name);
         } else {
-            c = BootLoader.loadClass(module, name);
-        }
-
-        return c != null && !c.isDerivedValueClass() ? c : null;
-    }
-
-    /*
-     * Tests if this class is a derived value class
-     */
-    boolean isDerivedValueClass() {
-        // ensure that system properties have been initialized before
-        // loading MinimalValueTypes_1_0 class.
-        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isMVTEnabled())
-            return false;
-        return isValueClass();
-    }
-
-    /*
-     * Tests if this class is a valhalla value type
-     */
-    private boolean isValhallaValueType() {
-        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isValhallaEnabled())
-            return false;
-        return isValueClass();
-    }
-
-
-    /*
-     * Ensure this class is not a value class.
-     */
-    private void ensureNotValueClass() {
-        // value class is support only if -XX:+EnableMVT is set
-        if (VM.initLevel() < 1 || !MinimalValueTypes_1_0.isMVTEnabled())
-            return;
-
-        if (this.isValueClass()) {
-            throw new UnsupportedOperationException("cannot reflect on value type "
-                + this.getName());
+            return BootLoader.loadClass(module, name);
         }
     }
 
-    /*
-     * Test if this class is a value class (either MVT or Valhalla)
-     */
-    private boolean isValueClass() {
-        Class<?> c = this;
-        while (c.isArray()) {
-            c = c.getComponentType();
-        }
 
-        // For now, check if it is a subtype of __Value
-        Class<?> valueBaseClass = MinimalValueTypes_1_0.getValueClass();
-        return valueBaseClass != null && c != valueBaseClass && valueBaseClass.isAssignableFrom(c);
+    /**
+     * Returns {@code true} if this class is a value class.
+     *
+     * @return {@code true} if this class is a value class.
+     * @since 11
+     */
+    public boolean isValue() {
+        int mods = this.getModifiers();
+        if ((mods & VALUE_TYPE) != 0) {
+            if ((mods & (Modifier.INTERFACE | Modifier.ABSTRACT)) != 0) {
+                throw new InternalError("value class can't have ACC_INTERFACE or ACC_ABSTRACT set");
+            }
+            if (getSuperclass() != Object.class) {
+                throw new InternalError("Super class of a value class must be java.lang.Object");
+            }
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -572,10 +532,10 @@ public final class Class<T> implements java.io.Serializable,
     public T newInstance()
         throws InstantiationException, IllegalAccessException
     {
-        if (isValhallaValueType()) {
-            throw new InstantiationException("no constructor in value type: " + getName());
+        if (this.isValue()) {
+            throw new UnsupportedOperationException("newInstance on a value class "
+                + this.getName());
         }
-        ensureNotValueClass();
 
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -1311,8 +1271,6 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
-            enclosingCandidate.ensureNotValueClass();
-
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkMemberAccess(sm, Member.DECLARED,
@@ -1469,11 +1427,6 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
-            if (enclosingCandidate.isValhallaValueType()) {
-                return null;
-            }
-            enclosingCandidate.ensureNotValueClass();
-
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkMemberAccess(sm, Member.DECLARED,
@@ -1770,8 +1723,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Class<?>[] getClasses() {
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), false);
@@ -1841,8 +1792,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Field[] getFields() throws SecurityException {
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -1933,8 +1882,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Method[] getMethods() throws SecurityException {
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -1974,12 +1921,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getConstructors() throws SecurityException {
-        if (isValhallaValueType()) {
-            return new Constructor<?>[0];
-        }
-
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2033,8 +1974,6 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Field getField(String name)
         throws NoSuchFieldException, SecurityException {
-        ensureNotValueClass();
-
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2144,8 +2083,6 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Method getMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {
-        ensureNotValueClass();
-
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2191,12 +2128,6 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
-        if (isValhallaValueType()) {
-            throw new NoSuchMethodException("no constructor in value type: " + getName());
-        }
-
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2243,8 +2174,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Class<?>[] getDeclaredClasses() throws SecurityException {
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), false);
@@ -2297,8 +2226,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Field[] getDeclaredFields() throws SecurityException {
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2360,8 +2287,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Method[] getDeclaredMethods() throws SecurityException {
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2410,12 +2335,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getDeclaredConstructors() throws SecurityException {
-        if (isValhallaValueType()) {
-            return new Constructor<?>[0];
-        }
-
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2467,8 +2386,6 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Field getDeclaredField(String name)
         throws NoSuchFieldException, SecurityException {
-        ensureNotValueClass();
-
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2533,8 +2450,6 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {
-        ensureNotValueClass();
-
         Objects.requireNonNull(name);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -2614,12 +2529,6 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
-        if (isValhallaValueType()) {
-            throw new NoSuchMethodException("no constructor in value type: " + getName());
-        }
-
-        ensureNotValueClass();
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);

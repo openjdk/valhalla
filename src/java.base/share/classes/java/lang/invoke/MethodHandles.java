@@ -36,8 +36,6 @@ import sun.invoke.util.VerifyAccess;
 import sun.invoke.util.Wrapper;
 import sun.reflect.misc.ReflectUtil;
 import sun.security.util.SecurityConstants;
-import valhalla.shady.MinimalValueTypes_1_0;
-import valhalla.shady.ValueTypeHolder;
 
 import java.lang.invoke.LambdaForm.BasicType;
 import java.lang.reflect.Constructor;
@@ -1259,12 +1257,6 @@ assertEquals("[x, y, z]", pb.command().toString());
                 throw new NoSuchMethodException("no constructor for array class: " + refc.getName());
             }
             String name = "<init>";
-            if (MinimalValueTypes_1_0.isValueType(refc)) {
-                //shady: The findConstructor method of Lookup will expose all accessible constructors of the original
-                //value-capable class, for both the Q-type and the legacy L-type. The return type of a method handle produced
-                //by findConstructor will be identical with the lookup class, even if it is a Q-type.
-                refc = MinimalValueTypes_1_0.getValueCapableClass(refc);
-            }
             MemberName ctor = resolveOrFail(REF_newInvokeSpecial, refc, name, type);
             return getDirectConstructor(refc, ctor);
         }
@@ -1419,12 +1411,8 @@ assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
          * @see #findVarHandle(Class, String, Class)
          */
         public MethodHandle findGetter(Class<?> refc, String name, Class<?> type) throws NoSuchFieldException, IllegalAccessException {
-            if (MinimalValueTypes_1_0.isValueType(refc)) {
-                return MinimalValueTypes_1_0.findValueType(refc).findGetter(this, name, type);
-            } else {
-                MemberName field = resolveOrFail(REF_getField, refc, name, type);
-                return getDirectField(REF_getField, refc, field);
-            }
+            MemberName field = resolveOrFail(REF_getField, refc, name, type);
+            return getDirectField(REF_getField, refc, field);
         }
 
         /**
@@ -2538,14 +2526,12 @@ return mh1;
      */
     public static
     MethodHandle arrayConstructor(Class<?> arrayClass) throws IllegalArgumentException {
-        ValueTypeHolder<?> compValue = valueComponent(arrayClass);
-        if (compValue != null) {
-            return compValue.newArray();
-        } else {
-            MethodHandle ani = MethodHandleImpl.getConstantHandle(MethodHandleImpl.MH_Array_newInstance).
-                    bindTo(arrayClass.getComponentType());
-            return ani.asType(ani.type().changeReturnType(arrayClass));
+        if (!arrayClass.isArray()) {
+            throw newIllegalArgumentException("not an array class: " + arrayClass.getName());
         }
+        MethodHandle ani = MethodHandleImpl.getConstantHandle(MethodHandleImpl.MH_Array_newInstance).
+                bindTo(arrayClass.getComponentType());
+        return ani.asType(ani.type().changeReturnType(arrayClass));
     }
 
     /**
@@ -2566,10 +2552,7 @@ return mh1;
      */
     public static
     MethodHandle arrayLength(Class<?> arrayClass) throws IllegalArgumentException {
-        ValueTypeHolder<?> compValue = valueComponent(arrayClass);
-        return (compValue != null) ?
-                compValue.arrayLength() :
-                MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.LENGTH);
+        return MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.LENGTH);
     }
 
     /**
@@ -2594,10 +2577,7 @@ return mh1;
      */
     public static
     MethodHandle arrayElementGetter(Class<?> arrayClass) throws IllegalArgumentException {
-        ValueTypeHolder<?> compValue = valueComponent(arrayClass);
-        return (compValue != null) ?
-                compValue.arrayGetter() :
-                MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.GET);
+        return MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.GET);
     }
 
     /**
@@ -2622,24 +2602,10 @@ return mh1;
      */
     public static
     MethodHandle arrayElementSetter(Class<?> arrayClass) throws IllegalArgumentException {
-        ValueTypeHolder<?> compValue = valueComponent(arrayClass);
-        return (compValue != null) ?
-                compValue.arraySetter() :
-                MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.SET);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <Z> ValueTypeHolder<Z> valueComponent(Class<Z> arrayClass) {
-        if (!arrayClass.isArray()) {
-            throw newIllegalArgumentException("not an array class: " + arrayClass.getName());
+        if (arrayClass.isValue()) {
+            throw new UnsupportedOperationException();
         }
-
-        Class<?> comp = arrayClass.getComponentType();
-        if (MinimalValueTypes_1_0.isValueType(comp)) {
-            return (ValueTypeHolder<Z>) MinimalValueTypes_1_0.findValueType(comp);
-        } else {
-            return null;
-        }
+        return MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.SET);
     }
 
     /**
@@ -3364,8 +3330,6 @@ assert((int)twice.invokeExact(21) == 42);
             if (w.zero().equals(value))
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
-        } else if (MinimalValueTypes_1_0.isValueType(type)) {
-            return insertArguments(identity(type), 0, value);
         } else {
             if (value == null)
                 return zero(Wrapper.OBJECT, type);
@@ -3415,8 +3379,8 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (MinimalValueTypes_1_0.isValueType(type)) {
-            return MinimalValueTypes_1_0.findValueType(type).defaultValueConstant();
+        } else if (type.isValue()) {
+            throw new UnsupportedOperationException();
         } else {
             return zero(Wrapper.OBJECT, type);
         }
@@ -3449,13 +3413,9 @@ assert((int)twice.invokeExact(21) == 42);
 
     private static final MethodHandle[] IDENTITY_MHS = new MethodHandle[Wrapper.COUNT];
     private static MethodHandle makeIdentity(Class<?> ptype) {
-        if (!MinimalValueTypes_1_0.isValueType(ptype)) {
-            MethodType mtype = MethodType.methodType(ptype, ptype);
-            LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
-            return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
-        } else {
-            return MinimalValueTypes_1_0.findValueType(ptype).identity();
-        }
+        MethodType mtype = MethodType.methodType(ptype, ptype);
+        LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
+        return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
     }
 
     private static MethodHandle zero(Wrapper btw, Class<?> rtype) {
@@ -3527,12 +3487,6 @@ assert((int)twice.invokeExact(21) == 42);
             Class<?> ptype = ptypes[pos+i];
             if (ptype.isPrimitive()) {
                 result = insertArgumentPrimitive(result, pos, ptype, value);
-            } else if (MinimalValueTypes_1_0.isValueType(ptype)) {
-                Class<?> vcc = MinimalValueTypes_1_0.getValueCapableClass(ptype);
-                Objects.requireNonNull(value); // throw NPE if needed
-                value = vcc.cast(value);       // throw CCE if needed
-                MethodHandle unbox = MinimalValueTypes_1_0.findValueType(ptype).unbox();
-                result = result.bindArgumentQ(pos, value, unbox);
             } else {
                 value = ptype.cast(value);  // throw CCE if needed
                 result = result.bindArgumentL(pos, value);

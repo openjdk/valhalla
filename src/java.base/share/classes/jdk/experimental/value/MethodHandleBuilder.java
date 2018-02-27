@@ -38,8 +38,6 @@ import jdk.experimental.bytecode.TypedCodeBuilder;
 import jdk.experimental.value.MethodHandleBuilder.IsolatedMethodBuilder.IsolatedMethodPoolHelper;
 import jdk.internal.misc.Unsafe;
 import sun.security.action.GetPropertyAction;
-import valhalla.shady.MinimalValueTypes_1_0;
-import valhalla.shady.ValueTypeHolder;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
@@ -97,7 +95,6 @@ public class MethodHandleBuilder {
 
         try {
             byte[] barr = isolatedMethodBuilder.build();
-            MinimalValueTypes_1_0.maybeDump(className, barr.clone());
             Class<?> clazz = UNSAFE.defineAnonymousClass(lookup.lookupClass(), barr, isolatedMethodBuilder.patches());
             UNSAFE.ensureClassInitialized(clazz);
             return resFunc.apply(clazz);
@@ -165,41 +162,20 @@ public class MethodHandleBuilder {
                 if (aClass.isArray()) {
                     return aClass.getName().replaceAll("\\.", "/");
                 } else {
-                    return MinimalValueTypes_1_0.isValueType(aClass) ?
-                            "Q" + aClass.getName().replaceAll("\\.", "/") + ";" :
-                            "L" + aClass.getName().replaceAll("\\.", "/") + ";";
+                    return "L" + aClass.getName().replaceAll("\\.", "/") + ";";
                 }
             }
 
             @Override
             public Class<?> symbol(String desc) {
-                if (desc.endsWith("$Value;")) {
-                    //value class - avoid Class.forName on the DVT
-                    try {
-                        int numDims = 0;
-                        while (desc.startsWith("[")) {
-                            desc = desc.substring(1);
-                            numDims++;
-                        }
-                        Class<?> box = Class.forName(basicTypeHelper.symbol(desc)
-                                .replaceAll("/", ".")
-                                .replaceAll("\\$Value", ""), true, lookup.lookupClass().getClassLoader());
-                        ValueTypeHolder<?> vt = MinimalValueTypes_1_0.getValueFor(box);
-                        return numDims == 0 ?
-                                vt.valueClass() : vt.arrayValueClass(numDims);
-                    } catch (ReflectiveOperationException ex) {
-                        throw new AssertionError(ex);
+                try {
+                    if (desc.startsWith("[")) {
+                        return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
+                    } else {
+                        return Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
                     }
-                } else {
-                    try {
-                        if (desc.startsWith("[")) {
-                           return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
-                        } else {
-                           return Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
-                        }
-                    } catch (ReflectiveOperationException ex) {
-                        throw new AssertionError(ex);
-                    }
+                } catch (ReflectiveOperationException ex) {
+                    throw new AssertionError(ex);
                 }
             }
 
@@ -234,14 +210,11 @@ public class MethodHandleBuilder {
 
             String from(Class<?> c) {
                 String name;
-                boolean isValue = MinimalValueTypes_1_0.isValueType(c);
                 if (c == THIS_CLASS) {
                     //THIS_CLASS cannot be a DVT (by construction) - never mangle
                     name = clazz;
                 } else {
-                    name = isValue ?
-                            MinimalValueTypes_1_0.mangleValueClassName(c.getName()) :
-                            c.getName();
+                    name = c.getName();
                 }
                 return name.replaceAll("\\.", "/");
             }
@@ -349,7 +322,6 @@ public class MethodHandleBuilder {
 
         int patchPoolEntry(Object v) {
             String cpPlaceholder = "CONSTANT_PLACEHOLDER_" + cph++;
-            if (MinimalValueTypes_1_0.DUMP_CLASS_FILES) cpPlaceholder += " <<" + debugString(v) + ">>";
             if (cpPatches.containsKey(cpPlaceholder)) {
                 throw new InternalError("observed CP placeholder twice: " + cpPlaceholder);
             }

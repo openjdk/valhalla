@@ -773,6 +773,8 @@ class Field extends AccessibleObject implements Member {
     public void set(Object obj, Object value)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -809,6 +811,8 @@ class Field extends AccessibleObject implements Member {
     public void setBoolean(Object obj, boolean z)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -845,6 +849,8 @@ class Field extends AccessibleObject implements Member {
     public void setByte(Object obj, byte b)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -881,6 +887,8 @@ class Field extends AccessibleObject implements Member {
     public void setChar(Object obj, char c)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -917,6 +925,8 @@ class Field extends AccessibleObject implements Member {
     public void setShort(Object obj, short s)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -953,6 +963,8 @@ class Field extends AccessibleObject implements Member {
     public void setInt(Object obj, int i)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -989,6 +1001,8 @@ class Field extends AccessibleObject implements Member {
     public void setLong(Object obj, long l)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -1025,6 +1039,8 @@ class Field extends AccessibleObject implements Member {
     public void setFloat(Object obj, float f)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -1061,6 +1077,8 @@ class Field extends AccessibleObject implements Member {
     public void setDouble(Object obj, double d)
         throws IllegalArgumentException, IllegalAccessException
     {
+        ensureNotValueClass();
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, obj);
@@ -1075,6 +1093,16 @@ class Field extends AccessibleObject implements Member {
         checkAccess(caller, clazz,
                     Modifier.isStatic(modifiers) ? null : obj.getClass(),
                     modifiers);
+    }
+
+    /*
+     * Ensure the declaring class is not a value class.
+     */
+    private void ensureNotValueClass() throws IllegalAccessException {
+        if (clazz.isValue()) {
+            throw new IllegalAccessException("cannot set this field of a value class "
+                + clazz.getName());
+        }
     }
 
     // security check is done before calling this method

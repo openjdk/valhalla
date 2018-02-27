@@ -31,7 +31,6 @@ import jdk.experimental.bytecode.MacroCodeBuilder.InvocationKind;
 import jdk.experimental.value.MethodHandleBuilder;
 import sun.invoke.util.VerifyType;
 import sun.invoke.util.Wrapper;
-import valhalla.shady.MinimalValueTypes_1_0;
 
 import java.lang.invoke.LambdaForm.BasicType;
 import java.lang.invoke.LambdaForm.Name;
@@ -78,10 +77,6 @@ class LambdaFormBuilder extends MethodHandleBuilder {
         String className = overrideNames ?
                 CLASS_PREFIX + invokerName.substring(0, p) :
                 CLASS_PREFIX + DEFAULT_CLASS;
-        if (MinimalValueTypes_1_0.DUMP_CLASS_FILES) {
-            // When DUMP_CLASS_FILES is true methodName will have a unique id
-            className = className + "_" + methodName;
-        }
         return MethodHandleBuilder.loadCode(Lookup.IMPL_LOOKUP.in(LambdaForm.class), className, methodName, invokerType.toMethodDescriptorString(),
                 M -> new LambdaFormCodeBuilder(form, invokerType, M), clazz -> InvokerBytecodeGenerator.resolveInvokerMember(clazz, methodName, invokerType),
                 C -> new LambdaFormBuilder(C, form).generateLambdaFormBody());
@@ -154,7 +149,6 @@ class LambdaFormBuilder extends MethodHandleBuilder {
                 }
                 case ZERO: {
                     assert (name.arguments.length == 0);
-                    assert (name.type != BasicType.Q_TYPE);
                     builder.ldc(name.type.basicTypeWrapper().zero());
                     continue;
                 }
@@ -397,13 +391,6 @@ class LambdaFormBuilder extends MethodHandleBuilder {
                     if (!VerifyType.isNullConversion(int.class, pclass, false))
                         conv(fromBasicType(ptype), fromBasicType(BasicType.basicType(pclass)));
                     return this;
-                case Q_TYPE:
-                    if (!MinimalValueTypes_1_0.isValueType(pclass)) {
-                        vbox(Object.class);
-                        return this;
-                    }
-                    assert pclass == arg.getClass();
-                    return this; //assume they are equal
             }
             throw newInternalError("bad implicit conversion: tc="+ptype+": "+pclass);
         }
@@ -603,7 +590,6 @@ class LambdaFormBuilder extends MethodHandleBuilder {
             case D_TYPE:  return TypeTag.D;
             case L_TYPE:  return TypeTag.A;
             case V_TYPE:  return TypeTag.V;
-            case Q_TYPE:  return TypeTag.Q;
             default:
                 throw new InternalError("unknown type: " + type);
         }

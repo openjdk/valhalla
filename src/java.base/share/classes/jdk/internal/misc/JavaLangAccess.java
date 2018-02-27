@@ -273,9 +273,4 @@ public interface JavaLangAccess {
      * @throws IllegalArgumentException for malformed surrogates
      */
     byte[] getBytesUTF8NoRepl(String s);
-
-    /**
-     * Loads a derived ValueType class
-     */
-    Class<?> loadValueTypeClass(Module module, ClassLoader loader, String name);
 }
