@@ -1215,10 +1215,6 @@ public class Attr extends JCTree.Visitor {
                         v.type = chk.checkLocalVarType(tree, tree.init.type.baseType(), tree.name);
                     }
                 }
-                if ((v.flags() & FLATTENABLE) != 0 || (v.type.hasTag(ARRAY) && types.isValue(((ArrayType) v.type).elemtype))) {
-                    if (haveNullInitializer(tree.init))
-                        log.error(tree.init.pos(), Errors.IllegalNullAssignmentToFlattenableValue);
-                }
                 if (tree.isImplicitlyTyped()) {
                     setSyntheticVariableType(tree, v.type);
                 }
@@ -1229,20 +1225,6 @@ public class Attr extends JCTree.Visitor {
             chk.setLint(prevLint);
         }
     }
-        // where
-        private boolean haveNullInitializer(JCExpression init) {
-            if (init.type != null) {
-                if (init.type.hasTag(BOT))
-                    return true;
-                if (init.type.hasTag(ARRAY)) {
-                    for (JCTree elem: ((JCNewArray) init).elems) {
-                        if (elem != null && elem.type != null && elem.type.hasTag(BOT))
-                            return true;
-                    }
-                }
-            }
-            return false;
-        }
 
     Fragment canInferLocalVarType(JCVariableDecl tree) {
         LocalInitScanner lis = new LocalInitScanner();
@@ -2585,12 +2567,6 @@ public class Attr extends JCTree.Visitor {
         }
         if (tree.elems != null) {
             attribExprs(tree.elems, localEnv, elemtype);
-            if (types.isValue(elemtype)) {
-                for (JCExpression elem : tree.elems) {
-                    if (elem.type != null && elem.type.hasTag(BOT))
-                        log.error(tree.pos(), Errors.IllegalNullAssignmentToFlattenableValue);
-                }
-            }
             owntype = new ArrayType(elemtype, syms.arrayClass);
         }
         if (!types.isReifiable(elemtype))
@@ -3443,13 +3419,6 @@ public class Attr extends JCTree.Visitor {
         Type capturedType = capture(owntype);
         attribExpr(tree.rhs, env, owntype);
         result = check(tree, capturedType, KindSelector.VAL, resultInfo);
-        if (tree.rhs.type != null && tree.rhs.type.hasTag(BOT)) {
-            Symbol v = TreeInfo.symbol(tree.lhs);
-            if ((v != null && (v.flags() & FLATTENABLE) != 0) ||
-                    tree.lhs.hasTag(INDEXED) && types.isValue(tree.lhs.type)) {
-                log.error(tree.pos(), Errors.IllegalNullAssignmentToFlattenableValue);
-            }
-        }
     }
 
     public void visitAssignop(JCAssignOp tree) {

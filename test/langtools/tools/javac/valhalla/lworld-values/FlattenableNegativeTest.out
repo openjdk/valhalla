@@ -1,10 +1,10 @@
-FlattenableNegativeTest.java:13:39: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:17:21: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:22:17: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:28:23: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:29:24: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:31:21: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:32:19: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:33:23: compiler.err.illegal.null.assignment.to.flattenable.value
-FlattenableNegativeTest.java:34:22: compiler.err.illegal.null.assignment.to.flattenable.value
+FlattenableNegativeTest.java:13:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:17:23: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:22:19: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:28:25: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:29:34: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:31:23: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:32:21: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:33:25: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:34:32: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
 9 errors
