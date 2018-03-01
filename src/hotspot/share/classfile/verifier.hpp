@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,6 @@
 #include "utilities/exceptions.hpp"
 #include "utilities/growableArray.hpp"
 
-// For bit tests involving JVM_CONSTANT_Value during verification,
-// define a "safe" number to avoid integer overflow of types
-#define SAFE_JVM_CONSTANT_Value JVM_CONSTANT_ExternalMax
-
 // The verifier class
 class Verifier : AllStatic {
  public:
@@ -46,8 +42,6 @@ class Verifier : AllStatic {
     INVOKEDYNAMIC_MAJOR_VERSION         = 51,
     NO_RELAX_ACCESS_CTRL_CHECK_VERSION  = 52,
     DYNAMICCONSTANT_MAJOR_VERSION       = 55,
-    VALUETYPE_MAJOR_VERSION             = 53,
-    VALUETYPE_MINOR_VERSION             =  1
   };
   typedef enum { ThrowException, NoException } Mode;
 
@@ -278,12 +272,7 @@ class ClassVerifier : public StackObj {
 
   VerificationType cp_ref_index_to_type(
       int index, const constantPoolHandle& cp, TRAPS) {
-    return cp_index_to_reference_type(cp->klass_ref_index_at(index), cp, THREAD);
-  }
-
-  VerificationType cp_value_index_to_type(
-      int index, const constantPoolHandle& cp, TRAPS) {
-    return cp_index_to_valuetype(cp->klass_ref_index_at(index), cp, THREAD);
+    return cp_index_to_type(cp->klass_ref_index_at(index), cp, THREAD);
   }
 
   bool is_protected_access(
@@ -294,8 +283,6 @@ class ClassVerifier : public StackObj {
   void verify_cp_type(u2 bci, int index, const constantPoolHandle& cp,
       unsigned int types, TRAPS);
   void verify_cp_class_type(u2 bci, int index, const constantPoolHandle& cp, TRAPS);
-  void verify_cp_value_type(u2 bci, int index, const constantPoolHandle& cp, TRAPS);
-  void verify_cp_class_or_value_type(u2 bci, int index, const constantPoolHandle& cp, TRAPS);
 
   u2 verify_stackmap_table(
     u2 stackmap_index, u2 bci, StackMapFrame* current_frame,
@@ -316,10 +303,6 @@ class ClassVerifier : public StackObj {
   void verify_field_instructions(
     RawBytecodeStream* bcs, StackMapFrame* current_frame,
     const constantPoolHandle& cp, bool allow_arrays, TRAPS);
-
-  void verify_vwithfield(
-    RawBytecodeStream* bcs, StackMapFrame* current_frame,
-    const constantPoolHandle& cp, TRAPS);
 
   void verify_invoke_init(
     RawBytecodeStream* bcs, u2 ref_index, VerificationType ref_class_type,
@@ -365,7 +348,6 @@ class ClassVerifier : public StackObj {
   bool name_in_supers(Symbol* ref_name, InstanceKlass* current);
 
   VerificationType object_type() const;
-  VerificationType __value_type() const;
 
   InstanceKlass*      _klass;  // the class being verified
   methodHandle        _method; // current method being verified
@@ -426,12 +408,8 @@ class ClassVerifier : public StackObj {
   int change_sig_to_verificationType(
     SignatureStream* sig_type, VerificationType* inference_type, TRAPS);
 
-  VerificationType cp_index_to_reference_type(int index, const constantPoolHandle& cp, TRAPS) {
+  VerificationType cp_index_to_type(int index, const constantPoolHandle& cp, TRAPS) {
     return VerificationType::reference_type(cp->klass_name_at(index));
-  }
-
-  VerificationType cp_index_to_valuetype(int index, const constantPoolHandle& cp, TRAPS) {
-    return VerificationType::valuetype_type(cp->klass_name_at(index));
   }
 
   // Keep a list of temporary symbols created during verification because
@@ -450,7 +428,6 @@ class ClassVerifier : public StackObj {
   }
 
   TypeOrigin ref_ctx(const char* str, TRAPS);
-  TypeOrigin valuetype_ctx(const char* str, TRAPS);
 
 };
 
@@ -460,14 +437,12 @@ inline int ClassVerifier::change_sig_to_verificationType(
   switch (bt) {
     case T_OBJECT:
     case T_ARRAY:
-    case T_VALUETYPE:
       {
         Symbol* name = sig_type->as_symbol(CHECK_0);
         // Create another symbol to save as signature stream unreferences this symbol.
         Symbol* name_copy = create_temporary_symbol(name);
         assert(name_copy == name, "symbols don't match");
-        *inference_type = ((bt == T_VALUETYPE) ? VerificationType::valuetype_type(name_copy) :
-                                                 VerificationType::reference_type(name_copy));
+        *inference_type = VerificationType::reference_type(name_copy);
         return 1;
       }
     case T_LONG:

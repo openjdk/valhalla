@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,7 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     Verifier::trace_class_resolution(this_class, klass);
   }
 
+  if (this_class->access_flags().is_value_type()) return false;
   if (this_class->is_interface() && (!from_field_is_protected ||
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in
@@ -159,7 +160,6 @@ void VerificationType::print_on(outputStream* st) const {
     case Double_2nd:       st->print("double_2nd"); break;
     case Null:             st->print("null"); break;
     case ReferenceQuery:   st->print("reference type"); break;
-    case ValueTypeQuery:   st->print("value type"); break;
     case Category1Query:   st->print("category1 type"); break;
     case Category2Query:   st->print("category2 type"); break;
     case Category2_2ndQuery: st->print("category2_2nd type"); break;
