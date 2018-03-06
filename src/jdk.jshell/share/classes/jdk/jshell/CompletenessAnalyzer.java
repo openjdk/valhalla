@@ -255,6 +255,7 @@ class CompletenessAnalyzer {
         THROW(TokenKind.THROW, XSTMT1|XSTART),  //  throw
         TRY(TokenKind.TRY, XSTMT1|XSTART),  //  try
         WHILE(TokenKind.WHILE, XSTMT1|XSTART),  //  while
+        WITHFIELD(TokenKind.WITHFIELD, XEXPR),  //  withfield
 
         // Statement keywords that we shouldn't see -- inside braces
         CASE(TokenKind.CASE, XSTMT|XSTART),  //  case

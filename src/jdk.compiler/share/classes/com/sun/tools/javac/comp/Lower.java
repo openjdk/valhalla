@@ -3375,6 +3375,12 @@ public class Lower extends TreeTranslator {
         result = tree;
     }
 
+    public void visitWithField(JCWithField tree) {
+        tree.field = translate(tree.field, tree);
+        tree.value = translate(tree.value, tree.field.type);
+        result = tree;
+    }
+
     public void visitForLoop(JCForLoop tree) {
         tree.init = translate(tree.init);
         if (tree.cond != null)

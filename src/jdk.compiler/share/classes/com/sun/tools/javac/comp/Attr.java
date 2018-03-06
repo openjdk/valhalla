@@ -300,38 +300,17 @@ public class Attr extends JCTree.Visitor {
                 boolean complain = true;
                 /* Allow updates to instance fields of value classes by any method in the same nest -
                    This does not result in mutation of final fields; the code generator would implement
-                   `copy on write' semantics via the opcode `withfield'. However for copy on write to
-                   work, the base must be writable.
+                   `copy on write' semantics via the opcode `withfield'.
                 */
                 if (v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isValue(v.owner.type)) {
-                    if (env.enclClass.sym.outermostClass() == v.owner.outermostClass()) {
-                        if (haveMutableHandle(base, env))
-                            complain = false;
-                    }
+                    if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
+                        complain = false;
                 }
                 if (complain)
                     log.error(pos, Errors.CantAssignValToFinalVar(v));
             }
         }
     }
-        // where
-        private boolean haveMutableHandle (JCTree base, Env<AttrContext> env) {
-            if (base == null)
-                return false;
-            Symbol sym = TreeInfo.symbol(base);
-            if (sym != null && sym.name == names._this)
-                return false;
-            switch (base.getTag()) {
-                case IDENT:
-                    return sym != null && sym.kind == VAR && sym.getKind() != ElementKind.FIELD && (sym.flags() & FINAL) == 0;
-                case PARENS:
-                    return haveMutableHandle(((JCParens) base).expr, env);
-                case INDEXED:   // TODO
-                case SELECT:    // TODO
-                default:
-                    return false;
-            }
-        }
 
     /** Does tree represent a static reference to an identifier?
      *  It is assumed that tree is either a SELECT or an IDENT.
@@ -1347,6 +1326,22 @@ public class Attr extends JCTree.Visitor {
         attribExpr(tree.cond, env, syms.booleanType);
         attribStat(tree.body, env.dup(tree));
         result = null;
+    }
+
+    public void visitWithField(JCWithField tree) {
+        Type fieldtype = attribTree(tree.field, env.dup(tree), varAssignmentInfo);
+        attribExpr(tree.value, env, fieldtype);
+        Type capturedType = syms.errType;
+        if (tree.field.type != null && !tree.field.type.isErroneous()) {
+            final Symbol sym = TreeInfo.symbol(tree.field);
+            if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
+                    (sym.flags() & STATIC) != 0 || !types.isValue(sym.owner.type)) {
+                log.error(tree.field.pos(), Errors.ValueInstanceFieldExpectedHere);
+            } else {
+                capturedType = capture(sym.owner.type);
+            }
+        }
+        result = check(tree, capturedType, KindSelector.VAL, resultInfo);
     }
 
     public void visitForLoop(JCForLoop tree) {

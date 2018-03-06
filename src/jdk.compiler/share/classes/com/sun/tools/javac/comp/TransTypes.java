@@ -568,6 +568,13 @@ public class TransTypes extends TreeTranslator {
         result = tree;
     }
 
+    public void visitWithField(JCWithField tree) {
+        tree.field = translate(tree.field, null);
+        tree.value = translate(tree.value, erasure(tree.field.type));
+        tree.type = erasure(tree.type);
+        result = retype(tree, tree.type, pt);
+    }
+
     public void visitForLoop(JCForLoop tree) {
         tree.init = translate(tree.init, null);
         if (tree.cond != null)

@@ -1,9 +1,4 @@
 WithFieldNegativeTests.java:18:14: compiler.err.cant.assign.val.to.final.var: sx
-WithFieldNegativeTests.java:23:16: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:29:11: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:30:9: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:31:13: compiler.err.cant.assign.val.to.final.var: x
-WithFieldNegativeTests.java:32:15: compiler.err.cant.assign.val.to.final.var: x
 WithFieldNegativeTests.java:38:10: compiler.err.cant.assign.val.to.final.var: x
 WithFieldNegativeTests.java:39:10: compiler.err.cant.assign.val.to.final.var: sx
-8 errors
+3 errors

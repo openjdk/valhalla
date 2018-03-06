@@ -1044,6 +1044,30 @@ public class Gen extends JCTree.Visitor {
         genLoop(tree, tree.body, tree.cond, List.nil(), true);
     }
 
+    public void visitWithField(JCWithField tree) {
+        switch(tree.field.getTag()) {
+            case IDENT:
+                Symbol sym = ((JCIdent) tree.field).sym;
+                items.makeThisItem().load();
+                genExpr(tree.value, tree.field.type).load();
+                sym = binaryQualifier(sym, env.enclClass.type);
+                code.emitop2(withfield, pool.put(sym));
+                result = items.makeStackItem(tree.type);
+                break;
+            case SELECT:
+                JCFieldAccess fieldAccess = (JCFieldAccess) tree.field;
+                sym = TreeInfo.symbol(fieldAccess);
+                genExpr(fieldAccess.selected, fieldAccess.selected.type).load();
+                genExpr(tree.value, tree.field.type).load();
+                sym = binaryQualifier(sym, fieldAccess.selected.type);
+                code.emitop2(withfield, pool.put(sym));
+                result = items.makeStackItem(tree.type);
+                break;
+            default:
+                Assert.check(false);
+        }
+    }
+
     public void visitForLoop(JCForLoop tree) {
         int limit = code.nextreg;
         genStats(tree.init, env);

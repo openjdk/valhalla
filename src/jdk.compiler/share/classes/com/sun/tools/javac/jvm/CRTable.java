@@ -281,6 +281,13 @@ implements CRTFlags {
             result = sr;
         }
 
+        public void visitWithField(JCWithField tree) {
+            SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.field));
+            sr.mergeWith(csp(tree.value));
+            result = sr;
+        }
+
         public void visitForLoop(JCForLoop tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
             sr.mergeWith(csp(tree.init));

@@ -474,6 +474,14 @@ public interface TreeVisitor<R,P> {
     R visitWhileLoop(WhileLoopTree node, P p);
 
     /**
+     * Visits a WithFieldTree node.
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     */
+    R visitWithField(WithFieldTree node, P p);
+
+    /**
      * Visits a WildcardTypeTree node.
      * @param node the node being visited
      * @param p a parameter value

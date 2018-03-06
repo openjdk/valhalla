@@ -20,16 +20,16 @@ __ByValue final class A {
     }
 
     void withfield(B b) {
-            b.a.x = 11; // Error, at least for now.
+            b.a.x = 11;
     }
 
     void foo(A a, final A fa) {
         a.x = 100; // OK.
         (a).x = 100; // OK.
-        fa.x = 100; // Error.
-        x = 100;  // Error, this is const.
-        this.x = 100; // Error.
-        A.this.x = 100; // Error.
+        fa.x = 100;
+        x = 100;
+        this.x = 100;
+        A.this.x = 100;
     }
 }
 

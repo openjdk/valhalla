@@ -1077,6 +1077,18 @@ public class JavacParser implements Parser {
                 }
             } else return illegal();
             break;
+        case WITHFIELD:
+            if (typeArgs == null && (mode & EXPR) != 0) {
+                nextToken();
+                accept(LPAREN);
+                mode = EXPR;
+                t = term();
+                accept(COMMA);
+                mode = EXPR;
+                JCExpression v = term();
+                accept(RPAREN);
+                return F.at(pos).WithField(t, v);
+            } else return illegal();
         case LPAREN:
             if (typeArgs == null && (mode & EXPR) != 0) {
                 ParensResult pres = analyzeParens();

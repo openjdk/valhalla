@@ -169,6 +169,7 @@ public class Tokens {
         VOID("void", Tag.NAMED),
         VOLATILE("volatile"),
         WHILE("while"),
+        WITHFIELD("__WithField"),
         INTLITERAL(Tag.NUMERIC),
         LONGLITERAL(Tag.NUMERIC),
         FLOATLITERAL(Tag.NUMERIC),
