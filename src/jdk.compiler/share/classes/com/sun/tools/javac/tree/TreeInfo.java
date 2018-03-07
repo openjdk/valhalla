@@ -542,6 +542,8 @@ public class TreeInfo {
                 return getEndPos(((JCTypeCast) tree).expr, endPosTable);
             case TYPETEST:
                 return getEndPos(((JCInstanceOf) tree).clazz, endPosTable);
+            case WITHFIELD:
+                return getEndPos(((JCWithField) tree).value, endPosTable);
             case WHILELOOP:
                 return getEndPos(((JCWhileLoop) tree).body, endPosTable);
             case ANNOTATED_TYPE:
