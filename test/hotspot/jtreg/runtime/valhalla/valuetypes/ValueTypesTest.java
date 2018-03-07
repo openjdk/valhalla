@@ -56,6 +56,14 @@ import javax.tools.*;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.valuetypes.ValueTypesTest
+ */
+
+
+
+
+
+
+/*
  * @run main/othervm -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -83,7 +91,7 @@ public class ValueTypesTest {
             try {
                 testExecutionStackToLocalVariable(testClasses[i]);
                 testExecutionStackToFields(testClasses[i], containerClasses[i]);
-                testExecutionStackToValueArray(testClasses[i], containerClasses[i]);
+//                testExecutionStackToValueArray(testClasses[i], containerClasses[i]);
             } catch (Throwable t) {
                 t.printStackTrace();
                 throw new RuntimeException(t);
@@ -246,7 +254,7 @@ public class ValueTypesTest {
                             .iinc(3, 1)
                             .aload_2()
                             .iload_3()
-                            .vdefault(valueClass)
+                            .defaultvalue(valueClass)
                             .aastore()
                             .iinc(3, 1)
                             .goto_("loop1")
