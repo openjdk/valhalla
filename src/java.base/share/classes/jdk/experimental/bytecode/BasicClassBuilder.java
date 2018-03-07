@@ -597,8 +597,6 @@ public class BasicClassBuilder extends ClassBuilder<String, String, BasicClassBu
                     return TypeTag.D;
                 case 'V':
                     return TypeTag.V;
-                case 'Q':
-                    return TypeTag.Q;
                 default:
                     throw new IllegalStateException("Bad type: " + s);
             }

@@ -35,8 +35,7 @@ public enum TypeTag implements Type {
     A("A", 4, 1, -1),
     C("C", 0, 1, 5),
     Z("Z", 0, 1, 4),
-    V("V", -1, -1, -1),
-    Q("Q", -1, 1, -1);
+    V("V", -1, -1, -1);
 
     String typeStr;
     int offset;

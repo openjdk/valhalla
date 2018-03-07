@@ -358,8 +358,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             T res;
             TypeTag tag1 = typeHelper.tag(t1);
             TypeTag tag2 = typeHelper.tag(t2);
-            if (tag1 != TypeTag.A && tag2 != TypeTag.A &&
-                    tag1 != TypeTag.Q && tag2 != TypeTag.Q) {
+            if (tag1 != TypeTag.A && tag2 != TypeTag.A) {
                 res = typeHelper.fromTag(TypeTag.commonSupertype(tag1, tag2));
             } else if (t1 == typeHelper.nullType()) {
                 res = t2;
@@ -389,7 +388,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
     @SuppressWarnings("unchecked")
     public void updateState(Opcode op, Object optValue) {
         switch (op) {
-            case VALOAD:
             case AALOAD:
                 state.pop();
                 state.push(typeHelper.elemtype(state.pop()));
@@ -462,7 +460,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ALOAD:
             case LLOAD:
             case DLOAD:
-            case VLOAD:
                 state.push(state.locals.get((Integer) optValue));
                 break;
             case IALOAD:
@@ -511,7 +508,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ISTORE:
             case FSTORE:
             case ASTORE:
-            case VSTORE:
                 state.load(state.pop(), (int) optValue);
                 break;
             case LSTORE_0:
@@ -540,7 +536,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case LUSHR:
                 state.pop();
                 break;
-            case VRETURN:
             case ARETURN:
             case IRETURN:
             case FRETURN:
@@ -580,7 +575,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(TypeTag.I);
                 break;
-            case VASTORE:
             case AASTORE:
                 state.pop();
                 state.pop();
@@ -828,7 +822,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 break;
             case NEW:
-            case VDEFAULT:
+            case DEFAULTVALUE:
                 state.push(typeHelper.type((S) optValue));
                 break;
             case NEWARRAY:
@@ -838,11 +832,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ANEWARRAY:
                 state.pop();
 		state.push(typeHelper.arrayOf(typeHelper.type((S)optValue))); 
-                break;
-            case VBOX:
-            case VUNBOX:
-                state.pop();
-                state.push(typeHelper.type((S) optValue));
                 break;
             case MULTIANEWARRAY:
                 for (int i = 0; i < (byte) ((Object[]) optValue)[1]; i++) {
@@ -882,7 +871,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 break;
             }
-            case VWITHFIELD: {
+            case WITHFIELD: {
                 TypeTag tag = typeHelper.tag((T) optValue);
                 if (tag.width == 1) {
                     state.pop();

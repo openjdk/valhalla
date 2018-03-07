@@ -231,15 +231,8 @@ public enum Opcode {
     IF_NONNULL(199),
     GOTO_W(200),
     JSR_W(201),
-    VLOAD(203),
-    VSTORE(204),
-    VALOAD(205),
-    VASTORE(206),
-    VRETURN(207),
-    VDEFAULT(208),
-    VWITHFIELD(209),
-    VBOX(210),
-    VUNBOX(211),
+    DEFAULTVALUE(203),
+    WITHFIELD(204),
     TYPED(212);
 
     int code;

@@ -117,40 +117,32 @@ public class MacroCodeBuilder<S, T, E, C extends MacroCodeBuilder<S, T, E, C>> e
     }
 
     public C load(TypeTag type, int n) {
-        if (type == TypeTag.Q) {
-            return vload(n);
-        } else {
-            switch (n) {
-                case 0:
-                    return emitOp(Opcode.ILOAD_0.at(type, 4));
-                case 1:
-                    return emitOp(Opcode.ILOAD_1.at(type, 4));
-                case 2:
-                    return emitOp(Opcode.ILOAD_2.at(type, 4));
-                case 3:
-                    return emitOp(Opcode.ILOAD_3.at(type, 4));
-                default:
-                    return emitWideIfNeeded(Opcode.ILOAD.at(type), n);
-            }
+        switch (n) {
+            case 0:
+                return emitOp(Opcode.ILOAD_0.at(type, 4));
+            case 1:
+                return emitOp(Opcode.ILOAD_1.at(type, 4));
+            case 2:
+                return emitOp(Opcode.ILOAD_2.at(type, 4));
+            case 3:
+                return emitOp(Opcode.ILOAD_3.at(type, 4));
+            default:
+                return emitWideIfNeeded(Opcode.ILOAD.at(type), n);
         }
     }
 
     public C store(TypeTag type, int n) {
-        if (type == TypeTag.Q) {
-            return vstore(n);
-        } else {
-            switch (n) {
-                case 0:
-                    return emitOp(Opcode.ISTORE_0.at(type, 4));
-                case 1:
-                    return emitOp(Opcode.ISTORE_1.at(type, 4));
-                case 2:
-                    return emitOp(Opcode.ISTORE_2.at(type, 4));
-                case 3:
-                    return emitOp(Opcode.ISTORE_3.at(type, 4));
-                default:
-                    return emitWideIfNeeded(Opcode.ISTORE.at(type), n);
-            }
+        switch (n) {
+            case 0:
+                return emitOp(Opcode.ISTORE_0.at(type, 4));
+            case 1:
+                return emitOp(Opcode.ISTORE_1.at(type, 4));
+            case 2:
+                return emitOp(Opcode.ISTORE_2.at(type, 4));
+            case 3:
+                return emitOp(Opcode.ISTORE_3.at(type, 4));
+            default:
+                return emitWideIfNeeded(Opcode.ISTORE.at(type), n);
         }
     }
 
@@ -311,8 +303,6 @@ public class MacroCodeBuilder<S, T, E, C extends MacroCodeBuilder<S, T, E, C>> e
         switch (type) {
             case V:
                 return return_();
-            case Q:
-                return vreturn();
             default:
                 return emitOp(Opcode.IRETURN.at(type));
         }
