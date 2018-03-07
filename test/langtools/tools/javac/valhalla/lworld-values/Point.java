@@ -40,8 +40,8 @@ final __ByValue class Point {
     }
     static Point makePoint(int x, int y) {
         Point p = __MakeDefault Point();
-        p.x = x;
-        p.y = y;
+        p = __WithField(p.x, x);
+        p = __WithField(p.y, y);
         return p;
     }
 }

@@ -1,0 +1,8 @@
+FinalFieldTest.java:11:9: compiler.err.cant.assign.val.to.final.var: x
+FinalFieldTest.java:12:9: compiler.err.cant.assign.val.to.final.var: x
+FinalFieldTest.java:17:9: compiler.err.cant.assign.val.to.final.var: x
+FinalFieldTest.java:18:9: compiler.err.cant.assign.val.to.final.var: x
+FinalFieldTest.java:19:9: compiler.err.cant.assign.val.to.final.var: y
+FinalFieldTest.java:20:9: compiler.err.cant.assign.val.to.final.var: y
+FinalFieldTest.java:14:9: compiler.err.var.might.already.be.assigned: y
+7 errors

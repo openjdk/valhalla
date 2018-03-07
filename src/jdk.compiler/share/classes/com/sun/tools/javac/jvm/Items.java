@@ -150,19 +150,9 @@ public class Items {
      *  @param member       The represented symbol.
      *  @param nonvirtual   Is the reference not virtual? (true for constructors
      *                      and private members).
-     *  @param baseToCopyOnWrite Updates to fields imply copy on write to this receiver
-     */
-    Item makeMemberItem(Symbol member, boolean nonvirtual, Item baseToCopyOnWrite) {
-        return  baseToCopyOnWrite != null ? new CopyOnWriteMemberItem(baseToCopyOnWrite, member) : new MemberItem(member, nonvirtual);
-    }
-
-    /** Make an item representing an instance variable or method.
-     *  @param member       The represented symbol.
-     *  @param nonvirtual   Is the reference not virtual? (true for constructors
-     *                      and private members).
      */
     Item makeMemberItem(Symbol member, boolean nonvirtual) {
-        return makeMemberItem(member, nonvirtual, null);
+        return new MemberItem(member, nonvirtual);
     }
 
     /** Make an item representing a literal.
@@ -561,21 +551,6 @@ public class Items {
 
         public String toString() {
             return "member(" + member + (nonvirtual ? " nonvirtual)" : ")");
-        }
-    }
-
-    class CopyOnWriteMemberItem extends MemberItem {
-
-        Item rcvItem;
-
-        CopyOnWriteMemberItem(Item rcvItem, Symbol member) {
-            super(member, false);
-            this.rcvItem = rcvItem;
-        }
-
-        void store() {
-            code.emitop2(withfield, pool.put(member));
-            rcvItem.store();
         }
     }
 

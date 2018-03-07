@@ -2144,14 +2144,10 @@ public class Gen extends JCTree.Visitor {
                     code.emitop0(arraylength);
                     result = items.makeStackItem(syms.intType);
                 } else {
-                    boolean requireCopyOnWrite = false;
-                    if (sym.kind == VAR && (sym.flags() & (SYNTHETIC | FINAL)) == FINAL && types.isValue(sym.owner.type)) {
-                        requireCopyOnWrite = true;
-                    }
                     result = items.
                         makeMemberItem(sym,
                                        (sym.flags() & PRIVATE) != 0 ||
-                                       selectSuper || accessSuper, (requireCopyOnWrite ? base : null));
+                                       selectSuper || accessSuper);
                 }
             }
         }

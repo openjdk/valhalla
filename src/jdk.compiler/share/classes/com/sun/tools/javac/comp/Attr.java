@@ -298,11 +298,11 @@ public class Attr extends JCTree.Visitor {
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
                 boolean complain = true;
-                /* Allow updates to instance fields of value classes by any method in the same nest -
-                   This does not result in mutation of final fields; the code generator would implement
-                   `copy on write' semantics via the opcode `withfield'.
+                /* Allow updates to instance fields of value classes by any method in the same nest via the
+                   withfield operator -This does not result in mutation of final fields; the code generator
+                   would implement `copy on write' semantics via the opcode `withfield'.
                 */
-                if (v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isValue(v.owner.type)) {
+                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isValue(v.owner.type)) {
                     if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
                         complain = false;
                 }
@@ -1329,19 +1329,25 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitWithField(JCWithField tree) {
-        Type fieldtype = attribTree(tree.field, env.dup(tree), varAssignmentInfo);
-        attribExpr(tree.value, env, fieldtype);
-        Type capturedType = syms.errType;
-        if (tree.field.type != null && !tree.field.type.isErroneous()) {
-            final Symbol sym = TreeInfo.symbol(tree.field);
-            if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
-                    (sym.flags() & STATIC) != 0 || !types.isValue(sym.owner.type)) {
-                log.error(tree.field.pos(), Errors.ValueInstanceFieldExpectedHere);
-            } else {
-                capturedType = capture(sym.owner.type);
+        boolean inWithField = env.info.inWithField;
+        try {
+            env.info.inWithField = true;
+            Type fieldtype = attribTree(tree.field, env.dup(tree), varAssignmentInfo);
+            attribExpr(tree.value, env, fieldtype);
+            Type capturedType = syms.errType;
+            if (tree.field.type != null && !tree.field.type.isErroneous()) {
+                final Symbol sym = TreeInfo.symbol(tree.field);
+                if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
+                        (sym.flags() & STATIC) != 0 || !types.isValue(sym.owner.type)) {
+                    log.error(tree.field.pos(), Errors.ValueInstanceFieldExpectedHere);
+                } else {
+                    capturedType = capture(sym.owner.type);
+                }
             }
+            result = check(tree, capturedType, KindSelector.VAL, resultInfo);
+        } finally {
+            env.info.inWithField = inWithField;
         }
-        result = check(tree, capturedType, KindSelector.VAL, resultInfo);
     }
 
     public void visitForLoop(JCForLoop tree) {

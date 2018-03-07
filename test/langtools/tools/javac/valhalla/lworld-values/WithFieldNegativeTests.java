@@ -14,8 +14,8 @@ __ByValue final class A {
         final A a = __MakeDefault A();
 
         void foo(A a) {
-            a.x = 100; // OK, same nest.
-            a.sx = 100; // Error.
+            a.x = 100;
+            a.sx = 100;
         }
     }
 
@@ -24,8 +24,8 @@ __ByValue final class A {
     }
 
     void foo(A a, final A fa) {
-        a.x = 100; // OK.
-        (a).x = 100; // OK.
+        a.x = 100;
+        (a).x = 100;
         fa.x = 100;
         x = 100;
         this.x = 100;
@@ -35,7 +35,7 @@ __ByValue final class A {
 
 class C {
     void foo(A a) {
-        a.x = 100; // Not OK.
-        a.sx = 100; // Error
+        a.x = 100;
+        a.sx = 100;
     }
 }

@@ -35,8 +35,8 @@ __ByValue final class Point {
        String s = __MakeDefault String(); // NO: String cannot be produced in this factory.
        __MakeDefault SinnerValue();
        p = __MakeDefault Point();
-       p.x = x;
-       p.y = y;
+       p = __WithField(p.x, x);
+       p = __WithField(p.y, y);
        return p;
     }
 }

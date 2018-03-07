@@ -14,12 +14,12 @@ public class FlattenableNegativeTest {
             __Flattenable final V v2 = v;    // OK, null not constant propagated.
 
             V foo(X x) {
-                x.v = null;  // Error: withfield attempt is illegal.
+                x = __WithField(x.v, null);  // Error: withfield attempt is illegal.
                 return x.v;
             }
         }
         V foo(X x) {
-            x.v = null; // withfield attempt is illegal
+            x = __WithField(x.v, null); // withfield attempt is illegal
             return x.v;
         }
 
@@ -28,7 +28,7 @@ public class FlattenableNegativeTest {
             V [] va = { null }; // Illegal array initialization
             V [] va2 = new V[] { null }; // Illegal array initialization
             void foo(X x) {
-                x.v = null; // illegal withfield attempt
+                x = __WithField(x.v, null); // illegal withfield attempt
                 v = null; // illegal assignment.
                 va[0] = null; // Illegal.
                 va = new V[] { null }; // Illegal

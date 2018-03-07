@@ -49,9 +49,8 @@ public class ValueCreationTest {
 
         static Point makePoint(int x, int y) {
            Point p = __MakeDefault Point();
-           p.x = x;
-           p.y = y;
-           return p;
+           p = __WithField(p.x, x);
+           return __WithField(p.y, y);
         }
 
         public static void main(String [] args) {
@@ -78,9 +77,7 @@ public class ValueCreationTest {
         "10: aload_2",
         "11: iload_1",
         "12: withfield     #3                  // Field y:I",
-        "15: astore_2",
-        "16: aload_2",
-        "17: areturn"
+        "15: areturn"
            
          });
 
