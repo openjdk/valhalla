@@ -1017,7 +1017,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       field._offset = fs.offset();
       field._type = FieldType::basic_type(fs.signature());
       if (field._type == T_VALUETYPE) {
-        if (fs.is_flatten()) {
+        if (fs.is_flattened()) {
           // Resolve klass of flattened value type field
           SignatureStream ss(fs.signature(), false);
           Klass* vk = ss.as_klass(Handle(THREAD, klass->class_loader()), Handle(THREAD, klass->protection_domain()), SignatureStream::NCDFError, THREAD);

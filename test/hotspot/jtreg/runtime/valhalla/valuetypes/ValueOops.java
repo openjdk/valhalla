@@ -118,20 +118,20 @@ public class ValueOops {
 
 
     static class Couple {
-        public Person onePerson;
-        public Person otherPerson;
+        __Flattenable public Person onePerson;
+        __Flattenable public Person otherPerson;
     }
 
     static final __ByValue class Composition {
-        public final Person onePerson;
-        public final Person otherPerson;
+        __Flattenable public final Person onePerson;
+        __Flattenable public final Person otherPerson;
 
         private Composition() {
-            this.onePerson   = Person.create(0, null, null);
-            this.otherPerson = Person.create(0, null, null);
+            onePerson   = Person.create(0, null, null);
+            otherPerson = Person.create(0, null, null);
         }
 
-        __ValueFactory public static Composition create(Person onePerson, Person otherPerson) {
+        public static Composition create(Person onePerson, Person otherPerson) {
             Composition comp = __MakeDefault Composition();
             comp.onePerson   = onePerson;
             comp.otherPerson = otherPerson;
@@ -519,8 +519,8 @@ public class ValueOops {
     static final __ByValue class ObjectValue {
         final Object object;
 
-        private ObjectValue(Object object) {
-            this.object = object;
+        private ObjectValue(Object obj) {
+            object = obj;
         }
     }
 
@@ -558,14 +558,14 @@ public class ValueOops {
         public final String notes;
 
         private FooValue() {
-            this.id          = 0;
-            this.name        = null;
-            this.description = null;
-            this.timestamp   = 0L;
-            this.notes       = null;
+            id          = 0;
+            name        = null;
+            description = null;
+            timestamp   = 0L;
+            notes       = null;
         }
 
-        __ValueFactory public static FooValue create(int id, String name, String description, long timestamp, String notes) {
+        public static FooValue create(int id, String name, String description, long timestamp, String notes) {
             FooValue f = __MakeDefault FooValue();
             f.id          = id;
             f.name        = name;
@@ -641,7 +641,7 @@ public class ValueOops {
     }
 
     static class BarWithValue {
-        FooValue foo;
+        __Flattenable FooValue foo;
         long extendedId;
         String moreNotes;
         int count;
@@ -649,18 +649,18 @@ public class ValueOops {
     }
 
     static final __ByValue class BarValue {
-        final FooValue foo;
+        __Flattenable final FooValue foo;
         final long extendedId;
         final String moreNotes;
         final int count;
         final String otherStuff;
 
-        private BarValue(FooValue foo, long extendedId, String moreNotes, int count, String otherStuff) {
-            this.foo = foo;
-            this.extendedId = extendedId;
-            this.moreNotes = moreNotes;
-            this.count = count;
-            this.otherStuff = otherStuff;
+        private BarValue(FooValue f, long extId, String mNotes, int c, String other) {
+            foo = f;
+            extendedId = extId;
+            moreNotes = mNotes;
+            count = c;
+            otherStuff = other;
         }
     }
 

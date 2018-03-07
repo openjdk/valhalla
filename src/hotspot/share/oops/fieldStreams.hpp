@@ -162,12 +162,18 @@ class FieldStreamBase : public StackObj {
     return field()->allocation_type();
   }
 
-  bool is_flatten() {
-    return field()->is_flatten();
+  bool is_flattened() {
+    return field()->is_flattened();
   }
 
-  void set_flattening(bool b) {
-    field()->set_flattening(b);
+  void set_flattened(bool b) {
+    field()->set_flattened(b);
+  }
+
+  bool is_flattenable() const {
+    AccessFlags flags;
+    flags.set_flags(field()->access_flags());
+    return flags.is_flattenable();
   }
 
   void set_offset(int offset) {

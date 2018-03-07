@@ -51,7 +51,7 @@ import javax.tools.*;
  *          java.base/jdk.experimental.value
  * @library /test/lib
  * @compile -XDenableValueTypes TestValue1.java TestValue2.java TestValue3.java TestValue4.java ValueTypesTest.java
- * @run main/othervm -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
+ * @run main/othervm -noverify -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
@@ -94,7 +94,7 @@ public class ValueTypesTest {
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     static void testExecutionStackToLocalVariable(Class<?> valueClass) throws Throwable {
-        String sig = "()Q" + valueClass.getName() + ";";
+        String sig = "()L" + valueClass.getName() + ";";
         final String signature = sig.replace('.', '/');
         System.out.println(signature);
         MethodHandle fromExecStackToLocalVar = MethodHandleBuilder.loadCode(
@@ -108,16 +108,16 @@ public class ValueTypesTest {
                         n++;
                         CODE
                                 .invokestatic(valueClass, "getInstance", signature, false)
-                                .vstore(n);
+                                .astore(n);
                         n++;
                         CODE
                                 .invokestatic(valueClass, "getNonBufferedInstance", signature, false)
-                                .vstore(n);
+                                .astore(n);
                     }
                     CODE.invokestatic(System.class, "gc", "()V", false);
                     while (n > 0) {
                         CODE
-                                .vload(n)
+                                .aload(n)
                                 .invokevirtual(valueClass, "verify", "()Z", false)
                                 .iconst_1()
                                 .ifcmp(TypeTag.I, CondKind.NE, "end");
@@ -137,9 +137,9 @@ public class ValueTypesTest {
 
     static void testExecutionStackToFields(Class<?> valueClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = 512;
-        String sig = "()Q" + valueClass.getName() + ";";
+        String sig = "()L" + valueClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
-        final String fieldSignature = "Q" + valueClass.getName().replace('.', '/') + ";";
+        final String fieldSignature = "L" + valueClass.getName().replace('.', '/') + ";";
         System.out.println(methodSignature);
         MethodHandle fromExecStackToFields = MethodHandleBuilder.loadCode(
                 LOOKUP,
@@ -206,9 +206,9 @@ public class ValueTypesTest {
 
     static void testExecutionStackToValueArray(Class<?> valueClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = 100;
-        String sig = "()Q" + valueClass.getName() + ";";
+        String sig = "()L" + valueClass.getName() + ";";
         final String signature = sig.replace('.', '/');
-        final String arraySignature = "[Q" + valueClass.getName().replace('.', '/') + ";";
+        final String arraySignature = "[L" + valueClass.getName().replace('.', '/') + ";";
         System.out.println(arraySignature);
         MethodHandle fromExecStackToValueArray = MethodHandleBuilder.loadCode(
                 LOOKUP,
@@ -237,17 +237,17 @@ public class ValueTypesTest {
                             .aload_2()
                             .iload_3()
                             .invokestatic(valueClass, "getInstance", signature, false)
-                            .vastore()
+                            .aastore()
                             .iinc(3, 1)
                             .aload_2()
                             .iload_3()
                             .invokestatic(valueClass, "getNonBufferedInstance", signature, false)
-                            .vastore()
+                            .aastore()
                             .iinc(3, 1)
                             .aload_2()
                             .iload_3()
                             .vdefault(valueClass)
-                            .vastore()
+                            .aastore()
                             .iinc(3, 1)
                             .goto_("loop1")
                             .label("end1")
@@ -260,7 +260,7 @@ public class ValueTypesTest {
                             .ifcmp(TypeTag.I, CondKind.GE, "end2")
                             .aload_2()
                             .iload_3()
-                            .vaload()
+                            .aaload()
                             .invokevirtual(valueClass, "verify", "()Z", false)
                             .iconst_1()
                             .ifcmp(TypeTag.I, CondKind.NE, "failed")

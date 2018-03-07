@@ -150,6 +150,9 @@ private:
 
 public:
   static void init();
+  static address base() { return _base; }
+  static size_t  size() { return _size; }
+
   static VTBufferChunk* get_new_chunk(JavaThread* thread);
 
   static Mutex* lock() { return _pool_lock; }

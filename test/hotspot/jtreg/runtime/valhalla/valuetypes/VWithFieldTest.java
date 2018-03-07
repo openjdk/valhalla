@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test VWithFieldTest
  * @summary vwithfield bytecode test
  * @library /test/lib
- * @compile -XDenableValueTypes --add-modules jdk.incubator.mvt Point.java
+ * @compile -XDenableValueTypes Point.java
  * @compile -XDenableValueTypes VWithFieldTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
  */
@@ -46,14 +46,14 @@ public class VWithFieldTest {
 	final private int x;
 	final private int y;
 	
-	__ValueFactory static Point make(int x, int y) {
+	static Point make(int x, int y) {
 	    Point p = __MakeDefault Point();
 	    Asserts.assertEquals(p.x, 0, "invalid x default value");
 	    Asserts.assertEquals(p.y, 0, "invalid y default value");
-	    p.x = x;
+	    p = __WithField(p.x, x);
 	    Asserts.assertEquals(p.x, x, "invalid x value");
 	    Asserts.assertEquals(p.y, 0, "invalid y value");
-	    p.y = y;
+	    p = __WithField(p.y, y);
 	    Asserts.assertEquals(p.x, x, "invalid x value");
 	    Asserts.assertEquals(p.y, y, "invalid y value");
 	    return p;
@@ -68,8 +68,8 @@ public class VWithFieldTest {
 	    return x;
 	}
 	
-	__ValueFactory static Point setX(Point p, int x) {
-	    p.x = x;
+	static Point setX(Point p, int x) {
+	    p = __WithField(p.x, x);
 	    return p;
 	}
 
@@ -77,8 +77,8 @@ public class VWithFieldTest {
 	    return y;
 	}
 	
-	__ValueFactory static Point setY(Point p, int y) {
-	    p.y = y;
+	static Point setY(Point p, int y) {
+	    p = __WithField(p.y, y);
 	    return p;
 	}
     }

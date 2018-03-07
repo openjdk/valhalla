@@ -293,7 +293,7 @@ GrowableArray<SigEntry> ValueKlass::collect_fields(int base_off) const {
     BasicType bt = fd.field_type();
     int offset = base_off + fd.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (bt == T_VALUETYPE) {
-      if (fd.is_flatten()) {
+      if (fd.is_flattened()) {
         Symbol* signature = fd.signature();
         JavaThread* THREAD = JavaThread::current();
         oop loader = class_loader();

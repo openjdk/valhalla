@@ -51,20 +51,19 @@ __ByValue final class MyValueType {
   final int i;
   final int j;
 
-  private MyValueType()
-  {
-    this.i = 0;
-    this.j = 0;
+  private MyValueType() {
+    i = 0;
+    j = 0;
   }
-
-  __ValueFactory static MyValueType testDefault() {
+    
+  static MyValueType testDefault() {
     return __MakeDefault MyValueType();
   }
 
-  __ValueFactory static MyValueType testBranchArg1(boolean flag, MyValueType v1) {
+  static MyValueType testBranchArg1(boolean flag, MyValueType v1) {
     if (flag) {
-      v1.i = 3;
-      v1.j = 4;
+      v1 = __WithField(v1.i, 3);
+       v1 = __WithField(v1.j, 4);
     }
     return v1;
   }

@@ -77,7 +77,7 @@ class PSPromotionManager;
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
 // N  flag true if field is marked flattenable (must never be null)
-// i  flag true if field is inlined (flatten)
+// i  flag true if field is inlined (flattened)
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
 // f2 flag true if f2 contains an oop (e.g., virtual final method)
@@ -185,9 +185,9 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
     is_field_entry_shift       = 26,  // (F) is it a field or a method?
     has_method_type_shift      = 25,  // (M) does the call site have a MethodType?
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
-    is_flattenable_field       = 24,  // (N) is the field flattenable (must never be null)
+    is_flattenable_field_shift = 24,  // (N) is the field flattenable (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
-    is_flatten_field           = 23,  // (i) is the value field flatten?
+    is_flattened_field_shift   = 23,  // (i) is the value field flattened?
     is_final_shift             = 22,  // (f) is the field or method final?
     is_volatile_shift          = 21,  // (v) is the field volatile?
     is_vfinal_shift            = 20,  // (vf) did the call resolve to a final method?
@@ -227,7 +227,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
     TosState        field_type,                  // the (machine) field type
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
-    bool            is_flatten,                  // the field is flatten (value field)
+    bool            is_flattened,                // the field is flattened (value field)
     bool            is_flattenable,              // the field is flattenable (must never be null)
     Klass*          root_klass                   // needed by the GC to dirty the klass
   );
@@ -367,7 +367,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
-  bool is_flatten() const                        { return  (_flags & (1 << is_flatten_field))       != 0; }
+  bool is_flattened() const                      { return  (_flags & (1 << is_flattened_field_shift))       != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
   bool indy_resolution_failed() const            { intx flags = flags_ord(); return (flags & (1 << indy_resolution_failed_shift)) != 0; }
@@ -377,7 +377,7 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
   bool is_field_entry() const                    { return (_flags & (1 << is_field_entry_shift))    != 0; }
   bool is_long() const                           { return flag_state() == ltos; }
   bool is_double() const                         { return flag_state() == dtos; }
-  bool is_flattenable() const                    { return (_flags & (1 << is_flattenable_field))       != 0; }
+  bool is_flattenable() const                    { return (_flags & (1 << is_flattenable_field_shift))       != 0; }
   TosState flag_state() const                    { assert((uint)number_of_states <= (uint)tos_state_mask+1, "");
                                                    return (TosState)((_flags >> tos_state_shift) & tos_state_mask); }
   void set_indy_resolution_failed();

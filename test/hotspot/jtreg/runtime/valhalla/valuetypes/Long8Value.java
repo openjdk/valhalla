@@ -37,14 +37,14 @@ public final __ByValue class Long8Value {
     final long longField8;
 
     private Long8Value() {
-	this.longField1 = 0;
-	this.longField2 = 0;
-	this.longField3 = 0;
-	this.longField4 = 0;
-	this.longField5 = 0;
-	this.longField6 = 0;
-	this.longField7 = 0;
-	this.longField8 = 0;
+	longField1 = 0;
+	longField2 = 0;
+	longField3 = 0;
+	longField4 = 0;
+	longField5 = 0;
+	longField6 = 0;
+	longField7 = 0;
+	longField8 = 0;
     }
 
     public long getLongField1() { return longField1; }
@@ -56,7 +56,7 @@ public final __ByValue class Long8Value {
     public long getLongField7() { return longField7; }
     public long getLongField8() { return longField8; }
 
-    __ValueFactory public static Long8Value create(long long1,
+    public static Long8Value create(long long1,
                                     long long2,
                                     long long3,
                                     long long4,
@@ -65,14 +65,14 @@ public final __ByValue class Long8Value {
                                     long long7,
                                     long long8) {
         Long8Value l8v = __MakeDefault Long8Value();
-	l8v.longField1 = long1;
-	l8v.longField2 = long2;
-	l8v.longField3 = long3;
-	l8v.longField4 = long4;
-	l8v.longField5 = long5;
-	l8v.longField6 = long6;
-	l8v.longField7 = long7;
-	l8v.longField8 = long8;
+	l8v = __WithField(l8v.longField1, long1);
+	l8v = __WithField(l8v.longField2, long2);
+	l8v = __WithField(l8v.longField3, long3);
+	l8v = __WithField(l8v.longField4, long4);
+	l8v = __WithField(l8v.longField5, long5);
+	l8v = __WithField(l8v.longField6, long6);
+	l8v = __WithField(l8v.longField7, long7);
+	l8v = __WithField(l8v.longField8, long8);
 	return l8v;
     }
 

@@ -62,7 +62,7 @@ public class ValueTypeArray {
     }
 
     void testClassForName() {
-        String arrayClsName = "[Qruntime.valhalla.valuetypes.Point;";
+        String arrayClsName = "[Lruntime.valhalla.valuetypes.Point;";
         try {
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");

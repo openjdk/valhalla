@@ -27,31 +27,46 @@ import jdk.test.lib.Asserts;
 /*
  * @test
  * @summary Uninitialized value fields test
- * @modules jdk.incubator.mvt
  * @library /test/lib
- * @compile -XDenableValueTypes Point.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
+ * @compile -XDenableValueTypes Point.java JumboValue.java
+ * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+PrintValueLayout -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 
 
 /*
- * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
+ * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 public class UninitializedValueFieldsTest {
+    
+    static Point nonFlattenableStaticPoint;
+    __Flattenable static Point staticPoint;
+    
+    __Flattenable Point instancePoint;
 
-    static Point staticPoint;
-    Point instancePoint;
+    static JumboValue sj1;
+    static __Flattenable JumboValue sj2;
+    
+    JumboValue j1;
+    __Flattenable JumboValue j2;
 
+    static Object getNull() {
+	return null;
+    }
+    
     UninitializedValueFieldsTest() { }
 
     public static void main(String[] args) {
         checkUninitializedPoint(UninitializedValueFieldsTest.staticPoint, 0, 0);
+	Asserts.assertEquals(nonFlattenableStaticPoint, null, "invalid non flattenable static value field");
         UninitializedValueFieldsTest.staticPoint = Point.createPoint(456, 678);
         checkUninitializedPoint(UninitializedValueFieldsTest.staticPoint, 456, 678);
         UninitializedValueFieldsTest test = new UninitializedValueFieldsTest();
         checkUninitializedPoint(test.instancePoint, 0, 0);
         test.instancePoint = Point.createPoint(123, 345);
         checkUninitializedPoint(test.instancePoint, 123, 345);
+
+	Asserts.assertEquals(test.j1, null, "invalid non flattenable instance value field");
+	Asserts.assertEquals(test.j2.l0, 0L, "invalid flattenable instance value field");
     }
 
     static void checkUninitializedPoint(Point p, int x, int y) {

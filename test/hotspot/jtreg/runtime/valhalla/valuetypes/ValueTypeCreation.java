@@ -90,9 +90,9 @@ public class ValueTypeCreation {
 	private StaticSelf() { f1 = 0; }
 	public String toString() { return "StaticSelf f1=" + f1; }
 
-	__ValueFactory static StaticSelf create(int f1) {
+	static StaticSelf create(int f1) {
 	    StaticSelf s = __MakeDefault StaticSelf();
-	    s.f1 = f1;
+	    s = __WithField(s.f1, f1);
 	    return s;
 	}
 

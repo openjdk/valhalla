@@ -56,24 +56,24 @@ public __ByValue final class TestValue4 {
         b4 = (byte)((i >> (3 * Byte.SIZE)) & ~Byte.MIN_VALUE);
     }
 
-    __ValueFactory public static TestValue4 create(int i) {
+    public static TestValue4 create(int i) {
         TestValue4 v = __MakeDefault TestValue4();
-        v.i = i;
-        v.val = Integer.valueOf(i).toString();
+	v = __WithField(v.i, i);
+	v = __WithField(v.val, Integer.valueOf(i).toString());
         ByteBuffer bf = ByteBuffer.allocate(8);
         bf.putInt(0, i);
         bf.putInt(4, i);
-        v.l = bf.getLong(0);
-        v.s1 = bf.getShort(2);
-        v.s2 = bf.getShort(0);
-        v.b1 = bf.get(3);
-        v.b2 = bf.get(2);
-        v.b3 = bf.get(1);
-        v.b4 = bf.get(0);
+	v = __WithField(v.l, bf.getLong(0));
+	v = __WithField(v.s1, bf.getShort(2));
+	v = __WithField(v.s2, bf.getShort(0));
+	v = __WithField(v.b1, bf.get(3));
+	v = __WithField(v.b2, bf.get(2));
+	v = __WithField(v.b3, bf.get(1));
+	v = __WithField(v.b4, bf.get(0));
         return v;
     }
 
-    __ValueFactory public static TestValue4 create() {
+    public static TestValue4 create() {
         return create((int)System.nanoTime());
     }
 

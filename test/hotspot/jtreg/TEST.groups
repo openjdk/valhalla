@@ -51,7 +51,7 @@ hotspot_valhalla_runtime = \
   runtime/valhalla
 
 hotspot_valhalla_1 = \
-  runtime/valhalla/valuetypes/ValueTypeCreation.java
+  runtime/valhalla/valuetypes/FlattenableSemanticTest.java
 
 hotspot_misc = \
   / \

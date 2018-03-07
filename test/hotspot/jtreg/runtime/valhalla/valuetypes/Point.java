@@ -30,7 +30,7 @@ public __ByValue final class Point {
 	x = 0;
 	y = 0;
     }
-
+    
     public int getX() { return x; }
     public int getY() { return y; }
 
@@ -42,10 +42,18 @@ public __ByValue final class Point {
         return "Point: x=" + getX() + " y=" + getY();
     }
 
-    __ValueFactory public static Point createPoint(int x, int y) {
+    public boolean equals(Object o) {
+	if(o instanceof Point) {
+	    return ((Point)o).x == x &&  ((Point)o).y == y;
+	} else {
+	    return false;
+	}
+    }
+    
+    public static Point createPoint(int x, int y) {
         Point p = __MakeDefault Point();
-	p.x =x;
-	p.y = y;
+	p = __WithField(p.x, x);
+	p = __WithField(p.y, y);
 	return p;
     }
 }

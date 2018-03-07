@@ -2316,6 +2316,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       for (int i = n - 1; i >= 0; i--) {
         current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
       }
+      stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
       current_frame->push_stack(target_class_type, CHECK_VERIFY(this));
       break;
     }

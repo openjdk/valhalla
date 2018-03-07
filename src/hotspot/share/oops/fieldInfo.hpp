@@ -51,17 +51,19 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
 #define FIELDINFO_TAG_TYPE_PLAIN       2
 #define FIELDINFO_TAG_TYPE_CONTENDED   3
 #define FIELDINFO_TAG_TYPE_MASK        3
-#define FIELDINFO_TAG_MASK            15
-#define FIELDINFO_FLATTENING_OFFSET    2
-#define FIELDINFO_FLATTENABLE_OFFSET   3
+#define FIELDINFO_TAG_MASK             7
+#define FIELDINFO_TAG_FLATTENED        4
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits
   //   |---------high---------|---------low---------|
   //    ..........................................00  - blank
-  //    [------------------offset----------------]01  - real field offset
-  //    ......................[-------type-------]10  - plain field with type
-  //    [--contention_group--][-------type-------]11  - contended field with type and contention group
+  //    [------------------offset---------------]F01  - real field offset
+  //    ......................[-------type------]F10  - plain field with type
+  //    [--contention_group--][-------type------]F11  - contended field with type and contention group
+  //
+  // Bit F indicates if the field has been flattened (F=1) or nor (F=0)
+
   enum FieldOffset {
     access_flags_offset      = 0,
     name_index_offset        = 1,
@@ -198,22 +200,22 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   void set_access_flags(u2 val)                  { _shorts[access_flags_offset] = val;             }
   void set_offset(u4 val)                        {
     val = val << FIELDINFO_TAG_SIZE; // make room for tag
-    bool flatten = is_flatten();
+    bool flattened = is_flattened();
     _shorts[low_packed_offset] = extract_low_short_from_int(val) | FIELDINFO_TAG_OFFSET;
-    if (flatten) set_flattening(true);
+    if (flattened) set_flattened(true);
     _shorts[high_packed_offset] = extract_high_short_from_int(val);
-    assert(is_flatten() || !flatten, "just checking");
+    assert(is_flattened() || !flattened, "just checking");
   }
 
   void set_allocation_type(int type) {
-    bool b = is_flatten();
+    bool b = is_flattened();
     u2 lo = _shorts[low_packed_offset];
     switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_BLANK:
         _shorts[low_packed_offset] |= ((type << FIELDINFO_TAG_SIZE)) & 0xFFFF;
         _shorts[low_packed_offset] &= ~FIELDINFO_TAG_TYPE_MASK;
         _shorts[low_packed_offset] |= FIELDINFO_TAG_TYPE_PLAIN;
-        assert(is_flatten() || !b, "Just checking");
+        assert(is_flattened() || !b, "Just checking");
         return;
 #ifndef PRODUCT
       case FIELDINFO_TAG_TYPE_PLAIN:
@@ -225,28 +227,16 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
     ShouldNotReachHere();
   }
 
-  void set_flattening(bool b) {
+  void set_flattened(bool b) {
     if (b) {
-      _shorts[low_packed_offset] |= 1 << FIELDINFO_FLATTENING_OFFSET;
+      _shorts[low_packed_offset] |= FIELDINFO_TAG_FLATTENED;
     } else {
-      _shorts[low_packed_offset] &= ~(1 << FIELDINFO_FLATTENING_OFFSET);
+      _shorts[low_packed_offset] &= ~FIELDINFO_TAG_FLATTENED;
     }
   }
 
-  bool is_flatten() {
-    return ((_shorts[low_packed_offset] >> FIELDINFO_FLATTENING_OFFSET) & 1) != 0;
-  }
-
-  void set_flattenable(bool b) {
-      if (b) {
-        _shorts[low_packed_offset] |= 1 << FIELDINFO_FLATTENABLE_OFFSET;
-      } else {
-        _shorts[low_packed_offset] &= ~(1 << FIELDINFO_FLATTENABLE_OFFSET);
-      }
-    }
-
-  bool is_flattenable() {
-    return ((_shorts[low_packed_offset] >> FIELDINFO_FLATTENABLE_OFFSET) & 1) != 0;
+  bool is_flattened() {
+    return (_shorts[low_packed_offset] & FIELDINFO_TAG_FLATTENED) != 0;
   }
 
   void set_contended_group(u2 val) {
@@ -278,6 +268,10 @@ class FieldInfo VALUE_OBJ_CLASS_SPEC {
   void set_stable(bool z) {
     if (z) _shorts[access_flags_offset] |=  JVM_ACC_FIELD_STABLE;
     else   _shorts[access_flags_offset] &= ~JVM_ACC_FIELD_STABLE;
+  }
+
+  bool is_flattenable() const {
+    return (access_flags() & JVM_ACC_FLATTENABLE) != 0;
   }
 
   Symbol* lookup_symbol(int symbol_index) const {

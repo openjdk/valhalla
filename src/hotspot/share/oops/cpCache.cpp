@@ -129,7 +129,7 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        TosState field_type,
                                        bool is_final,
                                        bool is_volatile,
-                                       bool is_flatten,
+                                       bool is_flattened,
                                        bool is_flattenable,
                                        Klass* root_klass) {
   set_f1(field_holder);
@@ -139,8 +139,8 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
-                  ((is_flatten  ? 1 : 0) << is_flatten_field) |
-                  ((is_flattenable ? 1 : 0) << is_flattenable_field),
+                  ((is_flattened  ? 1 : 0) << is_flattened_field_shift) |
+                  ((is_flattenable ? 1 : 0) << is_flattenable_field_shift),
                   field_index);
   set_bytecode_1(get_code);
   set_bytecode_2(put_code);

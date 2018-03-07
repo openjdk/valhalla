@@ -39,7 +39,7 @@ import jdk.test.lib.Asserts;
  */
 
 class A {
-    Point p;
+    __Flattenable Point p;
 }
 
 class B extends A {
@@ -55,7 +55,7 @@ class D {
 }
 
 class E extends D {
-    Point p1;
+    __Flattenable Point p1;
 }
 
 class F extends E {
@@ -63,7 +63,7 @@ class F extends E {
 }
 
 class G extends F {
-    Point p2;
+    __Flattenable Point p2;
 }
 
 public class TestInheritedValueTypeFields {

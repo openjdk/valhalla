@@ -27,12 +27,12 @@ public final __ByValue class IntValue {
     final int val;
 
     IntValue() {
-        this.val = 0;
+        val = 0;
     }
 
     public int getInt() { return val; }
     
-    __ValueFactory public static IntValue create(int val) {
+    public static IntValue create(int val) {
 	IntValue iv = __MakeDefault IntValue();
 	iv.val = val;
 	return iv;

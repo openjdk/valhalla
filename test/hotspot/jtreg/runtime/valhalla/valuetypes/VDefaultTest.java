@@ -29,9 +29,9 @@ import jdk.test.lib.Asserts;
  * @test VDefaultTest
  * @summary vdefault bytecode test
  * @library /test/lib
- * @compile -XDenableValueTypes --add-modules jdk.incubator.mvt Point.java
+ * @compile -XDenableValueTypes Point.java
  * @compile -XDenableValueTypes VDefaultTest.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
+ * @run main/othervm -Xint -XX:+EnableValhalla -XX:+PrintValueLayout runtime.valhalla.valuetypes.VDefaultTest
  */
 
 
@@ -45,7 +45,7 @@ public class VDefaultTest {
 	final int x;
 	final int y;
 
-	__ValueFactory static Point make() {
+	static Point make() {
 	    Point p = __MakeDefault Point();
 	    return p;
 	}
@@ -64,9 +64,9 @@ public class VDefaultTest {
 	final long l;
 	final float f;
 	final double d;
-	final Point p;
+	__Flattenable final Point p;
 	
-	__ValueFactory static Value make() {
+	static Value make() {
 	    Value p = __MakeDefault Value();
 	    return p;
 	}
@@ -99,8 +99,8 @@ public class VDefaultTest {
 	Asserts.assertEquals(v.d, 0.0D, "invalid double default value");
 	// Asserts below are temporarely disabled because flattening is
 	// not supported yet
-	//	Asserts.assertEquals(v.p.x, 0, "invalid embedded value type value");
-	//	Asserts.assertEquals(v.p.y, 0, "invalid embedded value type value");
+	Asserts.assertEquals(v.p.x, 0, "invalid embedded value type value");
+	Asserts.assertEquals(v.p.y, 0, "invalid embedded value type value");
     }
 }
 

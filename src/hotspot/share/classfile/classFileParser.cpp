@@ -1520,10 +1520,13 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   BAD_ALLOCATION_TYPE, // T_CONFLICT    = 21,
 };
 
-static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type) {
+static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_flattenable) {
   assert(type >= T_BOOLEAN && type < T_VOID, "only allowable values");
   FieldAllocationType result = _basic_type_to_atype[type + (is_static ? (T_CONFLICT + 1) : 0)];
   assert(result != BAD_ALLOCATION_TYPE, "bad type");
+  if (is_flattenable) {
+    result = is_static ? STATIC_FLATTENABLE : NONSTATIC_FLATTENABLE;
+  }
   return result;
 }
 
@@ -1537,8 +1540,8 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
     }
   }
 
-  FieldAllocationType update(bool is_static, BasicType type) {
-    FieldAllocationType atype = basic_type_to_atype(is_static, type);
+  FieldAllocationType update(bool is_static, BasicType type, bool is_flattenable) {
+    FieldAllocationType atype = basic_type_to_atype(is_static, type, is_flattenable);
     if (atype != BAD_ALLOCATION_TYPE) {
       // Make sure there is no overflow with injected fields.
       assert(count[atype] < 0xFFFF, "More than 65535 fields");
@@ -1690,7 +1693,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Remember how many oops we encountered and compute allocation type
-    const FieldAllocationType atype = fac->update(is_static, type);
+    const FieldAllocationType atype = fac->update(is_static, type, access_flags.is_flattenable());
     field->set_allocation_type(atype);
 
     // After field is initialized with type, we can augment it with aux info
@@ -1731,7 +1734,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       const BasicType type = FieldType::basic_type(injected[n].signature());
 
       // Remember how many oops we encountered and compute allocation type
-      const FieldAllocationType atype = fac->update(false, type);
+      const FieldAllocationType atype = fac->update(false, type, false);
       field->set_allocation_type(atype);
       index++;
     }
@@ -1745,7 +1748,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                       vmSymbols::java_lang_Object_enum,
                       0);
     const BasicType type = FieldType::basic_type(vmSymbols::object_signature());
-    const FieldAllocationType atype = fac->update(true, type);
+    const FieldAllocationType atype = fac->update(true, type, false);
     field->set_allocation_type(atype);
     index++;
   }
@@ -4021,8 +4024,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       assert(klass->access_flags().is_value_type(), "Value type expected");
       ValueKlass* vk = ValueKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
-      if ( false &&  // Currently disabling flattening
-          ((ValueFieldMaxFlatSize < 0) || vk->size_helper() <= ValueFieldMaxFlatSize)) {
+      if ((ValueFieldMaxFlatSize < 0) || (vk->size_helper() * HeapWordSize) <= ValueFieldMaxFlatSize) {
         nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
         nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
         nonstatic_value_type_count++;
@@ -4031,10 +4033,10 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         if (vklass->contains_oops()) {
           value_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
-        fs.set_flattening(true);
+        fs.set_flattened(true);
       } else {
         not_flattened_value_types++;
-        fs.set_flattening(false);
+        fs.set_flattened(false);
       }
     }
   }
@@ -4259,7 +4261,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         next_static_double_offset += BytesPerLong;
         break;
       case NONSTATIC_FLATTENABLE:
-        if (fs.is_flatten()) {
+        if (fs.is_flattened()) {
           Klass* klass = nonstatic_value_type_klasses[next_value_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
           assert(klass->access_flags().is_value_type(),"Must be a value type");
@@ -5215,7 +5217,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
     case JVM_SIGNATURE_CLASS:
-    case JVM_SIGNATURE_VALUE_CLASS: {
+    {
       if (_major_version < JAVA_1_5_VERSION) {
         // Skip over the class name if one is there
         const char* const p = skip_over_field_name(signature + 1, true, --length);

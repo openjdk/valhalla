@@ -539,7 +539,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.is_flatten() && flatten) {
+    if (fd.is_flattened() && flatten) {
       assert(fd.field_type() == T_VALUETYPE, "flattening is only supported for value type fields");
       // Value type fields are embedded
       int field_offset = fd.offset();

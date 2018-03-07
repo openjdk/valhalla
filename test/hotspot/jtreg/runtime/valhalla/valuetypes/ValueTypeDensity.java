@@ -76,20 +76,20 @@ public class ValueTypeDensity {
         final short day;
 
         LocalDateValue() {
-            this.year  = 0;
-            this.month = 0;
-            this.day   = 0;
+            year  = 0;
+            month = 0;
+            day   = 0;
         }
 
         public int   getYear()  { return year; }
         public short getMonth() { return month; }
         public short getDay()   { return day; }
 
-        __ValueFactory public static LocalDateValue create(int year, short month, short day) {
+        public static LocalDateValue create(int year, short month, short day) {
             LocalDateValue localDate = __MakeDefault LocalDateValue();
-            localDate.year  = year;
-            localDate.month = month;
-            localDate.day   = day;
+	    localDate = __WithField(localDate.year, year);
+	    localDate = __WithField(localDate.month, month);
+	    localDate = __WithField(localDate.day, day);
             return localDate;
         }
     }
@@ -101,10 +101,10 @@ public class ValueTypeDensity {
         final int nano;
 
         LocalTimeValue() {
-            this.hour   = 0;
-            this.minute = 0;
-            this.second = 0;
-            this.nano   = 0;
+            hour   = 0;
+            minute = 0;
+            second = 0;
+            nano   = 0;
         }
 
         public byte getHour()   { return hour; }
@@ -112,12 +112,12 @@ public class ValueTypeDensity {
         public byte getSecond() { return second; }
         public int getNano()    { return nano; }
 
-        __ValueFactory public static LocalTimeValue create(byte hour, byte minute, byte second, int nano) {
+        public static LocalTimeValue create(byte hour, byte minute, byte second, int nano) {
             LocalTimeValue localTime = __MakeDefault LocalTimeValue();
-            localTime.hour   = hour;
-            localTime.minute = minute;
-            localTime.second = second;
-            localTime.nano   = nano;
+	    localTime = __WithField(localTime.hour, hour);
+	    localTime = __WithField(localTime.minute, minute);
+	    localTime = __WithField(localTime.second, second);
+	    localTime = __WithField(localTime.nano, nano);
             return localTime;
         }
     }
@@ -141,10 +141,10 @@ public class ValueTypeDensity {
         public byte getSecond() { return time.second; }
         public int getNano()    { return time.nano; }
 
-        __ValueFactory public static LocalDateTimeValue create(LocalDateValue date, LocalTimeValue time) {
+        public static LocalDateTimeValue create(LocalDateValue date, LocalTimeValue time) {
             LocalDateTimeValue localDateTime = __MakeDefault LocalDateTimeValue();
-            localDateTime.date = date;
-            localDateTime.time = time;
+	    localDateTime = __WithField(localDateTime.date, date);
+	    localDateTime = __WithField(localDateTime.time, time);
             return localDateTime;
         }
     }

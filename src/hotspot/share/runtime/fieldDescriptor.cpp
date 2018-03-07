@@ -199,7 +199,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       obj->obj_field(offset())->print_value_on(st);
       break;
     case T_VALUETYPE:
-      if (is_flatten()) {
+      if (is_flattened()) {
         // Resolve klass of flattened value type field
         Thread* THREAD = Thread::current();
         ResourceMark rm(THREAD);

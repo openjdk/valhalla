@@ -38,15 +38,15 @@ public __ByValue final class TestValue3 {
         b = 123;
     }
 
-    __ValueFactory public static TestValue3 create(byte b) {
+    public static TestValue3 create(byte b) {
         TestValue3 v = __MakeDefault TestValue3();
-        v.b = b;
+	v = __WithField(v.b, b);
         return v;
     }
 
-    __ValueFactory public static TestValue3 create() {
+    public static TestValue3 create() {
         TestValue3 v = __MakeDefault TestValue3();
-        v.b = 123;
+	v = __WithField(v.b, 123);
         return v;
     }
 

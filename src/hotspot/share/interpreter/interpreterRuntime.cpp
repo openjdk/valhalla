@@ -301,7 +301,7 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       new_value_h()->obj_field_put_raw(field_offset, aoop);
     }
   } else if (field_type == T_VALUETYPE) {
-    if (cp_entry->is_flatten()) {
+    if (cp_entry->is_flattened()) {
       Klass* field_k = vklass->get_value_field_klass(field_index);
       ValueKlass* field_vk = ValueKlass::cast(field_k);
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
@@ -354,7 +354,7 @@ IRT_ENTRY(void, InterpreterRuntime::qgetfield(JavaThread* thread, oopDesc* obj, 
 
   instanceOop res;
   bool in_heap;
-  if (klass->is_field_flatten(index)) {
+  if (klass->field_is_flattened(index)) {
     // allocate instance
     res = field_vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
     instanceHandle res_h(THREAD, res);
@@ -379,17 +379,19 @@ IRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   int offset = klass->field_offset(index);
-  assert(mirror->obj_field(offset) == NULL,"Field must not be initialized twice");
-
   Klass* field_k = klass->get_value_field_klass_or_null(index);
-  if (field_k == NULL) {
-    field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index),
-                                                Handle(THREAD, klass->class_loader()),
-                                                Handle(THREAD, klass->protection_domain()), true, CHECK);
-    assert(field_k != NULL, "Sanity check");
-    assert(field_k->access_flags().is_value_type(), "Value type expected");
-    klass->set_value_field_klass(index, field_k);
-  }
+  assert(field_k != NULL, "Must have been initialized");
+  ValueKlass* field_vklass = ValueKlass::cast(field_k);
+  instanceOop res = (instanceOop)field_vklass->default_value();
+  thread->set_vm_result(res);
+IRT_END
+
+IRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThread* thread, oopDesc* obj, int index))
+  instanceHandle obj_h(THREAD, (instanceOop)obj);
+  InstanceKlass* klass = InstanceKlass::cast(obj_h()->klass());
+  int offset = klass->field_offset(index);
+  Klass* field_k = klass->get_value_field_klass_or_null(index);
+  assert(field_k != NULL, "Must have been initialized");
   ValueKlass* field_vklass = ValueKlass::cast(field_k);
   instanceOop res = (instanceOop)field_vklass->default_value();
   thread->set_vm_result(res);
@@ -406,7 +408,7 @@ IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, 
   ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(idx);
 
   int index = cp_entry->field_index();
-  bool flatten = cp_entry->is_flatten();
+  bool flatten = cp_entry->is_flattened();
 
   InstanceKlass* klass = InstanceKlass::cast(cp_entry->f1_as_klass());
   Klass* field_k = klass->get_value_field_klass(index);
@@ -1051,7 +1053,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     state,
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
-    info.is_flatten(),
+    info.is_flattened(),
     info.is_flattenable(),
     pool->pool_holder()
   );

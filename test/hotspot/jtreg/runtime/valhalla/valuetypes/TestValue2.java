@@ -41,19 +41,19 @@ public __ByValue final class TestValue2 {
         d = Double.parseDouble(s);
     }
 
-    __ValueFactory public static TestValue2 create(long l) {
+    public static TestValue2 create(long l) {
         TestValue2 v = __MakeDefault TestValue2();
-        v.l = l;
-        v.s = Long.valueOf(l).toString();
-        v.d = Double.parseDouble(v.s);
+	v = __WithField(v.l, l);
+	v = __WithField(v.s, Long.valueOf(l).toString());
+	v = __WithField(v.d, Double.parseDouble(v.s));
         return v;
     }
 
-    __ValueFactory public static TestValue2 create() {
+    public static TestValue2 create() {
         TestValue2 v = __MakeDefault TestValue2();
-        v.l = System.nanoTime();
-        v.s = Long.valueOf(v.l).toString();
-        v.d = Double.parseDouble(v.s);
+	v = __WithField(v.l, System.nanoTime());
+	v = __WithField(v.s, Long.valueOf(v.l).toString());
+	v = __WithField(v.d, Double.parseDouble(v.s));
         return v;
     }
 

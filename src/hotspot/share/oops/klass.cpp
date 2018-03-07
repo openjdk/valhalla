@@ -705,7 +705,7 @@ klassVtable Klass::vtable() const {
 }
 
 vtableEntry* Klass::start_of_vtable() const {
-  return (vtableEntry*) ((address)this + in_bytes(vtable_start_offset()) + (is_value() ? 3 : 0 ) * sizeof(intptr_t) );
+  return (vtableEntry*) ((address)this + in_bytes(vtable_start_offset()));
 }
 
 Method* Klass::method_at_vtable(int index)  {

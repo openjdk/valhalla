@@ -888,11 +888,22 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
 
+  // Step 8
+  // Initialize classes of flattenable fields
+  {
+    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
+      if (fs.is_flattenable()) {
+        InstanceKlass* field_klass = InstanceKlass::cast(this->get_value_field_klass(fs.index()));
+        field_klass->initialize(CHECK);
+      }
+    }
+  }
+
 
   // Look for aot compiled methods for this klass, including class initializer.
   AOTLoader::load_for_klass(this, THREAD);
 
-  // Step 8
+  // Step 9
   {
     assert(THREAD->is_Java_thread(), "non-JavaThread in initialize_impl");
     JavaThread* jt = (JavaThread*)THREAD;
@@ -908,7 +919,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
     call_class_initializer(THREAD);
   }
 
-  // Step 9
+  // Step 10
   if (!HAS_PENDING_EXCEPTION) {
     set_initialization_state_and_notify(fully_initialized, CHECK);
     {
@@ -916,7 +927,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
     }
   }
   else {
-    // Step 10 and 11
+    // Step 11 and 12
     Handle e(THREAD, PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
     // JVMTI has already reported the pending exception

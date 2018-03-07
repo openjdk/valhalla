@@ -843,7 +843,7 @@ class CompileReplay : public StackObj {
                                SignatureStream::ReturnNull, THREAD);
         assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
         ValueKlass* vk = ValueKlass::cast(k);
-        if (fd->is_flatten()) {
+        if (fd->is_flattened()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)((address)_vt + field_offset);
           ValueTypeFieldInitializer init_fields(obj, _replay);

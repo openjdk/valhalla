@@ -464,11 +464,10 @@ class InstanceKlass: public Klass {
 
  public:
   int     field_offset      (int index) const { return field(index)->offset(); }
-  bool    field_flattened   (int index) const { return field(index)->is_flatten(); }
   int     field_access_flags(int index) const { return field(index)->access_flags(); }
   Symbol* field_name        (int index) const { return field(index)->name(constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
-  bool    is_field_flatten  (int index) const { return field(index)->is_flatten(); }
+  bool    field_is_flattened(int index) const { return field(index)->is_flattened(); }
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }

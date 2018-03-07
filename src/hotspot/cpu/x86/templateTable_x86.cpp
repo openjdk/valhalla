@@ -2769,13 +2769,13 @@ void TemplateTable::_return(TosState state) {
     __ bind(no_safepoint);
   }
 #endif
-//  This code has to be re-store before re-enabling value buffering in TLVB
-//  if (state == qtos) {
-//    const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
-//    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::return_value), rax);
-//    NOT_LP64(__ get_thread(thread1));
-//    __ get_vm_result(rax, thread1);
-//  }
+    //  This code has to be re-store before re-enabling value buffering in TLVB
+    //  if (state == qtos) {
+    //    const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
+    //    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::return_value), rax);
+    //    NOT_LP64(__ get_thread(thread1));
+    //    __ get_vm_result(rax, thread1);
+    //  }
 
   // Narrow result if state is itos but result type is smaller.
   // Need to narrow in the return bytecode rather than in generate_return_entry
@@ -3021,39 +3021,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   __ bind(notByte);
 
-//  __ cmpl(flags, qtos);
-//  __ jcc(Assembler::notEqual, notValueType);
-//  // qtos
-//  if (is_static) {
-//    Label initialized;
-//    // Issue below if the static field has not been initialized yet
-//    __ load_heap_oop(rax, field);
-//    __ testptr(rax, rax);
-//    __ jcc(Assembler::notZero, initialized);
-//    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-//    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
-//         obj, flags2);
-//    __ verify_oop(rax);
-//    __ bind(initialized);
-//    __ push(atos);
-//  } else {
-//    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-//    pop_and_check_object(rbx);
-//    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::qgetfield),
-//            rbx, flags2, rcx);
-//    __ verify_oop(rax);
-//    __ push(atos);
-//    // Bytecode rewrite?
-//  }
-//  __ jmp(Done);
-//
-//  __ bind(notValueType);
-
-  if (!is_static) pop_and_check_object(obj);
-
   __ cmpl(flags, ztos);
   __ jcc(Assembler::notEqual, notBool);
-
+   if (!is_static) pop_and_check_object(obj);
   // ztos (same code as btos)
   __ load_signed_byte(rax, field);
   __ push(ztos);
@@ -3068,14 +3038,74 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, atos);
   __ jcc(Assembler::notEqual, notObj);
   // atos
-  __ load_heap_oop(rax, field);
-  __ push(atos);
+  Label atosDone;
+  // Flattenable field case
+  if (is_static) {
+    Label notFlattenable,initialized;
+    // Issue below if the static field has not been initialized yet
+    __ load_heap_oop(rax, field);
+    __ testptr(rax, rax);
+    __ jcc(Assembler::notZero, initialized);
+    __ movl(rscratch1, flags2);
+    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
+    __ andl(rscratch1, 0x1);
+    __ testl(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, notFlattenable);
+    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
+               obj, flags2);
+    __ verify_oop(rax);
+    __ bind(notFlattenable);
+    __ bind(initialized);
+    __ push(atos);
+  } else {
+    //  Check for flattened field
+    Label notFlattened;
+    __ movl(rscratch1, flags2);
+    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattened_field_shift);
+    __ andl(rscratch1, 0x1);
+    __ testl(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, notFlattened);
+    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+    pop_and_check_object(rbx);
+    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::qgetfield),
+            rbx, flags2, rcx);
+    __ verify_oop(rax);
+    __ push(atos);
+    __ jmp(atosDone);
+    __ bind(notFlattened);
+    // Non-flattened field case
+    Label nonnull, notFlattenable;
+    pop_and_check_object(obj);
+    __ load_heap_oop(rax, field);
+    __ testptr(rax, rax);
+    __ jcc(Assembler::notZero, nonnull);
+    __ movl(rscratch1, flags2);
+    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
+    __ andl(rscratch1, 0x1);
+    __ testl(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, notFlattenable);
+    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
+               obj, flags2);
+    __ verify_oop(rax);
+    __ push(atos);
+    __ jmp(atosDone); // skipping rewriting
+    __ bind(notFlattenable);
+    __ bind(nonnull);
+    __ push(atos);
+  }
+
   if (!is_static && rc == may_rewrite) {
     patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
   }
+  __ bind(atosDone);
   __ jmp(Done);
 
   __ bind(notObj);
+
+   if (!is_static) pop_and_check_object(obj);
+
   __ cmpl(flags, itos);
   __ jcc(Assembler::notEqual, notInt);
   // itos
@@ -3356,6 +3386,30 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   // atos
   {
     __ pop(atos);
+    Label nonnull, notFlattenable;
+    __ testptr(rax, rax);
+    __ jcc(Assembler::notZero, nonnull);
+    // if reference to be written is the null reference, JVM must check field is not flattenable
+    __ movl(rscratch1, flags2);
+    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
+    __ andl(rscratch1, 0x1);
+    __ testl(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, notFlattenable);
+    __ null_check(rax);
+    __ bind(notFlattenable);
+    __ bind(nonnull);
+    Label notFlattened;
+    //  // Check for flattened field
+    __ movl(rscratch1, flags2);
+    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattened_field_shift);
+    __ andl(rscratch1, 0x1);
+    __ testl(rscratch1, rscratch1);
+    __ jcc(Assembler::zero, notFlattened);
+    pop_and_check_object(rbx);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputfield),
+            rbx, rax, rcx);
+    __ jmp(notVolatile); // value types are never volatile
+    __ bind(notFlattened);
     if (!is_static) pop_and_check_object(obj);
     // Store into the field
     do_oop_store(_masm, field, rax, _bs->kind(), false);
@@ -3366,31 +3420,6 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notObj);
-
-//  __ cmpl(flags, qtos);
-//  __ jcc(Assembler::notEqual, notValueType);
-//
-//  // qtos
-//  {
-//    __ pop(atos); // => rax == value
-//    if (!is_static) {
-//      // value types in non-static fields are embedded
-//      pop_and_check_object(rbx);
-//      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputfield),
-//          rbx, rax, rcx);
-//      __ jmp(notVolatile); // value types are never volatile
-//    } else {
-//      // Store into the static field
-//      // Value types in static fields are currently handled with indirection
-//      // but a copy to the Java heap might be required if the value is currently
-//      // stored in a thread local buffer
-//      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputstatic), rax, off, obj);
-//    }
-//    __ jmp(Done);
-//  }
-//
-//  __ bind(notValueType);
-
   __ cmpl(flags, itos);
   __ jcc(Assembler::notEqual, notInt);
 

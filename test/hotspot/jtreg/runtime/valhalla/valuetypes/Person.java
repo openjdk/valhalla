@@ -30,11 +30,11 @@ public final __ByValue class Person {
     final String lastName;
 
     private Person() {
-        this.id = 0;
-        this.firstName = null;
-        this.lastName = null;
+	id = 0;
+	firstName = null;
+	lastName = null;
     }
-
+    
     public int getId() { return id; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
@@ -43,11 +43,11 @@ public final __ByValue class Person {
         return getFirstName() + " " + getLastName() + " (id=" + getId() + ")";
     }
 
-    __ValueFactory static Person create(int id, String firstName, String lastName) {
+    static Person create(int id, String firstName, String lastName) {
         Person p = __MakeDefault Person();
-        p.id = id;
-        p.firstName = firstName;
-        p.lastName = lastName;
+	p = __WithField(p.id, id);
+	p = __WithField(p.firstName, firstName);
+	p = __WithField(p.lastName, lastName);
         return p;
     }
 }

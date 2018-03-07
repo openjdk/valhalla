@@ -130,28 +130,28 @@ public class ValueTypeGenerator {
         // private constructor
         sb.append("\tprivate ").append(name).append("() {\n");
 	for (int i = 0 ; i < fields.length; i++) {
-	    sb.append("\t\tthis.").append(fields[i].name).append(" = ").append(defaultValue(fields[i].type)).append(";\n");
+	    sb.append("\t\t").append(fields[i].name).append(" = ").append(defaultValue(fields[i].type)).append(";\n");
         }
         sb.append("\t}\n");
         sb.append("\n");
 
         // factory
-        sb.append("\t__ValueFactory static public ").append(name).append(" ").append("make").append(name).append("(");
+        sb.append("\tstatic public ").append(name).append(" ").append("make").append(name).append("(");
         sb.append(fieldsAsArgs(fields));
         sb.append(") {\n");
         sb.append("\t\t").append(name).append(" v = ").append("__MakeDefault ").append(name).append("();\n");
         for (int i = 0 ; i < fields.length; i++) {
-            sb.append("\t\tv.").append(fields[i].name).append(" = ").append(fields[i].name).append(";\n");
+	    sb.append("\t\tv = __WithField(v.").append(fields[i].name).append(", ").append(fields[i].name).append(");\n");
         }
 	sb.append("\t\treturn v;\n");
         sb.append("\t};\n");
         sb.append("\n");
 
         // default factory
-        sb.append("\t__ValueFactory static public ").append(name).append(" ").append("make").append(name).append("() {\n");
+        sb.append("\tstatic public ").append(name).append(" ").append("make").append(name).append("() {\n");
 	sb.append("\t\t").append(name).append(" v = ").append("__MakeDefault ").append(name).append("();\n");
         for (int i = 0 ; i < fields.length; i++) {
-	    sb.append("\t\tv.").append(fields[i].name).append(" = ").append(defaultValue(fields[i].type)).append(";\n");
+	    sb.append("\t\tv = __WithField(v.").append(fields[i].name).append(", ").append(defaultValue(fields[i].type)).append(");\n");
         }
 	sb.append("\t\treturn v;\n");
         sb.append("\t}\n");

@@ -259,7 +259,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   Klass* field_holder = fd->field_holder();
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
-  _is_flattened = fd->is_flatten();
+  _is_flattened = fd->is_flattened();
   assert(fd->field_type() == T_VALUETYPE || !_is_flattened, "flattening is only supported for value type fields");
 
   // Check to see if the field is constant.

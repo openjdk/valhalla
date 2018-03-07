@@ -40,17 +40,17 @@ public __ByValue final class TestValue1 {
         name = Integer.valueOf(i).toString();
     }
 
-    __ValueFactory public static TestValue1 create(int i) {
+    public static TestValue1 create(int i) {
         TestValue1 v = __MakeDefault TestValue1();
-        v.i = i;
-        v.name = Integer.valueOf(i).toString();
+	v = __WithField(v.i, i);
+	v = __WithField(v.name, Integer.valueOf(i).toString());
         return v;
     }
 
-    __ValueFactory public static TestValue1 create() {
+    public static TestValue1 create() {
         TestValue1 v = __MakeDefault TestValue1();
-        v.i = (int)System.nanoTime();
-        v.name = Integer.valueOf(v.i).toString();
+	v = __WithField(v.i, (int)System.nanoTime());
+	v = __WithField(v.name, Integer.valueOf(v.i).toString());
         return v;
     }
 
