@@ -167,7 +167,15 @@ class Field extends AccessibleObject implements Member {
     @CallerSensitive
     public void setAccessible(boolean flag) {
         AccessibleObject.checkPermission();
-        if (flag) checkCanSetAccessible(Reflection.getCallerClass());
+
+        if (flag) {
+            if (clazz.isValue() && Modifier.isFinal(modifiers)) {
+                throw new InaccessibleObjectException(
+                    "Unable to make a value class field \"" + this + "\" accessible");
+            }
+
+            checkCanSetAccessible(Reflection.getCallerClass());
+        }
         setAccessible0(flag);
     }
 

@@ -533,8 +533,8 @@ public final class Class<T> implements java.io.Serializable,
         throws InstantiationException, IllegalAccessException
     {
         if (this.isValue()) {
-            throw new UnsupportedOperationException("newInstance on a value class "
-                + this.getName());
+            throw new IllegalAccessException(
+                "cannot create new instance of value class " + this.getName());
         }
 
         SecurityManager sm = System.getSecurityManager();

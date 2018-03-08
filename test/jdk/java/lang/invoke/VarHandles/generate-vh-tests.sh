@@ -28,6 +28,12 @@ do
       ;;
   esac
 
+  case $type in
+    boolean|byte|short|char|int|long|float|double)
+      args="$args -KValue"
+      ;;
+  esac
+
   wrong_primitive_type=boolean
 
   case $type in

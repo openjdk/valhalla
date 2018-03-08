@@ -2401,7 +2401,9 @@ return mh1;
                 }
                 refc = lookupClass();
             }
-            return VarHandles.makeFieldHandle(getField, refc, getField.getFieldType(), this.allowedModes == TRUSTED);
+            // don't allow writing on value type
+            boolean isWriteAllowedOnFinalFields = this.allowedModes == TRUSTED && !putField.isValue();
+            return VarHandles.makeFieldHandle(getField, refc, getField.getFieldType(), isWriteAllowedOnFinalFields);
         }
         /** Check access and get the requested constructor. */
         private MethodHandle getDirectConstructor(Class<?> refc, MemberName ctor) throws IllegalAccessException {

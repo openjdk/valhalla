@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,17 @@
  * questions.
  */
 
+#if[Value]
+/*
+ * @test
+ * @run testng/othervm -Xverify:none -Diters=10    -Xint                   VarHandleTestAccess$Type$
+ */
+/* Disabled temporarily for lworld
+ * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccess$Type$
+ * @run testng/othervm -Diters=20000                         VarHandleTestAccess$Type$
+ * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccess$Type$
+ */
+#else[Value]
 /*
  * @test
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccess$Type$
@@ -28,6 +39,7 @@
  * @run testng/othervm -Diters=20000                         VarHandleTestAccess$Type$
  * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccess$Type$
  */
+#end[Value]
 
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -60,6 +72,10 @@ public class VarHandleTestAccess$Type$ extends VarHandleBaseTest {
 
     VarHandle vhArray;
 
+#if[Value]
+    VarHandle vhValueTypeField;
+#end[Value]
+
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
@@ -75,6 +91,11 @@ public class VarHandleTestAccess$Type$ extends VarHandleBaseTest {
             VarHandleTestAccess$Type$.class, "static_v", $type$.class);
 
         vhArray = MethodHandles.arrayElementVarHandle($type$[].class);
+
+#if[Value]
+        vhValueTypeField = MethodHandles.lookup().findVarHandle(
+                    Value.class, "$type$_v", $type$.class);
+#end[Value]
     }
 
 
@@ -242,6 +263,13 @@ public class VarHandleTestAccess$Type$ extends VarHandleBaseTest {
         cases.add(new VarHandleAccessTestCase("Array index out of bounds",
                                               vhArray, VarHandleTestAccess$Type$::testArrayIndexOutOfBounds,
                                               false));
+#if[Value]
+        cases.add(new VarHandleAccessTestCase("Value type field",
+                                              vhValueTypeField, vh -> testValueTypeField(Value.VT, vh)));
+        cases.add(new VarHandleAccessTestCase("Value type field unsupported",
+                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.VT, vh),
+                                              false));
+#end[Value]
 
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
@@ -404,6 +432,21 @@ public class VarHandleTestAccess$Type$ extends VarHandleBaseTest {
 #end[Bitwise]
     }
 
+#if[Value]
+    static void testValueTypeField(Value recv, VarHandle vh) {
+        // Plain
+        {
+            $type$ x = ($type$) vh.get(recv);
+            assertEquals(x, $value1$, "get $type$ value");
+        }
+    }
+
+    static void testValueTypeFieldUnsupported(Value recv, VarHandle vh) {
+        checkUOE(() -> {
+            vh.set(recv, $value2$);
+        });
+    }
+#end[Value]
 
     static void testStaticFinalField(VarHandle vh) {
         // Plain

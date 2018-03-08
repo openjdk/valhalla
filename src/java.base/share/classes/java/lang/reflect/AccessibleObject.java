@@ -284,14 +284,6 @@ public class AccessibleObject implements AnnotatedElement {
     private boolean checkCanSetAccessible(Class<?> caller,
                                           Class<?> declaringClass,
                                           boolean throwExceptionIfDenied) {
-        Module callerModule = caller.getModule();
-        Module declaringModule = declaringClass.getModule();
-
-        if (callerModule == declaringModule) return true;
-        if (callerModule == Object.class.getModule()) return true;
-        if (!declaringModule.isNamed()) return true;
-
-        String pn = declaringClass.getPackageName();
         int modifiers;
         if (this instanceof Executable) {
             modifiers = ((Executable) this).getModifiers();
@@ -299,8 +291,23 @@ public class AccessibleObject implements AnnotatedElement {
             modifiers = ((Field) this).getModifiers();
         }
 
+        // does not allow to suppress access check for Value class's
+        // constructor or field
+        if (declaringClass.isValue()) {
+            if (this instanceof Constructor) return false;
+            if (this instanceof Field && Modifier.isFinal(modifiers)) return false;
+        }
+
+        Module callerModule = caller.getModule();
+        Module declaringModule = declaringClass.getModule();
+
+        if (callerModule == declaringModule) return true;
+        if (callerModule == Object.class.getModule()) return true;
+        if (!declaringModule.isNamed()) return true;
+
         // class is public and package is exported to caller
         boolean isClassPublic = Modifier.isPublic(declaringClass.getModifiers());
+        String pn = declaringClass.getPackageName();
         if (isClassPublic && declaringModule.isExported(pn, callerModule)) {
             // member is public
             if (Modifier.isPublic(modifiers)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,9 @@
 
 /*
  * @test
- * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessFloat
+ * @run testng/othervm -Xverify:none -Diters=10    -Xint                   VarHandleTestAccessFloat
+ */
+/* Disabled temporarily for lworld
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessFloat
  * @run testng/othervm -Diters=20000                         VarHandleTestAccessFloat
  * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessFloat
@@ -60,6 +62,8 @@ public class VarHandleTestAccessFloat extends VarHandleBaseTest {
 
     VarHandle vhArray;
 
+    VarHandle vhValueTypeField;
+
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
@@ -75,6 +79,9 @@ public class VarHandleTestAccessFloat extends VarHandleBaseTest {
             VarHandleTestAccessFloat.class, "static_v", float.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(float[].class);
+
+        vhValueTypeField = MethodHandles.lookup().findVarHandle(
+                    Value.class, "float_v", float.class);
     }
 
 
@@ -210,6 +217,11 @@ public class VarHandleTestAccessFloat extends VarHandleBaseTest {
         cases.add(new VarHandleAccessTestCase("Array index out of bounds",
                                               vhArray, VarHandleTestAccessFloat::testArrayIndexOutOfBounds,
                                               false));
+        cases.add(new VarHandleAccessTestCase("Value type field",
+                                              vhValueTypeField, vh -> testValueTypeField(Value.VT, vh)));
+        cases.add(new VarHandleAccessTestCase("Value type field unsupported",
+                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.VT, vh),
+                                              false));
 
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
@@ -312,6 +324,19 @@ public class VarHandleTestAccessFloat extends VarHandleBaseTest {
         });
     }
 
+    static void testValueTypeField(Value recv, VarHandle vh) {
+        // Plain
+        {
+            float x = (float) vh.get(recv);
+            assertEquals(x, 1.0f, "get float value");
+        }
+    }
+
+    static void testValueTypeFieldUnsupported(Value recv, VarHandle vh) {
+        checkUOE(() -> {
+            vh.set(recv, 2.0f);
+        });
+    }
 
     static void testStaticFinalField(VarHandle vh) {
         // Plain

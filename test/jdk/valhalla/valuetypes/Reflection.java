@@ -25,8 +25,8 @@
 /*
  * @test
  * @summary test reflection on value types
- * @compile -XDenableValueTypes Point.java
- * @run main/othervm -XX:+EnableValhalla Reflection
+ * @compile Point.java
+ * @run main/othervm -Xverify:none Reflection
  */
 
 import java.lang.reflect.*;
@@ -35,36 +35,80 @@ public class Reflection {
     public static void main(String... args) throws Exception {
         Reflection test = new Reflection("Point");
         test.newInstance();
+        test.constructor();
         test.accessField();
+        test.setAccessible();
+        test.trySetAccessible();
+        test.staticField();
     }
 
     private final Class<?> c;
+    private final Constructor<?> ctor;
+    private final Field field;
     Reflection(String cn) throws Exception {
         this.c = Class.forName(cn);
         if (!c.isValue()) {
             throw new RuntimeException(cn + " is not a value class");
         }
+
+        this.ctor = Point.class.getDeclaredConstructor();
+        this.field = c.getField("x");
     }
 
     void accessField() throws Exception {
         Point o = Point.origin;
-        Field x = c.getField("x");
-        if (x.getInt(o) != o.x) {
-            throw new RuntimeException("Unexpected Point.x value: " +  x.getInt(o));
+        if (field.getInt(o) != o.x) {
+            throw new RuntimeException("Unexpected Point.x value: " +  field.getInt(o));
         }
 
         try {
-            x.setInt(o, 100);
+            field.setInt(o, 100);
             throw new RuntimeException("IllegalAccessException not thrown");
         } catch (IllegalAccessException e) {}
     }
 
     void newInstance() throws Exception {
-        if (c == null) return;
-
         try {
             Object o = c.newInstance();
             throw new RuntimeException("newInstance expected to be unsupported on value class");
-        } catch (UnsupportedOperationException e) {}
+        } catch (IllegalAccessException e) {}
+    }
+
+    void constructor() throws Exception {
+        try {
+            ctor.newInstance();
+            throw new RuntimeException("IllegalAccessException not thrown");
+        } catch (IllegalAccessException e) { }
+    }
+
+    void setAccessible() throws Exception {
+        try {
+            ctor.setAccessible(true);
+            throw new RuntimeException("InaccessibleObjectException not thrown");
+        } catch (InaccessibleObjectException e) { e.printStackTrace(); }
+        try {
+            field.setAccessible(true);
+            throw new RuntimeException("InaccessibleObjectException not thrown");
+        } catch (InaccessibleObjectException e) { e.printStackTrace(); }
+    }
+
+    void trySetAccessible() throws Exception {
+        if (ctor.trySetAccessible()) {
+            throw new RuntimeException("trySetAccessible should not succeed");
+        }
+        if (field.trySetAccessible()) {
+            throw new RuntimeException("trySetAccessible should not succeed");
+        }
+    }
+
+    void staticField() throws Exception {
+        Field f = Point.class.getDeclaredField("origin");
+        if (f.trySetAccessible()) {
+            throw new RuntimeException("trySetAccessible should not succeed");
+        }
+        try {
+            f.setAccessible(true);
+            throw new RuntimeException("IllegalAccessException not thrown");
+        } catch (InaccessibleObjectException e) { }
     }
 }

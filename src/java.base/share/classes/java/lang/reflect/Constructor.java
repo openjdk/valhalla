@@ -181,7 +181,12 @@ public final class Constructor<T> extends Executable {
     @CallerSensitive
     public void setAccessible(boolean flag) {
         AccessibleObject.checkPermission();
+
         if (flag) {
+            if (clazz.isValue()) {
+                throw new InaccessibleObjectException(
+                    "Unable to make a value class constructor \"" + this + "\" accessible");
+            }
             checkCanSetAccessible(Reflection.getCallerClass());
         }
         setAccessible0(flag);
@@ -474,6 +479,11 @@ public final class Constructor<T> extends Executable {
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
+        if (clazz.isValue()) {
+            throw new IllegalAccessException(
+                "cannot create new instance of value class " + clazz.getName());
+        }
+
         if (!override) {
             Class<?> caller = Reflection.getCallerClass();
             checkAccess(caller, clazz, clazz, modifiers);

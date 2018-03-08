@@ -447,11 +447,12 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     // let the rest (native, volatile, transient, etc.) be tested via Modifier.isFoo
 
     // unofficial modifier flags, used by HotSpot:
-    static final int BRIDGE    = 0x00000040;
-    static final int VARARGS   = 0x00000080;
-    static final int SYNTHETIC = 0x00001000;
-    static final int ANNOTATION= 0x00002000;
-    static final int ENUM      = 0x00004000;
+    static final int BRIDGE     = 0x00000040;
+    static final int VARARGS    = 0x00000080;
+    static final int SYNTHETIC  = 0x00001000;
+    static final int ANNOTATION = 0x00002000;
+    static final int ENUM       = 0x00004000;
+
     /** Utility method to query the modifier flags of this member; returns false if the member is not a method. */
     public boolean isBridge() {
         return testAllFlags(IS_METHOD | BRIDGE);
@@ -464,6 +465,9 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     public boolean isSynthetic() {
         return testAllFlags(SYNTHETIC);
     }
+
+    public boolean isValue() { return clazz.isValue(); }
+
 
     static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
 
