@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @run testng/othervm -Xverify:none -Diters=10    -Xint                   VarHandleTestAccessByte
+ * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessByte
  */
 /* Disabled temporarily for lworld
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessByte
