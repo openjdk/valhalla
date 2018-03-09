@@ -26,10 +26,17 @@
  * @bug 8046171
  * @summary Test that private Lookup works for both nestmate-enabled classes
  * and legacy classes
+ * @compile TestPrivateLookup.java
  * @run main TestPrivateLookup
  * @compile -source 10 -target 10 TestPrivateLookup.java
  * @run main TestPrivateLookup noNestmates
  */
+
+// Need the explicit first @compile above so that jtreg forces recompilation
+// with latest version. Otherwise compile-on-demand sees the JDK 10 version
+// and assumes it is up to date and then runs the test using that version -
+// which fails.
+
 import java.lang.invoke.*;
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;

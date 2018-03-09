@@ -87,7 +87,8 @@ class ArrayKlass: public Klass {
   // Lookup operations
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
-                                 OverpassLookupMode overpass_mode) const;
+                                 OverpassLookupMode overpass_mode,
+                                 PrivateLookupMode private_mode = find_private) const;
 
   static ArrayKlass* cast(Klass* k) {
     return const_cast<ArrayKlass*>(cast(const_cast<const Klass*>(k)));

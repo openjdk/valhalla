@@ -1208,8 +1208,11 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Klass
     methodHandle target;
     if (m->has_itable_index()) {
       // This search must match the runtime resolution, i.e. selection search for invokeinterface
-      // to correctly enforce loader constraints for interface method inheritance
-      target = LinkResolver::lookup_instance_method_in_klasses(_klass, m->name(), m->signature(), CHECK);
+      // to correctly enforce loader constraints for interface method inheritance.
+      // Private methods are skipped as a private class method can never be the implementation
+      // of an interface method.
+      target = LinkResolver::lookup_instance_method_in_klasses(_klass, m->name(), m->signature(),
+                                                               Klass::skip_private, CHECK);
     }
     if (target == NULL || !target->is_public() || target->is_abstract() || target->is_overpass()) {
       assert(target == NULL || !target->is_overpass() || target->is_public(),

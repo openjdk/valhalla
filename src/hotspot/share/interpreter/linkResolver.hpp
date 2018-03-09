@@ -211,8 +211,8 @@ class LinkResolver: AllStatic {
                                                 Handle *method_type_result, TRAPS);
  JVMCI_ONLY(public:) // Needed for CompilerToVM.resolveMethod()
   // Not Linktime so doesn't take LinkInfo
-  static methodHandle lookup_instance_method_in_klasses (
-                                       Klass* klass, Symbol* name, Symbol* signature, TRAPS);
+  static methodHandle lookup_instance_method_in_klasses (Klass* klass, Symbol* name, Symbol* signature,
+                                                         Klass::PrivateLookupMode private_mode, TRAPS);
  JVMCI_ONLY(private:)
 
   // Similar loader constraint checking functions that throw

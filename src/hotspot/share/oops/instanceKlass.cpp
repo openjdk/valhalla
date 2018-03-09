@@ -1560,13 +1560,14 @@ Method* InstanceKlass::find_method_impl(const Symbol* name,
 // and skips over static methods
 Method* InstanceKlass::find_instance_method(const Array<Method*>* methods,
                                             const Symbol* name,
-                                            const Symbol* signature) {
+                                            const Symbol* signature,
+                                            PrivateLookupMode private_mode) {
   Method* const meth = InstanceKlass::find_method_impl(methods,
                                                  name,
                                                  signature,
                                                  find_overpass,
                                                  skip_static,
-                                                 find_private);
+                                                 private_mode);
   assert(((meth == NULL) || !meth->is_static()),
     "find_instance_method should have skipped statics");
   return meth;
@@ -1574,8 +1575,10 @@ Method* InstanceKlass::find_instance_method(const Array<Method*>* methods,
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
-Method* InstanceKlass::find_instance_method(const Symbol* name, const Symbol* signature) const {
-  return InstanceKlass::find_instance_method(methods(), name, signature);
+Method* InstanceKlass::find_instance_method(const Symbol* name,
+                                            const Symbol* signature,
+                                            PrivateLookupMode private_mode) const {
+  return InstanceKlass::find_instance_method(methods(), name, signature, private_mode);
 }
 
 // Find looks up the name/signature in the local methods array
@@ -1676,7 +1679,7 @@ int InstanceKlass::find_method_index(const Array<Method*>* methods,
     // Do linear search to find matching signature.  First, quick check
     // for common case, ignoring overpasses if requested.
     if (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) {
-          return hit;
+      return hit;
     }
 
     // search downwards through overloaded methods
@@ -1732,10 +1735,12 @@ int InstanceKlass::find_method_by_name(const Array<Method*>* methods,
 }
 
 // uncached_lookup_method searches both the local class methods array and all
-// superclasses methods arrays, skipping any overpass methods in superclasses.
+// superclasses methods arrays, skipping any overpass methods in superclasses,
+// and possibly skipping private methods.
 Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
                                               const Symbol* signature,
-                                              OverpassLookupMode overpass_mode) const {
+                                              OverpassLookupMode overpass_mode,
+                                              PrivateLookupMode private_mode) const {
   OverpassLookupMode overpass_local_mode = overpass_mode;
   const Klass* klass = this;
   while (klass != NULL) {
@@ -1743,7 +1748,7 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
                                                                         signature,
                                                                         overpass_local_mode,
                                                                         find_static,
-                                                                        find_private);
+                                                                        private_mode);
     if (method != NULL) {
       return method;
     }

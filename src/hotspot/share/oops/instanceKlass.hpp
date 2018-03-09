@@ -573,10 +573,12 @@ class InstanceKlass: public Klass {
                              const Symbol* signature);
 
   // find a local method, but skip static methods
-  Method* find_instance_method(const Symbol* name, const Symbol* signature) const;
+  Method* find_instance_method(const Symbol* name, const Symbol* signature,
+                               PrivateLookupMode private_mode = find_private) const;
   static Method* find_instance_method(const Array<Method*>* methods,
                                       const Symbol* name,
-                                      const Symbol* signature);
+                                      const Symbol* signature,
+                                      PrivateLookupMode private_mode = find_private);
 
   // find a local method (returns NULL if not found)
   Method* find_local_method(const Symbol* name,
@@ -604,7 +606,8 @@ class InstanceKlass: public Klass {
   // lookup operation (returns NULL if not found)
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
-                                 OverpassLookupMode overpass_mode) const;
+                                 OverpassLookupMode overpass_mode,
+                                 PrivateLookupMode private_mode = find_private) const;
 
   // lookup a method in all the interfaces that this class implements
   // (returns NULL if not found)

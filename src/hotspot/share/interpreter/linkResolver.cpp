@@ -385,12 +385,13 @@ Method* LinkResolver::lookup_method_in_klasses(const LinkInfo& link_info,
 // Looks up method in classes, then looks up local default methods
 methodHandle LinkResolver::lookup_instance_method_in_klasses(Klass* klass,
                                                              Symbol* name,
-                                                             Symbol* signature, TRAPS) {
-  Method* result = klass->uncached_lookup_method(name, signature, Klass::find_overpass);
+                                                             Symbol* signature,
+                                                             Klass::PrivateLookupMode private_mode, TRAPS) {
+  Method* result = klass->uncached_lookup_method(name, signature, Klass::find_overpass, private_mode);
 
   while (result != NULL && result->is_static() && result->method_holder()->super() != NULL) {
     Klass* super_klass = result->method_holder()->super();
-    result = super_klass->uncached_lookup_method(name, signature, Klass::find_overpass);
+    result = super_klass->uncached_lookup_method(name, signature, Klass::find_overpass, private_mode);
   }
 
   if (klass->is_array_klass()) {
@@ -1218,8 +1219,9 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
       // Lookup super method
       Klass* super_klass = current_klass->super();
       sel_method = lookup_instance_method_in_klasses(super_klass,
-                           resolved_method->name(),
-                           resolved_method->signature(), CHECK);
+                                                     resolved_method->name(),
+                                                     resolved_method->signature(),
+                                                     Klass::find_private, CHECK);
       // check if found
       if (sel_method.is_null()) {
         ResourceMark rm(THREAD);
@@ -1438,6 +1440,7 @@ void LinkResolver::runtime_resolve_interface_method(CallInfo& result,
                                                     Handle recv,
                                                     Klass* recv_klass,
                                                     bool check_null_and_abstract, TRAPS) {
+
   // check if receiver exists
   if (check_null_and_abstract && recv.is_null()) {
     THROW(vmSymbols::java_lang_NullPointerException());
@@ -1459,10 +1462,12 @@ void LinkResolver::runtime_resolve_interface_method(CallInfo& result,
   if (!resolved_method()->is_private()) {
     // do lookup based on receiver klass
     // This search must match the linktime preparation search for itable initialization
-    // to correctly enforce loader constraints for interface method inheritance
+    // to correctly enforce loader constraints for interface method inheritance.
+    // Private methods are skipped as the resolved method was not private.
     sel_method = lookup_instance_method_in_klasses(recv_klass,
                                                    resolved_method->name(),
-                                                   resolved_method->signature(), CHECK);
+                                                   resolved_method->signature(),
+                                                   Klass::skip_private, CHECK);
 
     if (sel_method.is_null() && !check_null_and_abstract) {
       // In theory this is a harmless placeholder value, but

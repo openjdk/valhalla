@@ -234,7 +234,12 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
             vmindex);
        m->access_flags().print_on(tty);
        if (!m->is_abstract()) {
-         tty->print("default");
+         if (!m->is_private()) {
+           tty->print("default");
+         }
+         else {
+           tty->print("private-intf");
+         }
        }
        tty->cr();
     }

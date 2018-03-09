@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileTask.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/handles.hpp"
@@ -1218,8 +1219,9 @@ class ClassHierarchyWalker {
     } else if (!k->is_instance_klass()) {
       return false; // no methods to find in an array type
     } else {
-      // Search class hierarchy first.
-      Method* m = InstanceKlass::cast(k)->find_instance_method(_name, _signature);
+      // Search class hierarchy first, skipping private implementations
+      // as they never override any inherited methods
+      Method* m = InstanceKlass::cast(k)->find_instance_method(_name, _signature, Klass::skip_private);
       if (!Dependencies::is_concrete_method(m, k)) {
         // Check interface defaults also, if any exist.
         Array<Method*>* default_methods = InstanceKlass::cast(k)->default_methods();
