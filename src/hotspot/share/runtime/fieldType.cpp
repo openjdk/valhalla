@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,32 +71,6 @@ bool FieldType::is_valid_array_signature(Symbol* sig) {
   }
 
   return false;
-}
-
-static const char dvt_postfix[] = "$Value";
-static const int dvt_postfix_len = 6;
-
-bool FieldType::is_dvt_postfix(Symbol* signature) {
-  assert(strlen(dvt_postfix) == dvt_postfix_len, "Invariant");
-  int sig_length = signature->utf8_length();
-  int pos = sig_length - dvt_postfix_len;
-  if (pos <= 0) {
-    return false;
-  }
-  for (int i = 0; i < dvt_postfix_len; i++) {
-    if (signature->byte_at(pos) != dvt_postfix[i]) {
-      return false;
-    }
-    pos++;
-  }
-  return true;
-}
-
-char* FieldType::dvt_unmangle_vcc(Symbol* signature) {
-  assert(is_dvt_postfix(signature), "Unmangle that which is not managled");
-  char* str = signature->as_C_string();
-  str[signature->utf8_length() -dvt_postfix_len] = '\0';
-  return str;
 }
 
 BasicType FieldType::get_array_info(Symbol* signature, FieldArrayInfo& fd, TRAPS) {

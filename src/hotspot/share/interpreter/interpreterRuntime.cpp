@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -116,9 +116,7 @@ IRT_ENTRY(void, InterpreterRuntime::ldc(JavaThread* thread, bool wide))
   int index = wide ? last_frame.get_index_u2(Bytecodes::_ldc_w) : last_frame.get_index_u1(Bytecodes::_ldc);
   constantTag tag = pool->tag_at(index);
 
-  assert ((tag.is_unresolved_klass() || tag.is_klass() ||
-           tag.is_unresolved_value_type() || tag.is_value_type()),
-          "wrong ldc call");
+  assert (tag.is_unresolved_klass() || tag.is_klass(), "wrong ldc call");
   Klass* klass = pool->klass_at(index, CHECK);
     oop java_class = klass->java_mirror();
     thread->set_vm_result(java_class);

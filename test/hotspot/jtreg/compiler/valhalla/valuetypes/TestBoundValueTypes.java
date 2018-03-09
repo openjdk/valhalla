@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,7 @@ import jdk.incubator.mvt.ValueType;
  * @modules java.base/jdk.experimental.value
  *          jdk.incubator.mvt
  * @compile -XDenableValueTypes ValueCapableClass2.java TestBoundValueTypes.java
- * @run main/othervm -XX:+EnableMVT -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestBoundValueTypes::*
+ * @run main/othervm -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestBoundValueTypes::*
  *                   -XX:CompileCommand=compileonly,java.lang.invoke.*::* compiler.valhalla.valuetypes.TestBoundValueTypes
  */
 public class TestBoundValueTypes {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -706,24 +706,14 @@ class CompileReplay : public StackObj {
           break;
         }
 
-        case JVM_CONSTANT_UnresolvedValue: {
-          if (tag == JVM_CONSTANT_Value) {
-            tty->print_cr("Resolving value type %s at %d", cp->klass_name_at(i)->as_utf8(), i);
-            Klass* k = cp->klass_at(i, CHECK);
-          }
-          break;
-        }
-
         case JVM_CONSTANT_Long:
         case JVM_CONSTANT_Double:
           parsed_two_word = i + 1;
 
         case JVM_CONSTANT_ClassIndex:
-        case JVM_CONSTANT_ValueIndex:
         case JVM_CONSTANT_StringIndex:
         case JVM_CONSTANT_String:
         case JVM_CONSTANT_UnresolvedClassInError:
-        case JVM_CONSTANT_UnresolvedValueInError:
         case JVM_CONSTANT_Fieldref:
         case JVM_CONSTANT_Methodref:
         case JVM_CONSTANT_InterfaceMethodref:
@@ -744,16 +734,6 @@ class CompileReplay : public StackObj {
         case JVM_CONSTANT_Class:
           if (tag == JVM_CONSTANT_Class) {
           } else if (tag == JVM_CONSTANT_UnresolvedClass) {
-            tty->print_cr("Warning: entry was unresolved in the replay data");
-          } else {
-            report_error("Unexpected tag");
-            return;
-          }
-          break;
-
-        case JVM_CONSTANT_Value:
-          if (tag == JVM_CONSTANT_Value) {
-          } else if (tag == JVM_CONSTANT_UnresolvedValue) {
             tty->print_cr("Warning: entry was unresolved in the replay data");
           } else {
             report_error("Unexpected tag");

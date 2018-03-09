@@ -2351,18 +2351,12 @@ bool Arguments::check_vm_args_consistency() {
     warning("ValueTypeReturnedAsFields is not supported on this platform");
   }
 
-  if (EnableMVT || EnableValhalla) {
+  if (EnableValhalla) {
     // C1 has no support for value types
     if (!FLAG_IS_DEFAULT(TieredCompilation)) {
       warning("TieredCompilation disabled because value types are not supported by C1");
     }
     FLAG_SET_CMDLINE(bool, TieredCompilation, false);
-  }
-
-  if (EnableMVT && EnableValhalla) {
-    jio_fprintf(defaultStream::error_stream(),
-        "Conflicting combination in option list: EnableMVT and EnableValhalla cannot be both enabled at the same time");
-    status = false;
   }
 
   return status;
@@ -3257,11 +3251,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     }
   }
 
-  if (EnableMVT) {
-    if (!create_property("valhalla.enableMVT", "true", InternalProperty)) {
-      return JNI_ENOMEM;
-    }
-  }
   if (EnableValhalla) {
     if (!create_property("valhalla.enableValhalla", "true", InternalProperty)) {
       return JNI_ENOMEM;
@@ -3492,11 +3481,6 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
   // Tiered compilation is undefined.
   UNSUPPORTED_OPTION(TieredCompilation);
 #endif
-
-  if (EnableMVT &&
-      !create_numbered_property("jdk.module.addmods", "jdk.incubator.mvt", addmods_count++)) {
-    return JNI_ENOMEM;
-  }
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI &&
@@ -4385,7 +4369,7 @@ jint Arguments::apply_ergo() {
     FLAG_SET_DEFAULT(UseLoopCounter, true);
   }
 
-  if ((!EnableMVT && !EnableValhalla) || is_interpreter_only()) {
+  if (!EnableValhalla || is_interpreter_only()) {
     // Disable calling convention optimizations if value types are not supported
     ValueTypePassFieldsAsArgs = false;
     ValueTypeReturnedAsFields = false;

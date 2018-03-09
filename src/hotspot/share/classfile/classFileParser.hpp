@@ -464,11 +464,6 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
              _cp->tag_at(index).is_klass_or_reference();
   }
 
-  bool valid_value_type_reference_at(int index) const {
-    return _cp->is_within_bounds(index) &&
-             _cp->tag_at(index).is_value_type_or_reference();
-  }
-
   // Checks that the cpool index is in range and is a utf8
   bool valid_symbol_at(int cpool_index) const {
     return _cp->is_within_bounds(cpool_index) &&

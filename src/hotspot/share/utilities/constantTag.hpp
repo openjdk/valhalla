@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,11 +44,7 @@ enum {
   JVM_CONSTANT_MethodHandleInError      = 104,  // Error tag due to resolution error
   JVM_CONSTANT_MethodTypeInError        = 105,  // Error tag due to resolution error
   JVM_CONSTANT_DynamicInError           = 106,  // Error tag due to resolution error
-  JVM_CONSTANT_Value                    = 107,  // Internal derived value type
-  JVM_CONSTANT_ValueIndex               = 108,  // Temporary tag while construction constant pool, class redefinition
-  JVM_CONSTANT_UnresolvedValue          = 109,  // Temporary tag until actual use of derived value type
-  JVM_CONSTANT_UnresolvedValueInError   = 110,  // Error tag due to resolution error
-  JVM_CONSTANT_InternalMax              = 110   // Last implementation tag
+  JVM_CONSTANT_InternalMax              = 106   // Last implementation tag
 };
 
 
@@ -57,7 +53,6 @@ class constantTag VALUE_OBJ_CLASS_SPEC {
   jbyte _tag;
  public:
   bool is_klass() const             { return _tag == JVM_CONSTANT_Class; }
-  bool is_value_type() const        { return _tag == JVM_CONSTANT_Value; }
   bool is_field () const            { return _tag == JVM_CONSTANT_Fieldref; }
   bool is_method() const            { return _tag == JVM_CONSTANT_Methodref; }
   bool is_interface_method() const  { return _tag == JVM_CONSTANT_InterfaceMethodref; }
@@ -79,14 +74,6 @@ class constantTag VALUE_OBJ_CLASS_SPEC {
     return _tag == JVM_CONSTANT_UnresolvedClassInError;
   }
 
-  bool is_unresolved_value_type() const {
-    return _tag == JVM_CONSTANT_UnresolvedValue || _tag == JVM_CONSTANT_UnresolvedValueInError;
-  }
-
-  bool is_unresolved_value_type_in_error() const {
-    return _tag == JVM_CONSTANT_UnresolvedValueInError;
-  }
-
   bool is_method_handle_in_error() const {
     return _tag == JVM_CONSTANT_MethodHandleInError;
   }
@@ -99,15 +86,12 @@ class constantTag VALUE_OBJ_CLASS_SPEC {
   }
 
   bool is_klass_index() const       { return _tag == JVM_CONSTANT_ClassIndex; }
-  bool is_value_type_index() const  { return _tag == JVM_CONSTANT_ValueIndex; }
   bool is_string_index() const      { return _tag == JVM_CONSTANT_StringIndex; }
 
   bool is_klass_reference() const   { return is_klass_index() || is_unresolved_klass(); }
   bool is_klass_or_reference() const{ return is_klass() || is_klass_reference(); }
   bool is_field_or_method() const   { return is_field() || is_method() || is_interface_method(); }
   bool is_symbol() const            { return is_utf8(); }
-
-  bool is_value_type_or_reference() const { return is_value_type_index() || is_value_type() || is_unresolved_value_type(); }
 
   bool is_method_type() const       { return _tag == JVM_CONSTANT_MethodType; }
   bool is_method_handle() const     { return _tag == JVM_CONSTANT_MethodHandle; }

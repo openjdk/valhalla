@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1592,8 +1592,6 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_jsr:               do_jsr(itr->dest());         break;
     case Bytecodes::_jsr_w:             do_jsr(itr->dest_w());       break;
 
-
-
     case Bytecodes::_getstatic:         do_field(true,  true, itr->get_index_u2_cpcache(), itr->bci()); break;
     case Bytecodes::_putstatic:         do_field(false, true, itr->get_index_u2_cpcache(), itr->bci()); break;
     case Bytecodes::_getfield:          do_field(true,  false, itr->get_index_u2_cpcache(), itr->bci()); break;
@@ -1891,7 +1889,7 @@ void GenerateOopMap::do_ldc(int bci) {
 #endif
   CellTypeState   cts;
   if (is_reference_type(bt)) {  // could be T_ARRAY with condy
-    assert(!tag.is_string_index() && !tag.is_klass_index() && !tag.is_value_type_index(), "Unexpected index tag");
+    assert(!tag.is_string_index() && !tag.is_klass_index(), "Unexpected index tag");
     cts = CellTypeState::make_line_ref(bci);
   } else {
     cts = valCTS;

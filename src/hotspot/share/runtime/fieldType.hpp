@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,10 +68,6 @@ class FieldType: public AllStatic {
              (signature->byte_at(0) == 'L') &&
              (signature->byte_at(sig_length - 1) == ';'));
   }
-
-  // MVT name mangling, VM derived value type naming Foo->Foo$Value
-  static bool is_dvt_postfix(Symbol* signature);
-  static char* dvt_unmangle_vcc(Symbol* signature);
 
   // Parse field and extract array information. Works for T_ARRAY only.
   static BasicType get_array_info(Symbol* signature, FieldArrayInfo& ai, TRAPS);

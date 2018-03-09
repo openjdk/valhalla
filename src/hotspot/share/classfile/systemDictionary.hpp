@@ -255,7 +255,6 @@ class SystemDictionary : AllStatic {
     Jvmci,                      // preload tried; error if not present if JVMCI enabled
 #endif
     ValhallaClasses,            // loaded if Valhalla enabled
-    MVTClasses,                 // loaded if MVT enabled
     OPTION_LIMIT,
     CEIL_LG_OPTION_LIMIT = 3    // OPTION_LIMIT <= (1<<CEIL_LG_OPTION_LIMIT)
   };
@@ -426,7 +425,6 @@ public:
   static InstanceKlass* check_klass_Pre(InstanceKlass* k) { return check_klass(k); }
   static InstanceKlass* check_klass_Opt(InstanceKlass* k) { return k; }
   static InstanceKlass* check_klass_ValhallaClasses(InstanceKlass* k) { return k; }
-  static InstanceKlass* check_klass_MVTClasses(InstanceKlass* k) { return k; }
 
   JVMCI_ONLY(static InstanceKlass* check_klass_Jvmci(InstanceKlass* k) { return k; })
 

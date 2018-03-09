@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -604,7 +604,7 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeNarrowKlass::NULL_PTR = TypeNarrowKlass::make( TypePtr::NULL_PTR );
 
-  // TypeValueTypePtr::NOTNULL = (EnableValhalla || EnableMVT) ? TypeValueTypePtr::make(TypePtr::NotNull, current->env()->___Value_klass()->as_value_klass()) : NULL;
+  // TypeValueTypePtr::NOTNULL = EnableValhalla ? TypeValueTypePtr::make(TypePtr::NotNull, current->env()->___Value_klass()->as_value_klass()) : NULL;
   TypeValueTypePtr::NOTNULL = NULL;
 
   mreg2type[Op_Node] = Type::BOTTOM;
@@ -655,7 +655,7 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeKlassPtr::OBJECT = TypeKlassPtr::make(TypePtr::NotNull, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0) );
-  TypeKlassPtr::BOTTOM = (EnableValhalla || EnableMVT) ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
+  TypeKlassPtr::BOTTOM = EnableValhalla ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
   // TypeKlassPtr::VALUE = TypeKlassPtr::make(TypePtr::NotNull, current->env()->___Value_klass(), Offset(0));
   TypeKlassPtr::VALUE = NULL;
 

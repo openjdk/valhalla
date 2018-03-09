@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,12 +57,6 @@ BasicType constantTag::basic_type() const {
     case JVM_CONSTANT_MethodTypeInError :
       return T_OBJECT;
 
-    case JVM_CONSTANT_Value :
-    case JVM_CONSTANT_ValueIndex :
-    case JVM_CONSTANT_UnresolvedValue :
-    case JVM_CONSTANT_UnresolvedValueInError :
-      return T_OBJECT; // Should this eventually be migrated to T_VALUETYPE?
-
     case JVM_CONSTANT_Dynamic :
     case JVM_CONSTANT_DynamicInError :
       assert(false, "Dynamic constant has no fixed basic type");
@@ -78,8 +72,6 @@ jbyte constantTag::non_error_value() const {
   switch (_tag) {
   case JVM_CONSTANT_UnresolvedClassInError:
     return JVM_CONSTANT_UnresolvedClass;
-  case JVM_CONSTANT_UnresolvedValueInError:
-    return JVM_CONSTANT_UnresolvedValue;
   case JVM_CONSTANT_MethodHandleInError:
     return JVM_CONSTANT_MethodHandle;
   case JVM_CONSTANT_MethodTypeInError:
@@ -96,8 +88,6 @@ jbyte constantTag::error_value() const {
   switch (_tag) {
   case JVM_CONSTANT_UnresolvedClass:
     return JVM_CONSTANT_UnresolvedClassInError;
-  case JVM_CONSTANT_UnresolvedValue:
-    return JVM_CONSTANT_UnresolvedValueInError;
   case JVM_CONSTANT_MethodHandle:
     return JVM_CONSTANT_MethodHandleInError;
   case JVM_CONSTANT_MethodType:
@@ -158,12 +148,6 @@ const char* constantTag::internal_name() const {
       return "Unresolved Class Index";
     case JVM_CONSTANT_StringIndex :
       return "Unresolved String Index";
-    case JVM_CONSTANT_Value :
-      return "Value Type";
-    case JVM_CONSTANT_UnresolvedValue :
-      return "Unresolved Value Type";
-    case JVM_CONSTANT_UnresolvedValueInError :
-      return "Unresolved Value Type Error";
     default:
       ShouldNotReachHere();
       return "Illegal";

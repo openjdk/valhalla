@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2144,8 +2144,7 @@ void GraphBuilder::new_instance(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
   assert(klass->is_instance_klass(), "must be an instance klass");
-  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before,
-                                              stream()->is_unresolved_klass() || stream()->is_unresolved_value_type());
+  NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass());
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
 }

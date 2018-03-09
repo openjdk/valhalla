@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -448,19 +448,6 @@ void TemplateTable::ldc(bool wide) {
 
   // resolved class - need to call vm to get java mirror of the class
   __ cmpl(rdx, JVM_CONSTANT_Class);
-  __ jcc(Assembler::equal, call_ldc);
-
-  // unresolved value type - get the resolved class
-  __ cmpl(rdx, JVM_CONSTANT_UnresolvedValue);
-  __ jccb(Assembler::equal, call_ldc);
-
-  // unresolved value type in error state - call into runtime to throw the error
-  // from the first resolution attempt
-  __ cmpl(rdx, JVM_CONSTANT_UnresolvedValueInError);
-  __ jccb(Assembler::equal, call_ldc);
-
-  // resolved value type - need to call vm to get java mirror
-  __ cmpl(rdx, JVM_CONSTANT_Value);
   __ jcc(Assembler::notEqual, notClass);
 
   __ bind(call_ldc);
@@ -2785,7 +2772,7 @@ void TemplateTable::_return(TosState state) {
   }
 
 #ifdef ASSERT
-  if (EnableMVT || EnableValhalla) {
+  if (EnableValhalla) {
     if (state == atos) {
       const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
       __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::check_areturn), rax);

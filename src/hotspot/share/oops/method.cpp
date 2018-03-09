@@ -748,8 +748,7 @@ int Method::line_number_from_bci(int bci) const {
 
 
 bool Method::is_klass_loaded_by_klass_index(int klass_index) const {
-  if( constants()->tag_at(klass_index).is_unresolved_klass() ||
-      constants()->tag_at(klass_index).is_unresolved_value_type() ) {
+  if( constants()->tag_at(klass_index).is_unresolved_klass()) {
     Thread *thread = Thread::current();
     Symbol* klass_name = constants()->klass_name_at(klass_index);
     Handle loader(thread, method_holder()->class_loader());
@@ -765,8 +764,7 @@ bool Method::is_klass_loaded(int refinfo_index, bool must_be_resolved) const {
   int klass_index = constants()->klass_ref_index_at(refinfo_index);
   if (must_be_resolved) {
     // Make sure klass is resolved in constantpool.
-    if (constants()->tag_at(klass_index).is_unresolved_klass() ||
-        constants()->tag_at(klass_index).is_unresolved_value_type()) {
+    if (constants()->tag_at(klass_index).is_unresolved_klass()) {
       return false;
     }
   }

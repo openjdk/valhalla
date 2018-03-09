@@ -1529,8 +1529,7 @@ Deoptimization::get_method_data(JavaThread* thread, const methodHandle& m,
 #if COMPILER2_OR_JVMCI
 void Deoptimization::load_class_by_index(const constantPoolHandle& constant_pool, int index, TRAPS) {
   // in case of an unresolved klass entry, load the class.
-  if (constant_pool->tag_at(index).is_unresolved_klass() ||
-      constant_pool->tag_at(index).is_unresolved_value_type()) {
+  if (constant_pool->tag_at(index).is_unresolved_klass()) {
     Klass* tk = constant_pool->klass_at_ignore_error(index, CHECK);
     return;
   }
@@ -1719,8 +1718,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
       bool unresolved = false;
       if (unloaded_class_index >= 0) {
         constantPoolHandle constants (THREAD, trap_method->constants());
-        if (constants->tag_at(unloaded_class_index).is_unresolved_klass() ||
-            constants->tag_at(unloaded_class_index).is_unresolved_value_type()) {
+        if (constants->tag_at(unloaded_class_index).is_unresolved_klass()) {
           class_name = constants->klass_name_at(unloaded_class_index);
           unresolved = true;
           if (xtty != NULL)

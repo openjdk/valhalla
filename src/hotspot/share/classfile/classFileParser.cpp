@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -154,12 +154,6 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
         cfs->guarantee_more(3, CHECK);  // name_index, tag/access_flags
         const u2 name_index = cfs->get_u2_fast();
         cp->klass_index_at_put(index, name_index);
-        break;
-      }
-      case JVM_CONSTANT_Value: {  // may be present in a retransform situation
-        cfs->guarantee_more(3, CHECK);  // name_index, tag/access_flags
-        const u2 name_index = cfs->get_u2_fast();
-        cp->value_type_index_at_put(index, name_index);
         break;
       }
       case JVM_CONSTANT_Fieldref: {
@@ -426,9 +420,8 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
   for (index = 1; index < length; index++) {          // Index 0 is unused
     const jbyte tag = cp->tag_at(index).value();
     switch (tag) {
-      case JVM_CONSTANT_Class:
-      case JVM_CONSTANT_Value: {
-        ShouldNotReachHere();     // Only JVM_CONSTANT_[Class|Value]Index should be present
+      case JVM_CONSTANT_Class: {
+        ShouldNotReachHere();     // Only JVM_CONSTANT_ClassIndex should be present
         break;
       }
       case JVM_CONSTANT_Fieldref:
@@ -439,10 +432,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
         if (!_need_verify) break;
         const int klass_ref_index = cp->klass_ref_index_at(index);
         const int name_and_type_ref_index = cp->name_and_type_ref_index_at(index);
-        check_property(valid_klass_reference_at(klass_ref_index) ||
-                       (valid_value_type_reference_at(klass_ref_index) &&
-                        ((EnableMVT && (tag == JVM_CONSTANT_Fieldref)) ||
-                         EnableValhalla)),
+        check_property(valid_klass_reference_at(klass_ref_index),
                        "Invalid constant pool index %u in class file %s",
                        klass_ref_index, CHECK);
         check_property(valid_cp_range(name_and_type_ref_index, length) &&
@@ -497,14 +487,6 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
         const unsigned int name_len = name->utf8_length();
 
         cp->unresolved_klass_at_put(index, class_index, num_klasses++);
-        break;
-      }
-      case JVM_CONSTANT_ValueIndex: {
-        const int class_index = cp->value_type_index_at(index);
-        check_property(valid_symbol_at(class_index),
-          "Invalid constant pool index %u in class file %s",
-          class_index, CHECK);
-        cp->unresolved_value_type_at_put(index, class_index, num_klasses++);
         break;
       }
       case JVM_CONSTANT_StringIndex: {
@@ -651,8 +633,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
   for (index = 1; index < length; index++) {
     const jbyte tag = cp->tag_at(index).value();
     switch (tag) {
-      case JVM_CONSTANT_UnresolvedClass:
-      case JVM_CONSTANT_UnresolvedValue: {
+      case JVM_CONSTANT_UnresolvedClass: {
         const Symbol* const class_name = cp->klass_name_at(index);
         // check the name, even if _cp_patches will overwrite it
         verify_legal_class_name(class_name, CHECK);
@@ -3188,16 +3169,14 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     // Inner class index
     const u2 inner_class_info_index = cfs->get_u2_fast();
     check_property(
-      (valid_klass_reference_at(inner_class_info_index) ||
-       (EnableValhalla && valid_value_type_reference_at(inner_class_info_index))),
+      valid_klass_reference_at(inner_class_info_index),
       "inner_class_info_index %u has bad constant type in class file %s",
       inner_class_info_index, CHECK_0);
     // Outer class index
     const u2 outer_class_info_index = cfs->get_u2_fast();
     check_property(
       outer_class_info_index == 0 ||
-        (valid_klass_reference_at(outer_class_info_index) ||
-         (EnableValhalla && valid_value_type_reference_at(outer_class_info_index))),
+        valid_klass_reference_at(outer_class_info_index),
       "outer_class_info_index %u has bad constant type in class file %s",
       outer_class_info_index, CHECK_0);
     // Inner class name
@@ -3686,15 +3665,14 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
                    super_class_index,
                    CHECK_NULL);
   } else {
-    check_property((valid_klass_reference_at(super_class_index) ||
-                    ((EnableValhalla || EnableMVT) && valid_value_type_reference_at(super_class_index))),
+    check_property(valid_klass_reference_at(super_class_index),
                    "Invalid superclass index %u in class file %s",
                    super_class_index,
                    CHECK_NULL);
     // The class name should be legal because it is checked when parsing constant pool.
     // However, make sure it is not an array type.
     bool is_array = false;
-    if (cp->tag_at(super_class_index).is_klass() || cp->tag_at(super_class_index).is_value_type()) {
+    if (cp->tag_at(super_class_index).is_klass()) {
       super_klass = InstanceKlass::cast(cp->resolved_klass_at(super_class_index));
       if (need_verify)
         is_array = super_klass->is_array_klass();
@@ -6186,9 +6164,8 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
   check_property(
-    (valid_cp_range(_this_class_index, cp_size) &&
-     (cp->tag_at(_this_class_index).is_unresolved_klass() ||
-      cp->tag_at(_this_class_index).is_unresolved_value_type())),
+    valid_cp_range(_this_class_index, cp_size) &&
+      cp->tag_at(_this_class_index).is_unresolved_klass(),
     "Invalid this class index %u in constant pool in class file %s",
     _this_class_index, CHECK);
 
@@ -6399,7 +6376,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
 
     // For a value class, only java/lang/Object is an acceptable super class
-    if ((EnableValhalla || EnableMVT) &&
+    if (EnableValhalla &&
         _access_flags.get_flags() & JVM_ACC_VALUE) {
       guarantee_property(_super_klass->name() == vmSymbols::java_lang_Object(),
                          "Value class can only inherit java/lang/Object",

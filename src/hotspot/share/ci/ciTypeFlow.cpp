@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -777,7 +777,7 @@ void ciTypeFlow::StateVector::do_vdefault(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
   assert(klass->is_valuetype(), "should be value type");
-  if (!will_link || str->is_unresolved_value_type()) {
+  if (!will_link) {
     trap(str, klass, str->get_klass_index());
   } else {
     push_object(klass);

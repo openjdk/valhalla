@@ -4117,9 +4117,6 @@ public:
   product(bool, EnableValhalla, false,                                      \
           "Enable experimental Valhalla features")                          \
                                                                             \
-  product(bool, EnableMVT, false,                                           \
-          "Enable experimental Minimal Value Types")                        \
-                                                                            \
   product_pd(bool, ValueTypePassFieldsAsArgs,                               \
              "Pass each value type field as an argument at calls")          \
                                                                             \

@@ -169,15 +169,9 @@ VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
     int nconstants = _cp->length();
     if ((class_index <= 0 || class_index >= nconstants) ||
         (!_cp->tag_at(class_index).is_klass() &&
-         !_cp->tag_at(class_index).is_unresolved_klass() &&
-         !_cp->tag_at(class_index).is_value_type() &&
-         !_cp->tag_at(class_index).is_unresolved_value_type())) {
+         !_cp->tag_at(class_index).is_unresolved_klass())) {
       _stream->stackmap_format_error("bad class index", THREAD);
       return VerificationType::bogus_type();
-    }
-    if (_cp->tag_at(class_index).is_value_type() ||
-        _cp->tag_at(class_index).is_unresolved_value_type()) {
-      return VerificationType::valuetype_type(_cp->klass_name_at(class_index));
     }
     return VerificationType::reference_type(_cp->klass_name_at(class_index));
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1916,8 +1916,7 @@ JVM_ENTRY(jclass, JVM_ConstantPoolGetClassAt(JNIEnv *env, jobject obj, jobject u
   constantPoolHandle cp = constantPoolHandle(THREAD, reflect_ConstantPool::get_cp(JNIHandles::resolve_non_null(obj)));
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
-  if (!tag.is_klass() && !tag.is_unresolved_klass() &&
-      !tag.is_value_type() && !tag.is_unresolved_value_type()) {
+  if (!tag.is_klass() && !tag.is_unresolved_klass()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Klass* k = cp->klass_at(index, CHECK_NULL);
@@ -1931,8 +1930,7 @@ JVM_ENTRY(jclass, JVM_ConstantPoolGetClassAtIfLoaded(JNIEnv *env, jobject obj, j
   constantPoolHandle cp = constantPoolHandle(THREAD, reflect_ConstantPool::get_cp(JNIHandles::resolve_non_null(obj)));
   bounds_check(cp, index, CHECK_NULL);
   constantTag tag = cp->tag_at(index);
-  if (!tag.is_klass() && !tag.is_unresolved_klass() &&
-      !tag.is_value_type() && !tag.is_unresolved_value_type()) {
+  if (!tag.is_klass() && !tag.is_unresolved_klass()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong type at constant pool index");
   }
   Klass* k = ConstantPool::klass_at_if_loaded(cp, index);
@@ -2209,9 +2207,6 @@ JVM_ENTRY(jbyte, JVM_ConstantPoolGetTagAt(JNIEnv *env, jobject obj, jobject unus
   // sun.reflect.ConstantPool will return only tags from the JVM spec, not internal ones.
   if (tag.is_klass_or_reference()) {
       result = JVM_CONSTANT_Class;
-  } else if (tag.is_value_type_or_reference()) {
-      // Return Class, JVM_CONSTANT_Value not externally visible
-      result = JVM_CONSTANT_Class;
   } else if (tag.is_string_index()) {
       result = JVM_CONSTANT_String;
   } else if (tag.is_method_type_in_error()) {
@@ -2328,8 +2323,7 @@ JVM_QUICK_ENTRY(void, JVM_GetClassCPTypes(JNIEnv *env, jclass cls, unsigned char
     ConstantPool* cp = InstanceKlass::cast(k)->constants();
     for (int index = cp->length() - 1; index >= 0; index--) {
       constantTag tag = cp->tag_at(index);
-      // For a value type return Class, JVM_CONSTANT_Value not externally visible
-      types[index] = (tag.is_unresolved_klass() || tag.is_unresolved_value_type()) ? JVM_CONSTANT_Class : tag.value();
+      types[index] = tag.is_unresolved_klass() ? JVM_CONSTANT_Class : tag.value();
     }
   }
 JVM_END

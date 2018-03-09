@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -4151,7 +4151,7 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
     return SSC_full_test;       // Let caller generate the general case.
   }
 
-  if (!EnableMVT && !EnableValhalla && superk == env()->Object_klass()) {
+  if (!EnableValhalla && superk == env()->Object_klass()) {
     return SSC_always_true;     // (0) this test cannot fail
   }
 

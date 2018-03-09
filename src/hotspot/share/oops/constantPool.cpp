@@ -200,19 +200,10 @@ void ConstantPool::initialize_unresolved_klasses(ClassLoaderData* loader_data, T
         unresolved_klass_at_put(i, class_index, num_klasses++);
       }
       break;
-    case JVM_CONSTANT_ValueIndex:
-      {
-        const int class_index = value_type_index_at(i);
-        unresolved_value_type_at_put(i, class_index, num_klasses++);
-      }
-      break;
 #ifndef PRODUCT
     case JVM_CONSTANT_Class:
     case JVM_CONSTANT_UnresolvedClass:
     case JVM_CONSTANT_UnresolvedClassInError:
-    case JVM_CONSTANT_Value:
-    case JVM_CONSTANT_UnresolvedValue:
-    case JVM_CONSTANT_UnresolvedValueInError:
       // All of these should have been reverted back to Unresolved before calling
       // this function.
       ShouldNotReachHere();
@@ -238,10 +229,9 @@ void ConstantPool::klass_at_put(int class_index, int name_index, int resolved_kl
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-NULL, so we need hardware store ordering here.
   if (k != NULL) {
-    release_tag_at_put(class_index, (k->is_value() ? (jbyte)JVM_CONSTANT_Value : JVM_CONSTANT_Class));
+    release_tag_at_put(class_index, JVM_CONSTANT_Class);
   } else {
-    release_tag_at_put(class_index, (tag_at(class_index).is_value_type_or_reference() ?
-                                       JVM_CONSTANT_UnresolvedValue : JVM_CONSTANT_UnresolvedClass));
+    release_tag_at_put(class_index, JVM_CONSTANT_UnresolvedClass);
   }
 }
 
@@ -255,7 +245,7 @@ void ConstantPool::klass_at_put(int class_index, Klass* k) {
 
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-NULL, so we need hardware store ordering here.
-  release_tag_at_put(class_index, (k->is_value() ? (jbyte)JVM_CONSTANT_Value : JVM_CONSTANT_Class));
+  release_tag_at_put(class_index, JVM_CONSTANT_Class);
 }
 
 #if INCLUDE_CDS_JAVA_HEAP
@@ -454,14 +444,12 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   assert(this_cp->tag_at(name_index).is_symbol(), "sanity");
 
   Klass* klass = this_cp->resolved_klasses()->at(resolved_klass_index);
-
   if (klass != NULL) {
     return klass;
   }
 
   // This tag doesn't change back to unresolved class unless at a safepoint.
-  if (this_cp->tag_at(which).is_unresolved_klass_in_error() ||
-      this_cp->tag_at(which).is_unresolved_value_type_in_error()) {
+  if (this_cp->tag_at(which).is_unresolved_klass_in_error()) {
     // The original attempt to resolve this constant pool entry failed so find the
     // class of the original error and throw another error of the same class
     // (JVMS 5.4.3).
@@ -490,10 +478,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
   if (HAS_PENDING_EXCEPTION) {
     if (save_resolution_error) {
-      bool is_value_type_tag = this_cp->tag_at(which).is_value_type_or_reference();
-      save_and_throw_exception(this_cp, which,
-                               constantTag((is_value_type_tag ? JVM_CONSTANT_UnresolvedValue : JVM_CONSTANT_UnresolvedClass)),
-                               CHECK_NULL);
+      save_and_throw_exception(this_cp, which, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_NULL);
       // If CHECK_NULL above doesn't return the exception, that means that
       // some other thread has beaten us and has resolved the class.
       // To preserve old behavior, we return the resolved class.
@@ -518,7 +503,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* stored in _resolved_klasses is non-NULL, so we need
   // hardware store ordering here.
-  this_cp->release_tag_at_put(which, (k->is_value() ? (jbyte)JVM_CONSTANT_Value : JVM_CONSTANT_Class));
+  this_cp->release_tag_at_put(which, JVM_CONSTANT_Class);
   return k;
 }
 
@@ -756,7 +741,6 @@ Symbol* ConstantPool::exception_message(const constantPoolHandle& this_cp, int w
   // Return specific message for the tag
   switch (tag.value()) {
   case JVM_CONSTANT_UnresolvedClass:
-  case JVM_CONSTANT_UnresolvedValue:
     // return the class name in the error message
     message = this_cp->klass_name_at(which);
     break;
@@ -811,7 +795,7 @@ void ConstantPool::save_and_throw_exception(const constantPoolHandle& this_cp, i
                             (jbyte*)this_cp->tag_addr_at(which), (jbyte)tag.value());
     if (old_tag != error_tag && old_tag != tag.value()) {
       // MethodHandles and MethodType doesn't change to resolved version.
-      assert(this_cp->tag_at(which).is_klass() || this_cp->tag_at(which).is_value_type(), "Wrong tag value");
+      assert(this_cp->tag_at(which).is_klass(), "Wrong tag value");
       // Forget the exception and use the resolved class.
       CLEAR_PENDING_EXCEPTION;
     }
@@ -905,9 +889,6 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
   case JVM_CONSTANT_UnresolvedClass:
   case JVM_CONSTANT_UnresolvedClassInError:
   case JVM_CONSTANT_Class:
-  case JVM_CONSTANT_UnresolvedValue:
-  case JVM_CONSTANT_UnresolvedValueInError:
-  case JVM_CONSTANT_Value:
     {
       assert(cache_index == _no_index_sentinel, "should not have been set");
       Klass* resolved = klass_at_impl(this_cp, index, true, CHECK_NULL);
@@ -1314,7 +1295,6 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
 
   switch (t1) {
   case JVM_CONSTANT_Class:
-  case JVM_CONSTANT_Value:
   {
     Klass* k1 = klass_at(index1, CHECK_false);
     Klass* k2 = cp2->klass_at(index2, CHECK_false);
@@ -1327,16 +1307,6 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
   {
     int recur1 = klass_index_at(index1);
     int recur2 = cp2->klass_index_at(index2);
-    bool match = compare_entry_to(recur1, cp2, recur2, CHECK_false);
-    if (match) {
-      return true;
-    }
-  } break;
-
-  case JVM_CONSTANT_ValueIndex:
-  {
-    int recur1 = value_type_index_at(index1);
-    int recur2 = cp2->value_type_index_at(index2);
     bool match = compare_entry_to(recur1, cp2, recur2, CHECK_false);
     if (match) {
       return true;
@@ -1422,7 +1392,6 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
   } break;
 
   case JVM_CONSTANT_UnresolvedClass:
-  case JVM_CONSTANT_UnresolvedValue:
   {
     Symbol* k1 = klass_name_at(index1);
     Symbol* k2 = cp2->klass_name_at(index2);
@@ -1692,12 +1661,6 @@ void ConstantPool::copy_entry_to(const constantPoolHandle& from_cp, int from_i,
     to_cp->klass_index_at_put(to_i, ki);
   } break;
 
-  case JVM_CONSTANT_ValueIndex:
-  {
-    jint ki = from_cp->klass_index_at(from_i);
-    to_cp->klass_index_at_put(to_i, ki);
-  } break;
-
   case JVM_CONSTANT_Double:
   {
     jdouble d = from_cp->double_at(from_i);
@@ -1768,16 +1731,6 @@ void ConstantPool::copy_entry_to(const constantPoolHandle& from_cp, int from_i,
     int name_index = from_cp->klass_slot_at(from_i).name_index();
     assert(from_cp->tag_at(name_index).is_symbol(), "sanity");
     to_cp->klass_index_at_put(to_i, name_index);
-  } break;
-
-  case JVM_CONSTANT_Value:
-  case JVM_CONSTANT_UnresolvedValue:
-  case JVM_CONSTANT_UnresolvedValueInError:
-  {
-    // Revert to JVM_CONSTANT_ValueIndex
-    int name_index = from_cp->klass_slot_at(from_i).name_index();
-    assert(from_cp->tag_at(name_index).is_symbol(), "sanity");
-    to_cp->value_type_index_at_put(to_i, name_index);
   } break;
 
   case JVM_CONSTANT_String:
@@ -1904,8 +1857,7 @@ const char* ConstantPool::printable_name_at(int which) {
 
   if (tag.is_string()) {
     return string_at_noresolve(which);
-  } else if (tag.is_klass() || tag.is_unresolved_klass() ||
-             tag.is_value_type() || tag.is_unresolved_value_type()) {
+  } else if (tag.is_klass() || tag.is_unresolved_klass()) {
     return klass_name_at(which)->as_C_string();
   } else if (tag.is_symbol()) {
     return symbol_at(which)->as_C_string();
@@ -1987,12 +1939,6 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
         ent_size = 2;
         break;
       }
-      case JVM_CONSTANT_Value: {
-        idx1 = Bytes::get_Java_u2(bytes);
-        printf("class        #%03d", idx1);
-        ent_size = 2;
-        break;
-      }
       case JVM_CONSTANT_String: {
         idx1 = Bytes::get_Java_u2(bytes);
         printf("String       #%03d", idx1);
@@ -2039,18 +1985,6 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
         printf("UnresolvedClassInErr: %s", WARN_MSG);
         break;
       }
-      case JVM_CONSTANT_ValueIndex: {
-        printf("ValueIndex  %s", WARN_MSG);
-        break;
-      }
-      case JVM_CONSTANT_UnresolvedValue: {
-        printf("UnresolvedValue: %s", WARN_MSG);
-        break;
-      }
-      case JVM_CONSTANT_UnresolvedValueInError: {
-        printf("UnresolvedValueInErr: %s", WARN_MSG);
-        break;
-      }
       case JVM_CONSTANT_StringIndex: {
         printf("StringIndex: %s", WARN_MSG);
         break;
@@ -2081,10 +2015,6 @@ jint ConstantPool::cpool_entry_size(jint idx) {
     case JVM_CONSTANT_ClassIndex:
     case JVM_CONSTANT_UnresolvedClass:
     case JVM_CONSTANT_UnresolvedClassInError:
-    case JVM_CONSTANT_Value:
-    case JVM_CONSTANT_ValueIndex:
-    case JVM_CONSTANT_UnresolvedValue:
-    case JVM_CONSTANT_UnresolvedValueInError:
     case JVM_CONSTANT_StringIndex:
     case JVM_CONSTANT_MethodType:
     case JVM_CONSTANT_MethodTypeInError:
@@ -2141,14 +2071,6 @@ jint ConstantPool::hash_entries_to(SymbolHashMap *symmap,
         Symbol* sym = klass_name_at(idx);
         classmap->add_entry(sym, idx);
         DBG(printf("adding class entry %s = %d\n", sym->as_utf8(), idx));
-        break;
-      }
-      case JVM_CONSTANT_Value:
-      case JVM_CONSTANT_UnresolvedValue:
-      case JVM_CONSTANT_UnresolvedValueInError: {
-        Symbol* sym = klass_name_at(idx);
-        classmap->add_entry(sym, idx);
-        DBG(printf("adding value type entry %s = %d\n", sym->as_utf8(), idx));
         break;
       }
       case JVM_CONSTANT_Long:
@@ -2238,17 +2160,6 @@ int ConstantPool::copy_cpool_bytes(int cpool_size,
         DBG(printf("JVM_CONSTANT_Class: idx=#%03hd, %s", idx1, sym->as_utf8()));
         break;
       }
-      case JVM_CONSTANT_Value:
-      case JVM_CONSTANT_UnresolvedValue:
-      case JVM_CONSTANT_UnresolvedValueInError: {
-        *bytes = JVM_CONSTANT_Value;
-        Symbol* sym = klass_name_at(idx);
-        idx1 = tbl->symbol_to_value(sym);
-        assert(idx1 != 0, "Have not found a hashtable entry");
-        Bytes::put_Java_u2((address) (bytes+1), idx1);
-        DBG(printf("JVM_CONSTANT_Value: idx=#%03hd, %s", idx1, sym->as_utf8()));
-        break;
-      }
       case JVM_CONSTANT_String: {
         *bytes = JVM_CONSTANT_String;
         Symbol* sym = unresolved_string_at(idx);
@@ -2281,13 +2192,6 @@ int ConstantPool::copy_cpool_bytes(int cpool_size,
         idx1 = klass_index_at(idx);
         Bytes::put_Java_u2((address) (bytes+1), idx1);
         DBG(printf("JVM_CONSTANT_ClassIndex: %hd", idx1));
-        break;
-      }
-      case JVM_CONSTANT_ValueIndex: {
-        *bytes = JVM_CONSTANT_Value;
-        idx1 = value_type_index_at(idx);
-        Bytes::put_Java_u2((address) (bytes+1), idx1);
-        DBG(printf("JVM_CONSTANT_ValueIndex: %hd", idx1));
         break;
       }
       case JVM_CONSTANT_StringIndex: {
@@ -2408,8 +2312,7 @@ void ConstantPool::preload_and_initialize_all_classes(ConstantPool* obj, TRAPS) 
   guarantee(cp->pool_holder() != NULL, "must be fully loaded");
 
   for (int i = 0; i< cp->length();  i++) {
-    if (cp->tag_at(i).is_unresolved_klass() ||
-        cp->tag_at(i).is_unresolved_value_type()) {
+    if (cp->tag_at(i).is_unresolved_klass()) {
       // This will force loading of the class
       Klass* klass = cp->klass_at(i, CHECK);
       if (klass->is_instance_klass()) {
@@ -2468,13 +2371,6 @@ void ConstantPool::print_entry_on(const int index, outputStream* st) {
         st->print(" {" PTR_FORMAT "}", p2i(k));
       }
       break;
-    case JVM_CONSTANT_Value :
-      { Klass* k = klass_at(index, CATCH);
-        guarantee(k != NULL, "need klass");
-        k->print_value_on(st);
-        st->print(" {" PTR_FORMAT "}", p2i(k));
-      }
-      break;
     case JVM_CONSTANT_Fieldref :
     case JVM_CONSTANT_Methodref :
     case JVM_CONSTANT_InterfaceMethodref :
@@ -2509,17 +2405,14 @@ void ConstantPool::print_entry_on(const int index, outputStream* st) {
     case JVM_CONSTANT_Utf8 :
       symbol_at(index)->print_value_on(st);
       break;
-    case JVM_CONSTANT_ClassIndex:
-    case JVM_CONSTANT_ValueIndex: {
+    case JVM_CONSTANT_ClassIndex: {
         int name_index = *int_at_addr(index);
         st->print("klass_index=%d ", name_index);
         symbol_at(name_index)->print_value_on(st);
       }
       break;
     case JVM_CONSTANT_UnresolvedClass :               // fall-through
-    case JVM_CONSTANT_UnresolvedClassInError :
-    case JVM_CONSTANT_UnresolvedValue :
-    case JVM_CONSTANT_UnresolvedValueInError : {
+    case JVM_CONSTANT_UnresolvedClassInError: {
         CPKlassSlot kslot = klass_slot_at(index);
         int resolved_klass_index = kslot.resolved_klass_index();
         int name_index = kslot.name_index();
@@ -2616,8 +2509,7 @@ void ConstantPool::verify_on(outputStream* st) {
   guarantee(is_constantPool(), "object must be constant pool");
   for (int i = 0; i< length();  i++) {
     constantTag tag = tag_at(i);
-    if (tag.is_klass() || tag.is_unresolved_klass() ||
-        tag.is_value_type() || tag.is_unresolved_value_type()) {
+    if (tag.is_klass() || tag.is_unresolved_klass()) {
       guarantee(klass_name_at(i)->refcount() != 0, "should have nonzero reference count");
     } else if (tag.is_symbol()) {
       CPSlot entry = slot_at(i);
