@@ -93,6 +93,7 @@ public class Check {
     private final Source source;
     private final Profile profile;
     private final boolean warnOnAnyAccessToMembers;
+    private final boolean rejectValueMembershipCycles;
 
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
@@ -132,6 +133,7 @@ public class Check {
 
         source = Source.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
+        rejectValueMembershipCycles = options.isSet("rejectValueMembershipCycles");
 
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
@@ -2179,11 +2181,9 @@ public class Check {
             for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
                 if (l.head.hasTag(VARDEF)) {
                     JCVariableDecl field = (JCVariableDecl) l.head;
-                    if (!field.sym.isStatic()) {
+                    if (cyclePossible(field.sym)) {
                         Type fieldType = field.sym.type;
-                        if (types.isValue(fieldType)) {
-                            checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
-                        }
+                        checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
                     }
                 }
             }
@@ -2200,16 +2200,21 @@ public class Check {
         }
         try {
             c.flags_field |= LOCKED;
-            for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR &&
-                    !s.isStatic() &&
-                    (types.isValue(s.type)), NON_RECURSIVE)) {
+            for (Symbol fld : c.members().getSymbols(s -> s.kind == VAR && cyclePossible((VarSymbol) s), NON_RECURSIVE)) {
                 checkNonCyclicMembership((ClassSymbol) fld.type.tsym, pos);
             }
         } finally {
             c.flags_field &= ~LOCKED;
         }
     }
-
+        // where
+        private boolean cyclePossible(VarSymbol symbol) {
+            if (symbol.isStatic())
+                return false;
+            if (rejectValueMembershipCycles && types.isValue(symbol.type))
+                return true;
+            return (symbol.flags() & FLATTENABLE) != 0;
+        }
 
     void checkNonCyclicDecl(JCClassDecl tree) {
         CycleChecker cc = new CycleChecker();
