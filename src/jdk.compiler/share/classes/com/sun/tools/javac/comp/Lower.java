@@ -30,6 +30,7 @@ import java.util.*;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.WriteableScope;
+import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.main.Option.PkgInfo;
 import com.sun.tools.javac.tree.*;
@@ -2592,6 +2593,9 @@ public class Lower extends TreeTranslator {
             tree.expr = translate(tree.expr, tree.type);
         else
             tree.expr = translate(tree.expr);
+        if (Feature.VALUE_TYPES.allowedInSource(source) && types.isValue(tree.type))
+            if (!types.isSameType(tree.expr.type, tree.clazz.type))
+                tree.expr = attr.makeNullCheck(tree.expr);
         result = tree;
     }
 

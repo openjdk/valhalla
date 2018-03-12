@@ -113,6 +113,10 @@ public class ClassReader {
      */
     boolean allowModules;
 
+    /** Switch: allow value types.
+     */
+    boolean allowValueTypes;
+
    /** Lint option: warn about classfile issues
      */
     boolean lintClassfile;
@@ -269,7 +273,7 @@ public class ClassReader {
         Source source = Source.instance(context);
         allowSimplifiedVarargs = Feature.SIMPLIFIED_VARARGS.allowedInSource(source);
         allowModules     = Feature.MODULES.allowedInSource(source);
-
+        allowValueTypes = Feature.VALUE_TYPES.allowedInSource(source);
         saveParameterNames = options.isSet(PARAMETERS);
 
         profile = Profile.instance(context);
@@ -2925,8 +2929,11 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_VALUE) != 0)
-            flags = (flags ^ ACC_VALUE) | VALUE;
+        if ((flags & ACC_VALUE) != 0) {
+            flags &= ~ACC_VALUE;
+            if (allowValueTypes)
+                flags |= VALUE;
+        }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }
 
