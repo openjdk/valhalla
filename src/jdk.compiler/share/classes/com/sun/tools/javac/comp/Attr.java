@@ -1514,7 +1514,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitSynchronized(JCSynchronized tree) {
-        chk.checkRefType(tree.pos(), attribExpr(tree.lock, env));
+        chk.checkRefType(tree.pos(), attribExpr(tree.lock, env), false);
         attribStat(tree.body, env);
         result = null;
     }

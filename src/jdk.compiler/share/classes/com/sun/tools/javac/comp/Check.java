@@ -731,14 +731,24 @@ public class Check {
      *  or a type variable.
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
+     *  @param valueOK       If false, a value class does not qualify
      */
-    Type checkRefType(DiagnosticPosition pos, Type t) {
-        if (t.isReference() && !types.isValue(t))
+    Type checkRefType(DiagnosticPosition pos, Type t, boolean valueOK) {
+        if (t.isReference() && (valueOK || !types.isValue(t)))
             return t;
         else
             return typeTagError(pos,
                                 diags.fragment(Fragments.TypeReqRef),
                                 t);
+    }
+
+    /** Check that type is a reference type, i.e. a class, interface or array type
+     *  or a type variable.
+     *  @param pos           Position to be used for error reporting.
+     *  @param t             The type to be checked.
+     */
+    Type checkRefType(DiagnosticPosition pos, Type t) {
+        return checkRefType(pos, t, true);
     }
 
     /** Check that each type is a reference type, i.e. a class, interface or array type
