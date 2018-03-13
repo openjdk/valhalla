@@ -3065,21 +3065,21 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     Label nonnull, notFlattenable;
     pop_and_check_object(obj);
     __ load_heap_oop(rax, field);
-    __ testptr(rax, rax);
-    __ jcc(Assembler::notZero, nonnull);
     __ movl(rscratch1, flags2);
     __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
     __ andl(rscratch1, 0x1);
     __ testl(rscratch1, rscratch1);
     __ jcc(Assembler::zero, notFlattenable);
+    __ testptr(rax, rax);
+    __ jcc(Assembler::notZero, nonnull);
     __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
     __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
                obj, flags2);
     __ verify_oop(rax);
+    __ bind(nonnull);
     __ push(atos);
     __ jmp(atosDone); // skipping rewriting
     __ bind(notFlattenable);
-    __ bind(nonnull);
     __ push(atos);
   }
 

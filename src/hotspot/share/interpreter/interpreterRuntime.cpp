@@ -290,15 +290,20 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       vklass->data_for_oop(new_value_h()), in_heap, false);
 
   // Updating the field specified in arguments
-  if (field_type == T_OBJECT || field_type == T_ARRAY) {
+  if (field_type == T_ARRAY) {
     oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-    assert(aoop == NULL || (oopDesc::is_oop(aoop) && (!aoop->is_value())),"argument must be a reference type");
+    assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
     if (in_heap) {
       new_value_h()->obj_field_put(field_offset, aoop);
     } else {
       new_value_h()->obj_field_put_raw(field_offset, aoop);
     }
-  } else if (field_type == T_VALUETYPE) {
+  } else if (field_type == T_OBJECT) {
+    // Logic below is optimized
+    // Null checks for non flattenable fields have already be performed in the assembly template
+    // of the interpreter, which reduces the number of possible cases:
+    // 1 - flattened or not flattened
+    // 2 - if not flattened: argument is buffered (value) or in heap (value and objects)
     if (cp_entry->is_flattened()) {
       Klass* field_k = vklass->get_value_field_klass(field_index);
       ValueKlass* field_vk = ValueKlass::cast(field_k);
@@ -307,9 +312,11 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       assert(field_vk == vt_oop->klass(), "Must match");
       field_vk->value_store(field_vk->data_for_oop(vt_oop),
           ((char*)(oopDesc*)new_value_h()) + field_offset, in_heap, false);
-    } else {
+    } else { // not flattened
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(voop != NULL || (oopDesc::is_oop(voop) && (voop->is_value())),"argument must be a value type");
+      assert(voop != NULL || !cp_entry->is_flattenable(),
+             "NULL checks for non flattenable fields must have been performed in interpreter assembly template");
+      assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
       if (VTBuffer::is_in_vt_buffer(voop)) {
         // new value field is currently allocated in a TLVB, a heap allocated
         // copy must be created because a field must never point to a TLVB allocated value
@@ -324,7 +331,7 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
         } else {
           new_value_h()->obj_field_put_raw(field_offset, field_copy_h());
         }
-      } else {
+      } else { // not buffered
         if (in_heap) {
           new_value_h()->obj_field_put(field_offset, voop);
         } else {
@@ -332,7 +339,7 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
         }
       }
     }
-  } else {
+  } else { // not T_OBJECT nor T_ARRAY
     intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
     copy_primitive_argument(addr, new_value_h, field_offset, field_type);
   }
