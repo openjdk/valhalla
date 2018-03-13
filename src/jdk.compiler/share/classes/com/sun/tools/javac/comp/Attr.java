@@ -1176,7 +1176,7 @@ public class Attr extends JCTree.Visitor {
                as these can undergo updates via copy on write.
             */
             if (tree.init != null) {
-                if ((v.flags_field & FINAL) == 0 || types.isValue(v.owner.type) ||
+                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && types.isValue(v.owner.type)) ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
