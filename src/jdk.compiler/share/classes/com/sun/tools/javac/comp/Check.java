@@ -27,7 +27,6 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 
-import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.tools.javac.code.*;

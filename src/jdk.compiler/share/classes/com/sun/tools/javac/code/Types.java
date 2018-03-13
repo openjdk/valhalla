@@ -984,7 +984,7 @@ public class Types {
     }
 
     public boolean isValue(Type t) {
-        return t != null && t.tsym != null && (t.tsym.flags_field & Flags.VALUE) != 0;
+        return t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUE) != 0;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
