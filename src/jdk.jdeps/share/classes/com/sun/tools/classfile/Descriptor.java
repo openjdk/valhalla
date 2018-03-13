@@ -158,7 +158,6 @@ public class Descriptor {
                     break;
 
                 case 'L':
-                case 'Q':
                     int sep = desc.indexOf(';', p);
                     if (sep == -1)
                         throw new InvalidDescriptor(desc, p - 1);

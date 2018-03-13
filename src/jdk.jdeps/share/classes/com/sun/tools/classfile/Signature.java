@@ -143,7 +143,6 @@ public class Signature extends Descriptor {
                 return new SimpleType("long");
 
             case 'L':
-            case 'Q':
                 return parseClassTypeSignature();
 
             case 'S':
@@ -192,7 +191,7 @@ public class Signature extends Descriptor {
     }
 
     private Type parseClassTypeSignature() {
-        assert sig.charAt(sigp) == 'L' || sig.charAt(sigp) == 'Q';
+        assert sig.charAt(sigp) == 'L';
         sigp++;
         return parseClassTypeSignatureRest();
     }
