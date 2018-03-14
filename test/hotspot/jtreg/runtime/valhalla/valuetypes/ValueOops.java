@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,8 +70,6 @@ import jdk.experimental.value.MethodHandleBuilder;
  */
 public class ValueOops {
 
-    // Note: -noverify can not be eliminated. Javac Class_Info not using ";Q"
-
     // Extra debug: -XX:+VerifyOops -XX:+VerifyStack -XX:+VerifyLastFrame -XX:+VerifyBeforeGC -XX:+VerifyAfterGC -XX:+VerifyDuringGC -XX:VerifySubSet=threads,heap
     // Even more debugging: -XX:+TraceNewOopMapGeneration -Xlog:gc*=info
 
@@ -93,7 +91,7 @@ public class ValueOops {
             MIN_ACTIVE_GC_COUNT = Integer.parseInt(args[0]);
         }
         testClassLoad();
-        testVvt();
+        testValues();
 
         if (!USE_COMPILER) {
             testOopMaps();
@@ -133,8 +131,8 @@ public class ValueOops {
 
         public static Composition create(Person onePerson, Person otherPerson) {
             Composition comp = __MakeDefault Composition();
-            comp.onePerson   = onePerson;
-            comp.otherPerson = otherPerson;
+            comp = __WithField(comp.onePerson, onePerson);
+            comp = __WithField(comp.otherPerson, otherPerson);
             return comp;
         }
     }
@@ -142,11 +140,11 @@ public class ValueOops {
     /**
      * Check value type operations with "Valhalla Value Types" (VVT)
      */
-    public static void testVvt() {
+    public static void testValues() {
         // Exercise creation, getfield, vreturn with null refs
         validateDefaultPerson(createDefaultPerson());
 
-        // anewarray, vaload, vastore
+        // anewarray, aaload, aastore
         int index = 7;
         Person[] array =  new Person[NOF_PEOPLE];
         validateDefaultPerson(array[index]);
@@ -255,7 +253,7 @@ public class ValueOops {
     }
 
     /**
-     * Just some check sanity checks with vdefault, vwithfield, vstore and vload
+     * Just some check sanity checks with defaultvalue, withfield, astore and aload
      *
      * Changes to javac slot usage may well break this test
      */
@@ -322,17 +320,17 @@ public class ValueOops {
                 MethodType.methodType(vtClass, vtClass),
                 CODE->{
                 CODE
-                .vload(0)
+                .aload(0)
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack
-                .vstore(0)
+                .astore(0)
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // LVT
-                .vload(0)
-		.vstore(1024) // LVT wide index
-		.vload(1024)
+                .aload(0)
+		.astore(1024) // LVT wide index
+		.aload(1024)
                 .iconst_1()  // push a litte further down
                 .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
                 .pop()
-                .vreturn();
+                .areturn();
             });
             Person person = (Person) moveValueThroughStackAndLvt.invokeExact(createDefaultPerson());
             validateDefaultPerson(person);
@@ -351,7 +349,7 @@ public class ValueOops {
     static void submitNewWork(ForkJoinPool fjPool, int size) {
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < 100; j++) {
-                fjPool.execute(ValueOops::testVvt);
+                fjPool.execute(ValueOops::testValues);
             }
         }
     }
@@ -567,11 +565,11 @@ public class ValueOops {
 
         public static FooValue create(int id, String name, String description, long timestamp, String notes) {
             FooValue f = __MakeDefault FooValue();
-            f.id          = id;
-            f.name        = name;
-            f.description = description;
-            f.timestamp   = timestamp;
-            f.notes       = notes;
+            f = __WithField(f.id, id);
+            f = __WithField(f.name, name);
+            f = __WithField(f.description, description);
+            f = __WithField(f.timestamp, timestamp);
+            f = __WithField(f.notes, notes);
             return f;
         }
 
@@ -587,7 +585,7 @@ public class ValueOops {
                               LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                               CODE->{
                                   CODE
-                                      .vdefault(FooValue.class)
+                                      .defaultvalue(FooValue.class)
                                       .aload(oopMapsSlot)
                                       .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                                       .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -597,13 +595,13 @@ public class ValueOops {
                                       .iconst_1()  // Test-D1 Slots=R Stack=RV
                                       .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                                       .aastore()
-                                      .vdefault(FooValue.class)
-                                      .vstore(vtSlot)
+                                      .defaultvalue(FooValue.class)
+                                      .astore(vtSlot)
                                       .aload(oopMapsSlot)
                                       .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
                                       .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                                       .aastore()
-                                      .vload(vtSlot)
+                                      .aload(vtSlot)
                                       .aconst_null()
                                       .astore(vtSlot) // Storing null over the Q slot won't remove the ref, but should be single null ref
                                       .aload(oopMapsSlot)
@@ -628,7 +626,7 @@ public class ValueOops {
                                   CODE
                                       .aload(fooArraySlot)
                                       .iconst_0()
-                                      .vaload()
+                                      .aaload()
                                       .aload(oopMapsSlot)
                                       .iconst_0()  // Test-R0 Slots=RR Stack=Q(RRR)RV
                                       .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
