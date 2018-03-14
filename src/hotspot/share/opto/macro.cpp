@@ -2703,7 +2703,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* mask2 = MakeConX(-2);
   Node* masked2 = transform_later(new AndXNode(cast, mask2));
   Node* rawklassptr = transform_later(new CastX2PNode(masked2));
-  Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::VALUE));
+  Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::OBJECT_OR_NULL));
 
   Node* slowpath_bol = NULL;
   Node* top_adr = NULL;

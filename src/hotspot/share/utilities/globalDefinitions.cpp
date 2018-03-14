@@ -94,7 +94,7 @@ void basic_types_init() {
       num_type_chars++;
     }
   }
-  assert(num_type_chars == 11, "must have tested the right number of mappings");
+  assert(num_type_chars == 12, "must have tested the right number of mappings");
   assert(char2type(0) == T_ILLEGAL, "correct illegality");
 
   {
@@ -179,11 +179,12 @@ void basic_types_init() {
   }
   _type2aelembytes[T_OBJECT] = heapOopSize;
   _type2aelembytes[T_ARRAY]  = heapOopSize;
+  _type2aelembytes[T_VALUETYPE]  = heapOopSize;
 }
 
 
 // Map BasicType to signature character
-char type2char_tab[T_CONFLICT+1]={ 0, 0, 0, 0, 'Z', 'C', 'F', 'D', 'B', 'S', 'I', 'J', 'L', '[', 'V', 0, 0, 0, 0, 0, 0};
+char type2char_tab[T_CONFLICT+1]={ 0, 0, 0, 0, 'Z', 'C', 'F', 'D', 'B', 'S', 'I', 'J', 'L', '[', 'Q', 'V', 0, 0, 0, 0, 0, 0};
 
 // Map BasicType to Java type name
 const char* type2name_tab[T_CONFLICT+1] = {
@@ -198,6 +199,7 @@ const char* type2name_tab[T_CONFLICT+1] = {
   "long",
   "object",
   "array",
+  "valuetype",
   "void",
   "*address*",
   "*narrowoop*",
@@ -218,7 +220,7 @@ BasicType name2type(const char* name) {
 }
 
 // Map BasicType to size in words
-int type2size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 0, 1, 1, 1, 1, 1, -1};
+int type2size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 1, 1, 1, -1};
 
 BasicType type2field[T_CONFLICT+1] = {
   (BasicType)0,            // 0,
@@ -235,6 +237,7 @@ BasicType type2field[T_CONFLICT+1] = {
   T_LONG,                  // T_LONG     = 11,
   T_OBJECT,                // T_OBJECT   = 12,
   T_OBJECT,                // T_ARRAY    = 13,
+  T_VALUETYPE,             // T_VALUETYPE = 14,
   T_VOID,                  // T_VOID     = 15,
   T_ADDRESS,               // T_ADDRESS  = 16,
   T_NARROWOOP,             // T_NARROWOOP= 17,
@@ -260,6 +263,7 @@ BasicType type2wfield[T_CONFLICT+1] = {
   T_LONG,    // T_LONG     = 11,
   T_OBJECT,  // T_OBJECT   = 12,
   T_OBJECT,  // T_ARRAY    = 13,
+  T_VALUETYPE, // T_VALUETYPE = 14,
   T_VOID,    // T_VOID     = 15,
   T_ADDRESS, // T_ADDRESS  = 16,
   T_NARROWOOP, // T_NARROWOOP  = 17,
@@ -285,12 +289,13 @@ int _type2aelembytes[T_CONFLICT+1] = {
   T_LONG_aelem_bytes,        // T_LONG     = 11,
   T_OBJECT_aelem_bytes,      // T_OBJECT   = 12,
   T_ARRAY_aelem_bytes,       // T_ARRAY    = 13,
+  T_VALUETYPE_aelem_bytes,   // T_VALUETYPE = 14,
   0,                         // T_VOID     = 15,
   T_OBJECT_aelem_bytes,      // T_ADDRESS  = 16,
   T_NARROWOOP_aelem_bytes,   // T_NARROWOOP= 17,
   T_OBJECT_aelem_bytes,      // T_METADATA = 18,
   T_NARROWKLASS_aelem_bytes, // T_NARROWKLASS= 19,
-  T_VALUETYPEPTR_aelem_bytes,// T_VALUETYPEPTR = 20
+  T_VALUETYPEPTR_aelem_bytes,// T_VALUETYPEPTR = 20,
   0                          // T_CONFLICT = 21,
 };
 

@@ -337,7 +337,7 @@ void Parse::do_new() {
 void Parse::do_defaultvalue() {
   bool will_link;
   ciValueKlass* vk = iter().get_klass(will_link)->as_value_klass();
-  assert(will_link, "vdefault: typeflow responsibility");
+  assert(will_link, "defaultvalue: typeflow responsibility");
   // Create and push a new default ValueTypeNode
   push(ValueTypeNode::make_default(_gvn, vk));
 }
@@ -346,7 +346,7 @@ void Parse::do_defaultvalue() {
 void Parse::do_withfield() {
   bool will_link;
   ciField* field = iter().get_field(will_link);
-  assert(will_link, "vdefault: typeflow responsibility");
+  assert(will_link, "withfield: typeflow responsibility");
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
   Node* vt = pop();

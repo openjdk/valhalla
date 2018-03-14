@@ -1015,7 +1015,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     if (!fs.access_flags().is_static() && (!skip_internal || !fs.access_flags().is_internal())) {
       ReassignedField field;
       field._offset = fs.offset();
-      field._type = FieldType::basic_type(fs.signature());
+      field._type = fs.is_flattened() ? T_VALUETYPE : FieldType::basic_type(fs.signature());
       if (field._type == T_VALUETYPE) {
         if (fs.is_flattened()) {
           // Resolve klass of flattened value type field

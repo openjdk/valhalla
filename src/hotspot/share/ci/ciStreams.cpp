@@ -182,8 +182,8 @@ int ciBytecodeStream::get_klass_index() const {
 // ------------------------------------------------------------------
 // ciBytecodeStream::get_klass
 //
-// If this bytecode is a new, newarray, multianewarray, instanceof, vbox,
-// vunbox, or checkcast, get the referenced klass.
+// If this bytecode is a new, newarray, multianewarray, instanceof,
+// or checkcast, get the referenced klass.
 ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
   VM_ENTRY_MARK;
   constantPoolHandle cpool(_method->get_Method()->constants());

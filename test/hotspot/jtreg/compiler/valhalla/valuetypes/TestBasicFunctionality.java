@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,6 @@ import jdk.test.lib.Asserts;
  * @summary Test the basic value type implementation in C2
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- *          java.base/jdk.internal.misc:+open
- *          jdk.incubator.mvt
  * @compile -XDenableValueTypes TestBasicFunctionality.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform
@@ -447,11 +443,11 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Value type fields in regular object
-    MyValue1 val1;
-    MyValue2 val2;
-    final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
-    static MyValue1 val4;
-    static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
+    __Flattenable MyValue1 val1;
+    __Flattenable MyValue2 val2;
+    __Flattenable final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
+    __Flattenable static MyValue1 val4;
+    __Flattenable static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
 
     // Test value type fields in objects
     @Test(match = {ALLOC}, matchCount = {1}, failOn = (TRAP))
@@ -495,7 +491,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(result, val5.hash() + val5.v3.hash());
     }
 
-    // test vdefault
+    // Test defaultvalue
     @Test(failOn = ALLOC + LOAD + LOADP + STORE + LOOP + TRAP)
     public long test23() {
         MyValue2 v = MyValue2.createDefaultInline();
@@ -508,7 +504,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(result, MyValue2.createDefaultInline().hash());
     }
 
-    // test vdefault
+    // Test defaultvalue
     @Test(failOn = ALLOC + STORE + LOOP + TRAP)
     public long test24() {
         MyValue1 v1 = MyValue1.createDefaultInline();
@@ -522,7 +518,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(result, 2 * MyValue1.createDefaultInline().hashPrimitive());
     }
 
-    // test vwithfield
+    // Test withfield
     @Test(failOn = ALLOC + LOAD + LOADP + STORE + LOOP + TRAP)
     public long test25() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
@@ -535,7 +531,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(result, MyValue2.createWithFieldsInline(rI, true).hash());
     }
 
-    // test vwithfield
+    // Test withfield
     @Test(failOn = ALLOC + STORE + LOOP + TRAP)
     public long test26() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
@@ -550,7 +546,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     class TestClass27 {
-        public MyValue1 v;
+        __Flattenable public MyValue1 v;
     }
 
     // Test allocation elimination of unused object with initialized value type field
@@ -570,8 +566,8 @@ public class TestBasicFunctionality extends ValueTypeTest {
         test27(!warmup);
     }
 
-    static MyValue3 staticVal3;
-    static MyValue3 staticVal3_copy;
+    __Flattenable static MyValue3 staticVal3;
+    __Flattenable static MyValue3 staticVal3_copy;
 
     // Check elimination of redundant value type allocations
     @Test(match = {ALLOC}, matchCount = {1})
@@ -709,14 +705,14 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(vt.i, (int)staticVal3.c);
     }
 
-    // Test __Value in the method signature
+    // Test passing a value type as an Object argument
     @DontInline
-    public __Value test34_callee(__Value vt) {
+    public Object test34_callee(Object vt) {
         return vt;
     }
 
     @Test()
-    public __Value test34(boolean b, __Value vt) throws Throwable {
+    public Object test34(boolean b, Object vt) throws Throwable {
         if (b) {
             return test34_callee(vt);
         } else {

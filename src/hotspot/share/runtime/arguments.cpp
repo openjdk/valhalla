@@ -2341,12 +2341,16 @@ bool Arguments::check_vm_args_consistency() {
     }
   }
 
-  if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
+  // FIXME
+  //if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
+  if (!FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
     FLAG_SET_CMDLINE(bool, ValueTypePassFieldsAsArgs, false);
     warning("ValueTypePassFieldsAsArgs is not supported on this platform");
   }
 
-  if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
+  // FIXME
+  //if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
+  if (!FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
     FLAG_SET_CMDLINE(bool, ValueTypeReturnedAsFields, false);
     warning("ValueTypeReturnedAsFields is not supported on this platform");
   }

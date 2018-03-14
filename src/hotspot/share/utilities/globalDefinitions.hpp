@@ -583,15 +583,15 @@ enum BasicType {
   T_LONG        = 11,
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_VOID        = 14,
-  T_ADDRESS     = 15,
-  T_NARROWOOP   = 16,
-  T_METADATA    = 17,
-  T_NARROWKLASS = 18,
-  T_VALUETYPEPTR= 19, // the compiler needs a way to identify buffered values
-  T_CONFLICT    = 20, // for stack value type with conflicting contents
-  T_ILLEGAL     = 99,
-  T_VALUETYPE   = 100  // temporary hack for the transition for VVT to LWVT
+  T_VALUETYPE   = 14,
+  T_VOID        = 15,
+  T_ADDRESS     = 16,
+  T_NARROWOOP   = 17,
+  T_METADATA    = 18,
+  T_NARROWKLASS = 19,
+  T_VALUETYPEPTR= 20, // the compiler needs a way to identify buffered values
+  T_CONFLICT    = 21, // for stack value type with conflicting contents
+  T_ILLEGAL     = 99
 };
 
 inline bool is_java_primitive(BasicType t) {
@@ -625,6 +625,7 @@ inline BasicType char2type(char c) {
   case 'V': return T_VOID;
   case 'L': return T_OBJECT;
   case '[': return T_ARRAY;
+  case 'Q': return T_VALUETYPE;
   }
   return T_ILLEGAL;
 }
@@ -679,9 +680,11 @@ enum ArrayElementSize {
 #ifdef _LP64
   T_OBJECT_aelem_bytes      = 8,
   T_ARRAY_aelem_bytes       = 8,
+  T_VALUETYPE_aelem_bytes   = 8,
 #else
   T_OBJECT_aelem_bytes      = 4,
   T_ARRAY_aelem_bytes       = 4,
+  T_VALUETYPE_aelem_bytes   = 4,
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,

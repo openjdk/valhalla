@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,12 +53,15 @@ public class TestUnresolvedValueClass {
 
             // Run test in new VM instance
             String[] arg = {"-XX:+EnableValhalla", "-XX:+ValueTypePassFieldsAsArgs", "TestUnresolvedValueClass", "run"};
-            OutputAnalyzer output = ProcessTools.executeTestJvm(arg);
+            OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
 
             // Adapter creation for TestUnresolvedValueClass::test1 should fail with a
             // ClassNotFoundException because the class for argument 'vt' was not found.
-            output.shouldContain("java.lang.ClassNotFoundException: SimpleValueType");
-            output.shouldHaveExitValue(1);
+            String output = oa.getOutput();
+            if (!output.contains("ValueTypePassFieldsAsArgs is not supported on this platform")) {
+                oa.shouldContain("java.lang.ClassNotFoundException: SimpleValueType");
+                oa.shouldHaveExitValue(1);
+            }
         }
     }
 }

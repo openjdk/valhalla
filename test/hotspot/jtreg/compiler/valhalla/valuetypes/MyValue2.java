@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,19 +33,19 @@ __ByValue final class MyValue2Inline {
     }
 
     @ForceInline
-    __ValueFactory static MyValue2Inline setB(MyValue2Inline v, boolean b) {
-        v.b = b;
+    static MyValue2Inline setB(MyValue2Inline v, boolean b) {
+        v = __WithField(v.b, b);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue2Inline setC(MyValue2Inline v, long c) {
-        v.c = c;
+    static MyValue2Inline setC(MyValue2Inline v, long c) {
+        v = __WithField(v.c, c);
         return v;
     }
 
     @ForceInline
-    __ValueFactory public static MyValue2Inline createDefault() {
+    public static MyValue2Inline createDefault() {
         return __MakeDefault MyValue2Inline();
     }
 
@@ -61,7 +61,7 @@ __ByValue final class MyValue2Inline {
 __ByValue public final class MyValue2 {
     final int x;
     final byte y;
-    final MyValue2Inline v1;
+    __Flattenable final MyValue2Inline v1;
 
     private MyValue2() {
         this.x = 0;
@@ -70,7 +70,7 @@ __ByValue public final class MyValue2 {
     }
 
     @ForceInline
-    __ValueFactory public static MyValue2 createDefaultInline() {
+    public static MyValue2 createDefaultInline() {
         return __MakeDefault MyValue2();
     }
 
@@ -99,20 +99,20 @@ __ByValue public final class MyValue2 {
     }
 
     @ForceInline
-    __ValueFactory static MyValue2 setX(MyValue2 v, int x) {
-        v.x = x;
+    static MyValue2 setX(MyValue2 v, int x) {
+        v = __WithField(v.x, x);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue2 setY(MyValue2 v, byte y) {
-        v.y = y;
+    static MyValue2 setY(MyValue2 v, byte y) {
+        v = __WithField(v.y, y);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue2 setV1(MyValue2 v, MyValue2Inline v1) {
-        v.v1 = v1;
+    static MyValue2 setV1(MyValue2 v, MyValue2Inline v1) {
+        v = __WithField(v.v1, v1);
         return v;
     }
 }

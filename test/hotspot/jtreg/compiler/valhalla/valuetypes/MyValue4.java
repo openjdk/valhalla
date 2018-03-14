@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@ package compiler.valhalla.valuetypes;
 
 // Value type definition with too many fields to return in registers
 __ByValue final class MyValue4 {
-    final MyValue3 v1;
-    final MyValue3 v2;
+    __Flattenable final MyValue3 v1;
+    __Flattenable final MyValue3 v2;
 
     private MyValue4() {
         this.v1 = MyValue3.createDefault();
@@ -34,19 +34,19 @@ __ByValue final class MyValue4 {
     }
 
     @ForceInline
-    __ValueFactory static MyValue4 setV1(MyValue4 v, MyValue3 v1) {
-        v.v1 = v1;
+    static MyValue4 setV1(MyValue4 v, MyValue3 v1) {
+        v = __WithField(v.v1, v1);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue4 setV2(MyValue4 v, MyValue3 v2) {
-        v.v2 = v2;
+    static MyValue4 setV2(MyValue4 v, MyValue3 v2) {
+        v = __WithField(v.v2, v2);
         return v;
     }
 
     @ForceInline
-    __ValueFactory public static MyValue4 createDefault() {
+    public static MyValue4 createDefault() {
         return __MakeDefault MyValue4();
     }
 

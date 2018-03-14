@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,6 +94,7 @@ public abstract class ValueTypeTest {
     private static final boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true"));
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String TESTLIST = System.getProperty("Testlist", "");
+    private static final String EXCLUDELIST = System.getProperty("Exclude", "");
     private static final int WARMUP = Integer.parseInt(System.getProperty("Warmup", "251"));
     private static final boolean DUMP_REPLAY = Boolean.parseBoolean(System.getProperty("DumpReplay", "false"));
 
@@ -111,9 +112,7 @@ public abstract class ValueTypeTest {
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3::*",
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3Inline::*",
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue4::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.ValueCapableClass2_*::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*",
-        "-XX:CompileCommand=inline,java.lang.__Value::hashCode");
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*");
     private static final List<String> verifyFlags = Arrays.asList(
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
         "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing", "-XX:+StressValueTypeReturnedAsFields");
@@ -141,7 +140,8 @@ public abstract class ValueTypeTest {
     protected static final String MID = ".*)+\\t===.*";
     protected static final String END = ")|";
     protected static final String ALLOC  = "(.*precise klass compiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_instance_Java" + END;
-    protected static final String ALLOCA = "(.*precise klass \\[Qcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
+    // FIXME check if this still works for value array allocations
+    protected static final String ALLOCA = "(.*precise klass \\[Lcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
     protected static final String LOAD   = START + "Load(B|S|I|L|F|D)" + MID + "valuetype\\*" + END;
     protected static final String LOADP  = START + "Load(P|N)" + MID + "valuetype\\*" + END;
     protected static final String LOADK  = START + "LoadK" + MID + END;
@@ -152,8 +152,6 @@ public abstract class ValueTypeTest {
     protected static final String RETURN = START + "Return" + MID + "returns" + END;
     protected static final String LINKTOSTATIC = START + "CallStaticJava" + MID + "linkToStatic" + END;
     protected static final String NPE = START + "CallStaticJava" + MID + "null_check" + END;
-    protected static final String CCE = "((.*cmp.*precise klass compiler/valhalla/valuetypes/ValueCapableClass.*)|" +
-                                         "(.*mov.*precise klass compiler/valhalla/valuetypes/ValueCapableClass.*\\R.*cmp.*)" + END;
     protected static final String CALL = START + "CallStaticJava" + MID + END;
     protected static final String STOREVALUETYPEFIELDS = START + "CallStaticJava" + MID + "store_value_type_fields" + END;
     protected static final String SCOBJ = "(.*# ScObj.*" + END;
@@ -161,14 +159,18 @@ public abstract class ValueTypeTest {
 
     protected ValueTypeTest() {
         List<String> list = null;
+        List<String> exclude = null;
         if (!TESTLIST.isEmpty()) {
            list = Arrays.asList(TESTLIST.split(","));
+        }
+        if (!EXCLUDELIST.isEmpty()) {
+           exclude = Arrays.asList(EXCLUDELIST.split(","));
         }
         // Gather all test methods and put them in Hashtable
         for (Method m : getClass().getMethods()) {
             Test[] annos = m.getAnnotationsByType(Test.class);
             if (annos.length != 0 &&
-                (list == null || list.contains(m.getName()))) {
+                ((list == null || list.contains(m.getName())) && (exclude == null || !exclude.contains(m.getName())))) {
                 tests.put(getClass().getSimpleName() + "::" + m.getName(), m);
             }
         }

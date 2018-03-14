@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,6 @@ import jdk.test.lib.Asserts;
  * @summary Test value type arrays
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- *          java.base/jdk.internal.misc:+open
- *          jdk.incubator.mvt
  * @compile -XDenableValueTypes TestArrays.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform

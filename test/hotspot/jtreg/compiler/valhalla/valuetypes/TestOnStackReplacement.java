@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,6 @@ import jdk.test.lib.Asserts;
  * @summary Test on stack replacement (OSR) with value types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- *          java.base/jdk.internal.misc:+open
- *          jdk.incubator.mvt
  * @compile -XDenableValueTypes TestOnStackReplacement.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform
@@ -146,20 +142,20 @@ public class TestOnStackReplacement extends ValueTypeTest {
         test3();
     }
 
-    // OSR compilation with __Value local
+    // OSR compilation with Object local
     @DontCompile
-    public __Value test4_init() {
+    public Object test4_init() {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
     @DontCompile
-    public __Value test4_body() {
+    public Object test4_body() {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
     @Test()
-    public __Value test4() throws Throwable {
-        __Value vt = test4_init();
+    public Object test4() throws Throwable {
+        Object vt = test4_init();
         for (int i = 0; i < 50_000; i++) {
             if (i % 2 == 1) {
                 vt = test4_body();

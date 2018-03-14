@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@ package compiler.valhalla.valuetypes;
 import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
 import jdk.experimental.bytecode.TypeTag;
 import jdk.experimental.value.MethodHandleBuilder;
-import jdk.incubator.mvt.ValueType;
 import jdk.test.lib.Asserts;
 
 import java.lang.invoke.*;
@@ -40,7 +39,6 @@ import java.lang.reflect.Method;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  *          java.base/jdk.internal.misc:+open
- *          jdk.incubator.mvt
  * @compile -XDenableValueTypes TestMethodHandles.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform
@@ -78,73 +76,73 @@ public class TestMethodHandles extends ValueTypeTest {
             ClassLoader loader = clazz.getClassLoader();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue3;", loader);
+            MethodType mt = MethodType.methodType(MyValue3.class);
+            test1_mh = lookup.findVirtual(clazz, "test1_target", mt);
+            test2_mh = lookup.findVirtual(clazz, "test2_target", mt);
             test3_mh = lookup.findVirtual(clazz, "test3_target", mt);
-            test4_mh = lookup.findVirtual(clazz, "test4_target", mt);
-            test5_mh = lookup.findVirtual(clazz, "test5_target", mt);
 
-            MethodType test6_mt1 = MethodType.fromMethodDescriptorString("(Qcompiler/valhalla/valuetypes/MyValue1;)I", loader);
-            MethodType test6_mt2 = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue1;", loader);
-            MethodHandle test6_mh1 = lookup.findStatic(clazz, "test6_helper1", test6_mt1);
-            MethodHandle test6_mh2 = lookup.findStatic(clazz, "test6_helper2", test6_mt2);
-            test6_mh = MethodHandles.filterReturnValue(test6_mh2, test6_mh1);
+            MethodType test4_mt1 = MethodType.methodType(int.class, MyValue1.class);
+            MethodType test4_mt2 = MethodType.methodType(MyValue1.class);
+            MethodHandle test4_mh1 = lookup.findStatic(clazz, "test4_helper1", test4_mt1);
+            MethodHandle test4_mh2 = lookup.findStatic(clazz, "test4_helper2", test4_mt2);
+            test4_mh = MethodHandles.filterReturnValue(test4_mh2, test4_mh1);
 
-            MethodType test7_mt = MethodType.fromMethodDescriptorString("(Qcompiler/valhalla/valuetypes/MyValue1;)I", loader);
-            test7_mh = lookup.findVirtual(clazz, "test7_target", test7_mt);
+            MethodType test5_mt = MethodType.methodType(int.class, MyValue1.class);
+            test5_mh = lookup.findVirtual(clazz, "test5_target", test5_mt);
 
-            MethodType test8_mt = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue3;", loader);
-            MethodHandle test8_mh1 = lookup.findVirtual(clazz, "test8_target1", test8_mt);
-            MethodHandle test8_mh2 = lookup.findVirtual(clazz, "test8_target2", test8_mt);
+            MethodType test6_mt = MethodType.methodType(MyValue3.class);
+            MethodHandle test6_mh1 = lookup.findVirtual(clazz, "test6_target1", test6_mt);
+            MethodHandle test6_mh2 = lookup.findVirtual(clazz, "test6_target2", test6_mt);
             MethodType boolean_mt = MethodType.methodType(boolean.class);
-            MethodHandle test8_mh_test = lookup.findVirtual(clazz, "test8_test", boolean_mt);
-            test8_mh = MethodHandles.guardWithTest(test8_mh_test, test8_mh1, test8_mh2);
+            MethodHandle test6_mh_test = lookup.findVirtual(clazz, "test6_test", boolean_mt);
+            test6_mh = MethodHandles.guardWithTest(test6_mh_test, test6_mh1, test6_mh2);
 
-            MethodType myvalue2_mt = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue2;", loader);
-            test9_mh1 = lookup.findStatic(clazz, "test9_target1", myvalue2_mt);
-            MethodHandle test9_mh2 = lookup.findStatic(clazz, "test9_target2", myvalue2_mt);
-            MethodHandle test9_mh_test = lookup.findStatic(clazz, "test9_test", boolean_mt);
-            test9_mh = MethodHandles.guardWithTest(test9_mh_test,
+            MethodType myvalue2_mt = MethodType.methodType(MyValue2.class);
+            test7_mh1 = lookup.findStatic(clazz, "test7_target1", myvalue2_mt);
+            MethodHandle test7_mh2 = lookup.findStatic(clazz, "test7_target2", myvalue2_mt);
+            MethodHandle test7_mh_test = lookup.findStatic(clazz, "test7_test", boolean_mt);
+            test7_mh = MethodHandles.guardWithTest(test7_mh_test,
                                                     MethodHandles.invoker(myvalue2_mt),
-                                                    MethodHandles.dropArguments(test9_mh2, 0, MethodHandle.class));
+                                                    MethodHandles.dropArguments(test7_mh2, 0, MethodHandle.class));
 
-            MethodHandle test10_mh1 = lookup.findStatic(clazz, "test10_target1", myvalue2_mt);
-            test10_mh2 = lookup.findStatic(clazz, "test10_target2", myvalue2_mt);
-            MethodHandle test10_mh_test = lookup.findStatic(clazz, "test10_test", boolean_mt);
-            test10_mh = MethodHandles.guardWithTest(test10_mh_test,
-                                                    MethodHandles.dropArguments(test10_mh1, 0, MethodHandle.class),
+            MethodHandle test8_mh1 = lookup.findStatic(clazz, "test8_target1", myvalue2_mt);
+            test8_mh2 = lookup.findStatic(clazz, "test8_target2", myvalue2_mt);
+            MethodHandle test8_mh_test = lookup.findStatic(clazz, "test8_test", boolean_mt);
+            test8_mh = MethodHandles.guardWithTest(test8_mh_test,
+                                                    MethodHandles.dropArguments(test8_mh1, 0, MethodHandle.class),
                                                     MethodHandles.invoker(myvalue2_mt));
 
-            MethodType test11_mt = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue3;", loader);
-            MethodHandle test11_mh1 = lookup.findVirtual(clazz, "test11_target1", test11_mt);
-            MethodHandle test11_mh2 = lookup.findVirtual(clazz, "test11_target2", test11_mt);
-            MethodHandle test11_mh3 = lookup.findVirtual(clazz, "test11_target3", test11_mt);
-            MethodType test11_mt2 = MethodType.methodType(boolean.class);
-            MethodHandle test11_mh_test1 = lookup.findVirtual(clazz, "test11_test1", test11_mt2);
-            MethodHandle test11_mh_test2 = lookup.findVirtual(clazz, "test11_test2", test11_mt2);
-            test11_mh = MethodHandles.guardWithTest(test11_mh_test1,
-                                                    test11_mh1,
-                                                    MethodHandles.guardWithTest(test11_mh_test2, test11_mh2, test11_mh3));
+            MethodType test9_mt = MethodType.methodType(MyValue3.class);
+            MethodHandle test9_mh1 = lookup.findVirtual(clazz, "test9_target1", test9_mt);
+            MethodHandle test9_mh2 = lookup.findVirtual(clazz, "test9_target2", test9_mt);
+            MethodHandle test9_mh3 = lookup.findVirtual(clazz, "test9_target3", test9_mt);
+            MethodType test9_mt2 = MethodType.methodType(boolean.class);
+            MethodHandle test9_mh_test1 = lookup.findVirtual(clazz, "test9_test1", test9_mt2);
+            MethodHandle test9_mh_test2 = lookup.findVirtual(clazz, "test9_test2", test9_mt2);
+            test9_mh = MethodHandles.guardWithTest(test9_mh_test1,
+                                                    test9_mh1,
+                                                    MethodHandles.guardWithTest(test9_mh_test2, test9_mh2, test9_mh3));
 
-            MethodType test12_mt = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue2;", loader);
-            MethodHandle test12_mh1 = lookup.findStatic(clazz, "test12_target1", test12_mt);
-            test12_mh2 = lookup.findStatic(clazz, "test12_target2", test12_mt);
-            test12_mh3 = lookup.findStatic(clazz, "test12_target3", test12_mt);
-            MethodType test12_mt2 = MethodType.methodType(boolean.class);
-            MethodType test12_mt3 = MethodType.fromMethodDescriptorString("()Qcompiler/valhalla/valuetypes/MyValue2;", loader);
-            MethodHandle test12_mh_test1 = lookup.findStatic(clazz, "test12_test1", test12_mt2);
-            MethodHandle test12_mh_test2 = lookup.findStatic(clazz, "test12_test2", test12_mt2);
-            test12_mh = MethodHandles.guardWithTest(test12_mh_test1,
-                                                    MethodHandles.dropArguments(test12_mh1, 0, MethodHandle.class, MethodHandle.class),
-                                                    MethodHandles.guardWithTest(test12_mh_test2,
-                                                                                MethodHandles.dropArguments(MethodHandles.invoker(test12_mt3), 1, MethodHandle.class),
-                                                                                MethodHandles.dropArguments(MethodHandles.invoker(test12_mt3), 0, MethodHandle.class))
+            MethodType test10_mt = MethodType.methodType(MyValue2.class);
+            MethodHandle test10_mh1 = lookup.findStatic(clazz, "test10_target1", test10_mt);
+            test10_mh2 = lookup.findStatic(clazz, "test10_target2", test10_mt);
+            test10_mh3 = lookup.findStatic(clazz, "test10_target3", test10_mt);
+            MethodType test10_mt2 = MethodType.methodType(boolean.class);
+            MethodType test10_mt3 = MethodType.methodType(MyValue2.class);
+            MethodHandle test10_mh_test1 = lookup.findStatic(clazz, "test10_test1", test10_mt2);
+            MethodHandle test10_mh_test2 = lookup.findStatic(clazz, "test10_test2", test10_mt2);
+            test10_mh = MethodHandles.guardWithTest(test10_mh_test1,
+                                                    MethodHandles.dropArguments(test10_mh1, 0, MethodHandle.class, MethodHandle.class),
+                                                    MethodHandles.guardWithTest(test10_mh_test2,
+                                                                                MethodHandles.dropArguments(MethodHandles.invoker(test10_mt3), 1, MethodHandle.class),
+                                                                                MethodHandles.dropArguments(MethodHandles.invoker(test10_mt3), 0, MethodHandle.class))
                                                     );
 
-            MethodHandle test13_mh1 = lookup.findStatic(clazz, "test13_target1", myvalue2_mt);
-            test13_mh2 = lookup.findStatic(clazz, "test13_target2", myvalue2_mt);
-            MethodHandle test13_mh_test = lookup.findStatic(clazz, "test13_test", boolean_mt);
-            test13_mh = MethodHandles.guardWithTest(test13_mh_test,
-                                                    MethodHandles.dropArguments(test13_mh1, 0, MethodHandle.class),
+            MethodHandle test11_mh1 = lookup.findStatic(clazz, "test11_target1", myvalue2_mt);
+            test11_mh2 = lookup.findStatic(clazz, "test11_target2", myvalue2_mt);
+            MethodHandle test11_mh_test = lookup.findStatic(clazz, "test11_test", boolean_mt);
+            test11_mh = MethodHandles.guardWithTest(test11_mh_test,
+                                                    MethodHandles.dropArguments(test11_mh1, 0, MethodHandle.class),
                                                     MethodHandles.invoker(myvalue2_mt));
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
@@ -157,232 +155,276 @@ public class TestMethodHandles extends ValueTypeTest {
         test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
     }
 
-    MyValue1 val1 = MyValue1.createDefaultInline();
-
-    // When calling a method on __Value, passing fields as arguments is impossible
-    @Test(failOn = ALLOC + STORE + LOAD)
-    public String test1(MyValue1 v) {
-        return v.toString();
-    }
-
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
-        boolean failed = false;
-        try {
-            test1(val1);
-            failed = true;
-        } catch (UnsupportedOperationException uoe) {
-        }
-        Asserts.assertFalse(failed);
-    }
-
-    // Same as above, but the method on __Value is inlined
-    // hashCode allocates an exception so can't really check the graph shape
-    @Test()
-    public int test2(MyValue1 v) {
-        return v.hashCode();
-    }
-
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
-        boolean failed = false;
-        try {
-            test2(val1);
-            failed = true;
-        } catch (UnsupportedOperationException uoe) {
-        }
-        Asserts.assertFalse(failed);
-    }
-
-    // Return values and method handles tests
-
     // Everything inlined
-    final MyValue3 test3_vt = MyValue3.create();
+    final MyValue3 test1_vt = MyValue3.create();
 
     @ForceInline
+    MyValue3 test1_target() {
+        return test1_vt;
+    }
+
+    static final MethodHandle test1_mh;
+
+    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
+    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 11 })
+    MyValue3 test1() throws Throwable {
+        return (MyValue3)test1_mh.invokeExact(this);
+    }
+
+    @DontCompile
+    public void test1_verifier(boolean warmup) throws Throwable {
+        MyValue3 vt = test1();
+        test1_vt.verify(vt);
+    }
+
+    // Leaf method not inlined but returned type is known
+    final MyValue3 test2_vt = MyValue3.create();
+    @DontInline
+    MyValue3 test2_target() {
+        return test2_vt;
+    }
+
+    static final MethodHandle test2_mh;
+
+    @Test
+    MyValue3 test2() throws Throwable {
+        return (MyValue3)test2_mh.invokeExact(this);
+    }
+
+    @DontCompile
+    public void test2_verifier(boolean warmup) throws Throwable {
+        Method helper_m = getClass().getDeclaredMethod("test2_target");
+        if (!warmup && USE_COMPILER && !WHITE_BOX.isMethodCompiled(helper_m, false)) {
+            WHITE_BOX.enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
+            Asserts.assertTrue(WHITE_BOX.isMethodCompiled(helper_m, false), "test2_target not compiled");
+        }
+        MyValue3 vt = test2();
+        test2_vt.verify(vt);
+    }
+
+    // Leaf method not inlined and returned type not known
+    final MyValue3 test3_vt = MyValue3.create();
+    @DontInline
     MyValue3 test3_target() {
         return test3_vt;
     }
 
     static final MethodHandle test3_mh;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
-    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 11 })
+    @Test
     MyValue3 test3() throws Throwable {
         return (MyValue3)test3_mh.invokeExact(this);
     }
 
     @DontCompile
     public void test3_verifier(boolean warmup) throws Throwable {
-        MyValue3 vt = test3();
-        test3_vt.verify(vt);
-    }
-
-    // Leaf method not inlined but returned type is known
-    final MyValue3 test4_vt = MyValue3.create();
-    @DontInline
-    MyValue3 test4_target() {
-        return test4_vt;
-    }
-
-    static final MethodHandle test4_mh;
-
-    @Test
-    MyValue3 test4() throws Throwable {
-        return (MyValue3)test4_mh.invokeExact(this);
-    }
-
-    @DontCompile
-    public void test4_verifier(boolean warmup) throws Throwable {
-        Method helper_m = getClass().getDeclaredMethod("test64_target");
-        if (!warmup && USE_COMPILER && !WHITE_BOX.isMethodCompiled(helper_m, false)) {
-            WHITE_BOX.enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
-            Asserts.assertTrue(WHITE_BOX.isMethodCompiled(helper_m, false), "test64_target not compiled");
-        }
-        MyValue3 vt = test4();
-        test4_vt.verify(vt);
-    }
-
-    // Leaf method not inlined and returned type not known
-    final MyValue3 test5_vt = MyValue3.create();
-    @DontInline
-    MyValue3 test5_target() {
-        return test5_vt;
-    }
-
-    static final MethodHandle test5_mh;
-
-    @Test
-    MyValue3 test5() throws Throwable {
-        return (MyValue3)test5_mh.invokeExact(this);
-    }
-
-    @DontCompile
-    public void test5_verifier(boolean warmup) throws Throwable {
         // hack so C2 doesn't know the target of the invoke call
         Class c = Class.forName("java.lang.invoke.DirectMethodHandle");
         Method m = c.getDeclaredMethod("internalMemberName", Object.class);
         WHITE_BOX.testSetDontInlineMethod(m, warmup);
-        MyValue3 vt = test5();
-        test5_vt.verify(vt);
+        MyValue3 vt = test3();
+        test3_vt.verify(vt);
     }
 
     // When test75_helper1 is inlined in test75, the method handle
     // linker that called it is passed a pointer to a copy of vt
     // stored in memory. The method handle linker needs to load the
     // fields from memory before it inlines test75_helper1.
-    static public int test6_helper1(MyValue1 vt) {
+    static public int test4_helper1(MyValue1 vt) {
         return vt.x;
     }
 
-    static MyValue1 test6_vt = MyValue1.createWithFieldsInline(rI, rL);
-    static public MyValue1 test6_helper2() {
-        return test6_vt;
+    static MyValue1 test4_vt = MyValue1.createWithFieldsInline(rI, rL);
+    static public MyValue1 test4_helper2() {
+        return test4_vt;
+    }
+
+    static final MethodHandle test4_mh;
+
+    @Test
+    public int test4() throws Throwable {
+        return (int)test4_mh.invokeExact();
+    }
+
+    @DontCompile
+    public void test4_verifier(boolean warmup) throws Throwable {
+        int i = test4();
+        Asserts.assertEQ(i, test4_vt.x);
+    }
+
+    // Test method handle call with value type argument
+    public int test5_target(MyValue1 vt) {
+        return vt.x;
+    }
+
+    static final MethodHandle test5_mh;
+    MyValue1 test5_vt = MyValue1.createWithFieldsInline(rI, rL);
+
+    @Test
+    public int test5() throws Throwable {
+        return (int)test5_mh.invokeExact(this, test5_vt);
+    }
+
+    @DontCompile
+    public void test5_verifier(boolean warmup) throws Throwable {
+        int i = test5();
+        Asserts.assertEQ(i, test5_vt.x);
+    }
+
+    // Return of target1 and target2 merged in a Lambda Form as an
+    // Object. Shouldn't cause any allocation
+    final MyValue3 test6_vt1 = MyValue3.create();
+    @ForceInline
+    MyValue3 test6_target1() {
+        return test6_vt1;
+    }
+
+    final MyValue3 test6_vt2 = MyValue3.create();
+    @ForceInline
+    MyValue3 test6_target2() {
+        return test6_vt2;
+    }
+
+    boolean test6_bool = true;
+    @ForceInline
+    boolean test6_test() {
+        return test6_bool;
     }
 
     static final MethodHandle test6_mh;
 
-    @Test
-    public int test6() throws Throwable {
-        return (int)test6_mh.invokeExact();
+    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
+    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    MyValue3 test6() throws Throwable {
+        return (MyValue3)test6_mh.invokeExact(this);
     }
 
     @DontCompile
     public void test6_verifier(boolean warmup) throws Throwable {
-        int i = test6();
-        Asserts.assertEQ(i, test6_vt.x);
-    }
-
-    // Test method handle call with value type argument
-    public int test7_target(MyValue1 vt) {
-        return vt.x;
-    }
-
-    static final MethodHandle test7_mh;
-    MyValue1 test7_vt = MyValue1.createWithFieldsInline(rI, rL);
-
-    @Test
-    public int test7() throws Throwable {
-        return (int)test7_mh.invokeExact(this, test7_vt);
-    }
-
-    @DontCompile
-    public void test7_verifier(boolean warmup) throws Throwable {
-        int i = test7();
-        Asserts.assertEQ(i, test7_vt.x);
-    }
-
-    // Return of target1 and target2 merged in a Lambda Form as an
-    // __Value. Shouldn't cause any allocation
-    final MyValue3 test8_vt1 = MyValue3.create();
-    @ForceInline
-    MyValue3 test8_target1() {
-        return test8_vt1;
-    }
-
-    final MyValue3 test8_vt2 = MyValue3.create();
-    @ForceInline
-    MyValue3 test8_target2() {
-        return test8_vt2;
-    }
-
-    boolean test8_bool = true;
-    @ForceInline
-    boolean test8_test() {
-        return test8_bool;
-    }
-
-    static final MethodHandle test8_mh;
-
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
-    MyValue3 test8() throws Throwable {
-        return (MyValue3)test8_mh.invokeExact(this);
-    }
-
-    @DontCompile
-    public void test8_verifier(boolean warmup) throws Throwable {
-        test8_bool = !test8_bool;
-        MyValue3 vt = test8();
-        vt.verify(test8_bool ? test8_vt1 : test8_vt2);
+        test6_bool = !test6_bool;
+        MyValue3 vt = test6();
+        vt.verify(test6_bool ? test6_vt1 : test6_vt2);
     }
 
     // Similar as above but with the method handle for target1 not
     // constant. Shouldn't cause any allocation.
     @ForceInline
-    static MyValue2 test9_target1() {
+    static MyValue2 test7_target1() {
         return MyValue2.createWithFieldsInline(rI, true);
     }
 
     @ForceInline
-    static MyValue2 test9_target2() {
+    static MyValue2 test7_target2() {
         return MyValue2.createWithFieldsInline(rI+1, false);
     }
 
-    static boolean test9_bool = true;
+    static boolean test7_bool = true;
     @ForceInline
-    static boolean test9_test() {
-        return test9_bool;
+    static boolean test7_test() {
+        return test7_bool;
     }
 
-    static final MethodHandle test9_mh;
-    static MethodHandle test9_mh1;
+    static final MethodHandle test7_mh;
+    static MethodHandle test7_mh1;
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
-    long test9() throws Throwable {
-        return ((MyValue2)test9_mh.invokeExact(test9_mh1)).hash();
+    long test7() throws Throwable {
+        return ((MyValue2)test7_mh.invokeExact(test7_mh1)).hash();
     }
 
     @DontCompile
-    public void test9_verifier(boolean warmup) throws Throwable {
-        test9_bool = !test9_bool;
-        long hash = test9();
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test9_bool ? 0 : 1), test9_bool).hash());
+    public void test7_verifier(boolean warmup) throws Throwable {
+        test7_bool = !test7_bool;
+        long hash = test7();
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test7_bool ? 0 : 1), test7_bool).hash());
     }
 
     // Same as above but with the method handle for target2 not
     // constant. Shouldn't cause any allocation.
+    @ForceInline
+    static MyValue2 test8_target1() {
+        return MyValue2.createWithFieldsInline(rI, true);
+    }
+
+    @ForceInline
+    static MyValue2 test8_target2() {
+        return MyValue2.createWithFieldsInline(rI+1, false);
+    }
+
+    static boolean test8_bool = true;
+    @ForceInline
+    static boolean test8_test() {
+        return test8_bool;
+    }
+
+    static final MethodHandle test8_mh;
+    static MethodHandle test8_mh2;
+
+    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
+    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    long test8() throws Throwable {
+        return ((MyValue2)test8_mh.invokeExact(test8_mh2)).hash();
+    }
+
+    @DontCompile
+    public void test8_verifier(boolean warmup) throws Throwable {
+        test8_bool = !test8_bool;
+        long hash = test8();
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test8_bool ? 0 : 1), test8_bool).hash());
+    }
+
+    // Return of target1, target2 and target3 merged in Lambda Forms
+    // as an Object. Shouldn't cause any allocation
+    final MyValue3 test9_vt1 = MyValue3.create();
+    @ForceInline
+    MyValue3 test9_target1() {
+        return test9_vt1;
+    }
+
+    final MyValue3 test9_vt2 = MyValue3.create();
+    @ForceInline
+    MyValue3 test9_target2() {
+        return test9_vt2;
+    }
+
+    final MyValue3 test9_vt3 = MyValue3.create();
+    @ForceInline
+    MyValue3 test9_target3() {
+        return test9_vt3;
+    }
+
+    boolean test9_bool1 = true;
+    @ForceInline
+    boolean test9_test1() {
+        return test9_bool1;
+    }
+
+    boolean test9_bool2 = true;
+    @ForceInline
+    boolean test9_test2() {
+        return test9_bool2;
+    }
+
+    static final MethodHandle test9_mh;
+
+    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
+    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    MyValue3 test9() throws Throwable {
+        return (MyValue3)test9_mh.invokeExact(this);
+    }
+
+    static int test9_i = 0;
+    @DontCompile
+    public void test9_verifier(boolean warmup) throws Throwable {
+        test9_i++;
+        test9_bool1 = (test9_i % 2) == 0;
+        test9_bool2 = (test9_i % 3) == 0;
+        MyValue3 vt = test9();
+        vt.verify(test9_bool1 ? test9_vt1 : (test9_bool2 ? test9_vt2 : test9_vt3));
+    }
+
+    // Same as above but with non constant target2 and target3
     @ForceInline
     static MyValue2 test10_target1() {
         return MyValue2.createWithFieldsInline(rI, true);
@@ -393,163 +435,80 @@ public class TestMethodHandles extends ValueTypeTest {
         return MyValue2.createWithFieldsInline(rI+1, false);
     }
 
-    static boolean test10_bool = true;
     @ForceInline
-    static boolean test10_test() {
-        return test10_bool;
+    static MyValue2 test10_target3() {
+        return MyValue2.createWithFieldsInline(rI+2, true);
+    }
+
+    static boolean test10_bool1 = true;
+    @ForceInline
+    static boolean test10_test1() {
+        return test10_bool1;
+    }
+
+    static boolean test10_bool2 = true;
+    @ForceInline
+    static boolean test10_test2() {
+        return test10_bool2;
     }
 
     static final MethodHandle test10_mh;
     static MethodHandle test10_mh2;
+    static MethodHandle test10_mh3;
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
     long test10() throws Throwable {
-        return ((MyValue2)test10_mh.invokeExact(test10_mh2)).hash();
+        return ((MyValue2)test10_mh.invokeExact(test10_mh2, test10_mh3)).hash();
     }
+
+    static int test10_i = 0;
 
     @DontCompile
     public void test10_verifier(boolean warmup) throws Throwable {
-        test10_bool = !test10_bool;
+        test10_i++;
+        test10_bool1 = (test10_i % 2) == 0;
+        test10_bool2 = (test10_i % 3) == 0;
         long hash = test10();
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test10_bool ? 0 : 1), test10_bool).hash());
-    }
-
-    // Return of target1, target2 and target3 merged in Lambda Forms
-    // as an __Value. Shouldn't cause any allocation
-    final MyValue3 test11_vt1 = MyValue3.create();
-    @ForceInline
-    MyValue3 test11_target1() {
-        return test11_vt1;
-    }
-
-    final MyValue3 test11_vt2 = MyValue3.create();
-    @ForceInline
-    MyValue3 test11_target2() {
-        return test11_vt2;
-    }
-
-    final MyValue3 test11_vt3 = MyValue3.create();
-    @ForceInline
-    MyValue3 test11_target3() {
-        return test11_vt3;
-    }
-
-    boolean test11_bool1 = true;
-    @ForceInline
-    boolean test11_test1() {
-        return test11_bool1;
-    }
-
-    boolean test11_bool2 = true;
-    @ForceInline
-    boolean test11_test2() {
-        return test11_bool2;
-    }
-
-    static final MethodHandle test11_mh;
-
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
-    MyValue3 test11() throws Throwable {
-        return (MyValue3)test11_mh.invokeExact(this);
-    }
-
-    static int test11_i = 0;
-    @DontCompile
-    public void test11_verifier(boolean warmup) throws Throwable {
-        test11_i++;
-        test11_bool1 = (test11_i % 2) == 0;
-        test11_bool2 = (test11_i % 3) == 0;
-        MyValue3 vt = test11();
-        vt.verify(test11_bool1 ? test11_vt1 : (test11_bool2 ? test11_vt2 : test11_vt3));
-    }
-
-    // Same as above but with non constant target2 and target3
-    @ForceInline
-    static MyValue2 test12_target1() {
-        return MyValue2.createWithFieldsInline(rI, true);
-    }
-
-    @ForceInline
-    static MyValue2 test12_target2() {
-        return MyValue2.createWithFieldsInline(rI+1, false);
-    }
-
-    @ForceInline
-    static MyValue2 test12_target3() {
-        return MyValue2.createWithFieldsInline(rI+2, true);
-    }
-
-    static boolean test12_bool1 = true;
-    @ForceInline
-    static boolean test12_test1() {
-        return test12_bool1;
-    }
-
-    static boolean test12_bool2 = true;
-    @ForceInline
-    static boolean test12_test2() {
-        return test12_bool2;
-    }
-
-    static final MethodHandle test12_mh;
-    static MethodHandle test12_mh2;
-    static MethodHandle test12_mh3;
-
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
-    long test12() throws Throwable {
-        return ((MyValue2)test12_mh.invokeExact(test12_mh2, test12_mh3)).hash();
-    }
-
-    static int test12_i = 0;
-
-    @DontCompile
-    public void test12_verifier(boolean warmup) throws Throwable {
-        test12_i++;
-        test12_bool1 = (test12_i % 2) == 0;
-        test12_bool2 = (test12_i % 3) == 0;
-        long hash = test12();
-        int i = rI+(test12_bool1 ? 0 : (test12_bool2 ? 1 : 2));
-        boolean b = test12_bool1 ? true : (test12_bool2 ? false : true);
+        int i = rI+(test10_bool1 ? 0 : (test10_bool2 ? 1 : 2));
+        boolean b = test10_bool1 ? true : (test10_bool2 ? false : true);
         Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(i, b).hash());
     }
 
-    static int test13_i = 0;
+    static int test11_i = 0;
 
     @ForceInline
-    static MyValue2 test13_target1() {
-        return MyValue2.createWithFieldsInline(rI+test13_i, true);
+    static MyValue2 test11_target1() {
+        return MyValue2.createWithFieldsInline(rI+test11_i, true);
     }
 
     @ForceInline
-    static MyValue2 test13_target2() {
-        return MyValue2.createWithFieldsInline(rI-test13_i, false);
+    static MyValue2 test11_target2() {
+        return MyValue2.createWithFieldsInline(rI-test11_i, false);
     }
 
     @ForceInline
-    static boolean test13_test() {
-        return (test13_i % 100) == 0;
+    static boolean test11_test() {
+        return (test11_i % 100) == 0;
     }
 
-    static final MethodHandle test13_mh;
-    static MethodHandle test13_mh2;
+    static final MethodHandle test11_mh;
+    static MethodHandle test11_mh2;
 
     // Check that a buffered value returned by a compiled lambda form
     // is properly handled by the caller.
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
     @Warmup(11000)
-    long test13() throws Throwable {
-        return ((MyValue2)test13_mh.invokeExact(test13_mh2)).hash();
+    long test11() throws Throwable {
+        return ((MyValue2)test11_mh.invokeExact(test11_mh2)).hash();
     }
 
     @DontCompile
-    public void test13_verifier(boolean warmup) throws Throwable {
-        test13_i++;
-        long hash = test13();
-        boolean b = (test13_i % 100) == 0;
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+test13_i * (b ? 1 : -1), b).hash());
+    public void test11_verifier(boolean warmup) throws Throwable {
+        test11_i++;
+        long hash = test11();
+        boolean b = (test11_i % 100) == 0;
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+test11_i * (b ? 1 : -1), b).hash());
     }
 }

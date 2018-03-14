@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,9 @@ __ByValue public final class MyValue1 {
     final short z;
     final Integer o;
     final int[] oa;
-    final MyValue2 v1;
-    final MyValue2 v2;
-    static final MyValue2 v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
+    __Flattenable final MyValue2 v1;
+    __Flattenable final MyValue2 v2;
+    __Flattenable static final MyValue2 v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
     final int c;
 
     private MyValue1() {
@@ -49,12 +49,12 @@ __ByValue public final class MyValue1 {
     }
 
     @DontInline
-    __ValueFactory static MyValue1 createDefaultDontInline() {
+    static MyValue1 createDefaultDontInline() {
         return createDefaultInline();
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 createDefaultInline() {
+    static MyValue1 createDefaultInline() {
         return __MakeDefault MyValue1();
     }
 
@@ -106,50 +106,50 @@ __ByValue public final class MyValue1 {
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setX(MyValue1 v, int x) {
-        v.x = x;
+    static MyValue1 setX(MyValue1 v, int x) {
+        v = __WithField(v.x, x);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setY(MyValue1 v, long y) {
-        v.y = y;
+    static MyValue1 setY(MyValue1 v, long y) {
+        v = __WithField(v.y, y);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setZ(MyValue1 v, short z) {
-        v.z = z;
+    static MyValue1 setZ(MyValue1 v, short z) {
+        v = __WithField(v.z, z);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setO(MyValue1 v, Integer o) {
-        v.o = o;
+    static MyValue1 setO(MyValue1 v, Integer o) {
+        v = __WithField(v.o, o);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setOA(MyValue1 v, int[] oa) {
-        v.oa = oa;
+    static MyValue1 setOA(MyValue1 v, int[] oa) {
+        v = __WithField(v.oa, oa);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setC(MyValue1 v, int c) {
-        v.c = c;
+    static MyValue1 setC(MyValue1 v, int c) {
+        v = __WithField(v.c, c);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setV1(MyValue1 v, MyValue2 v1) {
-        v.v1 = v1;
+    static MyValue1 setV1(MyValue1 v, MyValue2 v1) {
+        v = __WithField(v.v1, v1);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue1 setV2(MyValue1 v, MyValue2 v2) {
-        v.v2 = v2;
+    static MyValue1 setV2(MyValue1 v, MyValue2 v2) {
+        v = __WithField(v.v2, v2);
         return v;
     }
 }

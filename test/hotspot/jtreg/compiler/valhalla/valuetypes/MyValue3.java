@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,19 +36,19 @@ __ByValue final class MyValue3Inline {
     }
 
     @ForceInline
-    __ValueFactory static MyValue3Inline setF7(MyValue3Inline v, float f7) {
-        v.f7 = f7;
+    static MyValue3Inline setF7(MyValue3Inline v, float f7) {
+        v = __WithField(v.f7, f7);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3Inline setF8(MyValue3Inline v, double f8) {
-        v.f8 = f8;
+    static MyValue3Inline setF8(MyValue3Inline v, double f8) {
+        v = __WithField(v.f8, f8);
         return v;
     }
 
     @ForceInline
-    __ValueFactory public static MyValue3Inline createDefault() {
+    public static MyValue3Inline createDefault() {
         return __MakeDefault MyValue3Inline();
     }
 
@@ -76,7 +76,7 @@ __ByValue public final class MyValue3 {
     final double f4;
     final float f5;
     final double f6;
-    final MyValue3Inline v1;
+    __Flattenable final MyValue3Inline v1;
 
     private MyValue3() {
         this.c = 0;
@@ -95,85 +95,85 @@ __ByValue public final class MyValue3 {
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setC(MyValue3 v, char c) {
-        v.c = c;
+    static MyValue3 setC(MyValue3 v, char c) {
+        v = __WithField(v.c, c);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setBB(MyValue3 v, byte bb) {
-        v.bb = bb;
+    static MyValue3 setBB(MyValue3 v, byte bb) {
+        v = __WithField(v.bb, bb);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setS(MyValue3 v, short s) {
-        v.s = s;
+    static MyValue3 setS(MyValue3 v, short s) {
+        v = __WithField(v.s, s);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setI(MyValue3 v, int i) {
-        v.i = i;
+    static MyValue3 setI(MyValue3 v, int i) {
+        v = __WithField(v.i, i);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setL(MyValue3 v, long l) {
-        v.l = l;
+    static MyValue3 setL(MyValue3 v, long l) {
+        v = __WithField(v.l, l);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setO(MyValue3 v, Object o) {
-        v.o = o;
+    static MyValue3 setO(MyValue3 v, Object o) {
+        v = __WithField(v.o, o);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF1(MyValue3 v, float f1) {
-        v.f1 = f1;
+    static MyValue3 setF1(MyValue3 v, float f1) {
+        v = __WithField(v.f1, f1);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF2(MyValue3 v, double f2) {
-        v.f2 = f2;
+    static MyValue3 setF2(MyValue3 v, double f2) {
+        v = __WithField(v.f2, f2);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF3(MyValue3 v, float f3) {
-        v.f3 = f3;
+    static MyValue3 setF3(MyValue3 v, float f3) {
+        v = __WithField(v.f3, f3);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF4(MyValue3 v, double f4) {
-        v.f4 = f4;
+    static MyValue3 setF4(MyValue3 v, double f4) {
+        v = __WithField(v.f4, f4);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF5(MyValue3 v, float f5) {
-        v.f5 = f5;
+    static MyValue3 setF5(MyValue3 v, float f5) {
+        v = __WithField(v.f5, f5);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setF6(MyValue3 v, double f6) {
-        v.f6 = f6;
+    static MyValue3 setF6(MyValue3 v, double f6) {
+        v = __WithField(v.f6, f6);
         return v;
     }
 
     @ForceInline
-    __ValueFactory static MyValue3 setV1(MyValue3 v, MyValue3Inline v1) {
-        v.v1 = v1;
+    static MyValue3 setV1(MyValue3 v, MyValue3Inline v1) {
+        v = __WithField(v.v1, v1);
         return v;
     }
 
     @ForceInline
-    __ValueFactory public static MyValue3 createDefault() {
+    public static MyValue3 createDefault() {
         return __MakeDefault MyValue3();
     }
 

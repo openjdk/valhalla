@@ -604,7 +604,7 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeNarrowKlass::NULL_PTR = TypeNarrowKlass::make( TypePtr::NULL_PTR );
 
-  // TypeValueTypePtr::NOTNULL = EnableValhalla ? TypeValueTypePtr::make(TypePtr::NotNull, current->env()->___Value_klass()->as_value_klass()) : NULL;
+  // TypeValueTypePtr::NOTNULL = EnableValhalla ? TypeValueTypePtr::make(TypePtr::NotNull, current->env()->Object_klass()) : NULL;
   TypeValueTypePtr::NOTNULL = NULL;
 
   mreg2type[Op_Node] = Type::BOTTOM;
@@ -656,8 +656,6 @@ void Type::Initialize_shared(Compile* current) {
   TypeKlassPtr::OBJECT = TypeKlassPtr::make(TypePtr::NotNull, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::BOTTOM = EnableValhalla ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
-  // TypeKlassPtr::VALUE = TypeKlassPtr::make(TypePtr::NotNull, current->env()->___Value_klass(), Offset(0));
-  TypeKlassPtr::VALUE = NULL;
 
   const Type **fi2c = TypeTuple::fields(2);
   fi2c[TypeFunc::Parms+0] = TypeInstPtr::BOTTOM; // Method*
@@ -697,6 +695,7 @@ void Type::Initialize_shared(Compile* current) {
   _const_basic_type[T_OBJECT]      = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VALUETYPEPTR]= TypeInstPtr::BOTTOM;
   _const_basic_type[T_ARRAY]       = TypeInstPtr::BOTTOM; // there is no separate bottom for arrays
+  _const_basic_type[T_VALUETYPE]   = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VOID]        = TypePtr::NULL_PTR;   // reflection represents void this way
   _const_basic_type[T_ADDRESS]     = TypeRawPtr::BOTTOM;  // both interpreter return addresses & random raw ptrs
   _const_basic_type[T_CONFLICT]    = Type::BOTTOM;        // why not?
@@ -714,6 +713,7 @@ void Type::Initialize_shared(Compile* current) {
   _zero_type[T_OBJECT]      = TypePtr::NULL_PTR;
   _zero_type[T_VALUETYPEPTR]= TypePtr::NULL_PTR;
   _zero_type[T_ARRAY]       = TypePtr::NULL_PTR; // null array is null oop
+  _zero_type[T_VALUETYPE]   = TypePtr::NULL_PTR;
   _zero_type[T_ADDRESS]     = TypePtr::NULL_PTR; // raw pointers use the same null
   _zero_type[T_VOID]        = Type::TOP;         // the only void value is no value at all
 
@@ -4958,7 +4958,8 @@ int TypeValueTypePtr::hash(void) const {
 
 //------------------------------is__Value--------------------------------------
 bool TypeValueTypePtr::is__Value() const {
-  return klass()->equals(TypeKlassPtr::VALUE->klass());
+  // FIXME
+  return false;
 }
 
 //------------------------------dump2------------------------------------------
@@ -5319,7 +5320,6 @@ const TypeMetadataPtr* TypeMetadataPtr::make(PTR ptr, ciMetadata* m, Offset offs
 const TypeKlassPtr *TypeKlassPtr::OBJECT;
 const TypeKlassPtr *TypeKlassPtr::OBJECT_OR_NULL;
 const TypeKlassPtr* TypeKlassPtr::BOTTOM;
-const TypeKlassPtr *TypeKlassPtr::VALUE;
 
 //------------------------------TypeKlassPtr-----------------------------------
 TypeKlassPtr::TypeKlassPtr( PTR ptr, ciKlass* klass, Offset offset )

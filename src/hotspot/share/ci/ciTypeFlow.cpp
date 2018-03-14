@@ -772,8 +772,8 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 }
 
 // ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_vdefault
-void ciTypeFlow::StateVector::do_vdefault(ciBytecodeStream* str) {
+// ciTypeFlow::StateVector::do_defaultvalue
+void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
   assert(klass->is_valuetype(), "should be value type");
@@ -785,8 +785,8 @@ void ciTypeFlow::StateVector::do_vdefault(ciBytecodeStream* str) {
 }
 
 // ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_vwithfield
-void ciTypeFlow::StateVector::do_vwithfield(ciBytecodeStream* str) {
+// ciTypeFlow::StateVector::do_withfield
+void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
   bool will_link;
   ciField* field = str->get_field(will_link);
   ciKlass* klass = field->holder();
@@ -852,26 +852,6 @@ void ciTypeFlow::StateVector::do_ret(ciBytecodeStream* str) {
   ciType* address = type_at(index);
   assert(address->is_return_address(), "bad return address");
   set_type_at(index, bottom_type());
-}
-
-void ciTypeFlow::StateVector::do_vunbox(ciBytecodeStream* str) {
-  bool will_link;
-  ciKlass* klass = str->get_klass(will_link);
-  // TODO: Handle case when class is not loaded.
-  guarantee(will_link, "Class to which the value-capable class will unbox to must be loaded for JIT compilation");
-  assert(klass->is_instance_klass(), "must be an instance class");
-  pop_object();
-  push_object(klass->as_instance_klass());
-}
-
-void ciTypeFlow::StateVector::do_vbox(ciBytecodeStream* str) {
-  bool will_link;
-  ciKlass* klass = str->get_klass(will_link);
-  // TODO: Handle case when class is not loaded.
-  guarantee(will_link, "Class to which value type will box to must be loaded for JIT compilation");
-  assert(klass->is_instance_klass(), "must be an instance class");
-  pop_object();
-  push_object(klass->as_instance_klass());
 }
 
 // ------------------------------------------------------------------
@@ -1492,8 +1472,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
 
   case Bytecodes::_new:      do_new(str);                           break;
 
-  case Bytecodes::_defaultvalue: do_vdefault(str);                  break;
-  case Bytecodes::_withfield: do_vwithfield(str);                   break;
+  case Bytecodes::_defaultvalue: do_defaultvalue(str);              break;
+  case Bytecodes::_withfield: do_withfield(str);                    break;
 
   case Bytecodes::_newarray: do_newarray(str);                      break;
 

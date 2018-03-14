@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @test
  * @bug 8182997
  * @summary Array of unloaded value class should consistently use L signature
- * @modules jdk.incubator.mvt
  * @compile -XDenableValueTypes TestUnloadedValueTypeArray.java
  * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:CompileOnly=TestUnloadedValueTypeArray::test TestUnloadedValueTypeArray
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,16 +30,12 @@ import jdk.test.lib.Asserts;
  * @summary Test intrinsic support for value types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- *          java.base/jdk.internal.misc:+open
- *          jdk.incubator.mvt
  * @compile -XDenableValueTypes TestIntrinsics.java
  * @run main ClassFileInstaller sun.hotspot.WhiteBox
  * @run main ClassFileInstaller jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
- *                   compiler.valhalla.valuetypes.TestIntrinsics
+ *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
+ *                               compiler.valhalla.valuetypes.TestIntrinsics
  */
 public class TestIntrinsics extends ValueTypeTest {
 
@@ -55,12 +51,10 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     public void test1_verifier(boolean warmup) {
-        Asserts.assertTrue(test1(__Value.class, MyValue1.class), "test1_1 failed");
+        Asserts.assertTrue(test1(Object.class, MyValue1.class), "test1_1 failed");
         Asserts.assertTrue(test1(MyValue1.class, MyValue1.class), "test1_2 failed");
         Asserts.assertTrue(test1(Object.class, java.util.ArrayList.class), "test1_3 failed");
         Asserts.assertTrue(test1(java.util.ArrayList.class, java.util.ArrayList.class), "test1_4 failed");
-        Asserts.assertTrue(!test1(Object.class, MyValue1.class), "test1_5 failed");
-        Asserts.assertTrue(!test1(__Value.class, java.util.ArrayList.class), "test1_6 failed");
     }
 
     // Verify that Class::isAssignableFrom checks with statically known classes are folded
@@ -69,10 +63,9 @@ public class TestIntrinsics extends ValueTypeTest {
         boolean check1 = java.util.AbstractList.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check2 = MyValue1.class.isAssignableFrom(MyValue1.class);
         boolean check3 = Object.class.isAssignableFrom(java.util.ArrayList.class);
-        boolean check4 = java.lang.__Value.class.isAssignableFrom(MyValue1.class);
-        boolean check5 = !Object.class.isAssignableFrom(MyValue1.class);
-        boolean check6 = !MyValue1.class.isAssignableFrom(Object.class);
-        return check1 && check2 && check3 && check4 && check5 && check6;
+        boolean check4 = Object.class.isAssignableFrom(MyValue1.class);
+        boolean check5 = !MyValue1.class.isAssignableFrom(Object.class);
+        return check1 && check2 && check3 && check4 && check5;
     }
 
     public void test2_verifier(boolean warmup) {
@@ -86,23 +79,45 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     public void test3_verifier(boolean warmup) {
-        Asserts.assertTrue(test3(__Value.class) == null, "test3_1 failed");
-        Asserts.assertTrue(test3(Object.class) == null, "test3_2 failed");
-        Asserts.assertTrue(test3(MyValue1.class) == __Value.class, "test3_3 failed");
-        Asserts.assertTrue(test3(Class.class) == Object.class, "test3_4 failed");
+        Asserts.assertTrue(test3(Object.class) == null, "test3_1 failed");
+        Asserts.assertTrue(test3(MyValue1.class) == Object.class, "test3_2 failed");
+        Asserts.assertTrue(test3(Class.class) == Object.class, "test3_3 failed");
     }
 
     // Verify that Class::getSuperclass checks with statically known classes are folded
     @Test(failOn = LOADK)
     public boolean test4() {
-        boolean check1 = __Value.class.getSuperclass() == null;
-        boolean check2 = Object.class.getSuperclass() == null;
-        boolean check3 = MyValue1.class.getSuperclass() == __Value.class;
-        boolean check4 = Class.class.getSuperclass() == Object.class;
-        return check1 && check2 && check3 && check4;
+        boolean check1 = Object.class.getSuperclass() == null;
+        boolean check2 = MyValue1.class.getSuperclass() == Object.class;
+        boolean check3 = Class.class.getSuperclass() == Object.class;
+        return check1 && check2 && check3;
     }
 
     public void test4_verifier(boolean warmup) {
         Asserts.assertTrue(test4(), "test4 failed");
+    }
+
+    // Test toString() method
+    @Test(failOn = ALLOC + STORE + LOAD)
+    public String test5(MyValue1 v) {
+        return v.toString();
+    }
+
+    @DontCompile
+    public void test5_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createDefaultInline();
+        test5(v);
+    }
+
+    // Test hashCode() method
+    @Test()
+    public int test6(MyValue1 v) {
+        return v.hashCode();
+    }
+
+    @DontCompile
+    public void test6_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createDefaultInline();
+        test6(v);
     }
 }

@@ -367,14 +367,12 @@ public:
     void do_ldc(ciBytecodeStream* str);
     void do_multianewarray(ciBytecodeStream* str);
     void do_new(ciBytecodeStream* str);
-    void do_vdefault(ciBytecodeStream* str);
-    void do_vwithfield(ciBytecodeStream* str);
+    void do_defaultvalue(ciBytecodeStream* str);
+    void do_withfield(ciBytecodeStream* str);
     void do_newarray(ciBytecodeStream* str);
     void do_putfield(ciBytecodeStream* str);
     void do_putstatic(ciBytecodeStream* str);
     void do_ret(ciBytecodeStream* str);
-    void do_vunbox(ciBytecodeStream* str);
-    void do_vbox(ciBytecodeStream* str);
 
     void overwrite_local_double_long(int index) {
       // Invalidate the previous local if it contains first half of
