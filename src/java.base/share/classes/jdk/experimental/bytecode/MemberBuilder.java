@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,39 @@
 
 package jdk.experimental.bytecode;
 
+/**
+ * Class member builder.
+ *
+ * @param <S> the type of symbol representation
+ * @param <T> the type of type descriptors representation
+ * @param <E> the type of pool entries
+ * @param <M> the type of this builder
+ */
 public class MemberBuilder<S, T, E, M extends MemberBuilder<S, T, E, M>> extends DeclBuilder<S, T, E, M> {
 
     CharSequence name;
     T desc;
 
+    /**
+     * Create a member builder.
+     *
+     * @param name the name of the class member
+     * @param type the type descriptor of the class member
+     * @param poolHelper the helper to build the constant pool
+     * @param typeHelper the helper to use to manipulate type descriptors
+     */
     MemberBuilder(CharSequence name, T type, PoolHelper<S, T, E> poolHelper, TypeHelper<S, T> typeHelper) {
         super(poolHelper, typeHelper);
         this.name = name;
         this.desc = type;
     }
 
-    void build(GrowableByteBuffer buf) {
+    /**
+     * Build the member.
+     *
+     * @param buf the {@code GrowableByteBuffer} to build the member into
+     */
+    protected void build(GrowableByteBuffer buf) {
         addAnnotations();
         buf.writeChar(flags);
         buf.writeChar(poolHelper.putUtf8(name));
@@ -45,7 +66,12 @@ public class MemberBuilder<S, T, E, M extends MemberBuilder<S, T, E, M>> extends
         buf.writeBytes(attributes);
     }
 
-    byte[] build() {
+    /**
+     * Build the member.
+     *
+     * @return a byte array representation of the member
+     */
+    protected byte[] build() {
         GrowableByteBuffer buf = new GrowableByteBuffer();
         addAnnotations();
         build(buf);

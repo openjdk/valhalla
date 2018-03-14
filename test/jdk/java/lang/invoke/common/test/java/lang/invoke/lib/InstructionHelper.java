@@ -83,7 +83,7 @@ public class InstructionHelper {
     public static MethodHandle ldcMethodHandle(MethodHandles.Lookup l,
                                         int refKind, Class<?> owner, String name, MethodType type) throws Exception {
         return ldc(l, MethodHandle.class,
-                   P -> P.putHandle(refKind, csym(owner), name, type.toMethodDescriptorString()));
+                   P -> P.putMethodHandle(refKind, csym(owner), name, type.toMethodDescriptorString()));
     }
 
     public static MethodHandle ldcDynamicConstant(MethodHandles.Lookup l,
@@ -112,7 +112,7 @@ public class InstructionHelper {
                                                   String bsmClass, String bsmMethodName, String bsmType,
                                                   Consumer<PoolHelper.StaticArgListBuilder<String, String, byte[]>> staticArgs) throws Exception {
         return ldc(l, type,
-                   P -> P.putDynamicConstant(name, type,
+                   P -> P.putConstantDynamic(name, type,
                                              bsmClass, bsmMethodName, bsmType,
                                              staticArgs));
     }

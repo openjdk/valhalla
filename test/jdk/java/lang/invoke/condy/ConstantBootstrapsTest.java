@@ -25,8 +25,9 @@
  * @test
  * @bug 8186046 8195694
  * @summary Test dynamic constant bootstraps
- * @library /lib/testlibrary/bytecode /java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @library /java/lang/invoke/common
+ * @modules java.base/jdk.experimental.bytecode
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run testng ConstantBootstrapsTest
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 ConstantBootstrapsTest
  */
@@ -159,14 +160,13 @@ public class ConstantBootstrapsTest {
         assertEquals(handle.invoke(), BigInteger.ZERO);
     }
 
-
     public void testInvoke() throws Throwable {
         var handle = InstructionHelper.ldcDynamicConstant(
                 L, "_", List.class,
                 ConstantBootstraps.class, "invoke", lookupMT(Object.class, MethodHandle.class, Object[].class),
                 S -> {
                     S.add("", (P, Z) -> {
-                        return P.putHandle(MethodHandleInfo.REF_invokeStatic, "java/util/List", "of",
+                        return P.putMethodHandle(MethodHandleInfo.REF_invokeStatic, "java/util/List", "of",
                                            MethodType.methodType(List.class, Object[].class).toMethodDescriptorString(),
                                            true);
                     });
@@ -181,7 +181,7 @@ public class ConstantBootstrapsTest {
                 ConstantBootstraps.class, "invoke", lookupMT(Object.class, MethodHandle.class, Object[].class),
                 S -> {
                     S.add("", (P, Z) -> {
-                        return P.putHandle(MethodHandleInfo.REF_invokeStatic, "java/lang/Integer", "valueOf",
+                        return P.putMethodHandle(MethodHandleInfo.REF_invokeStatic, "java/lang/Integer", "valueOf",
                                            MethodType.methodType(Integer.class, String.class).toMethodDescriptorString(),
                                            false);
                     });
@@ -197,7 +197,7 @@ public class ConstantBootstrapsTest {
                 ConstantBootstraps.class, "invoke", lookupMT(Object.class, MethodHandle.class, Object[].class),
                 S -> {
                     S.add("", (P, Z) -> {
-                        return P.putHandle(MethodHandleInfo.REF_invokeStatic, "java/util/List", "of",
+                        return P.putMethodHandle(MethodHandleInfo.REF_invokeStatic, "java/util/List", "of",
                                            MethodType.methodType(List.class, Object[].class).toMethodDescriptorString(),
                                            true);
                     });

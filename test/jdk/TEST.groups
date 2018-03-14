@@ -79,8 +79,9 @@ jdk_lang = \
     vm \
     valhalla
 
-# valhalla and mvt tests
+# valhalla lworld tests
 jdk_valhalla = \
+    java/lang/invoke \
     valhalla
 
 # All of the java.util package

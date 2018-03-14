@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,13 @@
 
 package jdk.experimental.bytecode;
 
+/**
+ * Field builder.
+ *
+ * @param <S> the type of symbol representation
+ * @param <T> the type of type descriptor representation
+ * @param <E> the type of pool entries
+ */
 public class FieldBuilder<S, T, E> extends MemberBuilder<S, T, E, FieldBuilder<S, T, E>> {
     public FieldBuilder(CharSequence name, T type, PoolHelper<S, T, E> poolHelper, TypeHelper<S, T> typeHelper) {
         super(name, type, poolHelper, typeHelper);

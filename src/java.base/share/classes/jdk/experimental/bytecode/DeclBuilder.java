@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,18 +27,41 @@ package jdk.experimental.bytecode;
 
 import java.util.function.Consumer;
 
+/**
+ * Declaration (class, class member, ...) builder.
+ *
+ * @param <S> the type of symbol representation
+ * @param <T> the type of type descriptors representation
+ * @param <E> the type of pool entries
+ * @param <D> the type of this builder
+ */
 public class DeclBuilder<S, T, E, D extends DeclBuilder<S, T, E, D>>
         extends AttributeBuilder<S, T, E, D> {
 
+    /**
+     * The access flags of the declaration, as bit flags.
+     */
     protected int flags;
+
     AnnotationsBuilder<S, T, E> runtimeInvisibleAnnotations;
     AnnotationsBuilder<S, T, E> runtimeVisibleAnnotations;
 
-
+    /**
+     * Create a declaration builder,
+     *
+     * @param poolHelper the helper to build the constant pool
+     * @param typeHelper the helper to use to manipulate type descriptors
+     */
     DeclBuilder(PoolHelper<S, T, E> poolHelper, TypeHelper<S, T> typeHelper) {
         super(poolHelper, typeHelper);
     }
 
+    /**
+     * Specify the class file flags for this declaration.
+     *
+     * @param flags the flags as {@code Flag} objects
+     * @return this builder, for chained calls
+     */
     public D withFlags(Flag... flags) {
         for (Flag f : flags) {
             this.flags |= f.flag;
@@ -46,6 +69,12 @@ public class DeclBuilder<S, T, E, D extends DeclBuilder<S, T, E, D>>
         return thisBuilder();
     }
 
+    /**
+     * Specify, via bits, the class file flags for this declaration.
+     *
+     * @param flags the flags as bit settings
+     * @return this builder, for chained calls
+     */
     public D withFlags(int flags) {
         withFlags(Flag.parse(flags));
         return thisBuilder();

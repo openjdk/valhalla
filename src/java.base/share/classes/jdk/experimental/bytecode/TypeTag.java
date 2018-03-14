@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,15 +26,45 @@
 package jdk.experimental.bytecode;
 
 public enum TypeTag implements Type {
+    /**
+     * byte
+     */
     B("B", 0, 1, 8),
+    /**
+     * short
+     */
     S("S", 0, 1, 9),
+    /**
+     * int
+     */
     I("I", 0, 1, 10),
+    /**
+     * float
+     */
     F("F", 2, 1, 6),
+    /**
+     * long
+     */
     J("J", 1, 2, 11),
+    /**
+     * double
+     */
     D("D", 3, 2, 7),
+    /**
+     * Reference type
+     */
     A("A", 4, 1, -1),
+    /**
+     * char
+     */
     C("C", 0, 1, 5),
+    /**
+     * boolean
+     */
     Z("Z", 0, 1, 4),
+    /**
+     * void
+     */
     V("V", -1, -1, -1);
 
     String typeStr;

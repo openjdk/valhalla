@@ -25,13 +25,12 @@
 
 package jdk.experimental.value;
 
-import jdk.experimental.bytecode.BasicClassBuilder.BasicPoolHelper;
-import jdk.experimental.bytecode.BasicClassBuilder.BasicTypeHelper;
+import jdk.experimental.bytecode.BytePoolHelper;
+import jdk.experimental.bytecode.BasicTypeHelper;
 import jdk.experimental.bytecode.ClassBuilder;
 import jdk.experimental.bytecode.CodeBuilder;
 import jdk.experimental.bytecode.Flag;
 import jdk.experimental.bytecode.MethodBuilder;
-import jdk.experimental.bytecode.PoolHelper;
 import jdk.experimental.bytecode.TypeHelper;
 import jdk.experimental.bytecode.TypeTag;
 import jdk.experimental.bytecode.TypedCodeBuilder;
@@ -200,78 +199,12 @@ public class MethodHandleBuilder {
             }
         }
 
-        static class IsolatedMethodPoolHelper implements PoolHelper<Class<?>, String, byte[]> {
-            BasicPoolHelper basicPoolHelper = new BasicPoolHelper();
-            String clazz;
+        static class IsolatedMethodPoolHelper extends BytePoolHelper<Class<?>, String> {
+            final String clazz;
 
             IsolatedMethodPoolHelper(String clazz) {
+                super(Class::getSimpleName, s->s);
                 this.clazz = clazz;
-            }
-
-            String from(Class<?> c) {
-                String name;
-                if (c == THIS_CLASS) {
-                    //THIS_CLASS cannot be a DVT (by construction) - never mangle
-                    name = clazz;
-                } else {
-                    name = c.getName();
-                }
-                return name.replaceAll("\\.", "/");
-            }
-
-            @Override
-            public int putClass(Class<?> symbol) {
-                return basicPoolHelper.putClass(from(symbol));
-            }
-
-            @Override
-            public int putFieldRef(Class<?> owner, CharSequence name, String type) {
-                return basicPoolHelper.putFieldRef(from(owner), name, type);
-            }
-
-            @Override
-            public int putMethodRef(Class<?> owner, CharSequence name, String type, boolean isInterface) {
-                return basicPoolHelper.putMethodRef(from(owner), name, type, isInterface);
-            }
-
-            @Override
-            public int putUtf8(CharSequence s) {
-                return basicPoolHelper.putUtf8(s);
-            }
-
-            @Override
-            public int putType(String s) {
-                return basicPoolHelper.putType(s);
-            }
-
-            @Override
-            public int putValue(Object v) {
-                return basicPoolHelper.putValue(v);
-            }
-
-            @Override
-            public int putMethodType(String s) {
-                return basicPoolHelper.putMethodType(s);
-            }
-
-            @Override
-            public int putHandle(int refKind, Class<?> owner, CharSequence name, String type) {
-                return basicPoolHelper.putHandle(refKind, from(owner), name, type);
-            }
-
-            @Override
-            public int putInvokeDynamic(CharSequence invokedName, String invokedType, int bskKind, Class<?> bsmClass, CharSequence bsmName, String bsmType, Object... staticArgs) {
-                return basicPoolHelper.putInvokeDynamic(invokedName, invokedType, bskKind, from(bsmClass), bsmName, bsmType, staticArgs);
-            }
-
-            @Override
-            public int size() {
-                return basicPoolHelper.size();
-            }
-
-            @Override
-            public byte[] entries() {
-                return basicPoolHelper.entries();
             }
 
             Object[] patches() {
@@ -314,7 +247,7 @@ public class MethodHandleBuilder {
         @Override
         public int putValue(Object v) {
             if (v instanceof String || v instanceof Integer || v instanceof Float || v instanceof Double || v instanceof Long) {
-                return basicPoolHelper.putValue(v);
+                return super.putValue(v);
             }
             assert (!v.getClass().isPrimitive()) : v;
             return patchPoolEntry(v); // CP patching support
@@ -326,7 +259,7 @@ public class MethodHandleBuilder {
                 throw new InternalError("observed CP placeholder twice: " + cpPlaceholder);
             }
             // insert placeholder in CP and remember the patch
-            int index = basicPoolHelper.putValue(cpPlaceholder);  // TODO check if already in the constant pool
+            int index = super.putValue(cpPlaceholder);  // TODO check if already in the constant pool
             cpPatches.put(cpPlaceholder, new CpPatch(index, cpPlaceholder, v));
             return index;
         }

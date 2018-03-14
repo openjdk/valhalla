@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -388,6 +388,14 @@ public class MacroCodeBuilder<S, T, E, C extends MacroCodeBuilder<S, T, E, C>> e
         return thisBuilder();
     }
 
+    public C if_null(CharSequence label) {
+        return emitCondJump(Opcode.IF_NULL, Opcode.IF_NONNULL, label);
+    }
+
+    public C if_nonnull(CharSequence label) {
+        return emitCondJump(Opcode.IF_NONNULL, Opcode.IF_NULL, label);
+    }
+
     public C ifcmp(TypeTag type, CondKind cond, CharSequence label) {
         switch (type) {
             case I:
@@ -432,11 +440,15 @@ public class MacroCodeBuilder<S, T, E, C extends MacroCodeBuilder<S, T, E, C>> e
 
     //FIXME: address this jumpy mess - i.e. offset and state update work against each other!
     public C emitCondJump(Opcode opcode, CondKind ck, CharSequence label) {
+        return emitCondJump(opcode.at(ck), opcode.at(ck.negate()), label);
+    }
+
+    public C emitCondJump(Opcode pos, Opcode neg, CharSequence label) {
         if (jumpMode == JumpMode.NARROW) {
-            emitOp(opcode.at(ck));
+            emitOp(pos);
             emitOffset(code, jumpMode, labelOffset(label));
         } else {
-            emitOp(opcode.at(ck.negate()));
+            emitOp(neg);
             emitOffset(code, JumpMode.NARROW, 8);
             goto_w(labelOffset(label));
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,44 @@
 
 package jdk.experimental.bytecode;
 
+import jdk.experimental.bytecode.PoolHelper.StaticArgListBuilder;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
+/**
+ * Builder for class file code attributes. A code attribute is defined:
+ * <pre>
+ * {@code
+ * Code_attribute {
+ *    u2 attribute_name_index;
+ *    u4 attribute_length;
+ *    u2 max_stack;
+ *    u2 max_locals;
+ *    u4 code_length;
+ *    u1 code[code_length];
+ *    u2 exception_table_length;
+ *    {   u2 start_pc;
+ *        u2 end_pc;
+ *        u2 handler_pc;
+ *        u2 catch_type;
+ *    } exception_table[exception_table_length];
+ *    u2 attributes_count;
+ *    attribute_info attributes[attributes_count];
+ * } }
+ * </pre>
+ *
+ * @param <S> the type of symbol representation
+ * @param <T> the type of type descriptors representation
+ * @param <E> the type of pool entries
+ * @param <C> the type of this code builder
+ */
 public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends AttributeBuilder<S, T, E, C> {
 
     protected GrowableByteBuffer code = new GrowableByteBuffer();
@@ -42,7 +74,7 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
     int localsize = -1;
     int nstackmaps = 0;
 
-    protected enum JumpMode {
+    public enum JumpMode {
         NARROW,
         WIDE;
     }
@@ -113,8 +145,11 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    public C invokedynamic(CharSequence invokedName, T invokedType, S bsmClass, CharSequence bsmName, T bsmType, Object... staticArgs) {
-        throw new UnsupportedOperationException("Not supported yet");
+    public C invokedynamic(CharSequence invokedName, T invokedType, S bsmClass, CharSequence bsmName, T bsmType, Consumer<StaticArgListBuilder<S, T, E>> staticArgs) {
+        emitOp(Opcode.INVOKEDYNAMIC, invokedType);
+        code.writeChar(poolHelper.putInvokeDynamic(invokedName, invokedType, bsmClass, bsmName, bsmType, staticArgs));
+        code.writeChar(0); //padding
+        return thisBuilder();
     }
 
     public C new_(S clazz) {
@@ -146,7 +181,7 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
     }
 
     public C checkcast(S target) {
-        emitOp(Opcode.CHECKCAST, target);
+        emitOp(Opcode.CHECKCAST);
         code.writeChar(poolHelper.putClass(target));
         return thisBuilder();
     }
@@ -161,6 +196,64 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         emitOp(Opcode.MULTIANEWARRAY, new Object[]{array, dims});
         code.writeChar(poolHelper.putClass(array)).writeByte(dims);
         return thisBuilder();
+    }
+
+    public C ldc(int i) {
+        return ldc(pool -> pool.putInt(i), false);
+    }
+
+    public C ldc(long l) {
+        return ldc(pool -> pool.putLong(l), true);
+    }
+
+    public C ldc(float f) {
+        return ldc(pool -> pool.putFloat(f), false);
+    }
+
+    public C ldc(double d) {
+        return ldc(pool -> pool.putDouble(d), true);
+    }
+
+    public C ldc(String s) {
+        return ldc(pool -> pool.putString(s), false);
+    }
+
+    public C ldc(CharSequence constName, T constType, S bsmClass, CharSequence bsmName, T bsmType, Consumer<StaticArgListBuilder<S, T, E>> staticArgs) {
+        boolean fat = typeHelper.tag(constType).width() == 2;
+        return ldc(pool -> pool.putConstantDynamic(constName, constType, bsmClass, bsmName, bsmType, staticArgs), fat);
+    }
+
+    public <Z> C ldc(Z z, BiFunction<PoolHelper<S, T, E>, Z, Integer> poolFunc) {
+        return ldc(pool -> poolFunc.apply(pool, z), false);
+    }
+
+
+    protected C ldc(ToIntFunction<PoolHelper<S, T, E>> indexFunc, boolean fat) {
+        // @@@ This should probably be abstract
+        int index = indexFunc.applyAsInt(poolHelper);
+        return ldc(index, null, fat);
+    }
+
+    protected final C ldc(int index, T type, boolean fat) {
+        if (fat) {
+            emitOp(Opcode.LDC2_W, type);
+            code.writeChar(index);
+        } else if (index > 63) {
+            emitOp(Opcode.LDC_W, type);
+            code.writeChar(index);
+        } else {
+            emitOp(Opcode.LDC, type);
+            code.writeByte(index);
+        }
+        return thisBuilder();
+    }
+
+    public C ldc(MethodHandle o) {
+        return ldc(o, false);
+    }
+
+    public C ldc(MethodType o) {
+        return ldc(o, false);
     }
 
     public C ldc(Object o) {
@@ -181,7 +274,7 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    private C ldc(Object o, boolean fat) {
+    private final C ldc(Object o, boolean fat) {
         int idx = poolHelper.putValue(o);
         if (fat) {
             return ldc2_w(o);
@@ -190,38 +283,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         } else {
             return ldc(o);
         }
-    }
-
-    public C ldc(String o) {
-        return ldc(o, false);
-    }
-
-    public C ldc(Class<?> o) {
-        return ldc(o, false);
-    }
-
-    public C ldc(MethodHandle o) {
-        return ldc(o, false);
-    }
-
-    public C ldc(MethodType o) {
-        return ldc(o, false);
-    }
-
-    public C ldc(int i) {
-        return ldc(i, false);
-    }
-
-    public C ldc(float f) {
-        return ldc(f, false);
-    }
-
-    public C ldc(long l) {
-        return ldc(l, true);
-    }
-
-    public C ldc(double l) {
-        return ldc(l, true);
     }
 
     //other non-CP dependent opcodes
@@ -1067,10 +1128,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         }
         return thisBuilder();
     }
-
-    public C invokedynamic() {
-        throw new UnsupportedOperationException();
-    } //TODO: maybe later :-)
 
     public C arraylength() {
         return emitOp(Opcode.ARRAYLENGTH);

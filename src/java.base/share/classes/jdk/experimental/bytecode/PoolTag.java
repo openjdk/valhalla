@@ -25,22 +25,27 @@
 
 package jdk.experimental.bytecode;
 
+import static jdk.experimental.bytecode.Pool.*;
+
 public enum PoolTag {
-    CONSTANT_UTF8(1),
-    CONSTANT_UNICODE(2),
-    CONSTANT_INTEGER(3),
-    CONSTANT_FLOAT(4),
-    CONSTANT_LONG(5),
-    CONSTANT_DOUBLE(6),
-    CONSTANT_CLASS(7),
-    CONSTANT_STRING(8),
-    CONSTANT_FIELDREF(9),
-    CONSTANT_METHODREF(10),
-    CONSTANT_INTERFACEMETHODREF(11),
-    CONSTANT_NAMEANDTYPE(12),
-    CONSTANT_METHODHANDLE(15),
-    CONSTANT_METHODTYPE(16),
-    CONSTANT_INVOKEDYNAMIC(18);
+    UTF8                   (UTF8_TAG),
+    UNICODE                (UNICODE_TAG),
+    INTEGER                (INTEGER_TAG),
+    FLOAT                  (FLOAT_TAG),
+    LONG                   (LONG_TAG),
+    DOUBLE                 (DOUBLE_TAG),
+    CLASS                  (CLASS_TAG),
+    STRING                 (STRING_TAG),
+    FIELDREF               (FIELDREF_TAG),
+    METHODREF              (METHODREF_TAG),
+    INTERFACEMETHODREF     (INTERFACEMETHODREF_TAG),
+    NAMEANDTYPE            (NAMEANDTYPE_TAG),
+    METHODHANDLE           (METHODHANDLE_TAG),
+    METHODTYPE             (METHODTYPE_TAG),
+    CONSTANTDYNAMIC        (CONSTANTDYNAMIC_TAG),
+    INVOKEDYNAMIC          (INVOKEDYNAMIC_TAG),
+    MODULE                 (MODULE_TAG),
+    PACKAGE                (PACKAGE_TAG);
 
     public final int tag;
 

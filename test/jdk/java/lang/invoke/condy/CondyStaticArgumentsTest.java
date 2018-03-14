@@ -25,8 +25,9 @@
  * @test
  * @bug 8186046
  * @summary Test bootstrap arguments for condy
- * @library /lib/testlibrary/bytecode /java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @library /java/lang/invoke/common
+ * @modules java.base/jdk.experimental.bytecode
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run testng CondyStaticArgumentsTest
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyStaticArgumentsTest
  */
@@ -108,7 +109,7 @@ public class CondyStaticArgumentsTest {
                         .add("something", PoolHelper::putString)
                         .add("(IJFD)V", PoolHelper::putMethodType)
                         .add(mhi, (P, Z) -> {
-                            return P.putHandle(mhi.getReferenceKind(), "CondyStaticArgumentsTest", mhi.getName(), bi.descriptor);
+                            return P.putMethodHandle(mhi.getReferenceKind(), "CondyStaticArgumentsTest", mhi.getName(), bi.descriptor);
                         }));
 
         Assert.assertEquals(mh.invoke(), "constant-name-String-1-2-3.0-4.0-Number-something-(int,long,float,double)void-11");
@@ -147,7 +148,7 @@ public class CondyStaticArgumentsTest {
 
     static <E> int bigDecimalPoolHelper(String value, String mc, PoolHelper<String, String, E> P) {
         BSMInfo bi = BSMInfo.of("bigDecimal");
-        return P.putDynamicConstant("big-decimal", "Ljava/math/BigDecimal;", InstructionHelper.csym(L.lookupClass()), bi.methodName, bi.descriptor,
+        return P.putConstantDynamic("big-decimal", "Ljava/math/BigDecimal;", InstructionHelper.csym(L.lookupClass()), bi.methodName, bi.descriptor,
                                     S -> S.add(value, PoolHelper::putString)
                                             .add(mc, (P2, s) -> {
                                                 return mathContextPoolHelper(s, P2);
@@ -156,7 +157,7 @@ public class CondyStaticArgumentsTest {
 
     static <E> int mathContextPoolHelper(String mc, PoolHelper<String, String, E> P) {
         BSMInfo bi = BSMInfo.of("mathContext");
-        return P.putDynamicConstant(mc, "Ljava/math/MathContext;", InstructionHelper.csym(L.lookupClass()), bi.methodName, bi.descriptor,
+        return P.putConstantDynamic(mc, "Ljava/math/MathContext;", InstructionHelper.csym(L.lookupClass()), bi.methodName, bi.descriptor,
                                     S -> {
                                     });
     }

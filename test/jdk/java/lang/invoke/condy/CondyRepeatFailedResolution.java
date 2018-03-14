@@ -26,8 +26,8 @@
  * @bug 8186211
  * @summary Test basic invocation of multiple ldc's of the same dynamic constant that fail resolution
  * @requires os.arch == "x86_64"
- * @library /lib/testlibrary/bytecode /java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder
+ * @library /java/lang/invoke/common
+ * @modules java.base/jdk.experimental.bytecode
  * @run testng CondyRepeatFailedResolution
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyRepeatFailedResolution
  */

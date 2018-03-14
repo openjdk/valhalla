@@ -26,8 +26,9 @@
  * @bug 8186046
  * @summary Test bootstrap methods returning the wrong type
  * @requires os.arch == "x86_64"
- * @library /lib/testlibrary/bytecode /java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @library /java/lang/invoke/common
+ * @modules java.base/jdk.experimental.bytecode
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run testng CondyWrongType
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyWrongType
  */

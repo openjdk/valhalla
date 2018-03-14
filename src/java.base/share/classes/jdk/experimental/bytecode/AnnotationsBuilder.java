@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package jdk.experimental.bytecode;
 
 import java.util.function.Consumer;
+import java.util.function.ToIntBiFunction;
 
 public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, AnnotationsBuilder<S, T, E>> {
 
@@ -102,7 +103,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
                 }
             };
 
-    class AnnotationElementBuilder {
+    public class AnnotationElementBuilder {
 
         int nelems;
 
@@ -161,55 +162,55 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
 
         public AnnotationElementBuilder withPrimitive(String name, char c) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.C, c);
+            writePrimitiveValue(Tag.C, (int)c, PoolHelper::putInt);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, short s) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.S, s);
+            writePrimitiveValue(Tag.S, (int)s, PoolHelper::putInt);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, byte b) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.B, b);
+            writePrimitiveValue(Tag.B, (int)b, PoolHelper::putInt);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, int i) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.I, i);
+            writePrimitiveValue(Tag.I, i, PoolHelper::putInt);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, float f) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.F, f);
+            writePrimitiveValue(Tag.F, f, PoolHelper::putFloat);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, long l) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.J, l);
+            writePrimitiveValue(Tag.J, l, PoolHelper::putLong);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, double d) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.D, d);
+            writePrimitiveValue(Tag.D, d, PoolHelper::putDouble);
             return this;
         }
 
         public AnnotationElementBuilder withPrimitive(String name, boolean b) {
             annoAttribute.writeChar(poolHelper.putUtf8(name));
-            writePrimitiveValue(Tag.Z, b);
+            writePrimitiveValue(Tag.Z, b ? 1 : 0, PoolHelper::putInt);
             return this;
         }
 
-        void writePrimitiveValue(Tag tag, Object v) {
+        private <Z> void writePrimitiveValue(Tag tag, Z value, ToIntBiFunction<PoolHelper<S, T, E>, Z> poolFunc) {
             annoAttribute.writeByte(tag.tagChar);
-            annoAttribute.writeChar(poolHelper.putValue(v));
+            annoAttribute.writeChar(poolFunc.applyAsInt(poolHelper, value));
             nelems++;
         }
 
@@ -255,7 +256,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(cc.length);
             for (char c : cc) {
-                writePrimitiveValue(Tag.C, c);
+                writePrimitiveValue(Tag.C, (int)c, PoolHelper::putInt);
             }
             return this;
         }
@@ -264,7 +265,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(ss.length);
             for (short s : ss) {
-                writePrimitiveValue(Tag.S, s);
+                writePrimitiveValue(Tag.S, (int)s, PoolHelper::putInt);
             }
             return this;
         }
@@ -273,7 +274,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(bb.length);
             for (byte b : bb) {
-                writePrimitiveValue(Tag.B, b);
+                writePrimitiveValue(Tag.B, (int)b, PoolHelper::putInt);
             }
             return this;
         }
@@ -282,7 +283,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(ii.length);
             for (int i : ii) {
-                writePrimitiveValue(Tag.I, i);
+                writePrimitiveValue(Tag.I, i,  PoolHelper::putInt);
             }
             return this;
         }
@@ -291,7 +292,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(ff.length);
             for (float f : ff) {
-                writePrimitiveValue(Tag.F, f);
+                writePrimitiveValue(Tag.F, f, PoolHelper::putFloat);
             }
             return this;
         }
@@ -300,7 +301,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(ll.length);
             for (long l : ll) {
-                writePrimitiveValue(Tag.J, l);
+                writePrimitiveValue(Tag.J, l, PoolHelper::putLong);
             }
             return this;
         }
@@ -309,7 +310,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(dd.length);
             for (double d : dd) {
-                writePrimitiveValue(Tag.D, d);
+                writePrimitiveValue(Tag.D, d, PoolHelper::putDouble);
             }
             return this;
         }
@@ -318,7 +319,7 @@ public class AnnotationsBuilder<S, T, E> extends AbstractBuilder<S, T, E, Annota
             annoAttribute.writeChar(poolHelper.putUtf8(name));
             annoAttribute.writeChar(bb.length);
             for (boolean b : bb) {
-                writePrimitiveValue(Tag.Z, b);
+                writePrimitiveValue(Tag.Z, b ? 1 : 0, PoolHelper::putInt);
             }
             return this;
         }

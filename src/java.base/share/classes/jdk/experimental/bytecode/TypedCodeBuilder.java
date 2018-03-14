@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package jdk.experimental.bytecode;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -36,6 +34,7 @@ import java.util.Map.Entry;
 import java.util.Vector;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> extends MacroCodeBuilder<S, T, E, C> {
 
@@ -831,7 +830,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 break;
             case ANEWARRAY:
                 state.pop();
-		state.push(typeHelper.arrayOf(typeHelper.type((S)optValue))); 
+                state.push(typeHelper.arrayOf(typeHelper.type((S)optValue)));
                 break;
             case MULTIANEWARRAY:
                 for (int i = 0; i < (byte) ((Object[]) optValue)[1]; i++) {
@@ -843,6 +842,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case INVOKEVIRTUAL:
             case INVOKESPECIAL:
             case INVOKESTATIC:
+            case INVOKEDYNAMIC:
                 processInvoke(op, (T) optValue);
                 break;
             case GETSTATIC:
@@ -887,7 +887,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case LDC:
             case LDC_W:
             case LDC2_W:
-                state.push(ldcType(optValue));
+                state.push((T)optValue);
                 break;
             case IF_ACMPEQ:
             case IF_ICMPEQ:
@@ -915,10 +915,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.push(TypeTag.Z);
                 break;
             case TYPED:
-                break;
             case CHECKCAST:
-                state.pop();
-                state.push(typeHelper.type((S) optValue));
                 break;
 
             default:
@@ -938,7 +935,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.popInternal();
             }
         }
-        if (opcode != Opcode.INVOKESTATIC) {
+        if (opcode != Opcode.INVOKESTATIC && opcode != Opcode.INVOKEDYNAMIC) {
             state.pop(); //receiver
         }
         T retType = typeHelper.returnType(invokedType);
@@ -947,26 +944,117 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             state.push(retType);
     }
 
-    T ldcType(Object o) {
-        if (o instanceof Double) {
-            return typeHelper.fromTag(TypeTag.D);
-        } else if (o instanceof Long) {
-            return typeHelper.fromTag(TypeTag.J);
-        } else if (o instanceof Float) {
-            return typeHelper.fromTag(TypeTag.F);
-        } else if (o instanceof Integer) {
-            return typeHelper.fromTag(TypeTag.I);
-        } else if (o instanceof Class<?>) {
-            return typeHelper.type(typeHelper.symbolFrom("java/lang/Class"));
-        } else if (o instanceof String) {
-            return typeHelper.type(typeHelper.symbolFrom("java/lang/String"));
-        } else if (o instanceof MethodHandle) {
-            return typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodHandle"));
-        } else if (o instanceof MethodType) {
-            return typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodType"));
-        } else {
-            throw new IllegalStateException();
-        }
+    @Override
+    protected C ldc(ToIntFunction<PoolHelper<S, T, E>> indexFunc, boolean fat) {
+        LdcPoolHelper ldcPoolHelper = new LdcPoolHelper();
+        int index = indexFunc.applyAsInt(ldcPoolHelper);
+        fat = typeHelper.tag(ldcPoolHelper.type).width() == 2;
+        return super.ldc(index, ldcPoolHelper.type, fat);
+    }
+    //where
+        class LdcPoolHelper implements PoolHelper<S, T, E> {
+
+            T type;
+
+            @Override
+            public int putClass(S symbol) {
+                type = typeHelper.type(symbol);
+                return poolHelper.putClass(symbol);
+            }
+
+            @Override
+            public int putInt(int i) {
+                type = typeHelper.fromTag(TypeTag.I);
+                return poolHelper.putInt(i);
+            }
+
+            @Override
+            public int putFloat(float f) {
+                type = typeHelper.fromTag(TypeTag.F);
+                return poolHelper.putFloat(f);
+            }
+
+            @Override
+            public int putLong(long l) {
+                type = typeHelper.fromTag(TypeTag.J);
+                return poolHelper.putLong(l);
+            }
+
+            @Override
+            public int putDouble(double d) {
+                type = typeHelper.fromTag(TypeTag.D);
+                return poolHelper.putDouble(d);
+            }
+
+            @Override
+            public int putString(String s) {
+                type = typeHelper.type(typeHelper.symbolFrom("java/lang/String"));
+                return poolHelper.putString(s);
+            }
+
+            @Override
+            public int putValue(Object v) {
+                return poolHelper.putValue(v);
+            }
+
+            @Override
+            public int putConstantDynamic(CharSequence constName, T constType, S bsmClass, CharSequence bsmName, T bsmType, Consumer<StaticArgListBuilder<S, T, E>> staticArgs) {
+                type = constType;
+                return poolHelper.putConstantDynamic(constName, constType, bsmClass, bsmName, bsmType, staticArgs);
+            }
+
+            @Override
+            public int putFieldRef(S owner, CharSequence name, T type) {
+                throw new IllegalStateException();
+            }
+
+            @Override
+            public int putMethodRef(S owner, CharSequence name, T type, boolean isInterface) {
+                throw new IllegalStateException();
+            }
+
+            @Override
+            public int putUtf8(CharSequence s) {
+                throw new IllegalStateException();
+            }
+
+            @Override
+            public int putType(T t) {
+                throw new IllegalStateException();
+            }
+
+            @Override
+            public int putMethodType(T t) {
+                type = typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodType"));
+                return poolHelper.putMethodType(t);
+            }
+
+            @Override
+            public int putMethodHandle(int refKind, S owner, CharSequence name, T t) {
+                type = typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodHandle"));
+                return poolHelper.putMethodHandle(refKind, owner, name, t);
+            }
+
+            @Override
+            public int putMethodHandle(int refKind, S owner, CharSequence name, T t, boolean isInterface) {
+                type = typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodHandle"));
+                return poolHelper.putMethodHandle(refKind, owner, name, t, isInterface);
+            }
+
+            @Override
+            public int putInvokeDynamic(CharSequence invokedName, T invokedType, S bsmClass, CharSequence bsmName, T bsmType, Consumer<StaticArgListBuilder<S, T, E>> staticArgs) {
+                throw new IllegalStateException();
+            }
+
+            @Override
+            public int size() {
+                throw new IllegalStateException();
+            }
+
+            @Override
+            public E representation() {
+                throw new IllegalStateException();
+            }
     }
 
     public C load(int index) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,51 @@
 
 package jdk.experimental.bytecode;
 
-public class AttributeBuilder<S, T, E, D extends AttributeBuilder<S, T, E, D>>
+/**
+ * Base builder for attribute containing class file entities.
+ *
+ * @param <S> the type of the symbol representation
+ * @param <T> the type of type descriptors representation
+ * @param <E> the type of pool entries
+ * @param <D> the type of this builder
+ */
+ public class AttributeBuilder<S, T, E, D extends AttributeBuilder<S, T, E, D>>
         extends AbstractBuilder<S, T, E, D> {
 
+     /**
+      * The number of attributes.
+      */
     protected int nattrs;
+
+    /**
+     * The attributes represented as bytes.
+     */
     protected GrowableByteBuffer attributes = new GrowableByteBuffer();
 
+    /**
+     * Create an attribute builder.
+     *
+     * @param poolHelper the helper to build the constant pool
+     * @param typeHelper the helper to use to manipulate type descriptors
+     */
     public AttributeBuilder(PoolHelper<S, T, E> poolHelper, TypeHelper<S, T> typeHelper) {
         super(poolHelper, typeHelper);
     }
 
+    /**
+     * Add a class file Attribute.  Defined as:
+     * <pre>
+     * {@code   attribute_info {
+     *     u2 attribute_name_index;
+     *     u4 attribute_length;
+     *     u1 info[attribute_length];
+     *   }}
+     * </pre>
+     *
+     * @param name the attribute name
+     * @param bytes the bytes of the attribute info
+     * @return this builder, for chained calls
+     */
     public D withAttribute(CharSequence name, byte[] bytes) {
         attributes.writeChar(poolHelper.putUtf8(name));
         attributes.writeInt(bytes.length);
@@ -43,6 +78,22 @@ public class AttributeBuilder<S, T, E, D extends AttributeBuilder<S, T, E, D>>
         return thisBuilder();
     }
 
+    /**
+     * Add a class file Attribute, using a writer.  Defined as:
+     * <pre>
+     * {@code   attribute_info {
+     *     u2 attribute_name_index;
+     *     u4 attribute_length;
+     *     u1 info[attribute_length];
+     *   }}
+     * </pre>
+     *
+     * @param <Z> the type of the object representing the attribute
+     * @param name the attribute name
+     * @param attr the representation of the attribute
+     * @param attrWriter the writer which transform the attribute representation into bytes
+     * @return this builder, for chained calls
+     */
     public <Z> D withAttribute(CharSequence name, Z attr, AttributeWriter<S, T, E, Z> attrWriter) {
         attributes.writeChar(poolHelper.putUtf8(name));
         int offset = attributes.offset;
@@ -54,7 +105,53 @@ public class AttributeBuilder<S, T, E, D extends AttributeBuilder<S, T, E, D>>
         return thisBuilder();
     }
 
+     /**
+      * Writer for transforming attribute representations to bytes
+      *
+      * @param <S> the type of symbol representation
+      * @param <T> the type of type descriptors representation
+      * @param <E> the type of pool entries
+      * @param <A> the type of the object representing the attribute
+      */
     public interface AttributeWriter<S, T, E, A> {
+
+        /**
+         * Write an attribute representation into a byte buffer.
+         *
+         * @param attr the representation of the attribute
+         * @param poolHelper the constant pool helper
+         * @param buf the buffer to collect the bytes
+         */
         void write(A attr, PoolHelper<S, T, E> poolHelper, GrowableByteBuffer buf);
+    }
+
+    /**
+     * Add a source file attribute.
+     *
+     * @param sourceFile name of the source file
+     * @return this builder, for chained calls
+     */
+    public D withSourceFile(String sourceFile) {
+        GrowableByteBuffer a = new GrowableByteBuffer();
+        a.writeChar(poolHelper.putUtf8(sourceFile));
+        return withAttribute("SourceFile", a.bytes());
+    }
+
+    /**
+     * Add a linenumber table attribute.
+     *
+     * @param pcln pairs of start_pc and linenumber
+     * @return this builder, for chained calls
+     */
+    public D withLineNumberTable(int... pcln) {
+        GrowableByteBuffer a = new GrowableByteBuffer();
+        if (pcln.length % 2 != 0) {
+            throw new IllegalArgumentException("Unmatched start_pc/linenumber pair");
+        }
+        a.writeChar(pcln.length / 2);
+        for (int v : pcln) {
+            a.writeChar(v);
+        }
+        return withAttribute("LineNumberTable", a.bytes());
     }
 }
