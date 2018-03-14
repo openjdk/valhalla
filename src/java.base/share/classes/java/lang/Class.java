@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3855,26 +3855,40 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return the nest host of this class, or {@code this} if we cannot
      * obtain a valid nest host
-     *
+     * @throws SecurityException
+     *         If the returned class is not the current class, and
+     *         if a security manager, <i>s</i>, is present and the caller's
+     *         class loader is not the same as or an ancestor of the class
+     *         loader for the returned class and invocation of {@link
+     *         SecurityManager#checkPackageAccess s.checkPackageAccess()}
+     *         denies access to the package of the returned class
      * @since 11
      */
+    @CallerSensitive
     public Class<?> getNestHost() {
         if (isPrimitive() || isArray()) {
             return this;
         }
+        Class<?> host;
         try {
-            Class<?> host = getNestHost0();
-            // if null then nest membership validation failed, so we
-            // act as-if we have no nest-host
-            if (host == null) {
-                host = this;
-            }
-            return host;
+            host = getNestHost0();
         } catch (LinkageError e) {
             // if we couldn't load our nest-host then we
-            // again act as-if we have no nest-host
+            // act as-if we have no nest-host
             return this;
         }
+        // if null then nest membership validation failed, so we
+        // act as-if we have no nest-host
+        if (host == null || host == this) {
+            return this;
+        }
+        // returning a different class requires a security check
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            checkPackageAccess(sm,
+                               ClassLoader.getClassLoader(Reflection.getCallerClass()), true);
+        }
+        return host;
     }
 
     /**
@@ -3889,10 +3903,18 @@ public final class Class<T> implements java.io.Serializable,
      * @since 11
      */
     public boolean isNestmateOf(Class<?> c) {
-        // We could use Reflection.areNestmates(this, c) and ignore
-        // any IllegalAccessError, but prefer to minimize exception
-        // creation by using getNestHost() directly.
-        return getNestHost() == c.getNestHost();
+        if (this == c) {
+            return true;
+        }
+        if (isPrimitive() || isArray() ||
+            c.isPrimitive() || c.isArray()) {
+            return false;
+        }
+        try {
+            return getNestHost0() == c.getNestHost0();
+        } catch (LinkageError e) {
+            return false;
+        }
     }
 
     private native Class<?>[] getNestMembers0();
@@ -3901,7 +3923,7 @@ public final class Class<T> implements java.io.Serializable,
      * Returns an array containing {@code Class} objects representing all the
      * classes and interfaces that are declared in the
      * {@linkplain #getNestHost() nest host} of this class, as being members
-     * of its nest. The nest host will always be the zeroeth element.
+     * of its nest. The nest host will always be the zeroth element.
      *
      * <p>Each listed nest member must be validated by checking its own
      * declared nest host. Any exceptions that occur as part of this process
@@ -3917,15 +3939,37 @@ public final class Class<T> implements java.io.Serializable,
      * @return an array of all classes and interfaces in the same nest as
      * this class
      *
-     * @throws LinkageError if there is any problem loading or validating
-     * a nest member or its nest host
+     * @throws LinkageError
+     *         If there is any problem loading or validating a nest member or
+     *         its nest host
+     * @throws SecurityException
+     *         If any returned class is not the current class, and
+     *         if a security manager, <i>s</i>, is present and the caller's
+     *         class loader is not the same as or an ancestor of the class
+     *         loader for that returned class and invocation of {@link
+     *         SecurityManager#checkPackageAccess s.checkPackageAccess()}
+     *         denies access to the package of that returned class
      *
      * @since 11
      */
+    @CallerSensitive
     public Class<?>[] getNestMembers() {
         if (isPrimitive() || isArray()) {
             return new Class<?>[] { this };
         }
-        return getNestMembers0();
+        Class<?>[] members = getNestMembers0();
+        // Can't actually enable this due to bootstrapping issues
+        // assert(members.length != 1 || members[0] == this); // expected invariant from VM
+
+        if (members.length > 1) {
+            // If we return anything other than the current class we need
+            // a security check
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                checkPackageAccess(sm,
+                                   ClassLoader.getClassLoader(Reflection.getCallerClass()), true);
+            }
+        }
+        return members;
     }
 }
