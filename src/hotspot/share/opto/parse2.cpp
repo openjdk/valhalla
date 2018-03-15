@@ -2302,7 +2302,7 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();
-    c = _gvn.transform( new CmpPNode(b, a) );
+    c = _gvn.transform(acmp(a, b));
     c = optimize_cmp_with_klass(c);
     do_if(btest, c);
     break;

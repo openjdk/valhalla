@@ -177,9 +177,9 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
   if (is_value ^ (((addr & KlassPtrEvenOddMask) >> LogKlassAlignmentInBytes) != 0)) {
 	  addr += (1 << LogKlassAlignmentInBytes);
   }
-  assert(is_aligned(addr, (1 << LogKlassAlignmentInBytes)),  "Klass base alignment incorrect");
-  assert(is_value || ((addr & KlassPtrEvenOddMask) == 0),    "Klass even alignment incorrect");
-  assert((!is_value) || ((addr & KlassPtrEvenOddMask) != 0), "Klass odd alignment incorrect");
+  assert(is_aligned(addr, (1 << LogKlassAlignmentInBytes)), "Klass base alignment incorrect");
+  assert( is_value || ((addr & KlassPtrEvenOddMask) == 0),  "Klass even alignment incorrect");
+  assert(!is_value || ((addr & KlassPtrEvenOddMask) != 0),  "Klass odd alignment incorrect");
   return (void*) addr;
 }
 

@@ -1121,6 +1121,9 @@ class TypeInstPtr : public TypeOopPtr {
   virtual const TypeInstPtr *xmeet_unloaded( const TypeInstPtr *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
 
+  const bool     is_value_based() const;
+  const bool can_be_value_based() const;
+
   // Convenience common pre-built types.
   static const TypeInstPtr *NOTNULL;
   static const TypeInstPtr *BOTTOM;

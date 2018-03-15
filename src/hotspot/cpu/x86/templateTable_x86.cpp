@@ -2442,8 +2442,27 @@ void TemplateTable::if_nullcmp(Condition cc) {
 void TemplateTable::if_acmp(Condition cc) {
   transition(atos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
-  Label not_taken;
+  Label not_taken, is_null;
   __ pop_ptr(rdx);
+
+  if (UseNewAcmp) {
+    // TODO what about interpreter buffered values?
+    const int mask = Universe::oop_metadata_odd_mask();
+    __ testptr(rdx, rdx);
+    __ jcc(Assembler::zero, is_null);
+    __ movl(rbx, Address(rdx, oopDesc::klass_offset_in_bytes()));
+    __ andptr(rbx, mask);
+    // Check if a shift is required for perturbation to affect aligned bits
+    if (mask == KlassPtrEvenOddMask && ObjectAlignmentInBytes <= KlassAlignmentInBytes) {
+      assert((mask >> LogKlassAlignmentInBytes) == 1, "invalid shift");
+      __ shrptr(rbx, LogKlassAlignmentInBytes);
+    } else {
+      assert(mask < ObjectAlignmentInBytes, "invalid mask");
+    }
+    __ orptr(rdx, rbx);
+    __ bind(is_null);
+  }
+
   __ cmpoop(rdx, rax);
   __ jcc(j_not(cc), not_taken);
   branch(false, false);

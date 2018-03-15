@@ -3950,6 +3950,14 @@ int TypeInstPtr::hash(void) const {
   return hash;
 }
 
+const bool TypeInstPtr::is_value_based() const {
+  return klass()->is_value_based();
+}
+
+const bool TypeInstPtr::can_be_value_based() const {
+  return !is_zero_type() && (!klass()->is_loaded() || klass()->is_interface() || klass()->is_java_lang_Object() || klass()->is_value_based());
+}
+
 //------------------------------dump2------------------------------------------
 // Dump oop Type
 #ifndef PRODUCT

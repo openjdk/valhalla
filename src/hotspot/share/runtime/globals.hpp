@@ -4096,7 +4096,11 @@ public:
   product(ccstrlist, ValueBasedClasses,                                     \
           NULL,                                                             \
          "A comma separated list of classes whom should be treated as "     \
-         "value-based")
+         "value-based")                                                     \
+                                                                            \
+  product(bool, UseNewAcmp, false,                                          \
+          "Enable L-World behavior of the acmp bytecode.")                  \
+
 
 
 

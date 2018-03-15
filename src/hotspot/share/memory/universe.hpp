@@ -444,7 +444,9 @@ class Universe: AllStatic {
   static void     set_narrow_klass_shift(int shift)       {
     assert(shift == 0 || shift == LogKlassAlignmentInBytes, "invalid shift for klass ptrs");
     _narrow_klass._shift   = shift;
-    _oop_metadata_odd_mask = (shift) ? 1 : KlassPtrEvenOddMask;
+    if (shift == LogKlassAlignmentInBytes) {
+      _oop_metadata_odd_mask = 1;
+    }
   }
 
   static int oop_metadata_odd_mask() { return _oop_metadata_odd_mask; }

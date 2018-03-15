@@ -129,6 +129,10 @@ public:
   void print_name_on(outputStream* st);
 
   const char* external_name() const;
+
+  bool is_value_based() const {
+    return get_Klass()->is_value_based();
+  }
 };
 
 #endif // SHARE_VM_CI_CIKLASS_HPP
