@@ -97,6 +97,10 @@ class MacroAssembler: public Assembler {
   void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
 
+  void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
+  void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
+  void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
+
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
   void pd_patch_instruction(address branch, address target) {

@@ -3025,73 +3025,75 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, atos);
   __ jcc(Assembler::notEqual, notObj);
   // atos
-  Label atosDone;
-  // Flattenable field case
-  if (is_static) {
-    Label notFlattenable,initialized;
-    // Issue below if the static field has not been initialized yet
+  if (!EnableValhalla) {
+    if (!is_static) pop_and_check_object(obj);
     __ load_heap_oop(rax, field);
-    __ testptr(rax, rax);
-    __ jcc(Assembler::notZero, initialized);
-    __ movl(rscratch1, flags2);
-    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
-    __ andl(rscratch1, 0x1);
-    __ testl(rscratch1, rscratch1);
-    __ jcc(Assembler::zero, notFlattenable);
-    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
-               obj, flags2);
-    __ verify_oop(rax);
-    __ bind(notFlattenable);
-    __ bind(initialized);
     __ push(atos);
+    if (!is_static && rc == may_rewrite) {
+      patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
+    }
+    __ jmp(Done);
   } else {
-    //  Check for flattened field
-    Label notFlattened;
-    __ movl(rscratch1, flags2);
-    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattened_field_shift);
-    __ andl(rscratch1, 0x1);
-    __ testl(rscratch1, rscratch1);
-    __ jcc(Assembler::zero, notFlattened);
-    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-    pop_and_check_object(rbx);
-    call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::qgetfield),
-            rbx, flags2, rcx);
-    __ verify_oop(rax);
-    __ push(atos);
-    __ jmp(atosDone);
-    __ bind(notFlattened);
-    // Non-flattened field case
-    Label nonnull, notFlattenable;
-    pop_and_check_object(obj);
-    __ load_heap_oop(rax, field);
-    __ movl(rscratch1, flags2);
-    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
-    __ andl(rscratch1, 0x1);
-    __ testl(rscratch1, rscratch1);
-    __ jcc(Assembler::zero, notFlattenable);
-    __ testptr(rax, rax);
-    __ jcc(Assembler::notZero, nonnull);
-    __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
-               obj, flags2);
-    __ verify_oop(rax);
-    __ bind(nonnull);
-    __ push(atos);
-    __ jmp(atosDone); // skipping rewriting
-    __ bind(notFlattenable);
-    __ push(atos);
+    if (is_static) {
+      __ load_heap_oop(rax, field);
+      Label isFlattenable, uninitialized;
+      // Issue below if the static field has not been initialized yet
+      __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
+      // Not flattenable case
+      __ push(atos);
+      __ jmp(Done);
+      // Flattenable case, must not return null even if uninitialized
+      __ bind(isFlattenable);
+      __ testptr(rax, rax);
+      __ jcc(Assembler::zero, uninitialized);
+      __ push(atos);
+      __ jmp(Done);
+      __ bind(uninitialized);
+      __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+      __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
+                 obj, flags2);
+      __ verify_oop(rax);
+      __ push(atos);
+      __ jmp(Done);
+    } else {
+      Label isFlattened, nonnull, isFlattenable;
+      __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
+      // Non-flattenable field case, also covers the object case
+      pop_and_check_object(obj);
+      __ load_heap_oop(rax, field);
+      __ push(atos);
+      if (rc == may_rewrite) {
+        patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
+      }
+      __ jmp(Done);
+      __ bind(isFlattenable);
+      __ test_field_is_flattened(flags2, rscratch1, isFlattened);
+      // Non-flattened field case
+      pop_and_check_object(obj);
+      __ load_heap_oop(rax, field);
+      __ testptr(rax, rax);
+      __ jcc(Assembler::notZero, nonnull);
+      __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+      __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
+                 obj, flags2);
+      __ verify_oop(rax);
+      __ bind(nonnull);
+      __ push(atos);
+      __ jmp(Done);
+      __ bind(isFlattened);
+      __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+      pop_and_check_object(rbx);
+      call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::qgetfield),
+              rbx, flags2, rcx);
+      __ verify_oop(rax);
+      __ push(atos);
+      __ jmp(Done);
+    }
   }
-
-  if (!is_static && rc == may_rewrite) {
-    patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
-  }
-  __ bind(atosDone);
-  __ jmp(Done);
 
   __ bind(notObj);
 
-   if (!is_static) pop_and_check_object(obj);
+  if (!is_static) pop_and_check_object(obj);
 
   __ cmpl(flags, itos);
   __ jcc(Assembler::notEqual, notInt);
@@ -3372,38 +3374,52 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-    __ pop(atos);
-    Label nonnull, notFlattenable;
-    __ testptr(rax, rax);
-    __ jcc(Assembler::notZero, nonnull);
-    // if reference to be written is the null reference, JVM must check field is not flattenable
-    __ movl(rscratch1, flags2);
-    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattenable_field_shift);
-    __ andl(rscratch1, 0x1);
-    __ testl(rscratch1, rscratch1);
-    __ jcc(Assembler::zero, notFlattenable);
-    __ null_check(rax);
-    __ bind(notFlattenable);
-    __ bind(nonnull);
-    Label notFlattened;
-    //  // Check for flattened field
-    __ movl(rscratch1, flags2);
-    __ shrl(rscratch1, ConstantPoolCacheEntry::is_flattened_field_shift);
-    __ andl(rscratch1, 0x1);
-    __ testl(rscratch1, rscratch1);
-    __ jcc(Assembler::zero, notFlattened);
-    pop_and_check_object(rbx);
-    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputfield),
-            rbx, rax, rcx);
-    __ jmp(notVolatile); // value types are never volatile
-    __ bind(notFlattened);
-    if (!is_static) pop_and_check_object(obj);
-    // Store into the field
-    do_oop_store(_masm, field, rax, _bs->kind(), false);
-    if (!is_static && rc == may_rewrite) {
-      patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
+    if (!EnableValhalla) {
+      __ pop(atos);
+      if (!is_static) pop_and_check_object(obj);
+      // Store into the field
+      do_oop_store(_masm, field, rax, _bs->kind(), false);
+      if (!is_static && rc == may_rewrite) {
+        patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
+      }
+      __ jmp(Done);
+    } else {
+      __ pop(atos);
+      if (is_static) {
+        Label notFlattenable;
+        __ test_field_is_not_flattenable(flags2, rscratch1, notFlattenable);
+        __ null_check(rax);
+        __ bind(notFlattenable);
+        // Buffered argument case is missing
+        do_oop_store(_masm, field, rax, _bs->kind(), false);
+        __ jmp(Done);
+      } else {
+        Label isFlattenable, isFlattened;
+        __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
+        // Not flattenable case, covers not flattenable values and objects
+        pop_and_check_object(obj);
+        // Store into the field
+        do_oop_store(_masm, field, rax, _bs->kind(), false);
+        if (rc == may_rewrite) {
+          patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
+        }
+        __ jmp(Done);
+        // Implementation of the flattenable semantic
+        __ bind(isFlattenable);
+        __ null_check(rax);
+        __ test_field_is_flattened(flags2, rscratch1, isFlattened);
+        // Not flattened case
+        pop_and_check_object(obj);
+        // Store into the field
+        do_oop_store(_masm, field, rax, _bs->kind(), false);
+        __ jmp(Done);
+        __ bind(isFlattened);
+        pop_and_check_object(rbx);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputfield),
+                rbx, rax, rcx);
+        __ jmp(notVolatile); // value types are never volatile
+      }
     }
-    __ jmp(Done);
   }
 
   __ bind(notObj);

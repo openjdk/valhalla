@@ -3657,6 +3657,30 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
+void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+  movl(temp_reg, flags);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  andl(temp_reg, 0x1);
+  testl(temp_reg, temp_reg);
+  jcc(Assembler::notZero, is_flattenable);
+}
+
+void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable) {
+  movl(temp_reg, flags);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  andl(temp_reg, 0x1);
+  testl(temp_reg, temp_reg);
+  jcc(Assembler::zero, notFlattenable);
+}
+
+void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {
+  movl(temp_reg, flags);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  andl(temp_reg, 0x1);
+  testl(temp_reg, temp_reg);
+  jcc(Assembler::notZero, is_flattened);
+}
+
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability
   // (e.g., MSVC can't call ps() otherwise)
