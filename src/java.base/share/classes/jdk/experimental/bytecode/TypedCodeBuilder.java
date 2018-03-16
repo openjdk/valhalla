@@ -25,6 +25,8 @@
 
 package jdk.experimental.bytecode;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -994,6 +996,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
 
             @Override
             public int putValue(Object v) {
+                type = typeTag(v);
                 return poolHelper.putValue(v);
             }
 
@@ -1054,6 +1057,28 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             @Override
             public E representation() {
                 throw new IllegalStateException();
+            }
+
+            private T typeTag(Object o) {
+                if (o instanceof Double) {
+                    return typeHelper.fromTag(TypeTag.D);
+                } else if (o instanceof Long) {
+                    return typeHelper.fromTag(TypeTag.J);
+                } else if (o instanceof Float) {
+                    return typeHelper.fromTag(TypeTag.F);
+                } else if (o instanceof Integer) {
+                    return typeHelper.fromTag(TypeTag.I);
+                } else if (o instanceof Class<?>) {
+                    return typeHelper.type(typeHelper.symbolFrom("java/lang/Class"));
+                } else if (o instanceof String) {
+                    return typeHelper.type(typeHelper.symbolFrom("java/lang/String"));
+                } else if (o instanceof MethodHandle) {
+                    return typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodHandle"));
+                } else if (o instanceof MethodType) {
+                    return typeHelper.type(typeHelper.symbolFrom("java/lang/invoke/MethodType"));
+                } else {
+                    throw new IllegalStateException("Unsupported object class: " + o.getClass().getName());
+                }
             }
     }
 

@@ -38,9 +38,15 @@ import jdk.experimental.value.MethodHandleBuilder.IsolatedMethodBuilder.Isolated
 import jdk.internal.misc.Unsafe;
 import sun.security.action.GetPropertyAction;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -53,11 +59,13 @@ public class MethodHandleBuilder {
     static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
     public static final boolean ENABLE_POOL_PATCHES;
+    public static final String DUMP_CLASS_FILES_DIR;
 
     static {
         Properties props = GetPropertyAction.privilegedGetProperties();
         ENABLE_POOL_PATCHES = Boolean.parseBoolean(
                 props.getProperty("valhalla.enablePoolPatches"));
+        DUMP_CLASS_FILES_DIR = props.getProperty("valhalla.DUMP_CLASS_FILES_DIR");
     }
 
     public static MethodHandle loadCode(Lookup lookup, String name, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
@@ -94,6 +102,7 @@ public class MethodHandleBuilder {
 
         try {
             byte[] barr = isolatedMethodBuilder.build();
+            maybeDump(className, barr);
             Class<?> clazz = UNSAFE.defineAnonymousClass(lookup.lookupClass(), barr, isolatedMethodBuilder.patches());
             UNSAFE.ensureClassInitialized(clazz);
             return resFunc.apply(clazz);
@@ -120,6 +129,10 @@ public class MethodHandleBuilder {
 
         Object[] patches() {
             return ((IsolatedMethodPoolHelper)poolHelper).patches();
+        }
+
+        static String classToInternalName(Class<?> c) {
+            return c.getName().replace('.', '/');
         }
 
         static class IsolatedMethodTypeHelper implements TypeHelper<Class<?>, String> {
@@ -159,9 +172,9 @@ public class MethodHandleBuilder {
             @Override
             public String type(Class<?> aClass) {
                 if (aClass.isArray()) {
-                    return aClass.getName().replaceAll("\\.", "/");
+                    return classToInternalName(aClass);
                 } else {
-                    return "L" + aClass.getName().replaceAll("\\.", "/") + ";";
+                    return "L" + classToInternalName(aClass) + ";";
                 }
             }
 
@@ -203,12 +216,17 @@ public class MethodHandleBuilder {
             final String clazz;
 
             IsolatedMethodPoolHelper(String clazz) {
-                super(Class::getSimpleName, s->s);
+                super(c -> from(c, clazz), s->s);
                 this.clazz = clazz;
             }
 
             Object[] patches() {
                 return null;
+            }
+
+            static String from(Class<?> c, String clazz) {
+                return c == THIS_CLASS ? clazz.replace('.', '/')
+                                       : classToInternalName(c);
             }
         }
 
@@ -300,6 +318,31 @@ public class MethodHandleBuilder {
 
         public T return_(String s) {
             return super.return_(getTagType(s));
+        }
+    }
+
+    static void maybeDump(final String className, final byte[] classFile) {
+        if (DUMP_CLASS_FILES_DIR != null) {
+            java.security.AccessController.doPrivileged(
+                new java.security.PrivilegedAction<>() {
+                    public Void run() {
+                        String dumpName = className.replace('.','/');
+                        Path dumpFile = Paths.get(DUMP_CLASS_FILES_DIR, dumpName + ".class");
+                        try {
+                            Files.createDirectories(dumpFile.getParent());
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+
+                        System.out.println("dump: " + dumpFile);
+                        try (OutputStream os = Files.newOutputStream(dumpFile)) {
+                            os.write(classFile);
+                        } catch (IOException ex) {
+                            throw new UncheckedIOException(ex);
+                        }
+                        return null;
+                    }
+                });
         }
     }
 }
