@@ -1102,7 +1102,7 @@ public class ClassWriter extends ClassFile {
     int writeNestMembersIfNeeded(ClassSymbol csym) {
         ListBuffer<Symbol> nested = new ListBuffer<>();
         listNested(csym, nested);
-        Set<Symbol> nestedUnique = new HashSet<>(nested);
+        Set<Symbol> nestedUnique = new LinkedHashSet<>(nested);
         if (csym.owner.kind == PCK && !nestedUnique.isEmpty()) {
             int alenIdx = writeAttr(names.NestMembers);
             databuf.appendChar(nestedUnique.size());
