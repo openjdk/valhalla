@@ -171,7 +171,7 @@ final class MethodTypeForm {
         Class<?>[] bpts = epts;
         for (int i = 0; i < epts.length; i++) {
             Class<?> pt = epts[i];
-            if (pt != Object.class && !pt.isValue()) {
+            if (pt != Object.class) {
                 ++pac;
                 Wrapper w = Wrapper.forPrimitiveType(pt);
                 if (w.isDoubleWord())  ++lac;
@@ -185,7 +185,7 @@ final class MethodTypeForm {
         pslotCount += lac;                  // #slots = #args + #longs
         Class<?> rt = erasedType.returnType();
         Class<?> bt = rt;
-        if (rt != Object.class && !rt.isValue()) {
+        if (rt != Object.class) {
             ++prc;          // even void.class counts as a prim here
             Wrapper w = Wrapper.forPrimitiveType(rt);
             if (w.isDoubleWord())  ++lrc;

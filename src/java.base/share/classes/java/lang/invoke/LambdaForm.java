@@ -173,7 +173,6 @@ class LambdaForm {
             return btChar;
         }
         Class<?> basicTypeClass() {
-            assert(isValidType());
             return btClass;
         }
         Wrapper basicTypeWrapper() {
@@ -181,10 +180,6 @@ class LambdaForm {
         }
         int basicTypeSlots() {
             return btWrapper.stackSlots();
-        }
-
-        boolean isValidType() {
-            return btClass != null;
         }
 
         static BasicType basicType(byte type) {
@@ -213,7 +208,7 @@ class LambdaForm {
             return basicType(c);
         }
         static BasicType basicType(Class<?> type) {
-            if (!type.isPrimitive()) return L_TYPE;
+            if (!type.isPrimitive())  return L_TYPE;
             return basicType(Wrapper.forPrimitiveType(type));
         }
         static BasicType[] basicTypes(String types) {

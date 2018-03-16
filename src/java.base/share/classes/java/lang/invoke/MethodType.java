@@ -515,9 +515,8 @@ class MethodType implements java.io.Serializable {
     /*non-public*/ Class<?> leadingReferenceParameter() {
         Class<?> ptype;
         if (ptypes.length == 0 ||
-            (ptype = ptypes[0]).isPrimitive()) {
+            (ptype = ptypes[0]).isPrimitive())
             throw newIllegalArgumentException("no leading reference parameter");
-        }
         return ptype;
     }
 
