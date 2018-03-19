@@ -4126,7 +4126,7 @@ public:
   product(size_t, BigValueTypeThreshold, 4 * BytesPerLong,                  \
           "Max value type size for buffering")                              \
                                                                             \
-  product(intx, ValueTypesBufferMaxMemory, 0,                               \
+  product(intx, ValueTypesBufferMaxMemory, 128,                             \
           "Max memory used for value types buffers (in pages)")             \
                                                                             \
   product(bool, ValueTypesThreadLocalRecycling, true,                       \

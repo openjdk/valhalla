@@ -2361,6 +2361,8 @@ bool Arguments::check_vm_args_consistency() {
       warning("TieredCompilation disabled because value types are not supported by C1");
     }
     FLAG_SET_CMDLINE(bool, TieredCompilation, false);
+  } else {
+    FLAG_SET_CMDLINE(intx, ValueTypesBufferMaxMemory, 0);
   }
 
   return status;

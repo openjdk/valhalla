@@ -2756,13 +2756,19 @@ void TemplateTable::_return(TosState state) {
     __ bind(no_safepoint);
   }
 #endif
-    //  This code has to be re-store before re-enabling value buffering in TLVB
-    //  if (state == qtos) {
-    //    const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
-    //    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::return_value), rax);
-    //    NOT_LP64(__ get_thread(thread1));
-    //    __ get_vm_result(rax, thread1);
-    //  }
+
+  if (state == atos) {
+    if (ValueTypesBufferMaxMemory > 0) {
+      Label notBuffered;
+
+      __ test_value_is_not_buffered(rax, rbx, notBuffered);
+      const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
+      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::return_value), rax);
+      NOT_LP64(__ get_thread(thread1));
+      __ get_vm_result(rax, thread1);
+      __ bind(notBuffered);
+    }
+  }
 
   // Narrow result if state is itos but result type is smaller.
   // Need to narrow in the return bytecode rather than in generate_return_entry
@@ -3386,19 +3392,32 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
     } else {
       __ pop(atos);
       if (is_static) {
-        Label notFlattenable;
+        Label notFlattenable, notBuffered;
         __ test_field_is_not_flattenable(flags2, rscratch1, notFlattenable);
         __ null_check(rax);
         __ bind(notFlattenable);
-        // Buffered argument case is missing
+        if (ValueTypesBufferMaxMemory > 0) {
+          __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
+          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
+                  rax, off, obj);
+          __ jmp(Done);
+          __ bind(notBuffered);
+        }
         do_oop_store(_masm, field, rax, _bs->kind(), false);
         __ jmp(Done);
       } else {
-        Label isFlattenable, isFlattened;
+        Label isFlattenable, isFlattened, notBuffered, notBuffered2;
         __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
         // Not flattenable case, covers not flattenable values and objects
         pop_and_check_object(obj);
         // Store into the field
+        if (ValueTypesBufferMaxMemory > 0) {
+          __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
+          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
+                  rax, off, obj);
+          __ jmp(Done);
+          __ bind(notBuffered);
+        }
         do_oop_store(_masm, field, rax, _bs->kind(), false);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
@@ -3409,6 +3428,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ null_check(rax);
         __ test_field_is_flattened(flags2, rscratch1, isFlattened);
         // Not flattened case
+        if (ValueTypesBufferMaxMemory > 0) {
+          __ test_value_is_not_buffered(rax, rscratch1, notBuffered2);
+          pop_and_check_object(obj);
+          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
+                  rax, off, obj);
+          __ jmp(Done);
+          __ bind(notBuffered2);
+        }
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax, _bs->kind(), false);

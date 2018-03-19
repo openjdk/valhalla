@@ -165,14 +165,13 @@ class ValueKlass: public InstanceKlass {
   void set_if_bufferable() {
     bool bufferable;
 
-//    int size_in_heap_words = size_helper();
-//    int base_offset = instanceOopDesc::base_offset_in_bytes();
-//    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
-//    bufferable = size_in_bytes <= BigValueTypeThreshold;
-//    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
-//    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
+    int size_in_heap_words = size_helper();
+    int base_offset = instanceOopDesc::base_offset_in_bytes();
+    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
+    bufferable = size_in_bytes <= BigValueTypeThreshold;
+    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
+    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
 
-    bufferable = false;
     if (bufferable) {
       _extra_flags |= _extra_is_bufferable;
     } else {

@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDenableValueTypes Point.java
  * @compile -XDenableValueTypes VDefaultTest.java
- * @run main/othervm -Xint -XX:+EnableValhalla -XX:+PrintValueLayout runtime.valhalla.valuetypes.VDefaultTest
+ * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
  */
 
 

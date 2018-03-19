@@ -402,6 +402,18 @@ IRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThrea
   thread->set_vm_result(res);
 IRT_END
 
+IRT_ENTRY(void, InterpreterRuntime::write_heap_copy(JavaThread* thread, oopDesc* value, int offset, oopDesc* rcv))
+  assert(VTBuffer::is_in_vt_buffer(value), "Should only be called for buffered values");
+  Handle val_h(THREAD, value);
+  ValueKlass* vk = ValueKlass::cast(val_h()->klass());
+  instanceOop res = vk->allocate_instance(CHECK);
+  Handle res_h(THREAD, res);
+  // copy value
+  vk->value_store(vk->data_for_oop(val_h()),
+                vk->data_for_oop(res_h()), true, false);
+  ((instanceOop)rcv)->obj_field_put(offset, res_h());
+IRT_END
+
 IRT_ENTRY(void, InterpreterRuntime::qputfield(JavaThread* thread, oopDesc* obj, oopDesc* value, ConstantPoolCache* cp_cache))
   LastFrameAccessor last_frame(thread);
   Handle value_h(THREAD, value);
@@ -583,10 +595,7 @@ IRT_ENTRY(void, InterpreterRuntime::fix_frame_vt_alloc_ptr(JavaThread* thread))
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::return_value(JavaThread* thread, oopDesc* obj))
-  if (!VTBuffer::is_in_vt_buffer(obj)) {
-    thread->set_vm_result(obj);
-    return;
-  }
+  assert(VTBuffer::is_in_vt_buffer(obj), "Must only be called for buffered values");
   assert(obj->klass()->is_value(), "Sanity check");
   ValueKlass* vk = ValueKlass::cast(obj->klass());
   RegisterMap reg_map(thread, false);

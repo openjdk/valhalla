@@ -100,6 +100,7 @@ class MacroAssembler: public Assembler {
   void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
   void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
   void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
+  void test_value_is_not_buffered(Register value, Register temp_reg, Label& not_buffered);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.

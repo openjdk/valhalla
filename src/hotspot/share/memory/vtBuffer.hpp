@@ -136,6 +136,8 @@ private:
 
 class VTBuffer : AllStatic {
   friend class VMStructs;
+  friend class TemplateTable;
+
 private:
   static address _base;
   static size_t _size;
@@ -152,6 +154,10 @@ public:
   static void init();
   static address base() { return _base; }
   static size_t  size() { return _size; }
+
+
+  static address top_addr() { return _base; }
+  static address end_addr() { return _base + _size; }
 
   static VTBufferChunk* get_new_chunk(JavaThread* thread);
 
