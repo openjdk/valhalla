@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package java.lang.ref;
 
-import jdk.internal.vm.annotation.DontInline;
+import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.misc.JavaLangRefAccess;
 import jdk.internal.misc.SharedSecrets;
@@ -235,6 +235,11 @@ public abstract class Reference<T> {
             {
                 return Reference.waitForReferenceProcessing();
             }
+
+            @Override
+            public void runFinalization() {
+                Finalizer.runFinalization();
+            }
         });
     }
 
@@ -415,10 +420,12 @@ public abstract class Reference<T> {
      * @param ref the reference. If {@code null}, this method has no effect.
      * @since 9
      */
-    @DontInline
+    @ForceInline
     public static void reachabilityFence(Object ref) {
-        // Does nothing, because this method is annotated with @DontInline
-        // HotSpot needs to retain the ref and not GC it before a call to this
-        // method
+        // Does nothing. This method is annotated with @ForceInline to eliminate
+        // most of the overhead that using @DontInline would cause with the
+        // HotSpot JVM, when this fence is used in a wide variety of situations.
+        // HotSpot JVM retains the ref and does not GC it before a call to
+        // this method, because the JIT-compilers do not have GC-only safepoints.
     }
 }

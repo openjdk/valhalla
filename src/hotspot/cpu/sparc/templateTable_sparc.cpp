@@ -90,8 +90,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
       }
       break;
 #endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableForRS:
-    case BarrierSet::CardTableExtension:
+    case BarrierSet::CardTableModRef:
       {
         if (index == noreg ) {
           assert(Assembler::is_simm13(offset), "fix this code");
