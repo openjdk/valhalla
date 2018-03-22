@@ -1,0 +1,862 @@
+/*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ *
+ */
+
+// The jcod classes in this file were derived from this Java value type:
+//
+// final __ByValue class Value {
+//     static final Value VT = makeValue(0x01234567);
+//     final int int_v;
+//     Value() {
+//         int_v = 1;
+//     }
+//     static Value makeValue(int x) {
+//         Value v = __MakeDefault Value();
+//         v = __WithField(v.int_v, x);
+//         return v;
+//     }
+// }
+//
+// The changes for each test were made to the bytecodes for method makeValue(int x).
+// Its bytecodes are:
+//
+//  static Value makeValue(int); descriptor: (I)LValue; flags: (0x0008) ACC_STATIC
+//    Code:
+//      stack=2, locals=2, args_size=1
+//         0: defaultvalue  #3                  // class Value
+//         3: astore_1
+//         4: aload_1
+//         5: iload_0
+//         6: withfield     #2                  // Field int_v:I
+//         9: astore_1
+//        10: aload_1
+//        11: areturn
+
+
+// The constant pool index of the defaultvalue opcode (0xCB) in the Code
+// attribute was changed to 0x93.  Since this index is outside the range of
+// the constant pool, a VerifyError exception should get thrown.
+//
+class defValBadCP {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LdefValBadCP;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LdefValBadCP;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "defValBadCP.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "defValBadCP"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00934C2B1ACC00; // Changed CP index from 3 to 0x93 for opcode 0xCB (defaultvalue)
+            0x024C2BB0;         // so that the index is outside of the range of the constant pool.
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class defValBadCP
+
+///////////////////////////////////////////////////////////
+
+// The class's major version was changed to 54.  Since this class has a
+// defaultvalue opcode (0xCB), this should cause a ClassFormatError
+// exception to get thrown.
+//
+class defValBadMajorVersion {
+  0xCAFEBABE;
+  0; // minor version
+  54; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LdefValBadMajorVersion;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LdefValBadMajorVersion;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "defValBadMajorVersion.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "defValBadMajorVersion"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00034C2B1ACC00;
+            0x024C2BB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class defValBadMajorVersion
+
+///////////////////////////////////////////////////////////
+
+// The constant pool index of a defaultvalue opcode (0xCB) in the Code
+// attribute was changed to 2.  Since this index now points to a Field
+// entry instead of a Class entry, a VerifyError exception should get thrown.
+//
+class defValWrongCPType {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LdefValWrongCPType;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LdefValWrongCPType;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "defValWrongCPType.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "defValWrongCPType"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00024C2B1ACC00; // Changed CP index from 3 to 2 for opcode 0xCB (defaultvalue)
+            0x024C2BB0;         // so that the cp index no longer points to a cp Class entry.
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class defValWrongCPType
+
+///////////////////////////////////////////////////////////
+
+// The constant pool index of the withfield opcode (0xCC) in the Code
+// attribute was changed to 0x82.  Since this index is outside the range of
+// the constant pool, a VerifyError exception should get thrown.
+//
+class wthFldBadCP {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LwthFldBadCP;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LwthFldBadCP;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "wthFldBadCP.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "wthFldBadCP"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00034C2B1ACC00; // Changed CP index from 2 to 0x82 for opcode 0xCC (withfield)
+            0x824C2BB0;         // so that the index is outside of the range of the constant pool.
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class wthFldBadCP
+
+///////////////////////////////////////////////////////////
+
+// The opcode at bytecode position 5 in the Code array was changed to aload_1
+// (0x2B).  This should cause a VerifyError because now the first operand on the
+// stack for the withfield opcode (0xCC at bytecode position 6) does not match
+// the type (int) of the field being assigned to.
+//
+class wthFldBadFldVal {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LwthFldBadFldVal;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LwthFldBadFldVal;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "wthFldBadFldVal.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "wthFldBadFldVal"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00034C2B2BCC00; // Changed opcode at bytecode 5 from iload_0 to aload_1
+            0x024C2BB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class wthFldBadFldVal
+
+///////////////////////////////////////////////////////////
+
+// The opcode at bytecode position 4 in the Code array was changed to iload_1
+// (0x1A).  This should cause a VerifyError because the second operand on the stack
+// for the withfield opcode (0xCC at bytecode position 6) must be a reference.
+//
+class wthFldBadFldRef {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LwthFldBadFldRef;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LwthFldBadFldRef;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "wthFldBadFldRef.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "wthFldBadFldRef"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00034C1A1ACC00; // Changed opcode at bytecode 4 from aload_1 to iload_0
+            0x024C2BB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class wthFldBadFldRef
+
+///////////////////////////////////////////////////////////
+
+// The class's major version was changed to 54 and the first opcode in the Code
+// attribute was changed to a withfield (0xCC)..  Since withfield opcodes are not
+// allowed in classes with major version 54, this should cause a ClassFormatError
+// exception to get thrown.
+//
+class wthFldBadMajorVersion {
+  0xCAFEBABE;
+  0; // minor version
+  54; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LwthFldBadMajorVersion;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LwthFldBadMajorVersion;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "wthFldBadMajorVersion.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "wthFldBadMajorVersion"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCC00034C2B1ACC00; // Changed the first opcode to 0xCC (withfield) in order to
+            0x024C2BB0;         // test withfield opcode with an illegal major version.
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class wthFldBadMajorVersion
+
+///////////////////////////////////////////////////////////
+
+// The constant pool index of a withfield opcode (0xCC) in the Code
+// attribute was changed to 1.  Since this index now points to a Method
+// entry instead of a Field entry, a VerifyError exception should get thrown.
+//
+class wthFldWrongCPType {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [27] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LwthFldWrongCPType;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LwthFldWrongCPType;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "wthFldWrongCPType.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "wthFldWrongCPType"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+  } // Constant Pool
+
+  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 44) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[12]{
+            0xCB00034C2B1ACC00; // Changed CP index from 2 to 1 for opcode 0xCC (withfield)
+            0x014C2BB0;         // so that the cp index no longer points to a cp Field entry.
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class wthFldWrongCPType

@@ -2317,6 +2317,15 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
       }
       stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
+      is_assignable = target_class_type.is_assignable_from(
+        stack_object_type, this, false, CHECK_VERIFY(this));
+      if (!is_assignable) {
+        verify_error(ErrorContext::bad_type(bci,
+            current_frame->stack_top_ctx(),
+            TypeOrigin::cp(index, target_class_type)),
+            "Bad type on operand stack in withfield");
+        return;
+      }
       current_frame->push_stack(target_class_type, CHECK_VERIFY(this));
       break;
     }
