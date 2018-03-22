@@ -1538,7 +1538,7 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
 // _fields_type_annotations fields
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    bool is_interface,
-                                   bool is_concrete_value_type,
+                                   bool is_value_type,
                                    FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
@@ -1562,7 +1562,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   const InjectedField* const injected = JavaClasses::get_injected(_class_name,
                                                                   &num_injected);
 
-  const int total_fields = length + num_injected + (is_concrete_value_type ? 1 : 0);
+  const int total_fields = length + num_injected + (is_value_type ? 1 : 0);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1598,7 +1598,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     AccessFlags access_flags;
     const jint flags = cfs->get_u2_fast() & JVM_RECOGNIZED_FIELD_MODIFIERS;
-    verify_legal_field_modifiers(flags, is_interface, CHECK);
+    verify_legal_field_modifiers(flags, is_interface, is_value_type, CHECK);
     access_flags.set_flags(flags);
 
     const u2 name_index = cfs->get_u2_fast();
@@ -1615,6 +1615,14 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const Symbol* const sig = cp->symbol_at(signature_index);
     verify_legal_field_signature(name, sig, CHECK);
     if (access_flags.is_flattenable()) {
+      // Array flattenability cannot be specified.  Arrays of value classes are
+      // are always flattenable.  Arrays of other classes are not flattenable.
+      if (sig->utf8_length() > 1 && sig->byte_at(0) == '[') {
+        classfile_parse_error(
+          "Field \"%s\" with signature \"%s\" in class file %s is invalid."
+          " ACC_FLATTENABLE cannot be specified for an array",
+          name->as_C_string(), sig->as_klass_external_name(), CHECK);
+      }
       _has_flattenable_fields = true;
     }
 
@@ -1723,7 +1731,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     }
   }
 
-  if (is_concrete_value_type) {
+  if (is_value_type) {
     index = length + num_injected;
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
     field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
@@ -2359,6 +2367,7 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
+                                      bool is_value_type,
                                       const ConstantPool* cp,
                                       AccessFlags* const promoted_flags,
                                       TRAPS) {
@@ -2399,11 +2408,17 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       classfile_parse_error("Method <clinit> is not static in class file %s", CHECK_NULL);
     }
   } else {
-    verify_legal_method_modifiers(flags, is_interface, name, CHECK_NULL);
+    verify_legal_method_modifiers(flags, is_interface, is_value_type, name, CHECK_NULL);
   }
 
-  if (name == vmSymbols::object_initializer_name() && is_interface) {
-    classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
+  if (name == vmSymbols::object_initializer_name()) {
+    if (is_interface) {
+      classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
+/* TBD: uncomment when javac stops generating <init>() for value types.
+    } else if (is_value_type) {
+      classfile_parse_error("Value Type cannot have a method named <init>, class file %s", CHECK_NULL);
+*/
+    }
   }
 
   int args_size = -1;  // only used when _need_verify is true
@@ -2974,6 +2989,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 // Side-effects: populates the _methods field in the parser
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
+                                    bool is_value_type,
                                     AccessFlags* promoted_flags,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -2998,6 +3014,7 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
     for (int index = 0; index < length; index++) {
       Method* method = parse_method(cfs,
                                     is_interface,
+                                    is_value_type,
                                     _cp,
                                     promoted_flags,
                                     CHECK);
@@ -3994,12 +4011,25 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   for (AllFieldStream fs(_fields, _cp); !fs.done(); fs.next()) {
     if (fs.allocation_type() == STATIC_FLATTENABLE) {
+      // Pre-resolve the flattenable field and check for value type circularity
+      // issues.  Note that super-class circularity checks are not needed here
+      // because flattenable fields can only be in value types and value types
+      // only have java.lang.Object as their super class.
+      // Also, note that super-interface circularity checks are not needed
+      // because interfaces cannot be value types.
+      Klass* klass =
+        SystemDictionary::resolve_flattenable_field_or_fail(&fs,
+                                                            Handle(THREAD, _loader_data->class_loader()),
+                                                            _protection_domain, true, CHECK);
+      assert(klass != NULL, "Sanity check");
+      assert(klass->access_flags().is_value_type(), "Value type expected");
       static_value_type_count++;
     } else if (fs.allocation_type() == NONSTATIC_FLATTENABLE) {
-      Symbol* signature = fs.signature();
-      Klass* klass = SystemDictionary::resolve_or_fail(signature,
-                                                       Handle(THREAD, _loader_data->class_loader()),
-                                                       _protection_domain, true, CHECK);
+      // Pre-resolve the flattenable field and check for value type circularity issues.
+      Klass* klass =
+        SystemDictionary::resolve_flattenable_field_or_fail(&fs,
+                                                            Handle(THREAD, _loader_data->class_loader()),
+                                                            _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
       assert(klass->access_flags().is_value_type(), "Value type expected");
       ValueKlass* vk = ValueKlass::cast(klass);
@@ -4884,7 +4914,8 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_15 && (is_super || is_enum)) ||
-      (!is_interface && major_gte_15 && is_annotation)) {
+      (!is_interface && major_gte_15 && is_annotation) ||
+      (is_value_type && (is_interface || is_abstract || is_enum || !is_final))) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
@@ -4916,6 +4947,7 @@ static bool is_supported_version(u2 major, u2 minor) {
 
 void ClassFileParser::verify_legal_field_modifiers(jint flags,
                                                    bool is_interface,
+                                                   bool is_value_type,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
@@ -4940,6 +4972,10 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
   } else { // not interface
     if (has_illegal_visibility(flags) || (is_final && is_volatile)) {
       is_illegal = true;
+    } else {
+      if (is_value_type && !is_static && !is_final) {
+        is_illegal = true;
+      }
     }
   }
 
@@ -4956,6 +4992,7 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
 
 void ClassFileParser::verify_legal_method_modifiers(jint flags,
                                                     bool is_interface,
+                                                    bool is_value_type,
                                                     const Symbol* name,
                                                     TRAPS) const {
   if (!_need_verify) { return; }
@@ -5015,10 +5052,14 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
           is_illegal = true;
         }
       } else { // not initializer
-        if (is_abstract) {
-          if ((is_final || is_native || is_private || is_static ||
-              (major_gte_15 && (is_synchronized || is_strict)))) {
-            is_illegal = true;
+        if (is_value_type && is_synchronized && !is_static) {
+          is_illegal = true;
+        } else {
+          if (is_abstract) {
+            if ((is_final || is_native || is_private || is_static ||
+                (major_gte_15 && (is_synchronized || is_strict)))) {
+              is_illegal = true;
+            }
           }
         }
       }
@@ -6295,6 +6336,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   AccessFlags promoted_flags;
   parse_methods(stream,
                 _access_flags.is_interface(),
+                _access_flags.is_value_type(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
@@ -6378,11 +6420,10 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
 
     // For a value class, only java/lang/Object is an acceptable super class
-    if (EnableValhalla &&
-        _access_flags.get_flags() & JVM_ACC_VALUE) {
+    if (_access_flags.get_flags() & JVM_ACC_VALUE) {
       guarantee_property(_super_klass->name() == vmSymbols::java_lang_Object(),
-                         "Value class can only inherit java/lang/Object",
-                         CHECK);
+        "Value type must have java.lang.Object as superclass in class file %s",
+        CHECK);
     }
 
     // Make sure super class is not final

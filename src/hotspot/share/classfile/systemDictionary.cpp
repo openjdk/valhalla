@@ -436,6 +436,50 @@ Klass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
   return superk;
 }
 
+Klass* SystemDictionary::resolve_flattenable_field_or_fail(AllFieldStream* fs,
+                                                           Handle class_loader,
+                                                           Handle protection_domain,
+                                                           bool throw_error,
+                                                           TRAPS) {
+  Symbol* class_name = fs->signature();
+  class_loader = Handle(THREAD, java_lang_ClassLoader::non_reflection_class_loader(class_loader()));
+  ClassLoaderData* loader_data = class_loader_data(class_loader);
+  unsigned int p_hash = placeholders()->compute_hash(class_name);
+  int p_index = placeholders()->hash_to_index(p_hash);
+  bool throw_circularity_error = false;
+  PlaceholderEntry* oldprobe;
+
+  {
+    MutexLocker mu(SystemDictionary_lock, THREAD);
+    oldprobe = placeholders()->get_entry(p_index, p_hash, class_name, loader_data);
+    if (oldprobe != NULL &&
+      oldprobe->check_seen_thread(THREAD, PlaceholderTable::FLATTENABLE_FIELD)) {
+      throw_circularity_error = true;
+
+    } else {
+      placeholders()->find_and_add(p_index, p_hash, class_name, loader_data,
+                                   PlaceholderTable::FLATTENABLE_FIELD, NULL, THREAD);
+    }
+  }
+
+  Klass* klass = NULL;
+  if (!throw_circularity_error) {
+    klass = SystemDictionary::resolve_or_fail(class_name, class_loader,
+                                               protection_domain, true, THREAD);
+  } else {
+    ResourceMark rm(THREAD);
+    THROW_MSG_NULL(vmSymbols::java_lang_ClassCircularityError(), class_name->as_C_string());
+  }
+
+  {
+    MutexLocker mu(SystemDictionary_lock, THREAD);
+    placeholders()->find_and_remove(p_index, p_hash, class_name, loader_data,
+                                    PlaceholderTable::FLATTENABLE_FIELD, THREAD);
+  }
+
+  return klass;
+}
+
 void SystemDictionary::validate_protection_domain(InstanceKlass* klass,
                                                   Handle class_loader,
                                                   Handle protection_domain,

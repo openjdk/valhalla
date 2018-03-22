@@ -28,6 +28,7 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary_ext.hpp"
 #include "jvmci/systemDictionary_jvmci.hpp"
+#include "oops/fieldStreams.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/java.hpp"
@@ -290,6 +291,12 @@ public:
                                       Handle protection_domain,
                                       bool is_superclass,
                                       TRAPS);
+
+  static Klass* resolve_flattenable_field_or_fail(AllFieldStream* fs,
+                                                  Handle class_loader,
+                                                  Handle protection_domain,
+                                                  bool throw_error,
+                                                  TRAPS);
 
   // Parse new stream. This won't update the dictionary or
   // class hierarchy, simply parse the stream. Used by JVMTI RedefineClasses.

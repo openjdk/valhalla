@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -227,7 +227,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
 
   void parse_fields(const ClassFileStream* const cfs,
                     bool is_interface,
-                    bool is_concrete_value_type,
+                    bool is_value_type,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
@@ -237,12 +237,14 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   // Method parsing
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
+                       bool is_value_type,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
 
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
+                     bool is_value_type,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -419,9 +421,13 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
                                      TRAPS) const;
 
   void verify_legal_class_modifiers(jint flags, TRAPS) const;
-  void verify_legal_field_modifiers(jint flags, bool is_interface, TRAPS) const;
+  void verify_legal_field_modifiers(jint flags,
+                                    bool is_interface,
+                                    bool is_value_type,
+                                    TRAPS) const;
   void verify_legal_method_modifiers(jint flags,
                                      bool is_interface,
+                                     bool is_value_type,
                                      const Symbol* name,
                                      TRAPS) const;
 
