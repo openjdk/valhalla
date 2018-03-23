@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @summary Heap density test for ValueTypes
  * @library /test/lib
  * @compile -XDenableValueTypes ValueTypeDensity.java
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI ValueTypeDensity
@@ -87,9 +87,9 @@ public class ValueTypeDensity {
 
         public static LocalDateValue create(int year, short month, short day) {
             LocalDateValue localDate = __MakeDefault LocalDateValue();
-	    localDate = __WithField(localDate.year, year);
-	    localDate = __WithField(localDate.month, month);
-	    localDate = __WithField(localDate.day, day);
+            localDate = __WithField(localDate.year, year);
+            localDate = __WithField(localDate.month, month);
+            localDate = __WithField(localDate.day, day);
             return localDate;
         }
     }
@@ -114,10 +114,10 @@ public class ValueTypeDensity {
 
         public static LocalTimeValue create(byte hour, byte minute, byte second, int nano) {
             LocalTimeValue localTime = __MakeDefault LocalTimeValue();
-	    localTime = __WithField(localTime.hour, hour);
-	    localTime = __WithField(localTime.minute, minute);
-	    localTime = __WithField(localTime.second, second);
-	    localTime = __WithField(localTime.nano, nano);
+            localTime = __WithField(localTime.hour, hour);
+            localTime = __WithField(localTime.minute, minute);
+            localTime = __WithField(localTime.second, second);
+            localTime = __WithField(localTime.nano, nano);
             return localTime;
         }
     }
@@ -143,8 +143,8 @@ public class ValueTypeDensity {
 
         public static LocalDateTimeValue create(LocalDateValue date, LocalTimeValue time) {
             LocalDateTimeValue localDateTime = __MakeDefault LocalDateTimeValue();
-	    localDateTime = __WithField(localDateTime.date, date);
-	    localDateTime = __WithField(localDateTime.time, time);
+            localDateTime = __WithField(localDateTime.date, date);
+            localDateTime = __WithField(localDateTime.time, time);
             return localDateTime;
         }
     }

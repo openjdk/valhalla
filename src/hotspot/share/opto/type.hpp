@@ -358,6 +358,10 @@ public:
   // Asserts if the underlying type is not an oopptr or narrowoop.
   const TypeOopPtr* make_oopptr() const;
 
+  // Returns this valuetypeptr type or the equivalent valuetypeptr type for this compressed pointer.
+  // Asserts if the underlying type is not a valuetypeptr or narrow valuetypeptr.
+  const TypeValueTypePtr* make_valuetypeptr() const;
+
   // Returns this compressed pointer or the equivalent compressed version
   // of this pointer type.
   const TypeNarrowOop* make_narrowoop() const;
@@ -1832,6 +1836,10 @@ inline const TypePtr* Type::make_ptr() const {
 
 inline const TypeOopPtr* Type::make_oopptr() const {
   return (_base == NarrowOop) ? is_narrowoop()->get_ptrtype()->isa_oopptr() : isa_oopptr();
+}
+
+inline const TypeValueTypePtr* Type::make_valuetypeptr() const {
+  return (_base == NarrowOop) ? is_narrowoop()->get_ptrtype()->isa_valuetypeptr() : isa_valuetypeptr();
 }
 
 inline const TypeNarrowOop* Type::make_narrowoop() const {

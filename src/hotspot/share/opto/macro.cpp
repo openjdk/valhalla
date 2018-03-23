@@ -577,6 +577,13 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
 
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->offset();
+  if (adr_t->isa_aryptr()) {
+    int field_offset = adr_t->isa_aryptr()->field_offset().get();
+    if (field_offset != Type::OffsetBot) {
+      // Increment offset by the field offset for flattened value type arrays
+      offset += field_offset;
+    }
+  }
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *alloc_ctrl = alloc->in(TypeFunc::Control);
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
@@ -691,6 +698,7 @@ Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* 
         bt = T_NARROWOOP;
       }
       value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
+      assert(value != NULL, "field value should not be null");
       if (ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
         value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
@@ -864,6 +872,10 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       basic_elem_type = elem_type->basic_type();
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
+      if (klass->is_value_array_klass()) {
+        // Flattened value type array
+        element_size = klass->as_value_array_klass()->element_byte_size();
+      }
     }
   }
   //

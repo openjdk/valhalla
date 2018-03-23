@@ -767,14 +767,18 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
 
     if (is_default(*phase)) {
-      // Search for allocations of the default value type
+      // Search for users of the default value type
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-        AllocateNode* alloc = fast_out(i)->isa_Allocate();
+        Node* user = fast_out(i);
+        AllocateNode* alloc = user->isa_Allocate();
         if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
-          // Replace allocation be pre-allocated oop
+          // Replace allocation by pre-allocated oop
           Node* res = alloc->result_cast();
           Node* oop = load_default_oop(*phase, value_klass());
           igvn->replace_node(res, oop);
+        } else if (user->is_ValueType()) {
+          // Add value type user to worklist to give it a chance to get optimized as well
+          igvn->_worklist.push(user);
         }
       }
     }

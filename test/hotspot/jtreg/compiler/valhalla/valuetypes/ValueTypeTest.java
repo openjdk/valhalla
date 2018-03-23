@@ -91,7 +91,7 @@ public abstract class ValueTypeTest {
     // User defined settings
     private static final boolean PRINT_GRAPH = true;
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static final boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true"));
+    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true"));
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String TESTLIST = System.getProperty("Testlist", "");
     private static final String EXCLUDELIST = System.getProperty("Exclude", "");
@@ -140,7 +140,6 @@ public abstract class ValueTypeTest {
     protected static final String MID = ".*)+\\t===.*";
     protected static final String END = ")|";
     protected static final String ALLOC  = "(.*precise klass compiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_instance_Java" + END;
-    // FIXME check if this still works for value array allocations
     protected static final String ALLOCA = "(.*precise klass \\[Lcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
     protected static final String LOAD   = START + "Load(B|S|I|L|F|D)" + MID + "valuetype\\*" + END;
     protected static final String LOADP  = START + "Load(P|N)" + MID + "valuetype\\*" + END;
@@ -189,7 +188,24 @@ public abstract class ValueTypeTest {
     private void execute_vm() throws Throwable {
         Asserts.assertFalse(tests.isEmpty(), "no tests to execute");
         ArrayList<String> args = new ArrayList<String>(defaultFlags);
+        String[] vmInputArgs = InputArguments.getVmInputArgs();
         if (VERIFY_IR) {
+            // Check if the JVM supports the default arguments from the test's run command
+            for (String arg : vmInputArgs) {
+                if (arg.startsWith("-XX:+")) {
+                    Boolean value = (Boolean)WHITE_BOX.getVMFlag(arg.substring(5));
+                    if (!value) {
+                        System.out.println("WARNING: could not enable " + arg.substring(5) + ". Skipping IR verification.");
+                        VERIFY_IR = false;
+                    }
+                } else if (arg.startsWith("-XX:-")) {
+                    Boolean value = (Boolean)WHITE_BOX.getVMFlag(arg.substring(5));
+                    if (value) {
+                        System.out.println("WARNING: could not disable " + arg.substring(5) + ". Skipping IR verification.");
+                        VERIFY_IR = false;
+                    }
+                }
+            }
             // Always trap for exception throwing to not confuse IR verification
             args.add("-XX:-OmitStackTraceInFastThrow");
         }
@@ -200,7 +216,6 @@ public abstract class ValueTypeTest {
         args.add(getClass().getName());
         args.add("run");
         // Spawn process with default JVM options from the test's run command
-        String[] vmInputArgs = InputArguments.getVmInputArgs();
         String[] cmds = Arrays.copyOf(vmInputArgs, vmInputArgs.length + args.size());
         System.arraycopy(args.toArray(), 0, cmds, vmInputArgs.length, args.size());
         OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
@@ -208,7 +223,7 @@ public abstract class ValueTypeTest {
         String output = oa.getOutput();
         oa.shouldHaveExitValue(0);
         if (VERIFY_IR) {
-            if (output.contains("PrintIdeal enabled") && !output.contains("ValueTypePassFieldsAsArgs is not supported on this platform")) {
+            if (output.contains("PrintIdeal enabled")) {
                 parseOutput(output);
             } else {
                 System.out.println(output);

@@ -31,8 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @compile -XDenableValueTypes TestArrays.java
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
- * @run main ClassFileInstaller jdk.test.lib.Platform
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
  *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
@@ -77,7 +76,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = (LOAD))
+    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
     @Test(valid = ValueTypeArrayFlattenOn)
     public MyValue1[] test1(int len) {
         MyValue1[] va = new MyValue1[len];
@@ -97,8 +96,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test creation of a value type array and element access
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = (LOOP + TRAP))
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = (ALLOC + ALLOCA + LOOP + LOAD + LOADP + STORE + TRAP))
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + LOADP + STORE + TRAP)
     public long test2() {
         MyValue1[] va = new MyValue1[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -113,7 +111,7 @@ public class TestArrays extends ValueTypeTest {
 
     // Test receiving a value type array from the interpreter,
     // updating its elements in a loop and computing a hash.
-    @Test(failOn = (ALLOCA))
+    @Test(failOn = ALLOCA)
     public long test3(MyValue1[] va) {
         long result = 0;
         for (int i = 0; i < 10; ++i) {
@@ -199,8 +197,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test creation of value type array with single element
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = (LOAD + LOOP + TRAP))
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = (ALLOCA + LOAD + LOOP + TRAP))
+    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
     public MyValue1 test6() {
         MyValue1[] va = new MyValue1[1];
         return va[0];
@@ -244,7 +241,7 @@ public class TestArrays extends ValueTypeTest {
     static MyValue1[] test9_va;
 
     // Test that value type array loaded from field has correct type
-    @Test(failOn = (LOOP))
+    @Test(failOn = LOOP)
     public long test9() {
         return test9_va[0].hash();
     }
@@ -457,7 +454,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // clone() as stub call
-    @Test()
+    @Test
     public MyValue1[] test18(MyValue1[] va) {
         return va.clone();
     }
@@ -477,7 +474,8 @@ public class TestArrays extends ValueTypeTest {
 
     // clone() as series of loads/stores
     static MyValue1[] test19_orig = null;
-    @Test()
+
+    @Test
     public MyValue1[] test19() {
         MyValue1[] va = new MyValue1[8];
         for (int i = 0; i < va.length; ++i) {
@@ -497,7 +495,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // arraycopy() of value type array with oop fields
-    @Test()
+    @Test
     public void test20(MyValue1[] src, MyValue1[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
@@ -517,7 +515,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // arraycopy() of value type array with no oop field
-    @Test()
+    @Test
     public void test21(MyValue2[] src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
@@ -538,7 +536,7 @@ public class TestArrays extends ValueTypeTest {
 
     // arraycopy() of value type array with oop field and tightly
     // coupled allocation as dest
-    @Test()
+    @Test
     public MyValue1[] test22(MyValue1[] src) {
         MyValue1[] dst = new MyValue1[src.length];
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -560,7 +558,7 @@ public class TestArrays extends ValueTypeTest {
 
     // arraycopy() of value type array with oop fields and tightly
     // coupled allocation as dest
-    @Test()
+    @Test
     public MyValue1[] test23(MyValue1[] src) {
         MyValue1[] dst = new MyValue1[src.length + 10];
         System.arraycopy(src, 0, dst, 5, src.length);
@@ -581,7 +579,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // arraycopy() of value type array passed as Object
-    @Test()
+    @Test
     public void test24(MyValue1[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
@@ -601,7 +599,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // short arraycopy() with no oop field
-    @Test()
+    @Test
     public void test25(MyValue2[] src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
@@ -620,7 +618,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // short arraycopy() with oop fields
-    @Test()
+    @Test
     public void test26(MyValue1[] src, MyValue1[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
@@ -639,7 +637,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // short arraycopy() with oop fields and offsets
-    @Test()
+    @Test
     public void test27(MyValue1[] src, MyValue1[] dst) {
         System.arraycopy(src, 1, dst, 2, 6);
     }
@@ -658,7 +656,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test()
+    @Test(failOn = ALLOCA + LOOP + LOAD + LOADP + TRAP)
     public MyValue2 test28() {
         MyValue2[] src = new MyValue2[10];
         src[0] = MyValue2.createWithFieldsInline(rI, false);
@@ -674,7 +672,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test()
+    @Test(failOn = ALLOCA + LOOP + LOAD + LOADP + TRAP)
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -693,7 +691,7 @@ public class TestArrays extends ValueTypeTest {
 
     // non escaping allocation with uncommon trap that needs
     // eliminated value type array element as debug info
-    @Test()
+    @Test
     @Warmup(10000)
     public MyValue2 test30(MyValue2[] src, boolean flag) {
         MyValue2[] dst = new MyValue2[10];

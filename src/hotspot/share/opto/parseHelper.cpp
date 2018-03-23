@@ -140,7 +140,7 @@ void Parse::do_instanceof() {
 
 //------------------------------array_store_check------------------------------
 // pull array from stack and check that the store is valid
-void Parse::array_store_check(bool target_is_valuetypearray) {
+void Parse::array_store_check() {
 
   // Shorthand access to array store elements without popping them.
   Node *obj = peek(0);
@@ -233,17 +233,15 @@ void Parse::array_store_check(bool target_is_valuetypearray) {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
-  if (target_is_valuetypearray) {
-    ciKlass* target_elem_klass = gvn().type(a_e_klass)->is_klassptr()->klass();
-    ciKlass* source_klass = gvn().type(obj)->is_valuetype()->value_klass();
-    if (!target_elem_klass->equals(source_klass)) {
-      Node* slow_ctl = type_check(a_e_klass, TypeKlassPtr::make(source_klass), 1.0);
-      {
-        PreserveJVMState pjvms(this);
-        set_control(slow_ctl);
-        builtin_throw(Deoptimization::Reason_class_check);
-      }
-    }
+  const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
+  if (elemtype->isa_valuetype()) {
+    // Flattened value type array: types must match
+    ciValueKlass* source_klass = _gvn.type(obj)->is_valuetype()->value_klass();
+    ciValueKlass* elem_klass = elemtype->is_valuetype()->value_klass();
+    assert(source_klass->equals(elem_klass), "type mismatch");
+  } else if (elemtype->make_valuetypeptr() != NULL) {
+    // Non-flattened value type array
+    // TODO do we need a checkcast here?
   } else {
     // Check (the hard way) and throw if not a subklass.
     // Result is ignored, we just need the CFG effects.

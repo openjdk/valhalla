@@ -369,6 +369,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
       Node* off  = kit.MakeConX(off_in_vt + i * vak->element_byte_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
+      assert(!field->is_flattened(), "flattened field encountered");
       if (bt == T_VALUETYPE) {
         bt = T_OBJECT;
       }

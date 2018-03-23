@@ -31,8 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @compile -XDenableValueTypes TestBasicFunctionality.java
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
- * @run main ClassFileInstaller jdk.test.lib.Platform
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
  *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
@@ -705,31 +704,10 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(vt.i, (int)staticVal3.c);
     }
 
-    // Test passing a value type as an Object argument
-    @DontInline
-    public Object test34_callee(Object vt) {
-        return vt;
-    }
-
-    @Test()
-    public Object test34(boolean b, Object vt) throws Throwable {
-        if (b) {
-            return test34_callee(vt);
-        } else {
-            return MyValue1.createWithFieldsInline(rI + 1, rL + 1);
-        }
-    }
-
-    @DontCompile
-    public void test34_verifier(boolean warmup) throws Throwable {
-        test34(true, MyValue1.createWithFieldsInline(rI, rL));
-        test34(false, MyValue1.createWithFieldsInline(rI, rL));
-    }
-
     // Verify that the default value type is never allocated.
     // C2 code should load and use the default oop from the java mirror.
     @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
-    public MyValue3 test35(MyValue3[] va) {
+    public MyValue3 test34(MyValue3[] va) {
         // Explicitly create default value
         MyValue3 vt = MyValue3.createDefault();
         va[0] = vt;
@@ -745,12 +723,12 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test35_verifier(boolean warmup) {
+    public void test34_verifier(boolean warmup) {
         MyValue3 vt = MyValue3.createDefault();
         MyValue3[] va = new MyValue3[2];
         va[0] = MyValue3.create();
         va[1] = MyValue3.create();
-        MyValue3 res = test35(va);
+        MyValue3 res = test34(va);
         res.verify(vt);
         staticVal3.verify(vt);
         staticVal3_copy.verify(vt);
@@ -760,7 +738,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     // Same as above but manually initialize value type fields to default.
     @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
-    public MyValue3 test36(MyValue3 vt, MyValue3[] va) {
+    public MyValue3 test35(MyValue3 vt, MyValue3[] va) {
         vt = MyValue3.setC(vt, (char)0);
         vt = MyValue3.setBB(vt, (byte)0);
         vt = MyValue3.setS(vt, (short)0);
@@ -781,11 +759,11 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test36_verifier(boolean warmup) {
+    public void test35_verifier(boolean warmup) {
         MyValue3 vt = MyValue3.createDefault();
         MyValue3[] va = new MyValue3[1];
         va[0] = MyValue3.create();
-        MyValue3 res = test36(va[0], va);
+        MyValue3 res = test35(va[0], va);
         res.verify(vt);
         staticVal3.verify(vt);
         va[0].verify(vt);

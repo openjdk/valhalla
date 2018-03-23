@@ -55,16 +55,19 @@ extern int explicit_null_checks_inserted,
 void Parse::array_load(BasicType elem_type) {
   const Type* elem = Type::TOP;
   Node* adr = array_addressing(elem_type, 0, &elem);
-  if (stopped())  return;     // guaranteed null or range check
-  Node* idx   = pop();   // Get from stack without popping
-  Node* ary   = pop();   // in case of exception
-  //dec_sp(2);                  // Pop array and index
-  const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
-  if (arytype->klass()->is_value_array_klass()) {
-    ciValueArrayKlass* vak = arytype->klass()->as_value_array_klass();
-    ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vak->element_klass()->as_value_klass(), ary, adr);
+  if (stopped()) return; // guaranteed null or range check
+  Node* idx = pop();
+  Node* ary = pop();
+
+  if (elem->isa_valuetype() != NULL) {
+    // Load from flattened value type array
+    ciValueKlass* vk = elem->is_valuetype()->value_klass();
+    ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
+  }
+  if (elem->make_valuetypeptr() != NULL) {
+    elem_type = T_VALUETYPE;
   }
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
   Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
@@ -1743,28 +1746,6 @@ void Parse::do_one_bytecode() {
   case Bytecodes::_iastore: array_store(T_INT);   break;
   case Bytecodes::_sastore: array_store(T_SHORT); break;
   case Bytecodes::_fastore: array_store(T_FLOAT); break;
-//  The vastore case has to merged into the aastore case
-//  case Bytecodes::_vastore: {
-//    d = array_addressing(T_OBJECT, 1);
-//    if (stopped())  return;     // guaranteed null or range check
-//    array_store_check(true);
-//    c = pop();                  // Oop to store
-//    b = pop();                  // index (already used)
-//    a = pop();                  // the array itself
-//    const TypeAryPtr* arytype = _gvn.type(a)->is_aryptr();
-//    const Type* elemtype = arytype->elem();
-//
-//    if (elemtype->isa_valuetype()) {
-//      c->as_ValueType()->store_flattened(this, a, d);
-//      break;
-//    }
-//
-//    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-//    Node* oop = c->as_ValueType()->allocate(this)->get_oop();
-//    Node* store = store_oop_to_array(control(), a, d, adr_type, oop, elemtype->make_oopptr(), T_OBJECT,
-//                                     StoreNode::release_if_reference(T_OBJECT));
-//    break;
-//  }
   case Bytecodes::_aastore: {
     d = array_addressing(T_OBJECT, 1);
     if (stopped())  return;     // guaranteed null or range check
@@ -1772,10 +1753,15 @@ void Parse::do_one_bytecode() {
     c = pop();                  // Oop to store
     b = pop();                  // index (already used)
     a = pop();                  // the array itself
-    const TypeOopPtr* elemtype  = _gvn.type(a)->is_aryptr()->elem()->make_oopptr();
-    const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-    Node* store = store_oop_to_array(control(), a, d, adr_type, c, elemtype, T_OBJECT,
-                                     StoreNode::release_if_reference(T_OBJECT));
+    const Type* elemtype  = _gvn.type(a)->is_aryptr()->elem();
+    if (elemtype->isa_valuetype()) {
+      // Store to flattened value type array
+      c->as_ValueType()->store_flattened(this, a, d);
+    } else {
+      const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
+      store_oop_to_array(control(), a, d, adr_type, c, elemtype->make_oopptr(), T_OBJECT,
+                         StoreNode::release_if_reference(T_OBJECT));
+    }
     break;
   }
   case Bytecodes::_lastore: {
