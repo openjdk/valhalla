@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1087,8 +1087,7 @@ typedef jint (*check_format_fn_t)(char *class_name,
                                         JVM_ACC_ABSTRACT | \
                                         JVM_ACC_ANNOTATION | \
                                         JVM_ACC_ENUM | \
-                                        JVM_ACC_SYNTHETIC | \
-                                        JVM_ACC_VALUE)
+                                        JVM_ACC_SYNTHETIC)
 
 #define JVM_RECOGNIZED_FIELD_MODIFIERS (JVM_ACC_PUBLIC | \
                                         JVM_ACC_PRIVATE | \
@@ -1098,8 +1097,7 @@ typedef jint (*check_format_fn_t)(char *class_name,
                                         JVM_ACC_VOLATILE | \
                                         JVM_ACC_TRANSIENT | \
                                         JVM_ACC_ENUM | \
-                                        JVM_ACC_SYNTHETIC | \
-                                        JVM_ACC_FLATTENABLE)
+                                        JVM_ACC_SYNTHETIC)
 
 #define JVM_RECOGNIZED_METHOD_MODIFIERS (JVM_ACC_PUBLIC | \
                                          JVM_ACC_PRIVATE | \

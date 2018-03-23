@@ -1596,9 +1596,15 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // access_flags, name_index, descriptor_index, attributes_count
     cfs->guarantee_more(8, CHECK);
 
-    AccessFlags access_flags;
-    const jint flags = cfs->get_u2_fast() & JVM_RECOGNIZED_FIELD_MODIFIERS;
+    jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
+    // JVM_ACC_FLATTENABLE is defined for class file version 55 and later
+    if (supports_value_types()) {
+      recognized_modifiers |= JVM_ACC_FLATTENABLE;
+    }
+
+    const jint flags = cfs->get_u2_fast() & recognized_modifiers;
     verify_legal_field_modifiers(flags, is_interface, is_value_type, CHECK);
+    AccessFlags access_flags;
     access_flags.set_flags(flags);
 
     const u2 name_index = cfs->get_u2_fast();
@@ -3214,7 +3220,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE is defined for class file version 53.1 and later
+    // JVM_ACC_VALUE is defined for class file version 55 and later
     if (supports_value_types()) {
       recognized_modifiers |= JVM_ACC_VALUE;
     }
@@ -4599,8 +4605,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_value_types() const {
-  // Value types are only supported by class file version 53.1 and later
-  return _major_version > JAVA_9_VERSION || (_major_version == JAVA_9_VERSION && _minor_version >= 1);
+  // Value types are only supported by class file version 55 and later
+  return _major_version >= JAVA_11_VERSION;
 }
 
 // Attach super classes and interface classes to class loader data
@@ -6180,7 +6186,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_VALUE is defined for class file version 53.1 and later
+  // JVM_ACC_VALUE is defined for class file version 55 and later
   if (supports_value_types()) {
     recognized_modifiers |= JVM_ACC_VALUE;
   }
