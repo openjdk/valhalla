@@ -83,6 +83,8 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
   assert(ValueArrayFlatten, "Flatten array required");
   assert(ValueKlass::cast(element_klass)->is_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
 
+  Klass* super_klass = SystemDictionary::Object_klass()->array_klass_or_null();
+  guarantee(super_klass != NULL, "No super");
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(ValueArrayKlass::header_size());
   ValueArrayKlass* vak = new (loader_data, size, THREAD) ValueArrayKlass(element_klass, name);
@@ -90,7 +92,7 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
     return NULL;
   }
   loader_data->add_class(vak);
-  complete_create_array_klass(vak, vak->super(), vak->module(), CHECK_NULL);
+  complete_create_array_klass(vak, super_klass, vak->module(), CHECK_NULL);
   return vak;
 }
 
@@ -170,10 +172,11 @@ oop ValueArrayKlass::protection_domain() const {
 
 void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
                                  arrayOop d, int dst_pos, int length, TRAPS) {
-  assert(s->is_valueArray(), "must be value array");
+
+  assert(s->is_objArray() || s->is_valueArray(), "must be obj or value array");
 
    // Check destination
-   if (!d->is_valueArray() || element_klass() != ValueArrayKlass::cast(d->klass())->element_klass()) {
+   if ((!d->is_valueArray()) && (!d->is_objArray())) {
      THROW(vmSymbols::java_lang_ArrayStoreException());
    }
 
@@ -190,22 +193,84 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
    if (length == 0)
      return;
 
-   valueArrayOop sa = valueArrayOop(s);
-   valueArrayOop da = valueArrayOop(d);
-   address src = (address) sa->value_at_addr(src_pos, layout_helper());
-   address dst = (address) da->value_at_addr(dst_pos, layout_helper());
-   if (contains_oops()) {
-     int elem_incr = 1 << log2_element_size();
-     address src_end = src + (length << log2_element_size());
-     while (src < src_end) {
-       element_klass()->value_store(src, dst, element_byte_size(), true, false);
-       src += elem_incr;
-       dst += elem_incr;
+   ArrayKlass* sk = ArrayKlass::cast(s->klass());
+   ArrayKlass* dk = ArrayKlass::cast(d->klass());
+   Klass* d_elem_klass = dk->element_klass();
+   Klass* s_elem_klass = sk->element_klass();
+   /**** CMH: compare and contrast impl, re-factor once we find edge cases... ****/
+
+   if (sk->is_valueArray_klass()) {
+     assert(sk == this, "Unexpected call to copy_array");
+     // Check subtype, all src homogeneous, so just once
+     if (!s_elem_klass->is_subtype_of(d_elem_klass)) {
+       THROW(vmSymbols::java_lang_ArrayStoreException());
      }
-   } else {
-     // we are basically a type array...don't bother limiting element copy
-     // it would have to be a lot wasted space to be worth value_store() calls, need a setting here ?
-     Copy::conjoint_memory_atomic(src, dst, (size_t)length << log2_element_size());
+
+     valueArrayOop sa = valueArrayOop(s);
+     ValueKlass* s_elem_vklass = element_klass();
+
+     // valueArray-to-valueArray
+     if (dk->is_valueArray_klass()) {
+       // element types MUST be exact, subtype check would be dangerous
+       if (dk != this) {
+         THROW(vmSymbols::java_lang_ArrayStoreException());
+       }
+
+       valueArrayOop da = valueArrayOop(d);
+       address dst = (address) da->value_at_addr(dst_pos, layout_helper());
+       address src = (address) sa->value_at_addr(src_pos, layout_helper());
+       if (contains_oops()) {
+         int elem_incr = 1 << log2_element_size();
+         address src_end = src + (length << log2_element_size());
+         while (src < src_end) {
+           s_elem_vklass->value_store(src, dst, element_byte_size(), true, false);
+           src += elem_incr;
+           dst += elem_incr;
+         }
+       } else {
+         // we are basically a type array...don't bother limiting element copy
+         // it would have to be a lot wasted space to be worth value_store() calls, need a setting here ?
+         Copy::conjoint_memory_atomic(src, dst, (size_t)length << log2_element_size());
+       }
+     }
+     else { // valueArray-to-objArray
+       assert(dk->is_objArray_klass(), "Expected objArray here");
+       // Need to allocate each new src elem payload -> dst oop
+       objArrayHandle dh(THREAD, (objArrayOop)d);
+       valueArrayHandle sh(THREAD, sa);
+       int dst_end = dst_pos + length;
+       while (dst_pos < dst_end) {
+         oop o = s_elem_vklass->allocate_instance(CHECK);
+         s_elem_vklass->value_store(sh->value_at_addr(src_pos, layout_helper()),
+                                             s_elem_vklass->data_for_oop(o), true, true);
+         dh->obj_at_put(dst_pos, o);
+         dst_pos++;
+         src_pos++;
+       }
+     }
+   } else { // objArray-to-valueArray
+     assert(d->is_valueArray(), "objArray copy to valueArray expected");
+
+     ValueKlass* d_elem_vklass = ValueKlass::cast(d_elem_klass);
+     valueArrayOop da = valueArrayOop(d);
+     objArrayOop sa = objArrayOop(s);
+
+     int src_end = src_pos + length;
+     int delem_incr = 1 << dk->log2_element_size();
+     address dst = (address) da->value_at_addr(dst_pos, layout_helper());
+     while (src_pos < src_end) {
+       oop se = sa->obj_at(src_pos);
+       if (se == NULL) {
+         THROW(vmSymbols::java_lang_NullPointerException());
+       }
+       // Check exact type per element
+       if (se->klass() != d_elem_klass) {
+         THROW(vmSymbols::java_lang_ArrayStoreException());
+       }
+       d_elem_vklass->value_store(d_elem_vklass->data_for_oop(se), dst, true, false);
+       dst += delem_incr;
+       src_pos++;
+     }
    }
 }
 
@@ -255,15 +320,51 @@ Klass* ValueArrayKlass::array_klass_impl(bool or_null, TRAPS) {
 }
 
 ModuleEntry* ValueArrayKlass::module() const {
-  assert(element_klass() != NULL, "ObjArrayKlass returned unexpected NULL bottom_klass");
+  assert(element_klass() != NULL, "ValueArrayKlass returned unexpected NULL bottom_klass");
   // The array is defined in the module of its bottom class
   return element_klass()->module();
 }
 
 PackageEntry* ValueArrayKlass::package() const {
-  assert(element_klass() != NULL, "ObjArrayKlass returned unexpected NULL bottom_klass");
+  assert(element_klass() != NULL, "ValuerrayKlass returned unexpected NULL bottom_klass");
   return element_klass()->package();
 }
+
+bool ValueArrayKlass::can_be_primary_super_slow() const {
+    return true;
+}
+
+GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_slots) {
+  // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
+  Array<Klass*>* elem_supers = element_klass()->secondary_supers();
+  int num_elem_supers = elem_supers == NULL ? 0 : elem_supers->length();
+  int num_secondaries = num_extra_slots + 2 + num_elem_supers;
+  if (num_secondaries == 2) {
+    // Must share this for correct bootstrapping!
+    set_secondary_supers(Universe::the_array_interfaces_array());
+    return NULL;
+  } else {
+    GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+2);
+    secondaries->push(SystemDictionary::Cloneable_klass());
+    secondaries->push(SystemDictionary::Serializable_klass());
+    for (int i = 0; i < num_elem_supers; i++) {
+      Klass* elem_super = (Klass*) elem_supers->at(i);
+      Klass* array_super = elem_super->array_klass_or_null();
+      assert(array_super != NULL, "must already have been created");
+      secondaries->push(array_super);
+    }
+    return secondaries;
+  }
+}
+
+bool ValueArrayKlass::compute_is_subtype_of(Klass* k) {
+  if (k->is_valueArray_klass() || k->is_objArray_klass()) {
+    return element_klass()->is_subtype_of(ArrayKlass::cast(k)->element_klass());
+  } else {
+    return ArrayKlass::compute_is_subtype_of(k);
+  }
+}
+
 
 void ValueArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT

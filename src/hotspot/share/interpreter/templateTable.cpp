@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -309,7 +309,7 @@ void TemplateTable::initialize() {
   def(Bytecodes::_laload              , ____|____|____|____, itos, ltos, laload              ,  _           );
   def(Bytecodes::_faload              , ____|____|____|____, itos, ftos, faload              ,  _           );
   def(Bytecodes::_daload              , ____|____|____|____, itos, dtos, daload              ,  _           );
-  def(Bytecodes::_aaload              , ____|____|____|____, itos, atos, aaload              ,  _           );
+  def(Bytecodes::_aaload              , ____|____|clvm|____, itos, atos, aaload              ,  _           );
   def(Bytecodes::_baload              , ____|____|____|____, itos, itos, baload              ,  _           );
   def(Bytecodes::_caload              , ____|____|____|____, itos, itos, caload              ,  _           );
   def(Bytecodes::_saload              , ____|____|____|____, itos, itos, saload              ,  _           );

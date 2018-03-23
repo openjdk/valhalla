@@ -68,6 +68,10 @@ protected:
   ModuleEntry* module() const;
   PackageEntry* package() const;
 
+  bool can_be_primary_super_slow() const;
+  GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots);
+  bool compute_is_subtype_of(Klass* k);
+
   int element_byte_size() const { return 1 << layout_helper_log2_element_size(_layout_helper); }
 
   bool is_valueArray_klass_slow() const { return true; }
@@ -114,8 +118,6 @@ protected:
   void oop_pc_follow_contents(oop obj, ParCompactionManager* cm);
   void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
 #endif
-
-  CMH("Oop iterators. Don't have embedded oops yet, so CMH...")
 
  private:
   template <bool nv, typename OopClosureType>

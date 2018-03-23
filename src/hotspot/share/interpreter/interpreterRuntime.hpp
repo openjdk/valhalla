@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -128,10 +128,10 @@ class InterpreterRuntime: AllStatic {
   static void    return_value_step2(oopDesc* obj, void* alloc_ptr);
   static void    check_areturn(JavaThread* thread, oopDesc* obj);
   static void    fix_frame_vt_alloc_ptr(JavaThread* thread);
+  static void    value_heap_copy(JavaThread* thread, oopDesc* value);
 
-  // vaload/vastore
   static void value_array_load(JavaThread* thread, arrayOopDesc* array, int index);
-  static void value_array_store(JavaThread* thread, arrayOopDesc* array, int index, void* val);
+  static void value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index);
 
   // Quicken instance-of and check-cast bytecodes
   static void    quicken_io_cc(JavaThread* thread);

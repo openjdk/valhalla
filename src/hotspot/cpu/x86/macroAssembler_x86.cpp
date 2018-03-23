@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3657,6 +3657,12 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
+void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
+  movl(temp_reg, Address(klass, Klass::access_flags_offset()));
+  testl(temp_reg, JVM_ACC_VALUE);
+  jcc(Assembler::notZero, is_value);
+}
+
 void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
   movl(temp_reg, flags);
   shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
@@ -3679,6 +3685,21 @@ void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, 
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_flattened);
+}
+
+void MacroAssembler::test_flat_array_klass(Register klass, Register temp_reg,
+                                           Label& is_flat_array) {
+  movl(temp_reg, Address(klass, Klass::layout_helper_offset()));
+  sarl(temp_reg, Klass::_lh_array_tag_shift);
+  cmpl(temp_reg, Klass::_lh_array_tag_vt_value);
+  jcc(Assembler::equal, is_flat_array);
+}
+
+
+void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
+                                         Label& is_flat_array) {
+  load_klass(temp_reg, oop);
+  test_flat_array_klass(temp_reg, temp_reg, is_flat_array);
 }
 
 void MacroAssembler::test_value_is_not_buffered(Register value, Register temp_reg, Label& not_buffered) {

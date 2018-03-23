@@ -322,7 +322,7 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
         // copy must be created because a field must never point to a TLVB allocated value
         Handle voop_h = Handle(THREAD, voop);
         ValueKlass* field_vk = ValueKlass::cast(voop->klass());
-        assert(field_vk == vklass->get_value_field_klass(field_index), "Sanity check");
+        assert(!cp_entry->is_flattenable() || field_vk == vklass->get_value_field_klass(field_index), "Sanity check");
         instanceOop field_copy = field_vk->allocate_instance(CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
         Handle field_copy_h = Handle(THREAD, field_copy);
         field_vk->value_store(field_vk->data_for_oop(voop_h()), field_vk->data_for_oop(field_copy_h()), true, false);
@@ -493,58 +493,31 @@ IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOopDesc* array, int index))
   Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass() || klass->is_objArray_klass(), "expected value or object array oop");
+  assert(klass->is_valueArray_klass(), "expected value or object array oop");
 
-  if (klass->is_objArray_klass()) {
-    thread->set_vm_result(((objArrayOop) array)->obj_at(index));
-  } else {
-    ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-    ValueKlass* vklass = vaklass->element_klass();
-    arrayHandle ah(THREAD, array);
-    bool in_heap;
-    instanceOop value_holder = vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
-    void* src = ((valueArrayOop)ah())->value_at_addr(index, vaklass->layout_helper());
-    vklass->value_store(src, vklass->data_for_oop(value_holder),
-                          vaklass->element_byte_size(), in_heap, false);
-    thread->set_vm_result(value_holder);
-  }
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+  arrayHandle ah(THREAD, array);
+  bool in_heap;
+  instanceOop value_holder = vklass->allocate_buffered_or_heap_instance(&in_heap, CHECK);
+  void* src = ((valueArrayOop)ah())->value_at_addr(index, vaklass->layout_helper());
+  vklass->value_store(src, vklass->data_for_oop(value_holder),
+                        vaklass->element_byte_size(), in_heap, false);
+  thread->set_vm_result(value_holder);
 IRT_END
 
-IRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, arrayOopDesc* array, int index, void* val))
+IRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index))
+  assert(val != NULL, "can't store null into flat array");
   Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass() || klass->is_objArray_klass(), "expected value or object array oop");
-  Handle array_h(THREAD, array);
+  assert(klass->is_valueArray_klass(), "expected value array");
+  assert(ArrayKlass::cast(klass)->element_klass() == ((oop)val)->klass(), "Store type incorrect");
 
-  if (ArrayKlass::cast(klass)->element_klass() != ((oop)val)->klass()) {
-    THROW(vmSymbols::java_lang_ArrayStoreException());
-  }
-  if (klass->is_objArray_klass()) {
-    if(VTBuffer::is_in_vt_buffer(val)) {
-      // A Java heap allocated copy must be made because an array cannot
-      // reference a thread-local buffered value
-      Handle val_h(THREAD, (oop)val);
-      ObjArrayKlass* aklass = ObjArrayKlass::cast(klass);
-      Klass* eklass = aklass->element_klass();
-      assert(eklass->is_value(), "Sanity check");
-      assert(eklass == ((oop)val)->klass(), "Sanity check");
-      ValueKlass* vklass = ValueKlass::cast(eklass);
-      // allocate heap instance
-      instanceOop res = vklass->allocate_instance(CHECK);
-      Handle res_h(THREAD, res);
-      // copy value
-      vklass->value_store(((char*)(oopDesc*)val_h()) + vklass->first_field_offset(),
-                            ((char*)(oopDesc*)res_h()) + vklass->first_field_offset(),true, false);
-      val = res_h();
-    }
-    ((objArrayOop) array_h())->obj_at_put(index, (oop)val);
-  } else {
-    valueArrayOop varray = (valueArrayOop)array;
-    ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-    ValueKlass* vklass = vaklass->element_klass();
-    const int lh = vaklass->layout_helper();
-    vklass->value_store(vklass->data_for_oop((oop)val), varray->value_at_addr(index, lh),
-                        vaklass->element_byte_size(), true, false);
-  }
+  valueArrayOop varray = (valueArrayOop)array;
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+  const int lh = vaklass->layout_helper();
+  vklass->value_store(vklass->data_for_oop((oop)val), varray->value_at_addr(index, lh),
+                      vaklass->element_byte_size(), true, false);
 IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* first_size_address))
@@ -576,6 +549,16 @@ IRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* fir
   }
   oop obj = ArrayKlass::cast(klass)->multi_allocate(nof_dims, dims, CHECK);
   thread->set_vm_result(obj);
+IRT_END
+
+IRT_ENTRY(void, InterpreterRuntime::value_heap_copy(JavaThread* thread, oopDesc* value))
+  assert(VTBuffer::is_in_vt_buffer(value), "Must only be called for buffered values");
+  ValueKlass* vk = ValueKlass::cast(value->klass());
+  Handle val_h(THREAD, value);
+  instanceOop obj = vk->allocate_instance(CHECK);
+  Handle obj_h(THREAD, obj);
+  vk->value_store(vk->data_for_oop(val_h()), vk->data_for_oop(obj_h()), true, false);
+  thread->set_vm_result(obj_h());
 IRT_END
 
 IRT_LEAF(void, InterpreterRuntime::recycle_vtbuffer(void* alloc_ptr))

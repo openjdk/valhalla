@@ -68,7 +68,9 @@ int ValueKlass::raw_value_byte_size() const {
   int last_offset  = 0; // find the last offset, add basic type size
   int last_tsz     = 0;
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
-    if (fs.offset() > last_offset) {
+    if (fs.access_flags().is_static()) {
+      continue;
+    } else if (fs.offset() > last_offset) {
       BasicType type = fs.field_descriptor().field_type();
       if (is_java_primitive(type)) {
         last_tsz = type2aelembytes(type);

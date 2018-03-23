@@ -226,6 +226,11 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
                                int dst_pos, int length, TRAPS) {
   assert(s->is_objArray(), "must be obj array");
 
+  if (d->is_valueArray()) {
+    ValueArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+    return;
+  }
+
   if (!d->is_objArray()) {
     THROW(vmSymbols::java_lang_ArrayStoreException());
   }
@@ -336,11 +341,11 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
 }
 
 bool ObjArrayKlass::compute_is_subtype_of(Klass* k) {
-  if (!k->is_objArray_klass())
+  if (k->is_valueArray_klass() || k->is_objArray_klass()) {
+    return element_klass()->is_subtype_of(ArrayKlass::cast(k)->element_klass());
+  } else {
     return ArrayKlass::compute_is_subtype_of(k);
-
-  ObjArrayKlass* oak = ObjArrayKlass::cast(k);
-  return element_klass()->is_subtype_of(oak->element_klass());
+  }
 }
 
 void ObjArrayKlass::initialize(TRAPS) {

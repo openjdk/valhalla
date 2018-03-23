@@ -875,12 +875,26 @@ void TemplateTable::daload() {
 
 void TemplateTable::aaload() {
   transition(itos, atos);
-  // rax: index
-  // rdx: array
-  index_check(rdx, rax); // kills rbx
-  __ load_heap_oop(rax, Address(rdx, rax,
-                                UseCompressedOops ? Address::times_4 : Address::times_ptr,
-                                arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+
+  Register array = rcx;
+  Register index = rax;
+
+  index_check(array, index); // kills rbx
+  if (EnableValhalla) {
+    Label is_flat_array, done;
+    __ test_flat_array_oop(array, rbx, is_flat_array);
+    __ load_heap_oop(rax, Address(array, index,
+                                     UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                                     arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+    __ jmp(done);
+    __ bind(is_flat_array);
+    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), array, index);
+    __ bind(done);
+  } else {
+    __ load_heap_oop(rax, Address(array, index,
+                                     UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                                     arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  }
 }
 
 void TemplateTable::baload() {
@@ -1153,7 +1167,7 @@ void TemplateTable::dastore() {
 }
 
 void TemplateTable::aastore() {
-  Label is_null, ok_is_subtype, done;
+  Label is_null, is_flat_array, ok_is_subtype, done;
   transition(vtos, vtos);
   // stack: ..., array, index, value
   __ movptr(rax, at_tos());    // value
@@ -1165,14 +1179,20 @@ void TemplateTable::aastore() {
                           arrayOopDesc::base_offset_in_bytes(T_OBJECT));
 
   index_check_without_pop(rdx, rcx);     // kills rbx
+
   __ testptr(rax, rax);
   __ jcc(Assembler::zero, is_null);
+
+  // Move array class to rdi
+  __ load_klass(rdi, rdx);
+  if (EnableValhalla) {
+    __ test_flat_array_klass(rdi, rbx, is_flat_array);
+  }
 
   // Move subklass into rbx
   __ load_klass(rbx, rax);
   // Move superklass into rax
-  __ load_klass(rax, rdx);
-  __ movptr(rax, Address(rax,
+  __ movptr(rax, Address(rdi,
                          ObjArrayKlass::element_klass_offset()));
   // Compress array + index*oopSize + 12 into a single register.  Frees rcx.
   __ lea(rdx, element_address);
@@ -1190,6 +1210,14 @@ void TemplateTable::aastore() {
 
   // Get the value we will store
   __ movptr(rax, at_tos());
+  if (ValueTypesBufferMaxMemory > 0) {
+    Label is_on_heap;
+    __ test_value_is_not_buffered(rax, rbx, is_on_heap);
+    __ push(rdx); // save precomputed element address, and convert buffer oop to heap oop
+    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_heap_copy), rax);
+    __ pop(rdx);
+    __ bind(is_on_heap);
+  }
   // Now store using the appropriate barrier
   do_oop_store(_masm, Address(rdx, 0), rax, _bs->kind(), true);
   __ jmp(done);
@@ -1197,32 +1225,55 @@ void TemplateTable::aastore() {
   // Have a NULL in rax, rdx=array, ecx=index.  Store NULL at ary[idx]
   __ bind(is_null);
   __ profile_null_seen(rbx);
+  if (EnableValhalla) {
+    Label is_null_into_value_array_npe, store_null;
 
+    __ load_klass(rdi, rdx);
+    // No way to store null in flat array
+    __ test_flat_array_klass(rdi, rbx, is_null_into_value_array_npe);
+
+    // Use case for storing values in objArray where element_klass is specifically
+    // a value type because they could not be flattened "for reasons",
+    // these need to have the same semantics as flat arrays, i.e. NPE
+    __ movptr(rdi, Address(rdi, ObjArrayKlass::element_klass_offset()));
+    __ test_klass_is_value(rdi, rdi, is_null_into_value_array_npe);
+    __ jmp(store_null);
+
+    __ bind(is_null_into_value_array_npe);
+    __ jump(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
+
+    __ bind(store_null);
+  }
   // Store a NULL
   do_oop_store(_masm, element_address, noreg, _bs->kind(), true);
+  __ jmp(done);
 
+  if (EnableValhalla) {
+    Label is_type_ok;
+    __ bind(is_flat_array); // Store non-null value to flat
+
+    // Simplistic type check...
+
+    // Profile the not-null value's klass.
+    __ load_klass(rbx, rax);
+    __ profile_typecheck(rcx, rbx, rax); // blows rcx, and rax
+    // Move superklass into rax
+    __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
+    __ cmpptr(rax, rbx); // flat value array needs exact type match
+    __ jccb(Assembler::equal, is_type_ok);
+
+    __ profile_typecheck_failed(rcx);
+    __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
+
+    __ bind(is_type_ok);
+    __ movptr(rax, at_tos());  // value
+    __ movl(rcx, at_tos_p1()); // index
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_store), rax, rdx, rcx);
+  }
   // Pop stack arguments
   __ bind(done);
   __ addptr(rsp, 3 * Interpreter::stackElementSize);
 }
-
-// This code has to be merged with aastore
-//void TemplateTable::vastore() {
-//  transition(vtos, vtos);
-//
-//  Register value = rcx;
-//  Register index = rbx;
-//  Register array = rax;
-//
-//  // stack: ..., array, index, value
-//  __ pop_ptr(value);
-//  __ pop_i(index);
-//  __ pop_ptr(array);
-//
-//  index_check_without_pop(array, index);
-//
-//  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_store), array, index, value);
-//}
 
 void TemplateTable::bastore() {
   transition(itos, vtos);
