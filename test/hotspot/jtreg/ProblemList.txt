@@ -74,6 +74,13 @@ gc/stress/TestJNIBlockFullGC/TestJNIBlockFullGC.java 8192647 generic-all
 
 runtime/CompressedOops/UseCompressedOops.java 8079353 generic-all
 runtime/SharedArchiveFile/DefaultUseWithClient.java 8154204 generic-all
+runtime/RedefineTests/RedefineFinalizer.java 8199450 generic-all
+runtime/RedefineTests/RedefineRunningMethods.java 8199450 generic-all
+runtime/RedefineTests/RedefinePreviousVersions.java 8199450 generic-all
+runtime/RedefineTests/RedefineDoubleDelete.java 8199450 generic-all
+runtime/RedefineTests/RedefineInterfaceMethods.java 8199450 generic-all
+runtime/RedefineTests/RedefineInterfaceCall.java 8199450 generic-all
+runtime/RedefineTests/RedefineRunningMethodsWithBacktrace.java 8199450 generic-all
 
 #############################################################################
 
