@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -374,6 +374,40 @@ void JvmtiClassFileReconstituter::write_bootstrapmethod_attribute() {
   }
 }
 
+//  NestHost_attribute {
+//    u2 attribute_name_index;
+//    u4 attribute_length;
+//    u2 host_class_index;
+//  }
+void JvmtiClassFileReconstituter::write_nest_host_attribute() {
+  int length = sizeof(u2);
+  int host_class_index = ik()->nest_host_index();
+
+  write_attribute_name_index("NestHost");
+  write_u4(length);
+  write_u2(host_class_index);
+}
+
+//  NestMembers_attribute {
+//    u2 attribute_name_index;
+//    u4 attribute_length;
+//    u2 number_of_classes;
+//    u2 classes[number_of_classes];
+//  }
+void JvmtiClassFileReconstituter::write_nest_members_attribute() {
+  Array<u2>* nest_members = ik()->nest_members();
+  int number_of_classes = nest_members->length();
+  int length = sizeof(u2) * (1 + number_of_classes);
+
+  write_attribute_name_index("NestMembers");
+  write_u4(length);
+  write_u2(number_of_classes);
+  for (int i = 0; i < number_of_classes; i++) {
+    u2 class_cp_index = nest_members->at(i);
+    write_u2(class_cp_index);
+  }
+}
+
 
 // Write InnerClasses attribute
 // JVMSpec|   InnerClasses_attribute {
@@ -644,6 +678,12 @@ void JvmtiClassFileReconstituter::write_class_attributes() {
   if (cpool()->operands() != NULL) {
     ++attr_count;
   }
+  if (ik()->nest_host_index() != 0) {
+    ++attr_count;
+  }
+  if (ik()->nest_members() != Universe::the_empty_short_array()) {
+    ++attr_count;
+  }
 
   write_u2(attr_count);
 
@@ -667,6 +707,12 @@ void JvmtiClassFileReconstituter::write_class_attributes() {
   }
   if (cpool()->operands() != NULL) {
     write_bootstrapmethod_attribute();
+  }
+  if (ik()->nest_host_index() != 0) {
+    write_nest_host_attribute();
+  }
+  if (ik()->nest_members() != Universe::the_empty_short_array()) {
+    write_nest_members_attribute();
   }
 }
 
