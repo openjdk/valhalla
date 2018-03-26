@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessByte
+ * @run testng/othervm -Xint -Diters=2000 VarHandleTestMethodHandleAccessByte
  */
 
 import org.testng.annotations.BeforeClass;
@@ -57,6 +57,8 @@ public class VarHandleTestMethodHandleAccessByte extends VarHandleBaseTest {
 
     VarHandle vhArray;
 
+    VarHandle vhValueTypeField;
+
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
@@ -72,6 +74,9 @@ public class VarHandleTestMethodHandleAccessByte extends VarHandleBaseTest {
             VarHandleTestMethodHandleAccessByte.class, "static_v", byte.class);
 
         vhArray = MethodHandles.arrayElementVarHandle(byte[].class);
+
+        vhValueTypeField = MethodHandles.lookup().findVarHandle(
+                    Value.class, "byte_v", byte.class);
     }
 
 
@@ -100,6 +105,11 @@ public class VarHandleTestMethodHandleAccessByte extends VarHandleBaseTest {
             cases.add(new MethodHandleAccessTestCase("Array index out of bounds",
                                                      vhArray, f, VarHandleTestMethodHandleAccessByte::testArrayIndexOutOfBounds,
                                                      false));
+        cases.add(new MethodHandleAccessTestCase("Value type field",
+                                                 vhValueTypeField, f, hs -> testValueTypeField(Value.VT, hs)));
+        cases.add(new MethodHandleAccessTestCase("Value type field unsupported",
+                                                 vhValueTypeField, f, hs -> testValueTypeFieldUnsupported(Value.VT, hs),
+                                                 false));
         }
 
         // Work around issue with jtreg summary reporting which truncates
@@ -373,6 +383,24 @@ public class VarHandleTestMethodHandleAccessByte extends VarHandleBaseTest {
 
     }
 
+    static void testValueTypeField(Value recv, Handles hs) throws Throwable {
+        // Plain
+        {
+            byte x = (byte) hs.get(TestAccessMode.GET).invokeExact(recv);
+            assertEquals(x, (byte)0x01, "get byte value");
+        }
+    }
+
+    static void testValueTypeFieldUnsupported(Value recv, Handles hs) throws Throwable {
+        // Plain
+        for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
+            checkUOE(am, () -> {
+                hs.get(am).invokeExact(recv, (byte)0x01);
+            });
+        }
+
+
+    }
 
     static void testStaticField(Handles hs) throws Throwable {
         // Plain
