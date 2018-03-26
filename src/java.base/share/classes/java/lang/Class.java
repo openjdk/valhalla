@@ -3833,25 +3833,26 @@ public final class Class<T> implements java.io.Serializable,
      * <p>If there is any error accessing the nest host, or the nest host is
      * in any way invalid, then {@code this} is returned.
      *
-     * @apiNote A nest is a set of classes and interfaces (nestmates) that
+     * <p>A <em>nest</em> is a set of classes and interfaces (nestmates) that
      * form an access control context in which each nestmate has access to the
-     * private members of the other nestmates (JVMS 4.7.28).
-     * Nest membership is declared through special attributes in the binary
-     * representation of a class or interface (JVMS 4.1).
-     * The nest host is the class or interface designated to hold the list of
+     * private members of the other nestmates.
+     * The <em>nest host</em> is the class or interface designated to hold the list of
      * classes and interfaces that make up the nest, and to which each of the
      * other nestmates refer.
-     * The source language compiler is responsible for deciding which classes
-     * and interfaces are nestmates. For example, the {@code javac} compiler
+     *
+     * <p>A class or interface that is not explicitly a member of a nest,
+     * is a member of the nest consisting only of itself, and is the
+     * nest host. Every class and interface is a member of exactly one nest.
+     *
+     * @apiNote The source language compiler is responsible for deciding which classes
+     * and interfaces are nestmates, by generating the appropriate attributes
+     * (JVMS 4.7.28 and 4.7.29) in the class file format (JVMS 4).
+     * For example, the {@code javac} compiler
      * places a top-level class or interface into a nest with all of its direct,
      * and indirect, {@linkplain #getDeclaredClasses() nested classes and interfaces}
      * (JLS 8).
      * The top-level {@linkplain #getEnclosingClass() enclosing class or interface}
      * is designated as the nest host.
-     *
-     * <p>A class or interface that is not explicitly a member of a nest,
-     * is a member of the nest consisting only of itself, and is the
-     * nest host. Every class and interface is a member of exactly one nest.
      *
      * @return the nest host of this class, or {@code this} if we cannot
      * obtain a valid nest host
@@ -3863,6 +3864,7 @@ public final class Class<T> implements java.io.Serializable,
      *         SecurityManager#checkPackageAccess s.checkPackageAccess()}
      *         denies access to the package of the returned class
      * @since 11
+     * @jvms 4.7.28 and 4.7.29 NestHost and NestMembers attributes
      */
     @CallerSensitive
     public Class<?> getNestHost() {
@@ -3929,9 +3931,10 @@ public final class Class<T> implements java.io.Serializable,
      * declared nest host. Any exceptions that occur as part of this process
      * will be thrown.
      *
-     * <p>The list of nest members in the classfile is permitted to
-     * contain duplicates, or to explicitly include the nest host. It is not
-     * required that an implementation of this method removes these duplicates.
+     * <p>The list of nest members is permitted to contain duplicates, or to
+     * explicitly include the nest host, as specified in the Java Virtual Machine
+     * Specification. It is not required that an implementation of this method
+     * removes these duplicates.
      *
      * @implNote This implementation does not remove duplicate nest members if they
      * are present.
@@ -3951,6 +3954,7 @@ public final class Class<T> implements java.io.Serializable,
      *         denies access to the package of that returned class
      *
      * @since 11
+     * @jvms 4.7.29 NestMembers attribute
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {
