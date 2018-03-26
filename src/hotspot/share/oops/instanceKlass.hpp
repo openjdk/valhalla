@@ -1122,7 +1122,7 @@ public:
            (is_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
-           (is_value_type ? (int)sizeof(struct ValueKlassFixedBlock) : 0));
+           (is_value_type ? (int)sizeof(ValueKlassFixedBlock) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
