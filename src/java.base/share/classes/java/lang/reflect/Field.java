@@ -169,7 +169,7 @@ class Field extends AccessibleObject implements Member {
         AccessibleObject.checkPermission();
 
         if (flag) {
-            if (clazz.isValue() && Modifier.isFinal(modifiers)) {
+            if (clazz.isValue()) {
                 throw new InaccessibleObjectException(
                     "Unable to make a value class field \"" + this + "\" accessible");
             }
