@@ -493,7 +493,7 @@ IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOopDesc* array, int index))
   Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass(), "expected value or object array oop");
+  assert(klass->is_valueArray_klass(), "expected value array oop");
 
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
   ValueKlass* vklass = vaklass->element_klass();

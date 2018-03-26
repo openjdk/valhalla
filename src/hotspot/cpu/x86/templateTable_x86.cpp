@@ -1191,7 +1191,7 @@ void TemplateTable::aastore() {
 
   // Move subklass into rbx
   __ load_klass(rbx, rax);
-  // Move superklass into rax
+  // Move array element superklass into rax
   __ movptr(rax, Address(rdi,
                          ObjArrayKlass::element_klass_offset()));
   // Compress array + index*oopSize + 12 into a single register.  Frees rcx.
@@ -1199,6 +1199,7 @@ void TemplateTable::aastore() {
 
   // Generate subtype check.  Blows rcx, rdi
   // Superklass in rax.  Subklass in rbx.
+  // is "rbx <: rax" ? (value subclass <: array element superclass)
   __ gen_subtype_check(rbx, ok_is_subtype);
 
   // Come here on failure
@@ -1257,9 +1258,11 @@ void TemplateTable::aastore() {
     // Profile the not-null value's klass.
     __ load_klass(rbx, rax);
     __ profile_typecheck(rcx, rbx, rax); // blows rcx, and rax
-    // Move superklass into rax
+    // Move element klass into rax
     __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
-    __ cmpptr(rax, rbx); // flat value array needs exact type match
+    // flat value array needs exact type match
+    // is "rax == rbx" (value subclass == array element superclass)
+    __ cmpptr(rax, rbx);
     __ jccb(Assembler::equal, is_type_ok);
 
     __ profile_typecheck_failed(rcx);
