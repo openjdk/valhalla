@@ -366,7 +366,7 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
       int adr_idx = phase->C->get_alias_index(atype);
       if (adr_idx == alias_idx) {
         assert(atype->isa_oopptr(), "address type must be oopptr");
-        int adr_offset = atype->offset();
+        int adr_offset = atype->is_oopptr()->flattened_offset();
         uint adr_iid = atype->is_oopptr()->instance_id();
         // Array elements references have the same alias_idx
         // but different offset and different instance_id.
@@ -477,7 +477,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
 Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *phi_type, const TypeOopPtr *adr_t, AllocateNode *alloc, Node_Stack *value_phis, int level) {
   assert(mem->is_Phi(), "sanity");
   int alias_idx = C->get_alias_index(adr_t);
-  int offset = adr_t->offset();
+  int offset = adr_t->flattened_offset();
   int instance_id = adr_t->instance_id();
 
   // Check if an appropriate value phi already exists.
@@ -576,14 +576,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   assert((uint)instance_id == alloc->_idx, "wrong allocation");
 
   int alias_idx = C->get_alias_index(adr_t);
-  int offset = adr_t->offset();
-  if (adr_t->isa_aryptr()) {
-    int field_offset = adr_t->isa_aryptr()->field_offset().get();
-    if (field_offset != Type::OffsetBot) {
-      // Increment offset by the field offset for flattened value type arrays
-      offset += field_offset;
-    }
-  }
+  int offset = adr_t->flattened_offset();
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
   Node *alloc_ctrl = alloc->in(TypeFunc::Control);
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
@@ -612,7 +605,7 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       const TypeOopPtr* atype = mem->as_Store()->adr_type()->isa_oopptr();
       assert(atype != NULL, "address type must be oopptr");
       assert(C->get_alias_index(atype) == alias_idx &&
-             atype->is_known_instance_field() && atype->offset() == offset &&
+             atype->is_known_instance_field() && atype->flattened_offset() == offset &&
              atype->instance_id() == instance_id, "store is correct memory slice");
       done = true;
     } else if (mem->is_Phi()) {

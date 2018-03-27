@@ -666,9 +666,9 @@ public class TestArrays extends ValueTypeTest {
 
     @DontCompile
     public void test28_verifier(boolean warmup) {
-        MyValue2 va = MyValue2.createWithFieldsInline(rI, false);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, false);
         MyValue2 result = test28();
-        Asserts.assertEQ(result.hash(), va.hash());
+        Asserts.assertEQ(result.hash(), v.hash());
     }
 
     // non escaping allocations
@@ -685,8 +685,8 @@ public class TestArrays extends ValueTypeTest {
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
-        MyValue2 va = test29(src);
-        Asserts.assertEQ(src[0].hash(), va.hash());
+        MyValue2 v = test29(src);
+        Asserts.assertEQ(src[0].hash(), v.hash());
     }
 
     // non escaping allocation with uncommon trap that needs
@@ -706,7 +706,33 @@ public class TestArrays extends ValueTypeTest {
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
-        MyValue2 va = test30(src, false);
-        Asserts.assertEQ(src[0].hash(), va.hash());
+        MyValue2 v = test30(src, false);
+        Asserts.assertEQ(src[0].hash(), v.hash());
+    }
+
+    // non escaping allocation with memory phi
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + LOADP + TRAP)
+    public long test31(boolean b, boolean deopt) {
+        MyValue2[] src = new MyValue2[1];
+        if (b) {
+            src[0] = MyValue2.createWithFieldsInline(rI, true);
+        } else {
+            src[0] = MyValue2.createWithFieldsInline(rI, false);
+        }
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test31"));
+        }
+        return src[0].hash();
+    }
+
+    @DontCompile
+    public void test31_verifier(boolean warmup) {
+        MyValue2 v1 = MyValue2.createWithFieldsInline(rI, true);
+        long result1 = test31(true, !warmup);
+        Asserts.assertEQ(result1, v1.hash());
+        MyValue2 v2 = MyValue2.createWithFieldsInline(rI, false);
+        long result2 = test31(false, !warmup);
+        Asserts.assertEQ(result2, v2.hash());
     }
 }

@@ -659,7 +659,7 @@ const Type *AddPNode::bottom_type() const {
     // In the case of a flattened value type array, each field has its
     // own slice so we need to extract the field being accessed from
     // the address computation
-    return tp->is_aryptr()->with_field_offset_and_offset(txoffset);
+    return tp->is_aryptr()->add_field_offset_and_offset(txoffset);
   }
   return tp->add_offset(txoffset);
 }
@@ -685,7 +685,7 @@ const Type* AddPNode::Value(PhaseGVN* phase) const {
     // In the case of a flattened value type array, each field has its
     // own slice so we need to extract the field being accessed from
     // the address computation
-    return p1->is_aryptr()->with_field_offset_and_offset(p2offset);
+    return p1->is_aryptr()->add_field_offset_and_offset(p2offset);
   }
   return p1->add_offset(p2offset);
 }

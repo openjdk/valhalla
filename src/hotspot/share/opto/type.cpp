@@ -3619,6 +3619,10 @@ const TypePtr *TypeOopPtr::add_offset(intptr_t offset) const {
   return make(_ptr, xadd_offset(offset), _instance_id, add_offset_speculative(offset), _inline_depth);
 }
 
+const int TypeOopPtr::flattened_offset() const {
+  return offset();
+}
+
 /**
  * Return same type without a speculative part
  */
@@ -4754,7 +4758,7 @@ const TypeAryPtr* TypeAryPtr::with_field_offset(int offset) const {
   return make(_ptr, _const_oop, _ary->remove_speculative()->is_ary(), _klass, _klass_is_exact, _offset, Offset(offset), _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
-const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
+const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
   int adj = 0;
   if (offset != Type::OffsetBot && offset != Type::OffsetTop) {
     const Type* elemtype = elem();
@@ -4789,6 +4793,15 @@ const TypePtr* TypeAryPtr::with_field_offset_and_offset(intptr_t offset) const {
     }
   }
   return add_offset(offset - adj);
+}
+
+// Return offset incremented by field_offset for flattened value type arrays
+const int TypeAryPtr::flattened_offset() const {
+  int offset = _offset.get();
+  if (_field_offset != Offset::bottom && _field_offset != Offset::top) {
+    offset += _field_offset.get();
+  }
+  return offset;
 }
 
 //=============================================================================

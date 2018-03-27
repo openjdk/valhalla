@@ -390,10 +390,10 @@ const class TypePtr *MachNode::adr_type() const {
       const MachOper* oper = memory_inputs(base, index);
       if (oper != (MachOper*)-1) {
         offset = oper->constant_disp();
-        return tp->is_aryptr()->with_field_offset_and_offset(offset)->add_offset(Type::OffsetBot);
+        return tp->is_aryptr()->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot);
       }
     }
-    return tp->is_aryptr()->with_field_offset_and_offset(offset);
+    return tp->is_aryptr()->add_field_offset_and_offset(offset);
   }
 
   return tp->add_offset(offset);

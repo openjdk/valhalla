@@ -479,6 +479,14 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         while (ndim-- > 0) {
           st->print("[]");
         }
+      } else if (cik->is_value_array_klass()) {
+        ciKlass* cie = cik->as_value_array_klass()->base_element_klass();
+        cie->print_name_on(st);
+        st->print("[%d]", spobj->n_fields());
+        int ndim = cik->as_array_klass()->dimension() - 1;
+        while (ndim-- > 0) {
+          st->print("[]");
+        }
       }
       st->print("={");
       uint nf = spobj->n_fields();

@@ -1098,6 +1098,7 @@ public:
   const TypeKlassPtr* as_klass_type() const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
+  virtual const int flattened_offset() const;
 
   // Speculative type helper methods.
   virtual const Type* remove_speculative() const;
@@ -1288,9 +1289,10 @@ public:
 
   const TypeAryPtr* cast_to_autobox_cache(bool cache) const;
 
+  const int flattened_offset() const;
   const Offset field_offset() const { return _field_offset; }
   const TypeAryPtr* with_field_offset(int offset) const;
-  const TypePtr* with_field_offset_and_offset(intptr_t offset) const;
+  const TypePtr* add_field_offset_and_offset(intptr_t offset) const;
 
   // Convenience common pre-built types.
   static const TypeAryPtr *RANGE;
