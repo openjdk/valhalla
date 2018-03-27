@@ -160,6 +160,7 @@ class ErrorContext VALUE_OBJ_CLASS_SPEC {
     STACK_UNDERFLOW,      // Attempt to pop and empty expression stack
     MISSING_STACKMAP,     // No stackmap for this location and there should be
     BAD_STACKMAP,         // Format error in stackmap
+    WRONG_VALUE_TYPE,     // Mismatched value type
     NO_FAULT,             // No error
     UNKNOWN
   } FaultType;
@@ -222,6 +223,9 @@ class ErrorContext VALUE_OBJ_CLASS_SPEC {
   }
   static ErrorContext bad_stackmap(int index, StackMapFrame* frame) {
     return ErrorContext(0, BAD_STACKMAP, TypeOrigin::frame(frame));
+  }
+  static ErrorContext bad_value_type(u2 bci, TypeOrigin type, TypeOrigin exp) {
+    return ErrorContext(bci, WRONG_VALUE_TYPE, type, exp);
   }
 
   bool is_valid() const { return _fault != NO_FAULT; }

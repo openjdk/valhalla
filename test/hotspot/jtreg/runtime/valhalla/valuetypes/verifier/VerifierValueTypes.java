@@ -73,7 +73,7 @@ public class VerifierValueTypes {
         runTestVerifyError("wthFldBadFldVal", "Bad type on operand stack");
 
         // Test that VerifyError is thrown if the second operand on the stack is not a reference.
-        runTestVerifyError("wthFldBadFldRef", "Bad type on operand stack in withfield");
+        runTestVerifyError("wthFldBadFldRef", "Bad value type on operand stack in withfield");
 
         // Test that ClassFormatError is thrown for a class file, with major version 54, that
         // contains a withfield opcode.
@@ -81,5 +81,9 @@ public class VerifierValueTypes {
 
         // Test VerifyError is thrown if a withfields's cp entry is not a field.
         runTestVerifyError("wthFldWrongCPType", "Illegal type at constant pool entry");
+
+        // Test that VerifyError is thrown if the class for a withfields's cp fieldref
+        // entry is java.lang.Object and the reference on the stack is a value type.
+        runTestVerifyError("wthFldObject", "must be identical value types");
     }
 }

@@ -471,6 +471,13 @@ void ErrorContext::reason_details(outputStream* ss) const {
     case BAD_STACKMAP:
       ss->print("Invalid stackmap specification.");
       break;
+    case WRONG_VALUE_TYPE:
+      ss->print("Type ");
+      _type.details(ss);
+      ss->print(" and type ");
+      _expected.details(ss);
+      ss->print(" must be identical value types.");
+      break;
     case UNKNOWN:
     default:
       ShouldNotReachHere();
@@ -2317,13 +2324,13 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
       }
       stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
-      is_assignable = target_class_type.is_assignable_from(
-        stack_object_type, this, false, CHECK_VERIFY(this));
-      if (!is_assignable) {
-        verify_error(ErrorContext::bad_type(bci,
+      // stack_object_type and target_class_type must be identical references.
+      if (!stack_object_type.is_reference() ||
+          !stack_object_type.equals(target_class_type)) {
+        verify_error(ErrorContext::bad_value_type(bci,
             current_frame->stack_top_ctx(),
             TypeOrigin::cp(index, target_class_type)),
-            "Bad type on operand stack in withfield");
+            "Bad value type on operand stack in withfield");
         return;
       }
       current_frame->push_stack(target_class_type, CHECK_VERIFY(this));

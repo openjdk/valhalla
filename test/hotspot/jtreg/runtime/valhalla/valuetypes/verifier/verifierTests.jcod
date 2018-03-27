@@ -860,3 +860,108 @@ class wthFldWrongCPType {
     } // end SourceFile
   } // Attributes
 } // end class wthFldWrongCPType
+
+///////////////////////////////////////////////////////////
+
+// A new fieldRef was added to the constant pool to point to a field in
+// java/lang/Object.  The withfield opcode (0XCC) was changed to use this new
+// cp entry.  This should cause a VerifyError because even though value types
+// are assignable to java.lang.Object, withfield requires that the cp field class
+// and the value type on the stack, in this case 'wthFldObject', be identical.
+//
+class wthFldObject {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [29] { // Constant Pool
+    ; // first element is empty
+    Method #7 #21; // #1     at 0x0A
+    Field #3 #22; // #2     at 0x0F
+    class #23; // #3     at 0x14
+    int 0x01234567; // #4     at 0x17
+    Method #3 #24; // #5     at 0x1C
+    Field #3 #25; // #6     at 0x21
+    class #26; // #7     at 0x26
+    Utf8 "VT"; // #8     at 0x29
+    Utf8 "LwthFldObject;"; // #9     at 0x2E
+    Utf8 "int_v"; // #10     at 0x38
+    Utf8 "I"; // #11     at 0x40
+    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "()V"; // #13     at 0x4D
+    Utf8 "Code"; // #14     at 0x53
+    Utf8 "LineNumberTable"; // #15     at 0x5A
+    Utf8 "makeValue"; // #16     at 0x6C
+    Utf8 "(I)LwthFldObject;"; // #17     at 0x78
+    Utf8 "<clinit>"; // #18     at 0x85
+    Utf8 "SourceFile"; // #19     at 0x90
+    Utf8 "wthFldObject.java"; // #20     at 0x9D
+    NameAndType #12 #13; // #21     at 0xAA
+    NameAndType #10 #11; // #22     at 0xAF
+    Utf8 "wthFldObject"; // #23     at 0xB4
+    NameAndType #16 #17; // #24     at 0xBC
+    NameAndType #8 #9; // #25     at 0xC1
+    Utf8 "java/lang/Object"; // #26     at 0xC6
+    class #26; // #27  // NEW ClassRef
+    Field #27 #22; // #28  // New FieldRef
+  } // Constant Pool
+
+  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  #3;// this_cpx
+  #7;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0xE3
+      0x0018; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0xEB
+      0x0010; // access
+      #10; // name_cpx
+      #11; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [1] { // methods
+    { // Member at 0x012D
+      0x0008; // access
+      #16; // name_cpx
+      #17; // sig_cpx
+      [1] { // Attributes
+        Attr(#14, 47) { // Code at 0x0135
+          2; // max_stack
+          2; // max_locals
+          Bytes[15]{
+            0xCB00034C2B1ACC00; // Changed withfield (0xCC) cp index at byte 8 to point to a field in
+            0x1C4C2BCB0003B0;   // in j.l.Object. Also, added a defaultvalue opcode at byte 11 to push
+          };                    // a Value ref so that the verifier won't complain if it sees the areturn.
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#15, 14) { // LineNumberTable at 0x0153
+              [3] { // LineNumberTable
+                0  8; //  at 0x015F
+                4  9; //  at 0x0163
+                10  10; //  at 0x0167
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#19, 2) { // SourceFile at 0x0198
+      #20;
+    } // end SourceFile
+  } // Attributes
+} // end class wthFldObject
