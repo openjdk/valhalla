@@ -3711,17 +3711,17 @@ void MacroAssembler::test_value_is_not_buffered(Register value, Register temp_re
 
   if (VTBuffer::base() < Universe::heap()->base()) {
     lea(temp_reg, VTBuffer_end);
-    cmpl(value, temp_reg);
+    cmpptr(value, temp_reg);
     jcc(Assembler::greaterEqual, not_buffered);
     lea(temp_reg, VTBuffer_top);
-    cmpl(value, temp_reg);
+    cmpptr(value, temp_reg);
     jcc(Assembler::less, not_buffered);
   } else {
     lea(temp_reg, VTBuffer_top);
-    cmpl(value, temp_reg);
+    cmpptr(value, temp_reg);
     jcc(Assembler::less, not_buffered);
     lea(temp_reg, VTBuffer_end);
-    cmpl(value, temp_reg);
+    cmpptr(value, temp_reg);
     jcc(Assembler::greaterEqual, not_buffered);
   }
 }
