@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -220,6 +220,7 @@ public class WhiteBox {
   public native long NMTMalloc(long size);
   public native void NMTFree(long mem);
   public native long NMTReserveMemory(long size);
+  public native long NMTAttemptReserveMemoryAt(long addr, long size);
   public native void NMTCommitMemory(long addr, long size);
   public native void NMTUncommitMemory(long addr, long size);
   public native void NMTReleaseMemory(long addr, long size);
@@ -538,6 +539,7 @@ public class WhiteBox {
   public native boolean isSharedClass(Class<?> c);
   public native boolean areSharedStringsIgnored();
   public native boolean isCDSIncludedInVmBuild();
+  public native boolean isJavaHeapArchiveSupported();
   public native Object  getResolvedReferences(Class<?> c);
   public native boolean areOpenArchiveHeapObjectsMapped();
 
@@ -555,4 +557,6 @@ public class WhiteBox {
   public native boolean isContainerized();
   public native void printOsInfo();
 
+  // Decoder
+  public native void disableElfSectionCache();
 }

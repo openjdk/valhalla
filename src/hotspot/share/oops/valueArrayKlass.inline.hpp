@@ -31,6 +31,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "oops/valueArrayOop.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/valueKlass.inline.hpp"
 #include "utilities/macros.hpp"

@@ -25,7 +25,7 @@
  * @test
  * @bug 8186046
  * @summary Test for condy BSMs returning primitive values or null
- * @requires os.arch == "x86_64"
+ * @requires os.arch != "sparcv9"
  * @modules java.base/jdk.experimental.bytecode
  * @run testng CondyReturnPrimitiveTest
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyReturnPrimitiveTest

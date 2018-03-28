@@ -1556,8 +1556,6 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       }
       if (profile_return() && x->type()->is_object_kind()) {
         ciMethod* caller = state()->scope()->method();
-        ciMethodData* md = caller->method_data_or_null();
-        ciProfileData* data = md->bci_to_data(invoke_bci);
         profile_return_type(x, method(), caller, invoke_bci);
       }
     }

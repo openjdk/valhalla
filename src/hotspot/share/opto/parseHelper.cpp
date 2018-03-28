@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -504,7 +504,7 @@ void Parse::profile_taken_branch(int target_bci, bool force_update) {
     ciMethodData* md = method()->method_data();
     assert(md != NULL, "expected valid ciMethodData");
     ciProfileData* data = md->bci_to_data(cur_bci);
-    assert(data->is_JumpData(), "need JumpData for taken branch");
+    assert(data != NULL && data->is_JumpData(), "need JumpData for taken branch");
     increment_md_counter_at(md, data, JumpData::taken_offset());
   }
 
@@ -515,6 +515,7 @@ void Parse::profile_taken_branch(int target_bci, bool force_update) {
     ciMethodData* md = method()->method_data();
     if (osr_site) {
       ciProfileData* data = md->bci_to_data(cur_bci);
+      assert(data != NULL && data->is_JumpData(), "need JumpData for taken branch");
       int limit = (CompileThreshold
                    * (OnStackReplacePercentage - InterpreterProfilePercentage)) / 100;
       test_for_osr_md_counter_at(md, data, JumpData::taken_offset(), limit);
@@ -540,7 +541,7 @@ void Parse::profile_not_taken_branch(bool force_update) {
     ciMethodData* md = method()->method_data();
     assert(md != NULL, "expected valid ciMethodData");
     ciProfileData* data = md->bci_to_data(bci());
-    assert(data->is_BranchData(), "need BranchData for not taken branch");
+    assert(data != NULL && data->is_BranchData(), "need BranchData for not taken branch");
     increment_md_counter_at(md, data, BranchData::not_taken_offset());
   }
 
@@ -571,7 +572,7 @@ void Parse::profile_generic_call() {
   ciMethodData* md = method()->method_data();
   assert(md != NULL, "expected valid ciMethodData");
   ciProfileData* data = md->bci_to_data(bci());
-  assert(data->is_CounterData(), "need CounterData for not taken branch");
+  assert(data != NULL && data->is_CounterData(), "need CounterData for not taken branch");
   increment_md_counter_at(md, data, CounterData::count_offset());
 }
 
@@ -582,7 +583,7 @@ void Parse::profile_receiver_type(Node* receiver) {
   ciMethodData* md = method()->method_data();
   assert(md != NULL, "expected valid ciMethodData");
   ciProfileData* data = md->bci_to_data(bci());
-  assert(data->is_ReceiverTypeData(), "need ReceiverTypeData here");
+  assert(data != NULL && data->is_ReceiverTypeData(), "need ReceiverTypeData here");
 
   // Skip if we aren't tracking receivers
   if (TypeProfileWidth < 1) {
@@ -613,7 +614,7 @@ void Parse::profile_ret(int target_bci) {
   ciMethodData* md = method()->method_data();
   assert(md != NULL, "expected valid ciMethodData");
   ciProfileData* data = md->bci_to_data(bci());
-  assert(data->is_RetData(), "need RetData for ret");
+  assert(data != NULL && data->is_RetData(), "need RetData for ret");
   ciRetData* ret_data = (ciRetData*)data->as_RetData();
 
   // Look for the target_bci is already in the table
@@ -646,7 +647,7 @@ void Parse::profile_null_checkcast() {
   ciMethodData* md = method()->method_data();
   assert(md != NULL, "expected valid ciMethodData");
   ciProfileData* data = md->bci_to_data(bci());
-  assert(data->is_BitData(), "need BitData for checkcast");
+  assert(data != NULL && data->is_BitData(), "need BitData for checkcast");
   set_md_flag_at(md, data, BitData::null_seen_byte_constant());
 }
 
@@ -658,7 +659,7 @@ void Parse::profile_switch_case(int table_index) {
   assert(md != NULL, "expected valid ciMethodData");
 
   ciProfileData* data = md->bci_to_data(bci());
-  assert(data->is_MultiBranchData(), "need MultiBranchData for switch case");
+  assert(data != NULL && data->is_MultiBranchData(), "need MultiBranchData for switch case");
   if (table_index >= 0) {
     increment_md_counter_at(md, data, MultiBranchData::case_count_offset(table_index));
   } else {

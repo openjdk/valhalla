@@ -47,6 +47,7 @@
 #include "prims/resolvedMethodTable.hpp"
 #include "prims/methodComparator.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/jniHandles.inline.hpp"
 #include "runtime/relocator.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/events.hpp"

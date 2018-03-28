@@ -119,6 +119,9 @@ JVM_InitProperties(JNIEnv *env, jobject p);
  * java.lang.Runtime
  */
 JNIEXPORT void JNICALL
+JVM_BeforeHalt();
+
+JNIEXPORT void JNICALL
 JVM_Halt(jint code);
 
 JNIEXPORT void JNICALL

@@ -37,6 +37,7 @@ import static java.lang.invoke.MethodHandles.Lookup;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 
 final class BootstrapMethodInvoker {
+
     /**
      * Factored code for invoking a bootstrap method for invokedynamic
      * or a dynamic constant.
@@ -67,23 +68,39 @@ final class BootstrapMethodInvoker {
             // VM is pushing arguments at us
             pullModeBSM = null;
             if (pullMode) {
-                bootstrapMethod = Adapters.pushMePullYou(bootstrapMethod, true);
+                bootstrapMethod = pushMePullYou(bootstrapMethod, true);
             }
         } else {
             // VM wants us to pull args from it
             pullModeBSM = pullMode ? bootstrapMethod :
-                    Adapters.pushMePullYou(bootstrapMethod, false);
+                    pushMePullYou(bootstrapMethod, false);
             bootstrapMethod = null;
         }
         try {
+            // As an optimization we special case various known BSMs,
+            // such as LambdaMetafactory::metafactory and
+            // StringConcatFactory::makeConcatWithConstants.
+            //
+            // By providing static type information or even invoking
+            // exactly, we avoid emitting code to perform runtime
+            // checking.
             info = maybeReBox(info);
             if (info == null) {
                 // VM is allowed to pass up a null meaning no BSM args
-                result = bootstrapMethod.invoke(caller, name, type);
+                result = invoke(bootstrapMethod, caller, name, type);
             }
             else if (!info.getClass().isArray()) {
                 // VM is allowed to pass up a single BSM arg directly
-                result = bootstrapMethod.invoke(caller, name, type, info);
+
+                // Call to StringConcatFactory::makeConcatWithConstants
+                // with empty constant arguments?
+                if (isStringConcatFactoryBSM(bootstrapMethod.type())) {
+                    result = (CallSite)bootstrapMethod
+                            .invokeExact(caller, name, (MethodType)type,
+                                         (String)info, new Object[0]);
+                } else {
+                    result = invoke(bootstrapMethod, caller, name, type, info);
+                }
             }
             else if (info.getClass() == int[].class) {
                 // VM is allowed to pass up a pair {argc, index}
@@ -103,51 +120,52 @@ final class BootstrapMethodInvoker {
                 // VM is allowed to pass up a full array of resolved BSM args
                 Object[] argv = (Object[]) info;
                 maybeReBoxElements(argv);
-                switch (argv.length) {
-                    case 0:
-                        result = bootstrapMethod.invoke(caller, name, type);
-                        break;
-                    case 1:
-                        result = bootstrapMethod.invoke(caller, name, type,
-                                                        argv[0]);
-                        break;
-                    case 2:
-                        result = bootstrapMethod.invoke(caller, name, type,
-                                                        argv[0], argv[1]);
-                        break;
-                    case 3:
-                        result = bootstrapMethod.invoke(caller, name, type,
-                                                        argv[0], argv[1], argv[2]);
-                        break;
-                    case 4:
-                        result = bootstrapMethod.invoke(caller, name, type,
-                                                        argv[0], argv[1], argv[2], argv[3]);
-                        break;
-                    case 5:
-                        result = bootstrapMethod.invoke(caller, name, type,
-                                                        argv[0], argv[1], argv[2], argv[3], argv[4]);
-                        break;
-                    case 6:
-                        result = bootstrapMethod.invoke(caller, name, type,
-                                                        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
-                        break;
-                    default:
-                        final int NON_SPREAD_ARG_COUNT = 3;  // (caller, name, type)
-                        final int MAX_SAFE_SIZE = MethodType.MAX_MH_ARITY / 2 - NON_SPREAD_ARG_COUNT;
-                        if (argv.length >= MAX_SAFE_SIZE) {
-                            // to be on the safe side, use invokeWithArguments which handles jumbo lists
-                            Object[] newargv = new Object[NON_SPREAD_ARG_COUNT + argv.length];
-                            newargv[0] = caller;
-                            newargv[1] = name;
-                            newargv[2] = type;
-                            System.arraycopy(argv, 0, newargv, NON_SPREAD_ARG_COUNT, argv.length);
-                            result = bootstrapMethod.invokeWithArguments(newargv);
+
+                MethodType bsmType = bootstrapMethod.type();
+                if (isLambdaMetafactoryIndyBSM(bsmType) && argv.length == 3) {
+                    result = (CallSite)bootstrapMethod
+                            .invokeExact(caller, name, (MethodType)type, (MethodType)argv[0],
+                                    (MethodHandle)argv[1], (MethodType)argv[2]);
+                } else if (isLambdaMetafactoryCondyBSM(bsmType) && argv.length == 3) {
+                    result = bootstrapMethod
+                            .invokeExact(caller, name, (Class<?>)type, (MethodType)argv[0],
+                                    (MethodHandle)argv[1], (MethodType)argv[2]);
+                } else if (isStringConcatFactoryBSM(bsmType) && argv.length >= 1) {
+                    String recipe = (String)argv[0];
+                    Object[] shiftedArgs = Arrays.copyOfRange(argv, 1, argv.length);
+                    result = (CallSite)bootstrapMethod.invokeExact(caller, name, (MethodType)type, recipe, shiftedArgs);
+                } else {
+                    switch (argv.length) {
+                        case 0:
+                            result = invoke(bootstrapMethod, caller, name, type);
                             break;
-                        }
-                        MethodType invocationType = MethodType.genericMethodType(NON_SPREAD_ARG_COUNT + argv.length);
-                        MethodHandle typedBSM = bootstrapMethod.asType(invocationType);
-                        MethodHandle spreader = invocationType.invokers().spreadInvoker(NON_SPREAD_ARG_COUNT);
-                        result = spreader.invokeExact(typedBSM, (Object) caller, (Object) name, type, argv);
+                        case 1:
+                            result = invoke(bootstrapMethod, caller, name, type,
+                                            argv[0]);
+                            break;
+                        case 2:
+                            result = invoke(bootstrapMethod, caller, name, type,
+                                            argv[0], argv[1]);
+                            break;
+                        case 3:
+                            result = invoke(bootstrapMethod, caller, name, type,
+                                            argv[0], argv[1], argv[2]);
+                            break;
+                        case 4:
+                            result = invoke(bootstrapMethod, caller, name, type,
+                                            argv[0], argv[1], argv[2], argv[3]);
+                            break;
+                        case 5:
+                            result = invoke(bootstrapMethod, caller, name, type,
+                                            argv[0], argv[1], argv[2], argv[3], argv[4]);
+                            break;
+                        case 6:
+                            result = invoke(bootstrapMethod, caller, name, type,
+                                            argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+                            break;
+                        default:
+                            result = invokeWithManyArguments(bootstrapMethod, caller, name, type, argv);
+                    }
                 }
             }
             if (resultType.isPrimitive()) {
@@ -173,6 +191,132 @@ final class BootstrapMethodInvoker {
             // Wrap anything else in BootstrapMethodError
             throw new BootstrapMethodError("bootstrap method initialization exception", ex);
         }
+    }
+
+    // If we don't provide static type information for type, we'll generate runtime
+    // checks. Let's try not to...
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller,
+                                 String name, Object type) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type);
+        }
+    }
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller,
+                                 String name, Object type, Object arg0) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type, arg0);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type, arg0);
+        }
+    }
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller, String name,
+                                 Object type, Object arg0, Object arg1) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type, arg0, arg1);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type, arg0, arg1);
+        }
+    }
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller, String name,
+                                 Object type, Object arg0, Object arg1,
+                                 Object arg2) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type, arg0, arg1, arg2);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type, arg0, arg1, arg2);
+        }
+    }
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller, String name,
+                                 Object type, Object arg0, Object arg1,
+                                 Object arg2, Object arg3) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type, arg0, arg1, arg2, arg3);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type, arg0, arg1, arg2, arg3);
+        }
+    }
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller,
+                                 String name, Object type, Object arg0, Object arg1,
+                                 Object arg2, Object arg3, Object arg4) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type, arg0, arg1, arg2, arg3, arg4);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type, arg0, arg1, arg2, arg3, arg4);
+        }
+    }
+
+    private static Object invoke(MethodHandle bootstrapMethod, Lookup caller,
+                                 String name, Object type, Object arg0, Object arg1,
+                                 Object arg2, Object arg3, Object arg4, Object arg5) throws Throwable {
+        if (type instanceof Class) {
+            return bootstrapMethod.invoke(caller, name, (Class<?>)type, arg0, arg1, arg2, arg3, arg4, arg5);
+        } else {
+            return bootstrapMethod.invoke(caller, name, (MethodType)type, arg0, arg1, arg2, arg3, arg4, arg5);
+        }
+    }
+
+    private static Object invokeWithManyArguments(MethodHandle bootstrapMethod, Lookup caller,
+                                                  String name, Object type, Object[] argv) throws Throwable {
+        final int NON_SPREAD_ARG_COUNT = 3;  // (caller, name, type)
+        final int MAX_SAFE_SIZE = MethodType.MAX_MH_ARITY / 2 - NON_SPREAD_ARG_COUNT;
+        if (argv.length >= MAX_SAFE_SIZE) {
+            // to be on the safe side, use invokeWithArguments which handles jumbo lists
+            Object[] newargv = new Object[NON_SPREAD_ARG_COUNT + argv.length];
+            newargv[0] = caller;
+            newargv[1] = name;
+            newargv[2] = type;
+            System.arraycopy(argv, 0, newargv, NON_SPREAD_ARG_COUNT, argv.length);
+            return bootstrapMethod.invokeWithArguments(newargv);
+        } else {
+            MethodType invocationType = MethodType.genericMethodType(NON_SPREAD_ARG_COUNT + argv.length);
+            MethodHandle typedBSM = bootstrapMethod.asType(invocationType);
+            MethodHandle spreader = invocationType.invokers().spreadInvoker(NON_SPREAD_ARG_COUNT);
+            return spreader.invokeExact(typedBSM, (Object) caller, (Object) name, type, argv);
+        }
+    }
+
+    private static final MethodType LMF_INDY_MT = MethodType.methodType(CallSite.class,
+            Lookup.class, String.class, MethodType.class, MethodType.class, MethodHandle.class, MethodType.class);
+
+    private static final MethodType LMF_CONDY_MT = MethodType.methodType(Object.class,
+            Lookup.class, String.class, Class.class, MethodType.class, MethodHandle.class, MethodType.class);
+
+    private static final MethodType SCF_MT = MethodType.methodType(CallSite.class,
+            Lookup.class, String.class, MethodType.class, String.class, Object[].class);
+
+    /**
+     * @return true iff the BSM method type exactly matches
+     *         {@see java.lang.invoke.StringConcatFactory#makeConcatWithConstants(MethodHandles.Lookup,
+     *                 String,MethodType,String,Object...))}
+     */
+    private static boolean isStringConcatFactoryBSM(MethodType bsmType) {
+        return bsmType == SCF_MT;
+    }
+
+    /**
+     * @return true iff the BSM method type exactly matches
+     *         {@see java.lang.invoke.LambdaMetafactory#metafactory(
+     *          MethodHandles.Lookup,String,Class,MethodType,MethodHandle,MethodType)}
+     */
+    private static boolean isLambdaMetafactoryCondyBSM(MethodType bsmType) {
+        return bsmType == LMF_CONDY_MT;
+    }
+
+    /**
+     * @return true iff the BSM method type exactly matches
+     *         {@see java.lang.invoke.LambdaMetafactory#metafactory(
+     *          MethodHandles.Lookup,String,MethodType,MethodType,MethodHandle,MethodType)}
+     */
+    private static boolean isLambdaMetafactoryIndyBSM(MethodType bsmType) {
+        return bsmType == LMF_INDY_MT;
     }
 
     /** The JVM produces java.lang.Integer values to box
@@ -237,9 +381,10 @@ final class BootstrapMethodInvoker {
             // give up at first null and grab the rest in one big block
             if (i >= end)  return i;
             Object[] temp = new Object[end - i];
-            if (TRACE_METHOD_LINKAGE)
-                System.out.println("resolving more BSM arguments: "+
+            if (TRACE_METHOD_LINKAGE) {
+                System.out.println("resolving more BSM arguments: " +
                         Arrays.asList(caller.getSimpleName(), Arrays.toString(indexInfo), i, end));
+            }
             copyOutBootstrapArguments(caller, indexInfo,
                                       i, end, temp, 0,
                                       true, null);
@@ -285,9 +430,10 @@ final class BootstrapMethodInvoker {
         private void prefetchIntoCache(int i, int pfLimit) {
             if (pfLimit <= i)  return;  // corner case
             Object[] temp = new Object[pfLimit - i];
-            if (TRACE_METHOD_LINKAGE)
-                System.out.println("prefetching BSM arguments: "+
+            if (TRACE_METHOD_LINKAGE) {
+                System.out.println("prefetching BSM arguments: " +
                         Arrays.asList(caller.getSimpleName(), Arrays.toString(indexInfo), i, pfLimit));
+            }
             copyOutBootstrapArguments(caller, indexInfo,
                                       i, pfLimit, temp, 0,
                                       false, NOT_PRESENT);
@@ -301,7 +447,7 @@ final class BootstrapMethodInvoker {
     }
 
     /*non-public*/ static final
-    class Adapters {
+    class PushAdapter {
         // skeleton for push-mode BSM which wraps a pull-mode BSM:
         static Object pushToBootstrapMethod(MethodHandle pullModeBSM,
                                             MethodHandles.Lookup lookup, String name, Object type,
@@ -313,29 +459,75 @@ final class BootstrapMethodInvoker {
             return pullModeBSM.invoke(lookup, bsci);
         }
 
-        // skeleton for pull-mode BSM which wraps a push-mode BSM:
-        static Object pullFromBootstrapMethod(MethodHandle pushModeBSM,
-                                              MethodHandles.Lookup lookup, BootstrapCallInfo<?> bsci)
-                throws Throwable {
-            int argc = bsci.size();
-            Object arguments[] = new Object[3 + argc];
-            arguments[0] = lookup;
-            arguments[1] = bsci.invocationName();
-            arguments[2] = bsci.invocationType();
-            bsci.copyConstants(0, argc, arguments, 3);
-            if (TRACE_METHOD_LINKAGE)
-                System.out.println("pulled arguments from VM for push-mode BSM");
-            return pushModeBSM.invokeWithArguments(arguments);
-        }
         static final MethodHandle MH_pushToBootstrapMethod;
-        static final MethodHandle MH_pullFromBootstrapMethod;
         static {
-            final Class<?> THIS_CLASS = Adapters.class;
+            final Class<?> THIS_CLASS = PushAdapter.class;
             try {
                 MH_pushToBootstrapMethod = IMPL_LOOKUP
                     .findStatic(THIS_CLASS, "pushToBootstrapMethod",
                                 MethodType.methodType(Object.class, MethodHandle.class,
                                         Lookup.class, String.class, Object.class, Object[].class));
+            } catch (Throwable ex) {
+                throw new InternalError(ex);
+            }
+        }
+    }
+
+    /*non-public*/ static final
+    class PullAdapter {
+        // skeleton for pull-mode BSM which wraps a push-mode BSM:
+        static Object pullFromBootstrapMethod(MethodHandle pushModeBSM,
+                                              MethodHandles.Lookup lookup,
+                                              BootstrapCallInfo<?> bsci)
+                throws Throwable {
+            int argc = bsci.size();
+            switch (argc) {
+                case 0:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType());
+                case 1:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType(),
+                            bsci.get(0));
+                case 2:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType(),
+                            bsci.get(0), bsci.get(1));
+                case 3:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType(),
+                            bsci.get(0), bsci.get(1), bsci.get(2));
+                case 4:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType(),
+                            bsci.get(0), bsci.get(1), bsci.get(2), bsci.get(3));
+                case 5:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType(),
+                            bsci.get(0), bsci.get(1), bsci.get(2), bsci.get(3), bsci.get(4));
+                case 6:
+                    return pushModeBSM.invoke(lookup, bsci.invocationName(), bsci.invocationType(),
+                            bsci.get(0), bsci.get(1), bsci.get(2), bsci.get(3), bsci.get(4), bsci.get(5));
+                default:
+                    final int NON_SPREAD_ARG_COUNT = 3;  // (lookup, name, type)
+                    final int MAX_SAFE_SIZE = MethodType.MAX_MH_ARITY / 2 - NON_SPREAD_ARG_COUNT;
+                    if (argc >= MAX_SAFE_SIZE) {
+                        // to be on the safe side, use invokeWithArguments which handles jumbo lists
+                        Object[] newargv = new Object[NON_SPREAD_ARG_COUNT + argc];
+                        newargv[0] = lookup;
+                        newargv[1] = bsci.invocationName();
+                        newargv[2] = bsci.invocationType();
+                        bsci.copyConstants(0, argc, newargv, NON_SPREAD_ARG_COUNT);
+                        return pushModeBSM.invokeWithArguments(newargv);
+                    }
+                    MethodType invocationType = MethodType.genericMethodType(NON_SPREAD_ARG_COUNT + argc);
+                    MethodHandle typedBSM = pushModeBSM.asType(invocationType);
+                    MethodHandle spreader = invocationType.invokers().spreadInvoker(NON_SPREAD_ARG_COUNT);
+                    Object[] argv = new Object[argc];
+                    bsci.copyConstants(0, argc, argv, 0);
+                    return spreader.invokeExact(typedBSM, (Object) lookup, (Object) bsci.invocationName(), bsci.invocationType(), argv);
+                }
+        }
+
+        static final MethodHandle MH_pullFromBootstrapMethod;
+
+        static {
+            final Class<?> THIS_CLASS = PullAdapter.class;
+            try {
                 MH_pullFromBootstrapMethod = IMPL_LOOKUP
                     .findStatic(THIS_CLASS, "pullFromBootstrapMethod",
                                 MethodType.methodType(Object.class, MethodHandle.class,
@@ -344,23 +536,25 @@ final class BootstrapMethodInvoker {
                 throw new InternalError(ex);
             }
         }
+    }
 
-        /** Given a push-mode BSM (taking one argument) convert it to a
-         *  pull-mode BSM (taking N pre-resolved arguments).
-         *  This method is used when, in fact, the JVM is passing up
-         *  pre-resolved arguments, but the BSM is expecting lazy stuff.
-         *  Or, when goToPushMode is true, do the reverse transform.
-         *  (The two transforms are exactly inverse.)
-         */
-        static MethodHandle pushMePullYou(MethodHandle bsm, boolean goToPushMode) {
-            if (TRACE_METHOD_LINKAGE)
-                System.out.println("converting BSM to "+(goToPushMode ? "push mode" : "pull mode"));
-            assert(isPullModeBSM(bsm) == goToPushMode);  //there must be a change
-            if (goToPushMode) {
-                return Adapters.MH_pushToBootstrapMethod.bindTo(bsm).withVarargs(true);
-            } else {
-                return Adapters.MH_pullFromBootstrapMethod.bindTo(bsm).withVarargs(false);
-            }
+    /** Given a push-mode BSM (taking one argument) convert it to a
+     *  pull-mode BSM (taking N pre-resolved arguments).
+     *  This method is used when, in fact, the JVM is passing up
+     *  pre-resolved arguments, but the BSM is expecting lazy stuff.
+     *  Or, when goToPushMode is true, do the reverse transform.
+     *  (The two transforms are exactly inverse.)
+     */
+    static MethodHandle pushMePullYou(MethodHandle bsm, boolean goToPushMode) {
+        if (TRACE_METHOD_LINKAGE) {
+            System.out.println("converting BSM of type " + bsm.type() + " to "
+                    + (goToPushMode ? "push mode" : "pull mode"));
+        }
+        assert(isPullModeBSM(bsm) == goToPushMode); // there must be a change
+        if (goToPushMode) {
+            return PushAdapter.MH_pushToBootstrapMethod.bindTo(bsm).withVarargs(true);
+        } else {
+            return PullAdapter.MH_pullFromBootstrapMethod.bindTo(bsm).withVarargs(false);
         }
     }
 }

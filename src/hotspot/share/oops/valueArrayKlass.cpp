@@ -43,6 +43,7 @@
 #include "oops/arrayOop.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/valueArrayOop.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"

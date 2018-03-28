@@ -61,7 +61,7 @@ MODULES_SOURCE_PATH := $(call PathList, $(call GetModuleSrcPath) \
     $(SUPPORT_OUTPUTDIR)/rmic/* $(TOPDIR)/src/*/share/doc/stub)
 
 # URLs
-JAVADOC_BASE_URL := http://www.oracle.com/pls/topic/lookup?ctx=javase9&amp;id=homepage
+JAVADOC_BASE_URL := http://www.oracle.com/pls/topic/lookup?ctx=javase10&amp;id=homepage
 BUG_SUBMIT_URL := http://bugreport.java.com/bugreport/
 COPYRIGHT_URL := {@docroot}/../legal/copyright.html
 LICENSE_URL := http://www.oracle.com/technetwork/java/javase/terms/license/java10speclicense.html
@@ -446,9 +446,9 @@ $(eval $(call SetupApiDocsGeneration, JDK_API, \
 ################################################################################
 # Setup generation of the Java SE API documentation (javadoc + modulegraph)
 
-# The Java SE module scope is just java.se.ee and its transitive indirect
+# The Java SE module scope is just java.se and its transitive indirect
 # exports.
-JAVASE_MODULES := java.se.ee
+JAVASE_MODULES := java.se
 
 $(eval $(call SetupApiDocsGeneration, JAVASE_API, \
     MODULES := $(JAVASE_MODULES), \

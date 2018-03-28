@@ -49,6 +49,7 @@
 #include "oops/valueKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "oops/valueArrayOop.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"

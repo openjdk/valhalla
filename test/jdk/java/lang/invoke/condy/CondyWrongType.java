@@ -25,7 +25,7 @@
  * @test
  * @bug 8186046
  * @summary Test bootstrap methods returning the wrong type
- * @requires os.arch == "x86_64"
+ * @requires os.arch != "sparcv9"
  * @library /java/lang/invoke/common
  * @modules java.base/jdk.experimental.bytecode
  * @build test.java.lang.invoke.lib.InstructionHelper

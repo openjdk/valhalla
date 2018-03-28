@@ -108,7 +108,6 @@ InstanceKlass*      SystemDictionary::_box_klasses[T_VOID+1]      =  { NULL /*, 
 oop         SystemDictionary::_java_system_loader         =  NULL;
 oop         SystemDictionary::_java_platform_loader       =  NULL;
 
-bool        SystemDictionary::_has_loadClassInternal      =  false;
 bool        SystemDictionary::_has_checkPackageAccess     =  false;
 
 // lazily initialized klass variables
@@ -161,7 +160,7 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, TRAPS) {
 // Parallel class loading check
 
 bool SystemDictionary::is_parallelCapable(Handle class_loader) {
-  if (UnsyncloadClass || class_loader.is_null()) return true;
+  if (class_loader.is_null()) return true;
   if (AlwaysLockClassLoader) return false;
   return java_lang_ClassLoader::parallelCapable(class_loader());
 }
@@ -548,8 +547,7 @@ void SystemDictionary::validate_protection_domain(InstanceKlass* klass,
 //
 // We only get here if
 //  1) custom classLoader, i.e. not bootstrap classloader
-//  2) UnsyncloadClass not set
-//  3) custom classLoader has broken the class loader objectLock
+//  2) custom classLoader has broken the class loader objectLock
 //     so another thread got here in parallel
 //
 // lockObject must be held.
@@ -639,7 +637,6 @@ InstanceKlass* SystemDictionary::handle_parallel_super_load(
     } else {
       placeholder = placeholders()->get_entry(p_index, p_hash, name, loader_data);
       if (placeholder && placeholder->super_load_in_progress() ){
-        // Before UnsyncloadClass:
         // We only get here if the application has released the
         // classloader lock when another thread was in the middle of loading a
         // superclass/superinterface for this class, and now
@@ -740,9 +737,9 @@ Klass* SystemDictionary::do_resolve_instance_class_or_null(Symbol* name,
   // defining the class in parallel by accident.
   // This lock must be acquired here so the waiter will find
   // any successful result in the SystemDictionary and not attempt
-  // the define
-  // ParallelCapable Classloaders and the bootstrap classloader,
-  // or all classloaders with UnsyncloadClass do not acquire lock here
+  // the define.
+  // ParallelCapable Classloaders and the bootstrap classloader
+  // do not acquire lock here.
   bool DoObjectLock = true;
   if (is_parallelCapable(class_loader)) {
     DoObjectLock = false;
@@ -818,14 +815,11 @@ Klass* SystemDictionary::do_resolve_instance_class_or_null(Symbol* name,
     //    and that lock is still held when calling classloader's loadClass.
     //    For these classloaders, we ensure that the first requestor
     //    completes the load and other requestors wait for completion.
-    // case 3. UnsyncloadClass - don't use objectLocker
-    //    With this flag, we allow parallel classloading of a
-    //    class/classloader pair
-    // case4. Bootstrap classloader - don't own objectLocker
+    // case 3. Bootstrap classloader - don't own objectLocker
     //    This classloader supports parallelism at the classloader level,
     //    but only allows a single load of a class/classloader pair.
     //    No performance benefit and no deadlock issues.
-    // case 5. parallelCapable user level classloaders - without objectLocker
+    // case 4. parallelCapable user level classloaders - without objectLocker
     //    Allow parallel classloading of a class/classloader pair
 
     {
@@ -841,7 +835,7 @@ Klass* SystemDictionary::do_resolve_instance_class_or_null(Symbol* name,
             // case 1: traditional: should never see load_in_progress.
             while (!class_has_been_loaded && oldprobe && oldprobe->instance_load_in_progress()) {
 
-              // case 4: bootstrap classloader: prevent futile classloading,
+              // case 3: bootstrap classloader: prevent futile classloading,
               // wait on first requestor
               if (class_loader.is_null()) {
                 SystemDictionary_lock->wait();
@@ -864,7 +858,7 @@ Klass* SystemDictionary::do_resolve_instance_class_or_null(Symbol* name,
         }
       }
       // All cases: add LOAD_INSTANCE holding SystemDictionary_lock
-      // case 3: UnsyncloadClass || case 5: parallelCapable: allow competing threads to try
+      // case 4: parallelCapable: allow competing threads to try
       // LOAD_INSTANCE in parallel
 
       if (!throw_circularity_error && !class_has_been_loaded) {
@@ -896,28 +890,6 @@ Klass* SystemDictionary::do_resolve_instance_class_or_null(Symbol* name,
 
       // Do actual loading
       k = load_instance_class(name, class_loader, THREAD);
-
-      // For UnsyncloadClass only
-      // If they got a linkageError, check if a parallel class load succeeded.
-      // If it did, then for bytecode resolution the specification requires
-      // that we return the same result we did for the other thread, i.e. the
-      // successfully loaded InstanceKlass
-      // Should not get here for classloaders that support parallelism
-      // with the new cleaner mechanism, even with AllowParallelDefineClass
-      // Bootstrap goes through here to allow for an extra guarantee check
-      if (UnsyncloadClass || (class_loader.is_null())) {
-        if (k == NULL && HAS_PENDING_EXCEPTION
-          && PENDING_EXCEPTION->is_a(SystemDictionary::LinkageError_klass())) {
-          MutexLocker mu(SystemDictionary_lock, THREAD);
-          InstanceKlass* check = find_class(d_hash, name, dictionary);
-          if (check != NULL) {
-            // Klass is already loaded, so just use it
-            k = check;
-            CLEAR_PENDING_EXCEPTION;
-            guarantee((!class_loader.is_null()), "dup definition for bootstrap loader?");
-          }
-        }
-      }
 
       // If everything was OK (no exceptions, no null return value), and
       // class_loader is NOT the defining loader, do a little more bookkeeping.
@@ -1150,7 +1122,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
   HandleMark hm(THREAD);
 
   // Classloaders that support parallelism, e.g. bootstrap classloader,
-  // or all classloaders with UnsyncloadClass do not acquire lock here
+  // do not acquire lock here
   bool DoObjectLock = true;
   if (is_parallelCapable(class_loader)) {
     DoObjectLock = false;
@@ -1609,40 +1581,17 @@ InstanceKlass* SystemDictionary::load_instance_class(Symbol* class_name, Handle 
 
     InstanceKlass* spec_klass = SystemDictionary::ClassLoader_klass();
 
-    // Call public unsynchronized loadClass(String) directly for all class loaders
-    // for parallelCapable class loaders. JDK >=7, loadClass(String, boolean) will
+    // Call public unsynchronized loadClass(String) directly for all class loaders.
+    // For parallelCapable class loaders, JDK >=7, loadClass(String, boolean) will
     // acquire a class-name based lock rather than the class loader object lock.
-    // JDK < 7 already acquire the class loader lock in loadClass(String, boolean),
-    // so the call to loadClassInternal() was not required.
-    //
-    // UnsyncloadClass flag means both call loadClass(String) and do
-    // not acquire the class loader lock even for class loaders that are
-    // not parallelCapable. This was a risky transitional
-    // flag for diagnostic purposes only. It is risky to call
-    // custom class loaders without synchronization.
-    // WARNING If a custom class loader does NOT synchronizer findClass, or callers of
-    // findClass, the UnsyncloadClass flag risks unexpected timing bugs in the field.
-    // Do NOT assume this will be supported in future releases.
-    //
-    // Added MustCallLoadClassInternal in case we discover in the field
-    // a customer that counts on this call
-    if (MustCallLoadClassInternal && has_loadClassInternal()) {
-      JavaCalls::call_special(&result,
-                              class_loader,
-                              spec_klass,
-                              vmSymbols::loadClassInternal_name(),
-                              vmSymbols::string_class_signature(),
-                              string,
-                              CHECK_NULL);
-    } else {
-      JavaCalls::call_virtual(&result,
-                              class_loader,
-                              spec_klass,
-                              vmSymbols::loadClass_name(),
-                              vmSymbols::string_class_signature(),
-                              string,
-                              CHECK_NULL);
-    }
+    // JDK < 7 already acquire the class loader lock in loadClass(String, boolean).
+    JavaCalls::call_virtual(&result,
+                            class_loader,
+                            spec_klass,
+                            vmSymbols::loadClass_name(),
+                            vmSymbols::string_class_signature(),
+                            string,
+                            CHECK_NULL);
 
     assert(result.get_type() == T_OBJECT, "just checking");
     oop obj = (oop) result.get_jobject();
@@ -1771,7 +1720,7 @@ InstanceKlass* SystemDictionary::find_or_define_instance_class(Symbol* class_nam
   {
     MutexLocker mu(SystemDictionary_lock, THREAD);
     // First check if class already defined
-    if (UnsyncloadClass || (is_parallelDefine(class_loader))) {
+    if (is_parallelDefine(class_loader)) {
       InstanceKlass* check = find_class(d_hash, name_h, dictionary);
       if (check != NULL) {
         return check;
@@ -1790,7 +1739,7 @@ InstanceKlass* SystemDictionary::find_or_define_instance_class(Symbol* class_nam
     // Only special cases allow parallel defines and can use other thread's results
     // Other cases fall through, and may run into duplicate defines
     // caught by finding an entry in the SystemDictionary
-    if ((UnsyncloadClass || is_parallelDefine(class_loader)) && (probe->instance_klass() != NULL)) {
+    if (is_parallelDefine(class_loader) && (probe->instance_klass() != NULL)) {
         placeholders()->find_and_remove(p_index, p_hash, name_h, loader_data, PlaceholderTable::DEFINE_CLASS, THREAD);
         SystemDictionary_lock->notify_all();
 #ifdef ASSERT
@@ -2235,10 +2184,6 @@ void SystemDictionary::initialize_preloaded_classes(TRAPS) {
   //_box_klasses[T_OBJECT]  = WK_KLASS(object_klass);
   //_box_klasses[T_ARRAY]   = WK_KLASS(object_klass);
 
-  { // Compute whether we should use loadClass or loadClassInternal when loading classes.
-    Method* method = InstanceKlass::cast(ClassLoader_klass())->find_method(vmSymbols::loadClassInternal_name(), vmSymbols::string_class_signature());
-    _has_loadClassInternal = (method != NULL);
-  }
   { // Compute whether we should use checkPackageAccess or NOT
     Method* method = InstanceKlass::cast(ClassLoader_klass())->find_method(vmSymbols::checkPackageAccess_name(), vmSymbols::class_protectiondomain_signature());
     _has_checkPackageAccess = (method != NULL);

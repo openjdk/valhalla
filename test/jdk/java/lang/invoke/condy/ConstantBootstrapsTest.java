@@ -25,9 +25,9 @@
  * @test
  * @bug 8186046 8195694
  * @summary Test dynamic constant bootstraps
- * @library /java/lang/invoke/common
- * @modules java.base/jdk.experimental.bytecode
- * @build test.java.lang.invoke.lib.InstructionHelper
+ * @requires os.arch != "sparcv9"
+ * @library /lib/testlibrary/bytecode /java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @run testng ConstantBootstrapsTest
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 ConstantBootstrapsTest
  */
