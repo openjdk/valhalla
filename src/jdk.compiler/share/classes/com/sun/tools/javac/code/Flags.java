@@ -127,7 +127,9 @@ public class Flags {
      */
     public static final int HASINIT          = 1<<18;
 
-    // Flag bit 19 is available.
+    /** Flag is set for a value based class.
+     */
+    public static final int VALUEBASED       = 1<<19;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -323,6 +325,11 @@ public class Flags {
      */
     public static final long ANONCONSTR_BASED = 1L<<57;
 
+    /**
+     * Flag that marks field that is a value instance that SHOULD NOT be inlined in the layout.
+     */
+    public static final long NOT_FLATTENED = 1L<<58;
+
     /** Modifier masks.
      */
     public static final int
@@ -336,13 +343,13 @@ public class Flags {
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
                                 SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | FLATTENABLE,
-        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT | FLATTENABLE,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | FLATTENABLE | NOT_FLATTENED,
+        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT | FLATTENABLE | NOT_FLATTENED,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
         LocalVarFlags               = FINAL | PARAMETER,
         VarFlags              = AccessFlags | FINAL | STATIC |
-                                VOLATILE | TRANSIENT | FLATTENABLE | ENUM,
+                                VOLATILE | TRANSIENT | FLATTENABLE | NOT_FLATTENED | ENUM,
         ReceiverParamFlags          = PARAMETER;
 
 
@@ -358,6 +365,7 @@ public class Flags {
             if (0 != (flags & FINAL))     modifiers.add(Modifier.FINAL);
             if (0 != (flags & TRANSIENT)) modifiers.add(Modifier.TRANSIENT);
             if (0 != (flags & FLATTENABLE)) modifiers.add(Modifier.FLATTENABLE);
+            if (0 != (flags & NOT_FLATTENED)) modifiers.add(Modifier.NOT_FLATTENED);
             if (0 != (flags & VOLATILE))  modifiers.add(Modifier.VOLATILE);
             if (0 != (flags & SYNCHRONIZED))
                                           modifiers.add(Modifier.SYNCHRONIZED);
@@ -427,6 +435,7 @@ public class Flags {
         PROPRIETARY(Flags.PROPRIETARY),
         UNION(Flags.UNION),
         FLATTENABLE(Flags.FLATTENABLE),
+        NOT_FLATTENED(Flags.NOT_FLATTENED),
         EFFECTIVELY_FINAL(Flags.EFFECTIVELY_FINAL),
         CLASH(Flags.CLASH),
         AUXILIARY(Flags.AUXILIARY),

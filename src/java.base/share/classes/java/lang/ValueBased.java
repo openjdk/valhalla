@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,19 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Test basic syntax of values
- *
- * @compile Point.java
+package java.lang;
+
+import java.lang.annotation.*;
+
+/**
+ * An informative annotation type used to indicate that a value type existed in a
+ * prior avatar as a <a href="../lang/doc-files/ValueBased.html">value-based</a>
+ * class. Armed with this information, the compiler may choose to treat with leniency 
+ * certain constructs which are erroneous when used with value types, thereby easing the
+ * pain of migration.
  */
 
-final __ByValue class Point {
-    static final __NotFlattened Point origin = makePoint(10, 20);
-    final int x;
-    final int y;
-    Point () {
-        x = 10;
-        y = 20;
-    }
-    static Point makePoint(int x, int y) {
-        Point p = __MakeDefault Point();
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
-    }
-}
+@Documented
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.TYPE)
+public @interface ValueBased {}

@@ -42,7 +42,7 @@ public class FlattenableFlagTest {
     }
 
     __Flattenable Value v1;
-    Value v2;
+    __NotFlattened Value v2;
     __Flattenable Value v3;
   
     public static void main(String[] args) {

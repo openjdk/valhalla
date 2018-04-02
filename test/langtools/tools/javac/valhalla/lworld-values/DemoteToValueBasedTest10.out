@@ -1,0 +1,5 @@
+- compiler.warn.source.no.bootclasspath: 10
+- compiler.err.warnings.and.werror
+DemoteToValueBasedTest.java:10:15: compiler.warn.suspicious.mix.of.null.with.value.based.class: Point
+1 error
+2 warnings

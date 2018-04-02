@@ -32,10 +32,22 @@
  */
 
 public class CastNullCheckTest {
+
+    @ValueBased
+    final __ByValue class XX {
+        final int x = 10;
+    }
+
     public static void main(String... args) {
         int caught = 0;
 
         Object o = null;
+        try {
+            XX x = (XX) o;
+        } catch (NullPointerException npe) {
+            caught++;
+        }
+
         try {
             Point p = (Point) o;
         } catch (NullPointerException npe) {
@@ -49,6 +61,6 @@ public class CastNullCheckTest {
             caught++;
         }
         if (caught != 1)
-            throw new AssertionError("NPE missing !");
+            throw new AssertionError("Wrong NPE count: " + caught);
     }
 }

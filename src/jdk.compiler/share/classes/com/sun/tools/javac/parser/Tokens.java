@@ -163,6 +163,7 @@ public class Tokens {
         THROWS("throws"),
         TRANSIENT("transient"),
         FLATTENABLE("__Flattenable"),
+        NOTFLATTENAED("__NotFlattened"),
         TRY("try"),
         VALUE("__ByValue"),
         VDEFAULT("__MakeDefault"),

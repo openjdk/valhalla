@@ -1,0 +1,5 @@
+BadValueBased.java:8:5: compiler.err.bad.value.based.anno
+BadValueBased.java:11:5: compiler.err.bad.value.based.anno
+BadValueBased.java:14:5: compiler.err.bad.value.based.anno
+BadValueBased.java:19:9: compiler.err.annotation.type.not.applicable
+4 errors

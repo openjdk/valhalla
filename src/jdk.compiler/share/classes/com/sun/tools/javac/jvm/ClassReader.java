@@ -2937,8 +2937,7 @@ public class ClassReader {
         }
         if ((flags & ACC_VALUE) != 0) {
             flags &= ~ACC_VALUE;
-            if (allowValueTypes)
-                flags |= VALUE;
+            flags |= allowValueTypes ? VALUE : VALUEBASED;
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }

@@ -69,6 +69,12 @@ public enum Modifier {
      */
     FLATTENABLE,
 
+    /**
+     * The modifier {@code __NotFlattened}
+     * @since 1.11
+     */
+    NOT_FLATTENED,
+
     /** The modifier {@code static} */          STATIC,
     /** The modifier {@code final} */           FINAL,
     /** The modifier {@code transient} */       TRANSIENT,

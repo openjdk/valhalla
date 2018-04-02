@@ -1198,6 +1198,10 @@ public class Attr extends JCTree.Visitor {
                     setSyntheticVariableType(tree, v.type);
                 }
             }
+            if (v.owner.kind == TYP && types.isValue(v.type) && !types.isValueBased(v.type)) {
+                if ((v.flags() & NOT_FLATTENED) == 0)
+                    v.flags_field |= FLATTENABLE;
+            }
             result = tree.type = v.type;
         }
         finally {

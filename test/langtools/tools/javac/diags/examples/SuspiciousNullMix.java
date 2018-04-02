@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,25 +21,9 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Test basic syntax of values
- *
- * @compile Point.java
- */
+// key: compiler.warn.suspicious.mix.of.null.with.value.based.class
 
-final __ByValue class Point {
-    static final __NotFlattened Point origin = makePoint(10, 20);
-    final int x;
-    final int y;
-    Point () {
-        x = 10;
-        y = 20;
-    }
-    static Point makePoint(int x, int y) {
-        Point p = __MakeDefault Point();
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
-    }
+@ValueBased
+class I {
+    I i = null;
 }
