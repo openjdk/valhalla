@@ -29,8 +29,8 @@ final class ContainerValue3 {
 }
 
 public __ByValue final class TestValue3 {
-    
-    static TestValue3 staticValue = getInstance();
+
+    static __NotFlattened TestValue3 staticValue = getInstance();
 
     final byte b;
 

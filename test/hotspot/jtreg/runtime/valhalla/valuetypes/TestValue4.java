@@ -32,7 +32,7 @@ final class ContainerValue4 {
 
 public __ByValue final class TestValue4 {
 
-    static TestValue4 staticValue = getInstance();
+    static __NotFlattened TestValue4 staticValue = getInstance();
 
     final byte b1;
     final byte b2;

@@ -29,106 +29,107 @@ import jdk.test.lib.Asserts;
  * @summary Flattenable field semantic test
  * @library /test/lib
  * @compile -XDenableValueTypes Point.java JumboValue.java
- * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError -XX:+EnableValhalla runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+EnableValhalla runtime.valhalla.valuetypes.FlattenableSemanticTest
  */
 
 
 /*
+ * // debug: -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
  */
 public class FlattenableSemanticTest {
-    
-    static Point nfsp;
-    __Flattenable static Point fsp;
 
-    Point nfip;
+    __NotFlattened static Point nfsp;
+    __Flattenable  static Point fsp;
+
+    __NotFlattened Point nfip;
     __Flattenable Point fip;
 
-    static JumboValue nfsj;
+    static __NotFlattened JumboValue nfsj;
     static __Flattenable JumboValue fsj;
-    
-    JumboValue nfij;
+
+    __NotFlattened JumboValue nfij;
     __Flattenable JumboValue fij;
 
     static Object getNull() {
-	return null;
+        return null;
     }
-    
+
     FlattenableSemanticTest() { }
 
     public static void main(String[] args) {
-	FlattenableSemanticTest test = new FlattenableSemanticTest();
+        FlattenableSemanticTest test = new FlattenableSemanticTest();
 
-	// Uninitialized value fields must be null for non flattenable fields
-	Asserts.assertNull(nfsp, "Invalid non null value for unitialized non flattenable field");
-	Asserts.assertNull(nfsj, "Invalid non null value for unitialized non flattenable field");
-	Asserts.assertNull(test.nfip, "Invalid non null value for unitialized non flattenable field");
-	Asserts.assertNull(test.nfij, "Invalid non null value for unitialized non flattenable field");
+        // Uninitialized value fields must be null for non flattenable fields
+        Asserts.assertNull(nfsp, "Invalid non null value for unitialized non flattenable field");
+        Asserts.assertNull(nfsj, "Invalid non null value for unitialized non flattenable field");
+        Asserts.assertNull(test.nfip, "Invalid non null value for unitialized non flattenable field");
+        Asserts.assertNull(test.nfij, "Invalid non null value for unitialized non flattenable field");
 
-	fsp.equals(null);
-	
-	// Uninitialized value fields must be non null for flattenable fields
-	Asserts.assertNotNull(fsp, "Invalid null value for unitialized flattenable field");
-	Asserts.assertNotNull(fsj, "Invalid null value for unitialized flattenable field");
-	Asserts.assertNotNull(test.fip, "Invalid null value for unitialized flattenable field");
-	Asserts.assertNotNull(test.fij, "Invalid null value for unitialized flattenable field");
+        fsp.equals(null);
 
-	// Assigning null must be allowed for non flattenable value fields
-	boolean exception = false;
-	try {
-	    nfsp = (Point)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
-	try {
-	    nfsj = (JumboValue)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
-	try {
-	    test.nfip = (Point)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
-	try {
-	    test.nfij = (JumboValue)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
-	
-	// Assigning null to a flattenable value field must trigger a NPE
-	try {
-	    fsp = (Point)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
-	exception = false;
-	try {
-	    fsj = (JumboValue)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
-	exception = false;
-	try {
-	    test.fip = (Point)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
-	exception = false;
-	try {
-	    test.fij = (JumboValue)getNull();
-	} catch(NullPointerException e) {
-	    exception = true;
-	}
-	Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
-	exception = false;
+        // Uninitialized value fields must be non null for flattenable fields
+        Asserts.assertNotNull(fsp, "Invalid null value for unitialized flattenable field");
+        Asserts.assertNotNull(fsj, "Invalid null value for unitialized flattenable field");
+        Asserts.assertNotNull(test.fip, "Invalid null value for unitialized flattenable field");
+        Asserts.assertNotNull(test.fij, "Invalid null value for unitialized flattenable field");
+
+        // Assigning null must be allowed for non flattenable value fields
+        boolean exception = false;
+        try {
+            nfsp = (Point)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
+        try {
+            nfsj = (JumboValue)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
+        try {
+            test.nfip = (Point)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
+        try {
+            test.nfij = (JumboValue)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
+
+        // Assigning null to a flattenable value field must trigger a NPE
+        try {
+            fsp = (Point)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
+        exception = false;
+        try {
+            fsj = (JumboValue)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
+        exception = false;
+        try {
+            test.fip = (Point)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
+        exception = false;
+        try {
+            test.fij = (JumboValue)getNull();
+        } catch(NullPointerException e) {
+            exception = true;
+        }
+        Asserts.assertTrue(exception, "NPE not thrown when assigning null to a flattenable field");
+        exception = false;
     }
 
 }

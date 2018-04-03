@@ -216,9 +216,10 @@ public class ValueTypeArray {
             return mi;
         }
 
-        public static final MyInt MIN = MyInt.create(Integer.MIN_VALUE);
-        public static final MyInt ZERO = MyInt.create(0);
-        public static final MyInt MAX = MyInt.create(Integer.MAX_VALUE);
+        
+        public static __NotFlattened final MyInt MIN = MyInt.create(Integer.MIN_VALUE);
+        public static __NotFlattened final MyInt ZERO = MyInt.create(0);
+        public static __NotFlattened final MyInt MAX = MyInt.create(Integer.MAX_VALUE);
     }
 
     void testSanityCheckcasts() {
@@ -370,7 +371,7 @@ public class ValueTypeArray {
             mp = __WithField(mp.y, MyInt.create(y));
             return mp;
         }
-        static final MyPoint ORIGIN = create(0);
+        static __NotFlattened final MyPoint ORIGIN = create(0);
     }
 
     void testComposition() {

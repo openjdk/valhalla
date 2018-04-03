@@ -30,7 +30,7 @@ final class ContainerValue1 {
 
 public __ByValue final class TestValue1 {
 
-    static TestValue1 staticValue = getInstance();
+    static __NotFlattened TestValue1 staticValue = getInstance();
 
     final int i;
     final String name;

@@ -29,7 +29,7 @@ final class ContainerValue2 {
 }
 
 public __ByValue final class TestValue2 {
-    static TestValue2 staticValue = getInstance();
+    static __NotFlattened TestValue2 staticValue = getInstance();
 
     final long l;
     final double d;

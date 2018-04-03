@@ -84,7 +84,7 @@ public class ValueTypeCreation {
 
     static final __ByValue class StaticSelf {
 
-	static final StaticSelf DEFAULT = create(0);
+	static __NotFlattened final StaticSelf DEFAULT = create(0);
 	final int f1;
 
 	private StaticSelf() { f1 = 0; }
