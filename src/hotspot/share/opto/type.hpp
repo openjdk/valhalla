@@ -1331,7 +1331,7 @@ class TypeValueTypePtr : public TypeOopPtr {
 public:
   // Make a pointer to a value type
   static const TypeValueTypePtr* make(PTR ptr, ciValueKlass* vk, ciObject* o = NULL, Offset offset = Offset(0),
-                                      int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom, bool narrow = false);
+                                      int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom);
   // Make a pointer to a constant value type
   static const TypeValueTypePtr* make(ciObject* o) { return make(TypePtr::Constant, o->klass()->as_value_klass(), o); }
 

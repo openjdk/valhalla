@@ -45,30 +45,30 @@ public __ByValue final class JumboValue {
     final long l19;
 
     private JumboValue() {
-	l0 = 0;
-	l1 = 0;
-	l2 = 0;
-	l3 = 0;
-	l4 = 0;
-	l5 = 0;
-	l6 = 0;
-	l7 = 0;
-	l8 = 0;
-	l9 = 0;
-	l10 = 0;
-	l11 = 0;
-	l12 = 0;
-	l13 = 0;
-	l14 = 0;
-	l15 = 0;
-	l16 = 0;
-	l17 = 0;
-	l18 = 0;
-	l19 = 0;
+        l0 = 0;
+        l1 = 0;
+        l2 = 0;
+        l3 = 0;
+        l4 = 0;
+        l5 = 0;
+        l6 = 0;
+        l7 = 0;
+        l8 = 0;
+        l9 = 0;
+        l10 = 0;
+        l11 = 0;
+        l12 = 0;
+        l13 = 0;
+        l14 = 0;
+        l15 = 0;
+        l16 = 0;
+        l17 = 0;
+        l18 = 0;
+        l19 = 0;
     }
-	
+
     public static JumboValue createJumboValue() {
-	JumboValue j = __MakeDefault JumboValue();
-	return j;
+        JumboValue j = __MakeDefault JumboValue();
+        return j;
     }
 }

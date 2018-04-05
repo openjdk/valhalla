@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,14 +30,6 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile  -XDenableValueTypes ValueTypeCreation.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
- */
-
-
-
-
-
-
-/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  */
 public class ValueTypeCreation {
@@ -49,9 +41,8 @@ public class ValueTypeCreation {
     public void run() {
         testPoint();
         testLong8();
-        // Embedded oops not yet supported
-        //testPerson();
-	StaticSelf.test();
+        testPerson();
+        StaticSelf.test();
     }
 
     void testPoint() {
@@ -77,28 +68,28 @@ public class ValueTypeCreation {
 
     void testPerson() {
         Person person = Person.create(1, "John", "Smith");
-        Asserts.assertEquals(person.getId(), 1L, "Id field incorrect");
+        Asserts.assertEquals(person.getId(), 1, "Id field incorrect");
         Asserts.assertEquals(person.getFirstName(), "John", "First name incorrect");
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
     static final __ByValue class StaticSelf {
 
-	static __NotFlattened final StaticSelf DEFAULT = create(0);
-	final int f1;
+        static __NotFlattened final StaticSelf DEFAULT = create(0);
+        final int f1;
 
-	private StaticSelf() { f1 = 0; }
-	public String toString() { return "StaticSelf f1=" + f1; }
+        private StaticSelf() { f1 = 0; }
+        public String toString() { return "StaticSelf f1=" + f1; }
 
-	static StaticSelf create(int f1) {
-	    StaticSelf s = __MakeDefault StaticSelf();
-	    s = __WithField(s.f1, f1);
-	    return s;
-	}
+        static StaticSelf create(int f1) {
+            StaticSelf s = __MakeDefault StaticSelf();
+            s = __WithField(s.f1, f1);
+            return s;
+        }
 
-	public static void test() {
-	    String s = DEFAULT.toString();
-	}
+        public static void test() {
+            String s = DEFAULT.toString();
+        }
 
     }
 }

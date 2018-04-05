@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@ __ByValue final class EmptyValue {
     }
 
     public static EmptyValue createEmptyValue() {
-	EmptyValue e = __MakeDefault EmptyValue();
-	return e;
+        EmptyValue e = __MakeDefault EmptyValue();
+        return e;
     }
 }
 
@@ -39,9 +39,6 @@ __ByValue final class EmptyValue {
  * @summary Test empty value type
  * @compile -XDenableValueTypes Empty.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
- */
-
-/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
  */
 public class Empty {

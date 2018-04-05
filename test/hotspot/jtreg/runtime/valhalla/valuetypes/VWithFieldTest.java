@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,80 +32,75 @@ import jdk.test.lib.Asserts;
  * @compile -XDenableValueTypes Point.java
  * @compile -XDenableValueTypes VWithFieldTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
- */
-
-
-
-/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
  */
 
 public class VWithFieldTest {
 
     static __ByValue final class Point {
-	final private int x;
-	final private int y;
-	
-	static Point make(int x, int y) {
-	    Point p = __MakeDefault Point();
-	    Asserts.assertEquals(p.x, 0, "invalid x default value");
-	    Asserts.assertEquals(p.y, 0, "invalid y default value");
-	    p = __WithField(p.x, x);
-	    Asserts.assertEquals(p.x, x, "invalid x value");
-	    Asserts.assertEquals(p.y, 0, "invalid y value");
-	    p = __WithField(p.y, y);
-	    Asserts.assertEquals(p.x, x, "invalid x value");
-	    Asserts.assertEquals(p.y, y, "invalid y value");
-	    return p;
-	}
+        final private int x;
+        final private int y;
 
-	Point () {
-	    x = 0;
-	    y = 0;
-	}
+        static Point make(int x, int y) {
+            Point p = __MakeDefault Point();
+            Asserts.assertEquals(p.x, 0, "invalid x default value");
+            Asserts.assertEquals(p.y, 0, "invalid y default value");
+            p = __WithField(p.x, x);
+            Asserts.assertEquals(p.x, x, "invalid x value");
+            Asserts.assertEquals(p.y, 0, "invalid y value");
+            p = __WithField(p.y, y);
+            Asserts.assertEquals(p.x, x, "invalid x value");
+            Asserts.assertEquals(p.y, y, "invalid y value");
+            return p;
+        }
 
-	public int getX() {
-	    return x;
-	}
-	
-	static Point setX(Point p, int x) {
-	    p = __WithField(p.x, x);
-	    return p;
-	}
+        Point () {
+            x = 0;
+            y = 0;
+        }
 
-	public int getY() {
-	    return y;
-	}
-	
-	static Point setY(Point p, int y) {
-	    p = __WithField(p.y, y);
-	    return p;
-	}
+        public int getX() {
+            return x;
+        }
+
+        static Point setX(Point p, int x) {
+            p = __WithField(p.x, x);
+            return p;
+        }
+
+        public int getY() {
+            return y;
+        }
+
+        static Point setY(Point p, int y) {
+            p = __WithField(p.y, y);
+            return p;
+        }
     }
 
     public static void main(String[] args) {
-	creationTest();
-	creationTest();
-	witherTest();
-	witherTest();
+        creationTest();
+        creationTest();
+        witherTest();
+        witherTest();
     }
 
     static void creationTest() {
-	Point p = Point.make(10,20);
-	Asserts.assertEquals(p.x, 10, "invalid x value");
-	Asserts.assertEquals(p.y, 20, "invalid y value");
+        Point p = Point.make(10,20);
+        Asserts.assertEquals(p.x, 10, "invalid x value");
+        Asserts.assertEquals(p.y, 20, "invalid y value");
     }
 
     static void witherTest() {
-	Point p1 = Point.make(2,12);
-	Asserts.assertEquals(p1.x, 2, "invalid x value");
-	Asserts.assertEquals(p1.y, 12, "invalid y value");
-	Point p2 = Point.setX(p1,3);
-	Asserts.assertEquals(p2.x, 3, "invalid x value");
-	Asserts.assertEquals(p2.y, 12, "invalid y value");
-	Point p3 = Point.setY(p2, 14);
-	Asserts.assertEquals(p3.x, 3, "invalid x value");
-	Asserts.assertEquals(p3.y, 14, "invalid y value");
+        Point p1 = Point.make(2,12);
+        Asserts.assertEquals(p1.x, 2, "invalid x value");
+        Asserts.assertEquals(p1.y, 12, "invalid y value");
+        Point p2 = Point.setX(p1,3);
+        Asserts.assertEquals(p2.x, 3, "invalid x value");
+        Asserts.assertEquals(p2.y, 12, "invalid y value");
+        Point p3 = Point.setY(p2, 14);
+        Asserts.assertEquals(p3.x, 3, "invalid x value");
+        Asserts.assertEquals(p3.y, 14, "invalid y value");
     }
-    
+
 }

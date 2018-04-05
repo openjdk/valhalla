@@ -605,6 +605,29 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     return;
   }
 
+  // Handle value type arguments
+  int arg_size_sig = tf()->domain_sig()->cnt();
+  for (uint i = 0; i < (uint)arg_size_sig; i++) {
+    Node* parm = map()->in(i);
+    const TypeValueTypePtr* vtptr = _gvn.type(parm)->isa_valuetypeptr();
+    if (vtptr != NULL) {
+      // Create ValueTypeNode from the oop and replace the parameter
+      Node* null_ctl = top();
+      Node* not_null_obj = null_check_common(parm, T_VALUETYPE, false, &null_ctl, false);
+      if (null_ctl != top()) {
+        // TODO For now, we just deoptimize if value type is NULL
+        PreserveJVMState pjvms(this);
+        set_control(null_ctl);
+        replace_in_map(parm, null());
+        Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+        uncommon_trap(reason, Deoptimization::Action_none);
+      }
+      // Value type oop may point to the TLVB
+      Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ true);
+      map()->replace_edge(parm, vt);
+    }
+  }
+
   entry_map = map();  // capture any changes performed by method setup code
   assert(jvms()->endoff() == map()->req(), "map matches JVMS layout");
 
@@ -805,8 +828,7 @@ void Parse::build_exits() {
       ret_type = TypeOopPtr::BOTTOM;
     }
     if ((_caller->has_method() || tf()->returns_value_type_as_fields()) &&
-        ret_type->isa_valuetypeptr() &&
-        !ret_type->is_valuetypeptr()->is__Value()) {
+        ret_type->isa_valuetypeptr() && !ret_type->is_valuetypeptr()->is__Value()) {
       // When inlining or with multiple return values: return value
       // type as ValueTypeNode not as oop
       ret_type = TypeValueType::make(ret_type->is_valuetypeptr()->value_klass());
@@ -875,15 +897,6 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       }
     } else {
       Node* parm = gvn.transform(new ParmNode(start, i));
-      // Check if parameter is a value type pointer
-      const TypeValueTypePtr* vtptr = gvn.type(parm)->isa_valuetypeptr();
-      if (vtptr != NULL) {
-        // Create ValueTypeNode from the oop and replace the parameter
-        Node* ctl = map->control();
-        // Value type oop may point to the TLVB
-        parm = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), parm, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ true);
-        map->set_control(ctl);
-      }
       map->init_req(i, parm);
       // Record all these guys for later GVN.
       record_for_igvn(parm);
@@ -1756,6 +1769,19 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       target->mark_merged_backedge(block());
     }
 #endif
+
+    // Check for merge conflicts involving value types
+    for (uint j = 1; j < map()->req(); j++) {
+      Node* m = target->start_map()->in(j);   // Current state of target.
+      Node* n = map()->in(j);                 // Incoming change to target state.
+      if (!m->is_ValueType() && n->is_ValueType()) {
+        // Allocate value type in src block to be able to merge it with oop in target block
+        ValueTypeBaseNode* vt = n->as_ValueType()->allocate(this);
+        map()->replace_edge(vt, vt->get_oop());
+      }
+    }
+    do_exceptions();
+
     // We must not manufacture more phis if the target is already parsed.
     bool nophi = target->is_parsed();
 
@@ -1837,8 +1863,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two value types?
-      assert(phi == NULL || (m->is_ValueType() == n->is_ValueType()),
-          "value types should only be merged with other value types");
+      assert(m->is_ValueType() == n->is_ValueType(), "value types should only be merged with other value types");
       if (phi != NULL && n->isa_ValueType()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
@@ -2033,6 +2058,8 @@ int Parse::Block::add_new_path() {
       if (n->is_Phi() && n->as_Phi()->region() == r) {
         assert(n->req() == pnum, "must be same size as region");
         n->add_req(NULL);
+      } else if (n->is_ValueType() && n->as_ValueType()->has_phi_inputs(r)) {
+        n->as_ValueType()->add_new_path(r);
       }
     }
   }
@@ -2054,6 +2081,10 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
 
   if (o->is_Phi() && o->as_Phi()->region() == region) {
     return o->as_Phi();
+  }
+  ValueTypeBaseNode* vt = o->isa_ValueType();
+  if (vt != NULL && vt->has_phi_inputs(region)) {
+    return vt->get_oop()->as_Phi();
   }
 
   // Now use a Phi here for merging
@@ -2088,7 +2119,6 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     return NULL;
   }
 
-  ValueTypeBaseNode* vt = o->isa_ValueType();
   if (vt != NULL) {
     // Value types are merged by merging their field values.
     // Create a cloned ValueTypeNode with phi inputs that
@@ -2319,11 +2349,13 @@ void Parse::return_current(Node* value) {
         }
         value = _gvn.transform(new CheckCastPPNode(0, value, tr));
       }
-    } else if (tr && tr->isa_valuetypeptr() && value->is_ValueType()) {
-      // Handle exact value type to __Value return
-      assert(tr->isa_valuetypeptr()->is__Value(), "must be __Value");
+    } else if (tr && tr->isa_instptr() && value->is_ValueType()) {
+      // Handle exact value type to Object return
+      assert(tr->isa_instptr()->klass()->is_java_lang_Object(), "must be java.lang.Object");
       ValueTypeNode* vt = value->as_ValueType()->allocate(this)->as_ValueType();
       value = ValueTypePtrNode::make_from_value_type(_gvn, vt);
+    } else if (phi->bottom_type()->isa_valuetype() && !value->is_ValueType()) {
+      value = ValueTypeNode::make_from_oop(this, value, phi->bottom_type()->isa_valuetype()->value_klass());
     } else {
       // Handle returns of oop-arrays to an arrays-of-interface return
       const TypeInstPtr* phi_tip;

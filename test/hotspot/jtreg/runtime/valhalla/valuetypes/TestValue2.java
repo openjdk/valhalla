@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,17 +43,17 @@ public __ByValue final class TestValue2 {
 
     public static TestValue2 create(long l) {
         TestValue2 v = __MakeDefault TestValue2();
-	v = __WithField(v.l, l);
-	v = __WithField(v.s, Long.valueOf(l).toString());
-	v = __WithField(v.d, Double.parseDouble(v.s));
+        v = __WithField(v.l, l);
+        v = __WithField(v.s, Long.valueOf(l).toString());
+        v = __WithField(v.d, Double.parseDouble(v.s));
         return v;
     }
 
     public static TestValue2 create() {
         TestValue2 v = __MakeDefault TestValue2();
-	v = __WithField(v.l, System.nanoTime());
-	v = __WithField(v.s, Long.valueOf(v.l).toString());
-	v = __WithField(v.d, Double.parseDouble(v.s));
+        v = __WithField(v.l, System.nanoTime());
+        v = __WithField(v.s, Long.valueOf(v.l).toString());
+        v = __WithField(v.d, Double.parseDouble(v.s));
         return v;
     }
 

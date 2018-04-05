@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,14 +56,6 @@ import javax.tools.*;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.valuetypes.ValueTypesTest
- */
-
-
-
-
-
-
-/*
  * @run main/othervm -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -91,7 +83,7 @@ public class ValueTypesTest {
             try {
                 testExecutionStackToLocalVariable(testClasses[i]);
                 testExecutionStackToFields(testClasses[i], containerClasses[i]);
-//                testExecutionStackToValueArray(testClasses[i], containerClasses[i]);
+                // testExecutionStackToValueArray(testClasses[i], containerClasses[i]);
             } catch (Throwable t) {
                 t.printStackTrace();
                 throw new RuntimeException(t);
@@ -115,28 +107,28 @@ public class ValueTypesTest {
                     while (n < 1024) {
                         n++;
                         CODE
-                                .invokestatic(valueClass, "getInstance", signature, false)
-                                .astore(n);
+                        .invokestatic(valueClass, "getInstance", signature, false)
+                        .astore(n);
                         n++;
                         CODE
-                                .invokestatic(valueClass, "getNonBufferedInstance", signature, false)
-                                .astore(n);
+                        .invokestatic(valueClass, "getNonBufferedInstance", signature, false)
+                        .astore(n);
                     }
                     CODE.invokestatic(System.class, "gc", "()V", false);
                     while (n > 0) {
                         CODE
-                                .aload(n)
-                                .invokevirtual(valueClass, "verify", "()Z", false)
-                                .iconst_1()
-                                .ifcmp(TypeTag.I, CondKind.NE, "end");
+                        .aload(n)
+                        .invokevirtual(valueClass, "verify", "()Z", false)
+                        .iconst_1()
+                        .ifcmp(TypeTag.I, CondKind.NE, "end");
                         n--;
                     }
                     CODE
-                            .iconst_1()
-                            .return_(TypeTag.Z)
-                            .label("end")
-                            .iconst_0()
-                            .return_(TypeTag.Z);
+                    .iconst_1()
+                    .return_(TypeTag.Z)
+                    .label("end")
+                    .iconst_0()
+                    .return_(TypeTag.Z);
                 });
         boolean result = (boolean) fromExecStackToLocalVar.invokeExact();
         System.out.println(result);
@@ -155,57 +147,57 @@ public class ValueTypesTest {
                 MethodType.methodType(boolean.class),
                 CODE -> {
                     CODE
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .new_(containerClass)
-                            .dup()
-                            .invoke(MacroCodeBuilder.InvocationKind.INVOKESPECIAL, containerClass, "<init>", "()V", false)
-                            .astore_1()
-                            .iconst_m1()
-                            .istore_2()
-                            .label("loop")
-                            .iload_2()
-                            .ldc(ITERATIONS)
-                            .ifcmp(TypeTag.I, CondKind.EQ, "end")
-                            .aload_1()
-                            .invokestatic(valueClass, "getInstance", methodSignature, false)
-                            .putfield(containerClass, "nonStaticValueField", fieldSignature)
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .aload_1()
-                            .getfield(containerClass, "nonStaticValueField", fieldSignature)
-                            .invokevirtual(valueClass, "verify", "()Z", false)
-                            .iconst_1()
-                            .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                            .aload_1()
-                            .invokestatic(valueClass, "getNonBufferedInstance", methodSignature, false)
-                            .putfield(containerClass, "nonStaticValueField", fieldSignature)
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .aload_1()
-                            .getfield(containerClass, "nonStaticValueField", fieldSignature)
-                            .invokevirtual(valueClass, "verify", "()Z", false)
-                            .iconst_1()
-                            .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                            .invokestatic(valueClass, "getInstance", methodSignature, false)
-                            .putstatic(containerClass, "staticValueField", fieldSignature)
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .getstatic(containerClass, "staticValueField", fieldSignature)
-                            .invokevirtual(valueClass, "verify", "()Z", false)
-                            .iconst_1()
-                            .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                            .invokestatic(valueClass, "getNonBufferedInstance", methodSignature, false)
-                            .putstatic(containerClass, "staticValueField", fieldSignature)
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .getstatic(containerClass, "staticValueField", fieldSignature)
-                            .invokevirtual(valueClass, "verify", "()Z", false)
-                            .iconst_1()
-                            .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                            .iinc(2, 1)
-                            .goto_("loop")
-                            .label("end")
-                            .iconst_1()
-                            .return_(TypeTag.Z)
-                            .label("failed")
-                            .iconst_0()
-                            .return_(TypeTag.Z);
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .new_(containerClass)
+                    .dup()
+                    .invoke(MacroCodeBuilder.InvocationKind.INVOKESPECIAL, containerClass, "<init>", "()V", false)
+                    .astore_1()
+                    .iconst_m1()
+                    .istore_2()
+                    .label("loop")
+                    .iload_2()
+                    .ldc(ITERATIONS)
+                    .ifcmp(TypeTag.I, CondKind.EQ, "end")
+                    .aload_1()
+                    .invokestatic(valueClass, "getInstance", methodSignature, false)
+                    .putfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .aload_1()
+                    .getfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .invokevirtual(valueClass, "verify", "()Z", false)
+                    .iconst_1()
+                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .aload_1()
+                    .invokestatic(valueClass, "getNonBufferedInstance", methodSignature, false)
+                    .putfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .aload_1()
+                    .getfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .invokevirtual(valueClass, "verify", "()Z", false)
+                    .iconst_1()
+                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .invokestatic(valueClass, "getInstance", methodSignature, false)
+                    .putstatic(containerClass, "staticValueField", fieldSignature)
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .getstatic(containerClass, "staticValueField", fieldSignature)
+                    .invokevirtual(valueClass, "verify", "()Z", false)
+                    .iconst_1()
+                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .invokestatic(valueClass, "getNonBufferedInstance", methodSignature, false)
+                    .putstatic(containerClass, "staticValueField", fieldSignature)
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .getstatic(containerClass, "staticValueField", fieldSignature)
+                    .invokevirtual(valueClass, "verify", "()Z", false)
+                    .iconst_1()
+                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .iinc(2, 1)
+                    .goto_("loop")
+                    .label("end")
+                    .iconst_1()
+                    .return_(TypeTag.Z)
+                    .label("failed")
+                    .iconst_0()
+                    .return_(TypeTag.Z);
                 });
         boolean result = (boolean) fromExecStackToFields.invokeExact();
         System.out.println(result);
@@ -224,62 +216,62 @@ public class ValueTypesTest {
                 MethodType.methodType(boolean.class),
                 CODE -> {
                     CODE
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .new_(containerClass)
-                            .dup()
-                            .invoke(MacroCodeBuilder.InvocationKind.INVOKESPECIAL, containerClass, "<init>", "()V", false)
-                            .astore_1()
-                            .ldc(ITERATIONS * 3)
-                            .anewarray(valueClass)
-                            .astore_2()
-                            .aload_2()
-                            .aload_1()
-                            .swap()
-                            .putfield(containerClass, "valueArray", arraySignature)
-                            .iconst_0()
-                            .istore_3()
-                            .label("loop1")
-                            .iload_3()
-                            .ldc(ITERATIONS)
-                            .ifcmp(TypeTag.I, CondKind.GE, "end1")
-                            .aload_2()
-                            .iload_3()
-                            .invokestatic(valueClass, "getInstance", signature, false)
-                            .aastore()
-                            .iinc(3, 1)
-                            .aload_2()
-                            .iload_3()
-                            .invokestatic(valueClass, "getNonBufferedInstance", signature, false)
-                            .aastore()
-                            .iinc(3, 1)
-                            .aload_2()
-                            .iload_3()
-                            .defaultvalue(valueClass)
-                            .aastore()
-                            .iinc(3, 1)
-                            .goto_("loop1")
-                            .label("end1")
-                            .invokestatic(System.class, "gc", "()V", false)
-                            .iconst_0()
-                            .istore_3()
-                            .label("loop2")
-                            .iload_3()
-                            .ldc(ITERATIONS * 3)
-                            .ifcmp(TypeTag.I, CondKind.GE, "end2")
-                            .aload_2()
-                            .iload_3()
-                            .aaload()
-                            .invokevirtual(valueClass, "verify", "()Z", false)
-                            .iconst_1()
-                            .ifcmp(TypeTag.I, CondKind.NE, "failed")
-                            .iinc(3, 1)
-                            .goto_("loop2")
-                            .label("end2")
-                            .iconst_1()
-                            .return_(TypeTag.Z)
-                            .label("failed")
-                            .iconst_0()
-                            .return_(TypeTag.Z);
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .new_(containerClass)
+                    .dup()
+                    .invoke(MacroCodeBuilder.InvocationKind.INVOKESPECIAL, containerClass, "<init>", "()V", false)
+                    .astore_1()
+                    .ldc(ITERATIONS * 3)
+                    .anewarray(valueClass)
+                    .astore_2()
+                    .aload_2()
+                    .aload_1()
+                    .swap()
+                    .putfield(containerClass, "valueArray", arraySignature)
+                    .iconst_0()
+                    .istore_3()
+                    .label("loop1")
+                    .iload_3()
+                    .ldc(ITERATIONS)
+                    .ifcmp(TypeTag.I, CondKind.GE, "end1")
+                    .aload_2()
+                    .iload_3()
+                    .invokestatic(valueClass, "getInstance", signature, false)
+                    .aastore()
+                    .iinc(3, 1)
+                    .aload_2()
+                    .iload_3()
+                    .invokestatic(valueClass, "getNonBufferedInstance", signature, false)
+                    .aastore()
+                    .iinc(3, 1)
+                    .aload_2()
+                    .iload_3()
+                    .defaultvalue(valueClass)
+                    .aastore()
+                    .iinc(3, 1)
+                    .goto_("loop1")
+                    .label("end1")
+                    .invokestatic(System.class, "gc", "()V", false)
+                    .iconst_0()
+                    .istore_3()
+                    .label("loop2")
+                    .iload_3()
+                    .ldc(ITERATIONS * 3)
+                    .ifcmp(TypeTag.I, CondKind.GE, "end2")
+                    .aload_2()
+                    .iload_3()
+                    .aaload()
+                    .invokevirtual(valueClass, "verify", "()Z", false)
+                    .iconst_1()
+                    .ifcmp(TypeTag.I, CondKind.NE, "failed")
+                    .iinc(3, 1)
+                    .goto_("loop2")
+                    .label("end2")
+                    .iconst_1()
+                    .return_(TypeTag.Z)
+                    .label("failed")
+                    .iconst_0()
+                    .return_(TypeTag.Z);
                 });
         boolean result = (boolean) fromExecStackToValueArray.invokeExact();
         System.out.println(result);

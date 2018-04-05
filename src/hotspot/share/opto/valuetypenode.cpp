@@ -110,6 +110,25 @@ ValueTypeBaseNode* ValueTypeBaseNode::merge_with(PhaseGVN* gvn, const ValueTypeB
   return this;
 }
 
+// Adds a new merge path to a valuetype node with phi inputs
+void ValueTypeBaseNode::add_new_path(Node* region) {
+  assert(has_phi_inputs(region), "must have phi inputs");
+
+  PhiNode* phi = get_oop()->as_Phi();
+  phi->add_req(NULL);
+  assert(phi->req() == region->req(), "must be same size as region");
+
+  for (uint i = 0; i < field_count(); ++i) {
+    Node* val = field_value(i);
+    if (val->isa_ValueType()) {
+      val->as_ValueType()->add_new_path(region);
+    } else {
+      val->as_Phi()->add_req(NULL);
+      assert(val->req() == region->req(), "must be same size as region");
+    }
+  }
+}
+
 Node* ValueTypeBaseNode::field_value(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return in(Values + index);
@@ -471,7 +490,6 @@ ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* kl
 
 Node* ValueTypeNode::load_default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
   // Load the default oop from the java mirror of the given ValueKlass
-  assert(!vk->is__Value(), "__Value has no default oop");
   const TypeInstPtr* tip = TypeInstPtr::make(vk->java_mirror());
   Node* base = gvn.makecon(tip);
   Node* adr = gvn.transform(new AddPNode(base, base, gvn.MakeConX(vk->default_value_offset())));
@@ -501,9 +519,6 @@ ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
 
 
 bool ValueTypeNode::is_default(PhaseGVN& gvn) const {
-  if (value_klass()->is__Value()) {
-    return false;
-  }
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     if (!gvn.type(value)->is_zero_type() &&
@@ -630,7 +645,6 @@ Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, in
     vk = value_klass();
   }
   if (field_count() == 0) {
-    assert(vk->is__Value(), "unexpected value type klass");
     assert(is_allocated(phase), "must be allocated");
     return get_oop();
   }

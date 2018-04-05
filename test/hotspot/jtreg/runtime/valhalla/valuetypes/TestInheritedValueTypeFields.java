@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,6 @@ import jdk.test.lib.Asserts;
  * @summary Test if value field klasses are correctly retrieved for inherited fields
  * @library /test/lib
  * @compile -XDenableValueTypes Point.java TestInheritedValueTypeFields.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.TestInheritedValueTypeFields
- */
-
-
-/*
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.TestInheritedValueTypeFields
  */
 
@@ -70,7 +65,7 @@ public class TestInheritedValueTypeFields {
 
     public static void main(String[] args) {
         for (int i = 0; i < 100000; i++) {
-          run();
+            run();
         }
     }
 

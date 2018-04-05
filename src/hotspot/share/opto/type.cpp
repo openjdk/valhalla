@@ -2038,7 +2038,12 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
       ciValueKlass* vk = (ciValueKlass*)recv;
       collect_value_fields(vk, field_array, pos);
     } else {
-      field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
+      if (recv->is_valuetype()) {
+        // TODO For now, we just deoptimize if the value type receiver is null
+        field_array[pos++] = get_const_type(recv);
+      } else {
+        field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
+      }
     }
   } else {
     field_array = fields(arg_cnt + vt_extra);
@@ -2076,7 +2081,9 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
         collect_value_fields(vk, field_array, pos);
       } else {
         // Value types arguments cannot be NULL
-        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
+        // field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
+        // TODO they can be NULL in LWorld
+        field_array[pos++] = get_const_type(type);
       }
       break;
     }
@@ -4155,6 +4162,53 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
     return make(ptr, k, false, NULL, off, instance_id, speculative, depth);
   } // End of case InstPtr
 
+  case ValueTypePtr: {                // All value types inherit from Object class
+    const TypeValueTypePtr* tp = t->is_valuetypeptr();
+    Offset offset = meet_offset(tp->offset());
+    PTR ptr = meet_ptr(tp->ptr());
+    int instance_id = meet_instance_id(tp->instance_id());
+    const TypePtr* speculative = xmeet_speculative(tp);
+    int depth = meet_inline_depth(tp->inline_depth());
+    switch (ptr) {
+    case TopPTR:
+    case AnyNull:                // Fall 'down' to dual of object klass
+      // For instances when a subclass meets a superclass we fall
+      // below the centerline when the superclass is exact. We need to
+      // do the same here.
+      if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact()) {
+        return TypeValueTypePtr::make(ptr, tp->value_klass(), NULL, offset, instance_id, speculative, depth);
+      } else {
+        // cannot subclass, so the meet has to fall badly below the centerline
+        ptr = NotNull;
+        instance_id = InstanceBot;
+        return TypeInstPtr::make( ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
+      }
+    case Constant:
+    case NotNull:
+    case BotPTR:                // Fall down to object klass
+      // LCA is object_klass, but if we subclass from the top we can do better
+      if (above_centerline(_ptr)) { // if( _ptr == TopPTR || _ptr == AnyNull )
+        // If 'this' (InstPtr) is above the centerline and it is Object class
+        // then we can subclass in the Java class hierarchy.
+        // For instances when a subclass meets a superclass we fall
+        // below the centerline when the superclass is exact. We need
+        // to do the same here.
+        if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact()) {
+          // that is, tp's value type is a subtype of my klass
+          return TypeValueTypePtr::make(ptr, tp->value_klass(), (ptr == Constant ? tp->const_oop() : NULL), offset, instance_id, speculative, depth);
+        }
+      }
+      // The other case cannot happen, since I cannot be a subtype of a value type.
+      // The meet falls down to Object class below centerline.
+      if (ptr == Constant) {
+         ptr = NotNull;
+      }
+      instance_id = InstanceBot;
+      return make(ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
+    default: typerr(t);
+    }
+  }
+
   } // End of switch
   return this;                  // Return the double constant
 }
@@ -4811,7 +4865,7 @@ const int TypeAryPtr::flattened_offset() const {
 
 const TypeValueTypePtr* TypeValueTypePtr::NOTNULL;
 //------------------------------make-------------------------------------------
-const TypeValueTypePtr* TypeValueTypePtr::make(PTR ptr, ciValueKlass* vk, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth, bool narrow) {
+const TypeValueTypePtr* TypeValueTypePtr::make(PTR ptr, ciValueKlass* vk, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth) {
   return (TypeValueTypePtr*)(new TypeValueTypePtr(ptr, vk, o, offset, instance_id, speculative, inline_depth))->hashcons();
 }
 
@@ -4855,7 +4909,6 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
     case KlassPtr:
     case RawPtr:
     case AryPtr:
-    case InstPtr:
       return TypePtr::BOTTOM;
 
     case Top:
@@ -4924,13 +4977,13 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       if (_klass != tp->_klass) {
         assert(is__Value() || tp->is__Value(), "impossible meet");
         if (above_centerline(ptr)) {
-          klass = is__Value() ? tp->_klass : _klass;
+          klass = _klass;
         } else if (above_centerline(this->_ptr) && !above_centerline(tp->_ptr)) {
           klass = tp->_klass;
         } else if (above_centerline(tp->_ptr) && !above_centerline(this->_ptr)) {
           klass = _klass;
         } else {
-          klass = is__Value() ? _klass : tp->_klass;
+          klass = tp->_klass;
         }
       } else {
         klass = _klass;
@@ -4949,7 +5002,56 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       }
       return make(ptr, klass->as_value_klass(), o, offset, instance_id, speculative, depth);
     }
+
+    // All value types inherit from Object class
+    case InstPtr: {
+      const TypeInstPtr* tp = t->is_instptr();
+      Offset offset = meet_offset(tp->offset());
+      PTR ptr = meet_ptr(tp->ptr());
+      int instance_id = meet_instance_id(tp->instance_id());
+      const TypePtr* speculative = xmeet_speculative(tp);
+      int depth = meet_inline_depth(tp->inline_depth());
+      switch (ptr) {
+      case TopPTR:
+      case AnyNull:                // Fall 'down' to dual of object klass
+        // For instances when a subclass meets a superclass we fall
+        // below the centerline when the superclass is exact. We need to
+        // do the same here.
+        if (tp->klass()->equals(ciEnv::current()->Object_klass()) && !tp->klass_is_exact()) {
+          return make(ptr, _klass->as_value_klass(), NULL, offset, instance_id, speculative, depth);
+        } else {
+          // cannot subclass, so the meet has to fall badly below the centerline
+          ptr = NotNull;
+          instance_id = InstanceBot;
+          return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
+        }
+      case Constant:
+      case NotNull:
+      case BotPTR:                // Fall down to object klass
+        // LCA is object_klass, but if we subclass from the top we can do better
+        if (above_centerline(tp->ptr())) {
+          // If 'tp' is above the centerline and it is Object class
+          // then we can subclass in the Java class hierarchy.
+          // For instances when a subclass meets a superclass we fall
+          // below the centerline when the superclass is exact. We need
+          // to do the same here.
+          if (tp->klass()->equals(ciEnv::current()->Object_klass()) && !tp->klass_is_exact()) {
+            // that is, my value type is a subtype of 'tp' klass
+            return make(ptr, _klass->as_value_klass(), (ptr == Constant ? const_oop() : NULL), offset, instance_id, speculative, depth);
+          }
+        }
+        // The other case cannot happen, since t cannot be a subtype of a value type.
+        // The meet falls down to Object class below centerline.
+        if (ptr == Constant) {
+          ptr = NotNull;
+        }
+        instance_id = InstanceBot;
+        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, NULL,offset, instance_id, speculative, depth);
+      default: typerr(t);
+      }
     }
+    }
+  return this;
 }
 
 // Dual: compute field-by-field dual

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,15 +42,15 @@ public __ByValue final class TestValue1 {
 
     public static TestValue1 create(int i) {
         TestValue1 v = __MakeDefault TestValue1();
-	v = __WithField(v.i, i);
-	v = __WithField(v.name, Integer.valueOf(i).toString());
+        v = __WithField(v.i, i);
+        v = __WithField(v.name, Integer.valueOf(i).toString());
         return v;
     }
 
     public static TestValue1 create() {
         TestValue1 v = __MakeDefault TestValue1();
-	v = __WithField(v.i, (int)System.nanoTime());
-	v = __WithField(v.name, Integer.valueOf(v.i).toString());
+        v = __WithField(v.i, (int)System.nanoTime());
+        v = __WithField(v.name, Integer.valueOf(v.i).toString());
         return v;
     }
 
@@ -58,7 +58,7 @@ public __ByValue final class TestValue1 {
         return create();
     }
 
-     public static TestValue1 getNonBufferedInstance() {
+    public static TestValue1 getNonBufferedInstance() {
         return staticValue;
     }
 
@@ -66,4 +66,4 @@ public __ByValue final class TestValue1 {
         if (name == null) return i == 0;
         return Integer.valueOf(i).toString().compareTo(name) == 0;
     }
- }
+}

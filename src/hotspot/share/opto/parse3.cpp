@@ -177,6 +177,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   ciType* field_klass = field->type();
   bool is_vol = field->is_volatile();
   bool flattened = field->is_flattened();
+  bool flattenable = field->is_flattenable();
 
   // Compute address and memory type.
   int offset = field->offset_in_bytes();
@@ -226,10 +227,15 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
   bool needs_atomic_access = is_vol || AlwaysAtomicAccesses;
   Node* ld = NULL;
-   if (flattened) {
+  if (flattened) {
     // Load flattened value type
     ld = ValueTypeNode::make_from_flattened(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
   } else {
+    if (bt == T_VALUETYPE && !flattenable) {
+      // Non-flattenable value type field can be null and we
+      // should not return the default value type in that case.
+      bt = T_VALUETYPEPTR;
+    }
     ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, needs_atomic_access);
   }
 

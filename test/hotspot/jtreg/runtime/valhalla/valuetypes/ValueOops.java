@@ -52,11 +52,6 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- */
-
-
-
-/*
  * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
@@ -265,25 +260,25 @@ public class ValueOops {
 
         // Test-D0 Slots=R Stack=Q(RRR)RV
         assertTrue(oopMaps[0].length == 5 &&
-                   oopMaps[0][1] == null &&
-                   oopMaps[0][2] == null &&
-                   oopMaps[0][3] == null, "Test-D0 incorrect");
+                oopMaps[0][1] == null &&
+                oopMaps[0][2] == null &&
+                oopMaps[0][3] == null, "Test-D0 incorrect");
 
         // Test-D1 Slots=R Stack=RV
         assertTrue(oopMaps[1].length == 2, "Test-D1 incorrect");
 
         // Test-D2 Slots=RQ(RRR) Stack=RV
         assertTrue(oopMaps[2].length == 5 &&
-                   oopMaps[2][1] == null &&
-                   oopMaps[2][2] == null &&
-                   oopMaps[2][3] == null, "Test-D2 incorrect");
+                oopMaps[2][1] == null &&
+                oopMaps[2][2] == null &&
+                oopMaps[2][3] == null, "Test-D2 incorrect");
 
         // Test-D3 Slots=R Stack=Q(RRR)RV
         assertTrue(oopMaps[3].length == 6 &&
-                   oopMaps[3][1] == null &&
-                   oopMaps[3][2] == null &&
-                   oopMaps[3][3] == null &&
-                   oopMaps[3][4] == null, "Test-D3 incorrect");
+                oopMaps[3][1] == null &&
+                oopMaps[3][2] == null &&
+                oopMaps[3][3] == null &&
+                oopMaps[3][4] == null, "Test-D3 incorrect");
 
         // With ref fields...
         String name = "TestName";
@@ -293,9 +288,9 @@ public class ValueOops {
 
         // Test-R0 Slots=RR Stack=Q(RRR)RV
         assertTrue(oopMaps[0].length == 6 &&
-                   oopMaps[0][2] == name &&
-                   oopMaps[0][3] == desc &&
-                   oopMaps[0][4] == note, "Test-R0 incorrect");
+                oopMaps[0][2] == name &&
+                oopMaps[0][3] == desc &&
+                oopMaps[0][4] == note, "Test-R0 incorrect");
 
         /**
          * TODO: vwithfield from method handle cooked from anonymous class within the value class
@@ -314,23 +309,23 @@ public class ValueOops {
 
             // VT on stack and lvt, null refs, see if GC flies
             MethodHandle moveValueThroughStackAndLvt = MethodHandleBuilder.loadCode(
-                LOOKUP,
-                "gcOverPerson",
-                MethodType.methodType(vtClass, vtClass),
-                CODE->{
-                CODE
-                .aload(0)
-                .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack
-                .astore(0)
-                .invokestatic(ValueOops.class, "doGc", "()V", false) // LVT
-                .aload(0)
-                .astore(1024) // LVT wide index
-                .aload(1024)
-                .iconst_1()  // push a litte further down
-                .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
-                .pop()
-                .areturn();
-            });
+                    LOOKUP,
+                    "gcOverPerson",
+                    MethodType.methodType(vtClass, vtClass),
+                    CODE->{
+                        CODE
+                        .aload(0)
+                        .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack
+                        .astore(0)
+                        .invokestatic(ValueOops.class, "doGc", "()V", false) // LVT
+                        .aload(0)
+                        .astore(1024) // LVT wide index
+                        .aload(1024)
+                        .iconst_1()  // push a litte further down
+                        .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
+                        .pop()
+                        .areturn();
+                    });
             Person person = (Person) moveValueThroughStackAndLvt.invokeExact(createDefaultPerson());
             validateDefaultPerson(person);
             doGc();
@@ -581,35 +576,35 @@ public class ValueOops {
             // OopMap Q=RRR (.name .description .someNotes)
             try {
                 MethodHandleBuilder.loadCode(
-                              LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
-                              CODE->{
-                                  CODE
-                                      .defaultvalue(FooValue.class)
-                                      .aload(oopMapsSlot)
-                                      .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
-                                      .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
-                                      .aastore()
-                                      .pop()
-                                      .aload(oopMapsSlot)
-                                      .iconst_1()  // Test-D1 Slots=R Stack=RV
-                                      .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
-                                      .aastore()
-                                      .defaultvalue(FooValue.class)
-                                      .astore(vtSlot)
-                                      .aload(oopMapsSlot)
-                                      .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
-                                      .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
-                                      .aastore()
-                                      .aload(vtSlot)
-                                      .aconst_null()
-                                      .astore(vtSlot) // Storing null over the Q slot won't remove the ref, but should be single null ref
-                                      .aload(oopMapsSlot)
-                                      .iconst_3()  // Test-D3 Slots=R Stack=Q(RRR)RV
-                                      .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
-                                      .aastore()
-                                      .pop()
-                                      .return_();
-                              }).invoke(oopMaps);
+                        LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
+                        CODE->{
+                            CODE
+                            .defaultvalue(FooValue.class)
+                            .aload(oopMapsSlot)
+                            .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
+                            .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .aastore()
+                            .pop()
+                            .aload(oopMapsSlot)
+                            .iconst_1()  // Test-D1 Slots=R Stack=RV
+                            .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .aastore()
+                            .defaultvalue(FooValue.class)
+                            .astore(vtSlot)
+                            .aload(oopMapsSlot)
+                            .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV
+                            .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .aastore()
+                            .aload(vtSlot)
+                            .aconst_null()
+                            .astore(vtSlot) // Storing null over the Q slot won't remove the ref, but should be single null ref
+                            .aload(oopMapsSlot)
+                            .iconst_3()  // Test-D3 Slots=R Stack=Q(RRR)RV
+                            .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .aastore()
+                            .pop()
+                            .return_();
+                        }).invoke(oopMaps);
             } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithDefault", t); }
         }
 
@@ -621,18 +616,18 @@ public class ValueOops {
             int oopMapsSlot   = 1;
             try {
                 MethodHandleBuilder.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
-                              CODE->{
-                                  CODE
-                                      .aload(fooArraySlot)
-                                      .iconst_0()
-                                      .aaload()
-                                      .aload(oopMapsSlot)
-                                      .iconst_0()  // Test-R0 Slots=RR Stack=Q(RRR)RV
-                                      .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
-                                      .aastore()
-                                      .pop()
-                                      .return_();
-                              }).invoke(fa, oopMaps);
+                        CODE->{
+                            CODE
+                            .aload(fooArraySlot)
+                            .iconst_0()
+                            .aaload()
+                            .aload(oopMapsSlot)
+                            .iconst_0()  // Test-R0 Slots=RR Stack=Q(RRR)RV
+                            .invokestatic(ValueOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
+                            .aastore()
+                            .pop()
+                            .return_();
+                        }).invoke(fa, oopMaps);
             } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithRefs", t); }
         }
     }

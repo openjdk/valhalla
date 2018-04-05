@@ -2297,20 +2297,27 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = null();
     b = pop();
-    if (!_gvn.type(b)->speculative_maybe_null() &&
-        !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
-      inc_sp(1);
-      Node* null_ctl = top();
-      b = null_check_oop(b, &null_ctl, true, true, true);
-      assert(null_ctl->is_top(), "no null control here");
-      dec_sp(1);
-    } else if (_gvn.type(b)->speculative_always_null() &&
-               !too_many_traps(Deoptimization::Reason_speculate_null_assert)) {
-      inc_sp(1);
-      b = null_assert(b);
-      dec_sp(1);
+    if (b->is_ValueType()) {
+      // TODO Ugly hack. Merge this with the new acmp implementation
+      // A value type can only compare equal to null and obviously this one is not null
+      // Return constant false
+      c =  _gvn.transform(new CmpINode(_gvn.intcon(0), _gvn.intcon(1)));
+    } else {
+      if (!_gvn.type(b)->speculative_maybe_null() &&
+          !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
+        inc_sp(1);
+        Node* null_ctl = top();
+        b = null_check_oop(b, &null_ctl, true, true, true);
+        assert(null_ctl->is_top(), "no null control here");
+        dec_sp(1);
+      } else if (_gvn.type(b)->speculative_always_null() &&
+                 !too_many_traps(Deoptimization::Reason_speculate_null_assert)) {
+        inc_sp(1);
+        b = null_assert(b);
+        dec_sp(1);
+      }
+      c = _gvn.transform( new CmpPNode(b, a) );
     }
-    c = _gvn.transform( new CmpPNode(b, a) );
     do_ifnull(btest, c);
     break;
 
@@ -2321,7 +2328,14 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();
-    c = _gvn.transform( new CmpPNode(b, a) );
+    if (a->is_ValueType() || b->is_ValueType()) {
+      // TODO Ugly hack. Merge this with the new acmp implementation
+      // A value type can only compare equal to null and obviously this one is not null
+      // Return constant false
+      c =  _gvn.transform(new CmpINode(_gvn.intcon(0), _gvn.intcon(1)));
+    } else {
+      c = _gvn.transform( new CmpPNode(b, a) );
+    }
     c = optimize_cmp_with_klass(c);
     do_if(btest, c);
     break;

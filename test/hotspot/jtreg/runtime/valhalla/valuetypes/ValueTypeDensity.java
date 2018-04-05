@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,10 +36,6 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI ValueTypeDensity
- */
-
-
-/*
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI ValueTypeDensity
@@ -212,15 +208,15 @@ public class ValueTypeDensity {
         LocalDateTimeClass[] objectArray = new LocalDateTimeClass[arrayLength];
         for (int i = 0; i < arrayLength; i++) {
             objectArray[i] = new LocalDateTimeClass(new LocalDateClass(0, (short)0, (short)0),
-                                                    new LocalTimeClass((byte)0, (byte)0, (byte)0, 0));
+                    new LocalTimeClass((byte)0, (byte)0, (byte)0, 0));
         }
 
         long objectArraySize = WHITE_BOX.getObjectSize(objectArray);
         System.out.println("Empty object array size: " + objectArraySize);
         objectArraySize += (arrayLength *
-                            (WHITE_BOX.getObjectSize(objectArray[0]) +
-                             WHITE_BOX.getObjectSize(objectArray[0].getDate()) +
-                             WHITE_BOX.getObjectSize(objectArray[0].getTime())));
+                (WHITE_BOX.getObjectSize(objectArray[0]) +
+                        WHITE_BOX.getObjectSize(objectArray[0].getDate()) +
+                        WHITE_BOX.getObjectSize(objectArray[0].getTime())));
 
         LocalDateTimeValue[] valueArray = new LocalDateTimeValue[arrayLength];
         // CMH: add "isFlatValueArray" to WhiteBox API, to ensure we are correctly account size

@@ -60,6 +60,7 @@ public:
   bool has_phi_inputs(Node* region);
   ValueTypeBaseNode* clone_with_phis(PhaseGVN* gvn, Node* region);
   ValueTypeBaseNode* merge_with(PhaseGVN* gvn, const ValueTypeBaseNode* other, int pnum, bool transform);
+  void add_new_path(Node* region);
 
   // Get oop for heap allocated value type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }

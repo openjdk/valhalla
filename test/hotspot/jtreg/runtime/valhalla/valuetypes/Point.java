@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,10 @@ public __ByValue final class Point {
     final int y;
 
     private Point() {
-	x = 0;
-	y = 0;
+        x = 0;
+        y = 0;
     }
-    
+
     public int getX() { return x; }
     public int getY() { return y; }
 
@@ -43,17 +43,17 @@ public __ByValue final class Point {
     }
 
     public boolean equals(Object o) {
-	if(o instanceof Point) {
-	    return ((Point)o).x == x &&  ((Point)o).y == y;
-	} else {
-	    return false;
-	}
+        if(o instanceof Point) {
+            return ((Point)o).x == x &&  ((Point)o).y == y;
+        } else {
+            return false;
+        }
     }
-    
+
     public static Point createPoint(int x, int y) {
         Point p = __MakeDefault Point();
-	p = __WithField(p.x, x);
-	p = __WithField(p.y, y);
-	return p;
+        p = __WithField(p.x, x);
+        p = __WithField(p.y, y);
+        return p;
     }
 }

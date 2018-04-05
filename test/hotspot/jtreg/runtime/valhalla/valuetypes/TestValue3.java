@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,13 +40,13 @@ public __ByValue final class TestValue3 {
 
     public static TestValue3 create(byte b) {
         TestValue3 v = __MakeDefault TestValue3();
-	v = __WithField(v.b, b);
+        v = __WithField(v.b, b);
         return v;
     }
 
     public static TestValue3 create() {
         TestValue3 v = __MakeDefault TestValue3();
-	v = __WithField(v.b, 123);
+        v = __WithField(v.b, 123);
         return v;
     }
 

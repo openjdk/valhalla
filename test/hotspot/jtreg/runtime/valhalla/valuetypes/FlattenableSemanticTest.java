@@ -30,12 +30,8 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDenableValueTypes Point.java JumboValue.java
  * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+EnableValhalla runtime.valhalla.valuetypes.FlattenableSemanticTest
- */
-
-
-/*
- * // debug: -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * // debug: -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError
  */
 public class FlattenableSemanticTest {
 

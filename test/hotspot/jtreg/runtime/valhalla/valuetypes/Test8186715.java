@@ -1,6 +1,5 @@
-
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,41 +29,38 @@ package runtime.valhalla.valuetypes;
  * @library /test/lib
  * @compile -XDenableValueTypes Test8186715.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
- */
-
-
-/*
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
  */
 
 public class Test8186715 {
 
-  public static void main(String[] args) {
-    MyValueType v = MyValueType.testDefault();
+    public static void main(String[] args) {
+        MyValueType v = MyValueType.testDefault();
 
-    for (int i = 0; i < 1000000; i++)
-      MyValueType.testBranchArg1(false, v);
-  }
+        for (int i = 0; i < 1000000; i++) {
+            MyValueType.testBranchArg1(false, v);
+        }
+    }
 }
 
 __ByValue final class MyValueType {
-  final int i;
-  final int j;
+    final int i;
+    final int j;
 
-  private MyValueType() {
-    i = 0;
-    j = 0;
-  }
-    
-  static MyValueType testDefault() {
-    return __MakeDefault MyValueType();
-  }
-
-  static MyValueType testBranchArg1(boolean flag, MyValueType v1) {
-    if (flag) {
-      v1 = __WithField(v1.i, 3);
-       v1 = __WithField(v1.j, 4);
+    private MyValueType() {
+        i = 0;
+        j = 0;
     }
-    return v1;
-  }
+
+    static MyValueType testDefault() {
+        return __MakeDefault MyValueType();
+    }
+
+    static MyValueType testBranchArg1(boolean flag, MyValueType v1) {
+        if (flag) {
+            v1 = __WithField(v1.i, 3);
+            v1 = __WithField(v1.j, 4);
+        }
+        return v1;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,18 +58,18 @@ public __ByValue final class TestValue4 {
 
     public static TestValue4 create(int i) {
         TestValue4 v = __MakeDefault TestValue4();
-	v = __WithField(v.i, i);
-	v = __WithField(v.val, Integer.valueOf(i).toString());
+        v = __WithField(v.i, i);
+        v = __WithField(v.val, Integer.valueOf(i).toString());
         ByteBuffer bf = ByteBuffer.allocate(8);
         bf.putInt(0, i);
         bf.putInt(4, i);
-	v = __WithField(v.l, bf.getLong(0));
-	v = __WithField(v.s1, bf.getShort(2));
-	v = __WithField(v.s2, bf.getShort(0));
-	v = __WithField(v.b1, bf.get(3));
-	v = __WithField(v.b2, bf.get(2));
-	v = __WithField(v.b3, bf.get(1));
-	v = __WithField(v.b4, bf.get(0));
+        v = __WithField(v.l, bf.getLong(0));
+        v = __WithField(v.s1, bf.getShort(2));
+        v = __WithField(v.s2, bf.getShort(0));
+        v = __WithField(v.b1, bf.get(3));
+        v = __WithField(v.b2, bf.get(2));
+        v = __WithField(v.b3, bf.get(1));
+        v = __WithField(v.b4, bf.get(0));
         return v;
     }
 

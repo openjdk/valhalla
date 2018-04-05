@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,14 +37,14 @@ public final __ByValue class Long8Value {
     final long longField8;
 
     private Long8Value() {
-	longField1 = 0;
-	longField2 = 0;
-	longField3 = 0;
-	longField4 = 0;
-	longField5 = 0;
-	longField6 = 0;
-	longField7 = 0;
-	longField8 = 0;
+        longField1 = 0;
+        longField2 = 0;
+        longField3 = 0;
+        longField4 = 0;
+        longField5 = 0;
+        longField6 = 0;
+        longField7 = 0;
+        longField8 = 0;
     }
 
     public long getLongField1() { return longField1; }
@@ -57,34 +57,34 @@ public final __ByValue class Long8Value {
     public long getLongField8() { return longField8; }
 
     public static Long8Value create(long long1,
-                                    long long2,
-                                    long long3,
-                                    long long4,
-                                    long long5,
-                                    long long6,
-                                    long long7,
-                                    long long8) {
+            long long2,
+            long long3,
+            long long4,
+            long long5,
+            long long6,
+            long long7,
+            long long8) {
         Long8Value l8v = __MakeDefault Long8Value();
-	l8v = __WithField(l8v.longField1, long1);
-	l8v = __WithField(l8v.longField2, long2);
-	l8v = __WithField(l8v.longField3, long3);
-	l8v = __WithField(l8v.longField4, long4);
-	l8v = __WithField(l8v.longField5, long5);
-	l8v = __WithField(l8v.longField6, long6);
-	l8v = __WithField(l8v.longField7, long7);
-	l8v = __WithField(l8v.longField8, long8);
-	return l8v;
+        l8v = __WithField(l8v.longField1, long1);
+        l8v = __WithField(l8v.longField2, long2);
+        l8v = __WithField(l8v.longField3, long3);
+        l8v = __WithField(l8v.longField4, long4);
+        l8v = __WithField(l8v.longField5, long5);
+        l8v = __WithField(l8v.longField6, long6);
+        l8v = __WithField(l8v.longField7, long7);
+        l8v = __WithField(l8v.longField8, long8);
+        return l8v;
     }
 
     static void check(Long8Value value,
-                      long       long1,
-                      long       long2,
-                      long       long3,
-                      long       long4,
-                      long       long5,
-                      long       long6,
-                      long       long7,
-                      long       long8) {
+            long long1,
+            long long2,
+            long long3,
+            long long4,
+            long long5,
+            long long6,
+            long long7,
+            long long8) {
         Asserts.assertEquals(value.getLongField1(), long1, "Field 1 incorrect");
         Asserts.assertEquals(value.getLongField2(), long2, "Field 2 incorrect");
         Asserts.assertEquals(value.getLongField3(), long3, "Field 3 incorrect");

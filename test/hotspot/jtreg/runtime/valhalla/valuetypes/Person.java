@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,11 @@ public final __ByValue class Person {
     final String lastName;
 
     private Person() {
-	id = 0;
-	firstName = null;
-	lastName = null;
+        id = 0;
+        firstName = null;
+        lastName = null;
     }
-    
+
     public int getId() { return id; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
@@ -45,9 +45,9 @@ public final __ByValue class Person {
 
     static Person create(int id, String firstName, String lastName) {
         Person p = __MakeDefault Person();
-	p = __WithField(p.id, id);
-	p = __WithField(p.firstName, firstName);
-	p = __WithField(p.lastName, lastName);
+        p = __WithField(p.id, id);
+        p = __WithField(p.firstName, firstName);
+        p = __WithField(p.lastName, lastName);
         return p;
     }
 }

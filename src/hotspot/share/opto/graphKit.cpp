@@ -1527,8 +1527,24 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   }
   ld = _gvn.transform(ld);
   if (bt == T_VALUETYPE) {
-    // Loading a non-flattened value type from memory requires a null check.
+    // Loading a non-flattened (but flattenable) value type from memory
+    // We need to return the default value type if the field is null
     ld = ValueTypeNode::make_from_oop(this, ld, t->make_ptr()->is_valuetypeptr()->value_klass(), true /* null check */);
+  } else if (bt == T_VALUETYPEPTR) {
+    // Loading non-flattenable value type from memory
+    inc_sp(1);
+    Node* null_ctl = top();
+    Node* not_null_obj = null_check_common(ld, T_VALUETYPE, false, &null_ctl, false);
+    if (null_ctl != top()) {
+      // TODO For now, we just deoptimize if value type is NULL
+      PreserveJVMState pjvms(this);
+      set_control(null_ctl);
+      replace_in_map(ld, null());
+      Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+      uncommon_trap(reason, Deoptimization::Action_none);
+    }
+    dec_sp(1);
+    ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_ptr()->is_valuetypeptr()->value_klass());
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
@@ -3097,6 +3113,26 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr *tk = _gvn.type(superklass)->is_klassptr();
   const Type *toop = TypeOopPtr::make_from_klass(tk->klass());
+  if (toop->isa_valuetypeptr()) {
+    if (obj->is_ValueType()) {
+      return obj;
+    }
+    // TODO merge this with code below to include the necessary subtype check
+    Node* null_ctl = top();
+    Node* not_null_obj = null_check_common(obj, T_VALUETYPE, false, &null_ctl, false);
+    if (null_ctl != top()) {
+      // TODO For now, we just deoptimize if value type is NULL
+      PreserveJVMState pjvms(this);
+      set_control(null_ctl);
+      replace_in_map(obj, null());
+      Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+      uncommon_trap(reason, Deoptimization::Action_none);
+      null_ctl = top();    // NULL path is dead
+    }
+    replace_in_map(obj, not_null_obj);
+    Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
+    return ValueTypeNode::make_from_oop(this, cast_obj, toop->isa_valuetypeptr()->value_klass());
+  }
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit

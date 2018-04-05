@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,10 @@ public final __ByValue class IntValue {
     }
 
     public int getInt() { return val; }
-    
+
     public static IntValue create(int val) {
-	IntValue iv = __MakeDefault IntValue();
-	iv.val = val;
-	return iv;
+        IntValue iv = __MakeDefault IntValue();
+        iv.val = val;
+        return iv;
     }
 }
