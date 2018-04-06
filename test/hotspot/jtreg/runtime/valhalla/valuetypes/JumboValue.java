@@ -71,4 +71,51 @@ public __ByValue final class JumboValue {
         JumboValue j = __MakeDefault JumboValue();
         return j;
     }
+
+    public JumboValue update(long l0, long l1) {
+	JumboValue j = __WithField(this.l0, l0);
+	j = __WithField(j.l1, l1);
+	j = __WithField(j.l2, l0 + l1);
+	j = __WithField(j.l3, l1 + l2);
+	j = __WithField(j.l4, l2 + l3);
+	j = __WithField(j.l5, l3 + l4);
+	j = __WithField(j.l6, l4 + l5);
+	j = __WithField(j.l7, l5 + l6);
+	j = __WithField(j.l8, l6 + l7);
+	j = __WithField(j.l9, l7 + l8);
+	j = __WithField(j.l10, l8 + l9);
+	j = __WithField(j.l11, l9 + l10);
+	j = __WithField(j.l12, l10 + l11);
+	j = __WithField(j.l13, l11 + l12);
+	j = __WithField(j.l14, l12 + l13);
+	j = __WithField(j.l15, l13 + l14);
+	j = __WithField(j.l16, l14 + l15);
+	j = __WithField(j.l17, l15 + l16);
+	j = __WithField(j.l18, l16 + l17);
+	j = __WithField(j.l19, l17 + l18);
+	return j;
+    }
+
+    public boolean verify() {
+	return (l2 == (l0 + l1)  &&  l3 == (l1 + l2) && l5 == (l3 + l4)
+            && l6 == (l4 + l5) && l7 == (l5 + l6) && l8 == (l6 + l7)
+            && l9 == (l7 + l8) && l10 == (l8 + l9) && l11 == (l9 + l10)
+            && l12 == (l10 + l11) && l13 == (l11 + l12) && l14 == (l12 + l13)
+            && l15 == (l13 + l14) && l16 == (l14 + l15) && l17 == (l15 + l16)
+	    && l18 == (l16 + l17) && l19 == (l17 + l18));
+    }
+
+    public boolean equals(Object o) {
+	if(o instanceof JumboValue) {
+	    JumboValue j = (JumboValue)o;
+	    return (l0 == j.l0 && l1 == j.l1 && l2 == j.l2 && l3 == j.l3
+		    && l4 == j.l4 && l5 == j.l5 && l6 == j.l6 && l7 == j.l7
+		    && l8 == j.l8 && l9 == j.l9 && l10 == j.l10 && l7 == j.l10
+		    && l11 == j.l11 && l12 == j.l12 && l13 == j.l13 && l4 == j.l14
+		    && l15 == j.l15 && l16 == j.l16 && l17 == j.l17 && l18 == j.l18
+		    && l19 == j.l19);
+        } else {
+	    return false;
+	}
+    }
 }

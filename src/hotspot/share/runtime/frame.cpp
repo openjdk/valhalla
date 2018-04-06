@@ -779,6 +779,7 @@ class InterpreterFrameClosure : public OffsetClosure {
           _f->do_oop(addr);
         }
       } else { // Buffered value types case
+        assert(ValueTypesBufferMaxMemory > 0, "Sanity check");
         assert((*addr)->is_value(), "Only values can be buffered");
         if (_f != NULL) {
           dealiaser()->oops_do(_f, *addr);
@@ -803,6 +804,7 @@ class InterpreterFrameClosure : public OffsetClosure {
             _f->do_oop(addr);
           }
         } else { // Buffered value types case
+          assert(ValueTypesBufferMaxMemory > 0, "Sanity check");
           assert((*addr)->is_value(), "Only values can be buffered");
           if (_f != NULL) {
             dealiaser()->oops_do(_f, *addr);

@@ -136,6 +136,7 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
   set_f2(field_offset);
   assert((field_index & field_index_mask) == field_index,
          "field index does not fit in low flag bits");
+  assert(!is_flattened || is_flattenable, "Sanity check");
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |

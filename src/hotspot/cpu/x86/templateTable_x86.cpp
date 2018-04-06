@@ -241,8 +241,6 @@ void TemplateTable::patch_bytecode(Bytecodes::Code bc, Register bc_reg,
 
   switch (bc) {
   case Bytecodes::_fast_qputfield:
-    __ jmp(L_patch_done); // don't patch yet
-    break;
   case Bytecodes::_fast_aputfield:
   case Bytecodes::_fast_bputfield:
   case Bytecodes::_fast_zputfield:
@@ -1015,6 +1013,7 @@ void TemplateTable::aload_0_internal(RewriteControl rc) {
 
     // if _agetfield then rewrite to _fast_aaccess_0
     assert(Bytecodes::java_code(Bytecodes::_fast_aaccess_0) == Bytecodes::_aload_0, "fix bytecode definition");
+    assert(ValueTypesBufferMaxMemory == 0, "Such rewritting doesn't support flattened values yet");
     __ cmpl(rbx, Bytecodes::_fast_agetfield);
     __ movl(bc, Bytecodes::_fast_aaccess_0);
     __ jccb(Assembler::equal, rewrite);
@@ -2834,17 +2833,6 @@ void TemplateTable::_return(TosState state) {
     __ narrow(rax);
   }
 
-#ifdef ASSERT
-  if (EnableValhalla) {
-    if (state == atos) {
-      const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
-      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::check_areturn), rax);
-      NOT_LP64(__ get_thread(thread1));
-      __ get_vm_result(rax, thread1);
-    }
-  }
-#endif // ASSERT
-
   __ remove_activation(state, rbcp, true, true, true, /*state == qtos*/ false && ValueTypeReturnedAsFields);
 
   __ jmp(rbcp);
@@ -3102,54 +3090,58 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       Label isFlattenable, uninitialized;
       // Issue below if the static field has not been initialized yet
       __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-      // Not flattenable case
-      __ push(atos);
-      __ jmp(Done);
+        // Not flattenable case
+        __ push(atos);
+        __ jmp(Done);
       // Flattenable case, must not return null even if uninitialized
       __ bind(isFlattenable);
-      __ testptr(rax, rax);
-      __ jcc(Assembler::zero, uninitialized);
-      __ push(atos);
-      __ jmp(Done);
-      __ bind(uninitialized);
-      __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-      __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
+        __ testptr(rax, rax);
+        __ jcc(Assembler::zero, uninitialized);
+          __ push(atos);
+          __ jmp(Done);
+        __ bind(uninitialized);
+          __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
                  obj, flags2);
-      __ verify_oop(rax);
-      __ push(atos);
-      __ jmp(Done);
+          __ verify_oop(rax);
+          __ push(atos);
+          __ jmp(Done);
     } else {
-      Label isFlattened, nonnull, isFlattenable;
+      Label isFlattened, nonnull, isFlattenable, rewriteFlattenable;
       __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-      // Non-flattenable field case, also covers the object case
-      pop_and_check_object(obj);
-      __ load_heap_oop(rax, field);
-      __ push(atos);
-      if (rc == may_rewrite) {
-        patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
-      }
-      __ jmp(Done);
+        // Non-flattenable field case, also covers the object case
+        pop_and_check_object(obj);
+        __ load_heap_oop(rax, field);
+        __ push(atos);
+        if (rc == may_rewrite) {
+          patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
+        }
+        __ jmp(Done);
       __ bind(isFlattenable);
-      __ test_field_is_flattened(flags2, rscratch1, isFlattened);
-      // Non-flattened field case
-      pop_and_check_object(obj);
-      __ load_heap_oop(rax, field);
-      __ testptr(rax, rax);
-      __ jcc(Assembler::notZero, nonnull);
-      __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-      __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
-                 obj, flags2);
-      __ verify_oop(rax);
-      __ bind(nonnull);
-      __ push(atos);
-      __ jmp(Done);
-      __ bind(isFlattened);
-      __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-      pop_and_check_object(rbx);
-      call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::qgetfield),
-              rbx, flags2, rcx);
-      __ verify_oop(rax);
-      __ push(atos);
+        __ test_field_is_flattened(flags2, rscratch1, isFlattened);
+          // Non-flattened field case
+          pop_and_check_object(obj);
+          __ load_heap_oop(rax, field);
+          __ testptr(rax, rax);
+          __ jcc(Assembler::notZero, nonnull);
+            __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+            __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
+                       obj, flags2);
+          __ bind(nonnull);
+          __ verify_oop(rax);
+          __ push(atos);
+          __ jmp(rewriteFlattenable);
+        __ bind(isFlattened);
+          __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+          pop_and_check_object(rbx);
+          call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field),
+                  rbx, flags2, rcx);
+          __ verify_oop(rax);
+          __ push(atos);
+      __ bind(rewriteFlattenable);
+      if (rc == may_rewrite) {
+        patch_bytecode(Bytecodes::_fast_qgetfield, bc, rbx);
+      }
       __ jmp(Done);
     }
   }
@@ -3463,7 +3455,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         do_oop_store(_masm, field, rax, _bs->kind(), false);
         __ jmp(Done);
       } else {
-        Label isFlattenable, isFlattened, notBuffered, notBuffered2;
+        Label isFlattenable, isFlattened, notBuffered, notBuffered2, rewriteNotFlattenable, rewriteFlattenable;
         __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
         // Not flattenable case, covers not flattenable values and objects
         pop_and_check_object(obj);
@@ -3472,10 +3464,11 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
           call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
                   rax, off, obj);
-          __ jmp(Done);
+          __ jmp(rewriteNotFlattenable);
           __ bind(notBuffered);
         }
         do_oop_store(_masm, field, rax, _bs->kind(), false);
+        __ bind(rewriteNotFlattenable);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
         }
@@ -3490,18 +3483,22 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           pop_and_check_object(obj);
           call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
                   rax, off, obj);
-          __ jmp(Done);
+          __ jmp(rewriteFlattenable);
           __ bind(notBuffered2);
         }
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax, _bs->kind(), false);
-        __ jmp(Done);
+        __ jmp(rewriteFlattenable);
         __ bind(isFlattened);
-        pop_and_check_object(rbx);
-        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::qputfield),
-                rbx, rax, rcx);
-        __ jmp(notVolatile); // value types are never volatile
+        pop_and_check_object(obj);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value),
+                rax, off, obj);
+        __ bind(rewriteFlattenable);
+        if (rc == may_rewrite) {
+          patch_bytecode(Bytecodes::_fast_qputfield, bc, rbx, true, byte_no);
+        }
+        __ jmp(Done);
       }
     }
   }
@@ -3744,6 +3741,10 @@ void TemplateTable::fast_storefield(TosState state) {
   // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
   //                                              Assembler::StoreStore));
 
+  if (bytecode() == Bytecodes::_fast_qputfield) {
+    __ movl(rscratch2, rdx);
+  }
+
   Label notVolatile;
   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
   __ andl(rdx, 0x1);
@@ -3757,10 +3758,39 @@ void TemplateTable::fast_storefield(TosState state) {
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_qputfield:
-    __ stop("should not be rewritten yet");
+    {
+      Label isFlattened, notBuffered, done;
+      __ null_check(rax);
+      __ test_field_is_flattened(rscratch2, rscratch1, isFlattened);
+      // No Flattened case
+      if (ValueTypesBufferMaxMemory > 0) {
+        __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
+                    rax, rbx, rcx);
+        __ jmp(done);
+        __ bind(notBuffered);
+      }
+      do_oop_store(_masm, field, rax, _bs->kind(), false);
+      __ jmp(done);
+      __ bind(isFlattened);
+      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value),
+          rax, rbx, rcx);
+      __ bind(done);
+    }
     break;
   case Bytecodes::_fast_aputfield:
-    do_oop_store(_masm, field, rax, _bs->kind(), false);
+    {
+      Label notBuffered, done;
+      if (ValueTypesBufferMaxMemory > 0) {
+        __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
+        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
+            rax, rbx, rcx);
+        __ jmp(done);
+        __ bind(notBuffered);
+      }
+      do_oop_store(_masm, field, rax, _bs->kind(), false);
+      __ bind(done);
+    }
     break;
   case Bytecodes::_fast_lputfield:
 #ifdef _LP64
@@ -3837,19 +3867,52 @@ void TemplateTable::fast_accessfield(TosState state) {
   //   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
   //   __ andl(rdx, 0x1);
   // }
-  __ movptr(rbx, Address(rcx, rbx, Address::times_ptr,
+  __ movptr(rdx, Address(rcx, rbx, Address::times_ptr,
                          in_bytes(ConstantPoolCache::base_offset() +
                                   ConstantPoolCacheEntry::f2_offset())));
 
   // rax: object
   __ verify_oop(rax);
   __ null_check(rax);
-  Address field(rax, rbx, Address::times_1);
+  Address field(rax, rdx, Address::times_1);
 
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_qgetfield:
-    __ stop("should not be rewritten yet");
+    {
+      Label isFlattened, nonnull, Done;
+      __ movptr(rscratch1, Address(rcx, rbx, Address::times_ptr,
+                                   in_bytes(ConstantPoolCache::base_offset() +
+                                            ConstantPoolCacheEntry::flags_offset())));
+      __ test_field_is_flattened(rscratch1, rscratch2, isFlattened);
+        // Non-flattened field case
+        __ movptr(rscratch1, rax);
+        __ load_heap_oop(rax, field);
+        __ testptr(rax, rax);
+        __ jcc(Assembler::notZero, nonnull);
+          __ movptr(rax, rscratch1);
+          __ movl(rcx, Address(rcx, rbx, Address::times_ptr,
+                             in_bytes(ConstantPoolCache::base_offset() +
+                                      ConstantPoolCacheEntry::flags_offset())));
+          __ andl(rcx, ConstantPoolCacheEntry::field_index_mask);
+          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
+                     rax, rcx);
+        __ bind(nonnull);
+        __ verify_oop(rax);
+        __ jmp(Done);
+      __ bind(isFlattened);
+        __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
+                           in_bytes(ConstantPoolCache::base_offset() +
+                                    ConstantPoolCacheEntry::flags_offset())));
+        __ andl(rdx, ConstantPoolCacheEntry::field_index_mask);
+        __ movptr(rcx, Address(rcx, rbx, Address::times_ptr,
+                                     in_bytes(ConstantPoolCache::base_offset() +
+                                              ConstantPoolCacheEntry::f1_offset())));
+        call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field),
+                rax, rdx, rcx);
+        __ verify_oop(rax);
+      __ bind(Done);
+    }
     break;
   case Bytecodes::_fast_agetfield:
     __ load_heap_oop(rax, field);

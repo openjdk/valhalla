@@ -3683,7 +3683,7 @@ void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp
 
 void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_flattened_field_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
   jcc(Assembler::notZero, is_flattened);

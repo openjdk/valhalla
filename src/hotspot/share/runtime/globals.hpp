@@ -1289,7 +1289,7 @@ public:
   product(intx, ValueArrayElemMaxFlatSize, -1,                              \
           "Max size for flattening value array elements, <0 no limit")      \
                                                                             \
-  product(intx, ValueFieldMaxFlatSize, -1,                                  \
+  product(intx, ValueFieldMaxFlatSize, 128,                                 \
           "Max size for flattening value type fields, <0 no limit")         \
                                                                             \
   product(intx, ValueArrayElemMaxFlatOops, 4,                               \
@@ -4091,7 +4091,7 @@ public:
   product(size_t, BigValueTypeThreshold, 4 * BytesPerLong,                  \
           "Max value type size for buffering")                              \
                                                                             \
-  product(intx, ValueTypesBufferMaxMemory, 128,                             \
+  product(intx, ValueTypesBufferMaxMemory, 0,                               \
           "Max memory used for value types buffers (in pages)")             \
                                                                             \
   product(bool, ValueTypesThreadLocalRecycling, true,                       \
