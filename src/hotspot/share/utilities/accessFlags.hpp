@@ -82,7 +82,7 @@ enum {
   JVM_ACC_FIELD_MODIFICATION_WATCHED      = 0x00008000, // field modification is watched by JVMTI
   JVM_ACC_FIELD_INTERNAL                  = 0x00000400, // internal field, same as JVM_ACC_ABSTRACT
   JVM_ACC_FIELD_STABLE                    = 0x00000020, // @Stable field, same as JVM_ACC_SYNCHRONIZED and JVM_ACC_SUPER
-  JVM_ACC_FIELD_INITIALIZED_FINAL_UPDATE  = 0x00000400, // (static) final field updated outside (class) initializer, same as JVM_ACC_NATIVE
+  JVM_ACC_FIELD_INITIALIZED_FINAL_UPDATE  = 0x00000200, // (static) final field updated outside (class) initializer, same as JVM_ACC_NATIVE
   JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE     = 0x00000800, // field has generic signature
 
   JVM_ACC_FIELD_INTERNAL_FLAGS       = JVM_ACC_FIELD_ACCESS_WATCHED |
