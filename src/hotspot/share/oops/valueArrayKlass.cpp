@@ -85,8 +85,52 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
   assert(ValueArrayFlatten, "Flatten array required");
   assert(ValueKlass::cast(element_klass)->is_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
 
-  Klass* super_klass = SystemDictionary::Object_klass()->array_klass_or_null();
-  guarantee(super_klass != NULL, "No super");
+  /*
+   *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...
+   *  ...so now we are trying out covariant array types, just copy objArrayKlass
+   *  TODO refactor any remaining commonality
+   */
+
+  // Eagerly allocate the direct array supertype.
+  Klass* super_klass = NULL;
+  if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
+    Klass* element_super = element_klass->super();
+    if (element_super != NULL) {
+      // The element type has a direct super.  E.g., String[] has direct super of Object[].
+      super_klass = element_super->array_klass_or_null();
+      bool supers_exist = super_klass != NULL;
+      // Also, see if the element has secondary supertypes.
+      // We need an array type for each.
+      Array<Klass*>* element_supers = element_klass->secondary_supers();
+      for( int i = element_supers->length()-1; i >= 0; i-- ) {
+        Klass* elem_super = element_supers->at(i);
+        if (elem_super->array_klass_or_null() == NULL) {
+          supers_exist = false;
+          break;
+        }
+      }
+      if (!supers_exist) {
+        // Oops.  Not allocated yet.  Back out, allocate it, and retry.
+        Klass* ek = NULL;
+        {
+          MutexUnlocker mu(MultiArray_lock);
+          MutexUnlocker mc(Compile_lock);   // for vtables
+          super_klass = element_super->array_klass(CHECK_0);
+          for( int i = element_supers->length()-1; i >= 0; i-- ) {
+            Klass* elem_super = element_supers->at(i);
+            elem_super->array_klass(CHECK_0);
+          }
+          // Now retry from the beginning
+          ek = element_klass->array_klass(1, CHECK_0);
+        }  // re-lock
+        return ValueArrayKlass::cast(ek);
+      }
+    } else {
+      ShouldNotReachHere(); // Value array klass cannot be the object array klass
+    }
+  }
+
+
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(ValueArrayKlass::header_size());
   ValueArrayKlass* vak = new (loader_data, size, THREAD) ValueArrayKlass(element_klass, name);
@@ -94,7 +138,10 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
     return NULL;
   }
   loader_data->add_class(vak);
-  complete_create_array_klass(vak, super_klass, vak->module(), CHECK_NULL);
+
+  ModuleEntry* module = vak->module();
+  assert(module != NULL, "No module entry for array");
+  complete_create_array_klass(vak, super_klass, module, CHECK_NULL);
   return vak;
 }
 

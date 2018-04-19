@@ -216,10 +216,18 @@ public class ValueTypeArray {
             return mi;
         }
 
-        
         public static __NotFlattened final MyInt MIN = MyInt.create(Integer.MIN_VALUE);
         public static __NotFlattened final MyInt ZERO = MyInt.create(0);
         public static __NotFlattened final MyInt MAX = MyInt.create(Integer.MAX_VALUE);
+    }
+
+    static interface SomeSecondaryType {
+        default String hi() { return "Hi"; }
+    }
+
+    static final __ByValue class MyOtherInt implements SomeSecondaryType {
+        final int value;
+        private MyOtherInt() { value = 0; }
     }
 
     void testSanityCheckcasts() {
@@ -237,6 +245,11 @@ public class ValueTypeArray {
         assertTrue(arr instanceof MyInt[], "Not MyInt array");
         Comparable[] comparables = (Comparable[])arr;
         MyInt[] myIntArr = (MyInt[]) arr;
+
+        // multi-dim, check secondary array types are setup...
+        MyOtherInt[][] matrix = new MyOtherInt[1][1];
+        assertTrue(matrix[0] instanceof MyOtherInt[]);
+        assertTrue(matrix[0] instanceof SomeSecondaryType[]);
     }
 
     void testUtilArrays() {
