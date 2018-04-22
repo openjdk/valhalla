@@ -731,14 +731,6 @@ javax/swing/text/html/parser/Parser/8078268/bug8078268.java 8199092 generic-all
 # core_tools
 
 tools/pack200/CommandLineTests.java                             8059906 generic-all
-tools/pack200/AttributeTests.java                               8187645 generic-all
-tools/pack200/BandIntegrity.java                                8187645 generic-all
-tools/pack200/InstructionTests.java                             8187645 generic-all
-tools/pack200/ModuleAttributes.java                             8187645 generic-all
-tools/pack200/MultiRelease.java                                 8187645 generic-all
-tools/pack200/Pack200Test.java                                  8187645 generic-all
-tools/pack200/TestNormal.java                                   8187645 generic-all
-tools/pack200/typeannos/TestTypeAnnotations.java                8187645 generic-all
 
 tools/launcher/FXLauncherTest.java                              8068049 linux-all,macosx-all
 
