@@ -586,8 +586,12 @@ public class Check {
     }
     Type checkCastable(DiagnosticPosition pos, Type found, Type req, CheckContext checkContext) {
         if (types.isCastable(found, req, castWarner(pos, found, req))) {
-            if (found.hasTag(BOT) && types.isValueBased(req)) {
-                log.warning(pos, Warnings.SuspiciousMixOfNullWithValueBasedClass(req));
+            if (types.isValueBased(req)) {
+                if (found.hasTag(BOT)) {
+                    log.warning(pos, Warnings.SuspiciousMixOfNullWithValueBasedClass(req));
+                } else if (!types.isValueBased(found)) {
+                    log.warning(pos, Warnings.PotentialNullPollution(found));
+                }
             }
             return req;
         } else {
