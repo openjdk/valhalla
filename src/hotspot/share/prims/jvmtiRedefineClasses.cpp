@@ -749,7 +749,7 @@ jvmtiError VM_RedefineClasses::compare_and_normalize_class_versions(
            the_class->external_name(), the_sym->as_C_string(), scr_sym->as_C_string());
         return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
       }
-    } else if (the_nest_host_idx == 0 ^ scr_nest_host_idx == 0) {
+    } else if ((the_nest_host_idx == 0) ^ (scr_nest_host_idx == 0)) {
       const char* action_str = (the_nest_host_idx != 0) ? "removed" : "added";
       log_trace(redefine, class, nestmates)
         ("redefined class %s attribute change error: NestHost attribute %s",
