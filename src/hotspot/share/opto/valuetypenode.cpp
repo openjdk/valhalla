@@ -360,7 +360,7 @@ void ValueTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ci
   store(kit, base, ptr, holder, holder_offset);
 }
 
-void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset) const {
+void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool deoptimize_on_exception) const {
   if (holder == NULL) {
     holder = value_klass();
   }
@@ -383,13 +383,13 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         assert(adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
         bool is_array = ary_type != NULL;
-        kit->store_oop(kit->control(), base, adr, adr_type, value, val_type, bt, is_array, MemNode::unordered);
+        kit->store_oop(kit->control(), base, adr, adr_type, value, val_type, bt, is_array, MemNode::unordered, false, deoptimize_on_exception);
       }
     }
   }
 }
 
-ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit) {
+ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on_exception) {
   Node* in_oop = get_oop();
   Node* null_ctl = kit->top();
   // Check if value type is already allocated
@@ -417,9 +417,9 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit) {
   kit->kill_dead_locals();
   ciValueKlass* vk = value_klass();
   Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-  Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, false, this);
+  Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, deoptimize_on_exception, this);
   // Write field values to memory
-  store(kit, alloc_oop, alloc_oop, vk);
+  store(kit, alloc_oop, alloc_oop, vk, 0, deoptimize_on_exception);
   region->init_req(2, kit->control());
   oop   ->init_req(2, alloc_oop);
   io    ->init_req(2, kit->i_o());

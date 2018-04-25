@@ -1716,6 +1716,42 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
   assert(sp() == target->start_sp(), "");
   clean_stack(sp());
 
+  // Check for merge conflicts involving value types
+  JVMState* old_jvms = map()->jvms();
+  int old_bci = bci();
+  JVMState* tmp_jvms = old_jvms->clone_shallow(C);
+  tmp_jvms->set_should_reexecute(true);
+  map()->set_jvms(tmp_jvms);
+  // Execution needs to restart a the next bytecode (entry of next
+  // block)
+  set_parse_bci(target->start());
+  for (uint j = TypeFunc::Parms; j < map()->req(); j++) {
+    Node* n = map()->in(j);                 // Incoming change to target state.
+    const Type* t = NULL;
+    if (tmp_jvms->is_loc(j)) {
+      t = target->local_type_at(j - tmp_jvms->locoff());
+    } else if (tmp_jvms->is_stk(j) && j < (uint)sp() + tmp_jvms->stkoff()) {
+      t = target->stack_type_at(j - tmp_jvms->stkoff());
+    }
+    if (t != NULL && t != Type::BOTTOM) {
+      if (n->is_ValueType() && !t->isa_valuetype()) {
+        // Allocate value type in src block to be able to merge it with oop in target block
+        ValueTypeBaseNode* vt = n->as_ValueType()->allocate(this, true);
+        map()->set_req(j, ValueTypePtrNode::make_from_value_type(_gvn, vt->as_ValueType()));
+      }
+      if (t->isa_valuetype() && !n->is_ValueType()) {
+        // check for a null constant
+        assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+        Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+        uncommon_trap(reason, Deoptimization::Action_none);
+        assert(stopped(), "should be a dead path now");
+        return;
+      }
+    }
+  }
+  map()->set_jvms(old_jvms);
+  set_parse_bci(old_bci);
+
   if (!target->is_merged()) {   // No prior mapping at this bci
     if (TraceOptoParse) { tty->print(" with empty state");  }
 
@@ -1769,18 +1805,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       target->mark_merged_backedge(block());
     }
 #endif
-
-    // Check for merge conflicts involving value types
-    for (uint j = 1; j < map()->req(); j++) {
-      Node* m = target->start_map()->in(j);   // Current state of target.
-      Node* n = map()->in(j);                 // Incoming change to target state.
-      if (!m->is_ValueType() && n->is_ValueType()) {
-        // Allocate value type in src block to be able to merge it with oop in target block
-        ValueTypeBaseNode* vt = n->as_ValueType()->allocate(this);
-        map()->replace_edge(vt, vt->get_oop());
-      }
-    }
-    do_exceptions();
 
     // We must not manufacture more phis if the target is already parsed.
     bool nophi = target->is_parsed();

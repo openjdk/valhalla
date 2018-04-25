@@ -26,6 +26,9 @@ package compiler.valhalla.valuetypes;
 import java.lang.invoke.*;
 
 import jdk.experimental.value.MethodHandleBuilder;
+import jdk.experimental.bytecode.MacroCodeBuilder;
+import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
+import jdk.experimental.bytecode.TypeTag;
 import jdk.test.lib.Asserts;
 
 /*
@@ -376,8 +379,8 @@ public class TestLWorld extends ValueTypeTest {
         }
 
         // Should not throw
-        vt = test12_dontinline(vt);
-        vt = test12_inline(vt);
+        vt = test11_dontinline(vt);
+        vt = test11_inline(vt);
         return vt;
     }
 
@@ -388,12 +391,12 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontInline
-    public MyValue1 test12_dontinline(MyValue1 vt) {
+    public MyValue1 test11_dontinline(MyValue1 vt) {
         return vt;
     }
 
     @ForceInline
-    public MyValue1 test12_inline(MyValue1 vt) {
+    public MyValue1 test11_inline(MyValue1 vt) {
         return vt;
     }
 
@@ -413,6 +416,306 @@ public class TestLWorld extends ValueTypeTest {
     public void test12_verifier(boolean warmup) throws Throwable {
         MyValue1 vt = test12(null);
         Asserts.assertEquals(vt.hash(), hash());
+    }
+
+    private static final MethodHandle getNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "getNull",
+        MethodType.methodType(MyValue1.class),
+        CODE -> {
+            CODE.
+            aconst_null().
+            areturn();
+        }
+        );
+
+    @Test
+    public void test13() throws Throwable {
+        try {
+            valueField1 = (MyValue1)getNull.invoke();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+    }
+
+    @DontCompile
+    public void test13_verifier(boolean warmup) throws Throwable {
+        test13();
+    }
+
+    // null constant
+    private static final MethodHandle setNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "setNull",
+        MethodType.methodType(void.class, TestLWorld.class),
+        CODE -> {
+            CODE.
+            aload_0().
+            aconst_null().
+            putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+            return_();
+        }
+        );
+
+    @Test
+    public void test14() throws Throwable {
+        try {
+            setNull.invoke(this);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+    }
+
+    @DontCompile
+    public void test14_verifier(boolean warmup) throws Throwable {
+        test14();
+    }
+
+    // merge of 2 values, one being null
+    @Test
+    public void test15(boolean flag1) throws Throwable {
+        MyValue1 v;
+        if (flag1) {
+            v = valueField1;
+        } else {
+            v = valueField5;
+        }
+        valueField1 = v;
+    }
+
+    @DontCompile
+    public void test15_verifier(boolean warmup) throws Throwable {
+        test15(true);
+        try {
+            test15(false);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+    }
+
+    // null constant
+    private static final MethodHandle mergeNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "mergeNull",
+        MethodType.methodType(void.class, TestLWorld.class, boolean.class),
+        CODE -> {
+            CODE.
+            iload_1().
+            iconst_0().
+            ifcmp(TypeTag.I, CondKind.EQ, "null").
+            aload_0().
+            getfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+            goto_("continue").
+            label("null").
+            aconst_null().
+            label("continue").
+            aload_0().
+            swap().
+            putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+            return_();
+        }
+        );
+
+    @Test
+    public void test16(boolean flag) throws Throwable {
+        mergeNull.invoke(this, flag);
+    }
+
+    @DontCompile
+    public void test16_verifier(boolean warmup) throws Throwable {
+        test16(true);
+        try {
+            test16(false);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+    }
+
+    // merge of value and non value
+    @Test
+    public Object test17(boolean flag) throws Throwable {
+        Object res = null;
+        if (flag) {
+            res = valueField1;
+        } else {
+            res = objectField1;
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test17_verifier(boolean warmup) throws Throwable {
+        test17(true);
+        test17(false);
+    }
+
+    @Test
+    public Object test18(boolean flag) throws Throwable {
+        Object res = null;
+        if (flag) {
+            res = objectField1;
+        } else {
+            res = valueField1;
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test18_verifier(boolean warmup) throws Throwable {
+        test17(true);
+        test17(false);
+    }
+
+    // Disable for now: bug in MethodHandleBuilder
+    // null constant
+    // private static final MethodHandle mergeNull2 = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+    //     "mergeNull2",
+    //     MethodType.methodType(void.class, TestLWorld.class, boolean.class),
+    //     CODE -> {
+    //         CODE.
+    //         iload_1().
+    //         iconst_0().
+    //         ifcmp(TypeTag.I, CondKind.EQ, "not_null").
+    //         aconst_null().
+    //         goto_("continue").
+    //         label("not_null").
+    //         aload_0().
+    //         getfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+    //         label("continue").
+    //         aload_0().
+    //         swap().
+    //         putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+    //         return_();
+    //     }
+    //     );
+
+    // @Test
+    // public void test19(boolean flag) throws Throwable {
+    //     mergeNull2.invoke(this, flag);
+    // }
+
+    // @DontCompile
+    // public void test19_verifier(boolean warmup) throws Throwable {
+    //     test19(false);
+    //     try {
+    //         test19(true);
+    //         throw new RuntimeException("NullPointerException expected");
+    //     } catch (NullPointerException e) {
+    //     }
+    // }
+
+    // merge of values in a loop, stored in an object local
+    @Test
+    public Object test20() {
+        Object o = valueField1;
+        for (int i = 1; i < 100; i *= 2) {
+            MyValue1 v = (MyValue1)o;
+            o = MyValue1.setX(v, v.x + 1);
+        }
+        return o;
+    }
+
+    @DontCompile
+    public void test20_verifier(boolean warmup) throws Throwable {
+        test20();
+    }
+
+    // merge of values in an object local
+    public Object test21_helper() {
+        return valueField1;
+    }
+
+    @Test(failOn = ALLOC + LOAD + STORE)
+    public void test21(boolean flag) {
+        Object o = null;
+        if (flag) {
+            o = valueField1;
+        } else {
+            o = test21_helper();
+        }
+        valueField1 = (MyValue1)o;
+    }
+
+    @DontCompile
+    public void test21_verifier(boolean warmup) throws Throwable {
+        test21(true);
+        test21(false);
+    }
+
+    // null return
+    int test_22_cnt;
+
+    @DontInline
+    public MyValue1 test22_helper() {
+        test_22_cnt++;
+        return valueField5;
+    }
+
+    @Test
+    public void test22() {
+        valueField1 = test22_helper();
+    }
+
+    @DontCompile
+    public void test22_verifier(boolean warmup) throws Throwable {
+        try {
+            test_22_cnt = 0;
+            test22();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+        if (test_22_cnt != 1) {
+            throw new RuntimeException("call executed twice");
+        }
+    }
+
+    // null return at virtual call
+    class A {
+        public MyValue1 test23_helper() {
+            return valueField5;
+        }
+    }
+
+    class B extends A {
+        public MyValue1 test23_helper() {
+            return valueField5;
+        }
+    }
+
+    class C extends A {
+        public MyValue1 test23_helper() {
+            return valueField5;
+        }
+    }
+
+    class D extends A {
+        public MyValue1 test23_helper() {
+            return valueField5;
+        }
+    }
+
+    @Test
+    public void test23(A a) {
+        valueField1 = a.test23_helper();
+    }
+
+    @DontCompile
+    public void test23_verifier(boolean warmup) throws Throwable {
+        A b = new B();
+        A c = new C();
+        A d = new D();
+        try {
+            test23(b);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+        try {
+            test23(c);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
+        try {
+            test23(d);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+        }
     }
 
 // TODO enable and add more tests

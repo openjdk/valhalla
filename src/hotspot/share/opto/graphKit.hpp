@@ -599,7 +599,8 @@ class GraphKit : public Phase {
                   BasicType bt,
                   bool use_precise,
                   MemNode::MemOrd mo,
-                  bool mismatched = false);
+                  bool mismatched = false,
+                  bool deoptimize_on_exception = false);
 
   Node* store_oop_to_object(Node* ctl,
                             Node* obj,   // containing obj

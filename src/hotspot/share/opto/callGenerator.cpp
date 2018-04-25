@@ -182,17 +182,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   // Check if return value is a value type pointer
   const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
-  if (vtptr != NULL) {
-    if (!vtptr->is__Value()) {
-      // Create ValueTypeNode from the oop and replace the return value
-      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret, vtptr->value_klass());
-      kit.push_node(T_VALUETYPE, vt);
-    } else {
-      kit.push_node(T_VALUETYPE, ret);
-    }
-  } else {
-    kit.push_node(method()->return_type()->basic_type(), ret);
-  }
+  kit.push_node(method()->return_type()->basic_type(), ret);
   return kit.transfer_exceptions_into_jvms();
 }
 
@@ -277,15 +267,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   Node* ret = kit.set_results_for_java_call(call);
   // Check if return value is a value type pointer
   const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
-  if (vtptr != NULL) {
-    // Create ValueTypeNode from the oop and replace the return value
-    Node* ctl = kit.control();
-    ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, ret, vtptr->value_klass());
-    kit.set_control(ctl);
-    kit.push_node(T_VALUETYPE, vt);
-  } else {
-    kit.push_node(method()->return_type()->basic_type(), ret);
-  }
+  kit.push_node(method()->return_type()->basic_type(), ret);
 
   // Represent the effect of an implicit receiver null_check
   // as part of this call.  Since we share a map with the caller,

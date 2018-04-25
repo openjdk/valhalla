@@ -142,6 +142,9 @@ void Parse::do_field_access(bool is_get, bool is_field) {
       do_get_xxx(obj, field, is_field);
     } else {
       do_put_xxx(obj, field, is_field);
+      if (stopped()) {
+        return;
+      }
       (void) pop();  // pop receiver after putting
     }
   } else {
@@ -314,7 +317,20 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     } else {
       field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
     }
+    if (field->is_flattenable() && !val->is_ValueType()) {
+      // We can see a null constant here
+      assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+      push(null());
+      Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+      uncommon_trap(reason, Deoptimization::Action_none);
+      assert(stopped(), "dead path");
+      return;
+    }
     if (is_flattened) {
+      // if (!val->is_ValueType()) {
+      //   const TypeValueTypePtr* vtptr = _gvn.type(val)->isa_valuetypeptr();
+      //   val = ValueTypeNode::make_from_oop(this, val, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ false);
+      // }
       // Store flattened value type to a non-static field
       assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
       val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);

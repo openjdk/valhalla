@@ -1995,7 +1995,8 @@ const TypeTuple *TypeTuple::make_range(ciType* return_type, bool ret_vt_fields) 
       collect_value_fields(vk, field_array, pos);
     } else {
       // Value type returns cannot be NULL
-      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
+      //field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
+      field_array[TypeFunc::Parms] = get_const_type(return_type);
     }
     break;
   case T_VOID:

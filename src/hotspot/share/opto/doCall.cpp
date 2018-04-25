@@ -634,6 +634,32 @@ void Parse::do_call() {
     ciType* rtype = cg->method()->return_type();
     ciType* ctype = declared_signature->return_type();
 
+    // check for a null value and deoptimize: deoptimization needs to
+    // restart after the call
+    if (rtype->basic_type() == T_VALUETYPE) {
+      Node* retnode = peek();
+      if (!retnode->is_ValueType()) {
+        pop();
+        assert(!cg->is_inline(), "should have ValueTypeNode result");
+        Node* null_ctl = top();
+        Node* not_null_obj = null_check_common(retnode, T_VALUETYPE, false, &null_ctl, false);
+        if (null_ctl != top()) {
+          // TODO For now, we just deoptimize if value type is NULL
+          PreserveJVMState pjvms(this);
+          push(null());
+          set_bci(iter().next_bci());
+          set_control(null_ctl);
+          replace_in_map(retnode, null());
+          Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+          uncommon_trap(reason, Deoptimization::Action_none);
+          set_bci(iter().cur_bci());
+        }
+        const TypeValueTypePtr* vtptr = _gvn.type(retnode)->isa_valuetypeptr();
+        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vtptr->value_klass());
+        push_node(T_VALUETYPE, vt);
+      }
+    }
+
     if (Bytecodes::has_optional_appendix(iter().cur_bc_raw()) || is_signature_polymorphic) {
       // Be careful here with return types.
       if (ctype != rtype) {
@@ -648,14 +674,34 @@ void Parse::do_call() {
           // Nothing.  These cases are handled in lambda form bytecode.
           assert(ct == T_INT || is_subword_type(ct), "must match: rt=%s, ct=%s", type2name(rt), type2name(ct));
         } else if (rt == T_OBJECT || rt == T_ARRAY) {
-          assert(ct == T_OBJECT || ct == T_ARRAY, "rt=%s, ct=%s", type2name(rt), type2name(ct));
+          assert(ct == T_OBJECT || ct == T_ARRAY || ct == T_VALUETYPE, "rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
             if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
+              if (ct == T_VALUETYPE) {
+                Node* null_ctl = top();
+                Node* not_null_obj = null_check_common(retnode, T_VALUETYPE, false, &null_ctl, false);
+                if (null_ctl != top()) {
+                  // TODO For now, we just deoptimize if value type is NULL
+                  PreserveJVMState pjvms(this);
+                  set_bci(iter().next_bci());
+                  set_control(null_ctl);
+                  push(null());
+                  Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
+                  uncommon_trap(reason, Deoptimization::Action_none);
+                  set_bci(iter().cur_bci());
+                }
+                retnode = not_null_obj;
+              }
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
-              push(cast_obj);
+              if (ct == T_VALUETYPE) {
+                Node* vt = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* null_check */ false, /* buffer_check */ false);
+                push(vt);
+              } else {
+                push(cast_obj);
+              }
             }
           }
         } else if (rt == T_VALUETYPE) {

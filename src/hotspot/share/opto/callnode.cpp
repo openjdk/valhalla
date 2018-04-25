@@ -1459,15 +1459,29 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       outcnt() != 0 && result_cast() == NULL) {
     // Remove allocation by replacing the projection nodes with its inputs
     PhaseIterGVN* igvn = phase->is_IterGVN();
-    CallProjections* projs = extract_projections(true);
-    assert(projs->nb_resproj == 1, "unexpected number of results");
-    igvn->replace_node(projs->fallthrough_catchproj, in(TypeFunc::Control));
-    igvn->replace_node(projs->fallthrough_memproj, in(TypeFunc::Memory));
-    igvn->replace_node(projs->catchall_memproj, phase->C->top());
-    igvn->replace_node(projs->fallthrough_ioproj, in(TypeFunc::I_O));
-    igvn->replace_node(projs->catchall_ioproj, phase->C->top());
-    igvn->replace_node(projs->catchall_catchproj, phase->C->top());
-    igvn->replace_node(projs->resproj[0], phase->C->top());
+    CallProjections* projs = extract_projections(true, false);
+    assert(projs->nb_resproj <= 1, "unexpected number of results");
+    if (projs->fallthrough_catchproj != NULL) {
+      igvn->replace_node(projs->fallthrough_catchproj, in(TypeFunc::Control));
+    }
+    if (projs->fallthrough_memproj != NULL) {
+      igvn->replace_node(projs->fallthrough_memproj, in(TypeFunc::Memory));
+    }
+    if (projs->catchall_memproj != NULL) {
+      igvn->replace_node(projs->catchall_memproj, phase->C->top());
+    }
+    if (projs->fallthrough_ioproj != NULL) {
+      igvn->replace_node(projs->fallthrough_ioproj, in(TypeFunc::I_O));
+    }
+    if (projs->catchall_ioproj != NULL) {
+      igvn->replace_node(projs->catchall_ioproj, phase->C->top());
+    }
+    if (projs->catchall_catchproj != NULL) {
+      igvn->replace_node(projs->catchall_catchproj, phase->C->top());
+    }
+    if (projs->resproj[0] != NULL) {
+      igvn->replace_node(projs->resproj[0], phase->C->top());
+    }
     igvn->remove_dead_node(this);
     return NULL;
   }

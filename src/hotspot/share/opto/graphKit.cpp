@@ -1662,7 +1662,8 @@ Node* GraphKit::store_oop(Node* ctl,
                           BasicType bt,
                           bool use_precise,
                           MemNode::MemOrd mo,
-                          bool mismatched) {
+                          bool mismatched,
+                          bool deoptimize_on_exception) {
   // Transformation of a value which could be NULL pointer (CastPP #NULL)
   // could be delayed during Parse (for example, in adjust_map_after_if()).
   // Execute transformation here to avoid barrier generation in such case.
@@ -1679,7 +1680,7 @@ Node* GraphKit::store_oop(Node* ctl,
 
   if (val->is_ValueType()) {
     // Allocate value type and get oop
-    val = val->as_ValueType()->allocate(this)->get_oop();
+    val = val->as_ValueType()->allocate(this, deoptimize_on_exception)->get_oop();
   }
 
   pre_barrier(true /* do_load */,
