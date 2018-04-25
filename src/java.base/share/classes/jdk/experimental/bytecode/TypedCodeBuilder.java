@@ -238,6 +238,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
         State(ArrayList<T> stack, Vector<T> locals) {
             this.stack = stack;
             this.locals = locals;
+            this.alive = true;
         }
 
         State() {

@@ -73,6 +73,9 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
             case 'V':
                 return TypeTag.V;
             default:
+                if (s == nullType()) {
+                    return TypeTag.A;
+                }
                 throw new IllegalStateException("Bad type: " + s);
         }
     }
