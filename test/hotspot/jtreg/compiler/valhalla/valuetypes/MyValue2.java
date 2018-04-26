@@ -58,7 +58,7 @@ __ByValue final class MyValue2Inline {
     }
 }
 
-__ByValue public final class MyValue2 {
+__ByValue public final class MyValue2 implements MyInterface {
     final int x;
     final byte y;
     __Flattenable final MyValue2Inline v1;

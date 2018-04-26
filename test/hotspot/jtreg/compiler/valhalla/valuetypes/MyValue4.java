@@ -24,7 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 // Value type definition with too many fields to return in registers
-__ByValue final class MyValue4 {
+__ByValue final class MyValue4 implements MyInterface {
     __Flattenable final MyValue3 v1;
     __Flattenable final MyValue3 v2;
 

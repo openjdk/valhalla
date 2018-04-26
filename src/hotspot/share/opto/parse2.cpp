@@ -2301,7 +2301,7 @@ void Parse::do_one_bytecode() {
       // TODO Ugly hack. Merge this with the new acmp implementation
       // A value type can only compare equal to null and obviously this one is not null
       // Return constant false
-      c =  _gvn.transform(new CmpINode(_gvn.intcon(0), _gvn.intcon(1)));
+      c = _gvn.transform(new CmpINode(_gvn.intcon(0), _gvn.intcon(1)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
@@ -2332,7 +2332,7 @@ void Parse::do_one_bytecode() {
       // TODO Ugly hack. Merge this with the new acmp implementation
       // A value type can only compare equal to null and obviously this one is not null
       // Return constant false
-      c =  _gvn.transform(new CmpINode(_gvn.intcon(0), _gvn.intcon(1)));
+      c = _gvn.transform(new CmpINode(_gvn.intcon(0), _gvn.intcon(1)));
     } else {
       c = _gvn.transform( new CmpPNode(b, a) );
     }

@@ -434,7 +434,9 @@ public class TestLWorld extends ValueTypeTest {
             valueField1 = (MyValue1)getNull.invoke();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
+        nullField = (MyValue1)getNull.invoke(); // Should not throw
     }
 
     @DontCompile
@@ -461,6 +463,7 @@ public class TestLWorld extends ValueTypeTest {
             setNull.invoke(this);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
     }
 
@@ -488,6 +491,7 @@ public class TestLWorld extends ValueTypeTest {
             test15(false);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
     }
 
@@ -525,6 +529,7 @@ public class TestLWorld extends ValueTypeTest {
             test16(false);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
     }
 
@@ -563,43 +568,43 @@ public class TestLWorld extends ValueTypeTest {
         test17(false);
     }
 
-    // Disable for now: bug in MethodHandleBuilder
     // null constant
-    // private static final MethodHandle mergeNull2 = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-    //     "mergeNull2",
-    //     MethodType.methodType(void.class, TestLWorld.class, boolean.class),
-    //     CODE -> {
-    //         CODE.
-    //         iload_1().
-    //         iconst_0().
-    //         ifcmp(TypeTag.I, CondKind.EQ, "not_null").
-    //         aconst_null().
-    //         goto_("continue").
-    //         label("not_null").
-    //         aload_0().
-    //         getfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-    //         label("continue").
-    //         aload_0().
-    //         swap().
-    //         putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-    //         return_();
-    //     }
-    //     );
+    private static final MethodHandle mergeNull2 = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "mergeNull2",
+        MethodType.methodType(void.class, TestLWorld.class, boolean.class),
+        CODE -> {
+            CODE.
+            iload_1().
+            iconst_0().
+            ifcmp(TypeTag.I, CondKind.EQ, "not_null").
+            aconst_null().
+            goto_("continue").
+            label("not_null").
+            aload_0().
+            getfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+            label("continue").
+            aload_0().
+            swap().
+            putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
+            return_();
+        }
+        );
 
-    // @Test
-    // public void test19(boolean flag) throws Throwable {
-    //     mergeNull2.invoke(this, flag);
-    // }
+    @Test
+    public void test19(boolean flag) throws Throwable {
+        mergeNull2.invoke(this, flag);
+    }
 
-    // @DontCompile
-    // public void test19_verifier(boolean warmup) throws Throwable {
-    //     test19(false);
-    //     try {
-    //         test19(true);
-    //         throw new RuntimeException("NullPointerException expected");
-    //     } catch (NullPointerException e) {
-    //     }
-    // }
+    @DontCompile
+    public void test19_verifier(boolean warmup) throws Throwable {
+        test19(false);
+        try {
+            test19(true);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
 
     // merge of values in a loop, stored in an object local
     @Test
@@ -660,6 +665,7 @@ public class TestLWorld extends ValueTypeTest {
             test22();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
         if (test_22_cnt != 1) {
             throw new RuntimeException("call executed twice");
@@ -705,17 +711,216 @@ public class TestLWorld extends ValueTypeTest {
             test23(b);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
         try {
             test23(c);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
         try {
             test23(d);
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
+            // Expected
         }
+    }
+
+
+    // Interface tests
+
+    @DontInline
+    public MyInterface test24_dontinline1(MyInterface o) {
+        return o;
+    }
+
+    @DontInline
+    public MyValue1 test24_dontinline2(MyInterface o) {
+        return (MyValue1)o;
+    }
+
+    @ForceInline
+    public MyInterface test24_inline1(MyInterface o) {
+        return o;
+    }
+
+    @ForceInline
+    public MyValue1 test24_inline2(MyInterface o) {
+        return (MyValue1)o;
+    }
+
+    @Test()
+    public MyValue1 test24() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        vt = (MyValue1)test24_dontinline1(vt);
+        vt =           test24_dontinline2(vt);
+        vt = (MyValue1)test24_inline1(vt);
+        vt =           test24_inline2(vt);
+        return vt;
+    }
+
+    @DontCompile
+    public void test24_verifier(boolean warmup) {
+        Asserts.assertEQ(test24().hash(), hash());
+    }
+
+    // Test storing/loading value types to/from interface and value type fields
+    MyInterface interfaceField1 = null;
+    MyInterface interfaceField2 = null;
+    MyInterface interfaceField3 = null;
+    MyInterface interfaceField4 = null;
+    MyInterface interfaceField5 = null;
+    MyInterface interfaceField6 = null;
+
+    @DontInline
+    public MyInterface readValueField5AsInterface() {
+        return (MyInterface)valueField5;
+    }
+
+    @DontInline
+    public MyInterface readStaticValueField4AsInterface() {
+        return (MyInterface)staticValueField4;
+    }
+
+    @Test()
+    public long test25(MyValue1 vt1, MyInterface vt2) {
+        interfaceField1 = vt1;
+        interfaceField2 = (MyValue1)vt2;
+        interfaceField3 = MyValue1.createWithFieldsInline(rI, rL);
+        interfaceField4 = MyValue1.createWithFieldsDontInline(rI, rL);
+        interfaceField5 = valueField1;
+        interfaceField6 = valueField3;
+        valueField1 = (MyValue1)interfaceField1;
+        valueField2 = (MyValue1)vt2;
+        valueField3 = (MyValue1)vt2;
+        staticValueField1 = (MyValue1)interfaceField1;
+        staticValueField2 = (MyValue1)vt1;
+        // Don't inline these methods because reading NULL will trigger a deoptimization
+        if (readValueField5AsInterface() != null || readStaticValueField4AsInterface() != null) {
+            throw new RuntimeException("Should be null");
+        }
+        return ((MyValue1)interfaceField1).hash() + ((MyValue1)interfaceField2).hash() +
+               ((MyValue1)interfaceField3).hash() + ((MyValue1)interfaceField4).hash() +
+               ((MyValue1)interfaceField5).hash() + ((MyValue1)interfaceField6).hash() +
+                valueField1.hash() + valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
+                staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
+    }
+
+    @DontCompile
+    public void test25_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 def = MyValue1.createDefaultDontInline();
+        long result = test25(vt, vt);
+        Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
+    }
+
+    class MyObject implements MyInterface {
+        public int x;
+
+        public MyObject(int x) {
+            this.x = x;
+        }
+    }
+
+    // Test merging value types and interfaces
+    @Test()
+    public MyInterface test26(int state) {
+        MyInterface res = null;
+        if (state == 0) {
+            res = new MyObject(rI);
+        } else if (state == 1) {
+            res = MyValue1.createWithFieldsInline(rI, rL);
+        } else if (state == 2) {
+            res = MyValue1.createWithFieldsDontInline(rI, rL);
+        } else if (state == 3) {
+            res = (MyValue1)objectField1;
+        } else if (state == 4) {
+            res = valueField1;
+        } else if (state == 5) {
+            res = null;
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        interfaceField1 = valueField1;
+        MyInterface result = null;
+        result = test26(0);
+        Asserts.assertEQ(((MyObject)result).x, rI);
+        result = test26(1);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test26(2);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test26(3);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test26(4);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test26(5);
+        Asserts.assertEQ(result, null);
+    }
+
+    // Test merging value types and interfaces in loops
+    @Test()
+    public MyInterface test27(int iters) {
+        MyInterface res = new MyObject(rI);
+        for (int i = 0; i < iters; ++i) {
+            if (res instanceof MyObject) {
+                res = MyValue1.createWithFieldsInline(rI, rL);
+            } else {
+                res = MyValue1.createWithFieldsInline(((MyValue1)res).x + 1, rL);
+            }
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        MyObject result1 = (MyObject)test27(0);
+        Asserts.assertEQ(result1.x, rI);
+        int iters = (Math.abs(rI) % 10) + 1;
+        MyValue1 result2 = (MyValue1)test27(iters);
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + iters - 1, rL);
+        Asserts.assertEQ(result2.hash(), vt.hash());
+    }
+
+    // Test value types in interface variables that are live at safepoint
+    @Test(failOn = ALLOC + STORE + LOOP)
+    public long test28(MyValue1 arg, boolean deopt) {
+        MyInterface vt1 = MyValue1.createWithFieldsInline(rI, rL);
+        MyInterface vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyInterface vt3 = arg;
+        MyInterface vt4 = valueField1;
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test5"));
+        }
+        return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
+               ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
+    }
+
+    @DontCompile
+    public void test28_verifier(boolean warmup) {
+        long result = test28(valueField1, !warmup);
+        Asserts.assertEQ(result, 4*hash());
+    }
+
+    // Test comparing value types with interfaces
+    @Test(failOn = ALLOC + LOAD + STORE + LOOP)
+    public boolean test29(Object arg) {
+        MyInterface vt = MyValue1.createWithFieldsInline(rI, rL);
+        if (vt == arg || vt == (MyInterface)valueField1 || vt == interfaceField1 || vt == null ||
+            arg == vt || (MyInterface)valueField1 == vt || interfaceField1 == vt || null == vt) {
+            return true;
+        }
+        return false;
+    }
+
+    @DontCompile
+    public void test29_verifier(boolean warmup) {
+        boolean result = test29(null);
+        Asserts.assertFalse(result);
     }
 
 // TODO enable and add more tests
@@ -741,9 +946,6 @@ public class TestLWorld extends ValueTypeTest {
 */
 
 // TODO Add tests for value type with non-flattened/non-flattenable value type field
-// TODO Add test for writing null to a non-flattenable value type field
-// TODO Add tests for null returns
-// TODO Test above code with value types implementing interfaces
 // TODO Add array tests
 
 }

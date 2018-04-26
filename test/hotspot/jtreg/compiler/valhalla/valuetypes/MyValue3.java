@@ -63,7 +63,7 @@ __ByValue final class MyValue3Inline {
 
 // Value type definition to stress test return of a value in registers
 // (uses all registers of calling convention on x86_64)
-__ByValue public final class MyValue3 {
+__ByValue public final class MyValue3 implements MyInterface {
     final char c;
     final byte bb;
     final short s;
