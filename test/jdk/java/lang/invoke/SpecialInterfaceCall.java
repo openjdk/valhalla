@@ -23,9 +23,10 @@
 
 /**
  * @test
- * @bug 8200167
+ * @bug 8200167 8010319
  * @summary Test direct and MethodHandle access to interface methods using invokespecial semantics
- * @compile SpecialInterfaceCall.java
+ * @comment This must be compiled for JDK 10 so that invokespecial is generated.
+ * @compile -source 10 -target 10 SpecialInterfaceCall.java
  * @compile I4Special.jcod
  * @run main/othervm -Xint SpecialInterfaceCall
  * @run main/othervm -Xbatch -XX:+TieredCompilation -XX:TieredStopAtLevel=1 SpecialInterfaceCall
