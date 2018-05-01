@@ -26,19 +26,28 @@
 #include "gc/shared/oopStorage.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/iterator.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.inline.hpp"
 #include "trace/traceMacros.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#endif
 
 OopStorage* JNIHandles::_global_handles = NULL;
 OopStorage* JNIHandles::_weak_global_handles = NULL;
+
+OopStorage* JNIHandles::global_handles() {
+  assert(_global_handles != NULL, "Uninitialized JNI global handles");
+  return _global_handles;
+}
+
+OopStorage* JNIHandles::weak_global_handles() {
+  assert(_weak_global_handles != NULL, "Uninitialized JNI weak global handles");
+  return _weak_global_handles;
+}
 
 
 jobject JNIHandles::make_local(oop obj) {
@@ -97,10 +106,11 @@ jobject JNIHandles::make_global(Handle obj, AllocFailType alloc_failmode) {
   if (!obj.is_null()) {
     // ignore null handles
     assert(oopDesc::is_oop(obj()), "not an oop");
-    oop* ptr = _global_handles->allocate();
+    oop* ptr = global_handles()->allocate();
     // Return NULL on allocation failure.
     if (ptr != NULL) {
-      *ptr = obj();
+      assert(*ptr == NULL, "invariant");
+      RootAccess<IN_CONCURRENT_ROOT>::oop_store(ptr, obj());
       res = reinterpret_cast<jobject>(ptr);
     } else {
       report_handle_allocation_failure(alloc_failmode, "global");
@@ -120,10 +130,11 @@ jobject JNIHandles::make_weak_global(Handle obj, AllocFailType alloc_failmode) {
   if (!obj.is_null()) {
     // ignore null handles
     assert(oopDesc::is_oop(obj()), "not an oop");
-    oop* ptr = _weak_global_handles->allocate();
+    oop* ptr = weak_global_handles()->allocate();
     // Return NULL on allocation failure.
     if (ptr != NULL) {
-      *ptr = obj();
+      assert(*ptr == NULL, "invariant");
+      RootAccess<ON_PHANTOM_OOP_REF>::oop_store(ptr, obj());
       char* tptr = reinterpret_cast<char*>(ptr) + weak_tag_value;
       res = reinterpret_cast<jobject>(tptr);
     } else {
@@ -150,26 +161,23 @@ oop JNIHandles::resolve_external_guard(jobject handle) {
 oop JNIHandles::resolve_jweak(jweak handle) {
   assert(handle != NULL, "precondition");
   assert(is_jweak(handle), "precondition");
-  oop result = jweak_ref(handle);
-#if INCLUDE_ALL_GCS
-  if (result != NULL && UseG1GC) {
-    G1SATBCardTableModRefBS::enqueue(result);
-  }
-#endif // INCLUDE_ALL_GCS
-  return result;
+  return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(jweak_ptr(handle));
 }
 
 bool JNIHandles::is_global_weak_cleared(jweak handle) {
   assert(handle != NULL, "precondition");
   assert(is_jweak(handle), "not a weak handle");
-  return jweak_ref(handle) == NULL;
+  oop* oop_ptr = jweak_ptr(handle);
+  oop value = RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(oop_ptr);
+  return value == NULL;
 }
 
 void JNIHandles::destroy_global(jobject handle) {
   if (handle != NULL) {
     assert(!is_jweak(handle), "wrong method for detroying jweak");
-    jobject_ref(handle) = NULL;
-    _global_handles->release(&jobject_ref(handle));
+    oop* oop_ptr = jobject_ptr(handle);
+    RootAccess<IN_CONCURRENT_ROOT>::oop_store(oop_ptr, (oop)NULL);
+    global_handles()->release(oop_ptr);
   }
 }
 
@@ -177,24 +185,25 @@ void JNIHandles::destroy_global(jobject handle) {
 void JNIHandles::destroy_weak_global(jobject handle) {
   if (handle != NULL) {
     assert(is_jweak(handle), "JNI handle not jweak");
-    jweak_ref(handle) = NULL;
-    _weak_global_handles->release(&jweak_ref(handle));
+    oop* oop_ptr = jweak_ptr(handle);
+    RootAccess<ON_PHANTOM_OOP_REF>::oop_store(oop_ptr, (oop)NULL);
+    weak_global_handles()->release(oop_ptr);
   }
 }
 
 
 void JNIHandles::oops_do(OopClosure* f) {
-  _global_handles->oops_do(f);
+  global_handles()->oops_do(f);
 }
 
 
 void JNIHandles::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
-  _weak_global_handles->weak_oops_do(is_alive, f);
+  weak_global_handles()->weak_oops_do(is_alive, f);
 }
 
 
 void JNIHandles::weak_oops_do(OopClosure* f) {
-  _weak_global_handles->weak_oops_do(f);
+  weak_global_handles()->weak_oops_do(f);
 }
 
 
@@ -217,11 +226,11 @@ jobjectRefType JNIHandles::handle_type(Thread* thread, jobject handle) {
   assert(handle != NULL, "precondition");
   jobjectRefType result = JNIInvalidRefType;
   if (is_jweak(handle)) {
-    if (is_storage_handle(_weak_global_handles, &jweak_ref(handle))) {
+    if (is_storage_handle(weak_global_handles(), jweak_ptr(handle))) {
       result = JNIWeakGlobalRefType;
     }
   } else {
-    switch (_global_handles->allocation_status(&jobject_ref(handle))) {
+    switch (global_handles()->allocation_status(jobject_ptr(handle))) {
     case OopStorage::ALLOCATED_ENTRY:
       result = JNIGlobalRefType;
       break;
@@ -278,33 +287,31 @@ bool JNIHandles::is_frame_handle(JavaThread* thr, jobject handle) {
 
 bool JNIHandles::is_global_handle(jobject handle) {
   assert(handle != NULL, "precondition");
-  return !is_jweak(handle) && is_storage_handle(_global_handles, &jobject_ref(handle));
+  return !is_jweak(handle) && is_storage_handle(global_handles(), jobject_ptr(handle));
 }
 
 
 bool JNIHandles::is_weak_global_handle(jobject handle) {
   assert(handle != NULL, "precondition");
-  return is_jweak(handle) && is_storage_handle(_weak_global_handles, &jweak_ref(handle));
+  return is_jweak(handle) && is_storage_handle(weak_global_handles(), jweak_ptr(handle));
 }
 
 size_t JNIHandles::global_handle_memory_usage() {
-  return _global_handles->total_memory_usage();
+  return global_handles()->total_memory_usage();
 }
 
 size_t JNIHandles::weak_global_handle_memory_usage() {
-  return _weak_global_handles->total_memory_usage();
+  return weak_global_handles()->total_memory_usage();
 }
 
 
 // We assume this is called at a safepoint: no lock is needed.
 void JNIHandles::print_on(outputStream* st) {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
-  assert(_global_handles != NULL && _weak_global_handles != NULL,
-         "JNIHandles not initialized");
 
   st->print_cr("JNI global refs: " SIZE_FORMAT ", weak refs: " SIZE_FORMAT,
-               _global_handles->allocation_count(),
-               _weak_global_handles->allocation_count());
+               global_handles()->allocation_count(),
+               weak_global_handles()->allocation_count());
   st->cr();
   st->flush();
 }
@@ -350,6 +357,8 @@ void JNIHandleBlock::zap() {
   // Zap block values
   _top = 0;
   for (int index = 0; index < block_size_in_oops; index++) {
+    // NOT using Access here; just bare clobbering to NULL, since the
+    // block no longer contains valid oops.
     _handles[index] = NULL;
   }
 }
@@ -505,7 +514,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj) {
   // Try last block
   if (_last->_top < block_size_in_oops) {
     oop* handle = &(_last->_handles)[_last->_top++];
-    *handle = obj;
+    RootAccess<AS_DEST_NOT_INITIALIZED>::oop_store(handle, obj);
     return (jobject) handle;
   }
 
@@ -513,7 +522,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj) {
   if (_free_list != NULL) {
     oop* handle = _free_list;
     _free_list = (oop*) *_free_list;
-    *handle = obj;
+    RootAccess<AS_DEST_NOT_INITIALIZED>::oop_store(handle, obj);
     return (jobject) handle;
   }
   // Check if unused block follow last

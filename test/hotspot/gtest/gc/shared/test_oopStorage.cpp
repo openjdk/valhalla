@@ -30,7 +30,7 @@
 #include "metaprogramming/conditional.hpp"
 #include "metaprogramming/enableIf.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.hpp"
@@ -530,7 +530,7 @@ TEST_VM_F(OopStorageTest, invalid_pointer) {
 }
 #endif // DISABLE_GARBAGE_ALLOCATION_STATUS_TESTS
 
-class OopStorageTest::CountingIterateClosure VALUE_OBJ_CLASS_SPEC {
+class OopStorageTest::CountingIterateClosure {
 public:
   size_t _const_count;
   size_t _const_non_null;
@@ -672,7 +672,7 @@ const unsigned char OopStorageTestIteration::mark_invalid;
 const unsigned char OopStorageTestIteration::mark_const;
 const unsigned char OopStorageTestIteration::mark_non_const;
 
-class OopStorageTestIteration::VerifyState VALUE_OBJ_CLASS_SPEC {
+class OopStorageTestIteration::VerifyState {
 public:
   unsigned char _expected_mark;
   const oop* const* _entries;
@@ -742,7 +742,7 @@ private:
   }
 };
 
-class OopStorageTestIteration::VerifyFn VALUE_OBJ_CLASS_SPEC {
+class OopStorageTestIteration::VerifyFn {
 public:
   VerifyFn(VerifyState* state, uint worker_id = 0) :
     _state(state),
@@ -762,7 +762,7 @@ private:
   uint _worker_id;
 };
 
-class OopStorageTestIteration::VerifyClosure VALUE_OBJ_CLASS_SPEC {
+class OopStorageTestIteration::VerifyClosure {
 public:
   VerifyClosure(VerifyState* state, uint worker_id = 0) :
     _state(state),
@@ -855,9 +855,6 @@ TEST_VM_F(OopStorageTestIteration, oops_do) {
   }
   vstate.check();
 }
-
-// Parallel iteration not available unless INCLUDE_ALL_GCS
-#if INCLUDE_ALL_GCS
 
 class OopStorageTestParIteration : public OopStorageTestIteration {
 public:
@@ -1016,8 +1013,6 @@ TEST_VM_F(OopStorageTestParIteration, par_state_concurrent_const_oops_do) {
   workers()->run_task(&task);
   vstate.check();
 }
-
-#endif // INCLUDE_ALL_GCS
 
 TEST_VM_F(OopStorageTestWithAllocation, delete_empty_blocks_safepoint) {
   TestAccess::BlockList& active_list = TestAccess::active_list(_storage);
@@ -1384,4 +1379,3 @@ TEST_F(OopStorageBlockListTestWithList, two_lists) {
   }
   EXPECT_EQ(NULL_BLOCK, active_block);
 }
-

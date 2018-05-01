@@ -159,8 +159,6 @@ module java.base {
         jdk.scripting.nashorn;
     exports jdk.internal.org.objectweb.asm.signature to
         jdk.scripting.nashorn;
-    exports jdk.internal.math to
-        java.desktop;
     exports jdk.internal.misc to
         java.desktop,
         java.logging,
@@ -173,7 +171,7 @@ module java.base {
         jdk.attach,
         jdk.charsets,
         jdk.compiler,
-        jdk.incubator.httpclient,
+        java.net.http,
         jdk.jdeps,
         jdk.jlink,
         jdk.jshell,
@@ -188,7 +186,6 @@ module java.base {
         jdk.jartool,
         jdk.jlink;
     exports jdk.internal.perf to
-        java.desktop,
         java.management,
         jdk.management.agent,
         jdk.internal.jvmstat;
@@ -207,12 +204,11 @@ module java.base {
         jdk.internal.jvmstat;
     exports jdk.internal.vm.annotation to
         jdk.unsupported,
-        jdk.internal.vm.ci,
-        jdk.incubator.httpclient;
+        jdk.internal.vm.ci;
     exports jdk.internal.util.jar to
         jdk.jartool;
     exports sun.net to
-        jdk.incubator.httpclient,
+        java.net.http,
         jdk.naming.dns;
     exports sun.net.ext to
         jdk.net;
@@ -222,10 +218,10 @@ module java.base {
     exports sun.net.util to
         java.desktop,
         jdk.jconsole,
-        jdk.incubator.httpclient;
+        java.net.http;
     exports sun.net.www to
         java.desktop,
-        jdk.incubator.httpclient,
+        java.net.http,
         jdk.jartool;
     exports sun.net.www.protocol.http to
         java.security.jgss;
@@ -235,7 +231,6 @@ module java.base {
         jdk.sctp,
         jdk.unsupported;
     exports sun.nio.cs to
-        java.desktop,
         jdk.charsets;
     exports sun.nio.fs to
         jdk.unsupported;

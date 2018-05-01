@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,12 +48,7 @@ public:
 };
 
 class G1EvacuationRootClosures : public G1RootClosures {
-  static G1EvacuationRootClosures* create_root_closures_ext(G1ParScanThreadState* pss, G1CollectedHeap* g1h);
 public:
-  // Flush any buffered state and deferred processing
-  virtual void flush() = 0;
-  virtual double closure_app_seconds() = 0;
-
   // Applied to the weakly reachable CLDs when all strongly reachable
   // CLDs are guaranteed to have been processed.
   virtual CLDClosure* second_pass_weak_clds() = 0;

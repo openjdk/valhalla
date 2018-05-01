@@ -28,11 +28,13 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/templateTable.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
@@ -147,84 +149,18 @@ static Assembler::Condition j_not(TemplateTable::Condition cc) {
 
 
 static void do_oop_store(InterpreterMacroAssembler* _masm,
-                         Address obj,
+                         Address dst,
                          Register val,
-                         BarrierSet::Name barrier,
-                         bool precise) {
+                         DecoratorSet decorators = 0) {
   assert(val == noreg || val == rax, "parameter is just for looks");
-  switch (barrier) {
-#if INCLUDE_ALL_GCS
-    case BarrierSet::G1SATBCTLogging:
-      {
-        // flatten object address if needed
-        // We do it regardless of precise because we need the registers
-        if (obj.index() == noreg && obj.disp() == 0) {
-          if (obj.base() != rdx) {
-            __ movptr(rdx, obj.base());
-          }
-        } else {
-          __ lea(rdx, obj);
-        }
+  __ store_heap_oop(dst, val, rdx, rbx, decorators);
+}
 
-        Register rtmp    = LP64_ONLY(r8)         NOT_LP64(rsi);
-        Register rthread = LP64_ONLY(r15_thread) NOT_LP64(rcx);
-
-        NOT_LP64(__ get_thread(rcx));
-        NOT_LP64(__ save_bcp());
-
-        __ g1_write_barrier_pre(rdx /* obj */,
-                                rbx /* pre_val */,
-                                rthread /* thread */,
-                                rtmp  /* tmp */,
-                                val != noreg /* tosca_live */,
-                                false /* expand_call */);
-        if (val == noreg) {
-          __ store_heap_oop_null(Address(rdx, 0));
-        } else {
-          // G1 barrier needs uncompressed oop for region cross check.
-          Register new_val = val;
-          if (UseCompressedOops) {
-            new_val = rbx;
-            __ movptr(new_val, val);
-          }
-          __ store_heap_oop(Address(rdx, 0), val);
-          __ g1_write_barrier_post(rdx /* store_adr */,
-                                   new_val /* new_val */,
-                                   rthread /* thread */,
-                                   rtmp /* tmp */,
-                                   rbx /* tmp2 */);
-        }
-        NOT_LP64( __ restore_bcp());
-      }
-      break;
-#endif // INCLUDE_ALL_GCS
-    case BarrierSet::CardTableModRef:
-      {
-        if (val == noreg) {
-          __ store_heap_oop_null(obj);
-        } else {
-          __ store_heap_oop(obj, val);
-          // flatten object address if needed
-          if (!precise || (obj.index() == noreg && obj.disp() == 0)) {
-            __ store_check(obj.base());
-          } else {
-            __ lea(rdx, obj);
-            __ store_check(rdx);
-          }
-        }
-      }
-      break;
-    case BarrierSet::ModRef:
-      if (val == noreg) {
-        __ store_heap_oop_null(obj);
-      } else {
-        __ store_heap_oop(obj, val);
-      }
-      break;
-    default      :
-      ShouldNotReachHere();
-
-  }
+static void do_oop_load(InterpreterMacroAssembler* _masm,
+                        Address src,
+                        Register dst,
+                        DecoratorSet decorators = 0) {
+  __ load_heap_oop(dst, src, rdx, rbx, decorators);
 }
 
 Address TemplateTable::at_bcp(int offset) {
@@ -874,9 +810,12 @@ void TemplateTable::aaload() {
   // rax: index
   // rdx: array
   index_check(rdx, rax); // kills rbx
-  __ load_heap_oop(rax, Address(rdx, rax,
-                                UseCompressedOops ? Address::times_4 : Address::times_ptr,
-                                arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  do_oop_load(_masm,
+              Address(rdx, rax,
+                      UseCompressedOops ? Address::times_4 : Address::times_ptr,
+                      arrayOopDesc::base_offset_in_bytes(T_OBJECT)),
+              rax,
+              IN_HEAP_ARRAY);
 }
 
 void TemplateTable::baload() {
@@ -1187,7 +1126,7 @@ void TemplateTable::aastore() {
   // Get the value we will store
   __ movptr(rax, at_tos());
   // Now store using the appropriate barrier
-  do_oop_store(_masm, Address(rdx, 0), rax, _bs->kind(), true);
+  do_oop_store(_masm, Address(rdx, 0), rax, IN_HEAP_ARRAY);
   __ jmp(done);
 
   // Have a NULL in rax, rdx=array, ecx=index.  Store NULL at ary[idx]
@@ -1195,7 +1134,7 @@ void TemplateTable::aastore() {
   __ profile_null_seen(rbx);
 
   // Store a NULL
-  do_oop_store(_masm, element_address, noreg, _bs->kind(), true);
+  do_oop_store(_masm, element_address, noreg, IN_HEAP_ARRAY);
 
   // Pop stack arguments
   __ bind(done);
@@ -2949,7 +2888,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmpl(flags, atos);
   __ jcc(Assembler::notEqual, notObj);
   // atos
-  __ load_heap_oop(rax, field);
+  do_oop_load(_masm, field, rax);
   __ push(atos);
   if (!is_static && rc == may_rewrite) {
     patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
@@ -3224,7 +3163,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
     __ pop(atos);
     if (!is_static) pop_and_check_object(obj);
     // Store into the field
-    do_oop_store(_masm, field, rax, _bs->kind(), false);
+    do_oop_store(_masm, field, rax);
     if (!is_static && rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
     }
@@ -3477,7 +3416,7 @@ void TemplateTable::fast_storefield(TosState state) {
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_aputfield:
-    do_oop_store(_masm, field, rax, _bs->kind(), false);
+    do_oop_store(_masm, field, rax);
     break;
   case Bytecodes::_fast_lputfield:
 #ifdef _LP64
@@ -3566,7 +3505,7 @@ void TemplateTable::fast_accessfield(TosState state) {
   // access field
   switch (bytecode()) {
   case Bytecodes::_fast_agetfield:
-    __ load_heap_oop(rax, field);
+    do_oop_load(_masm, field, rax);
     __ verify_oop(rax);
     break;
   case Bytecodes::_fast_lgetfield:
@@ -3628,7 +3567,7 @@ void TemplateTable::fast_xaccess(TosState state) {
     __ movl(rax, field);
     break;
   case atos:
-    __ load_heap_oop(rax, field);
+    do_oop_load(_masm, field, rax);
     __ verify_oop(rax);
     break;
   case ftos:
@@ -3889,6 +3828,8 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   Label no_such_interface, no_such_method;
 
+  // Preserve method for throw_AbstractMethodErrorVerbose.
+  __ mov(rcx, rbx);
   // Receiver subtype check against REFC.
   // Superklass in rax. Subklass in rdx. Blows rcx, rdi.
   __ lookup_interface_method(// inputs: rec. class, interface, itable index
@@ -3910,8 +3851,10 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ subl(rbx, Method::itable_index_max);
   __ negl(rbx);
 
+  // Preserve recvKlass for throw_AbstractMethodErrorVerbose.
+  __ mov(rlocals, rdx);
   __ lookup_interface_method(// inputs: rec. class, interface, itable index
-                             rdx, rax, rbx,
+                             rlocals, rax, rbx,
                              // outputs: method, scan temp. reg
                              rbx, rbcp,
                              no_such_interface);
@@ -3943,8 +3886,19 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ pop(rbx);           // pop return address (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodError));
-  // the call_VM checks for exception, so we should never return here.
+  // Pass arguments for generating a verbose error message.
+#ifdef _LP64
+  Register recvKlass = c_rarg1;
+  Register method    = c_rarg2;
+  if (recvKlass != rdx) { __ movq(recvKlass, rdx); }
+  if (method != rcx)    { __ movq(method, rcx);    }
+#else
+  Register recvKlass = rdx;
+  Register method    = rcx;
+#endif
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_AbstractMethodErrorVerbose),
+             recvKlass, method);
+  // The call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 
   __ bind(no_such_interface);
@@ -3952,8 +3906,10 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ pop(rbx);           // pop return address (pushed by prepare_invoke)
   __ restore_bcp();      // rbcp must be correct for exception handler   (was destroyed)
   __ restore_locals();   // make sure locals pointer is correct as well (was destroyed)
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                   InterpreterRuntime::throw_IncompatibleClassChangeError));
+  // Pass arguments for generating a verbose error message.
+  LP64_ONLY( if (recvKlass != rdx) { __ movq(recvKlass, rdx); } )
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose),
+             recvKlass, rax);
   // the call_VM checks for exception, so we should never return here.
   __ should_not_reach_here();
 }

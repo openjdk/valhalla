@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/allocTracer.hpp"
-#include "gc/shared/barrierSet.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
@@ -39,6 +39,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
@@ -96,22 +97,22 @@ GCHeapSummary CollectedHeap::create_heap_summary() {
 
 MetaspaceSummary CollectedHeap::create_metaspace_summary() {
   const MetaspaceSizes meta_space(
-      MetaspaceAux::committed_bytes(),
-      MetaspaceAux::used_bytes(),
-      MetaspaceAux::reserved_bytes());
+      MetaspaceUtils::committed_bytes(),
+      MetaspaceUtils::used_bytes(),
+      MetaspaceUtils::reserved_bytes());
   const MetaspaceSizes data_space(
-      MetaspaceAux::committed_bytes(Metaspace::NonClassType),
-      MetaspaceAux::used_bytes(Metaspace::NonClassType),
-      MetaspaceAux::reserved_bytes(Metaspace::NonClassType));
+      MetaspaceUtils::committed_bytes(Metaspace::NonClassType),
+      MetaspaceUtils::used_bytes(Metaspace::NonClassType),
+      MetaspaceUtils::reserved_bytes(Metaspace::NonClassType));
   const MetaspaceSizes class_space(
-      MetaspaceAux::committed_bytes(Metaspace::ClassType),
-      MetaspaceAux::used_bytes(Metaspace::ClassType),
-      MetaspaceAux::reserved_bytes(Metaspace::ClassType));
+      MetaspaceUtils::committed_bytes(Metaspace::ClassType),
+      MetaspaceUtils::used_bytes(Metaspace::ClassType),
+      MetaspaceUtils::reserved_bytes(Metaspace::ClassType));
 
   const MetaspaceChunkFreeListSummary& ms_chunk_free_list_summary =
-    MetaspaceAux::chunk_free_list_summary(Metaspace::NonClassType);
+    MetaspaceUtils::chunk_free_list_summary(Metaspace::NonClassType);
   const MetaspaceChunkFreeListSummary& class_chunk_free_list_summary =
-    MetaspaceAux::chunk_free_list_summary(Metaspace::ClassType);
+    MetaspaceUtils::chunk_free_list_summary(Metaspace::ClassType);
 
   return MetaspaceSummary(MetaspaceGC::capacity_until_GC(), meta_space, data_space, class_space,
                           ms_chunk_free_list_summary, class_chunk_free_list_summary);
@@ -136,7 +137,7 @@ void CollectedHeap::print_on_error(outputStream* st) const {
   print_extended_on(st);
   st->cr();
 
-  _barrier_set->print_on(st);
+  BarrierSet::barrier_set()->print_on(st);
 }
 
 void CollectedHeap::trace_heap(GCWhen::Type when, const GCTracer* gc_tracer) {
@@ -171,11 +172,26 @@ bool CollectedHeap::request_concurrent_phase(const char* phase) {
   return false;
 }
 
+bool CollectedHeap::is_oop(oop object) const {
+  if (!check_obj_alignment(object)) {
+    return false;
+  }
+
+  if (!is_in_reserved(object)) {
+    return false;
+  }
+
+  if (is_in_reserved(object->klass_or_null())) {
+    return false;
+  }
+
+  return true;
+}
+
 // Memory state functions.
 
 
 CollectedHeap::CollectedHeap() :
-  _barrier_set(NULL),
   _is_gc_active(false),
   _total_collections(0),
   _total_full_collections(0),
@@ -308,11 +324,6 @@ MetaWord* CollectedHeap::satisfy_failed_metadata_allocation(ClassLoaderData* loa
                             " size=" SIZE_FORMAT, loop_count, word_size);
     }
   } while (true);  // Until a GC is done
-}
-
-void CollectedHeap::set_barrier_set(BarrierSet* barrier_set) {
-  _barrier_set = barrier_set;
-  BarrierSet::set_bs(barrier_set);
 }
 
 #ifndef PRODUCT
@@ -521,7 +532,7 @@ void CollectedHeap::ensure_parsability(bool retire_tlabs) {
   assert(!use_tlab || jtiwh.length() > 0,
          "Attempt to fill tlabs before main thread has been added"
          " to threads list is doomed to failure!");
-  BarrierSet *bs = barrier_set();
+  BarrierSet *bs = BarrierSet::barrier_set();
   for (; JavaThread *thread = jtiwh.next(); ) {
      if (use_tlab) thread->tlab().make_parsable(retire_tlabs);
      bs->make_parsable(thread);
@@ -583,4 +594,52 @@ void CollectedHeap::initialize_reserved_region(HeapWord *start, HeapWord *end) {
 
 void CollectedHeap::post_initialize() {
   initialize_serviceability();
+}
+
+#ifndef PRODUCT
+
+bool CollectedHeap::promotion_should_fail(volatile size_t* count) {
+  // Access to count is not atomic; the value does not have to be exact.
+  if (PromotionFailureALot) {
+    const size_t gc_num = total_collections();
+    const size_t elapsed_gcs = gc_num - _promotion_failure_alot_gc_number;
+    if (elapsed_gcs >= PromotionFailureALotInterval) {
+      // Test for unsigned arithmetic wrap-around.
+      if (++*count >= PromotionFailureALotCount) {
+        *count = 0;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool CollectedHeap::promotion_should_fail() {
+  return promotion_should_fail(&_promotion_failure_alot_count);
+}
+
+void CollectedHeap::reset_promotion_should_fail(volatile size_t* count) {
+  if (PromotionFailureALot) {
+    _promotion_failure_alot_gc_number = total_collections();
+    *count = 0;
+  }
+}
+
+void CollectedHeap::reset_promotion_should_fail() {
+  reset_promotion_should_fail(&_promotion_failure_alot_count);
+}
+
+#endif  // #ifndef PRODUCT
+
+bool CollectedHeap::supports_object_pinning() const {
+  return false;
+}
+
+oop CollectedHeap::pin_object(JavaThread* thread, oop obj) {
+  ShouldNotReachHere();
+  return NULL;
+}
+
+void CollectedHeap::unpin_object(JavaThread* thread, oop obj) {
+  ShouldNotReachHere();
 }

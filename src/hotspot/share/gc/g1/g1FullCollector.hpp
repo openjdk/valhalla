@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,8 @@ class G1FullCollector : StackObj {
   G1IsAliveClosure          _is_alive;
   ReferenceProcessorIsAliveMutator _is_alive_mutator;
 
+  static uint calc_active_workers();
+
 public:
   G1FullCollector(G1CollectedHeap* heap, GCMemoryManager* memory_manager, bool explicit_gc, bool clear_soft_refs);
   ~G1FullCollector();
@@ -85,10 +87,6 @@ private:
   void verify_after_marking();
 
   void run_task(AbstractGangTask* task);
-
-  // Prepare compaction extension support.
-  void prepare_compaction_ext();
-  void prepare_compaction_common();
 };
 
 

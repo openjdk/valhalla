@@ -41,7 +41,7 @@ class Tracker : public StackObj {
      release
   };
   Tracker(enum TrackerType type) : _type(type) { }
-  void record(address addr, size_t size);
+  void record(address addr, size_t size) { }
  private:
   enum TrackerType  _type;
 };
@@ -246,7 +246,7 @@ class MemTracker : AllStatic {
     if (addr != NULL) {
       // uses thread stack malloc slot for book keeping number of threads
       MallocMemorySummary::record_malloc(0, mtThreadStack);
-      record_virtual_memory_reserve(addr, size, CALLER_PC, mtThreadStack);
+      record_virtual_memory_reserve_and_commit(addr, size, CALLER_PC, mtThreadStack);
     }
   }
 
@@ -313,4 +313,3 @@ class MemTracker : AllStatic {
 #endif // INCLUDE_NMT
 
 #endif // SHARE_VM_SERVICES_MEM_TRACKER_HPP
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -27,7 +27,6 @@
 #define CPU_AARCH64_VM_NATIVEINST_AARCH64_HPP
 
 #include "asm/assembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 
@@ -49,7 +48,7 @@
 // The base class for different kinds of native instruction abstractions.
 // Provides the primitive operations to manipulate code relative to this.
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
   friend bool is_NativeCallTrampolineStub_at(address);
  public:

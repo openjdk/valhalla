@@ -120,12 +120,6 @@ const unsigned section_size = BitsPerByte;
 const unsigned section_count = BytesPerWord;
 const unsigned block_alignment = sizeof(oop) * section_size;
 
-// VS2013 warns (C4351) that elements of _data will be *correctly* default
-// initialized, unlike earlier versions that *incorrectly* did not do so.
-#ifdef _WINDOWS
-#pragma warning(push)
-#pragma warning(disable: 4351)
-#endif // _WINDOWS
 OopStorage::Block::Block(const OopStorage* owner, void* memory) :
   _data(),
   _allocated_bitmask(0),
@@ -142,9 +136,6 @@ OopStorage::Block::Block(const OopStorage* owner, void* memory) :
   assert(owner != NULL, "NULL owner");
   assert(is_aligned(this, block_alignment), "misaligned block");
 }
-#ifdef _WINDOWS
-#pragma warning(pop)
-#endif
 
 OopStorage::Block::~Block() {
   assert(_release_refcount == 0, "deleting block while releasing");
@@ -282,12 +273,6 @@ OopStorage::Block::block_for_ptr(const OopStorage* owner, const oop* ptr) {
   }
   return NULL;
 }
-
-#ifdef ASSERT
-void OopStorage::assert_at_safepoint() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
-}
-#endif // ASSERT
 
 //////////////////////////////////////////////////////////////////////////////
 // Allocation
@@ -702,7 +687,6 @@ size_t OopStorage::total_memory_usage() const {
 }
 
 // Parallel iteration support
-#if INCLUDE_ALL_GCS
 
 static char* not_started_marker_dummy = NULL;
 static void* const not_started_marker = &not_started_marker_dummy;
@@ -728,7 +712,9 @@ void OopStorage::BasicParState::update_iteration_state(bool value) {
 }
 
 void OopStorage::BasicParState::ensure_iteration_started() {
-  if (!_concurrent) assert_at_safepoint();
+  if (!_concurrent) {
+    assert_at_safepoint();
+  }
   assert(!_concurrent || _storage->_concurrent_iteration_active, "invariant");
   // Ensure _next_block is not the not_started_marker, setting it to
   // the _active_head to start the iteration if necessary.
@@ -749,8 +735,6 @@ OopStorage::Block* OopStorage::BasicParState::claim_next_block() {
   }
   return static_cast<Block*>(next);
 }
-
-#endif // INCLUDE_ALL_GCS
 
 const char* OopStorage::name() const { return _name; }
 

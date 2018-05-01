@@ -38,9 +38,10 @@
 #include "gc/parallel/psScavenge.hpp"
 #include "gc/parallel/vmPSOperations.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcWhen.hpp"
 #include "logging/log.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -71,9 +72,9 @@ jint ParallelScavengeHeap::initialize() {
 
   PSCardTable* card_table = new PSCardTable(reserved_region());
   card_table->initialize();
-  CardTableModRefBS* const barrier_set = new CardTableModRefBS(card_table);
+  CardTableBarrierSet* const barrier_set = new CardTableBarrierSet(card_table);
   barrier_set->initialize();
-  set_barrier_set(barrier_set);
+  BarrierSet::set_barrier_set(barrier_set);
 
   // Make up the generations
   // Calculate the maximum size that a generation can grow.  This
@@ -572,7 +573,7 @@ PSHeapSummary ParallelScavengeHeap::create_ps_heap_summary() {
 void ParallelScavengeHeap::print_on(outputStream* st) const {
   young_gen()->print_on(st);
   old_gen()->print_on(st);
-  MetaspaceAux::print_on(st);
+  MetaspaceUtils::print_on(st);
 }
 
 void ParallelScavengeHeap::print_on_error(outputStream* st) const {
@@ -622,12 +623,12 @@ void ParallelScavengeHeap::trace_heap(GCWhen::Type when, const GCTracer* gc_trac
 ParallelScavengeHeap* ParallelScavengeHeap::heap() {
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "Uninitialized access to ParallelScavengeHeap::heap()");
-  assert(heap->kind() == CollectedHeap::ParallelScavengeHeap, "Not a ParallelScavengeHeap");
+  assert(heap->kind() == CollectedHeap::Parallel, "Invalid name");
   return (ParallelScavengeHeap*)heap;
 }
 
-CardTableModRefBS* ParallelScavengeHeap::barrier_set() {
-  return barrier_set_cast<CardTableModRefBS>(CollectedHeap::barrier_set());
+CardTableBarrierSet* ParallelScavengeHeap::barrier_set() {
+  return barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
 }
 
 PSCardTable* ParallelScavengeHeap::card_table() {

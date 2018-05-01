@@ -29,7 +29,6 @@
 #include "classfile/systemDictionary.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.hpp"
-#include "runtime/orderAccess.hpp"
 #include "utilities/hashtable.hpp"
 #include "utilities/ostream.hpp"
 
@@ -53,7 +52,7 @@ class Dictionary : public Hashtable<InstanceKlass*, mtClass> {
 
   DictionaryEntry* get_entry(int index, unsigned int hash, Symbol* name);
 
-  void clean_cached_protection_domains(BoolObjectClosure* is_alive, DictionaryEntry* probe);
+  void clean_cached_protection_domains(DictionaryEntry* probe);
 
 protected:
   static size_t entry_size();
@@ -73,20 +72,16 @@ public:
 
   InstanceKlass* find_shared_class(int index, unsigned int hash, Symbol* name);
 
-  // GC support
-  void oops_do(OopClosure* f);
-  void roots_oops_do(OopClosure* strong, OopClosure* weak);
-
   void classes_do(void f(InstanceKlass*));
   void classes_do(void f(InstanceKlass*, TRAPS), TRAPS);
   void all_entries_do(void f(InstanceKlass*, ClassLoaderData*));
   void classes_do(MetaspaceClosure* it);
 
-  void unlink(BoolObjectClosure* is_alive);
+  void unlink();
   void remove_classes_in_error_state();
 
   // Unload classes whose defining loaders are unloaded
-  void do_unloading(BoolObjectClosure* is_alive);
+  void do_unloading();
 
   // Protection domains
   InstanceKlass* find(unsigned int hash, Symbol* name, Handle protection_domain);
@@ -170,12 +165,8 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
   ProtectionDomainEntry* pd_set() const            { return _pd_set; }
   void set_pd_set(ProtectionDomainEntry* new_head) {  _pd_set = new_head; }
 
-  ProtectionDomainEntry* pd_set_acquire() const    {
-    return OrderAccess::load_acquire(&_pd_set);
-  }
-  void release_set_pd_set(ProtectionDomainEntry* new_head) {
-    OrderAccess::release_store(&_pd_set, new_head);
-  }
+  ProtectionDomainEntry* pd_set_acquire() const;
+  void release_set_pd_set(ProtectionDomainEntry* new_head);
 
   // Tells whether the initiating class' protection domain can access the klass in this entry
   bool is_valid_protection_domain(Handle protection_domain) {

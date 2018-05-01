@@ -26,19 +26,21 @@
 #include "jvm.h"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "gc/shared/gcLocker.hpp"
+#include "interpreter/linkResolver.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klassVtable.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "utilities/copy.hpp"
 
 inline InstanceKlass* klassVtable::ik() const {
@@ -496,7 +498,7 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, const methodHand
           // to link to the first super, and we get all the others.
           Handle super_loader(THREAD, super_klass->class_loader());
 
-          if (target_loader() != super_loader()) {
+          if (!oopDesc::equals(target_loader(), super_loader())) {
             ResourceMark rm(THREAD);
             Symbol* failed_type_symbol =
               SystemDictionary::check_signature_loaders(signature, target_loader,
@@ -1228,7 +1230,7 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Klass
       // if checkconstraints requested
       if (checkconstraints) {
         Handle method_holder_loader (THREAD, target->method_holder()->class_loader());
-        if (method_holder_loader() != interface_loader()) {
+        if (!oopDesc::equals(method_holder_loader(), interface_loader())) {
           ResourceMark rm(THREAD);
           Symbol* failed_type_symbol =
             SystemDictionary::check_signature_loaders(m->signature(),

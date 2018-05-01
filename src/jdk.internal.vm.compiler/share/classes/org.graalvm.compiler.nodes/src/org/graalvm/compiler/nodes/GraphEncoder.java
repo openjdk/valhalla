@@ -27,8 +27,8 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.Objects;
 
-import org.graalvm.collections.Pair;
-import org.graalvm.collections.UnmodifiableMapCursor;
+import jdk.internal.vm.compiler.collections.Pair;
+import jdk.internal.vm.compiler.collections.UnmodifiableMapCursor;
 import org.graalvm.compiler.core.common.Fields;
 import org.graalvm.compiler.core.common.util.FrequencyEncoder;
 import org.graalvm.compiler.core.common.util.TypeConversion;
@@ -154,7 +154,7 @@ public class GraphEncoder {
         encoder.prepare(graph);
         encoder.finishPrepare();
         int startOffset = encoder.encode(graph);
-        return new EncodedGraph(encoder.getEncoding(), startOffset, encoder.getObjects(), encoder.getNodeClasses(), graph.getAssumptions(), graph.getMethods());
+        return new EncodedGraph(encoder.getEncoding(), startOffset, encoder.getObjects(), encoder.getNodeClasses(), graph);
     }
 
     public GraphEncoder(Architecture architecture) {
@@ -288,8 +288,7 @@ public class GraphEncoder {
         }
 
         /* Check that the decoding of the encode graph is the same as the input. */
-        assert verifyEncoding(graph, new EncodedGraph(getEncoding(), metadataStart, getObjects(), getNodeClasses(), graph.getAssumptions(), graph.getMethods()),
-                        architecture);
+        assert verifyEncoding(graph, new EncodedGraph(getEncoding(), metadataStart, getObjects(), getNodeClasses(), graph), architecture);
 
         return metadataStart;
     }
@@ -436,6 +435,9 @@ public class GraphEncoder {
     public static boolean verifyEncoding(StructuredGraph originalGraph, EncodedGraph encodedGraph, Architecture architecture) {
         DebugContext debug = originalGraph.getDebug();
         StructuredGraph decodedGraph = new StructuredGraph.Builder(originalGraph.getOptions(), debug, AllowAssumptions.YES).method(originalGraph.method()).build();
+        if (originalGraph.trackNodeSourcePosition()) {
+            decodedGraph.setTrackNodeSourcePosition();
+        }
         GraphDecoder decoder = new GraphDecoder(architecture, decodedGraph);
         decoder.decode(encodedGraph);
 

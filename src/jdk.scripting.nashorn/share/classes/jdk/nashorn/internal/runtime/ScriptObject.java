@@ -2046,8 +2046,11 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     // Marks a property as declared and sets its value. Used as slow path for block-scoped LET and CONST
     @SuppressWarnings("unused")
     private void declareAndSet(final String key, final Object value) {
+        declareAndSet(findProperty(key, false), value);
+    }
+
+    private void declareAndSet(final FindProperty find, final Object value) {
         final PropertyMap oldMap = getMap();
-        final FindProperty find = findProperty(key, false);
         assert find != null;
 
         final Property property = find.getProperty();
@@ -2056,7 +2059,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
 
         final PropertyMap newMap = oldMap.replaceProperty(property, property.removeFlags(Property.NEEDS_DECLARATION));
         setMap(newMap);
-        set(key, value, NashornCallSiteDescriptor.CALLSITE_DECLARE);
+        set(property.getKey(), value, NashornCallSiteDescriptor.CALLSITE_DECLARE);
     }
 
     /**
@@ -2966,7 +2969,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     }
 
     private boolean doesNotHaveCheckArrayKeys(final long longIndex, final int value, final int callSiteFlags) {
-        if (getMap().containsArrayKeys()) {
+        if (hasDefinedArrayProperties()) {
             final String       key  = JSType.toString(longIndex);
             final FindProperty find = findProperty(key, true);
             if (find != null) {
@@ -2978,7 +2981,7 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     }
 
     private boolean doesNotHaveCheckArrayKeys(final long longIndex, final double value, final int callSiteFlags) {
-         if (getMap().containsArrayKeys()) {
+         if (hasDefinedArrayProperties()) {
             final String       key  = JSType.toString(longIndex);
             final FindProperty find = findProperty(key, true);
             if (find != null) {
@@ -2990,11 +2993,20 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
     }
 
     private boolean doesNotHaveCheckArrayKeys(final long longIndex, final Object value, final int callSiteFlags) {
-        if (getMap().containsArrayKeys()) {
+        if (hasDefinedArrayProperties()) {
             final String       key  = JSType.toString(longIndex);
             final FindProperty find = findProperty(key, true);
             if (find != null) {
                 setObject(find, callSiteFlags, key, value);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasDefinedArrayProperties() {
+        for (ScriptObject obj = this; obj != null; obj = obj.getProto()) {
+            if (obj.getMap().containsArrayKeys()) {
                 return true;
             }
         }
@@ -3086,6 +3098,11 @@ public abstract class ScriptObject implements PropertyAccess, Cloneable {
                             f.getProperty().isAccessorProperty() ? "property.has.no.setter" : "property.not.writable",
                             key.toString(), ScriptRuntime.safeToString(this));
                 }
+                return;
+            }
+
+            if (NashornCallSiteDescriptor.isDeclaration(callSiteFlags) && f.getProperty().needsDeclaration()) {
+                f.getOwner().declareAndSet(f, value);
                 return;
             }
 

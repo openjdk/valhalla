@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -184,8 +184,8 @@ public:
   virtual void do_cld(ClassLoaderData* cld);
   void do_cld_nv(ClassLoaderData* cld);
 
-  void set_ref_processor(ReferenceProcessor* rp) {
-    set_ref_processor_internal(rp);
+  void set_ref_discoverer(ReferenceDiscoverer* rd) {
+    set_ref_discoverer_internal(rd);
   }
 };
 
@@ -200,7 +200,7 @@ class AdjustPointerClosure: public OopsInGenClosure {
   debug_only(virtual bool should_verify_oops() { return false; })
 };
 
-class PreservedMark VALUE_OBJ_CLASS_SPEC {
+class PreservedMark {
 private:
   oop _obj;
   markOop _mark;

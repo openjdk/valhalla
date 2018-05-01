@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,6 +124,8 @@ class G1MonitoringSupport : public CHeapObj<mtGC> {
   CollectorCounters*   _incremental_collection_counters;
   //  full stop-the-world collections
   CollectorCounters*   _full_collection_counters;
+  //  stop-the-world phases in G1
+  CollectorCounters*   _conc_collection_counters;
   //  young collection set counters.  The _eden_counters,
   // _from_counters, and _to_counters are associated with
   // this "generational" counter.
@@ -158,8 +160,6 @@ class G1MonitoringSupport : public CHeapObj<mtGC> {
 
   size_t _old_committed;
   size_t _old_used;
-
-  G1CollectedHeap* g1h() { return _g1h; }
 
   // It returns x - y if x > y, 0 otherwise.
   // As described in the comment above, some of the inputs to the
@@ -211,6 +211,9 @@ class G1MonitoringSupport : public CHeapObj<mtGC> {
   }
   CollectorCounters* full_collection_counters() {
     return _full_collection_counters;
+  }
+  CollectorCounters* conc_collection_counters() {
+    return _conc_collection_counters;
   }
   GenerationCounters* young_collection_counters() {
     return _young_collection_counters;

@@ -27,9 +27,12 @@
 #include "code/compiledMethod.inline.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/codeCache.hpp"
-#include "prims/methodHandles.hpp"
-#include "interpreter/bytecode.hpp"
+#include "interpreter/bytecode.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/methodData.hpp"
+#include "oops/method.inline.hpp"
+#include "prims/methodHandles.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments)
@@ -96,7 +99,7 @@ void CompiledMethod::add_exception_cache_entry(ExceptionCache* new_entry) {
   release_set_exception_cache(new_entry);
 }
 
-void CompiledMethod::clean_exception_cache(BoolObjectClosure* is_alive) {
+void CompiledMethod::clean_exception_cache() {
   ExceptionCache* prev = NULL;
   ExceptionCache* curr = exception_cache();
 
@@ -104,7 +107,7 @@ void CompiledMethod::clean_exception_cache(BoolObjectClosure* is_alive) {
     ExceptionCache* next = curr->next();
 
     Klass* ex_klass = curr->exception_type();
-    if (ex_klass != NULL && !ex_klass->is_loader_alive(is_alive)) {
+    if (ex_klass != NULL && !ex_klass->is_loader_alive()) {
       if (prev == NULL) {
         set_exception_cache(next);
       } else {
@@ -366,56 +369,42 @@ void CompiledMethod::clear_ic_stubs() {
 }
 
 #ifdef ASSERT
-
-class CheckClass : AllStatic {
-  static BoolObjectClosure* _is_alive;
-
-  // Check class_loader is alive for this bit of metadata.
-  static void check_class(Metadata* md) {
-    Klass* klass = NULL;
-    if (md->is_klass()) {
-      klass = ((Klass*)md);
-    } else if (md->is_method()) {
-      klass = ((Method*)md)->method_holder();
-    } else if (md->is_methodData()) {
-      klass = ((MethodData*)md)->method()->method_holder();
-    } else {
-      md->print();
-      ShouldNotReachHere();
-    }
-    assert(klass->is_loader_alive(_is_alive), "must be alive");
-  }
- public:
-  static void do_check_class(BoolObjectClosure* is_alive, CompiledMethod* nm) {
-    assert(SafepointSynchronize::is_at_safepoint(), "this is only ok at safepoint");
-    _is_alive = is_alive;
-    nm->metadata_do(check_class);
-  }
-};
-
-// This is called during a safepoint so can use static data
-BoolObjectClosure* CheckClass::_is_alive = NULL;
+// Check class_loader is alive for this bit of metadata.
+static void check_class(Metadata* md) {
+   Klass* klass = NULL;
+   if (md->is_klass()) {
+     klass = ((Klass*)md);
+   } else if (md->is_method()) {
+     klass = ((Method*)md)->method_holder();
+   } else if (md->is_methodData()) {
+     klass = ((MethodData*)md)->method()->method_holder();
+   } else {
+     md->print();
+     ShouldNotReachHere();
+   }
+   assert(klass->is_loader_alive(), "must be alive");
+}
 #endif // ASSERT
 
 
-void CompiledMethod::clean_ic_if_metadata_is_dead(CompiledIC *ic, BoolObjectClosure *is_alive) {
+void CompiledMethod::clean_ic_if_metadata_is_dead(CompiledIC *ic) {
   if (ic->is_icholder_call()) {
     // The only exception is compiledICHolder oops which may
     // yet be marked below. (We check this further below).
     CompiledICHolder* cichk_oop = ic->cached_icholder();
 
-    if (cichk_oop->is_loader_alive(is_alive)) {
+    if (cichk_oop->is_loader_alive()) {
       return;
     }
   } else {
     Metadata* ic_oop = ic->cached_metadata();
     if (ic_oop != NULL) {
       if (ic_oop->is_klass()) {
-        if (((Klass*)ic_oop)->is_loader_alive(is_alive)) {
+        if (((Klass*)ic_oop)->is_loader_alive()) {
           return;
         }
       } else if (ic_oop->is_method()) {
-        if (((Method*)ic_oop)->method_holder()->is_loader_alive(is_alive)) {
+        if (((Method*)ic_oop)->method_holder()->is_loader_alive()) {
           return;
         }
       } else {
@@ -450,7 +439,7 @@ unsigned char CompiledMethod::unloading_clock() {
 // all strong references alive.  Any weak references should have been
 // cleared as well.  Visit all the metadata and ensure that it's
 // really alive.
-void CompiledMethod::verify_metadata_loaders(address low_boundary, BoolObjectClosure* is_alive) {
+void CompiledMethod::verify_metadata_loaders(address low_boundary) {
 #ifdef ASSERT
     RelocIterator iter(this, low_boundary);
     while (iter.next()) {
@@ -480,7 +469,7 @@ void CompiledMethod::verify_metadata_loaders(address low_boundary, BoolObjectClo
     }
   }
   // Check that the metadata embedded in the nmethod is alive
-  CheckClass::do_check_class(is_alive, this);
+  metadata_do(check_class);
 #endif
 }
 
@@ -515,7 +504,7 @@ void CompiledMethod::do_unloading(BoolObjectClosure* is_alive, bool unloading_oc
   }
 
   // Exception cache
-  clean_exception_cache(is_alive);
+  clean_exception_cache();
 
   // If class unloading occurred we first iterate over all inline caches and
   // clear ICs where the cached oop is referring to an unloaded klass or method.
@@ -526,7 +515,7 @@ void CompiledMethod::do_unloading(BoolObjectClosure* is_alive, bool unloading_oc
     while(iter.next()) {
       if (iter.type() == relocInfo::virtual_call_type) {
         CompiledIC *ic = CompiledIC_at(&iter);
-        clean_ic_if_metadata_is_dead(ic, is_alive);
+        clean_ic_if_metadata_is_dead(ic);
       }
     }
   }
@@ -536,17 +525,17 @@ void CompiledMethod::do_unloading(BoolObjectClosure* is_alive, bool unloading_oc
   }
 
 #if INCLUDE_JVMCI
-  if (do_unloading_jvmci(is_alive, unloading_occurred)) {
+  if (do_unloading_jvmci(unloading_occurred)) {
     return;
   }
 #endif
 
   // Ensure that all metadata is still alive
-  verify_metadata_loaders(low_boundary, is_alive);
+  verify_metadata_loaders(low_boundary);
 }
 
 template <class CompiledICorStaticCall>
-static bool clean_if_nmethod_is_unloaded(CompiledICorStaticCall *ic, address addr, BoolObjectClosure *is_alive, CompiledMethod* from) {
+static bool clean_if_nmethod_is_unloaded(CompiledICorStaticCall *ic, address addr, CompiledMethod* from) {
   // Ok, to lookup references to zombies here
   CodeBlob *cb = CodeCache::find_blob_unsafe(addr);
   CompiledMethod* nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
@@ -566,12 +555,12 @@ static bool clean_if_nmethod_is_unloaded(CompiledICorStaticCall *ic, address add
   return false;
 }
 
-static bool clean_if_nmethod_is_unloaded(CompiledIC *ic, BoolObjectClosure *is_alive, CompiledMethod* from) {
-  return clean_if_nmethod_is_unloaded(ic, ic->ic_destination(), is_alive, from);
+static bool clean_if_nmethod_is_unloaded(CompiledIC *ic, CompiledMethod* from) {
+  return clean_if_nmethod_is_unloaded(ic, ic->ic_destination(), from);
 }
 
-static bool clean_if_nmethod_is_unloaded(CompiledStaticCall *csc, BoolObjectClosure *is_alive, CompiledMethod* from) {
-  return clean_if_nmethod_is_unloaded(csc, csc->destination(), is_alive, from);
+static bool clean_if_nmethod_is_unloaded(CompiledStaticCall *csc, CompiledMethod* from) {
+  return clean_if_nmethod_is_unloaded(csc, csc->destination(), from);
 }
 
 bool CompiledMethod::do_unloading_parallel(BoolObjectClosure* is_alive, bool unloading_occurred) {
@@ -603,7 +592,7 @@ bool CompiledMethod::do_unloading_parallel(BoolObjectClosure* is_alive, bool unl
   }
 
   // Exception cache
-  clean_exception_cache(is_alive);
+  clean_exception_cache();
 
   bool postponed = false;
 
@@ -616,18 +605,18 @@ bool CompiledMethod::do_unloading_parallel(BoolObjectClosure* is_alive, bool unl
       if (unloading_occurred) {
         // If class unloading occurred we first iterate over all inline caches and
         // clear ICs where the cached oop is referring to an unloaded klass or method.
-        clean_ic_if_metadata_is_dead(CompiledIC_at(&iter), is_alive);
+        clean_ic_if_metadata_is_dead(CompiledIC_at(&iter));
       }
 
-      postponed |= clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), is_alive, this);
+      postponed |= clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), this);
       break;
 
     case relocInfo::opt_virtual_call_type:
-      postponed |= clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), is_alive, this);
+      postponed |= clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), this);
       break;
 
     case relocInfo::static_call_type:
-      postponed |= clean_if_nmethod_is_unloaded(compiledStaticCall_at(iter.reloc()), is_alive, this);
+      postponed |= clean_if_nmethod_is_unloaded(compiledStaticCall_at(iter.reloc()), this);
       break;
 
     case relocInfo::oop_type:
@@ -647,18 +636,18 @@ bool CompiledMethod::do_unloading_parallel(BoolObjectClosure* is_alive, bool unl
   }
 
 #if INCLUDE_JVMCI
-  if (do_unloading_jvmci(is_alive, unloading_occurred)) {
+  if (do_unloading_jvmci(unloading_occurred)) {
     return postponed;
   }
 #endif
 
   // Ensure that all metadata is still alive
-  verify_metadata_loaders(low_boundary, is_alive);
+  verify_metadata_loaders(low_boundary);
 
   return postponed;
 }
 
-void CompiledMethod::do_unloading_parallel_postponed(BoolObjectClosure* is_alive, bool unloading_occurred) {
+void CompiledMethod::do_unloading_parallel_postponed() {
   ResourceMark rm;
 
   // Make sure the oop's ready to receive visitors
@@ -682,15 +671,15 @@ void CompiledMethod::do_unloading_parallel_postponed(BoolObjectClosure* is_alive
     switch (iter.type()) {
 
     case relocInfo::virtual_call_type:
-      clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), is_alive, this);
+      clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), this);
       break;
 
     case relocInfo::opt_virtual_call_type:
-      clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), is_alive, this);
+      clean_if_nmethod_is_unloaded(CompiledIC_at(&iter), this);
       break;
 
     case relocInfo::static_call_type:
-      clean_if_nmethod_is_unloaded(compiledStaticCall_at(iter.reloc()), is_alive, this);
+      clean_if_nmethod_is_unloaded(compiledStaticCall_at(iter.reloc()), this);
       break;
 
     default:

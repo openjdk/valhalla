@@ -38,18 +38,25 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/constantPool.hpp"
+#include "oops/array.inline.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/fieldType.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/signature.hpp"
-#include "runtime/vframe.hpp"
+#include "runtime/vframe.inline.hpp"
 #include "utilities/copy.hpp"
+
+constantTag ConstantPool::tag_at(int which) const { return (constantTag)tags()->at_acquire(which); }
+
+void ConstantPool::release_tag_at_put(int which, jbyte t) { tags()->release_at_put(which, t); }
 
 ConstantPool* ConstantPool::allocate(ClassLoaderData* loader_data, int length, TRAPS) {
   Array<u1>* tags = MetadataFactory::new_array<u1>(loader_data, length, 0, CHECK_NULL);
@@ -493,7 +500,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
 
   // Make this class loader depend upon the class loader owning the class reference
   ClassLoaderData* this_key = this_cp->pool_holder()->class_loader_data();
-  this_key->record_dependency(k, CHECK_NULL); // Can throw OOM
+  this_key->record_dependency(k);
 
   // logging for class+resolve.
   if (log_is_enabled(Debug, class, resolve)){
@@ -834,7 +841,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
   if (cache_index >= 0) {
     result_oop = this_cp->resolved_references()->obj_at(cache_index);
     if (result_oop != NULL) {
-      if (result_oop == Universe::the_null_sentinel()) {
+      if (oopDesc::equals(result_oop, Universe::the_null_sentinel())) {
         DEBUG_ONLY(int temp_index = (index >= 0 ? index : this_cp->object_to_cp_index(cache_index)));
         assert(this_cp->tag_at(temp_index).is_dynamic_constant(), "only condy uses the null sentinel");
         result_oop = NULL;
@@ -1067,12 +1074,12 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
     } else {
       // Return the winning thread's result.  This can be different than
       // the result here for MethodHandles.
-      if (old_result == Universe::the_null_sentinel())
+      if (oopDesc::equals(old_result, Universe::the_null_sentinel()))
         old_result = NULL;
       return old_result;
     }
   } else {
-    assert(result_oop != Universe::the_null_sentinel(), "");
+    assert(!oopDesc::equals(result_oop, Universe::the_null_sentinel()), "");
     return result_oop;
   }
 }
@@ -1238,7 +1245,7 @@ void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& th
 oop ConstantPool::string_at_impl(const constantPoolHandle& this_cp, int which, int obj_index, TRAPS) {
   // If the string has already been interned, this entry will be non-null
   oop str = this_cp->resolved_references()->obj_at(obj_index);
-  assert(str != Universe::the_null_sentinel(), "");
+  assert(!oopDesc::equals(str, Universe::the_null_sentinel()), "");
   if (str != NULL) return str;
   Symbol* sym = this_cp->unresolved_string_at(which);
   str = StringTable::intern(sym, CHECK_(NULL));
@@ -2526,6 +2533,17 @@ void ConstantPool::verify_on(outputStream* st) {
   }
 }
 
+
+SymbolHashMap::~SymbolHashMap() {
+  SymbolHashMapEntry* next;
+  for (int i = 0; i < _table_size; i++) {
+    for (SymbolHashMapEntry* cur = bucket(i); cur != NULL; cur = next) {
+      next = cur->next();
+      delete(cur);
+    }
+  }
+  FREE_C_HEAP_ARRAY(SymbolHashMapBucket, _buckets);
+}
 
 void SymbolHashMap::add_entry(Symbol* sym, u2 value) {
   char *str = sym->as_utf8();

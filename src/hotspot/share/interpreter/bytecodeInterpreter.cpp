@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 // no precompiled headers
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/threadLocalAllocBuffer.inline.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/bytecodeInterpreter.inline.hpp"
@@ -33,17 +34,21 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/methodCounters.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/threadCritical.hpp"
@@ -684,7 +689,7 @@ BytecodeInterpreter::run(interpreterState istate) {
             if (hash != markOopDesc::no_hash) {
               header = header->copy_set_hash(hash);
             }
-            if (Atomic::cmpxchg(header, rcvr->mark_addr(), mark) == mark) {
+            if (rcvr->cas_set_mark(header, mark) == mark) {
               if (PrintBiasedLockingStatistics)
                 (*BiasedLocking::revoked_lock_entry_count_addr())++;
             }
@@ -694,7 +699,7 @@ BytecodeInterpreter::run(interpreterState istate) {
             if (hash != markOopDesc::no_hash) {
               new_header = new_header->copy_set_hash(hash);
             }
-            if (Atomic::cmpxchg(new_header, rcvr->mark_addr(), mark) == mark) {
+            if (rcvr->cas_set_mark(new_header, mark) == mark) {
               if (PrintBiasedLockingStatistics) {
                 (* BiasedLocking::rebiased_lock_entry_count_addr())++;
               }
@@ -713,7 +718,7 @@ BytecodeInterpreter::run(interpreterState istate) {
             markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
             // Debugging hint.
             DEBUG_ONLY(mon->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
-            if (Atomic::cmpxchg(new_header, rcvr->mark_addr(), header) == header) {
+            if (rcvr->cas_set_mark(new_header, header) == header) {
               if (PrintBiasedLockingStatistics) {
                 (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
               }
@@ -729,7 +734,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           markOop displaced = rcvr->mark()->set_unlocked();
           mon->lock()->set_displaced_header(displaced);
           bool call_vm = UseHeavyMonitors;
-          if (call_vm || Atomic::cmpxchg((markOop)mon, rcvr->mark_addr(), displaced) != displaced) {
+          if (call_vm || rcvr->cas_set_mark((markOop)mon, displaced) != displaced) {
             // Is it simple recursive case?
             if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
               mon->lock()->set_displaced_header(NULL);
@@ -870,7 +875,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           if (hash != markOopDesc::no_hash) {
             header = header->copy_set_hash(hash);
           }
-          if (Atomic::cmpxchg(header, lockee->mark_addr(), mark) == mark) {
+          if (lockee->cas_set_mark(header, mark) == mark) {
             if (PrintBiasedLockingStatistics) {
               (*BiasedLocking::revoked_lock_entry_count_addr())++;
             }
@@ -881,7 +886,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           if (hash != markOopDesc::no_hash) {
                 new_header = new_header->copy_set_hash(hash);
           }
-          if (Atomic::cmpxchg(new_header, lockee->mark_addr(), mark) == mark) {
+          if (lockee->cas_set_mark(new_header, mark) == mark) {
             if (PrintBiasedLockingStatistics) {
               (* BiasedLocking::rebiased_lock_entry_count_addr())++;
             }
@@ -899,7 +904,7 @@ BytecodeInterpreter::run(interpreterState istate) {
           markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
           // debugging hint
           DEBUG_ONLY(entry->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
-          if (Atomic::cmpxchg(new_header, lockee->mark_addr(), header) == header) {
+          if (lockee->cas_set_mark(new_header, header) == header) {
             if (PrintBiasedLockingStatistics) {
               (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
             }
@@ -915,7 +920,7 @@ BytecodeInterpreter::run(interpreterState istate) {
         markOop displaced = lockee->mark()->set_unlocked();
         entry->lock()->set_displaced_header(displaced);
         bool call_vm = UseHeavyMonitors;
-        if (call_vm || Atomic::cmpxchg((markOop)entry, lockee->mark_addr(), displaced) != displaced) {
+        if (call_vm || lockee->cas_set_mark((markOop)entry, displaced) != displaced) {
           // Is it simple recursive case?
           if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
             entry->lock()->set_displaced_header(NULL);
@@ -1811,7 +1816,7 @@ run:
               if (hash != markOopDesc::no_hash) {
                 header = header->copy_set_hash(hash);
               }
-              if (Atomic::cmpxchg(header, lockee->mark_addr(), mark) == mark) {
+              if (lockee->cas_set_mark(header, mark) == mark) {
                 if (PrintBiasedLockingStatistics)
                   (*BiasedLocking::revoked_lock_entry_count_addr())++;
               }
@@ -1822,7 +1827,7 @@ run:
               if (hash != markOopDesc::no_hash) {
                 new_header = new_header->copy_set_hash(hash);
               }
-              if (Atomic::cmpxchg(new_header, lockee->mark_addr(), mark) == mark) {
+              if (lockee->cas_set_mark(new_header, mark) == mark) {
                 if (PrintBiasedLockingStatistics)
                   (* BiasedLocking::rebiased_lock_entry_count_addr())++;
               }
@@ -1842,7 +1847,7 @@ run:
               markOop new_header = (markOop) ((uintptr_t) header | thread_ident);
               // debugging hint
               DEBUG_ONLY(entry->lock()->set_displaced_header((markOop) (uintptr_t) 0xdeaddead);)
-              if (Atomic::cmpxchg(new_header, lockee->mark_addr(), header) == header) {
+              if (lockee->cas_set_mark(new_header, header) == header) {
                 if (PrintBiasedLockingStatistics)
                   (* BiasedLocking::anonymously_biased_lock_entry_count_addr())++;
               }
@@ -1858,7 +1863,7 @@ run:
             markOop displaced = lockee->mark()->set_unlocked();
             entry->lock()->set_displaced_header(displaced);
             bool call_vm = UseHeavyMonitors;
-            if (call_vm || Atomic::cmpxchg((markOop)entry, lockee->mark_addr(), displaced) != displaced) {
+            if (call_vm || lockee->cas_set_mark((markOop)entry, displaced) != displaced) {
               // Is it simple recursive case?
               if (!call_vm && THREAD->is_lock_owned((address) displaced->clear_lock_bits())) {
                 entry->lock()->set_displaced_header(NULL);
@@ -2430,7 +2435,7 @@ run:
                   handle_exception);
           result = THREAD->vm_result();
         }
-        if (result == Universe::the_null_sentinel())
+        if (oopDesc::equals(result, Universe::the_null_sentinel()))
           result = NULL;
 
         VERIFY_OOP(result);
@@ -2588,17 +2593,19 @@ run:
           if (ki->interface_klass() == iclass) break;
         }
         // If the interface isn't found, this class doesn't implement this
-        // interface.  The link resolver checks this but only for the first
+        // interface. The link resolver checks this but only for the first
         // time this interface is called.
         if (i == int2->itable_length()) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_IncompatibleClassChangeError(), "", note_no_trap);
+          CALL_VM(InterpreterRuntime::throw_IncompatibleClassChangeErrorVerbose(THREAD, rcvr->klass(), iclass),
+                  handle_exception);
         }
         int mindex = interface_method->itable_index();
 
         itableMethodEntry* im = ki->first_method_entry(rcvr->klass());
         callee = im[mindex].method();
         if (callee == NULL) {
-          VM_JAVA_ERROR(vmSymbols::java_lang_AbstractMethodError(), "", note_no_trap);
+          CALL_VM(InterpreterRuntime::throw_AbstractMethodErrorVerbose(THREAD, rcvr->klass(), interface_method),
+                  handle_exception);
         }
 
         // Profile virtual call.
@@ -2821,7 +2828,7 @@ run:
     HandleMark __hm(THREAD);
 
     THREAD->clear_pending_exception();
-    assert(except_oop(), "No exception to process");
+    assert(except_oop() != NULL, "No exception to process");
     intptr_t continuation_bci;
     // expression stack is emptied
     topOfStack = istate->stack_base() - Interpreter::stackElementWords;

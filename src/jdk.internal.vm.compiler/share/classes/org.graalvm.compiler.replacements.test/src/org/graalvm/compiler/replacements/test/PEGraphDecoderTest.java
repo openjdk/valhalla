@@ -45,7 +45,7 @@ import org.graalvm.compiler.phases.OptimisticOptimizations;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.tiers.PhaseContext;
 import org.graalvm.compiler.replacements.CachingPEGraphDecoder;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 import org.junit.Test;
 
 import jdk.vm.ci.meta.JavaKind;
@@ -136,9 +136,9 @@ public class PEGraphDecoderTest extends GraalCompilerTest {
             registerPlugins(graphBuilderConfig.getPlugins().getInvocationPlugins());
             targetGraph = new StructuredGraph.Builder(getInitialOptions(), debug, AllowAssumptions.YES).method(testMethod).build();
             CachingPEGraphDecoder decoder = new CachingPEGraphDecoder(getTarget().arch, targetGraph, getProviders(), graphBuilderConfig, OptimisticOptimizations.NONE, AllowAssumptions.YES,
-                            null, null, new InlineInvokePlugin[]{new InlineAll()}, null, null, null);
+                            null, null, new InlineInvokePlugin[]{new InlineAll()}, null, null, null, null);
 
-            decoder.decode(testMethod);
+            decoder.decode(testMethod, false);
             debug.dump(DebugContext.BASIC_LEVEL, targetGraph, "Target Graph");
             targetGraph.verify();
 

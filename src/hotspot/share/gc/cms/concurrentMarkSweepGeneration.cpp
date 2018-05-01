@@ -29,6 +29,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "gc/cms/cmsCollectorPolicy.hpp"
+#include "gc/cms/cmsGCStats.hpp"
 #include "gc/cms/cmsHeap.hpp"
 #include "gc/cms/cmsOopClosures.inline.hpp"
 #include "gc/cms/compactibleFreeListSpace.hpp"
@@ -44,7 +45,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/collectorPolicy.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
@@ -59,12 +60,15 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.hpp"
+#include "memory/binaryTreeDictionary.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/padded.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -628,6 +632,7 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
 
   NOT_PRODUCT(_overflow_counter = CMSMarkStackOverflowInterval;)
   _gc_counters = new CollectorCounters("CMS", 1);
+  _cgc_counters = new CollectorCounters("CMS stop-the-world phases", 2);
   _completed_initialization = true;
   _inter_sweep_timer.start();  // start of time
 }
@@ -1040,7 +1045,7 @@ ConcurrentMarkSweepGeneration::par_promote(int thread_num,
   // Except with compressed oops it's the mark word.
   HeapWord* old_ptr = (HeapWord*)old;
   // Restore the mark word copied above.
-  obj->set_mark(m);
+  obj->set_mark_raw(m);
   assert(obj->klass_or_null() == NULL, "Object should be uninitialized here.");
   assert(!((FreeChunk*)obj_ptr)->is_free(), "Error, block will look free but show wrong size");
   OrderAccess::storestore();
@@ -5240,7 +5245,7 @@ void CMSCollector::refProcessingWork() {
       CodeCache::do_unloading(&_is_alive_closure, purged_class);
 
       // Prune dead klasses from subklass/sibling/implementor lists.
-      Klass::clean_weak_klass_links(&_is_alive_closure);
+      Klass::clean_weak_klass_links();
     }
 
     {
@@ -5553,18 +5558,18 @@ void CMSCollector::reset_stw() {
 
 void CMSCollector::do_CMS_operation(CMS_op_type op, GCCause::Cause gc_cause) {
   GCTraceCPUTime tcpu;
-  TraceCollectorStats tcs(counters());
+  TraceCollectorStats tcs_cgc(cgc_counters());
 
   switch (op) {
     case CMS_op_checkpointRootsInitial: {
       GCTraceTime(Info, gc) t("Pause Initial Mark", NULL, GCCause::_no_gc, true);
-      SvcGCMarker sgcm(SvcGCMarker::OTHER);
+      SvcGCMarker sgcm(SvcGCMarker::CONCURRENT);
       checkpointRootsInitial();
       break;
     }
     case CMS_op_checkpointRootsFinal: {
       GCTraceTime(Info, gc) t("Pause Remark", NULL, GCCause::_no_gc, true);
-      SvcGCMarker sgcm(SvcGCMarker::OTHER);
+      SvcGCMarker sgcm(SvcGCMarker::CONCURRENT);
       checkpointRootsFinal();
       break;
     }
@@ -5821,7 +5826,7 @@ MarkRefsIntoClosure::MarkRefsIntoClosure(
     _span(span),
     _bitMap(bitMap)
 {
-  assert(ref_processor() == NULL, "deliberately left NULL");
+  assert(ref_discoverer() == NULL, "deliberately left NULL");
   assert(_bitMap->covers(_span), "_bitMap/_span mismatch");
 }
 
@@ -5843,7 +5848,7 @@ ParMarkRefsIntoClosure::ParMarkRefsIntoClosure(
     _span(span),
     _bitMap(bitMap)
 {
-  assert(ref_processor() == NULL, "deliberately left NULL");
+  assert(ref_discoverer() == NULL, "deliberately left NULL");
   assert(_bitMap->covers(_span), "_bitMap/_span mismatch");
 }
 
@@ -5867,7 +5872,7 @@ MarkRefsIntoVerifyClosure::MarkRefsIntoVerifyClosure(
     _verification_bm(verification_bm),
     _cms_bm(cms_bm)
 {
-  assert(ref_processor() == NULL, "deliberately left NULL");
+  assert(ref_discoverer() == NULL, "deliberately left NULL");
   assert(_verification_bm->covers(_span), "_verification_bm/_span mismatch");
 }
 
@@ -5896,7 +5901,7 @@ void MarkRefsIntoVerifyClosure::do_oop(narrowOop* p) { MarkRefsIntoVerifyClosure
 //////////////////////////////////////////////////
 
 MarkRefsIntoAndScanClosure::MarkRefsIntoAndScanClosure(MemRegion span,
-                                                       ReferenceProcessor* rp,
+                                                       ReferenceDiscoverer* rd,
                                                        CMSBitMap* bit_map,
                                                        CMSBitMap* mod_union_table,
                                                        CMSMarkStack*  mark_stack,
@@ -5907,15 +5912,15 @@ MarkRefsIntoAndScanClosure::MarkRefsIntoAndScanClosure(MemRegion span,
   _span(span),
   _bit_map(bit_map),
   _mark_stack(mark_stack),
-  _pushAndMarkClosure(collector, span, rp, bit_map, mod_union_table,
+  _pushAndMarkClosure(collector, span, rd, bit_map, mod_union_table,
                       mark_stack, concurrent_precleaning),
   _yield(should_yield),
   _concurrent_precleaning(concurrent_precleaning),
   _freelistLock(NULL)
 {
   // FIXME: Should initialize in base class constructor.
-  assert(rp != NULL, "ref_processor shouldn't be NULL");
-  set_ref_processor_internal(rp);
+  assert(rd != NULL, "ref_discoverer shouldn't be NULL");
+  set_ref_discoverer_internal(rd);
 }
 
 // This closure is used to mark refs into the CMS generation at the
@@ -6000,18 +6005,18 @@ void MarkRefsIntoAndScanClosure::do_yield_work() {
 //                                MarkRefsIntoAndScanClosure
 ///////////////////////////////////////////////////////////
 ParMarkRefsIntoAndScanClosure::ParMarkRefsIntoAndScanClosure(
-  CMSCollector* collector, MemRegion span, ReferenceProcessor* rp,
+  CMSCollector* collector, MemRegion span, ReferenceDiscoverer* rd,
   CMSBitMap* bit_map, OopTaskQueue* work_queue):
   _span(span),
   _bit_map(bit_map),
   _work_queue(work_queue),
   _low_water_mark(MIN2((work_queue->max_elems()/4),
                        ((uint)CMSWorkQueueDrainThreshold * ParallelGCThreads))),
-  _parPushAndMarkClosure(collector, span, rp, bit_map, work_queue)
+  _parPushAndMarkClosure(collector, span, rd, bit_map, work_queue)
 {
   // FIXME: Should initialize in base class constructor.
-  assert(rp != NULL, "ref_processor shouldn't be NULL");
-  set_ref_processor_internal(rp);
+  assert(rd != NULL, "ref_discoverer shouldn't be NULL");
+  set_ref_discoverer_internal(rd);
 }
 
 // This closure is used to mark refs into the CMS generation at the
@@ -6637,6 +6642,11 @@ PushAndMarkVerifyClosure::PushAndMarkVerifyClosure(
   _mark_stack(mark_stack)
 { }
 
+template <class T> void PushAndMarkVerifyClosure::do_oop_work(T *p) {
+  oop obj = RawAccess<>::oop_load(p);
+  do_oop(obj);
+}
+
 void PushAndMarkVerifyClosure::do_oop(oop* p)       { PushAndMarkVerifyClosure::do_oop_work(p); }
 void PushAndMarkVerifyClosure::do_oop(narrowOop* p) { PushAndMarkVerifyClosure::do_oop_work(p); }
 
@@ -6833,12 +6843,12 @@ void ParPushOrMarkClosure::do_oop(narrowOop* p) { ParPushOrMarkClosure::do_oop_w
 
 PushAndMarkClosure::PushAndMarkClosure(CMSCollector* collector,
                                        MemRegion span,
-                                       ReferenceProcessor* rp,
+                                       ReferenceDiscoverer* rd,
                                        CMSBitMap* bit_map,
                                        CMSBitMap* mod_union_table,
                                        CMSMarkStack*  mark_stack,
                                        bool           concurrent_precleaning):
-  MetadataAwareOopClosure(rp),
+  MetadataAwareOopClosure(rd),
   _collector(collector),
   _span(span),
   _bit_map(bit_map),
@@ -6846,7 +6856,7 @@ PushAndMarkClosure::PushAndMarkClosure(CMSCollector* collector,
   _mark_stack(mark_stack),
   _concurrent_precleaning(concurrent_precleaning)
 {
-  assert(ref_processor() != NULL, "ref_processor shouldn't be NULL");
+  assert(ref_discoverer() != NULL, "ref_discoverer shouldn't be NULL");
 }
 
 // Grey object rescan during pre-cleaning and second checkpoint phases --
@@ -6907,16 +6917,16 @@ void PushAndMarkClosure::do_oop(oop obj) {
 
 ParPushAndMarkClosure::ParPushAndMarkClosure(CMSCollector* collector,
                                              MemRegion span,
-                                             ReferenceProcessor* rp,
+                                             ReferenceDiscoverer* rd,
                                              CMSBitMap* bit_map,
                                              OopTaskQueue* work_queue):
-  MetadataAwareOopClosure(rp),
+  MetadataAwareOopClosure(rd),
   _collector(collector),
   _span(span),
   _bit_map(bit_map),
   _work_queue(work_queue)
 {
-  assert(ref_processor() != NULL, "ref_processor shouldn't be NULL");
+  assert(ref_discoverer() != NULL, "ref_discoverer shouldn't be NULL");
 }
 
 void PushAndMarkClosure::do_oop(oop* p)       { PushAndMarkClosure::do_oop_work(p); }
@@ -7807,8 +7817,8 @@ bool CMSCollector::take_from_overflow_list(size_t num, CMSMarkStack* stack) {
   const markOop proto = markOopDesc::prototype();
   NOT_PRODUCT(ssize_t n = 0;)
   for (oop next; i > 0 && cur != NULL; cur = next, i--) {
-    next = oop(cur->mark());
-    cur->set_mark(proto);   // until proven otherwise
+    next = oop(cur->mark_raw());
+    cur->set_mark_raw(proto);   // until proven otherwise
     assert(oopDesc::is_oop(cur), "Should be an oop");
     bool res = stack->push(cur);
     assert(res, "Bit off more than can chew?");
@@ -7891,8 +7901,8 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   size_t i = num;
   oop cur = prefix;
   // Walk down the first "num" objects, unless we reach the end.
-  for (; i > 1 && cur->mark() != NULL; cur = oop(cur->mark()), i--);
-  if (cur->mark() == NULL) {
+  for (; i > 1 && cur->mark_raw() != NULL; cur = oop(cur->mark_raw()), i--);
+  if (cur->mark_raw() == NULL) {
     // We have "num" or fewer elements in the list, so there
     // is nothing to return to the global list.
     // Write back the NULL in lieu of the BUSY we wrote
@@ -7902,9 +7912,9 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
     }
   } else {
     // Chop off the suffix and return it to the global list.
-    assert(cur->mark() != BUSY, "Error");
-    oop suffix_head = cur->mark(); // suffix will be put back on global list
-    cur->set_mark(NULL);           // break off suffix
+    assert(cur->mark_raw() != BUSY, "Error");
+    oop suffix_head = cur->mark_raw(); // suffix will be put back on global list
+    cur->set_mark_raw(NULL);           // break off suffix
     // It's possible that the list is still in the empty(busy) state
     // we left it in a short while ago; in that case we may be
     // able to place back the suffix without incurring the cost
@@ -7924,18 +7934,18 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
       // Too bad, someone else sneaked in (at least) an element; we'll need
       // to do a splice. Find tail of suffix so we can prepend suffix to global
       // list.
-      for (cur = suffix_head; cur->mark() != NULL; cur = (oop)(cur->mark()));
+      for (cur = suffix_head; cur->mark_raw() != NULL; cur = (oop)(cur->mark_raw()));
       oop suffix_tail = cur;
-      assert(suffix_tail != NULL && suffix_tail->mark() == NULL,
+      assert(suffix_tail != NULL && suffix_tail->mark_raw() == NULL,
              "Tautology");
       observed_overflow_list = _overflow_list;
       do {
         cur_overflow_list = observed_overflow_list;
         if (cur_overflow_list != BUSY) {
           // Do the splice ...
-          suffix_tail->set_mark(markOop(cur_overflow_list));
+          suffix_tail->set_mark_raw(markOop(cur_overflow_list));
         } else { // cur_overflow_list == BUSY
-          suffix_tail->set_mark(NULL);
+          suffix_tail->set_mark_raw(NULL);
         }
         // ... and try to place spliced list back on overflow_list ...
         observed_overflow_list =
@@ -7951,8 +7961,8 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   oop next;
   NOT_PRODUCT(ssize_t n = 0;)
   for (cur = prefix; cur != NULL; cur = next) {
-    next = oop(cur->mark());
-    cur->set_mark(proto);   // until proven otherwise
+    next = oop(cur->mark_raw());
+    cur->set_mark_raw(proto);   // until proven otherwise
     assert(oopDesc::is_oop(cur), "Should be an oop");
     bool res = work_q->push(cur);
     assert(res, "Bit off more than we can chew?");
@@ -7970,7 +7980,7 @@ void CMSCollector::push_on_overflow_list(oop p) {
   NOT_PRODUCT(_num_par_pushes++;)
   assert(oopDesc::is_oop(p), "Not an oop");
   preserve_mark_if_necessary(p);
-  p->set_mark((markOop)_overflow_list);
+  p->set_mark_raw((markOop)_overflow_list);
   _overflow_list = p;
 }
 
@@ -7984,9 +7994,9 @@ void CMSCollector::par_push_on_overflow_list(oop p) {
   do {
     cur_overflow_list = observed_overflow_list;
     if (cur_overflow_list != BUSY) {
-      p->set_mark(markOop(cur_overflow_list));
+      p->set_mark_raw(markOop(cur_overflow_list));
     } else {
-      p->set_mark(NULL);
+      p->set_mark_raw(NULL);
     }
     observed_overflow_list =
       Atomic::cmpxchg((oopDesc*)p, &_overflow_list, (oopDesc*)cur_overflow_list);
@@ -8011,21 +8021,21 @@ void CMSCollector::par_push_on_overflow_list(oop p) {
 void CMSCollector::preserve_mark_work(oop p, markOop m) {
   _preserved_oop_stack.push(p);
   _preserved_mark_stack.push(m);
-  assert(m == p->mark(), "Mark word changed");
+  assert(m == p->mark_raw(), "Mark word changed");
   assert(_preserved_oop_stack.size() == _preserved_mark_stack.size(),
          "bijection");
 }
 
 // Single threaded
 void CMSCollector::preserve_mark_if_necessary(oop p) {
-  markOop m = p->mark();
+  markOop m = p->mark_raw();
   if (m->must_be_preserved(p)) {
     preserve_mark_work(p, m);
   }
 }
 
 void CMSCollector::par_preserve_mark_if_necessary(oop p) {
-  markOop m = p->mark();
+  markOop m = p->mark_raw();
   if (m->must_be_preserved(p)) {
     MutexLockerEx x(ParGCRareEvent_lock, Mutex::_no_safepoint_check_flag);
     // Even though we read the mark word without holding
@@ -8033,7 +8043,7 @@ void CMSCollector::par_preserve_mark_if_necessary(oop p) {
     // because we "own" this oop, so no other thread can
     // be trying to push it on the overflow list; see
     // the assertion in preserve_mark_work() that checks
-    // that m == p->mark().
+    // that m == p->mark_raw().
     preserve_mark_work(p, m);
   }
 }
@@ -8066,10 +8076,10 @@ void CMSCollector::restore_preserved_marks_if_any() {
     oop p = _preserved_oop_stack.pop();
     assert(oopDesc::is_oop(p), "Should be an oop");
     assert(_span.contains(p), "oop should be in _span");
-    assert(p->mark() == markOopDesc::prototype(),
+    assert(p->mark_raw() == markOopDesc::prototype(),
            "Set when taken from overflow list");
     markOop m = _preserved_mark_stack.pop();
-    p->set_mark(m);
+    p->set_mark_raw(m);
   }
   assert(_preserved_mark_stack.is_empty() && _preserved_oop_stack.is_empty(),
          "stacks were cleared above");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -279,7 +279,7 @@ public:
 // Convert condition codes to a boolean test value (0 or -1).
 // We pick the values as 3 bits; the low order 2 bits we compare against the
 // condition codes, the high bit flips the sense of the result.
-struct BoolTest VALUE_OBJ_CLASS_SPEC {
+struct BoolTest {
   enum mask { eq = 0, ne = 4, le = 5, ge = 7, lt = 3, gt = 1, overflow = 2, no_overflow = 6, illegal = 8 };
   mask _test;
   BoolTest( mask btm ) : _test(btm) {}
@@ -448,7 +448,12 @@ class SqrtFNode : public Node {
 public:
   SqrtFNode(Compile* C, Node *c, Node *in1) : Node(c, in1) {
     init_flags(Flag_is_expensive);
-    C->add_expensive_node(this);
+    if (c != NULL) {
+      // Treat node only as expensive if a control input is set because it might
+      // be created from a SqrtDNode in ConvD2FNode::Ideal() that was found to
+      // be unique and therefore has no control input.
+      C->add_expensive_node(this);
+    }
   }
   virtual int Opcode() const;
   const Type *bottom_type() const { return Type::FLOAT; }

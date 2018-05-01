@@ -39,7 +39,7 @@
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
 #include "gc/shared/gcId.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
@@ -51,6 +51,8 @@
 #include "logging/log.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/flags/flagSetting.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/management.hpp"
@@ -185,7 +187,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
     BiasedLocking::preserve_marks();
 
     // Capture metadata size before collection for sizing.
-    size_t metadata_prev_used = MetaspaceAux::used_bytes();
+    size_t metadata_prev_used = MetaspaceUtils::used_bytes();
 
     size_t old_gen_prev_used = old_gen->used_in_bytes();
     size_t young_gen_prev_used = young_gen->used_in_bytes();
@@ -246,7 +248,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
 
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
     ClassLoaderDataGraph::purge();
-    MetaspaceAux::verify_metrics();
+    MetaspaceUtils::verify_metrics();
 
     BiasedLocking::restore_marks();
     CodeCache::gc_epilogue();
@@ -351,7 +353,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
 
     young_gen->print_used_change(young_gen_prev_used);
     old_gen->print_used_change(old_gen_prev_used);
-    MetaspaceAux::print_metaspace_change(metadata_prev_used);
+    MetaspaceUtils::print_metaspace_change(metadata_prev_used);
 
     // Track memory usage and detect low memory
     MemoryService::track_memory_usage();
@@ -561,7 +563,7 @@ void PSMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
     CodeCache::do_unloading(is_alive_closure(), purged_class);
 
     // Prune dead klasses from subklass/sibling/implementor lists.
-    Klass::clean_weak_klass_links(is_alive_closure());
+    Klass::clean_weak_klass_links();
   }
 
   {

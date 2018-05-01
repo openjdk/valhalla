@@ -33,9 +33,10 @@
 #include "ci/ciInstance.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "nativeInst_s390.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_s390.inline.hpp"
@@ -571,80 +572,143 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
 void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmitInfo* info, bool wide) {
   assert(src->is_constant(), "should not call otherwise");
   assert(dest->is_address(), "should not call otherwise");
-  // See special case in LIRGenerator::do_StoreIndexed.
-  // T_BYTE: Special case for card mark store.
-  assert(type == T_BYTE || !dest->as_address_ptr()->index()->is_valid(), "not supported");
+
   LIR_Const* c = src->as_constant_ptr();
   Address addr = as_Address(dest->as_address_ptr());
 
   int store_offset = -1;
-  unsigned int lmem = 0;
-  unsigned int lcon = 0;
-  int64_t cbits = 0;
-  switch (type) {
-    case T_INT:    // fall through
-    case T_FLOAT:
-      lmem = 4; lcon = 4; cbits = c->as_jint_bits();
-      break;
 
-    case T_ADDRESS:
-      lmem = 8; lcon = 4; cbits = c->as_jint_bits();
-      break;
-
-    case T_OBJECT:  // fall through
-    case T_ARRAY:
-      if (c->as_jobject() == NULL) {
-        if (UseCompressedOops && !wide) {
-          store_offset = __ store_const(addr, (int32_t)NULL_WORD, 4, 4);
+  if (dest->as_address_ptr()->index()->is_valid()) {
+    switch (type) {
+      case T_INT:    // fall through
+      case T_FLOAT:
+        __ load_const_optimized(Z_R0_scratch, c->as_jint_bits());
+        store_offset = __ offset();
+        if (Immediate::is_uimm12(addr.disp())) {
+          __ z_st(Z_R0_scratch, addr);
         } else {
-          store_offset = __ store_const(addr, (int64_t)NULL_WORD, 8, 8);
+          __ z_sty(Z_R0_scratch, addr);
         }
-      } else {
-        jobject2reg(c->as_jobject(), Z_R1_scratch);
-        if (UseCompressedOops && !wide) {
-          __ encode_heap_oop(Z_R1_scratch);
-          store_offset = __ reg2mem_opt(Z_R1_scratch, addr, false);
+        break;
+
+      case T_ADDRESS:
+        __ load_const_optimized(Z_R1_scratch, c->as_jint_bits());
+        store_offset = __ reg2mem_opt(Z_R1_scratch, addr, true);
+        break;
+
+      case T_OBJECT:  // fall through
+      case T_ARRAY:
+        if (c->as_jobject() == NULL) {
+          if (UseCompressedOops && !wide) {
+            __ clear_reg(Z_R1_scratch, false);
+            store_offset = __ reg2mem_opt(Z_R1_scratch, addr, false);
+          } else {
+            __ clear_reg(Z_R1_scratch, true);
+            store_offset = __ reg2mem_opt(Z_R1_scratch, addr, true);
+          }
         } else {
-          store_offset = __ reg2mem_opt(Z_R1_scratch, addr, true);
+          jobject2reg(c->as_jobject(), Z_R1_scratch);
+          if (UseCompressedOops && !wide) {
+            __ encode_heap_oop(Z_R1_scratch);
+            store_offset = __ reg2mem_opt(Z_R1_scratch, addr, false);
+          } else {
+            store_offset = __ reg2mem_opt(Z_R1_scratch, addr, true);
+          }
         }
-      }
-      assert(store_offset >= 0, "check");
-      break;
+        assert(store_offset >= 0, "check");
+        break;
 
-    case T_LONG:    // fall through
-    case T_DOUBLE:
-      lmem = 8; lcon = 8; cbits = (int64_t)(c->as_jlong_bits());
-      break;
+      case T_LONG:    // fall through
+      case T_DOUBLE:
+        __ load_const_optimized(Z_R1_scratch, (int64_t)(c->as_jlong_bits()));
+        store_offset = __ reg2mem_opt(Z_R1_scratch, addr, true);
+        break;
 
-    case T_BOOLEAN: // fall through
-    case T_BYTE:
-      lmem = 1; lcon = 1; cbits = (int8_t)(c->as_jint());
-      break;
+      case T_BOOLEAN: // fall through
+      case T_BYTE:
+        __ load_const_optimized(Z_R0_scratch, (int8_t)(c->as_jint()));
+        store_offset = __ offset();
+        if (Immediate::is_uimm12(addr.disp())) {
+          __ z_stc(Z_R0_scratch, addr);
+        } else {
+          __ z_stcy(Z_R0_scratch, addr);
+        }
+        break;
 
-    case T_CHAR:    // fall through
-    case T_SHORT:
-      lmem = 2; lcon = 2; cbits = (int16_t)(c->as_jint());
-      break;
+      case T_CHAR:    // fall through
+      case T_SHORT:
+        __ load_const_optimized(Z_R0_scratch, (int16_t)(c->as_jint()));
+        store_offset = __ offset();
+        if (Immediate::is_uimm12(addr.disp())) {
+          __ z_sth(Z_R0_scratch, addr);
+        } else {
+          __ z_sthy(Z_R0_scratch, addr);
+        }
+        break;
 
-    default:
-      ShouldNotReachHere();
-  };
-
-  // Index register is normally not supported, but for
-  // LIRGenerator::CardTableModRef_post_barrier we make an exception.
-  if (type == T_BYTE && dest->as_address_ptr()->index()->is_valid()) {
-    __ load_const_optimized(Z_R0_scratch, (int8_t)(c->as_jint()));
-    store_offset = __ offset();
-    if (Immediate::is_uimm12(addr.disp())) {
-      __ z_stc(Z_R0_scratch, addr);
-    } else {
-      __ z_stcy(Z_R0_scratch, addr);
+      default:
+        ShouldNotReachHere();
     }
-  }
 
-  if (store_offset == -1) {
-    store_offset = __ store_const(addr, cbits, lmem, lcon);
-    assert(store_offset >= 0, "check");
+  } else { // no index
+
+    unsigned int lmem = 0;
+    unsigned int lcon = 0;
+    int64_t cbits = 0;
+
+    switch (type) {
+      case T_INT:    // fall through
+      case T_FLOAT:
+        lmem = 4; lcon = 4; cbits = c->as_jint_bits();
+        break;
+
+      case T_ADDRESS:
+        lmem = 8; lcon = 4; cbits = c->as_jint_bits();
+        break;
+
+      case T_OBJECT:  // fall through
+      case T_ARRAY:
+        if (c->as_jobject() == NULL) {
+          if (UseCompressedOops && !wide) {
+            store_offset = __ store_const(addr, (int32_t)NULL_WORD, 4, 4);
+          } else {
+            store_offset = __ store_const(addr, (int64_t)NULL_WORD, 8, 8);
+          }
+        } else {
+          jobject2reg(c->as_jobject(), Z_R1_scratch);
+          if (UseCompressedOops && !wide) {
+            __ encode_heap_oop(Z_R1_scratch);
+            store_offset = __ reg2mem_opt(Z_R1_scratch, addr, false);
+          } else {
+            store_offset = __ reg2mem_opt(Z_R1_scratch, addr, true);
+          }
+        }
+        assert(store_offset >= 0, "check");
+        break;
+
+      case T_LONG:    // fall through
+      case T_DOUBLE:
+        lmem = 8; lcon = 8; cbits = (int64_t)(c->as_jlong_bits());
+        break;
+
+      case T_BOOLEAN: // fall through
+      case T_BYTE:
+        lmem = 1; lcon = 1; cbits = (int8_t)(c->as_jint());
+        break;
+
+      case T_CHAR:    // fall through
+      case T_SHORT:
+        lmem = 2; lcon = 2; cbits = (int16_t)(c->as_jint());
+        break;
+
+      default:
+        ShouldNotReachHere();
+    }
+
+    if (store_offset == -1) {
+      store_offset = __ store_const(addr, cbits, lmem, lcon);
+      assert(store_offset >= 0, "check");
+    }
   }
 
   if (info != NULL) {
@@ -1895,6 +1959,15 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 
   // If we don't know anything, just go through the generic arraycopy.
   if (default_type == NULL) {
+    address copyfunc_addr = StubRoutines::generic_arraycopy();
+
+    if (copyfunc_addr == NULL) {
+      // Take a slow path for generic arraycopy.
+      __ branch_optimized(Assembler::bcondAlways, *stub->entry());
+      __ bind(*stub->continuation());
+      return;
+    }
+
     Label done;
     // Save outgoing arguments in callee saved registers (C convention) in case
     // a call to System.arraycopy is needed.
@@ -1915,10 +1988,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ z_lgfr(dst_pos, dst_pos);
     __ z_lgfr(length, length);
 
-    address C_entry = CAST_FROM_FN_PTR(address, Runtime1::arraycopy);
-
-    address copyfunc_addr = StubRoutines::generic_arraycopy();
-
     // Pass arguments: may push as this is not a safepoint; SP must be fix at each safepoint.
 
     // The arguments are in the corresponding registers.
@@ -1927,25 +1996,19 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     assert(Z_ARG3 == dst,     "assumption");
     assert(Z_ARG4 == dst_pos, "assumption");
     assert(Z_ARG5 == length,  "assumption");
-    if (copyfunc_addr == NULL) { // Use C version if stub was not generated.
-      emit_call_c(C_entry);
-    } else {
 #ifndef PRODUCT
-      if (PrintC1Statistics) {
-        __ load_const_optimized(Z_R1_scratch, (address)&Runtime1::_generic_arraycopystub_cnt);
-        __ add2mem_32(Address(Z_R1_scratch), 1, Z_R0_scratch);
-      }
-#endif
-      emit_call_c(copyfunc_addr);
+    if (PrintC1Statistics) {
+      __ load_const_optimized(Z_R1_scratch, (address)&Runtime1::_generic_arraycopystub_cnt);
+      __ add2mem_32(Address(Z_R1_scratch), 1, Z_R0_scratch);
     }
+#endif
+    emit_call_c(copyfunc_addr);
     CHECK_BAILOUT();
 
     __ compare32_and_branch(Z_RET, (intptr_t)0, Assembler::bcondEqual, *stub->continuation());
 
-    if (copyfunc_addr != NULL) {
-      __ z_lgr(tmp, Z_RET);
-      __ z_xilf(tmp, -1);
-    }
+    __ z_lgr(tmp, Z_RET);
+    __ z_xilf(tmp, -1);
 
     // Restore values from callee saved registers so they are where the stub
     // expects them.
@@ -1955,11 +2018,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     __ lgr_if_needed(dst_pos, callee_saved_dst_pos);
     __ lgr_if_needed(length, callee_saved_length);
 
-    if (copyfunc_addr != NULL) {
-      __ z_sr(length, tmp);
-      __ z_ar(src_pos, tmp);
-      __ z_ar(dst_pos, tmp);
-    }
+    __ z_sr(length, tmp);
+    __ z_ar(src_pos, tmp);
+    __ z_ar(dst_pos, tmp);
     __ branch_optimized(Assembler::bcondAlways, *stub->entry());
 
     __ bind(*stub->continuation());

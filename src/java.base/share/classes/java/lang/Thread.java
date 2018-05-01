@@ -146,15 +146,14 @@ class Thread implements Runnable {
     }
 
     private volatile String name;
-    private int            priority;
-    private Thread         threadQ;
-    private long           eetop;
+    private int priority;
 
     /* Whether or not the thread is a daemon thread. */
-    private boolean     daemon = false;
+    private boolean daemon = false;
 
-    /* JVM state */
-    private boolean     stillborn = false;
+    /* Fields reserved for exclusive use by the JVM */
+    private boolean stillborn = false;
+    private long eetop;
 
     /* What will be run. */
     private Runnable target;
@@ -189,7 +188,7 @@ class Thread implements Runnable {
      * not specify a stack size.  It is up to the VM to do whatever it
      * likes with this number; some VMs will ignore it.
      */
-    private long stackSize;
+    private final long stackSize;
 
     /*
      * JVM-private state that persists after native thread termination.
@@ -199,19 +198,19 @@ class Thread implements Runnable {
     /*
      * Thread ID
      */
-    private long tid;
+    private final long tid;
 
     /* For generating thread ID */
     private static long threadSeqNumber;
+
+    private static synchronized long nextThreadID() {
+        return ++threadSeqNumber;
+    }
 
     /*
      * Java thread status for tools, default indicates thread 'not yet started'
      */
     private volatile int threadStatus;
-
-    private static synchronized long nextThreadID() {
-        return ++threadSeqNumber;
-    }
 
     /**
      * The argument supplied to the current call to
@@ -378,15 +377,6 @@ class Thread implements Runnable {
     public static void onSpinWait() {}
 
     /**
-     * Initializes a Thread with the current AccessControlContext.
-     * @see #init(ThreadGroup,Runnable,String,long,AccessControlContext,boolean)
-     */
-    private void init(ThreadGroup g, Runnable target, String name,
-                      long stackSize) {
-        init(g, target, name, stackSize, null, true);
-    }
-
-    /**
      * Initializes a Thread.
      *
      * @param g the Thread group
@@ -399,9 +389,9 @@ class Thread implements Runnable {
      * @param inheritThreadLocals if {@code true}, inherit initial values for
      *            inheritable thread-locals from the constructing thread
      */
-    private void init(ThreadGroup g, Runnable target, String name,
-                      long stackSize, AccessControlContext acc,
-                      boolean inheritThreadLocals) {
+    private Thread(ThreadGroup g, Runnable target, String name,
+                   long stackSize, AccessControlContext acc,
+                   boolean inheritThreadLocals) {
         if (name == null) {
             throw new NullPointerException("name cannot be null");
         }
@@ -419,8 +409,8 @@ class Thread implements Runnable {
                 g = security.getThreadGroup();
             }
 
-            /* If the security doesn't have a strong opinion of the matter
-               use the parent thread group. */
+            /* If the security manager doesn't have a strong opinion
+               on the matter, use the parent thread group. */
             if (g == null) {
                 g = parent.getThreadGroup();
             }
@@ -435,7 +425,8 @@ class Thread implements Runnable {
          */
         if (security != null) {
             if (isCCLOverridden(getClass())) {
-                security.checkPermission(SUBCLASS_IMPLEMENTATION_PERMISSION);
+                security.checkPermission(
+                        SecurityConstants.SUBCLASS_IMPLEMENTATION_PERMISSION);
             }
         }
 
@@ -459,7 +450,7 @@ class Thread implements Runnable {
         this.stackSize = stackSize;
 
         /* Set thread ID */
-        tid = nextThreadID();
+        this.tid = nextThreadID();
     }
 
     /**
@@ -482,7 +473,7 @@ class Thread implements Runnable {
      * {@code "Thread-"+}<i>n</i>, where <i>n</i> is an integer.
      */
     public Thread() {
-        init(null, null, "Thread-" + nextThreadNum(), 0);
+        this(null, null, "Thread-" + nextThreadNum(), 0);
     }
 
     /**
@@ -498,7 +489,7 @@ class Thread implements Runnable {
      *         nothing.
      */
     public Thread(Runnable target) {
-        init(null, target, "Thread-" + nextThreadNum(), 0);
+        this(null, target, "Thread-" + nextThreadNum(), 0);
     }
 
     /**
@@ -507,7 +498,7 @@ class Thread implements Runnable {
      * This is not a public constructor.
      */
     Thread(Runnable target, AccessControlContext acc) {
-        init(null, target, "Thread-" + nextThreadNum(), 0, acc, false);
+        this(null, target, "Thread-" + nextThreadNum(), 0, acc, false);
     }
 
     /**
@@ -534,7 +525,7 @@ class Thread implements Runnable {
      *          thread group
      */
     public Thread(ThreadGroup group, Runnable target) {
-        init(group, target, "Thread-" + nextThreadNum(), 0);
+        this(group, target, "Thread-" + nextThreadNum(), 0);
     }
 
     /**
@@ -546,7 +537,7 @@ class Thread implements Runnable {
      *          the name of the new thread
      */
     public Thread(String name) {
-        init(null, null, name, 0);
+        this(null, null, name, 0);
     }
 
     /**
@@ -570,7 +561,7 @@ class Thread implements Runnable {
      *          thread group
      */
     public Thread(ThreadGroup group, String name) {
-        init(group, null, name, 0);
+        this(group, null, name, 0);
     }
 
     /**
@@ -586,7 +577,7 @@ class Thread implements Runnable {
      *         the name of the new thread
      */
     public Thread(Runnable target, String name) {
-        init(null, target, name, 0);
+        this(null, target, name, 0);
     }
 
     /**
@@ -634,7 +625,7 @@ class Thread implements Runnable {
      *          thread group or cannot override the context class loader methods.
      */
     public Thread(ThreadGroup group, Runnable target, String name) {
-        init(group, target, name, 0);
+        this(group, target, name, 0);
     }
 
     /**
@@ -713,7 +704,7 @@ class Thread implements Runnable {
      */
     public Thread(ThreadGroup group, Runnable target, String name,
                   long stackSize) {
-        init(group, target, name, stackSize);
+        this(group, target, name, stackSize, null, true);
     }
 
     /**
@@ -769,7 +760,7 @@ class Thread implements Runnable {
      */
     public Thread(ThreadGroup group, Runnable target, String name,
                   long stackSize, boolean inheritThreadLocals) {
-        init(group, target, name, stackSize, null, inheritThreadLocals);
+        this(group, target, name, stackSize, null, inheritThreadLocals);
     }
 
     /**
@@ -924,7 +915,7 @@ class Thread implements Runnable {
      *       for example), the {@code interrupt} method should be used to
      *       interrupt the wait.
      *       For more information, see
-     *       <a href="{@docRoot}/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
+     *       <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
      *       are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      */
     @Deprecated(since="1.2")
@@ -957,7 +948,7 @@ class Thread implements Runnable {
      *        could be used to generate exceptions that the target thread was
      *        not prepared to handle.
      *        For more information, see
-     *        <a href="{@docRoot}/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
+     *        <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
      *        are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      *        This method is subject to removal in a future version of Java SE.
      */
@@ -1083,7 +1074,7 @@ class Thread implements Runnable {
      *     If another thread ever attempted to lock this resource, deadlock
      *     would result. Such deadlocks typically manifest themselves as
      *     "frozen" processes. For more information, see
-     *     <a href="{@docRoot}/java/lang/doc-files/threadPrimitiveDeprecation.html">
+     *     <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">
      *     Why are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      *     This method is subject to removal in a future version of Java SE.
      * @throws NoSuchMethodError always
@@ -1123,7 +1114,7 @@ class Thread implements Runnable {
      *   monitor prior to calling {@code resume}, deadlock results.  Such
      *   deadlocks typically manifest themselves as "frozen" processes.
      *   For more information, see
-     *   <a href="{@docRoot}/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
+     *   <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
      *   are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      */
     @Deprecated(since="1.2")
@@ -1149,7 +1140,7 @@ class Thread implements Runnable {
      * @deprecated This method exists solely for use with {@link #suspend},
      *     which has been deprecated because it is deadlock-prone.
      *     For more information, see
-     *     <a href="{@docRoot}/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
+     *     <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
      *     are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      */
     @Deprecated(since="1.2")
@@ -1712,10 +1703,6 @@ class Thread implements Runnable {
         }
         return m;
     }
-
-
-    private static final RuntimePermission SUBCLASS_IMPLEMENTATION_PERMISSION =
-                    new RuntimePermission("enableContextClassLoaderOverride");
 
     /** cache of subclass security audit results */
     /* Replace with ConcurrentReferenceHashMap when/if it appears in a future

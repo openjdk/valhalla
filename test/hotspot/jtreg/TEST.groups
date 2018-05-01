@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,14 @@ hotspot_all_no_apps = \
 hotspot_compiler = \
   compiler
 
+hotspot_compiler_xcomp = \
+  :hotspot_compiler \
+  -:tier1_compiler_not_xcomp
+
+hotspot_compiler_all_gcs = \
+  :hotspot_compiler \
+  -:tier1_compiler_not_cms
+
 hotspot_gc = \
   gc
 
@@ -61,10 +69,20 @@ tier1_common = \
 tier1_compiler = \
   :tier1_compiler_1 \
   :tier1_compiler_2 \
-  :tier1_compiler_3
+  :tier1_compiler_3 \
+  :tier1_compiler_not_xcomp
+
+hotspot_not_fast_compiler = \
+  :hotspot_compiler \
+  -:tier1_compiler \
+  -:hotspot_slow_compiler
+
+hotspot_slow_compiler = \
+  compiler/codegen/aes \
+  compiler/codecache/stress \
+  compiler/gcbarriers/PreserveFPRegistersTest.java
 
 tier1_compiler_1 = \
-  compiler/aot/ \
   compiler/arraycopy/ \
   compiler/c1/ \
   compiler/c2/ \
@@ -94,9 +112,7 @@ tier1_compiler_2 = \
   compiler/integerArithmetic/ \
   compiler/interpreter/ \
   compiler/jvmci/ \
-  -compiler/codegen/aes \
-  -compiler/codecache/stress \
-  -compiler/gcbarriers/PreserveFPRegistersTest.java
+  -:hotspot_slow_compiler
 
 tier1_compiler_3 = \
   compiler/intrinsics/ \
@@ -111,6 +127,7 @@ tier1_compiler_3 = \
   compiler/types/ \
   compiler/uncommontrap/ \
   compiler/unsafe/ \
+  compiler/vectorization/ \
   -compiler/intrinsics/bmi \
   -compiler/intrinsics/mathexact \
   -compiler/intrinsics/sha \
@@ -119,20 +136,45 @@ tier1_compiler_3 = \
   -compiler/loopopts/Test7052494.java \
   -compiler/runtime/Test6826736.java
 
-hotspot_not_fast_compiler = \
-  :hotspot_compiler \
-  -:tier1_compiler_1 \
-  -:tier1_compiler_2 \
-  -:tier1_compiler_3 \
+tier1_compiler_not_xcomp = \
+  compiler/aot
+
+tier1_compiler_not_cms = \
+  compiler/aot \
+  compiler/jvmci
+
+ctw_1 = \
+  applications/ctw/modules/ \
+  -:ctw_2 \
+  -:ctw_3
+
+ctw_2 = \
+  applications/ctw/modules/java_base.java \
+  applications/ctw/modules/java_base_2.java \
+  applications/ctw/modules/java_desktop.java \
+  applications/ctw/modules/java_desktop_2.java
+
+ctw_3 = \
+  applications/ctw/modules/javafx_graphics.java \
+  applications/ctw/modules/java_xml.java \
+  applications/ctw/modules/jdk_compiler.java \
+  applications/ctw/modules/jdk_internal_vm_compiler.java \
+  applications/ctw/modules/jdk_localedata.java \
+  applications/ctw/modules/jdk_scripting_nashorn.java \
 
 tier1_gc = \
   :tier1_gc_1 \
   :tier1_gc_2 \
   :tier1_gc_gcold \
-  :tier1_gc_gcbasher 
+  :tier1_gc_gcbasher
+
+hotspot_not_fast_gc = \
+  :hotspot_gc \
+  -:tier1_gc
 
 tier1_gc_1 = \
-  gc/g1/
+  gc/g1/ \
+  -gc/g1/ihop/TestIHOPErgo.java
 
 tier1_gc_2 = \
   sanity/ExecuteInternalVMTests.java \
@@ -145,9 +187,9 @@ tier1_gc_2 = \
   -gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java
 
 tier1_gc_gcold = \
-  gc/stress/gcold/TestGCOldWithG1.java
-  gc/stress/gcold/TestGCOldWithCMS.java
-  gc/stress/gcold/TestGCOldWithSerial.java
+  gc/stress/gcold/TestGCOldWithG1.java \
+  gc/stress/gcold/TestGCOldWithCMS.java \
+  gc/stress/gcold/TestGCOldWithSerial.java \
   gc/stress/gcold/TestGCOldWithParallel.java
 
 tier1_gc_gcbasher = \
@@ -158,7 +200,7 @@ tier1_gc_gcbasher = \
 
 tier1_runtime = \
   runtime/ \
- -runtime/6626217/Test6626217.sh \
+ -runtime/6626217/bug_21227.java \
  -runtime/7100935 \
  -runtime/7158988/FieldMonitor.java \
  -runtime/CommandLine/OptionsValidation/TestOptionsWithRanges.java \
@@ -193,7 +235,6 @@ tier1_runtime = \
  -runtime/SelectionResolution/InvokeVirtualICCE.java \
  -runtime/SelectionResolution/InvokeVirtualSuccessTest.java \
  -runtime/SharedArchiveFile/CdsSameObjectAlignment.java \
- -runtime/SharedArchiveFile/DefaultUseWithClient.java \
  -runtime/SharedArchiveFile/SharedBaseAddress.java \
  -runtime/Thread/CancellableThreadTest.java \
  -runtime/Thread/TestThreadDumpMonitorContention.java \
@@ -201,7 +242,8 @@ tier1_runtime = \
  -runtime/containers/ \
   sanity/ \
   testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java \
- -:tier1_runtime_appcds_exclude
+ -:tier1_runtime_appcds_exclude \
+ -runtime/signal
 
 hotspot_cds = \
   runtime/SharedArchiveFile/ \
@@ -225,7 +267,9 @@ tier1_runtime_appcds_exclude = \
 tier1_serviceability = \
   serviceability/dcmd/compiler \
   serviceability/logging \
-  serviceability/sa
+  serviceability/sa \
+  -serviceability/sa/ClhsdbScanOops.java \
+  -serviceability/sa/TestHeapDumpForLargeArray.java
 
 tier1 = \
   :tier1_common \
@@ -242,7 +286,9 @@ hotspot_tier2_runtime = \
  -runtime/containers/ \
  -:tier1_runtime \
  -:tier1_serviceability \
- -:hotspot_tier2_runtime_platform_agnostic
+ -:hotspot_tier2_runtime_platform_agnostic \
+ -runtime/signal \
+ -runtime/NMT/MallocStressTest.java
 
 hotspot_tier2_runtime_platform_agnostic = \
   runtime/SelectionResolution \
@@ -262,3 +308,12 @@ hotspot_runtime_minimalvm = \
   runtime/ErrorHandling \
   runtime/logging
 
+hotspot_nmt = \
+  runtime/NMT
+
+hotspot_rest_runtime = \
+  :hotspot_runtime \
+  -:tier1_runtime \
+  -:tier1_runtime_appcds_exclude \
+  -:hotspot_nmt \
+  -:hotspot_tier2_runtime_platform_agnostic

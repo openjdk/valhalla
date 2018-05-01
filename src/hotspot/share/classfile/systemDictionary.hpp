@@ -34,7 +34,6 @@
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/hashtable.hpp"
-#include "utilities/hashtable.inline.hpp"
 
 // The dictionary in each ClassLoaderData stores all loaded classes, either
 // initiatied by its class loader or defined by its class loader:
@@ -85,6 +84,7 @@ class SymbolPropertyTable;
 class ProtectionDomainCacheTable;
 class ProtectionDomainCacheEntry;
 class GCTimer;
+class OopStorage;
 
 // Certain classes are preloaded, such as java.lang.Object and java.lang.String.
 // They are all "well-known", in the sense that no class loader is allowed
@@ -136,6 +136,7 @@ class GCTimer;
   do_klass(FinalReference_klass,                        java_lang_ref_FinalReference,              Pre                 ) \
   do_klass(PhantomReference_klass,                      java_lang_ref_PhantomReference,            Pre                 ) \
   do_klass(Finalizer_klass,                             java_lang_ref_Finalizer,                   Pre                 ) \
+  do_klass(ReferenceQueue_klass,                        java_lang_ref_ReferenceQueue,              Pre                 ) \
                                                                                                                          \
   do_klass(Thread_klass,                                java_lang_Thread,                          Pre                 ) \
   do_klass(ThreadGroup_klass,                           java_lang_ThreadGroup,                     Pre                 ) \
@@ -493,7 +494,7 @@ public:
   static void compute_java_loaders(TRAPS);
 
   // Register a new class loader
-  static ClassLoaderData* register_loader(Handle class_loader, TRAPS);
+  static ClassLoaderData* register_loader(Handle class_loader);
 protected:
   // Mirrors for primitive classes (created eagerly)
   static oop check_mirror(oop m) {
@@ -638,6 +639,9 @@ public:
   // ProtectionDomain cache
   static ProtectionDomainCacheTable*   _pd_cache_table;
 
+  // VM weak OopStorage object.
+  static OopStorage*             _vm_weak_oop_storage;
+
 protected:
   static void validate_protection_domain(InstanceKlass* klass,
                                          Handle class_loader,
@@ -689,6 +693,9 @@ public:
     assert(m != NULL, "Unexpected NULL Method*");
     return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
   }
+
+  static void initialize_oop_storage();
+  static OopStorage* vm_weak_oop_storage();
 
 protected:
   static InstanceKlass* find_shared_class(Symbol* class_name);

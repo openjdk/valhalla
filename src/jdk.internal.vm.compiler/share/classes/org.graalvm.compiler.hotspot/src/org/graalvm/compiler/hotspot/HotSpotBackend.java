@@ -64,11 +64,11 @@ import org.graalvm.compiler.options.OptionType;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.tiers.SuitesProvider;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.collections.EconomicMap;
-import org.graalvm.collections.EconomicSet;
-import org.graalvm.collections.Equivalence;
-import org.graalvm.collections.MapCursor;
-import org.graalvm.word.Pointer;
+import jdk.internal.vm.compiler.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicSet;
+import jdk.internal.vm.compiler.collections.Equivalence;
+import jdk.internal.vm.compiler.collections.MapCursor;
+import jdk.internal.vm.compiler.word.Pointer;
 
 import jdk.vm.ci.code.CompilationRequest;
 import jdk.vm.ci.code.CompiledCode;
@@ -91,7 +91,7 @@ public abstract class HotSpotBackend extends Backend implements FrameMap.Referen
     public static class Options {
         // @formatter:off
         @Option(help = "Use Graal arithmetic stubs instead of HotSpot stubs where possible")
-        public static final OptionKey<Boolean> GraalArithmeticStubs = new OptionKey<>(true);
+        public static final OptionKey<Boolean> GraalArithmeticStubs = new OptionKey<>(false); // GR-8276
         @Option(help = "Enables instruction profiling on assembler level. Valid values are a comma separated list of supported instructions." +
                         " Compare with subclasses of Assembler.InstructionCounter.", type = OptionType.Debug)
         public static final OptionKey<String> ASMInstructionProfiling = new OptionKey<>(null);

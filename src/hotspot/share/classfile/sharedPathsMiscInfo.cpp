@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/os.inline.hpp"
 #include "utilities/ostream.hpp"
 
 SharedPathsMiscInfo::SharedPathsMiscInfo() {
@@ -140,7 +141,7 @@ bool SharedPathsMiscInfo::check(jint type, const char* path) {
   switch (type) {
   case BOOT:
     // In the future we should perform the check based on the content of the mapped archive.
-    if (UseAppCDS && os::file_name_strcmp(path, Arguments::get_sysclasspath()) != 0) {
+    if (os::file_name_strcmp(path, Arguments::get_sysclasspath()) != 0) {
       return fail("[BOOT classpath mismatch, actual =", Arguments::get_sysclasspath());
     }
     break;

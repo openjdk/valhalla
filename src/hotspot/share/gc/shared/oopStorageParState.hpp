@@ -26,10 +26,7 @@
 #define SHARE_GC_SHARED_OOPSTORAGEPARSTATE_HPP
 
 #include "gc/shared/oopStorage.hpp"
-#include "memory/allocation.hpp"
 #include "utilities/macros.hpp"
-
-#if INCLUDE_ALL_GCS
 
 //////////////////////////////////////////////////////////////////////////////
 // Support for parallel and optionally concurrent state iteration.
@@ -140,7 +137,7 @@
 //   If is_alive->do_object_b(*p) is false, then cl will not be
 //   invoked on p.
 
-class OopStorage::BasicParState VALUE_OBJ_CLASS_SPEC {
+class OopStorage::BasicParState {
   OopStorage* _storage;
   void* volatile _next_block;
   bool _concurrent;
@@ -164,7 +161,7 @@ public:
 };
 
 template<bool concurrent, bool is_const>
-class OopStorage::ParState VALUE_OBJ_CLASS_SPEC {
+class OopStorage::ParState {
   BasicParState _basic_state;
 
 public:
@@ -178,7 +175,7 @@ public:
 };
 
 template<>
-class OopStorage::ParState<false, false> VALUE_OBJ_CLASS_SPEC {
+class OopStorage::ParState<false, false> {
   BasicParState _basic_state;
 
 public:
@@ -192,7 +189,5 @@ public:
   template<typename IsAliveClosure, typename Closure>
   void weak_oops_do(IsAliveClosure* is_alive, Closure* cl);
 };
-
-#endif // INCLUDE_ALL_GCS
 
 #endif // SHARE_GC_SHARED_OOPSTORAGEPARSTATE_HPP

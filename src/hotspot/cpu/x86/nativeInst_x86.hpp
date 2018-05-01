@@ -26,7 +26,6 @@
 #define CPU_X86_VM_NATIVEINST_X86_HPP
 
 #include "asm/assembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -50,7 +49,7 @@
 // The base class for different kinds of native instruction abstractions.
 // Provides the primitive operations to manipulate code relative to this.
 
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
 
  public:

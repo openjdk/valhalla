@@ -25,11 +25,10 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/sharedClassUtil.hpp"
-#include "classfile/dictionary.hpp"
+#include "classfile/dictionary.inline.hpp"
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/iterator.hpp"
@@ -38,6 +37,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "utilities/hashtable.inline.hpp"
 
 // Optimization: if any dictionary needs resizing, we set this flag,
@@ -161,13 +161,13 @@ bool Dictionary::resize_if_needed() {
 
 bool DictionaryEntry::contains_protection_domain(oop protection_domain) const {
 #ifdef ASSERT
-  if (protection_domain == instance_klass()->protection_domain()) {
+  if (oopDesc::equals(protection_domain, instance_klass()->protection_domain())) {
     // Ensure this doesn't show up in the pd_set (invariant)
     bool in_pd_set = false;
     for (ProtectionDomainEntry* current = pd_set_acquire();
                                 current != NULL;
                                 current = current->next()) {
-      if (current->object_no_keepalive() == protection_domain) {
+      if (oopDesc::equals(current->object_no_keepalive(), protection_domain)) {
         in_pd_set = true;
         break;
       }
@@ -179,7 +179,7 @@ bool DictionaryEntry::contains_protection_domain(oop protection_domain) const {
   }
 #endif /* ASSERT */
 
-  if (protection_domain == instance_klass()->protection_domain()) {
+  if (oopDesc::equals(protection_domain, instance_klass()->protection_domain())) {
     // Succeeds trivially
     return true;
   }
@@ -187,7 +187,7 @@ bool DictionaryEntry::contains_protection_domain(oop protection_domain) const {
   for (ProtectionDomainEntry* current = pd_set_acquire();
                               current != NULL;
                               current = current->next()) {
-    if (current->object_no_keepalive() == protection_domain) return true;
+    if (oopDesc::equals(current->object_no_keepalive(), protection_domain)) return true;
   }
   return false;
 }
@@ -214,13 +214,13 @@ void DictionaryEntry::add_protection_domain(Dictionary* dict, Handle protection_
 
 // During class loading we may have cached a protection domain that has
 // since been unreferenced, so this entry should be cleared.
-void Dictionary::clean_cached_protection_domains(BoolObjectClosure* is_alive, DictionaryEntry* probe) {
+void Dictionary::clean_cached_protection_domains(DictionaryEntry* probe) {
   assert_locked_or_safepoint(SystemDictionary_lock);
 
   ProtectionDomainEntry* current = probe->pd_set();
   ProtectionDomainEntry* prev = NULL;
   while (current != NULL) {
-    if (!is_alive->do_object_b(current->object_no_keepalive())) {
+    if (current->object_no_keepalive() == NULL) {
       LogTarget(Debug, protectiondomain) lt;
       if (lt.is_enabled()) {
         ResourceMark rm;
@@ -228,7 +228,6 @@ void Dictionary::clean_cached_protection_domains(BoolObjectClosure* is_alive, Di
         LogStream ls(lt);
         ls.print_cr("PD in set is not alive:");
         ls.print("class loader: "); loader_data()->class_loader()->print_value_on(&ls);
-        ls.print(" protection domain: "); current->object_no_keepalive()->print_value_on(&ls);
         ls.print(" loading: "); probe->instance_klass()->print_value_on(&ls);
         ls.cr();
       }
@@ -249,7 +248,7 @@ void Dictionary::clean_cached_protection_domains(BoolObjectClosure* is_alive, Di
 }
 
 
-void Dictionary::do_unloading(BoolObjectClosure* is_alive) {
+void Dictionary::do_unloading() {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
 
   // The NULL class loader doesn't initiate loading classes from other class loaders
@@ -276,7 +275,7 @@ void Dictionary::do_unloading(BoolObjectClosure* is_alive) {
         continue;
       }
       // Clean pd_set
-      clean_cached_protection_domains(is_alive, probe);
+      clean_cached_protection_domains(probe);
       p = probe->next_addr();
     }
   }
@@ -481,6 +480,7 @@ static bool is_jfr_event_class(Klass *k) {
 void Dictionary::reorder_dictionary_for_sharing() {
 
   // Copy all the dictionary entries into a single master list.
+  assert(DumpSharedSpaces, "Should only be used at dump time");
 
   DictionaryEntry* master_list = NULL;
   for (int i = 0; i < table_size(); ++i) {
@@ -488,7 +488,7 @@ void Dictionary::reorder_dictionary_for_sharing() {
     while (p != NULL) {
       DictionaryEntry* next = p->next();
       InstanceKlass*ik = p->instance_klass();
-      if (ik->signers() != NULL) {
+      if (ik->has_signer_and_not_archived()) {
         // We cannot include signed classes in the archive because the certificates
         // used during dump time may be different than those used during
         // runtime (due to expiration, etc).
@@ -604,13 +604,16 @@ void Dictionary::print_on(outputStream* st) const {
       Klass* e = probe->instance_klass();
       bool is_defining_class =
          (loader_data() == e->class_loader_data());
-      st->print("%4d: %s%s, loader ", index, is_defining_class ? " " : "^", e->external_name());
-      ClassLoaderData* loader_data = e->class_loader_data();
-      if (loader_data == NULL) {
+      st->print("%4d: %s%s", index, is_defining_class ? " " : "^", e->external_name());
+      ClassLoaderData* cld = e->class_loader_data();
+      if (cld == NULL) {
         // Shared class not restored yet in shared dictionary
-        st->print("<shared, not restored>");
-      } else {
-        loader_data->print_value_on(st);
+        st->print(", loader data <shared, not restored>");
+      } else if (!loader_data()->is_the_null_class_loader_data()) {
+        // Class loader output for the dictionary for the null class loader data is
+        // redundant and obvious.
+        st->print(", ");
+        cld->print_value_on(st);
       }
       st->cr();
     }

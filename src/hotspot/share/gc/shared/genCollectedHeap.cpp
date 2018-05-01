@@ -31,12 +31,12 @@
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTableRS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/gcId.hpp"
-#include "gc/shared/gcLocker.inline.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
@@ -49,9 +49,11 @@
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "memory/filemap.hpp"
+#include "memory/metaspaceCounters.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -110,11 +112,11 @@ jint GenCollectedHeap::initialize() {
 
   initialize_reserved_region((HeapWord*)heap_rs.base(), (HeapWord*)(heap_rs.base() + heap_rs.size()));
 
-  _rem_set = new CardTableRS(reserved_region());
+  _rem_set = create_rem_set(reserved_region());
   _rem_set->initialize();
-  CardTableModRefBS *bs = new CardTableModRefBS(_rem_set);
+  CardTableBarrierSet *bs = new CardTableBarrierSet(_rem_set);
   bs->initialize();
-  set_barrier_set(bs);
+  BarrierSet::set_barrier_set(bs);
 
   ReservedSpace young_rs = heap_rs.first_part(_young_gen_spec->max_size(), false, false);
   _young_gen = _young_gen_spec->init(young_rs, rem_set());
@@ -125,6 +127,10 @@ jint GenCollectedHeap::initialize() {
   clear_incremental_collection_failed();
 
   return JNI_OK;
+}
+
+CardTableRS* GenCollectedHeap::create_rem_set(const MemRegion& reserved_region) {
+  return new CardTableRS(reserved_region, false /* scan_concurrently */);
 }
 
 void GenCollectedHeap::initialize_size_policy(size_t init_eden_size,
@@ -558,7 +564,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
   ClearedAllSoftRefs casr(do_clear_all_soft_refs, soft_ref_policy());
 
-  const size_t metadata_prev_used = MetaspaceAux::used_bytes();
+  const size_t metadata_prev_used = MetaspaceUtils::used_bytes();
 
   print_heap_before_gc();
 
@@ -644,7 +650,7 @@ void GenCollectedHeap::do_collection(bool           full,
     complete = complete || collected_old;
 
     print_heap_change(young_prev_used, old_prev_used);
-    MetaspaceAux::print_metaspace_change(metadata_prev_used);
+    MetaspaceUtils::print_metaspace_change(metadata_prev_used);
 
     // Adjust generation sizes.
     if (collected_old) {
@@ -655,7 +661,7 @@ void GenCollectedHeap::do_collection(bool           full,
     if (complete) {
       // Delete metaspaces for unloaded class loaders and clean up loader_data graph
       ClassLoaderDataGraph::purge();
-      MetaspaceAux::verify_metrics();
+      MetaspaceUtils::verify_metrics();
       // Resize the metaspace capacity after full collections
       MetaspaceGC::compute_new_size();
       update_full_collections_completed();
@@ -1232,8 +1238,8 @@ void GenCollectedHeap::save_marks() {
 GenCollectedHeap* GenCollectedHeap::heap() {
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "Uninitialized access to GenCollectedHeap::heap()");
-  assert(heap->kind() == CollectedHeap::SerialHeap ||
-         heap->kind() == CollectedHeap::CMSHeap, "Not a GenCollectedHeap");
+  assert(heap->kind() == CollectedHeap::Serial ||
+         heap->kind() == CollectedHeap::CMS, "Invalid name");
   return (GenCollectedHeap*) heap;
 }
 
@@ -1258,7 +1264,7 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
 void GenCollectedHeap::print_on(outputStream* st) const {
   _young_gen->print_on(st);
   _old_gen->print_on(st);
-  MetaspaceAux::print_on(st);
+  MetaspaceUtils::print_on(st);
 }
 
 void GenCollectedHeap::gc_threads_do(ThreadClosure* tc) const {

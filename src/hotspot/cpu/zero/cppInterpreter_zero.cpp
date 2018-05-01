@@ -31,6 +31,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/cpCache.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -40,7 +41,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/orderAccess.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -274,7 +275,7 @@ int CppInterpreter::native_entry(Method* method, intptr_t UNUSED, TRAPS) {
     markOop disp = lockee->mark()->set_unlocked();
 
     monitor->lock()->set_displaced_header(disp);
-    if (Atomic::cmpxchg((markOop)monitor, lockee->mark_addr(), disp) != disp) {
+    if (lockee->cas_set_mark((markOop)monitor, disp) != disp) {
       if (thread->is_lock_owned((address) disp->clear_lock_bits())) {
         monitor->lock()->set_displaced_header(NULL);
       }

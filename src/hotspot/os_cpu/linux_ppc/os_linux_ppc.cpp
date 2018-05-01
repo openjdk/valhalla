@@ -41,7 +41,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -51,6 +51,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/timer.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
 
@@ -265,6 +266,13 @@ JVM_handle_linux_signal(int sig,
       return true;
     }
   }
+
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
+    handle_assert_poison_fault(ucVoid, info->si_addr);
+    return 1;
+  }
+#endif
 
   JavaThread* thread = NULL;
   VMThread* vmthread = NULL;

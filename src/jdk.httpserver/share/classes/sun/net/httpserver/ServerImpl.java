@@ -407,7 +407,7 @@ class ServerImpl implements TimeSource {
                                     }
                                     handle (chan, conn);
                                 } else {
-                                    assert false;
+                                    assert false : "Unexpected non-readable key:" + key;
                                 }
                             } catch (CancelledKeyException e) {
                                 handleException(key, null);
@@ -528,7 +528,7 @@ class ServerImpl implements TimeSource {
                     if (https) {
                         if (sslContext == null) {
                             logger.log (Level.WARNING,
-                                "SSL connection received. No https contxt created");
+                                "SSL connection received. No https context created");
                             throw new HttpError ("No SSL context established");
                         }
                         sslStreams = new SSLStreams (ServerImpl.this, sslContext, chan);

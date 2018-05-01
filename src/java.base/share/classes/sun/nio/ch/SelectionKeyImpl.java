@@ -33,41 +33,27 @@ import java.nio.channels.spi.AbstractSelectionKey;
 
 
 /**
- * An implementation of SelectionKey for Solaris.
+ * An implementation of SelectionKey.
  */
 
-public class SelectionKeyImpl
+public final class SelectionKeyImpl
     extends AbstractSelectionKey
 {
-
-    final SelChImpl channel;                            // package-private
-    public final SelectorImpl selector;
-
-    // Index for a pollfd array in Selector that this key is registered with
-    private int index;
+    private final SelChImpl channel;
+    private final SelectorImpl selector;
 
     private volatile int interestOps;
     private volatile int readyOps;
 
+    // registered events in kernel, used by some Selector implementations
+    private int registeredEvents;
+
+    // index of key in pollfd array, used by some Selector implementations
+    private int index;
+
     SelectionKeyImpl(SelChImpl ch, SelectorImpl sel) {
         channel = ch;
         selector = sel;
-    }
-
-    public SelectableChannel channel() {
-        return (SelectableChannel)channel;
-    }
-
-    public Selector selector() {
-        return selector;
-    }
-
-    int getIndex() {                                    // package-private
-        return index;
-    }
-
-    void setIndex(int i) {                              // package-private
-        index = i;
     }
 
     private void ensureValid() {
@@ -75,16 +61,33 @@ public class SelectionKeyImpl
             throw new CancelledKeyException();
     }
 
+    int getFDVal() {
+        return channel.getFDVal();
+    }
+
+    @Override
+    public SelectableChannel channel() {
+        return (SelectableChannel)channel;
+    }
+
+    @Override
+    public Selector selector() {
+        return selector;
+    }
+
+    @Override
     public int interestOps() {
         ensureValid();
         return interestOps;
     }
 
+    @Override
     public SelectionKey interestOps(int ops) {
         ensureValid();
         return nioInterestOps(ops);
     }
 
+    @Override
     public int readyOps() {
         ensureValid();
         return readyOps;
@@ -104,13 +107,43 @@ public class SelectionKeyImpl
     public SelectionKey nioInterestOps(int ops) {
         if ((ops & ~channel().validOps()) != 0)
             throw new IllegalArgumentException();
-        channel.translateAndSetInterestOps(ops, this);
         interestOps = ops;
+        selector.setEventOps(this);
         return this;
     }
 
     public int nioInterestOps() {
         return interestOps;
+    }
+
+    int translateInterestOps() {
+        return channel.translateInterestOps(interestOps);
+    }
+
+    boolean translateAndSetReadyOps(int ops) {
+        return channel.translateAndSetReadyOps(ops, this);
+    }
+
+    boolean translateAndUpdateReadyOps(int ops) {
+        return channel.translateAndUpdateReadyOps(ops, this);
+    }
+
+    void registeredEvents(int events) {
+        // assert Thread.holdsLock(selector);
+        this.registeredEvents = events;
+    }
+
+    int registeredEvents() {
+        // assert Thread.holdsLock(selector);
+        return registeredEvents;
+    }
+
+    int getIndex() {
+        return index;
+    }
+
+    void setIndex(int i) {
+        index = i;
     }
 
     @Override
@@ -131,4 +164,6 @@ public class SelectionKeyImpl
         return sb.toString();
     }
 
+    // used by Selector implementations to record when the key was selected
+    int lastPolled;
 }

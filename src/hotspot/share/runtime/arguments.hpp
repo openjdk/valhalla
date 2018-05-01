@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "logging/logLevel.hpp"
 #include "logging/logTag.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/flags/jvmFlag.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "runtime/perfData.hpp"
@@ -167,7 +168,7 @@ public:
 };
 
 // maintain an order of entry list of AgentLibrary
-class AgentLibraryList VALUE_OBJ_CLASS_SPEC {
+class AgentLibraryList {
  private:
   AgentLibrary*   _first;
   AgentLibrary*   _last;
@@ -358,6 +359,9 @@ class Arguments : AllStatic {
   static void set_xdebug_mode(bool arg) { _xdebug_mode = arg; }
   static bool xdebug_mode()             { return _xdebug_mode; }
 
+  // preview features
+  static bool _enable_preview;
+
   // Used to save default settings
   static bool _AlwaysCompileLoopMethods;
   static bool _UseOnStackReplacement;
@@ -410,8 +414,8 @@ class Arguments : AllStatic {
 
   // Argument parsing
   static void do_pd_flag_adjustments();
-  static bool parse_argument(const char* arg, Flag::Flags origin);
-  static bool process_argument(const char* arg, jboolean ignore_unrecognized, Flag::Flags origin);
+  static bool parse_argument(const char* arg, JVMFlag::Flags origin);
+  static bool process_argument(const char* arg, jboolean ignore_unrecognized, JVMFlag::Flags origin);
   static void process_java_launcher_argument(const char*, void*);
   static void process_java_compiler_argument(const char* arg);
   static jint parse_options_environment_variable(const char* name, ScopedVMInitArgs* vm_args);
@@ -439,7 +443,7 @@ class Arguments : AllStatic {
   static jint parse_vm_init_args(const JavaVMInitArgs *java_tool_options_args,
                                  const JavaVMInitArgs *java_options_args,
                                  const JavaVMInitArgs *cmd_line_args);
-  static jint parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_mod_javabase, Flag::Flags origin);
+  static jint parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_mod_javabase, JVMFlag::Flags origin);
   static jint finalize_vm_init_args(bool patch_mod_javabase);
   static bool is_bad_option(const JavaVMOption* option, jboolean ignore, const char* option_type);
 
@@ -539,7 +543,6 @@ class Arguments : AllStatic {
   // Adjusts the arguments after the OS have adjusted the arguments
   static jint adjust_after_os();
 
-  static void set_gc_specific_flags();
 #if INCLUDE_JVMCI
   // Check consistency of jvmci vm argument settings.
   static bool check_jvmci_args_consistency();
@@ -692,11 +695,16 @@ class Arguments : AllStatic {
   static Mode mode()                        { return _mode; }
   static bool is_interpreter_only() { return mode() == _int; }
 
+  // preview features
+  static void set_enable_preview() { _enable_preview = true; }
+  static bool enable_preview() { return _enable_preview; }
 
   // Utility: copies src into buf, replacing "%%" with "%" and "%p" with pid.
   static bool copy_expand_pid(const char* src, size_t srclen, char* buf, size_t buflen);
 
   static void check_unsupported_dumping_properties() NOT_CDS_RETURN;
+
+  static bool check_unsupported_cds_runtime_properties() NOT_CDS_RETURN0;
 
   static bool atojulong(const char *s, julong* result);
 };

@@ -146,11 +146,9 @@ public:
   template<typename IsAliveClosure, typename Closure>
   inline void weak_oops_do(IsAliveClosure* is_alive, Closure* closure);
 
-#if INCLUDE_ALL_GCS
   // Parallel iteration is for the exclusive use of the GC.
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
-#endif // INCLUDE_ALL_GCS
 
   // Block cleanup functions are for the exclusive use of the GC.
   // Both stop deleting if there is an in-progress concurrent iteration.
@@ -175,7 +173,7 @@ NOT_AIX( private: )
   class Block;                  // Forward decl; defined in .inline.hpp file.
   class BlockList;              // Forward decl for BlockEntry friend decl.
 
-  class BlockEntry VALUE_OBJ_CLASS_SPEC {
+  class BlockEntry {
     friend class BlockList;
 
     // Members are mutable, and we deal exclusively with pointers to
@@ -193,7 +191,7 @@ NOT_AIX( private: )
     ~BlockEntry();
   };
 
-  class BlockList VALUE_OBJ_CLASS_SPEC {
+  class BlockList {
     const Block* _head;
     const Block* _tail;
     const BlockEntry& (*_get_entry)(const Block& block);
@@ -241,15 +239,11 @@ private:
   void delete_empty_block(const Block& block);
   bool reduce_deferred_updates();
 
-  static void assert_at_safepoint() NOT_DEBUG_RETURN;
-
   template<typename F, typename Storage>
   static bool iterate_impl(F f, Storage* storage);
 
-#if INCLUDE_ALL_GCS
   // Implementation support for parallel iteration
   class BasicParState;
-#endif // INCLUDE_ALL_GCS
 
   // Wrapper for OopClosure-style function, so it can be used with
   // iterate.  Assume p is of type oop*.  Then cl->do_oop(p) must be a

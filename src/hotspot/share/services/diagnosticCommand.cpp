@@ -30,9 +30,11 @@
 #include "compiler/directivesParser.hpp"
 #include "gc/shared/vmGCOperations.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "runtime/globals.hpp"
+#include "runtime/flags/jvmFlag.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
 #include "services/diagnosticArgument.hpp"
@@ -44,7 +46,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
-#include "oops/objArrayOop.inline.hpp"
 
 
 static void loadAgentModule(TRAPS) {
@@ -103,6 +104,7 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeListDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeCacheDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<TouchedMethodsDCmd>(full_export, true, false));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeHeapAnalyticsDCmd>(full_export, true, false));
 
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesPrintDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesAddDCmd>(full_export, true, false));
@@ -135,9 +137,15 @@ HelpDCmd::HelpDCmd(outputStream* output, bool heap) : DCmdWithParser(output, hea
   _dcmdparser.add_dcmd_argument(&_cmd);
 };
 
+
+static int compare_strings(const char** s1, const char** s2) {
+  return ::strcmp(*s1, *s2);
+}
+
 void HelpDCmd::execute(DCmdSource source, TRAPS) {
   if (_all.value()) {
     GrowableArray<const char*>* cmd_list = DCmdFactory::DCmd_list(source);
+    cmd_list->sort(compare_strings);
     for (int i = 0; i < cmd_list->length(); i++) {
       DCmdFactory* factory = DCmdFactory::factory(source, cmd_list->at(i),
                                                   strlen(cmd_list->at(i)));
@@ -178,6 +186,7 @@ void HelpDCmd::execute(DCmdSource source, TRAPS) {
   } else {
     output()->print_cr("The following commands are available:");
     GrowableArray<const char *>* cmd_list = DCmdFactory::DCmd_list(source);
+    cmd_list->sort(compare_strings);
     for (int i = 0; i < cmd_list->length(); i++) {
       DCmdFactory* factory = DCmdFactory::factory(source, cmd_list->at(i),
                                                   strlen(cmd_list->at(i)));
@@ -222,9 +231,9 @@ PrintVMFlagsDCmd::PrintVMFlagsDCmd(outputStream* output, bool heap) :
 
 void PrintVMFlagsDCmd::execute(DCmdSource source, TRAPS) {
   if (_all.value()) {
-    CommandLineFlags::printFlags(output(), true);
+    JVMFlag::printFlags(output(), true);
   } else {
-    CommandLineFlags::printSetFlags(output());
+    JVMFlag::printSetFlags(output());
   }
 }
 
@@ -255,9 +264,9 @@ void SetVMFlagDCmd::execute(DCmdSource source, TRAPS) {
   }
 
   FormatBuffer<80> err_msg("%s", "");
-  int ret = WriteableFlags::set_flag(_flag.value(), val, Flag::MANAGEMENT, err_msg);
+  int ret = WriteableFlags::set_flag(_flag.value(), val, JVMFlag::MANAGEMENT, err_msg);
 
-  if (ret != Flag::SUCCESS) {
+  if (ret != JVMFlag::SUCCESS) {
     output()->print_cr("%s", err_msg.buffer());
   }
 }
@@ -918,6 +927,31 @@ void CodeListDCmd::execute(DCmdSource source, TRAPS) {
 void CodeCacheDCmd::execute(DCmdSource source, TRAPS) {
   CodeCache::print_layout(output());
 }
+
+//---<  BEGIN  >--- CodeHeap State Analytics.
+CodeHeapAnalyticsDCmd::CodeHeapAnalyticsDCmd(outputStream* output, bool heap) :
+                                             DCmdWithParser(output, heap),
+  _function("function", "Function to be performed (aggregate, UsedSpace, FreeSpace, MethodCount, MethodSpace, MethodAge, MethodNames, discard", "STRING", false, "all"),
+  _granularity("granularity", "Detail level - smaller value -> more detail", "STRING", false, "4096") {
+  _dcmdparser.add_dcmd_argument(&_function);
+  _dcmdparser.add_dcmd_argument(&_granularity);
+}
+
+void CodeHeapAnalyticsDCmd::execute(DCmdSource source, TRAPS) {
+  CompileBroker::print_heapinfo(output(), _function.value(), _granularity.value());
+}
+
+int CodeHeapAnalyticsDCmd::num_arguments() {
+  ResourceMark rm;
+  CodeHeapAnalyticsDCmd* dcmd = new CodeHeapAnalyticsDCmd(NULL, false);
+  if (dcmd != NULL) {
+    DCmdMark mark(dcmd);
+    return dcmd->_dcmdparser.num_arguments();
+  } else {
+    return 0;
+  }
+}
+//---<  END  >--- CodeHeap State Analytics.
 
 void CompilerDirectivesPrintDCmd::execute(DCmdSource source, TRAPS) {
   DirectivesStack::print(output());

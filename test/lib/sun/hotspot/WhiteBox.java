@@ -382,9 +382,9 @@ public class WhiteBox {
 
   // Don't use these methods directly
   // Use sun.hotspot.gc.GC class instead.
-  public native int currentGC();
-  public native int allSupportedGC();
-  public native boolean gcSelectedByErgo();
+  public native boolean isGCSupported(int name);
+  public native boolean isGCSelected(int name);
+  public native boolean isGCSelectedErgonomically();
 
   // Force Young GC
   public native void youngGC();
@@ -438,16 +438,6 @@ public class WhiteBox {
 
   // CPU features
   public native String getCPUFeatures();
-
-  // Native extensions
-  public native long getHeapUsageForContext(int context);
-  public native long getHeapRegionCountForContext(int context);
-  private native int getContextForObject0(Object obj);
-  public         int getContextForObject(Object obj) {
-    Objects.requireNonNull(obj);
-    return getContextForObject0(obj);
-  }
-  public native void printRegionInfo(int context);
 
   // VM flags
   public native boolean isConstantVMFlag(String name);

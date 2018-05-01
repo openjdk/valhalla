@@ -27,14 +27,11 @@
 
 #include "gc/shared/oopStorage.inline.hpp"
 #include "gc/shared/oopStorageParState.hpp"
-#include "memory/allocation.hpp"
 #include "metaprogramming/conditional.hpp"
 #include "utilities/macros.hpp"
 
-#if INCLUDE_ALL_GCS
-
 template<typename F>
-class OopStorage::BasicParState::AlwaysTrueFn VALUE_OBJ_CLASS_SPEC {
+class OopStorage::BasicParState::AlwaysTrueFn {
   F _f;
 
 public:
@@ -86,7 +83,5 @@ template<typename IsAliveClosure, typename Closure>
 inline void OopStorage::ParState<false, false>::weak_oops_do(IsAliveClosure* is_alive, Closure* cl) {
   this->iterate(if_alive_fn(is_alive, oop_fn(cl)));
 }
-
-#endif // INCLUDE_ALL_GCS
 
 #endif // SHARE_GC_SHARED_OOPSTORAGEPARSTATE_INLINE_HPP

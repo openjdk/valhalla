@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/rewriter.hpp"
@@ -31,6 +30,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/generateOopMap.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/handles.inline.hpp"
 
 // Computes a CPC map (new_index -> original_index) for constant pool entries
 // that are referred to by the interpreter at runtime via the constant pool cache.
@@ -111,12 +111,12 @@ void Rewriter::make_constant_pool_cache(TRAPS) {
   if (HAS_PENDING_EXCEPTION) {
     MetadataFactory::free_metadata(loader_data, cache);
     _pool->set_cache(NULL);  // so the verifier isn't confused
+  } else {
+    DEBUG_ONLY(
+    if (DumpSharedSpaces) {
+      cache->verify_just_initialized();
+    })
   }
-
-  DEBUG_ONLY(
-  if (DumpSharedSpaces) {
-    cache->verify_just_initialized();
-  })
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
 
 class Ticks;
 
-class Tickspan VALUE_OBJ_CLASS_SPEC {
+class Tickspan {
   friend class Ticks;
   friend Tickspan operator-(const Ticks& end, const Ticks& start);
 
@@ -47,13 +47,18 @@ class Tickspan VALUE_OBJ_CLASS_SPEC {
     return *this;
   }
 
+  Tickspan& operator-=(const Tickspan& rhs) {
+    _span_ticks -= rhs._span_ticks;
+    return *this;
+  }
+
   jlong value() const {
     return _span_ticks;
   }
 
 };
 
-class Ticks VALUE_OBJ_CLASS_SPEC {
+class Ticks {
  private:
   jlong _stamp_ticks;
 

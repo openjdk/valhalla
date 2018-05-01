@@ -951,8 +951,8 @@ class SocketChannelImpl
             boolean polled = false;
             try {
                 beginRead(blocking);
-                int n = Net.poll(fd, Net.POLLIN, timeout);
-                polled = (n > 0);
+                int events = Net.poll(fd, Net.POLLIN, timeout);
+                polled = (events != 0);
             } finally {
                 endRead(blocking, polled);
             }
@@ -977,10 +977,13 @@ class SocketChannelImpl
                 boolean polled = false;
                 try {
                     beginFinishConnect(blocking);
-                    int n = Net.poll(fd, Net.POLLCONN, timeout);
-                    polled = (n > 0);
+                    int events = Net.poll(fd, Net.POLLCONN, timeout);
+                    polled = (events != 0);
                 } finally {
-                    endFinishConnect(blocking, polled);
+                    // invoke endFinishConnect with completed = false so that
+                    // the state is not changed to ST_CONNECTED. The socket
+                    // adaptor will use finishConnect to finish.
+                    endFinishConnect(blocking, /*completed*/false);
                 }
                 return polled;
             } finally {
@@ -994,10 +997,9 @@ class SocketChannelImpl
     /**
      * Translates native poll revent ops into a ready operation ops
      */
-    public boolean translateReadyOps(int ops, int initialOps,
-                                     SelectionKeyImpl sk) {
-        int intOps = sk.nioInterestOps(); // Do this just once, it synchronizes
-        int oldOps = sk.nioReadyOps();
+    public boolean translateReadyOps(int ops, int initialOps, SelectionKeyImpl ski) {
+        int intOps = ski.nioInterestOps();
+        int oldOps = ski.nioReadyOps();
         int newOps = initialOps;
 
         if ((ops & Net.POLLNVAL) != 0) {
@@ -1009,7 +1011,7 @@ class SocketChannelImpl
 
         if ((ops & (Net.POLLERR | Net.POLLHUP)) != 0) {
             newOps = intOps;
-            sk.nioReadyOps(newOps);
+            ski.nioReadyOps(newOps);
             return (newOps & ~oldOps) != 0;
         }
 
@@ -1026,22 +1028,22 @@ class SocketChannelImpl
             ((intOps & SelectionKey.OP_WRITE) != 0) && connected)
             newOps |= SelectionKey.OP_WRITE;
 
-        sk.nioReadyOps(newOps);
+        ski.nioReadyOps(newOps);
         return (newOps & ~oldOps) != 0;
     }
 
-    public boolean translateAndUpdateReadyOps(int ops, SelectionKeyImpl sk) {
-        return translateReadyOps(ops, sk.nioReadyOps(), sk);
+    public boolean translateAndUpdateReadyOps(int ops, SelectionKeyImpl ski) {
+        return translateReadyOps(ops, ski.nioReadyOps(), ski);
     }
 
-    public boolean translateAndSetReadyOps(int ops, SelectionKeyImpl sk) {
-        return translateReadyOps(ops, 0, sk);
+    public boolean translateAndSetReadyOps(int ops, SelectionKeyImpl ski) {
+        return translateReadyOps(ops, 0, ski);
     }
 
     /**
      * Translates an interest operation set into a native poll event set
      */
-    public void translateAndSetInterestOps(int ops, SelectionKeyImpl sk) {
+    public int translateInterestOps(int ops) {
         int newOps = 0;
         if ((ops & SelectionKey.OP_READ) != 0)
             newOps |= Net.POLLIN;
@@ -1049,7 +1051,7 @@ class SocketChannelImpl
             newOps |= Net.POLLOUT;
         if ((ops & SelectionKey.OP_CONNECT) != 0)
             newOps |= Net.POLLCONN;
-        sk.selector.putEventOps(sk, newOps);
+        return newOps;
     }
 
     public FileDescriptor getFD() {

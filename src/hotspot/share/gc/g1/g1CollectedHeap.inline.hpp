@@ -25,10 +25,10 @@
 #ifndef SHARE_VM_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
 #define SHARE_VM_GC_G1_G1COLLECTEDHEAP_INLINE_HPP
 
+#include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1CollectorState.hpp"
 #include "gc/g1/g1ConcurrentMark.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
 #include "gc/shared/taskqueue.hpp"
@@ -47,7 +47,7 @@ G1EvacStats* G1CollectedHeap::alloc_buffer_stats(InCSetState dest) {
 }
 
 size_t G1CollectedHeap::desired_plab_sz(InCSetState dest) {
-  size_t gclab_word_size = alloc_buffer_stats(dest)->desired_plab_sz(G1CollectedHeap::heap()->workers()->active_workers());
+  size_t gclab_word_size = alloc_buffer_stats(dest)->desired_plab_sz(workers()->active_workers());
   // Prevent humongous PLAB sizes for two reasons:
   // * PLABs are allocated using a similar paths as oops, but should
   //   never be in a humongous region
@@ -82,16 +82,6 @@ inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const {
          "Address " PTR_FORMAT " is outside of the heap ranging from [" PTR_FORMAT " to " PTR_FORMAT ")",
          p2i((void*)addr), p2i(g1_reserved().start()), p2i(g1_reserved().end()));
   return _hrm.addr_to_region((HeapWord*) addr);
-}
-
-inline void G1CollectedHeap::reset_gc_time_stamp() {
-  assert_at_safepoint(true);
-  _gc_time_stamp = 0;
-}
-
-inline void G1CollectedHeap::increment_gc_time_stamp() {
-  assert_at_safepoint(true);
-  ++_gc_time_stamp;
 }
 
 inline void G1CollectedHeap::old_set_add(HeapRegion* hr) {
@@ -130,7 +120,7 @@ inline RefToScanQueue* G1CollectedHeap::task_queue(uint i) const {
   return _task_queues->queue(i);
 }
 
-inline bool G1CollectedHeap::isMarkedNext(oop obj) const {
+inline bool G1CollectedHeap::is_marked_next(oop obj) const {
   return _cm->next_mark_bitmap()->is_marked((HeapWord*)obj);
 }
 
@@ -162,17 +152,17 @@ void G1CollectedHeap::register_humongous_region_with_cset(uint index) {
 // Support for G1EvacuationFailureALot
 
 inline bool
-G1CollectedHeap::evacuation_failure_alot_for_gc_type(bool gcs_are_young,
+G1CollectedHeap::evacuation_failure_alot_for_gc_type(bool for_young_gc,
                                                      bool during_initial_mark,
-                                                     bool during_marking) {
+                                                     bool mark_or_rebuild_in_progress) {
   bool res = false;
-  if (during_marking) {
+  if (mark_or_rebuild_in_progress) {
     res |= G1EvacuationFailureALotDuringConcMark;
   }
   if (during_initial_mark) {
     res |= G1EvacuationFailureALotDuringInitialMark;
   }
-  if (gcs_are_young) {
+  if (for_young_gc) {
     res |= G1EvacuationFailureALotDuringYoungGC;
   } else {
     // GCs are mixed
@@ -196,14 +186,14 @@ G1CollectedHeap::set_evacuation_failure_alot_for_current_gc() {
     _evacuation_failure_alot_for_current_gc = (elapsed_gcs >= G1EvacuationFailureALotInterval);
 
     // Now check if G1EvacuationFailureALot is enabled for the current GC type.
-    const bool gcs_are_young = collector_state()->gcs_are_young();
-    const bool during_im = collector_state()->during_initial_mark_pause();
-    const bool during_marking = collector_state()->mark_in_progress();
+    const bool in_young_only_phase = collector_state()->in_young_only_phase();
+    const bool in_initial_mark_gc = collector_state()->in_initial_mark_gc();
+    const bool mark_or_rebuild_in_progress = collector_state()->mark_or_rebuild_in_progress();
 
     _evacuation_failure_alot_for_current_gc &=
-      evacuation_failure_alot_for_gc_type(gcs_are_young,
-                                          during_im,
-                                          during_marking);
+      evacuation_failure_alot_for_gc_type(in_young_only_phase,
+                                          in_initial_mark_gc,
+                                          mark_or_rebuild_in_progress);
   }
 }
 
@@ -252,7 +242,7 @@ inline bool G1CollectedHeap::is_obj_ill(const oop obj) const {
 }
 
 inline bool G1CollectedHeap::is_obj_dead_full(const oop obj, const HeapRegion* hr) const {
-   return !isMarkedNext(obj) && !hr->is_archive();
+   return !is_marked_next(obj) && !hr->is_archive();
 }
 
 inline bool G1CollectedHeap::is_obj_dead_full(const oop obj) const {

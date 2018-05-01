@@ -34,6 +34,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
+#include "runtime/objectMonitor.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vframe.hpp"
@@ -606,7 +607,7 @@ bool ThreadStackTrace::is_owned_monitor_on_stack(oop object) {
     for (int j = 0; j < len; j++) {
       oop monitor = locked_monitors->at(j);
       assert(monitor != NULL, "must be a Java object");
-      if (monitor == object) {
+      if (oopDesc::equals(monitor, object)) {
         found = true;
         break;
       }

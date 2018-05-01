@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,12 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
+#include "logging/log.hpp"
+#include "logging/logTag.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/fieldType.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -280,7 +283,6 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   error("AppCDS custom class loaders not supported on this platform");
 #endif
 
-  assert(UseAppCDS, "must be");
   if (!is_super_specified()) {
     error("If source location is specified, super class must be also specified");
   }
@@ -380,9 +382,7 @@ Klass* ClassListParser::load_current_class(TRAPS) {
   } else {
     // If "source:" tag is specified, all super class and super interfaces must be specified in the
     // class list file.
-    if (UseAppCDS) {
-      klass = load_class_from_source(class_name_symbol, CHECK_NULL);
-    }
+    klass = load_class_from_source(class_name_symbol, CHECK_NULL);
   }
 
   if (klass != NULL && klass->is_instance_klass() && is_id_specified()) {

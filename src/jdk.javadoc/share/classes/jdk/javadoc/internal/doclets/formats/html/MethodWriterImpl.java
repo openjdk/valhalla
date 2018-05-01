@@ -40,13 +40,12 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.MethodWriter;
-import jdk.javadoc.internal.doclets.toolkit.util.ImplementedMethods;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
+import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
 
 /**
  * Writes method documentation in HTML format.
@@ -383,13 +382,13 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
             return;
         }
         Contents contents = writer.contents;
-        ImplementedMethods implementedMethodsFinder =
-                new ImplementedMethods(method, writer.configuration);
+        VisibleMemberTable vmt = writer.configuration
+                .getVisibleMemberTable(utils.getEnclosingTypeElement(method));
         SortedSet<ExecutableElement> implementedMethods =
                 new TreeSet<>(utils.makeOverrideUseComparator());
-        implementedMethods.addAll(implementedMethodsFinder.build());
+        implementedMethods.addAll(vmt.getImplementedMethods(method));
         for (ExecutableElement implementedMeth : implementedMethods) {
-            TypeMirror intfac = implementedMethodsFinder.getMethodHolder(implementedMeth);
+            TypeMirror intfac = vmt.getImplementedMethodHolder(method, implementedMeth);
             intfac = utils.getDeclaredType(utils.getEnclosingTypeElement(method), intfac);
             Content intfaclink = writer.getLink(new LinkInfoImpl(
                     writer.configuration, LinkInfoImpl.Kind.METHOD_SPECIFIED_BY, intfac));
@@ -422,39 +421,6 @@ public class MethodWriterImpl extends AbstractExecutableMemberWriter
                     new LinkInfoImpl(configuration, LinkInfoImpl.Kind.RETURN_TYPE, type));
             htmltree.addContent(linkContent);
             htmltree.addContent(Contents.SPACE);
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected Content getNavSummaryLink(TypeElement typeElement, boolean link) {
-        if (link) {
-            if (typeElement == null) {
-                return links.createLink(
-                        SectionName.METHOD_SUMMARY,
-                        contents.navMethod);
-            } else {
-                return links.createLink(
-                        SectionName.METHODS_INHERITANCE,
-                        configuration.getClassName(typeElement), contents.navMethod);
-            }
-        } else {
-            return contents.navMethod;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void addNavDetailLink(boolean link, Content liNav) {
-        if (link) {
-            liNav.addContent(links.createLink(
-                    SectionName.METHOD_DETAIL, contents.navMethod));
-        } else {
-            liNav.addContent(contents.navMethod);
         }
     }
 }

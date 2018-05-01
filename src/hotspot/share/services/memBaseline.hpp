@@ -27,7 +27,6 @@
 
 #if INCLUDE_NMT
 
-#include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
 #include "services/mallocSiteTable.hpp"
 #include "services/mallocTracker.hpp"
@@ -42,7 +41,7 @@ typedef LinkedListIterator<ReservedMemoryRegion>         VirtualMemoryAllocation
 /*
  * Baseline a memory snapshot
  */
-class MemBaseline VALUE_OBJ_CLASS_SPEC {
+class MemBaseline {
  public:
   enum BaselineThreshold {
     SIZE_THRESHOLD = K        // Only allocation size over this threshold will be baselined.

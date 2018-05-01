@@ -228,13 +228,9 @@ public class VMProps implements Callable<Map<String, String>> {
      *    User either set G1 explicitely (-XX:+UseG1GC) or did not set any GC
      * @param map - property-value pairs
      */
-    protected void vmGC(Map<String, String> map){
-        GC currentGC = GC.current();
-        boolean isByErgo = GC.currentSetByErgo();
-        List<GC> supportedGC = GC.allSupported();
+    protected void vmGC(Map<String, String> map) {
         for (GC gc: GC.values()) {
-            boolean isSupported = supportedGC.contains(gc);
-            boolean isAcceptable = isSupported && (gc == currentGC || isByErgo);
+            boolean isAcceptable = gc.isSupported() && (gc.isSelected() || GC.isSelectedErgonomically());
             map.put("vm.gc." + gc.name(), "" + isAcceptable);
         }
     }
@@ -366,18 +362,34 @@ public class VMProps implements Callable<Map<String, String>> {
      * @return true if docker is supported in a given environment
      */
     protected String dockerSupport() {
-        // currently docker testing is only supported for Linux-x64, Linux-s390x and Linux-ppc64le
-        String arch = System.getProperty("os.arch");
-        if (! (Platform.isLinux() && (Platform.isX64() || Platform.isS390x() || arch.equals("ppc64le")))) {
-            return "false";
+        boolean isSupported = false;
+        if (Platform.isLinux()) {
+           // currently docker testing is only supported for Linux,
+           // on certain platforms
+
+           String arch = System.getProperty("os.arch");
+
+           if (Platform.isX64()) {
+              isSupported = true;
+           }
+           else if (Platform.isAArch64()) {
+              isSupported = true;
+           }
+           else if (Platform.isS390x()) {
+              isSupported = true;
+           }
+           else if (arch.equals("ppc64le")) {
+              isSupported = true;
+           }
         }
 
-        boolean isSupported;
-        try {
-            isSupported = checkDockerSupport();
-        } catch (Exception e) {
-            isSupported = false;
-        }
+        if (isSupported) {
+           try {
+              isSupported = checkDockerSupport();
+           } catch (Exception e) {
+              isSupported = false;
+           }
+         }
 
         return (isSupported) ? "true" : "false";
     }

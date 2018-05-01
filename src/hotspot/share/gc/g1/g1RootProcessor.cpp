@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,12 @@
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
-#include "gc/g1/bufferingOopClosure.hpp"
+#include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CodeBlobClosure.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1CollectorState.hpp"
 #include "gc/g1/g1GCPhaseTimes.hpp"
+#include "gc/g1/g1ParScanThreadState.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RootClosures.hpp"
 #include "gc/g1/g1RootProcessor.hpp"
@@ -72,10 +73,12 @@ G1RootProcessor::G1RootProcessor(G1CollectedHeap* g1h, uint n_workers) :
     _lock(Mutex::leaf, "G1 Root Scanning barrier lock", false, Monitor::_safepoint_check_never),
     _n_workers_discovered_strong_classes(0) {}
 
-void G1RootProcessor::evacuate_roots(G1EvacuationRootClosures* closures, uint worker_i) {
-  double ext_roots_start = os::elapsedTime();
+void G1RootProcessor::evacuate_roots(G1ParScanThreadState* pss, uint worker_i) {
   G1GCPhaseTimes* phase_times = _g1h->g1_policy()->phase_times();
 
+  G1EvacPhaseTimesTracker timer(phase_times, pss, G1GCPhaseTimes::ExtRootScan, worker_i);
+
+  G1EvacuationRootClosures* closures = pss->closures();
   process_java_roots(closures, phase_times, worker_i);
 
   // This is the point where this worker thread will not find more strong CLDs/nmethods.
@@ -117,24 +120,13 @@ void G1RootProcessor::evacuate_roots(G1EvacuationRootClosures* closures, uint wo
     assert(closures->second_pass_weak_clds() == NULL, "Should be null if not tracing metadata.");
   }
 
-  // Finish up any enqueued closure apps (attributed as object copy time).
-  closures->flush();
-
-  double obj_copy_time_sec = closures->closure_app_seconds();
-
-  phase_times->record_time_secs(G1GCPhaseTimes::ObjCopy, worker_i, obj_copy_time_sec);
-
-  double ext_root_time_sec = os::elapsedTime() - ext_roots_start - obj_copy_time_sec;
-
-  phase_times->record_time_secs(G1GCPhaseTimes::ExtRootScan, worker_i, ext_root_time_sec);
-
   // During conc marking we have to filter the per-thread SATB buffers
   // to make sure we remove any oops into the CSet (which will show up
   // as implicitly live).
   {
     G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::SATBFiltering, worker_i);
-    if (!_process_strong_tasks.is_task_claimed(G1RP_PS_filter_satb_buffers) && _g1h->collector_state()->mark_in_progress()) {
-      JavaThread::satb_mark_queue_set().filter_thread_buffers();
+    if (!_process_strong_tasks.is_task_claimed(G1RP_PS_filter_satb_buffers) && _g1h->collector_state()->mark_or_rebuild_in_progress()) {
+      G1BarrierSet::satb_mark_queue_set().filter_thread_buffers();
     }
   }
 
