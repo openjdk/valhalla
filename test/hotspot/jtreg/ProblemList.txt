@@ -70,7 +70,8 @@ gc/stress/TestJNIBlockFullGC/TestJNIBlockFullGC.java 8192647 generic-all
 #############################################################################
 
 # :hotspot_runtime
-
+runtime/appcds/redefineClass/RedefineRunningMethods_Shared.java 8199450 generic-all
+runtime/appcds/redefineClass/RedefineBasicTest.java 8199450 generic-all
 runtime/CompressedOops/UseCompressedOops.java 8079353 generic-all
 runtime/RedefineTests/RedefineFinalizer.java 8199450 generic-all
 runtime/RedefineTests/RedefineRunningMethods.java 8199450 generic-all
