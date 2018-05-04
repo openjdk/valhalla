@@ -923,11 +923,9 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertFalse(result);
     }
 
-// TODO enable and add more tests
-/*
     // Test subtype check when casting to value type
     @Test
-    public MyValue1 test13(MyValue1 vt, Object obj) {
+    public MyValue1 test30(MyValue1 vt, Object obj) {
         try {
             vt = (MyValue1)obj;
             throw new RuntimeException("ClassCastException expected");
@@ -938,12 +936,59 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test13_verifier(boolean warmup) throws Throwable {
+    public void test30_verifier(boolean warmup) throws Throwable {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 result = test13(vt, new Integer(rI));
+        MyValue1 result = test30(vt, new Integer(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
     }
-*/
+
+    @Test
+    public MyValue1 test31(MyValue1 vt) {
+        Object obj = vt;
+        vt = (MyValue1)obj;
+        return vt;
+    }
+
+    @DontCompile
+    public void test31_verifier(boolean warmup) throws Throwable {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 result = test31(vt);
+        Asserts.assertEquals(result.hash(), vt.hash());
+    }
+
+    @Test
+    public void test32(MyValue1 vt) {
+        Object obj = vt;
+        try {
+            MyValue2 vt2 = (MyValue2)obj;
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    @DontCompile
+    public void test32_verifier(boolean warmup) throws Throwable {
+        test32(valueField1);
+    }
+
+    @Test
+    public void test33(MyValue1 vt) {
+        Object obj = vt;
+        try {
+            Integer i = (Integer)obj;
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    @DontCompile
+    public void test33_verifier(boolean warmup) throws Throwable {
+        test33(valueField1);
+    }
+
+// TODO enable and add more tests
 
 // TODO Add tests for value type with non-flattened/non-flattenable value type field
 // TODO Add array tests

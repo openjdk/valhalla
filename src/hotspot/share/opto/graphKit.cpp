@@ -3116,9 +3116,14 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   const Type *toop = TypeOopPtr::make_from_klass(tk->klass());
   if (toop->isa_valuetypeptr()) {
     if (obj->is_ValueType()) {
-      return obj;
+      const TypeValueType* tvt = _gvn.type(obj)->isa_valuetype();
+      if (toop->is_valuetypeptr()->value_klass() == tvt->value_klass()) {
+        return obj;
+      } else {
+        builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(tvt->value_klass())));
+        return top();
+      }
     }
-    // TODO merge this with code below to include the necessary subtype check
     Node* null_ctl = top();
     Node* not_null_obj = null_check_common(obj, T_VALUETYPE, false, &null_ctl, false);
     if (null_ctl != top()) {
@@ -3131,8 +3136,10 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
       null_ctl = top();    // NULL path is dead
     }
     replace_in_map(obj, not_null_obj);
-    Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
-    return ValueTypeNode::make_from_oop(this, cast_obj, toop->isa_valuetypeptr()->value_klass());
+    obj = not_null_obj;
+  } else if (obj->is_ValueType()) {
+    ValueTypeBaseNode* vt = obj->as_ValueType()->allocate(this, true);
+    obj = ValueTypePtrNode::make_from_value_type(_gvn, vt->as_ValueType());
   }
 
   // Fast cutout:  Check the case that the cast is vacuously true.
@@ -3149,7 +3156,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
         // If we know the type check always succeed then we don't use
         // the profiling data at this bytecode. Don't lose it, feed it
         // to the type system as a speculative type.
-        return record_profiled_receiver_for_speculation(obj);
+        obj = record_profiled_receiver_for_speculation(obj);
+        if (toop->isa_valuetypeptr()) {
+          obj = ValueTypeNode::make_from_oop(this, obj, toop->isa_valuetypeptr()->value_klass());
+        }
+        return obj;
       case Compile::SSC_always_false:
         // It needs a null check because a null will *pass* the cast check.
         // A non-null value will always produce an exception.
@@ -3260,7 +3271,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   set_control( _gvn.transform(region) );
   record_for_igvn(region);
 
-  return record_profiled_receiver_for_speculation(res);
+  res = record_profiled_receiver_for_speculation(res);
+  if (toop->isa_valuetypeptr()) {
+    res = ValueTypeNode::make_from_oop(this, res, toop->isa_valuetypeptr()->value_klass());
+  }
+  return res;
 }
 
 //------------------------------next_monitor-----------------------------------

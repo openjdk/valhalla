@@ -1111,7 +1111,7 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* addr = in(Address);
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  if (base != NULL && base->is_ValueTypePtr()) {
+  if (base != NULL && base->is_ValueTypePtr() && offset > oopDesc::klass_offset_in_bytes()) {
     Node* value = base->as_ValueTypePtr()->field_value_by_offset((int)offset, true);
     if (value->is_ValueType()) {
       // Non-flattened value type field
