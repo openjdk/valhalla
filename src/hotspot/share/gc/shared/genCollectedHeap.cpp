@@ -30,6 +30,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
+#include "gc/serial/defNewGeneration.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTableRS.hpp"
@@ -516,7 +517,7 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     }
     gen->collect(full, clear_soft_refs, size, is_tlab);
     if (!rp->enqueuing_is_done()) {
-      ReferenceProcessorPhaseTimes pt(NULL, rp->num_q());
+      ReferenceProcessorPhaseTimes pt(NULL, rp->num_queues());
       rp->enqueue_discovered_references(NULL, &pt);
       pt.print_enqueue_phase();
     } else {
@@ -1146,11 +1147,18 @@ size_t GenCollectedHeap::unsafe_max_tlab_alloc(Thread* thr) const {
   return 0;
 }
 
-HeapWord* GenCollectedHeap::allocate_new_tlab(size_t size) {
+HeapWord* GenCollectedHeap::allocate_new_tlab(size_t min_size,
+                                              size_t requested_size,
+                                              size_t* actual_size) {
   bool gc_overhead_limit_was_exceeded;
-  return mem_allocate_work(size /* size */,
-                           true /* is_tlab */,
-                           &gc_overhead_limit_was_exceeded);
+  HeapWord* result = mem_allocate_work(requested_size /* size */,
+                                       true /* is_tlab */,
+                                       &gc_overhead_limit_was_exceeded);
+  if (result != NULL) {
+    *actual_size = requested_size;
+  }
+
+  return result;
 }
 
 // Requires "*prev_ptr" to be non-NULL.  Deletes and a block of minimal size
@@ -1243,12 +1251,14 @@ GenCollectedHeap* GenCollectedHeap::heap() {
   return (GenCollectedHeap*) heap;
 }
 
+#if INCLUDE_SERIALGC
 void GenCollectedHeap::prepare_for_compaction() {
   // Start by compacting into same gen.
   CompactPoint cp(_old_gen);
   _old_gen->prepare_for_compaction(&cp);
   _young_gen->prepare_for_compaction(&cp);
 }
+#endif // INCLUDE_SERIALGC
 
 void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
   log_debug(gc, verify)("%s", _old_gen->name());

@@ -297,7 +297,9 @@ public:
   virtual size_t tlab_capacity(Thread* thr) const;
   virtual size_t tlab_used(Thread* thr) const;
   virtual size_t unsafe_max_tlab_alloc(Thread* thr) const;
-  virtual HeapWord* allocate_new_tlab(size_t size);
+  virtual HeapWord* allocate_new_tlab(size_t min_size,
+                                      size_t requested_size,
+                                      size_t* actual_size);
 
   // The "requestor" generation is performing some garbage collection
   // action for which it would be useful to have scratch space.  The
@@ -500,10 +502,12 @@ private:
   void check_for_non_bad_heap_word_value(HeapWord* addr,
     size_t size) PRODUCT_RETURN;
 
+#if INCLUDE_SERIALGC
   // For use by mark-sweep.  As implemented, mark-sweep-compact is global
   // in an essential way: compaction is performed across generations, by
   // iterating over spaces.
   void prepare_for_compaction();
+#endif
 
   // Perform a full collection of the generations up to and including max_generation.
   // This is the low level interface used by the public versions of
