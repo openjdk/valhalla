@@ -1121,7 +1121,7 @@ void klassItable::initialize_itable(bool checkconstraints, TRAPS) {
 inline bool interface_method_needs_itable_index(Method* m) {
   if (m->is_static())           return false;   // e.g., Stream.empty
   if (m->is_initializer())      return false;   // <init> or <clinit>
-  if (m->is_private())          return false;   // requires invokeSpecial
+  if (m->is_private())          return false;   // uses direct call
   // If an interface redeclares a method from java.lang.Object,
   // it should already have a vtable index, don't touch it.
   // e.g., CharSequence.toString (from initialize_vtable)

@@ -1507,7 +1507,9 @@ void LinkResolver::runtime_resolve_interface_method(CallInfo& result,
     int index = resolved_method->vtable_index();
     log_develop_trace(itables)("  -- non itable/vtable index: %d", index);
     assert(index == Method::nonvirtual_vtable_index, "Oops hit another case!");
-    assert(resolved_method()->is_private(), "Should only have non-virtual invokeinterface for private methods!");
+    assert(resolved_method()->is_private() ||
+           (resolved_method()->is_final() && resolved_method->method_holder() == SystemDictionary::Object_klass()),
+           "Should only have non-virtual invokeinterface for private or final-Object methods!");
     assert(resolved_method()->can_be_statically_bound(), "Should only have non-virtual invokeinterface for statically bound methods!");
     // This sets up the nonvirtual form of "virtual" call (as needed for final and private methods)
     result.set_virtual(resolved_klass, resolved_klass, resolved_method, resolved_method, index, CHECK);
