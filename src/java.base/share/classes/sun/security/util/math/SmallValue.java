@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -19,23 +21,18 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#ifndef SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_EXT_HPP
-#define SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_EXT_HPP
+package sun.security.util.math;
 
-#if INCLUDE_CDS
+/**
+ * A "small" value that can be used with the field arithmetic library. This
+ * interface enables optimizations based on the fact that certain values are
+ * known to be small, where the definition of small is specific to the the
+ * arithmetic implementation.
+ */
 
-#define WK_KLASSES_DO_EXT(do_klass) \
-  /* well-known classes */                                                                                            \
-  do_klass(jdk_internal_loader_ClassLoaders_klass,         jdk_internal_loader_ClassLoaders,            Pre )         \
-  /*end*/
+public interface SmallValue {
+}
 
-#else
 
-#define WK_KLASSES_DO_EXT(do_klass)
-
-#endif // INCLUDE_CDS
-
-#endif // SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_EXT_HPP
