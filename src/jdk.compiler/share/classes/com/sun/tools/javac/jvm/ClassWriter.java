@@ -139,6 +139,10 @@ public class ClassWriter extends ClassFile {
      */
     Map<DynamicMethod.BootstrapMethodsKey, DynamicMethod.BootstrapMethodsValue> bootstrapMethods;
 
+    /** The value classes to be written, as a set.
+     */
+    Set<ClassSymbol> valueTypes;
+
     /** The log to use for verbose output.
      */
     private final Log log;
@@ -309,7 +313,7 @@ public class ClassWriter extends ClassFile {
 
         @Override
         protected void classReference(ClassSymbol c) {
-            enterInner(c);
+            enterInnerAndValueClass(c);
         }
 
         private void reset() {
@@ -435,7 +439,7 @@ public class ClassWriter extends ClassFile {
                     poolbuf.appendChar(pool.put(typeSig(c.type)));
                 } else {
                     poolbuf.appendChar(pool.put(names.fromUtf(externalize(c.flatname))));
-                    enterInner(c);
+                    enterInnerAndValueClass(c);
                 }
             } else if (value instanceof NameAndType) {
                 NameAndType nt = (NameAndType)value;
@@ -1038,7 +1042,7 @@ public class ClassWriter extends ClassFile {
 
     /** Enter an inner class into the `innerClasses' set/queue.
      */
-    void enterInner(ClassSymbol c) {
+    void enterInnerClass(ClassSymbol c) {
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
@@ -1053,7 +1057,7 @@ public class ClassWriter extends ClassFile {
             c.owner.enclClass() != null &&
             (innerClasses == null || !innerClasses.contains(c))) {
 //          log.errWriter.println("enter inner " + c);//DEBUG
-            enterInner(c.owner.enclClass());
+            enterInnerClass(c.owner.enclClass());
             pool.put(c);
             if (c.name != names.empty)
                 pool.put(c.name);
@@ -1113,6 +1117,51 @@ public class ClassWriter extends ClassFile {
             }
         }
         endAttr(alenIdx);
+    }
+
+    /** Enter a value class into the `valueTypes' set.
+     */
+    void enterValueClass(ClassSymbol c) {
+        if (c.type.isCompound()) {
+            throw new AssertionError("Unexpected intersection type: " + c.type);
+        }
+        try {
+            c.complete();
+        } catch (CompletionFailure ex) {
+            System.err.println("error: " + c + ": " + ex.getMessage());
+            throw ex;
+        }
+        if (!c.type.hasTag(CLASS)) return; // arrays
+        if (pool != null && // pool might be null if called from xClassName
+                types.isValue(c.type) &&
+                (valueTypes == null || !valueTypes.contains(c))) {
+            if (c.owner.enclClass() != null)
+                enterValueClass(c.owner.enclClass());
+            pool.put(c);
+            if (c.name != names.empty)
+                pool.put(c.name);
+            if (valueTypes == null) {
+                valueTypes = new HashSet<>();
+                pool.put(names.ValueTypes);
+            }
+            valueTypes.add(c);
+        }
+    }
+
+    /** Write "value types" attribute.
+     */
+    void writeValueTypes() {
+        int alenIdx = writeAttr(names.ValueTypes);
+        databuf.appendChar(valueTypes.size());
+        for (ClassSymbol c : valueTypes) {
+            databuf.appendChar(pool.put(c));
+        }
+        endAttr(alenIdx);
+    }
+
+    void enterInnerAndValueClass(ClassSymbol c) {
+        enterInnerClass(c);
+        enterValueClass(c);
     }
 
     /** Write field symbol, entering all references into constant pool.
@@ -1704,6 +1753,7 @@ public class ClassWriter extends ClassFile {
         innerClasses = null;
         innerClassesQueue = null;
         bootstrapMethods = new LinkedHashMap<>();
+        valueTypes = null;
 
         Type supertype = types.supertype(c.type);
         List<Type> interfaces = types.interfaces(c.type);
@@ -1744,14 +1794,14 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: enterInner((ClassSymbol)sym); break;
+            case TYP: enterInnerAndValueClass((ClassSymbol)sym); break;
             default : Assert.error();
             }
         }
 
         if (c.trans_local != null) {
             for (ClassSymbol local : c.trans_local) {
-                enterInner(local);
+                enterInnerAndValueClass(local);
             }
         }
 
@@ -1827,6 +1877,11 @@ public class ClassWriter extends ClassFile {
 
         if (!bootstrapMethods.isEmpty()) {
             writeBootstrapMethods();
+            acount++;
+        }
+
+        if (valueTypes != null) {
+            writeValueTypes();
             acount++;
         }
 

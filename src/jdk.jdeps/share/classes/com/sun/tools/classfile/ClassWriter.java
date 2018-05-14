@@ -717,6 +717,14 @@ public class ClassWriter {
             return null;
         }
 
+        @Override
+        public Void visitValueTypes(ValueTypes_attribute attr, ClassOutputStream out) {
+            out.writeShort(attr.value_class_info_index.length);
+            for (int index: attr.value_class_info_index)
+                out.writeShort(index);
+            return null;
+        }
+
         protected void writeAccessFlags(AccessFlags flags, ClassOutputStream p) {
             sharedOut.writeShort(flags.flags);
         }

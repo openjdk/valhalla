@@ -71,6 +71,7 @@ public abstract class Attribute {
     public static final String StackMap                 = "StackMap";
     public static final String StackMapTable            = "StackMapTable";
     public static final String Synthetic                = "Synthetic";
+    public static final String ValueTypes               = "ValueTypes";
 
     public static class Factory {
         public Factory() {
@@ -143,6 +144,7 @@ public abstract class Attribute {
             standardAttributes.put(StackMap,          StackMap_attribute.class);
             standardAttributes.put(StackMapTable,     StackMapTable_attribute.class);
             standardAttributes.put(Synthetic,         Synthetic_attribute.class);
+            standardAttributes.put(ValueTypes,        ValueTypes_attribute.class);
         }
 
         private Map<String,Class<? extends Attribute>> standardAttributes;
@@ -206,5 +208,6 @@ public abstract class Attribute {
         R visitStackMap(StackMap_attribute attr, P p);
         R visitStackMapTable(StackMapTable_attribute attr, P p);
         R visitSynthetic(Synthetic_attribute attr, P p);
+        R visitValueTypes(ValueTypes_attribute attr, P p);
     }
 }

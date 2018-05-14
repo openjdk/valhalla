@@ -148,6 +148,7 @@ public class Names {
     public final Name Enum;
     public final Name Exceptions;
     public final Name InnerClasses;
+    public final Name ValueTypes;
     public final Name LineNumberTable;
     public final Name LocalVariableTable;
     public final Name LocalVariableTypeTable;
@@ -313,6 +314,7 @@ public class Names {
         Enum = fromString("Enum");
         Exceptions = fromString("Exceptions");
         InnerClasses = fromString("InnerClasses");
+        ValueTypes = fromString("ValueTypes");
         LineNumberTable = fromString("LineNumberTable");
         LocalVariableTable = fromString("LocalVariableTable");
         LocalVariableTypeTable = fromString("LocalVariableTypeTable");

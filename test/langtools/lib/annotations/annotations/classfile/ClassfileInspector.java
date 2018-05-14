@@ -1351,6 +1351,11 @@ public class ClassfileInspector {
         public Void visitSynthetic(Synthetic_attribute attr, T p) {
             return null;
         }
+
+        @Override
+        public Void visitValueTypes(ValueTypes_attribute attr, T p) {
+            return null;
+        }
     }
 
     private static final Attribute.Visitor<Void, ExpectedTypeAnnotation> typeAnnoMatcher
