@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,7 +126,7 @@ public class Gen extends JCTree.Visitor {
         genCrt = options.isSet(XJCOV);
         debugCode = options.isSet("debug.code");
         allowBetterNullChecks = target.hasObjects();
-        virtualizePrivateAccess = options.isSet("virtualizePrivateAccess");
+        disableVirtualizedPrivateInvoke = options.isSet("disableVirtualizedPrivateInvoke");
         pool = new Pool(types);
 
         // ignore cldc because we cannot have both stackmap formats
@@ -141,7 +141,7 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private final boolean allowBetterNullChecks;
-    private boolean virtualizePrivateAccess;
+    private boolean disableVirtualizedPrivateInvoke;
 
     /** Code buffer, set by genMethod.
      */
@@ -2072,8 +2072,9 @@ public class Gen extends JCTree.Visitor {
 
     //where
     private boolean nonVirtualForPrivateAccess(Symbol sym) {
-        return !(virtualizePrivateAccess || target.hasVirtualPrivateInvoke()) &&
-               ((sym.flags() & PRIVATE) != 0);
+        boolean useVirtual = target.hasVirtualPrivateInvoke() &&
+                             !disableVirtualizedPrivateInvoke;
+        return !useVirtual && ((sym.flags() & PRIVATE) != 0);
     }
 
     public void visitSelect(JCFieldAccess tree) {

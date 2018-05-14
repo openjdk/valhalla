@@ -1881,8 +1881,6 @@ public class ClassWriter extends ClassFile {
         }
         poolbuf.appendChar(target.majorVersion);
 
-        // TODO: Need to skip this for Modules - not sure where
-        // that check really belongs, but this works.
         if (c.owner.kind != MDL) {
             if (target.hasNestmateAccess()) {
                 acount += writeNestMembersIfNeeded(c);
