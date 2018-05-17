@@ -327,6 +327,11 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
         } else {
           return ciObjArrayKlass::make(elem);
         }
+      } else if (k1->is_value_array_klass() || k2->is_value_array_klass()) {
+        ciKlass* elem1 = k1->as_array_klass()->element_klass();
+        ciKlass* elem2 = k2->as_array_klass()->element_klass();
+        ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
+        return ciArrayKlass::make(elem);
       } else {
         return object_klass;
       }

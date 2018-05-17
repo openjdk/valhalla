@@ -650,8 +650,7 @@ void Parse::do_call() {
           set_bci(iter().next_bci());
           set_control(null_ctl);
           replace_in_map(retnode, null());
-          Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-          uncommon_trap(reason, Deoptimization::Action_none);
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
           set_bci(iter().cur_bci());
         }
         const TypeValueTypePtr* vtptr = _gvn.type(retnode)->isa_valuetypeptr();
@@ -689,8 +688,7 @@ void Parse::do_call() {
                   set_bci(iter().next_bci());
                   set_control(null_ctl);
                   push(null());
-                  Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-                  uncommon_trap(reason, Deoptimization::Action_none);
+                  uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
                   set_bci(iter().cur_bci());
                 }
                 retnode = not_null_obj;
@@ -705,21 +703,11 @@ void Parse::do_call() {
             }
           }
         } else if (rt == T_VALUETYPE) {
-          assert(ct == T_VALUETYPE, "value type expected but got rt=%s, ct=%s", type2name(rt), type2name(ct));
-          if (rtype->is__Value()) {
-            const Type* sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
-            Node* retnode = pop();
-            Node* cast = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
-            ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, cast, ctype->as_value_klass());
-            push(vt);
-          } else {
-            assert(ctype->is__Value(), "unexpected value type klass");
-            ValueTypeNode* vt = pop()->as_ValueType();
-            vt = vt->allocate(this)->as_ValueType();
-            Node* vtptr = ValueTypePtrNode::make_from_value_type(_gvn, vt);
-            push(vtptr);
-          }
+          assert(ct == T_OBJECT, "object expected but got ct=%s", type2name(ct));
+          ValueTypeNode* vt = pop()->as_ValueType();
+          vt = vt->allocate(this)->as_ValueType();
+          Node* vtptr = ValueTypePtrNode::make_from_value_type(_gvn, vt);
+          push(vtptr);
         } else {
           assert(rt == ct, "unexpected mismatch: rt=%s, ct=%s", type2name(rt), type2name(ct));
           // push a zero; it's better than getting an oop/int mismatch

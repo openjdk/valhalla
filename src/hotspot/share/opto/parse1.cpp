@@ -619,8 +619,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
         PreserveJVMState pjvms(this);
         set_control(null_ctl);
         replace_in_map(parm, null());
-        Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-        uncommon_trap(reason, Deoptimization::Action_none);
+        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
       }
       // Value type oop may point to the TLVB
       Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ true);
@@ -1742,8 +1741,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       if (t->isa_valuetype() && !n->is_ValueType()) {
         // check for a null constant
         assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-        Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-        uncommon_trap(reason, Deoptimization::Action_none);
+        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
         assert(stopped(), "should be a dead path now");
         return;
       }
@@ -2379,7 +2377,11 @@ void Parse::return_current(Node* value) {
       ValueTypeNode* vt = value->as_ValueType()->allocate(this)->as_ValueType();
       value = ValueTypePtrNode::make_from_value_type(_gvn, vt);
     } else if (phi->bottom_type()->isa_valuetype() && !value->is_ValueType()) {
-      value = ValueTypeNode::make_from_oop(this, value, phi->bottom_type()->isa_valuetype()->value_klass());
+      assert(value->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+      inc_sp(1);
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+      dec_sp(1);
+      return;
     } else {
       // Handle returns of oop-arrays to an arrays-of-interface return
       const TypeInstPtr* phi_tip;

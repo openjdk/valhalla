@@ -59,16 +59,23 @@ void Parse::array_load(BasicType elem_type) {
   Node* idx = pop();
   Node* ary = pop();
 
+  // Handle value type arrays
+  const TypeOopPtr* elemptr = elem->make_oopptr();
   if (elem->isa_valuetype() != NULL) {
     // Load from flattened value type array
     ciValueKlass* vk = elem->is_valuetype()->value_klass();
     ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
-  }
-  if (elem->make_valuetypeptr() != NULL) {
+  } else if (elemptr != NULL && elemptr->isa_valuetypeptr() != NULL) {
+    // Load from non-flattened value type array (elements can never be null)
     elem_type = T_VALUETYPE;
+    assert(elemptr->meet(TypePtr::NULL_PTR) != elemptr, "value type array elements should never be null");
+  } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type()) {
+    // Cannot statically determine if array is flattened, emit runtime check
+    gen_flattened_array_guard(ary, 2);
   }
+
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
   Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
   push(ld);
@@ -80,13 +87,47 @@ void Parse::array_store(BasicType elem_type) {
   const Type* elem = Type::TOP;
   Node* adr = array_addressing(elem_type, 1, &elem);
   if (stopped())  return;     // guaranteed null or range check
-  Node* val = pop();
-  dec_sp(2);                  // Pop array and index
+
+  Node* val = peek(0); // Value to store
+  Node* idx = peek(1); // Index in the array
+  Node* ary = peek(2); // The array itself
+
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  if (elem == TypeInt::BOOL) {
-    elem_type = T_BOOLEAN;
+  if (elem_type != T_OBJECT) {
+    dec_sp(3); // Pop array, index and value
+    if (elem == TypeInt::BOOL) {
+      elem_type = T_BOOLEAN;
+    }
+    store_to_memory(control(), adr, val, elem_type, adr_type, StoreNode::release_if_reference(elem_type));
+    return;
   }
-  store_to_memory(control(), adr, val, elem_type, adr_type, StoreNode::release_if_reference(elem_type));
+
+  Node* cast_val = array_store_check(ary, idx, val);
+  if (stopped()) return;
+  dec_sp(3); // Pop array, index and value
+
+  // Handle value type arrays
+  const TypeValueType* vt = _gvn.type(cast_val)->isa_valuetype();
+  if (vt != NULL && vt->value_klass()->flatten_array()) {
+    // Store to flattened value type array
+    if (elem->isa_valuetype() == NULL) {
+      // Object/interface array must be flattened, cast it
+      assert(elem->make_oopptr()->can_be_value_type(), "must be object or interface array");
+      ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
+      const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+      ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
+      adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
+    }
+    cast_val->as_ValueType()->store_flattened(this, ary, adr);
+    return;
+  } else if (vt != NULL) {
+    // Store to non-flattened value type array
+    elem_type = T_VALUETYPE;
+    val = cast_val;
+  }
+
+  store_oop_to_array(control(), ary, adr, adr_type, val, elem->make_oopptr(), elem_type,
+                     StoreNode::release_if_reference(T_OBJECT));
 }
 
 
@@ -1741,29 +1782,12 @@ void Parse::do_one_bytecode() {
     push_pair(make_load(control(), a, Type::DOUBLE, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered));
     break;
   }
-  case Bytecodes::_bastore: array_store(T_BYTE);  break;
-  case Bytecodes::_castore: array_store(T_CHAR);  break;
-  case Bytecodes::_iastore: array_store(T_INT);   break;
-  case Bytecodes::_sastore: array_store(T_SHORT); break;
-  case Bytecodes::_fastore: array_store(T_FLOAT); break;
-  case Bytecodes::_aastore: {
-    d = array_addressing(T_OBJECT, 1);
-    if (stopped())  return;     // guaranteed null or range check
-    array_store_check();
-    c = pop();                  // Oop to store
-    b = pop();                  // index (already used)
-    a = pop();                  // the array itself
-    const Type* elemtype  = _gvn.type(a)->is_aryptr()->elem();
-    if (elemtype->isa_valuetype()) {
-      // Store to flattened value type array
-      c->as_ValueType()->store_flattened(this, a, d);
-    } else {
-      const TypeAryPtr* adr_type = TypeAryPtr::OOPS;
-      store_oop_to_array(control(), a, d, adr_type, c, elemtype->make_oopptr(), T_OBJECT,
-                         StoreNode::release_if_reference(T_OBJECT));
-    }
-    break;
-  }
+  case Bytecodes::_bastore: array_store(T_BYTE);   break;
+  case Bytecodes::_castore: array_store(T_CHAR);   break;
+  case Bytecodes::_iastore: array_store(T_INT);    break;
+  case Bytecodes::_sastore: array_store(T_SHORT);  break;
+  case Bytecodes::_fastore: array_store(T_FLOAT);  break;
+  case Bytecodes::_aastore: array_store(T_OBJECT); break;
   case Bytecodes::_lastore: {
     a = array_addressing(T_LONG, 2);
     if (stopped())  return;     // guaranteed null or range check

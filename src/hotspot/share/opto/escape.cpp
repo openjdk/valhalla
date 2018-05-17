@@ -1639,9 +1639,9 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
               if (missed_obj != NULL) {
                 tty->print_cr("----------field---------------------------------");
                 field->dump();
-                tty->print_cr("----------missed referernce to object-----------");
+                tty->print_cr("----------missed reference to object------------");
                 missed_obj->dump();
-                tty->print_cr("----------object referernced by init store -----");
+                tty->print_cr("----------object referenced by init store-------");
                 store->dump();
                 val->dump();
                 assert(!field->points_to(missed_obj->as_JavaObject()), "missed JavaObject reference");
@@ -2121,7 +2121,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
 
 // Returns unique pointed java object or NULL.
 JavaObjectNode* ConnectionGraph::unique_java_object(Node *n) {
-  assert(!_collecting, "should not call when contructed graph");
+  assert(!_collecting, "should not call when constructed graph");
   // If the node was created after the escape computation we can't answer.
   uint idx = n->_idx;
   if (idx >= nodes_size()) {
@@ -2258,9 +2258,7 @@ int ConnectionGraph::address_offset(Node* adr, PhaseTransform *phase) {
            "offset must be a constant or it is initialization of array");
     return offs;
   }
-  const TypePtr *t_ptr = adr_type->isa_ptr();
-  assert(t_ptr != NULL, "must be a pointer type");
-  return t_ptr->offset();
+  return adr_type->is_ptr()->flattened_offset();
 }
 
 Node* ConnectionGraph::get_addp_base(Node *addp) {
@@ -2414,7 +2412,14 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
     assert(addp->in(AddPNode::Address)->is_Proj(), "base of raw address must be result projection from allocation");
     intptr_t offs = (int)igvn->find_intptr_t_con(addp->in(AddPNode::Offset), Type::OffsetBot);
     assert(offs != Type::OffsetBot, "offset must be a constant");
-    t = base_t->add_offset(offs)->is_oopptr();
+    if (base_t->isa_aryptr() != NULL) {
+      // In the case of a flattened value type array, each field has its
+      // own slice so we need to extract the field being accessed from
+      // the address computation
+      t = base_t->isa_aryptr()->add_field_offset_and_offset(offs)->is_oopptr();
+    } else {
+      t = base_t->add_offset(offs)->is_oopptr();
+    }
   }
   int inst_id = base_t->instance_id();
   assert(!t->is_known_instance() || t->instance_id() == inst_id,
@@ -2430,7 +2435,7 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
   // of the allocation type was not propagated to the subclass type check.
   //
   // Or the type 't' could be not related to 'base_t' at all.
-  // It could happened when CHA type is different from MDO type on a dead path
+  // It could happen when CHA type is different from MDO type on a dead path
   // (for example, from instanceof check) which is not collapsed during parsing.
   //
   // Do nothing for such AddP node and don't process its users since

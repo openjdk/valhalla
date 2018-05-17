@@ -23,6 +23,7 @@
 
 package compiler.valhalla.valuetypes;
 
+import java.lang.reflect.Array;
 import jdk.test.lib.Asserts;
 
 /*
@@ -33,8 +34,32 @@ import jdk.test.lib.Asserts;
  * @compile -XDenableValueTypes TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
- *                               compiler.valhalla.valuetypes.TestIntrinsics
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
+ *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   compiler.valhalla.valuetypes.TestIntrinsics
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-UseCompressedOops
+ *                   -XX:+EnableValhalla -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   compiler.valhalla.valuetypes.TestIntrinsics
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-UseCompressedOops
+ *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
+ *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestIntrinsics
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
+ *                   -XX:+EnableValhalla -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
+ *                   -XX:-MonomorphicArrayCheck
+ *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestIntrinsics
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
+ *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   -XX:-MonomorphicArrayCheck
+ *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestIntrinsics
  */
 public class TestIntrinsics extends ValueTypeTest {
 
@@ -96,6 +121,8 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertTrue(test4(), "test4 failed");
     }
 
+    // TODO re-enable once Object method support is implemented
+/*
     // Test toString() method
     @Test(failOn = ALLOC + STORE + LOAD)
     public String test5(MyValue1 v) {
@@ -119,4 +146,24 @@ public class TestIntrinsics extends ValueTypeTest {
         MyValue1 v = MyValue1.createDefaultInline();
         test6(v);
     }
+*/
+
+    // Test default value type array creation via reflection
+    @Test()
+    public void test7(Class<?> componentType, int len, long hash) {
+        Object[] va = (Object[])Array.newInstance(componentType, len);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
+        }
+    }
+
+    @DontCompile
+    public void test7_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 42;
+        long hash = MyValue1.createDefaultDontInline().hashPrimitive();
+        test7(MyValue1.class, len, hash);
+    }
+
+    // TODO add tests for _identityHashCode,_clone,_copyOf,_copyOfRange,_arraycopy,_allocateUninitializedArray, ...
+
 }

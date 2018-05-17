@@ -750,6 +750,9 @@ public:
   bool ary_must_be_exact() const;  // true if arrays of such are never generic
   virtual const Type* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
+
+  bool is_value_type_array() const { return _elem->isa_valuetype() != NULL; }
+
 #ifdef ASSERT
   // One type is interface, the other is oop
   virtual bool interface_vs_oop(const Type *t) const;
@@ -925,6 +928,8 @@ public:
 
   Offset xadd_offset(intptr_t offset) const;
   virtual const TypePtr *add_offset( intptr_t offset ) const;
+  virtual const int flattened_offset() const { return offset(); }
+
   virtual bool eq(const Type *t) const;
   virtual int  hash() const;             // Type specific hashing
 
@@ -1086,6 +1091,8 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
+  bool can_be_value_type() const { return EnableValhalla && (_base == ValueTypePtr || _klass->is_java_lang_Object() || _klass->is_interface()); }
+
   virtual intptr_t get_con() const;
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
@@ -1098,7 +1105,6 @@ public:
   const TypeKlassPtr* as_klass_type() const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
-  virtual const int flattened_offset() const;
 
   // Speculative type helper methods.
   virtual const Type* remove_speculative() const;

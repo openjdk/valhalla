@@ -464,7 +464,7 @@ class Parse : public GraphKit {
   void do_one_bytecode();
 
   // helper function to generate array store check
-  void array_store_check();
+  Node* array_store_check(Node* ary, Node* idx, Node* obj);
   // Helper function to generate array load
   void array_load(BasicType etype);
   // Helper function to generate array store

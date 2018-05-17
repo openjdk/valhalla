@@ -366,7 +366,7 @@ static Node *scan_mem_chain(Node *mem, int alias_idx, int offset, Node *start_me
       int adr_idx = phase->C->get_alias_index(atype);
       if (adr_idx == alias_idx) {
         assert(atype->isa_oopptr(), "address type must be oopptr");
-        int adr_offset = atype->is_oopptr()->flattened_offset();
+        int adr_offset = atype->flattened_offset();
         uint adr_iid = atype->is_oopptr()->instance_id();
         // Array elements references have the same alias_idx
         // but different offset and different instance_id.
@@ -691,13 +691,17 @@ Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* 
         bt = T_NARROWOOP;
       }
       value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
-      assert(value != NULL, "field value should not be null");
-      if (ft->isa_narrowoop()) {
+      if (value != NULL && ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
         value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
       }
     }
-    vt->set_field_value(i, value);
+    if (value != NULL) {
+      vt->set_field_value(i, value);
+    } else {
+      // We might have reached the TrackedInitializationLimit
+      return NULL;
+    }
   }
   return vt;
 }

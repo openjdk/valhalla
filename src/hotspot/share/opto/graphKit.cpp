@@ -1529,7 +1529,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened (but flattenable) value type from memory
     // We need to return the default value type if the field is null
-    ld = ValueTypeNode::make_from_oop(this, ld, t->make_ptr()->is_valuetypeptr()->value_klass(), true /* null check */);
+    ld = ValueTypeNode::make_from_oop(this, ld, t->make_valuetypeptr()->value_klass(), true /* null check */);
   } else if (bt == T_VALUETYPEPTR) {
     // Loading non-flattenable value type from memory
     inc_sp(1);
@@ -1540,11 +1540,10 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
       PreserveJVMState pjvms(this);
       set_control(null_ctl);
       replace_in_map(ld, null());
-      Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-      uncommon_trap(reason, Deoptimization::Action_none);
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
     }
     dec_sp(1);
-    ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_ptr()->is_valuetypeptr()->value_klass());
+    ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_valuetypeptr()->value_klass());
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
@@ -3131,8 +3130,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
       PreserveJVMState pjvms(this);
       set_control(null_ctl);
       replace_in_map(obj, null());
-      Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-      uncommon_trap(reason, Deoptimization::Action_none);
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
       null_ctl = top();    // NULL path is dead
     }
     replace_in_map(obj, not_null_obj);
@@ -3276,6 +3274,73 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
     res = ValueTypeNode::make_from_oop(this, res, toop->isa_valuetypeptr()->value_klass());
   }
   return res;
+}
+
+// Deoptimize if 'ary' is flattened or if 'obj' is null and 'ary' is a value type array
+void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass) {
+  assert(EnableValhalla, "should only be used if value types are enabled");
+  if (elem_klass == NULL) {
+    // Load array element klass
+    Node* kls = load_object_klass(ary);
+    Node* k_adr = basic_plus_adr(kls, kls, in_bytes(ArrayKlass::element_klass_offset()));
+    elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
+  }
+  // Check if element is a value type
+  Node* flags_addr = basic_plus_adr(elem_klass, in_bytes(Klass::access_flags_offset()));
+  Node* flags = make_load(NULL, flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
+  Node* is_value_elem = _gvn.transform(new AndINode(flags, intcon(JVM_ACC_VALUE)));
+
+  const Type* objtype = _gvn.type(obj);
+  if (objtype == TypePtr::NULL_PTR) {
+    // Object is always null, check if array is a value type array
+    Node* cmp = _gvn.transform(new CmpINode(is_value_elem, intcon(0)));
+    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    { BuildCutout unless(this, bol, PROB_MAX);
+      // TODO just deoptimize for now if we store null to a value type array
+      uncommon_trap(Deoptimization::Reason_array_check,
+                    Deoptimization::Action_none);
+    }
+  } else {
+    // Check if array is flattened or if we are storing null to a value type array
+    // TODO can we merge these checks?
+    gen_flattened_array_guard(ary);
+    if (objtype->meet(TypePtr::NULL_PTR) == objtype) {
+      // Check if (is_value_elem && obj_is_null) <=> (!is_value_elem | !obj_is_null == 0)
+      // TODO what if we later figure out that obj is never null?
+      Node* not_value = _gvn.transform(new XorINode(is_value_elem, intcon(JVM_ACC_VALUE)));
+      not_value = _gvn.transform(new ConvI2LNode(not_value));
+      Node* not_null = _gvn.transform(new CastP2XNode(NULL, obj));
+      Node* both = _gvn.transform(new OrLNode(not_null, not_value));
+      Node* cmp  = _gvn.transform(new CmpLNode(both, longcon(0)));
+      Node* bol  = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+      { BuildCutout unless(this, bol, PROB_MAX);
+        // TODO just deoptimize for now if we store null to a value type array
+        uncommon_trap(Deoptimization::Reason_array_check,
+                      Deoptimization::Action_none);
+      }
+    }
+  }
+}
+
+// Deoptimize if 'ary' is a flattened value type array
+void GraphKit::gen_flattened_array_guard(Node* ary, int nargs) {
+  assert(EnableValhalla, "should only be used if value types are enabled");
+  if (ValueArrayFlatten) {
+    // Cannot statically determine if array is flattened, emit runtime check
+    Node* kls = load_object_klass(ary);
+    Node* lhp = basic_plus_adr(kls, kls, in_bytes(Klass::layout_helper_offset()));
+    Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
+    layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+    Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(Klass::_lh_array_tag_vt_value)));
+    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+
+    { BuildCutout unless(this, bol, PROB_MAX);
+      // TODO just deoptimize for now if value type array is flattened
+      inc_sp(nargs);
+      uncommon_trap(Deoptimization::Reason_array_check,
+                    Deoptimization::Action_none);
+    }
+  }
 }
 
 //------------------------------next_monitor-----------------------------------

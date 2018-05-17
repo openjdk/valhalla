@@ -296,6 +296,7 @@ const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInsta
     adr_type = ary_type->with_field_offset(offset)->add_offset(Type::OffsetBot);
   } else {
     ciField* field = holder->get_field_by_offset(offset, false);
+    assert(field != NULL, "field not found");
     adr_type = gvn.C->alias_type(field)->adr_type();
   }
   return adr_type;
@@ -319,6 +320,7 @@ void ValueTypeBaseNode::load(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* base, N
         const TypeOopPtr* oop_ptr = base->bottom_type()->isa_oopptr();
         ciObject* constant_oop = oop_ptr->const_oop();
         ciField* field = holder->get_field_by_offset(offset, false);
+        assert(field != NULL, "field not found");
         ciConstant constant = constant_oop->as_instance()->field_value(field);
         con_type = Type::make_from_constant(constant, /*require_const=*/ true);
       }
@@ -786,8 +788,27 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
         Node* user = fast_out(i);
         AllocateNode* alloc = user->isa_Allocate();
         if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
-          // Replace allocation by pre-allocated oop
+          // Found an allocation of the default value type.
+          // If the code in StoreNode::Identity() that removes useless stores was not yet
+          // executed or ReduceFieldZeroing is disabled, there can still be initializing
+          // stores (only zero-type stores, because value types are immutable).
           Node* res = alloc->result_cast();
+          for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
+            AddPNode* addp = res->fast_out(j)->isa_AddP();
+            if (addp != NULL) {
+              for (DUIterator_Fast kmax, k = addp->fast_outs(kmax); k < kmax; k++) {
+                StoreNode* store = addp->fast_out(k)->isa_Store();
+                if (store != NULL && store->outcnt() != 0) {
+                  // Remove the useless store
+                  Node* mem = store->in(MemNode::Memory);
+                  Node* val = store->in(MemNode::ValueIn);
+                  assert(igvn->type(val)->is_zero_type(), "must be zero-type store");
+                  igvn->replace_in_uses(store, mem);
+                }
+              }
+            }
+          }
+          // Replace allocation by pre-allocated oop
           Node* oop = load_default_oop(*phase, value_klass());
           igvn->replace_node(res, oop);
         } else if (user->is_ValueType()) {

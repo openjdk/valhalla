@@ -901,6 +901,15 @@ const Type *Type::meet_helper(const Type *t, bool include_speculative) const {
   const Type *t2t    = dual_join->xmeet(t->_dual);
   const Type *t2this = dual_join->xmeet(this_t->_dual);
 
+  // TODO a value type (array) meeting an oop is not symmetric
+  if (_base == ValueType || t->_base == ValueType ||
+      (isa_aryptr() && is_aryptr()->ary()->is_value_type_array()) ||
+      (t->isa_aryptr() && t->is_aryptr()->ary()->is_value_type_array()) ||
+      (_base == Array && ((TypeAry*)this)->is_value_type_array()) ||
+      (t->_base == Array && ((TypeAry*)t)->is_value_type_array())) {
+    return mt;
+  }
+
   // Interface meet Oop is Not Symmetric:
   // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
@@ -2405,11 +2414,41 @@ const Type* TypeValueType::xmeet(const Type* t) const {
   // Current "this->_base" is ValueType
   switch (t->base()) {          // switch on original type
 
-  case Top:
-    break;
-
+  case Int:
+  case Long:
+  case FloatTop:
+  case FloatCon:
+  case FloatBot:
+  case DoubleTop:
+  case DoubleCon:
+  case DoubleBot:
+  case NarrowKlass:
   case Bottom:
-    return t;
+    return Type::BOTTOM;
+
+  case OopPtr:
+  case MetadataPtr:
+  case KlassPtr:
+  case RawPtr:
+    return TypePtr::BOTTOM;
+
+  case Top:
+    return this;
+
+  case NarrowOop: {
+    return t->make_ptr()->xmeet(this)->make_narrowoop();
+  }
+
+  case AryPtr:
+  case InstPtr:
+  case ValueTypePtr: {
+    return t->xmeet(this);
+  }
+
+  case ValueType: {
+    // All value types inherit from Object
+    return TypeInstPtr::NOTNULL;
+  }
 
   default:                      // All else is a mistake
     typerr(t);
@@ -2420,8 +2459,7 @@ const Type* TypeValueType::xmeet(const Type* t) const {
 
 //------------------------------xdual------------------------------------------
 const Type* TypeValueType::xdual() const {
-  // FIXME
-  return new TypeValueType(_vk);
+  return this;
 }
 
 //------------------------------eq---------------------------------------------
@@ -2440,14 +2478,12 @@ int TypeValueType::hash(void) const {
 //------------------------------singleton--------------------------------------
 // TRUE if Type is a singleton type, FALSE otherwise. Singletons are simple constants.
 bool TypeValueType::singleton(void) const {
-  // FIXME
   return false;
 }
 
 //------------------------------empty------------------------------------------
 // TRUE if Type is a type with no values, FALSE otherwise.
 bool TypeValueType::empty(void) const {
-  // FIXME
   return false;
 }
 
@@ -3627,10 +3663,6 @@ const TypePtr *TypeOopPtr::add_offset(intptr_t offset) const {
   return make(_ptr, xadd_offset(offset), _instance_id, add_offset_speculative(offset), _inline_depth);
 }
 
-const int TypeOopPtr::flattened_offset() const {
-  return offset();
-}
-
 /**
  * Return same type without a speculative part
  */
@@ -4163,7 +4195,8 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
     return make(ptr, k, false, NULL, off, instance_id, speculative, depth);
   } // End of case InstPtr
 
-  case ValueTypePtr: {                // All value types inherit from Object class
+  case ValueTypePtr: {
+    // All value types inherit from Object
     const TypeValueTypePtr* tp = t->is_valuetypeptr();
     Offset offset = meet_offset(tp->offset());
     PTR ptr = meet_ptr(tp->ptr());
@@ -4208,6 +4241,11 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       return make(ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
     default: typerr(t);
     }
+  }
+
+  case ValueType: {
+    // All value types inherit from Object
+    return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
   }
 
   } // End of switch
@@ -4703,6 +4741,22 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
     default: typerr(t);
     }
   }
+
+  case ValueType: {
+    // All value types inherit from Object
+    return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+  }
+
+  case ValueTypePtr: {
+    const TypeValueTypePtr* tp = t->is_valuetypeptr();
+    Offset offset = meet_offset(tp->offset());
+    PTR ptr = meet_ptr(tp->ptr());
+    int instance_id = meet_instance_id(tp->instance_id());
+    const TypePtr* speculative = xmeet_speculative(tp);
+    int depth = meet_inline_depth(tp->inline_depth());
+    return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
+  }
+
   }
   return this;                  // Lint noise
 }
@@ -4853,7 +4907,8 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
 // Return offset incremented by field_offset for flattened value type arrays
 const int TypeAryPtr::flattened_offset() const {
   int offset = _offset.get();
-  if (_field_offset != Offset::bottom && _field_offset != Offset::top) {
+  if (offset != Type::OffsetBot && offset != Type::OffsetTop &&
+      _field_offset != Offset::bottom && _field_offset != Offset::top) {
     offset += _field_offset.get();
   }
   return offset;
@@ -4909,7 +4964,6 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
     case MetadataPtr:
     case KlassPtr:
     case RawPtr:
-    case AryPtr:
       return TypePtr::BOTTOM;
 
     case Top:
@@ -4972,20 +5026,12 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       int depth = meet_inline_depth(tp->inline_depth());
       // Compute constant oop
       ciObject* o = NULL;
-      ciObject* this_oop  = const_oop();
+      ciObject* this_oop = const_oop();
       ciObject* tp_oop = tp->const_oop();
       ciKlass* klass = NULL;
       if (_klass != tp->_klass) {
-        assert(is__Value() || tp->is__Value(), "impossible meet");
-        if (above_centerline(ptr)) {
-          klass = _klass;
-        } else if (above_centerline(this->_ptr) && !above_centerline(tp->_ptr)) {
-          klass = tp->_klass;
-        } else if (above_centerline(tp->_ptr) && !above_centerline(this->_ptr)) {
-          klass = _klass;
-        } else {
-          klass = tp->_klass;
-        }
+        // All value types inherit from Object
+        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, o, offset, instance_id, speculative, depth);
       } else {
         klass = _klass;
       }
@@ -5004,8 +5050,8 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       return make(ptr, klass->as_value_klass(), o, offset, instance_id, speculative, depth);
     }
 
-    // All value types inherit from Object class
     case InstPtr: {
+      // All value types inherit from Object
       const TypeInstPtr* tp = t->is_instptr();
       Offset offset = meet_offset(tp->offset());
       PTR ptr = meet_ptr(tp->ptr());
@@ -5051,6 +5097,22 @@ const Type* TypeValueTypePtr::xmeet_helper(const Type* t) const {
       default: typerr(t);
       }
     }
+
+    case ValueType: {
+      // All value types inherit from Object
+      return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+    }
+
+    case AryPtr: {
+      const TypeAryPtr* tp = t->is_aryptr();
+      Offset offset = meet_offset(tp->offset());
+      PTR ptr = meet_ptr(tp->ptr());
+      int instance_id = meet_instance_id(tp->instance_id());
+      const TypePtr* speculative = xmeet_speculative(tp);
+      int depth = meet_inline_depth(tp->inline_depth());
+      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
+    }
+
     }
   return this;
 }
@@ -5180,11 +5242,13 @@ const Type *TypeNarrowPtr::xmeet( const Type *t ) const {
   case KlassPtr:
   case NarrowOop:
   case NarrowKlass:
-
   case Bottom:                  // Ye Olde Default
     return Type::BOTTOM;
   case Top:
     return this;
+
+  case ValueType:
+    return t->xmeet(this);
 
   default:                      // All else is a mistake
     typerr(t);

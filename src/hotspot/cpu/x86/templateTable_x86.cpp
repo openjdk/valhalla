@@ -877,7 +877,7 @@ void TemplateTable::aaload() {
   Register index = rax;
 
   index_check(array, index); // kills rbx
-  if (EnableValhalla) {
+  if (ValueArrayFlatten) {
     Label is_flat_array, done;
     __ test_flat_array_oop(array, rbx, is_flat_array);
     __ load_heap_oop(rax, Address(array, index,
@@ -1183,7 +1183,7 @@ void TemplateTable::aastore() {
 
   // Move array class to rdi
   __ load_klass(rdi, rdx);
-  if (EnableValhalla) {
+  if (ValueArrayFlatten) {
     __ test_flat_array_klass(rdi, rbx, is_flat_array);
   }
 

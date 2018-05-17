@@ -57,13 +57,15 @@ import jdk.test.lib.Asserts;
  *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestLWorld
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
- *                   -XX:+EnableValhalla -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
+ *                   -XX:+EnableValhalla -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
+ *                   -XX:-MonomorphicArrayCheck
  *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestLWorld
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
+ *                   -XX:-MonomorphicArrayCheck
  *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestLWorld
  */
 public class TestLWorld extends ValueTypeTest {
@@ -75,12 +77,11 @@ public class TestLWorld extends ValueTypeTest {
 
     // Helper methods
 
-    protected long hash() {
-        return hash(rI, rL);
-    }
+    private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+    private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, true);
 
-    protected long hash(int x, long y) {
-        return MyValue1.createWithFieldsInline(x, y).hash();
+    protected long hash() {
+        return testValue1.hash();
     }
 
     // Test passing a value type as an Object
@@ -106,7 +107,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @Test()
     public MyValue1 test1() {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 vt = testValue1;
         vt = (MyValue1)test1_dontinline1(vt);
         vt =           test1_dontinline2(vt);
         vt = (MyValue1)test1_inline1(vt);
@@ -127,14 +128,14 @@ public class TestLWorld extends ValueTypeTest {
     Object objectField5 = null;
     Object objectField6 = null;
 
-    __Flattenable  MyValue1 valueField1 = MyValue1.createWithFieldsInline(rI, rL);
-    __Flattenable  MyValue1 valueField2 = MyValue1.createWithFieldsInline(rI, rL);
-    __NotFlattened MyValue1 valueField3 = MyValue1.createWithFieldsInline(rI, rL);
+    __Flattenable  MyValue1 valueField1 = testValue1;
+    __Flattenable  MyValue1 valueField2 = testValue1;
+    __NotFlattened MyValue1 valueField3 = testValue1;
     __Flattenable  MyValue1 valueField4;
     __NotFlattened MyValue1 valueField5;
 
-    static __NotFlattened MyValue1 staticValueField1 = MyValue1.createWithFieldsInline(rI, rL);
-    static __Flattenable  MyValue1 staticValueField2 = MyValue1.createWithFieldsInline(rI, rL);
+    static __NotFlattened MyValue1 staticValueField1 = testValue1;
+    static __Flattenable  MyValue1 staticValueField2 = testValue1;
     static __Flattenable  MyValue1 staticValueField3;
     static __NotFlattened MyValue1 staticValueField4;
 
@@ -152,7 +153,7 @@ public class TestLWorld extends ValueTypeTest {
     public long test2(MyValue1 vt1, Object vt2) {
         objectField1 = vt1;
         objectField2 = (MyValue1)vt2;
-        objectField3 = MyValue1.createWithFieldsInline(rI, rL);
+        objectField3 = testValue1;
         objectField4 = MyValue1.createWithFieldsDontInline(rI, rL);
         objectField5 = valueField1;
         objectField6 = valueField3;
@@ -174,7 +175,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test2_verifier(boolean warmup) {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         long result = test2(vt, vt);
         Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
@@ -196,6 +197,10 @@ public class TestLWorld extends ValueTypeTest {
             res = valueField1;
         } else if (state == 5) {
             res = null;
+        } else if (state == 6) {
+            res = MyValue2.createWithFieldsInline(rI, true);
+        } else if (state == 7) {
+            res = testValue2;
         }
         return res;
     }
@@ -216,6 +221,10 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(((MyValue1)result).hash(), hash());
         result = test3(5);
         Asserts.assertEQ(result, null);
+        result = test3(6);
+        Asserts.assertEQ(((MyValue2)result).hash(), testValue2.hash());
+        result = test3(7);
+        Asserts.assertEQ(((MyValue2)result).hash(), testValue2.hash());
     }
 
     // Test merging value types and objects in loops
@@ -327,7 +336,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test8_verifier(boolean warmup) throws Throwable {
+    public void test8_verifier(boolean warmup) {
         long result = test8(nullField);
         Asserts.assertEquals(result, 0L);
     }
@@ -348,7 +357,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test9_verifier(boolean warmup) throws Throwable {
+    public void test9_verifier(boolean warmup) {
         long result = test9();
         Asserts.assertEquals(result, 0L);
     }
@@ -364,7 +373,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test10_verifier(boolean warmup) throws Throwable {
+    public void test10_verifier(boolean warmup) {
         test10();
     }
 
@@ -385,7 +394,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test11_verifier(boolean warmup) throws Throwable {
+    public void test11_verifier(boolean warmup) {
         MyValue1 vt = test11(nullField);
         Asserts.assertEquals((Object)vt, null);
     }
@@ -413,7 +422,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test12_verifier(boolean warmup) throws Throwable {
+    public void test12_verifier(boolean warmup) {
         MyValue1 vt = test12(null);
         Asserts.assertEquals(vt.hash(), hash());
     }
@@ -474,7 +483,7 @@ public class TestLWorld extends ValueTypeTest {
 
     // merge of 2 values, one being null
     @Test
-    public void test15(boolean flag1) throws Throwable {
+    public void test15(boolean flag1) {
         MyValue1 v;
         if (flag1) {
             v = valueField1;
@@ -485,7 +494,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test15_verifier(boolean warmup) throws Throwable {
+    public void test15_verifier(boolean warmup) {
         test15(true);
         try {
             test15(false);
@@ -535,7 +544,7 @@ public class TestLWorld extends ValueTypeTest {
 
     // merge of value and non value
     @Test
-    public Object test17(boolean flag) throws Throwable {
+    public Object test17(boolean flag) {
         Object res = null;
         if (flag) {
             res = valueField1;
@@ -546,13 +555,13 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test17_verifier(boolean warmup) throws Throwable {
+    public void test17_verifier(boolean warmup) {
         test17(true);
         test17(false);
     }
 
     @Test
-    public Object test18(boolean flag) throws Throwable {
+    public Object test18(boolean flag) {
         Object res = null;
         if (flag) {
             res = objectField1;
@@ -563,9 +572,9 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test18_verifier(boolean warmup) throws Throwable {
-        test17(true);
-        test17(false);
+    public void test18_verifier(boolean warmup) {
+        test18(true);
+        test18(false);
     }
 
     // null constant
@@ -618,7 +627,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test20_verifier(boolean warmup) throws Throwable {
+    public void test20_verifier(boolean warmup) {
         test20();
     }
 
@@ -639,7 +648,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test21_verifier(boolean warmup) throws Throwable {
+    public void test21_verifier(boolean warmup) {
         test21(true);
         test21(false);
     }
@@ -659,7 +668,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test22_verifier(boolean warmup) throws Throwable {
+    public void test22_verifier(boolean warmup) {
         try {
             test_22_cnt = 0;
             test22();
@@ -703,7 +712,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test23_verifier(boolean warmup) throws Throwable {
+    public void test23_verifier(boolean warmup) {
         A b = new B();
         A c = new C();
         A d = new D();
@@ -809,7 +818,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test25_verifier(boolean warmup) {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         long result = test25(vt, vt);
         Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
@@ -936,8 +945,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test30_verifier(boolean warmup) throws Throwable {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+    public void test30_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
         MyValue1 result = test30(vt, new Integer(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
     }
@@ -950,8 +959,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test31_verifier(boolean warmup) throws Throwable {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+    public void test31_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
         MyValue1 result = test31(vt);
         Asserts.assertEquals(result.hash(), vt.hash());
     }
@@ -968,7 +977,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test32_verifier(boolean warmup) throws Throwable {
+    public void test32_verifier(boolean warmup) {
         test32(valueField1);
     }
 
@@ -984,13 +993,745 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test33_verifier(boolean warmup) throws Throwable {
+    public void test33_verifier(boolean warmup) {
         test33(valueField1);
     }
 
-// TODO enable and add more tests
 
-// TODO Add tests for value type with non-flattened/non-flattenable value type field
-// TODO Add array tests
+    // Array tests
 
+    private static final MyValue1[] testValue1Array = new MyValue1[] {testValue1,
+                                                                      testValue1,
+                                                                      testValue1};
+
+    private static final MyValue1[][] testValue1Array2 = new MyValue1[][] {testValue1Array,
+                                                                           testValue1Array,
+                                                                           testValue1Array};
+
+    private static final MyValue2[] testValue2Array = new MyValue2[] {testValue2,
+                                                                      testValue2,
+                                                                      testValue2};
+
+    private static final Integer[] testIntegerArray = new Integer[42];
+
+    // Test load from (flattened) value type array disguised as object array
+    @Test()
+    public Object test34(Object[] oa, int index) {
+        return oa[index];
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) {
+        MyValue1 result = (MyValue1)test34(testValue1Array, Math.abs(rI) % 3);
+        Asserts.assertEQ(result.hash(), hash());
+    }
+
+    // Test load from (flattened) value type array disguised as interface array
+    @Test()
+    public Object test35(MyInterface[] ia, int index) {
+        return ia[index];
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        MyValue1 result = (MyValue1)test35(testValue1Array, Math.abs(rI) % 3);
+        Asserts.assertEQ(result.hash(), hash());
+    }
+
+    // Test value store to (flattened) value type array disguised as object array
+
+    @ForceInline
+    public void test36_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test36(Object[] oa, MyValue1 vt, int index) {
+        test36_inline(oa, vt, index);
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test36(testValue1Array, vt, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
+        testValue1Array[index] = testValue1;
+        try {
+            test36(testValue2Array, vt, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+    }
+
+    @ForceInline
+    public void test37_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test37(Object[] oa, MyValue1 vt, int index) {
+        test37_inline(oa, vt, index);
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test37(testIntegerArray, testValue1, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+    }
+
+    @ForceInline
+    public void test38_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test38(Object[] oa, MyValue1 vt, int index) {
+        test38_inline(oa, vt, index);
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test38(null, testValue1, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // Test value store to (flattened) value type array disguised as interface array
+
+    @ForceInline
+    public void test39_inline(MyInterface[] ia, MyInterface i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test39(MyInterface[] ia, MyValue1 vt, int index) {
+      test39_inline(ia, vt, index);
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test39(testValue1Array, vt, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
+        testValue1Array[index] = testValue1;
+        try {
+            test39(testValue2Array, vt, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+    }
+
+    @ForceInline
+    public void test40_inline(MyInterface[] ia, MyInterface i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test40(MyInterface[] ia, MyValue1 vt, int index) {
+        test40_inline(ia, vt, index);
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test40(null, testValue1, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // Test object store to (flattened) value type array disguised as object array
+
+    @ForceInline
+    public void test41_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test41(Object[] oa, Object o, int index) {
+        test41_inline(oa, o, index);
+    }
+
+    @DontCompile
+    public void test41_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test41(testValue1Array, vt1, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        try {
+            test41(testValue1Array, testValue2, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        testValue1Array[index] = testValue1;
+    }
+
+    @ForceInline
+    public void test42_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test42(Object[] oa, Object o, int index) {
+        test42_inline(oa, o, index);
+    }
+
+    @DontCompile
+    public void test42_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test42(testValue2Array, testValue1, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+    }
+
+    @ForceInline
+    public void test43_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test43(Object[] oa, Object o, int index) {
+        test43_inline(oa, o, index);
+    }
+
+    @DontCompile
+    public void test43_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test43(testIntegerArray, testValue1, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+    }
+
+    // Test value store to (flattened) value type array disguised as interface array
+
+    @ForceInline
+    public void test43_inline(MyInterface[] ia, MyInterface i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test44(MyInterface[] ia, MyInterface i, int index) {
+        test43_inline(ia, i, index);
+    }
+
+    @DontCompile
+    public void test44_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test44(testValue1Array, vt1, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        try {
+            test44(testValue1Array, testValue2, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        testValue1Array[index] = testValue1;
+    }
+
+    @ForceInline
+    public void test45_inline(MyInterface[] ia, MyInterface i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test45(MyInterface[] ia, MyInterface i, int index) {
+        test45_inline(ia, i, index);
+    }
+
+    @DontCompile
+    public void test45_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test45(testValue2Array, testValue1, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+    }
+
+    // Test writing null to a (flattened) value type array disguised as object array
+
+    @ForceInline
+    public void test46_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test46(Object[] oa, Object o, int index) {
+        test46_inline(oa, o, index);
+    }
+
+    @DontCompile
+    public void test46_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test46(testValue1Array, null, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+    // Test writing constant null to a (flattened) value type array disguised as object array
+
+    @ForceInline
+    public void test47_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test47(Object[] oa, int index) {
+        test47_inline(oa, null, index);
+    }
+
+    @DontCompile
+    public void test47_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test47(testValue1Array, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+    // Test writing null to a (flattened) value type array
+
+    @ForceInline
+    public void test48_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test48(MyValue1[] va, int index) {
+        test48_inline(va, nullField, index);
+    }
+
+    @DontCompile
+    public void test48_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test48(testValue1Array, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+    // Test writing constant null to a (flattened) value type array
+
+    private static final MethodHandle setArrayElementNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "setArrayElementNull",
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
+        CODE -> {
+            CODE.
+            aload_1().
+            iload_2().
+            aconst_null().
+            aastore().
+            return_();
+        }
+        );
+
+    @Test()
+    public void test49(MyValue1[] va, int index) throws Throwable {
+        setArrayElementNull.invoke(this, va, index);
+    }
+
+    @DontCompile
+    public void test49_verifier(boolean warmup) throws Throwable {
+        int index = Math.abs(rI) % 3;
+        try {
+            test49(testValue1Array, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+    // Test writing a value type to a null value type array
+    @Test()
+    public void test50(MyValue1[] va, MyValue1 vt, int index) {
+        va[index] = vt;
+    }
+
+    @DontCompile
+    public void test50_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test50(null, testValue1Array[index], index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // Test incremental inlining
+
+    @ForceInline
+    public void test51_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test51(MyValue1[] va, Object o, int index) {
+        test51_inline(va, o, index);
+    }
+
+    @DontCompile
+    public void test51_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test51(testValue1Array, vt1, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        try {
+            test51(testValue1Array, testValue2, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        testValue1Array[index] = testValue1;
+    }
+
+    // Test merging of value type arrays
+
+    @ForceInline
+    public Object[] test52_inline() {
+        return new MyValue1[42];
+    }
+
+    @Test()
+    public Object[] test52(Object[] oa, Object o, int i1, int i2, int num) {
+        Object[] result = null;
+        switch (num) {
+        case 0:
+            result = test52_inline();
+            break;
+        case 1:
+            result = oa;
+            break;
+        case 2:
+            result = testValue1Array;
+            break;
+        case 3:
+            result = testValue2Array;
+            break;
+        case 4:
+            result = testIntegerArray;
+            break;
+        case 5:
+            result = null;
+            break;
+        case 6:
+            result = testValue1Array2;
+            break;
+        }
+        result[i1] = result[i2];
+        result[i2] = o;
+        return result;
+    }
+
+    @DontCompile
+    public void test52_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1[] va = new MyValue1[42];
+        Object[] result = test52(null, testValue1, index, index, 0);
+        Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
+        result = test52(testValue1Array, testValue1, index, index, 1);
+        Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
+        result = test52(null, testValue1, index, index, 2);
+        Asserts.assertEQ(((MyValue1)result[index]).hash(), testValue1.hash());
+        result = test52(null, testValue2, index, index, 3);
+        Asserts.assertEQ(((MyValue2)result[index]).hash(), testValue2.hash());
+        try {
+            result = test52(null, null, index, index, 3);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        result = test52(null, null, index, index, 4);
+        try {
+            result = test52(null, testValue1, index, index, 4);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        try {
+            result = test52(null, testValue1, index, index, 5);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        result = test52(null, testValue1Array, index, index, 6);
+        Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
+    }
+
+    // Same as above but merging into Object instead of Object[]
+    @Test()
+    public Object test53(Object oa, Object o, int i1, int i2, int num) {
+        Object result = null;
+        switch (num) {
+        case 0:
+            result = test52_inline();
+            break;
+        case 1:
+            result = oa;
+            break;
+        case 2:
+            result = testValue1Array;
+            break;
+        case 3:
+            result = testValue2Array;
+            break;
+        case 4:
+            result = testIntegerArray;
+            break;
+        case 5:
+            result = null;
+            break;
+        case 6:
+            result = testValue1;
+            break;
+        case 7:
+            result = testValue2;
+            break;
+        case 8:
+            result = MyValue1.createWithFieldsInline(rI, rL);
+            break;
+        case 9:
+            result = new Integer(42);
+            break;
+        case 10:
+            result = testValue1Array2;
+            break;
+        }
+        if (result instanceof Object[]) {
+            ((Object[])result)[i1] = ((Object[])result)[i2];
+            ((Object[])result)[i2] = o;
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test53_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1[] va = new MyValue1[42];
+        Object result = test53(null, testValue1, index, index, 0);
+        Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
+        result = test53(testValue1Array, testValue1, index, index, 1);
+        Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
+        result = test53(null, testValue1, index, index, 2);
+        Asserts.assertEQ(((MyValue1[])result)[index].hash(), testValue1.hash());
+        result = test53(null, testValue2, index, index, 3);
+        Asserts.assertEQ(((MyValue2[])result)[index].hash(), testValue2.hash());
+        try {
+            result = test53(null, null, index, index, 3);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        result = test53(null, null, index, index, 4);
+        try {
+            result = test53(null, testValue1, index, index, 4);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        result = test53(null, testValue1, index, index, 5);
+        Asserts.assertEQ(result, null);
+        result = test53(null, testValue1, index, index, 6);
+        Asserts.assertEQ(((MyValue1)result).hash(), testValue1.hash());
+        result = test53(null, testValue1, index, index, 7);
+        Asserts.assertEQ(((MyValue2)result).hash(), testValue2.hash());
+        result = test53(null, testValue1, index, index, 8);
+        Asserts.assertEQ(((MyValue1)result).hash(), testValue1.hash());
+        result = test53(null, testValue1, index, index, 9);
+        Asserts.assertEQ(((Integer)result), 42);
+        result = test53(null, testValue1Array, index, index, 10);
+        Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
+    }
+
+    // Test instanceof with value types and arrays
+    @Test()
+    public long test54(Object o, int index) {
+        if (o instanceof MyValue1) {
+          return ((MyValue1)o).hashInterpreted();
+        } else if (o instanceof MyValue1[]) {
+          return ((MyValue1[])o)[index].hashInterpreted();
+        } else if (o instanceof MyValue2) {
+          return ((MyValue2)o).hash();
+        } else if (o instanceof MyValue2[]) {
+          return ((MyValue2[])o)[index].hash();
+        } else if (o instanceof MyValue1[][]) {
+          return ((MyValue1[][])o)[index][index].hash();
+        } else if (o instanceof Long) {
+          return (long)o;
+        }
+        return 0;
+    }
+
+    @DontCompile
+    public void test54_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        long result = test54(testValue1, 0);
+        Asserts.assertEQ(result, testValue1.hash());
+        result = test54(testValue1Array, index);
+        Asserts.assertEQ(result, testValue1.hash());
+        result = test54(testValue2, index);
+        Asserts.assertEQ(result, testValue2.hash());
+        result = test54(testValue2Array, index);
+        Asserts.assertEQ(result, testValue2.hash());
+        result = test54(testValue1Array2, index);
+        Asserts.assertEQ(result, testValue1.hash());
+        result = test54(new Long(42), index);
+        Asserts.assertEQ(result, 42L);
+    }
+
+    // Test for bug in Escape Analysis
+    @DontInline
+    public void test55_dontinline(Object o) {
+        Asserts.assertEQ(o, rI);
+    }
+
+    @Test()
+    public void test55() {
+        MyValue1[] vals = new MyValue1[] {testValue1};
+        test55_dontinline(vals[0].oa[0]);
+        test55_dontinline(vals[0].oa[0]);
+    }
+
+    @DontCompile
+    public void test55_verifier(boolean warmup) {
+        test55();
+    }
+
+    // Test for bug in Escape Analysis
+    private static __NotFlattened final MyValue1 test56VT1 = MyValue1.createWithFieldsInline(rI, rL);
+    private static __NotFlattened final MyValue1 test56VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+
+    @Test()
+    public void test56() {
+        MyValue1[] vals = new MyValue1[] {test56VT1, test56VT2};
+        Asserts.assertEQ(vals[0].hash(), test56VT1.hash());
+        Asserts.assertEQ(vals[1].hash(), test56VT2.hash());
+    }
+
+    @DontCompile
+    public void test56_verifier(boolean warmup) {
+        if (!warmup) test56(); // We need -Xcomp behavior
+    }
+
+    // Test for bug in Escape Analysis
+    @Test()
+    public long test57(boolean deopt) {
+        MyValue1[] vals = new MyValue1[] {test56VT1, test56VT2};
+
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test57"));
+            Asserts.assertEQ(vals[0].hash(), test56VT1.hash());
+            Asserts.assertEQ(vals[1].hash(), test56VT2.hash());
+        }
+
+        return vals[0].hash();
+    }
+
+    @DontCompile
+    public void test57_verifier(boolean warmup) {
+        test57(!warmup);
+    }
+
+    // Tests writing an array element with a (statically known) incompatible type
+    private static final MethodHandle setArrayElementIncompatible = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "setArrayElementIncompatible",
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
+        CODE -> {
+            CODE.
+            aload_1().
+            iload_2().
+            aload_3().
+            aastore().
+            return_();
+        }
+        );
+
+    @Test()
+    public void test58(MyValue1[] va, int index, MyValue2 v) throws Throwable {
+        setArrayElementIncompatible.invoke(this, va, index, v);
+    }
+
+    @DontCompile
+    public void test58_verifier(boolean warmup) throws Throwable {
+        int index = Math.abs(rI) % 3;
+        try {
+            test58(testValue1Array, index, testValue2);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+    // Tests writing an array element with a (statically known) incompatible type
+    @ForceInline
+    public void test59_inline(Object[] oa, Object o, int index) {
+        oa[index] = o;
+    }
+
+    @Test()
+    public void test59(MyValue1[] va, int index, MyValue2 v) throws Throwable {
+        test59_inline(va, v, index);
+    }
+
+    @DontCompile
+    public void test59_verifier(boolean warmup) throws Throwable {
+        int index = Math.abs(rI) % 3;
+        try {
+            test59(testValue1Array, index, testValue2);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+
+    // TODO add IR matching rules
+
+    // TODO more instanceof tests
+
+    // TODO Add tests for value type with non-flattened/non-flattenable value type field
 }

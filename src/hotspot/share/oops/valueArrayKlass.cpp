@@ -229,7 +229,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
      THROW(vmSymbols::java_lang_ArrayStoreException());
    }
 
-   // Check is all offsets and lengths are non negative
+   // Check if all offsets and lengths are non negative
    if (src_pos < 0 || dst_pos < 0 || length < 0) {
      THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException());
    }

@@ -96,7 +96,6 @@ void Parse::do_checkcast() {
   }
 
   Node *res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)) );
-
   if (stopped()) {
     return;
   }
@@ -144,26 +143,31 @@ void Parse::do_instanceof() {
 
 //------------------------------array_store_check------------------------------
 // pull array from stack and check that the store is valid
-void Parse::array_store_check() {
-
-  // Shorthand access to array store elements without popping them.
-  Node *obj = peek(0);
-  Node *idx = peek(1);
-  Node *ary = peek(2);
+Node* Parse::array_store_check(Node* ary, Node* idx, Node* obj) {
+  const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
+  const TypeOopPtr* elemptr = elemtype->make_oopptr();
+  bool is_value_array = elemtype->isa_valuetype() != NULL || elemtype->make_valuetypeptr() != NULL;
+  bool can_be_value_array = is_value_array || (elemptr != NULL && (elemptr->can_be_value_type()));
 
   if (_gvn.type(obj) == TypePtr::NULL_PTR) {
     // There's never a type check on null values.
     // This cutout lets us avoid the uncommon_trap(Reason_array_check)
     // below, which turns into a performance liability if the
     // gen_checkcast folds up completely.
-    return;
+    if (is_value_array) {
+      // Can not store null into a value type array
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+      return obj;
+    } else if (can_be_value_array) {
+      // Throw exception if array is a value type array
+      gen_value_type_array_guard(ary, zerocon(T_OBJECT));
+      return obj;
+    }
+    return obj;
   }
 
   // Extract the array klass type
-  int klass_offset = oopDesc::klass_offset_in_bytes();
-  Node* p = basic_plus_adr( ary, ary, klass_offset );
-  // p's type is array-of-OOPS plus klass_offset
-  Node* array_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), p, TypeInstPtr::KLASS));
+  Node* array_klass = load_object_klass(ary);
   // Get the array klass
   const TypeKlassPtr *tak = _gvn.type(array_klass)->is_klassptr();
 
@@ -237,20 +241,20 @@ void Parse::array_store_check() {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
-  const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
-  if (elemtype->isa_valuetype()) {
-    // Flattened value type array: types must match
-    ciValueKlass* source_klass = _gvn.type(obj)->is_valuetype()->value_klass();
-    ciValueKlass* elem_klass = elemtype->is_valuetype()->value_klass();
-    assert(source_klass->equals(elem_klass), "type mismatch");
-  } else if (elemtype->make_valuetypeptr() != NULL) {
-    // Non-flattened value type array
-    // TODO do we need a checkcast here?
-  } else {
-    // Check (the hard way) and throw if not a subklass.
-    // Result is ignored, we just need the CFG effects.
-    gen_checkcast(obj, a_e_klass);
+  // Handle value type arrays
+  if (is_value_array) {
+    // We statically know that this is a value type array, use precise klass ptr
+    ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() :
+                                                   elemtype->make_valuetypeptr()->value_klass();
+    a_e_klass = makecon(TypeKlassPtr::make(vk));
+  } else if (can_be_value_array && !obj->is_ValueType()) {
+    // We cannot statically determine if the array is a value type array
+    // and we also don't know if 'obj' is a value type. Emit runtime checks.
+    gen_value_type_array_guard(ary, obj, a_e_klass);
   }
+
+  // Check (the hard way) and throw if not a subklass.
+  return gen_checkcast(obj, a_e_klass);
 }
 
 

@@ -321,8 +321,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       // We can see a null constant here
       assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
       push(null());
-      Deoptimization::DeoptReason reason = Deoptimization::reason_null_check(false);
-      uncommon_trap(reason, Deoptimization::Action_none);
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
       assert(stopped(), "dead path");
       return;
     }

@@ -862,6 +862,9 @@ class GraphKit : public Phase {
   Node* gen_checkcast( Node *subobj, Node* superkls,
                        Node* *failure_control = NULL );
 
+  void gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass = NULL);
+  void gen_flattened_array_guard(Node* ary, int nargs = 0);
+
   Node* gen_subtype_check(Node* subklass, Node* superklass) {
     MergeMemNode* mem = merged_memory();
     Node* ctrl = control();

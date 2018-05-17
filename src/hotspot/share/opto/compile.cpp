@@ -1797,14 +1797,22 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
           && flat->is_instptr()->klass() == env()->Class_klass())
         alias_type(idx)->set_rewritable(false);
     }
+    ciField* field = NULL;
     if (flat->isa_aryptr()) {
 #ifdef ASSERT
       const int header_size_min  = arrayOopDesc::base_offset_in_bytes(T_BYTE);
       // (T_BYTE has the weakest alignment and size restrictions...)
       assert(flat->offset() < header_size_min, "array body reference must be OffsetBot");
 #endif
+      const Type* elemtype = flat->is_aryptr()->elem();
       if (flat->offset() == TypePtr::OffsetBot) {
-        alias_type(idx)->set_element(flat->is_aryptr()->elem());
+        alias_type(idx)->set_element(elemtype);
+      }
+      int field_offset = flat->is_aryptr()->field_offset().get();
+      if (elemtype->isa_valuetype() && field_offset != Type::OffsetBot) {
+        ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
+        field_offset += vk->first_field_offset();
+        field = vk->get_field_by_offset(field_offset, false);
       }
     }
     if (flat->isa_klassptr()) {
@@ -1824,7 +1832,6 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
     // Check for final fields.
     const TypeInstPtr* tinst = flat->isa_instptr();
     const TypeValueTypePtr* vtptr = flat->isa_valuetypeptr();
-    ciField* field = NULL;
     if (tinst && tinst->offset() >= instanceOopDesc::base_offset_in_bytes()) {
       if (tinst->const_oop() != NULL &&
           tinst->klass() == ciEnv::current()->Class_klass() &&
