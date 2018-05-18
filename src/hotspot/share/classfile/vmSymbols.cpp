@@ -549,6 +549,8 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
     case vmIntrinsics::_arraycopy:
       return true;
       break;
+    default:
+      break;
     }
   }
 
