@@ -164,6 +164,31 @@ public class TestIntrinsics extends ValueTypeTest {
         test7(MyValue1.class, len, hash);
     }
 
+    // Class.isInstance
+    @Test()
+    public boolean test8(Class c, MyValue1 vt) {
+        return c.isInstance(vt);
+    }
+
+    @DontCompile
+    public void test8_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        boolean result = test8(MyValue1.class, vt);
+        Asserts.assertTrue(result);
+    }
+
+    @Test()
+    public boolean test9(Class c, MyValue1 vt) {
+        return c.isInstance(vt);
+    }
+
+    @DontCompile
+    public void test9_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        boolean result = test9(MyValue2.class, vt);
+        Asserts.assertFalse(result);
+    }
+
     // TODO add tests for _identityHashCode,_clone,_copyOf,_copyOfRange,_arraycopy,_allocateUninitializedArray, ...
 
 }

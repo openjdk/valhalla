@@ -1728,6 +1728,67 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
 
+    // instanceof tests with values
+    @Test
+    public boolean test60(MyValue1 vt) {
+        Object obj = vt;
+        return obj instanceof MyValue1;
+    }
+
+    @DontCompile
+    public void test60_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
+        boolean result = test60(vt);
+        Asserts.assertTrue(result);
+    }
+
+    @Test
+    public boolean test61(MyValue1 vt) {
+        Object obj = vt;
+        return obj instanceof MyValue2;
+    }
+
+    @DontCompile
+    public void test61_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
+        boolean result = test61(vt);
+        Asserts.assertFalse(result);
+    }
+
+    @Test
+    public boolean test62(Object obj) {
+        return obj instanceof MyValue1;
+    }
+
+    @DontCompile
+    public void test62_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
+        boolean result = test62(vt);
+        Asserts.assertTrue(result);
+    }
+
+    @Test
+    public boolean test63(Object obj) {
+        return obj instanceof MyValue2;
+    }
+
+    @DontCompile
+    public void test63_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
+        boolean result = test63(vt);
+        Asserts.assertFalse(result);
+    }
+
+    @Test
+    public boolean test64(Object obj) {
+        return obj instanceof MyValue1;
+    }
+
+    @DontCompile
+    public void test64_verifier(boolean warmup) {
+        boolean result = test63(new Integer(42));
+        Asserts.assertFalse(result);
+    }
 
     // TODO add IR matching rules
 

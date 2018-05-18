@@ -3025,9 +3025,11 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   bool never_see_null = (ProfileDynamicTypes  // aggressive use of profile
                          && seems_never_null(obj, data, speculative_not_null));
 
+  bool is_value = obj->is_ValueType();
+
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
-  Node* not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
+  Node* not_null_obj = is_value ? obj : null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
 
   // If not_null_obj is dead, only null-path is taken
   if (stopped()) {              // Doing instance-of on a NULL?
@@ -3045,35 +3047,42 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   }
 
   // Do we know the type check always succeed?
-  bool known_statically = false;
-  if (_gvn.type(superklass)->singleton()) {
-    ciKlass* superk = _gvn.type(superklass)->is_klassptr()->klass();
-    ciKlass* subk = _gvn.type(obj)->is_oopptr()->klass();
-    if (subk != NULL && subk->is_loaded()) {
-      int static_res = C->static_subtype_check(superk, subk);
-      known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
-    }
-  }
-
-  if (!known_statically) {
-    const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-    // We may not have profiling here or it may not help us. If we
-    // have a speculative type use it to perform an exact cast.
-    ciKlass* spec_obj_type = obj_type->speculative_type();
-    if (spec_obj_type != NULL || (ProfileDynamicTypes && data != NULL)) {
-      Node* cast_obj = maybe_cast_profiled_receiver(not_null_obj, NULL, spec_obj_type, safe_for_replace);
-      if (stopped()) {            // Profile disagrees with this path.
-        set_control(null_ctl);    // Null is the only remaining possibility.
-        return intcon(0);
+  if (!is_value) {
+    bool known_statically = false;
+    if (_gvn.type(superklass)->singleton()) {
+      ciKlass* superk = _gvn.type(superklass)->is_klassptr()->klass();
+      ciKlass* subk = _gvn.type(obj)->is_oopptr()->klass();
+      if (subk != NULL && subk->is_loaded()) {
+        int static_res = C->static_subtype_check(superk, subk);
+        known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
       }
-      if (cast_obj != NULL) {
-        not_null_obj = cast_obj;
+    }
+
+    if (!known_statically) {
+      const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
+      // We may not have profiling here or it may not help us. If we
+      // have a speculative type use it to perform an exact cast.
+      ciKlass* spec_obj_type = obj_type->speculative_type();
+      if (spec_obj_type != NULL || (ProfileDynamicTypes && data != NULL)) {
+        Node* cast_obj = maybe_cast_profiled_receiver(not_null_obj, NULL, spec_obj_type, safe_for_replace);
+        if (stopped()) {            // Profile disagrees with this path.
+          set_control(null_ctl);    // Null is the only remaining possibility.
+          return intcon(0);
+        }
+        if (cast_obj != NULL) {
+          not_null_obj = cast_obj;
+        }
       }
     }
   }
 
   // Load the object's klass
-  Node* obj_klass = load_object_klass(not_null_obj);
+  Node* obj_klass = NULL;
+  if (is_value) {
+    obj_klass = makecon(TypeKlassPtr::make(_gvn.type(obj)->is_valuetype()->value_klass()));
+  } else {
+    obj_klass = load_object_klass(not_null_obj);
+  }
 
   // Generate the subtype check
   Node* not_subtype_ctrl = gen_subtype_check(obj_klass, superklass);
@@ -3093,7 +3102,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   // If we know the type check always succeeds then we don't use the
   // profiling data at this bytecode. Don't lose it, feed it to the
   // type system as a speculative type.
-  if (safe_for_replace) {
+  if (safe_for_replace && !is_value) {
     Node* casted_obj = record_profiled_receiver_for_speculation(obj);
     replace_in_map(obj, casted_obj);
   }
@@ -3115,7 +3124,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   const Type *toop = TypeOopPtr::make_from_klass(tk->klass());
   if (toop->isa_valuetypeptr()) {
     if (obj->is_ValueType()) {
-      const TypeValueType* tvt = _gvn.type(obj)->isa_valuetype();
+      const TypeValueType* tvt = _gvn.type(obj)->is_valuetype();
       if (toop->is_valuetypeptr()->value_klass() == tvt->value_klass()) {
         return obj;
       } else {
