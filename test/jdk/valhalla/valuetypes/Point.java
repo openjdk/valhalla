@@ -22,14 +22,14 @@
  */
 
 public final __ByValue class Point {
-    static final Point origin = makePoint(10, 20);
+    static final Object STATIC_FIELD = new Object();
     public final int x;
     public final int y;
     Point () {
         x = 10;
         y = 20;
     }
-    static Point makePoint(int x, int y) {
+    public static Point makePoint(int x, int y) {
         Point p = __MakeDefault Point();
         p = __WithField(p.x, x);
         p = __WithField(p.y, y);

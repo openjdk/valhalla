@@ -218,9 +218,9 @@ public class VarHandleTestAccessFloat extends VarHandleBaseTest {
                                               vhArray, VarHandleTestAccessFloat::testArrayIndexOutOfBounds,
                                               false));
         cases.add(new VarHandleAccessTestCase("Value type field",
-                                              vhValueTypeField, vh -> testValueTypeField(Value.VT, vh)));
+                                              vhValueTypeField, vh -> testValueTypeField(Value.getInstance(), vh)));
         cases.add(new VarHandleAccessTestCase("Value type field unsupported",
-                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.VT, vh),
+                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.getInstance(), vh),
                                               false));
 
         // Work around issue with jtreg summary reporting which truncates

@@ -22,7 +22,6 @@
  */
 
 final __ByValue class Value {
-    static final Value VT = makeValue('\u0123', true, (byte)0x01, 0x01234567, (short)0x0123, 0x0123456789ABCDEFL, 1.0f, 1.0d);
     final char char_v;
     final byte byte_v;
     final boolean boolean_v;
@@ -53,4 +52,9 @@ final __ByValue class Value {
         v = __WithField(v.double_v, d);
         return v;
     }
+
+    static Value getInstance() {
+        return makeValue('\u0123', true, (byte)0x01, 0x01234567, (short)0x0123, 0x0123456789ABCDEFL, 1.0f, 1.0d);
+    }
+
 }

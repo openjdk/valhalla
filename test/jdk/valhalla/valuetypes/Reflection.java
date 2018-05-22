@@ -56,7 +56,7 @@ public class Reflection {
     }
 
     void accessField() throws Exception {
-        Point o = Point.origin;
+        Point o = Point.makePoint(10, 20);
         if (field.getInt(o) != o.x) {
             throw new RuntimeException("Unexpected Point.x value: " +  field.getInt(o));
         }
@@ -102,7 +102,7 @@ public class Reflection {
     }
 
     void staticField() throws Exception {
-        Field f = Point.class.getDeclaredField("origin");
+        Field f = Point.class.getDeclaredField("STATIC_FIELD");
         if (f.trySetAccessible()) {
             throw new RuntimeException("trySetAccessible should not succeed");
         }

@@ -106,9 +106,9 @@ public class VarHandleTestMethodHandleAccessChar extends VarHandleBaseTest {
                                                      vhArray, f, VarHandleTestMethodHandleAccessChar::testArrayIndexOutOfBounds,
                                                      false));
         cases.add(new MethodHandleAccessTestCase("Value type field",
-                                                 vhValueTypeField, f, hs -> testValueTypeField(Value.VT, hs)));
+                                                 vhValueTypeField, f, hs -> testValueTypeField(Value.getInstance(), hs)));
         cases.add(new MethodHandleAccessTestCase("Value type field unsupported",
-                                                 vhValueTypeField, f, hs -> testValueTypeFieldUnsupported(Value.VT, hs),
+                                                 vhValueTypeField, f, hs -> testValueTypeFieldUnsupported(Value.getInstance(), hs),
                                                  false));
         }
 
