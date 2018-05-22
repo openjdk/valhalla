@@ -28,6 +28,7 @@
 #include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
+#include "oops/markOop.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
 #include "oops/oopHandle.hpp"
@@ -162,7 +163,10 @@ protected:
   // Constructor
   Klass();
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool is_value, TRAPS) throw();
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
+   return operator new (size, loader_data, word_size, false, THREAD);
+  }
 
  public:
   enum DefaultsLookupMode { find_defaults, skip_defaults };
@@ -583,6 +587,9 @@ protected:
   // prototype markOop. If biased locking is enabled it may further be
   // biasable and have an epoch.
   markOop prototype_header() const      { return _prototype_header; }
+  static inline markOop default_prototype_header(Klass* k) {
+    return (k == NULL) ? markOopDesc::prototype() : k->prototype_header();
+  }
   // NOTE: once instances of this klass are floating around in the
   // system, this header must only be updated at a safepoint.
   // NOTE 2: currently we only ever set the prototype header to the
@@ -689,6 +696,9 @@ protected:
 
   static Klass* decode_klass_not_null(narrowKlass v);
   static Klass* decode_klass(narrowKlass v);
+
+  static bool decode_ptr_is_value_type(narrowKlass v);
+  static bool ptr_is_value_type(Klass* v);
 };
 
 // Helper to convert the oop iterate macro suffixes into bool values that can be used by template functions.

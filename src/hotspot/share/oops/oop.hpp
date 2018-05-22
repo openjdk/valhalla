@@ -81,6 +81,9 @@ class oopDesc {
   inline Klass** klass_addr();
   inline narrowKlass* compressed_klass_addr();
 
+  // oop only test (does not load klass)
+  inline bool klass_is_value_type();
+
   inline void set_klass(Klass* k);
   inline void release_set_klass(Klass* k);
 

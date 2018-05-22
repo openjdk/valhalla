@@ -1395,3 +1395,89 @@ class CircStaticB {
     } // end SourceFile
   } // Attributes
 } // end class CircStaticB
+
+
+// Test that a value type cannot be Cloneable.
+//
+// final __ByValue class ValueCloneable implements Cloneable {
+//    final int field;
+//    private ValueCloneable() { field = 0; }
+//}
+
+class ValueCloneable {
+  0xCAFEBABE;
+  0; // minor version
+  55; // version
+  [] { // Constant Pool
+    ; // first element is empty
+    Method #4 #14; // #1
+    Field #3 #15; // #2
+    class #16; // #3
+    class #17; // #4
+    class #18; // #5
+    Utf8 "field"; // #6
+    Utf8 "I"; // #7
+    Utf8 "<init>"; // #8
+    Utf8 "()V"; // #9
+    Utf8 "Code"; // #10
+    Utf8 "LineNumberTable"; // #11
+    Utf8 "SourceFile"; // #12
+    Utf8 "ValueCloneable.java"; // #13
+    NameAndType #8 #9; // #14
+    NameAndType #6 #7; // #15
+    Utf8 "ValueCloneable"; // #16
+    Utf8 "java/lang/Object"; // #17
+    Utf8 "java/lang/Cloneable"; // #18
+  } // Constant Pool
+
+  0x0130; // access
+  #3;// this_cpx
+  #4;// super_cpx
+
+  [] { // Interfaces
+    #5;
+  } // Interfaces
+
+  [] { // fields
+    { // Member
+      0x0010; // access
+      #6; // name_cpx
+      #7; // sig_cpx
+      [] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [] { // methods
+    { // Member
+      0x0002; // access
+      #8; // name_cpx
+      #9; // sig_cpx
+      [] { // Attributes
+        Attr(#10) { // Code
+          2; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2AB700012A03B500;
+            0x02B1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#11) { // LineNumberTable
+              [] { // LineNumberTable
+                0  4;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [] { // Attributes
+    Attr(#12) { // SourceFile
+      #13;
+    } // end SourceFile
+  } // Attributes
+} // end class ValueCloneable

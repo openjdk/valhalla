@@ -88,5 +88,7 @@ public class BadValueTypes {
                  throw new RuntimeException( "Wrong ClassCircularityError: " + e.getMessage());
              }
          }
+
+        runTest("ValueCloneable", "Value Types do not support Cloneable");
     }
 }

@@ -45,7 +45,9 @@ static GrowableArray<Handle>*  _preserved_oop_stack  = NULL;
 static GrowableArray<markOop>* _preserved_mark_stack = NULL;
 
 static void enable_biased_locking(InstanceKlass* k) {
-  k->set_prototype_header(markOopDesc::biased_locking_prototype());
+  if (!k->is_value()) {
+    k->set_prototype_header(markOopDesc::biased_locking_prototype());
+  }
 }
 
 class VM_EnableBiasedLocking: public VM_Operation {

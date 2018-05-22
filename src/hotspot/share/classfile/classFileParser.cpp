@@ -4074,6 +4074,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   if (is_value_type() && (!has_nonstatic_fields)) {
     // There are a number of fixes required throughout the type system and JIT
     throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support zero instance size yet");
+    return;
   }
 
   // Prepare list of oops for oop map generation.
@@ -4531,7 +4532,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   info->has_nonstatic_fields = has_nonstatic_fields;
 }
 
-void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
+void ClassFileParser::set_precomputed_flags(InstanceKlass* ik, TRAPS) {
   assert(ik != NULL, "invariant");
 
   const Klass* const super = ik->super();
@@ -4564,6 +4565,10 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   // Check if this klass supports the java.lang.Cloneable interface
   if (SystemDictionary::Cloneable_klass_loaded()) {
     if (ik->is_subtype_of(SystemDictionary::Cloneable_klass())) {
+      if (ik->is_value()) {
+        throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support Cloneable");
+        return;
+      }
       ik->set_is_cloneable();
     }
   }
@@ -5740,7 +5745,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   }
 
   // Fill in has_finalizer, has_vanilla_constructor, and layout_helper
-  set_precomputed_flags(ik);
+  set_precomputed_flags(ik, CHECK);
 
   // check if this class can access its super class
   check_super_class_access(ik, CHECK);

@@ -314,7 +314,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
                                         int runtime_invisible_annotations_length,
                                         TRAPS);
 
-  void set_precomputed_flags(InstanceKlass* k);
+  void set_precomputed_flags(InstanceKlass* k, TRAPS);
 
   // Format checker methods
   void classfile_parse_error(const char* msg, TRAPS) const;

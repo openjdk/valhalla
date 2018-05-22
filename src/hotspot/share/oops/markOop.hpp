@@ -38,6 +38,7 @@
 //  --------
 //             hash:25 ------------>| age:4    biased_lock:1 lock:2 (normal object)
 //             JavaThread*:23 epoch:2 age:4    biased_lock:1 lock:2 (biased object)
+//             "1"        :23 epoch:2 age:4    biased_lock:1 lock:2 (biased always locked object)
 //             size:32 ------------------------------------------>| (CMS free block)
 //             PromotedObject*:29 ---------->| promo_bits:3 ----->| (CMS promoted object)
 //
@@ -45,6 +46,7 @@
 //  --------
 //  unused:25 hash:31 -->| unused:1   age:4    biased_lock:1 lock:2 (normal object)
 //  JavaThread*:54 epoch:2 unused:1   age:4    biased_lock:1 lock:2 (biased object)
+//  "1"        :54 epoch:2 unused:1   age:4    biased_lock:1 lock:2 (biased always locked object)
 //  PromotedObject*:61 --------------------->| promo_bits:3 ----->| (CMS promoted object)
 //  size:64 ----------------------------------------------------->| (CMS free block)
 //
@@ -96,6 +98,16 @@
 //                                               not valid at any other time
 //
 //    We assume that stack/thread pointers have the lowest two bits cleared.
+//
+//    Always locked: since displaced and monitor references require memory at a
+//    fixed address, and hash code can be displaced, an efficiently providing a
+//    *permanent lock* leaves us with specializing the biased pattern (even when
+//    biased locking isn't enabled). Since biased_lock_alignment for the thread
+//    reference doesn't use the lowest bit ("2 << thread_shift"), we can use
+//    this illegal thread pointer alignment to denote "always locked" pattern.
+//
+//    [ <unused> |1| epoch | age | 1 | 01]       permanently locked
+//
 
 class BasicLock;
 class ObjectMonitor;
@@ -124,7 +136,8 @@ class markOopDesc: public oopDesc {
          age_shift                = lock_bits + biased_lock_bits,
          cms_shift                = age_shift + age_bits,
          hash_shift               = cms_shift + cms_bits,
-         epoch_shift              = hash_shift
+         epoch_shift              = hash_shift,
+         thread_shift             = epoch_shift + epoch_bits
   };
 
   enum { lock_mask                = right_n_bits(lock_bits),
@@ -145,7 +158,7 @@ class markOopDesc: public oopDesc {
   };
 
   // Alignment of JavaThread pointers encoded in object header required by biased locking
-  enum { biased_lock_alignment    = 2 << (epoch_shift + epoch_bits)
+  enum { biased_lock_alignment    = 2 << thread_shift
   };
 
 #ifdef _WIN64
@@ -159,7 +172,8 @@ class markOopDesc: public oopDesc {
          unlocked_value           = 1,
          monitor_value            = 2,
          marked_value             = 3,
-         biased_lock_pattern      = 5
+         biased_lock_pattern      = 5,
+         always_locked_pattern    = 1 << thread_shift | biased_lock_pattern
   };
 
   enum { no_hash                  = 0 };  // no hash value assigned
@@ -172,6 +186,12 @@ class markOopDesc: public oopDesc {
 
   enum { max_bias_epoch           = epoch_mask };
 
+  static markOop always_locked_prototype() {
+    return markOop(always_locked_pattern);
+  }
+
+  bool is_always_locked() const { return mask_bits(value(), always_locked_pattern) == always_locked_pattern; }
+
   // Biased Locking accessors.
   // These must be checked by all code which calls into the
   // ObjectSynchronizer and other code. The biasing is not understood
@@ -183,6 +203,7 @@ class markOopDesc: public oopDesc {
   }
   JavaThread* biased_locker() const {
     assert(has_bias_pattern(), "should not call this otherwise");
+    assert(!is_always_locked(), "invariant");
     return (JavaThread*) ((intptr_t) (mask_bits(value(), ~(biased_lock_mask_in_place | age_mask_in_place | epoch_mask_in_place))));
   }
   // Indicates that the mark has the bias bit set but that it has not
@@ -200,6 +221,7 @@ class markOopDesc: public oopDesc {
   markOop set_bias_epoch(int epoch) {
     assert(has_bias_pattern(), "should not call this otherwise");
     assert((epoch & (~epoch_mask)) == 0, "epoch overflow");
+    assert(!is_always_locked(), "Rebias needs to fail");
     return markOop(mask_bits(value(), ~epoch_mask_in_place) | (epoch << epoch_shift));
   }
   markOop incr_bias_epoch() {
@@ -364,7 +386,7 @@ class markOopDesc: public oopDesc {
   inline static markOop encode_pointer_as_mark(void* p) { return markOop(p)->set_marked(); }
 
   // Recover address of oop from encoded form used in mark
-  inline void* decode_pointer() { if (UseBiasedLocking && has_bias_pattern()) return NULL; return clear_lock_bits(); }
+  inline void* decode_pointer() { if (has_bias_pattern()) return NULL; return clear_lock_bits(); }
 
   // These markOops indicate cms free chunk blocks and not objects.
   // In 64 bit, the markOop is set to distinguish them from oops.

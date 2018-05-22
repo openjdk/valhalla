@@ -166,6 +166,7 @@ CollectedHeap*  Universe::_collectedHeap = NULL;
 NarrowPtrStruct Universe::_narrow_oop = { NULL, 0, true };
 NarrowPtrStruct Universe::_narrow_klass = { NULL, 0, true };
 address Universe::_narrow_ptrs_base;
+int Universe::_oop_metadata_valuetype_mask = KlassPtrValueTypeMask;
 
 void Universe::basic_type_classes_do(void f(Klass*)) {
   f(boolArrayKlassObj());

@@ -653,6 +653,7 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
     ResourceMark rm(THREAD);
     THROW_MSG_0(vmSymbols::java_lang_CloneNotSupportedException(), klass->external_name());
   }
+  assert(!EnableValhalla || !obj->klass()->is_value(), "Clone disallowed on value type");
 
   // Make shallow object copy
   const int size = obj->size();

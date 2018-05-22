@@ -60,12 +60,7 @@ void CollectedHeap::post_allocation_setup_no_klass_install(Klass* klass,
   oop obj = (oop)obj_ptr;
 
   assert(obj != NULL, "NULL object pointer");
-  if (UseBiasedLocking && (klass != NULL)) {
-    obj->set_mark(klass->prototype_header());
-  } else {
-    // May be bootstrapping
-    obj->set_mark(markOopDesc::prototype());
-  }
+  obj->set_mark(Klass::default_prototype_header(klass));
 }
 
 // Support for jvmti and dtrace

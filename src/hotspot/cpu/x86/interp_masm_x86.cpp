@@ -1254,6 +1254,10 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 
     // Load (object->mark() | 1) into swap_reg %rax
     orptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
+    if (EnableValhalla && !UseBiasedLocking) {
+      // For slow path is_always_locked, using biased, which is never natural for !UseBiasLocking
+      andptr(swap_reg, ~markOopDesc::biased_lock_bit_in_place);
+    }
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     movptr(Address(lock_reg, mark_offset), swap_reg);

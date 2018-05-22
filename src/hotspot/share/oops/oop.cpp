@@ -101,7 +101,7 @@ intptr_t oopDesc::slow_identity_hash() {
   ResetNoHandleMark rnm; // Might be called from LEAF/QUICK ENTRY
   HandleMark hm(THREAD);
   Handle object(THREAD, this);
-  return ObjectSynchronizer::identity_hash_value_for(object);
+  return ObjectSynchronizer::FastHashCode(THREAD, object());
 }
 
 // When String table needs to rehash

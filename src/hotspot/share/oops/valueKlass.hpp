@@ -49,7 +49,8 @@ class ValueKlass: public InstanceKlass {
     *((address*)adr_unpack_handler()) = NULL;
     assert(pack_handler() == NULL, "pack handler not null");
     *((int*)adr_default_value_offset()) = 0;
-
+    assert(Klass::ptr_is_value_type(this), "Value type klass ptr encoding");
+    set_prototype_header(markOopDesc::always_locked_prototype());
   }
 
   ValueKlassFixedBlock* valueklass_static_bloc() const {
@@ -269,6 +270,11 @@ class ValueKlass: public InstanceKlass {
 
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(ValueKlass* ik) ;
+
+  // Verification
+  void verify_on(outputStream* st);
+  void oop_verify_on(oop obj, outputStream* st);
+
 };
 
 #endif /* SHARE_VM_OOPS_VALUEKLASS_HPP */

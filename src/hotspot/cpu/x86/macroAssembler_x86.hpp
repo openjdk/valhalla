@@ -108,6 +108,8 @@ class MacroAssembler: public Assembler {
   void test_flat_array_klass(Register klass, Register temp_reg, Label& is_flat_array);
   void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array);
 
+  void test_oop_is_value(Register oop, Register temp, Label* is_value, Label* is_not_value);
+
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
   void pd_patch_instruction(address branch, address target) {

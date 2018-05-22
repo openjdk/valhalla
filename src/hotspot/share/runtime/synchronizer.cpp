@@ -128,6 +128,19 @@ static void post_monitor_inflate_event(EventJavaMonitorInflate&,
                                        const oop,
                                        const ObjectSynchronizer::InflateCause);
 
+#define CHECK_THROW_NOSYNC_IMSE(obj)  \
+  if ((obj)->mark()->is_always_locked()) {  \
+    ResourceMark rm(THREAD);                \
+    THROW_MSG(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
+  }
+
+#define CHECK_THROW_NOSYNC_IMSE_0(obj)  \
+    if ((obj)->mark()->is_always_locked()) {  \
+    ResourceMark rm(THREAD);                  \
+    THROW_MSG_0(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
+  }
+
+
 #define CHAINMARKER (cast_to_oop<intptr_t>(-1))
 
 
@@ -159,6 +172,7 @@ bool ObjectSynchronizer::quick_notify(oopDesc * obj, Thread * self, bool all) {
   assert(((JavaThread *) self)->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;  // slow-path for invalid obj
+  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
   const markOop mark = obj->mark();
 
   if (mark->has_locker() && self->is_lock_owned((address)mark->locker())) {
@@ -209,6 +223,7 @@ bool ObjectSynchronizer::quick_enter(oop obj, Thread * Self,
   assert(((JavaThread *) Self)->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;       // Need to throw NPE
+  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
   const markOop mark = obj->mark();
 
   if (mark->has_monitor()) {
@@ -264,6 +279,7 @@ bool ObjectSynchronizer::quick_enter(oop obj, Thread * Self,
 
 void ObjectSynchronizer::fast_enter(Handle obj, BasicLock* lock,
                                     bool attempt_rebias, TRAPS) {
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (UseBiasedLocking) {
     if (!SafepointSynchronize::is_at_safepoint()) {
       BiasedLocking::Condition cond = BiasedLocking::revoke_and_rebias(obj, attempt_rebias, THREAD);
@@ -282,6 +298,10 @@ void ObjectSynchronizer::fast_enter(Handle obj, BasicLock* lock,
 
 void ObjectSynchronizer::fast_exit(oop object, BasicLock* lock, TRAPS) {
   markOop mark = object->mark();
+  if (EnableValhalla && mark->is_always_locked()) {
+    return;
+  }
+  assert(!EnableValhalla || !object->klass()->is_value(), "monitor op on value type");
   // We cannot check for Biased Locking if we are racing an inflation.
   assert(mark == markOopDesc::INFLATING() ||
          !mark->has_bias_pattern(), "should not see bias pattern here");
@@ -338,6 +358,7 @@ void ObjectSynchronizer::fast_exit(oop object, BasicLock* lock, TRAPS) {
 // We don't need to use fast path here, because it must have been
 // failed in the interpreter/compiler code.
 void ObjectSynchronizer::slow_enter(Handle obj, BasicLock* lock, TRAPS) {
+  CHECK_THROW_NOSYNC_IMSE(obj);
   markOop mark = obj->mark();
   assert(!mark->has_bias_pattern(), "should not see bias pattern here");
 
@@ -390,6 +411,7 @@ void ObjectSynchronizer::slow_exit(oop object, BasicLock* lock, TRAPS) {
 // NOTE: must use heavy weight monitor to handle complete_exit/reenter()
 intptr_t ObjectSynchronizer::complete_exit(Handle obj, TRAPS) {
   TEVENT(complete_exit);
+  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -405,6 +427,7 @@ intptr_t ObjectSynchronizer::complete_exit(Handle obj, TRAPS) {
 // NOTE: must use heavy weight monitor to handle complete_exit/reenter()
 void ObjectSynchronizer::reenter(Handle obj, intptr_t recursion, TRAPS) {
   TEVENT(reenter);
+  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -422,6 +445,7 @@ void ObjectSynchronizer::reenter(Handle obj, intptr_t recursion, TRAPS) {
 void ObjectSynchronizer::jni_enter(Handle obj, TRAPS) {
   // the current locking is from JNI instead of Java code
   TEVENT(jni_enter);
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -434,6 +458,7 @@ void ObjectSynchronizer::jni_enter(Handle obj, TRAPS) {
 // NOTE: must use heavy weight monitor to handle jni monitor exit
 void ObjectSynchronizer::jni_exit(oop obj, Thread* THREAD) {
   TEVENT(jni_exit);
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (UseBiasedLocking) {
     Handle h_obj(THREAD, obj);
     BiasedLocking::revoke_and_rebias(h_obj, false, THREAD);
@@ -478,6 +503,7 @@ ObjectLocker::~ObjectLocker() {
 //  Wait/Notify/NotifyAll
 // NOTE: must use heavy weight monitor to handle wait()
 int ObjectSynchronizer::wait(Handle obj, jlong millis, TRAPS) {
+  CHECK_THROW_NOSYNC_IMSE_0(obj);
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -501,6 +527,7 @@ int ObjectSynchronizer::wait(Handle obj, jlong millis, TRAPS) {
 }
 
 void ObjectSynchronizer::waitUninterruptibly(Handle obj, jlong millis, TRAPS) {
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -515,6 +542,7 @@ void ObjectSynchronizer::waitUninterruptibly(Handle obj, jlong millis, TRAPS) {
 }
 
 void ObjectSynchronizer::notify(Handle obj, TRAPS) {
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -531,6 +559,7 @@ void ObjectSynchronizer::notify(Handle obj, TRAPS) {
 
 // NOTE: see comment of notify()
 void ObjectSynchronizer::notifyall(Handle obj, TRAPS) {
+  CHECK_THROW_NOSYNC_IMSE(obj);
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(obj, false, THREAD);
     assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -709,6 +738,14 @@ static inline intptr_t get_next_hash(Thread * Self, oop obj) {
 }
 
 intptr_t ObjectSynchronizer::FastHashCode(Thread * Self, oop obj) {
+  if (EnableValhalla && obj->klass()->is_value()) {
+    // Expected tooling to override hashCode for value type, just don't crash
+    if (log_is_enabled(Debug, monitorinflation)) {
+      ResourceMark rm;
+      log_debug(monitorinflation)("FastHashCode for value type: %s", obj->klass()->external_name());
+    }
+    return obj->klass()->java_mirror()->identity_hash();
+  }
   if (UseBiasedLocking) {
     // NOTE: many places throughout the JVM do not expect a safepoint
     // to be taken here, in particular most operations on perm gen
@@ -813,15 +850,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread * Self, oop obj) {
   return hash;
 }
 
-// Deprecated -- use FastHashCode() instead.
-
-intptr_t ObjectSynchronizer::identity_hash_value_for(Handle obj) {
-  return FastHashCode(Thread::current(), obj());
-}
-
 
 bool ObjectSynchronizer::current_thread_holds_lock(JavaThread* thread,
                                                    Handle h_obj) {
+  if (EnableValhalla && h_obj->mark()->is_always_locked()) {
+    return false;
+  }
   if (UseBiasedLocking) {
     BiasedLocking::revoke_and_rebias(h_obj, false, thread);
     assert(!h_obj->mark()->has_bias_pattern(), "biases should be revoked by now");
@@ -1382,6 +1416,10 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread * Self,
   // Relaxing assertion for bug 6320749.
   assert(Universe::verify_in_progress() ||
          !SafepointSynchronize::is_at_safepoint(), "invariant");
+
+  if (EnableValhalla) {
+    guarantee(!object->klass()->is_value(), "Attempt to inflate value type");
+  }
 
   EventJavaMonitorInflate event;
 

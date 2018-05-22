@@ -170,8 +170,17 @@ Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signatur
   return NULL;
 }
 
-void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
-  return Metaspace::allocate(loader_data, word_size, MetaspaceObj::ClassType, THREAD);
+void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool is_value, TRAPS) throw () {
+  // Pad size in case need adjust to even/odd klass ptr
+  uintptr_t addr = (uintptr_t) Metaspace::allocate(loader_data, word_size + (1 << LogKlassAlignment), MetaspaceObj::ClassType, THREAD);
+  // values are odd, otherwise make even (and vice versa)
+  if (is_value ^ (((addr & KlassPtrValueTypeMask) >> LogKlassAlignmentInBytes) != 0)) {
+    addr += (1 << LogKlassAlignmentInBytes);
+  }
+  assert(is_aligned(addr, (1 << LogKlassAlignmentInBytes)), "Klass base alignment incorrect");
+  assert( is_value || ((addr & KlassPtrValueTypeMask) == 0),  "Klass even alignment incorrect");
+  assert(!is_value || ((addr & KlassPtrValueTypeMask) != 0), "Klass odd alignment incorrect");
+ return (void*) addr;
 }
 
 // "Normal" instantiation is preceeded by a MetaspaceObj allocation
