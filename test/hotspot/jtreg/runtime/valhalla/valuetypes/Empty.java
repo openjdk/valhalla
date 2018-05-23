@@ -34,6 +34,13 @@ __ByValue final class EmptyValue {
     }
 }
 
+class EmptyTest {
+    public void run() {
+	EmptyValue.createEmptyValue();
+	throw new RuntimeException("Expected class file parse error");
+    }
+}
+
 /**
  * @test Empty
  * @summary Test empty value type
@@ -43,9 +50,9 @@ __ByValue final class EmptyValue {
  */
 public class Empty {
     public static void main(String[] args) {
-        try {
-            EmptyValue.createEmptyValue();
-            throw new RuntimeException("Excepted class file parse error");
-        } catch (ClassFormatError cfe) {}
+	try {
+	    EmptyTest test = new EmptyTest();
+	    test.run();
+	} catch (ClassFormatError cfe) {}
     }
 }

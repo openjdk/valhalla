@@ -98,6 +98,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   Array<u2>* _fields;
   Array<Method*>* _methods;
   Array<u2>* _inner_classes;
+  Array<ValueTypes>* _value_types;
   Array<Klass*>* _local_interfaces;
   Array<Klass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
@@ -287,6 +288,10 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   void parse_classfile_source_debug_extension_attribute(const ClassFileStream* const cfs,
                                                         int length,
                                                         TRAPS);
+
+  u2 parse_value_types_attribute(const ClassFileStream* const cfs,
+                                       const u1* const value_types_attribute_start,
+                                       TRAPS);
 
   u2   parse_classfile_inner_classes_attribute(const ClassFileStream* const cfs,
                                                const u1* const inner_classes_attribute_start,

@@ -403,6 +403,11 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_inner_classes(NULL);
 
+  if (value_types() != NULL && !value_types()->is_shared()) {
+    MetadataFactory::free_array<ValueTypes>(loader_data, value_types());
+  }
+  set_value_types(NULL);
+
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != NULL && !annotations()->is_shared()) {
     MetadataFactory::free_metadata(loader_data, annotations());
@@ -606,60 +611,53 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
     interk->link_class_impl(throw_verifyerror, CHECK_false);
   }
 
-  // If a value type is referenced by a class (either as a field type or a
-  // method argument or return type) this value type must be loaded during
-  // the linking of this class because size and properties of the value type
-  // must be known in order to be able to perform value type optimizations
 
-  // Note: circular dependencies between value types are not handled yet
+  // If a class declares a method that uses a value class as an argument
+  // type or return value type, this value class must be loaded during the
+  // linking of this class because size and properties of the value class
+  // must be known in order to be able to perform value type optimizations.
+  // The implementation below is an approximation of this rule, the code
+  // iterates over all methods of the current class (including overridden
+  // methods), not only the methods declared by this class. This
+  // approximation makes the code simpler, and doesn't change the semantic
+  // because classes declaring methods overridden by the current class are
+  // linked (and have performed their own pre-loading) before the linking
+  // of the current class.
+  // This is also the moment to detect potential mismatch between the
+  // ValueTypes attribute and the kind of the class effectively loaded.
 
-  // Note: one case is not handled yet: arrays of value types => FixMe
 
-  // Note: the current implementation is not optimized because the search for
-  // value types is performed on all classes. It would be more efficient to
-  // detect value types during verification and 'tag' the classes for which
-  // value type loading is required. However, this optimization won't be
-  // applicable to classes that are not verified
+  // Note:
+  // Value class types used for flattenable fields are loaded during
+  // the loading phase (see layout ClassFileParser::layout_fields()).
+  // Value class types used as element types for array creation
+  // are not pre-loaded. Their loading is triggered by either anewarray
+  // or multianewarray bytecodes.
 
-  // First step: fields
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  {
     ResourceMark rm(THREAD);
-    if (fs.field_descriptor().access_flags().is_flattenable()) {
-      Symbol* signature = fs.field_descriptor().signature();
-      // Get current loader and protection domain first.
-      oop loader = class_loader();
-      oop prot_domain = protection_domain();
-      Klass* klass = SystemDictionary::resolve_or_fail(signature,
-          Handle(THREAD, loader), Handle(THREAD, prot_domain), true,
-          THREAD);
-      if (klass == NULL) {
-        THROW_(vmSymbols::java_lang_LinkageError(), false);
+    for (int i = 0; i < methods()->length(); i++) {
+      Method* m = methods()->at(i);
+      for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
+        Symbol* sig = ss.as_symbol(THREAD);
+        if (is_declared_value_type(sig)) {
+          // Get current loader and protection domain first.
+          oop loader = class_loader();
+          oop protection_domain = this->protection_domain();
+
+          Klass* klass = SystemDictionary::resolve_or_fail(sig,
+                                                           Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+                                                           CHECK_false);
+          if (klass == NULL) {
+            THROW_(vmSymbols::java_lang_LinkageError(), false);
+          }
+          if (!klass->is_value()) {
+            THROW_(vmSymbols::java_lang_IncompatibleClassChangeError(), false);
+          }
+        }
       }
     }
   }
-
-  // Second step: methods arguments and return types
-  //  for (int i = 0; i < this_k->constants()->length(); i++) {
-  //    if (this_k->constants()->tag_at(i).is_method()) {
-  //      Symbol* signature = this_k->constants()->signature_ref_at(i);
-  //      ResourceMark rm(THREAD);
-  //      for (SignatureStream ss(signature); !ss.is_done(); ss.next()) {
-  //        if (ss.type() == T_VALUETYPE) {
-  //          Symbol* sig = ss.as_symbol(THREAD);
-  //          // Get current loader and protection domain first.
-  //          oop loader = this_k->class_loader();
-  //          oop protection_domain = this_k->protection_domain();
-  //
-  //          bool ok = SystemDictionary::resolve_or_fail(sig,
-  //              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-  //              THREAD);
-  //          if (!ok) {
-  //            THROW_(vmSymbols::java_lang_LinkageError(), false);
-  //          }
-  //        }
-  //      }
-  //    }
-  //  }
 
   // in case the class is linked in the process of linking its superclasses
   if (is_linked()) {
@@ -2342,6 +2340,14 @@ void InstanceKlass::release_C_heap_structures() {
   // unreference array name derived from this class name (arrays of an unloaded
   // class can't be referenced anymore).
   if (_array_name != NULL)  _array_name->decrement_refcount();
+  if (_value_types != NULL) {
+    for (int i = 0; i < _value_types->length(); i++) {
+      Symbol* s = _value_types->at(i)._class_name;
+      if (s != NULL) {
+        s->decrement_refcount();
+      }
+    }
+  }
   if (_source_debug_extension != NULL) FREE_C_HEAP_ARRAY(char, _source_debug_extension);
 }
 
@@ -3217,6 +3223,46 @@ void InstanceKlass::oop_print_value_on(oop obj, outputStream* st) {
 
 const char* InstanceKlass::internal_name() const {
   return external_name();
+}
+
+bool InstanceKlass::is_declared_value_type(int index) {
+  assert(constants()->is_within_bounds(index) &&
+               constants()->tag_at(index).is_klass_or_reference(), "Invalid index");
+  return InstanceKlass::is_declared_value_type(value_types(), index);
+}
+
+bool InstanceKlass::is_declared_value_type(Array<ValueTypes>* value_types, int index) {
+  if (value_types == NULL) return false; // No ValueType attribute in this class file
+  for(int i = 0; i < value_types->length(); i++) {
+    if (value_types->at(i)._class_info_index == index) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool InstanceKlass::is_declared_value_type(Symbol* symbol) {
+  return InstanceKlass::is_declared_value_type(constants(), value_types(), symbol);
+}
+
+bool InstanceKlass::is_declared_value_type(ConstantPool* constants, Array<ValueTypes>* value_types, Symbol* symbol) {
+  assert(symbol != NULL, "Sanity check");
+  if (value_types == NULL) return false; // No ValueType attribute in this class file
+  for(int i = 0; i < value_types->length(); i++) {
+    if (value_types->at(i)._class_name == symbol) {
+      return true;
+    }
+  }
+  // symbol not found, class name symbol might not have been
+  // updated yet
+  for(int i = 0; i < value_types->length(); i++) {
+    if (constants->klass_at_noresolve((int)value_types->at(i)._class_info_index) == symbol) {
+      value_types->adr_at(i)->_class_name = symbol;
+      symbol->increment_refcount();
+      return true;
+    }
+  }
+  return false;
 }
 
 void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,

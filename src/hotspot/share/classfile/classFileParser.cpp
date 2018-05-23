@@ -3159,6 +3159,40 @@ void ClassFileParser::parse_classfile_source_debug_extension_attribute(const Cla
                                            JVM_ACC_STATIC                   \
                                          )
 
+u2 ClassFileParser::parse_value_types_attribute(const ClassFileStream* const cfs,
+                                                const u1* const value_types_attribute_start,
+                                                TRAPS) {
+  const u1* const current_mark = cfs->current();
+  u2 length = 0;
+  if (value_types_attribute_start != NULL) {
+    cfs->set_current(value_types_attribute_start);
+    cfs->guarantee_more(2, CHECK_0);  // length
+    length = cfs->get_u2_fast();
+  }
+  Array<ValueTypes>* const value_types = MetadataFactory::new_array<ValueTypes>(_loader_data, length, CHECK_0);
+
+  int index = 0;
+  const int cp_size = _cp->length();
+  cfs->guarantee_more(2 *length, CHECK_0);
+  for (int n = 0; n < length; n++) {
+      // Value types class index
+      const u2 value_types_info_index = cfs->get_u2_fast();
+      check_property(
+        valid_klass_reference_at(value_types_info_index),
+        "value_types_info_index %u has bad constant type in class file %s",
+        value_types_info_index, CHECK_0);
+      ValueTypes vt;
+      vt._class_info_index = value_types_info_index;
+      vt._class_name = NULL;
+      value_types->at_put(index++, vt);
+  }
+  _value_types = value_types;
+  // Restore buffer's current position.
+  cfs->set_current(current_mark);
+
+  return length;
+}
+
 // Return number of classes in the inner classes attribute table
 u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStream* const cfs,
                                                             const u1* const inner_classes_attribute_start,
@@ -3379,6 +3413,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   u2 attributes_count = cfs->get_u2_fast();
   bool parsed_sourcefile_attribute = false;
   bool parsed_innerclasses_attribute = false;
+  bool parsed_value_types_attribute = false;
   bool parsed_enclosingmethod_attribute = false;
   bool parsed_bootstrap_methods_attribute = false;
   const u1* runtime_visible_annotations = NULL;
@@ -3394,6 +3429,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   bool parsed_source_debug_ext_annotations_exist = false;
   const u1* inner_classes_attribute_start = NULL;
   u4  inner_classes_attribute_length = 0;
+  const u1* value_types_attribute_start = NULL;
+  u4 value_types_attribute_length = 0;
   u2  enclosing_method_class_index = 0;
   u2  enclosing_method_method_index = 0;
   // Iterate over attributes
@@ -3435,6 +3472,16 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
       inner_classes_attribute_start = cfs->current();
       inner_classes_attribute_length = attribute_length;
       cfs->skip_u1(inner_classes_attribute_length, CHECK);
+    } else if (tag == vmSymbols::tag_value_types()) {
+      // Check for ValueTypes tag
+      if (parsed_value_types_attribute) {
+        classfile_parse_error("Multiple ValueTypes attributes in class file %s", CHECK);
+      } else {
+        parsed_value_types_attribute = true;
+      }
+      value_types_attribute_start = cfs->current();
+      value_types_attribute_length = attribute_length;
+      cfs->skip_u1(value_types_attribute_length, CHECK);
     } else if (tag == vmSymbols::tag_synthetic()) {
       // Check for Synthetic tag
       // Shouldn't we check that the synthetic flags wasn't already set? - not required in spec
@@ -3579,6 +3626,10 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
     }
   }
 
+  if (parsed_value_types_attribute) {
+    parse_value_types_attribute(cfs, value_types_attribute_start, CHECK);
+  }
+
   if (_max_bootstrap_specifier_index >= 0) {
     guarantee_property(parsed_bootstrap_methods_attribute,
                        "Missing BootstrapMethods attribute in class file %s", CHECK);
@@ -3641,6 +3692,7 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_fields(_fields, java_fields_count);
   this_klass->set_methods(_methods);
   this_klass->set_inner_classes(_inner_classes);
+  this_klass->set_value_types(_value_types);
   this_klass->set_local_interfaces(_local_interfaces);
   this_klass->set_transitive_interfaces(_transitive_interfaces);
   this_klass->set_annotations(_combined_annotations);
@@ -4023,21 +4075,43 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       // only have java.lang.Object as their super class.
       // Also, note that super-interface circularity checks are not needed
       // because interfaces cannot be value types.
+      ResourceMark rm;
+      Symbol* sig = fs.signature();
+      Symbol* name = SymbolTable::lookup(sig->as_C_string() + 1,
+                                         sig->utf8_length() - 2, CHECK);
+      if (!InstanceKlass::is_declared_value_type(_cp, _value_types, name)) {
+        name->decrement_refcount();
+        THROW(vmSymbols::java_lang_ClassFormatError());
+      }
+      name->decrement_refcount();
       Klass* klass =
         SystemDictionary::resolve_flattenable_field_or_fail(&fs,
                                                             Handle(THREAD, _loader_data->class_loader()),
                                                             _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_value_type(), "Value type expected");
+      if (!klass->access_flags().is_value_type()) {
+        THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+      }
       static_value_type_count++;
     } else if (fs.allocation_type() == NONSTATIC_FLATTENABLE) {
       // Pre-resolve the flattenable field and check for value type circularity issues.
+      ResourceMark rm;
+      Symbol* sig = fs.signature();
+      Symbol* name = SymbolTable::lookup(sig->as_C_string() + 1,
+                                         sig->utf8_length() - 2, CHECK);
+      if (!InstanceKlass::is_declared_value_type(_cp, _value_types, name)) {
+        name->decrement_refcount();
+        THROW(vmSymbols::java_lang_ClassFormatError());
+      }
+      name->decrement_refcount();
       Klass* klass =
         SystemDictionary::resolve_flattenable_field_or_fail(&fs,
                                                             Handle(THREAD, _loader_data->class_loader()),
                                                             _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_value_type(), "Value type expected");
+      if (!klass->access_flags().is_value_type()) {
+        THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+      }
       ValueKlass* vk = ValueKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
       if ((ValueFieldMaxFlatSize < 0) || (vk->size_helper() * HeapWordSize) <= ValueFieldMaxFlatSize) {
@@ -5947,6 +6021,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _fields(NULL),
   _methods(NULL),
   _inner_classes(NULL),
+  _value_types(NULL),
   _local_interfaces(NULL),
   _transitive_interfaces(NULL),
   _combined_annotations(NULL),

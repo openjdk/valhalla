@@ -143,6 +143,12 @@ class ValueKlassFixedBlock VALUE_OBJ_CLASS_SPEC {
   friend class ValueKlass;
 };
 
+class ValueTypes VALUE_OBJ_CLASS_SPEC {
+public:
+  u2 _class_info_index;
+  Symbol* _class_name;
+};
+
 class InstanceKlass: public Klass {
   friend class VMStructs;
   friend class JVMCIVMStructs;
@@ -193,6 +199,8 @@ class InstanceKlass: public Klass {
   // and EnclosingMethod attributes the _inner_classes array length is
   // number_of_inner_classes * 4 + enclosing_method_attribute_size.
   Array<jushort>* _inner_classes;
+
+  Array<ValueTypes>* _value_types;
 
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
@@ -479,6 +487,15 @@ class InstanceKlass: public Klass {
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
   void set_inner_classes(Array<u2>* f)   { _inner_classes = f; }
+
+  Array<ValueTypes>* value_types() const       { return _value_types; }
+  void set_value_types(Array<ValueTypes>* f)   { _value_types = f; }
+
+  bool is_declared_value_type(int index);
+  bool is_declared_value_type(Symbol* symbol);
+
+  static bool is_declared_value_type(Array<ValueTypes>* value_types, int index);
+  static bool is_declared_value_type(ConstantPool* constants, Array<ValueTypes>* value_types, Symbol* symbol);
 
   enum InnerClassAttributeOffset {
     // From http://mirror.eng/products/jdk/1.1/docs/guide/innerclasses/spec/innerclasses.doc10.html#18814
