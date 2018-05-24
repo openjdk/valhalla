@@ -24,17 +24,23 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "memory/metadataFactory.hpp"
-#include "oops/instanceKlass.hpp"
-#include "oops/oop.inline.hpp"
+#include "oops/access.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/fieldStreams.hpp"
+#include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
+#include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "runtime/handles.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/copy.hpp"
 
@@ -236,6 +242,8 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
       // src/dst aren't oops, need offset to adjust oop map offset
       const address dst_oop_addr = ((address) dst) - first_field_offset();
 
+      ModRefBarrierSet* bs = barrier_set_cast<ModRefBarrierSet>(BarrierSet::barrier_set());
+
       // Pre-barriers...
       OopMapBlock* map = start_of_nonstatic_oop_maps();
       OopMapBlock* const end = map + nonstatic_oop_map_count();
@@ -244,9 +252,9 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
         address doop_address = dst_oop_addr + map->offset();
         // TEMP HACK: barrier code need to migrate to => access API (need own versions of value type ops)
         if (UseCompressedOops) {
-          BarrierSet::barrier_set()->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
+          bs->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
         } else {
-          BarrierSet::barrier_set()->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
+          bs->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
         }
         map++;
       }
@@ -257,7 +265,7 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
       map = start_of_nonstatic_oop_maps();
       while (map != end) {
         address doop_address = dst_oop_addr + map->offset();
-        BarrierSet::barrier_set()->write_ref_array((HeapWord*) doop_address, map->count());
+        bs->write_ref_array((HeapWord*) doop_address, map->count());
         map++;
       }
     } else { // Buffered value case
@@ -530,14 +538,7 @@ oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<H
     case T_VALUETYPEPTR:
     case T_ARRAY: {
       Handle handle = handles.at(k++);
-      oop v = handle();
-      if (!UseCompressedOops) {
-        oop* p = (oop*)((address)new_vt + off);
-        oopDesc::store_heap_oop(p, v);
-      } else {
-        narrowOop* p = (narrowOop*)((address)new_vt + off);
-        oopDesc::encode_store_heap_oop(p, v);
-      }
+      HeapAccess<>::oop_store_at(new_vt, off, handle());
       break;
     }
     case T_FLOAT: {
@@ -590,7 +591,7 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
 void ValueKlass::iterate_over_inside_oops(OopClosure* f, oop value) {
   assert(!Universe::heap()->is_in_reserved(value), "This method is used on buffered values");
 
-  oop* addr_mirror = (oop*)(value)->mark_addr();
+  oop* addr_mirror = (oop*)(value)->mark_addr_raw();
   f->do_oop_no_buffering(addr_mirror);
 
   if (!contains_oops()) return;
@@ -612,7 +613,7 @@ void ValueKlass::iterate_over_inside_oops(OopClosure* f, oop value) {
       narrowOop* p = (narrowOop*) (((char*)(oopDesc*)value) + map->offset());
       narrowOop* const end = p + map->count();
       for (; p < end; ++p) {
-        oop o = oopDesc::decode_heap_oop(*p);
+        oop o = CompressedOops::decode(*p);
         assert(Universe::heap()->is_in_reserved_or_null(o), "Sanity check");
         assert(oopDesc::is_oop_or_null(o), "Sanity check");
         f->do_oop(p);

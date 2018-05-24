@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "ci/ciValueKlass.hpp"
 #include "oops/valueKlass.hpp"
 

@@ -33,7 +33,6 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "memory/universe.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -383,7 +382,9 @@ bool ValueArrayKlass::can_be_primary_super_slow() const {
     return true;
 }
 
-GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_slots) {
+GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_slots,
+                                                                 Array<Klass*>* transitive_interfaces) {
+  assert(transitive_interfaces == NULL, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
   int num_elem_supers = elem_supers == NULL ? 0 : elem_supers->length();

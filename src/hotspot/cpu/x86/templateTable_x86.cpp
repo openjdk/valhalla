@@ -3394,7 +3394,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(Done);
           __ bind(notBuffered);
         }
-        do_oop_store(_masm, field, rax, _bs->kind(), false);
+        do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
         Label isFlattenable, isFlattened, notBuffered, notBuffered2, rewriteNotFlattenable, rewriteFlattenable;
@@ -3409,7 +3409,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewriteNotFlattenable);
           __ bind(notBuffered);
         }
-        do_oop_store(_masm, field, rax, _bs->kind(), false);
+        do_oop_store(_masm, field, rax);
         __ bind(rewriteNotFlattenable);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
@@ -3430,7 +3430,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         }
         pop_and_check_object(obj);
         // Store into the field
-        do_oop_store(_masm, field, rax, _bs->kind(), false);
+        do_oop_store(_masm, field, rax);
         __ jmp(rewriteFlattenable);
         __ bind(isFlattened);
         pop_and_check_object(obj);
@@ -3712,7 +3712,7 @@ void TemplateTable::fast_storefield(TosState state) {
         __ jmp(done);
         __ bind(notBuffered);
       }
-      do_oop_store(_masm, field, rax, _bs->kind(), false);
+      do_oop_store(_masm, field, rax);
       __ jmp(done);
       __ bind(isFlattened);
       call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value),

@@ -24,12 +24,14 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLocker.hpp"
+#include "memory/resourceArea.hpp"
 #include "memory/vtBuffer.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/valueKlass.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ticks.hpp"
@@ -549,7 +551,7 @@ void BufferedValuesDealiaser::oops_do(OopClosure* f, oop value) {
 
   assert(VTBuffer::is_in_vt_buffer((oopDesc*)value), "Should only be called on buffered values");
 
-  intptr_t mark =  *(intptr_t*)(value)->mark_addr();
+  intptr_t mark =  *(intptr_t*)(value)->mark_addr_raw();
   if ((mark & VTBuffer::mark_mask) == _current_mark) {
     return;
   }

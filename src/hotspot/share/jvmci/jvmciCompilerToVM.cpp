@@ -1043,7 +1043,7 @@ C2V_VMENTRY(jobject, iterateFrames, (JNIEnv*, jobject compilerToVM, jobjectArray
                 }
               }
               bool realloc_failures = Deoptimization::realloc_objects(thread, fst.current(), objects, CHECK_NULL);
-              Deoptimization::reassign_fields(fst.current(), fst.register_map(), objects, realloc_failures, false);
+              Deoptimization::reassign_fields(fst.current(), fst.register_map(), objects, realloc_failures, false, CHECK_NULL);
               realloc_called = true;
 
               GrowableArray<ScopeValue*>* local_values = scope->locals();

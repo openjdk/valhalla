@@ -132,7 +132,7 @@ struct JvmtiCachedClassFileData;
 
 class SigEntry;
 
-class ValueKlassFixedBlock VALUE_OBJ_CLASS_SPEC {
+class ValueKlassFixedBlock {
   Array<SigEntry>** _extended_sig;
   Array<VMRegPair>** _return_regs;
   address* _pack_handler;
@@ -142,7 +142,7 @@ class ValueKlassFixedBlock VALUE_OBJ_CLASS_SPEC {
   friend class ValueKlass;
 };
 
-class ValueTypes VALUE_OBJ_CLASS_SPEC {
+class ValueTypes {
 public:
   u2 _class_info_index;
   Symbol* _class_name;

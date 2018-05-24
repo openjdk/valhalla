@@ -4730,7 +4730,7 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
     for(int i = 0; i < defined_klass->java_fields_count(); i++) {
       if ((defined_klass->field_access_flags(i) & JVM_ACC_FLATTENABLE) != 0) {
         const Klass* klass = defined_klass->get_value_field_klass(i);
-        defining_loader_data->record_dependency(klass, CHECK);
+        defining_loader_data->record_dependency(klass);
       }
     }
   }

@@ -433,7 +433,7 @@ class SignatureVerifier : public StackObj {
 // Used for adapter generation. One SigEntry is used per element of
 // the signature of the method. Value type arguments are treated
 // specially. See comment for ValueKlass::collect_fields().
-class SigEntry VALUE_OBJ_CLASS_SPEC {
+class SigEntry {
  public:
   BasicType _bt;
   int _offset;

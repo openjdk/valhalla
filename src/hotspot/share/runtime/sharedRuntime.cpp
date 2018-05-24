@@ -45,6 +45,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/access.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/klass.hpp"
 #include "oops/method.inline.hpp"
@@ -3329,7 +3330,8 @@ JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* thread, objArrayOo
       OopMapBlock* const end = map + vk->nonstatic_oop_map_count();
       while (map != end) {
         address doop_address = dst_oop_addr + map->offset();
-        BarrierSet::barrier_set()->write_ref_array((HeapWord*) doop_address, map->count());
+        barrier_set_cast<ModRefBarrierSet>(BarrierSet::barrier_set())->
+          write_ref_array((HeapWord*) doop_address, map->count());
         map++;
       }
     }
@@ -3401,14 +3403,7 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
       break;
     case T_OBJECT:
     case T_ARRAY: {
-      oop v = NULL;
-      if (!UseCompressedOops) {
-        oop* p = (oop*)((address)res + off);
-        v = oopDesc::load_heap_oop(p);
-      } else {
-        narrowOop* p = (narrowOop*)((address)res + off);
-        v = oopDesc::load_decode_heap_oop(p);
-      }
+      oop v = HeapAccess<>::oop_load_at(res, off);
       *(oop*)loc = v;
       break;
     }

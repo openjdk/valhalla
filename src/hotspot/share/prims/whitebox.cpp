@@ -42,6 +42,7 @@
 #include "memory/universe.hpp"
 #include "memory/oopFactory.hpp"
 #include "oops/array.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -1699,7 +1700,7 @@ class CollectOops : public OopClosure {
   }
 
   void do_oop(oop* o) { add_oop(*o); }
-  void do_oop(narrowOop* v) { add_oop(oopDesc::load_decode_heap_oop(v)); }
+  void do_oop(narrowOop* v) { add_oop(CompressedOops::decode(*v)); }
 };
 
 

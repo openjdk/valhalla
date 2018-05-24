@@ -66,7 +66,7 @@ protected:
   // aligned 0 mod 8.  The typeArrayOop itself must be aligned at least this
   // strongly.
   static bool element_type_should_be_aligned(BasicType type) {
-    return type == T_DOUBLE || type == T_LONG;
+    return type == T_DOUBLE || type == T_LONG || type == T_VALUETYPE;
   }
 
  public:

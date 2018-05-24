@@ -26,6 +26,7 @@
 #define SHARE_VM_MEMORY_VTBUFFER_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/iterator.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
