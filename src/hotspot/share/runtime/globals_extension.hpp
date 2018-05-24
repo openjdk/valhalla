@@ -27,10 +27,6 @@
 
 #include "runtime/globals.hpp"
 #include "utilities/macros.hpp"
-#include "utilities/macros.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1_globals.hpp"
-#endif
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci_globals.hpp"
 #endif
@@ -96,32 +92,7 @@
 #define ARCH_NOTPRODUCT_FLAG_MEMBER(type, name, value, doc)      FLAG_MEMBER(name),
 
 typedef enum {
- RUNTIME_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER, \
-               RUNTIME_PD_DEVELOP_FLAG_MEMBER, \
-               RUNTIME_PRODUCT_FLAG_MEMBER, \
-               RUNTIME_PD_PRODUCT_FLAG_MEMBER, \
-               RUNTIME_DIAGNOSTIC_FLAG_MEMBER, \
-               RUNTIME_PD_DIAGNOSTIC_FLAG_MEMBER, \
-               RUNTIME_EXPERIMENTAL_FLAG_MEMBER, \
-               RUNTIME_NOTPRODUCT_FLAG_MEMBER, \
-               RUNTIME_MANAGEABLE_FLAG_MEMBER, \
-               RUNTIME_PRODUCT_RW_FLAG_MEMBER, \
-               RUNTIME_LP64_PRODUCT_FLAG_MEMBER, \
-               IGNORE_RANGE, \
-               IGNORE_CONSTRAINT, \
-               IGNORE_WRITEABLE)
- RUNTIME_OS_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER, \
-                  RUNTIME_PD_DEVELOP_FLAG_MEMBER, \
-                  RUNTIME_PRODUCT_FLAG_MEMBER, \
-                  RUNTIME_PD_PRODUCT_FLAG_MEMBER, \
-                  RUNTIME_DIAGNOSTIC_FLAG_MEMBER, \
-                  RUNTIME_PD_DIAGNOSTIC_FLAG_MEMBER, \
-                  RUNTIME_NOTPRODUCT_FLAG_MEMBER, \
-                  IGNORE_RANGE, \
-                  IGNORE_CONSTRAINT, \
-                  IGNORE_WRITEABLE)
-#if INCLUDE_ALL_GCS
- G1_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER, \
+ VM_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER, \
           RUNTIME_PD_DEVELOP_FLAG_MEMBER, \
           RUNTIME_PRODUCT_FLAG_MEMBER, \
           RUNTIME_PD_PRODUCT_FLAG_MEMBER, \
@@ -131,10 +102,21 @@ typedef enum {
           RUNTIME_NOTPRODUCT_FLAG_MEMBER, \
           RUNTIME_MANAGEABLE_FLAG_MEMBER, \
           RUNTIME_PRODUCT_RW_FLAG_MEMBER, \
+          RUNTIME_LP64_PRODUCT_FLAG_MEMBER, \
           IGNORE_RANGE, \
           IGNORE_CONSTRAINT, \
           IGNORE_WRITEABLE)
-#endif // INCLUDE_ALL_GCS
+
+ RUNTIME_OS_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER,    \
+                  RUNTIME_PD_DEVELOP_FLAG_MEMBER, \
+                  RUNTIME_PRODUCT_FLAG_MEMBER, \
+                  RUNTIME_PD_PRODUCT_FLAG_MEMBER, \
+                  RUNTIME_DIAGNOSTIC_FLAG_MEMBER, \
+                  RUNTIME_PD_DIAGNOSTIC_FLAG_MEMBER, \
+                  RUNTIME_NOTPRODUCT_FLAG_MEMBER, \
+                  IGNORE_RANGE, \
+                  IGNORE_CONSTRAINT, \
+                  IGNORE_WRITEABLE)
 #if INCLUDE_JVMCI
  JVMCI_FLAGS(JVMCI_DEVELOP_FLAG_MEMBER, \
              JVMCI_PD_DEVELOP_FLAG_MEMBER, \
@@ -181,9 +163,9 @@ typedef enum {
             IGNORE_RANGE, \
             IGNORE_CONSTRAINT, \
             IGNORE_WRITEABLE)
- COMMANDLINEFLAG_EXT
- NUM_CommandLineFlag
-} CommandLineFlag;
+ JVMFLAGS_EXT
+ NUM_JVMFlags
+} JVMFlags;
 
 // Construct enum of Flag_<cmdline-arg>_<type> constants.
 
@@ -239,20 +221,21 @@ typedef enum {
 #define ARCH_NOTPRODUCT_FLAG_MEMBER_WITH_TYPE(type, name, value, doc)      FLAG_MEMBER_WITH_TYPE(name,type),
 
 typedef enum {
- RUNTIME_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_PD_DEVELOP_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_PRODUCT_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_PD_PRODUCT_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_DIAGNOSTIC_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_PD_DIAGNOSTIC_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_EXPERIMENTAL_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_NOTPRODUCT_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_MANAGEABLE_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_PRODUCT_RW_FLAG_MEMBER_WITH_TYPE,
-               RUNTIME_LP64_PRODUCT_FLAG_MEMBER_WITH_TYPE,
-               IGNORE_RANGE,
-               IGNORE_CONSTRAINT,
-               IGNORE_WRITEABLE)
+  VM_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_PD_DEVELOP_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_PRODUCT_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_PD_PRODUCT_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_DIAGNOSTIC_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_PD_DIAGNOSTIC_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_EXPERIMENTAL_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_NOTPRODUCT_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_MANAGEABLE_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_PRODUCT_RW_FLAG_MEMBER_WITH_TYPE,
+           RUNTIME_LP64_PRODUCT_FLAG_MEMBER_WITH_TYPE,
+           IGNORE_RANGE,
+           IGNORE_CONSTRAINT,
+           IGNORE_WRITEABLE)
+
  RUNTIME_OS_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER_WITH_TYPE,
                   RUNTIME_PD_DEVELOP_FLAG_MEMBER_WITH_TYPE,
                   RUNTIME_PRODUCT_FLAG_MEMBER_WITH_TYPE,
@@ -263,21 +246,6 @@ typedef enum {
                   IGNORE_RANGE,
                   IGNORE_CONSTRAINT,
                   IGNORE_WRITEABLE)
-#if INCLUDE_ALL_GCS
- G1_FLAGS(RUNTIME_DEVELOP_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_PD_DEVELOP_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_PRODUCT_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_PD_PRODUCT_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_DIAGNOSTIC_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_PD_DIAGNOSTIC_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_EXPERIMENTAL_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_NOTPRODUCT_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_MANAGEABLE_FLAG_MEMBER_WITH_TYPE,
-          RUNTIME_PRODUCT_RW_FLAG_MEMBER_WITH_TYPE,
-          IGNORE_RANGE,
-          IGNORE_CONSTRAINT,
-          IGNORE_WRITEABLE)
-#endif // INCLUDE_ALL_GCS
 #if INCLUDE_JVMCI
  JVMCI_FLAGS(JVMCI_DEVELOP_FLAG_MEMBER_WITH_TYPE,
              JVMCI_PD_DEVELOP_FLAG_MEMBER_WITH_TYPE,
@@ -324,19 +292,19 @@ typedef enum {
           IGNORE_RANGE,
           IGNORE_CONSTRAINT,
           IGNORE_WRITEABLE)
- COMMANDLINEFLAGWITHTYPE_EXT
- NUM_CommandLineFlagWithType
-} CommandLineFlagWithType;
+  JVMFLAGSWITHTYPE_EXT
+  NUM_JVMFlagsWithType
+} JVMFlagsWithType;
 
-#define FLAG_IS_DEFAULT(name)         (CommandLineFlagsEx::is_default(FLAG_MEMBER(name)))
-#define FLAG_IS_ERGO(name)            (CommandLineFlagsEx::is_ergo(FLAG_MEMBER(name)))
-#define FLAG_IS_CMDLINE(name)         (CommandLineFlagsEx::is_cmdline(FLAG_MEMBER(name)))
+#define FLAG_IS_DEFAULT(name)         (JVMFlagEx::is_default(FLAG_MEMBER(name)))
+#define FLAG_IS_ERGO(name)            (JVMFlagEx::is_ergo(FLAG_MEMBER(name)))
+#define FLAG_IS_CMDLINE(name)         (JVMFlagEx::is_cmdline(FLAG_MEMBER(name)))
 
 #define FLAG_SET_DEFAULT(name, value) ((name) = (value))
 
-#define FLAG_SET_CMDLINE(type, name, value) (CommandLineFlagsEx::setOnCmdLine(FLAG_MEMBER_WITH_TYPE(name, type)), \
-                                             CommandLineFlagsEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name, type), (type)(value), Flag::COMMAND_LINE))
-#define FLAG_SET_ERGO(type, name, value)    (CommandLineFlagsEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name, type), (type)(value), Flag::ERGONOMIC))
+#define FLAG_SET_CMDLINE(type, name, value) (JVMFlagEx::setOnCmdLine(FLAG_MEMBER_WITH_TYPE(name, type)), \
+                                             JVMFlagEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name, type), (type)(value), JVMFlag::COMMAND_LINE))
+#define FLAG_SET_ERGO(type, name, value)    (JVMFlagEx::type##AtPut(FLAG_MEMBER_WITH_TYPE(name, type), (type)(value), JVMFlag::ERGONOMIC))
 #define FLAG_SET_ERGO_IF_DEFAULT(type, name, value) \
   do {                                              \
     if (FLAG_IS_DEFAULT(name)) {                    \
@@ -344,26 +312,26 @@ typedef enum {
     }                                               \
   } while (0)
 
-// Can't put the following in CommandLineFlags because
+// Can't put the following in JVMFlags because
 // of a circular dependency on the enum definition.
-class CommandLineFlagsEx : CommandLineFlags {
+class JVMFlagEx : JVMFlag {
  public:
-  static Flag::Error boolAtPut(CommandLineFlagWithType flag, bool value, Flag::Flags origin);
-  static Flag::Error intAtPut(CommandLineFlagWithType flag, int value, Flag::Flags origin);
-  static Flag::Error uintAtPut(CommandLineFlagWithType flag, uint value, Flag::Flags origin);
-  static Flag::Error intxAtPut(CommandLineFlagWithType flag, intx value, Flag::Flags origin);
-  static Flag::Error uintxAtPut(CommandLineFlagWithType flag, uintx value, Flag::Flags origin);
-  static Flag::Error uint64_tAtPut(CommandLineFlagWithType flag, uint64_t value, Flag::Flags origin);
-  static Flag::Error size_tAtPut(CommandLineFlagWithType flag, size_t value, Flag::Flags origin);
-  static Flag::Error doubleAtPut(CommandLineFlagWithType flag, double value, Flag::Flags origin);
+  static JVMFlag::Error boolAtPut(JVMFlagsWithType flag, bool value, JVMFlag::Flags origin);
+  static JVMFlag::Error intAtPut(JVMFlagsWithType flag, int value, JVMFlag::Flags origin);
+  static JVMFlag::Error uintAtPut(JVMFlagsWithType flag, uint value, JVMFlag::Flags origin);
+  static JVMFlag::Error intxAtPut(JVMFlagsWithType flag, intx value, JVMFlag::Flags origin);
+  static JVMFlag::Error uintxAtPut(JVMFlagsWithType flag, uintx value, JVMFlag::Flags origin);
+  static JVMFlag::Error uint64_tAtPut(JVMFlagsWithType flag, uint64_t value, JVMFlag::Flags origin);
+  static JVMFlag::Error size_tAtPut(JVMFlagsWithType flag, size_t value, JVMFlag::Flags origin);
+  static JVMFlag::Error doubleAtPut(JVMFlagsWithType flag, double value, JVMFlag::Flags origin);
   // Contract:  Flag will make private copy of the incoming value
-  static Flag::Error ccstrAtPut(CommandLineFlagWithType flag, ccstr value, Flag::Flags origin);
+  static JVMFlag::Error ccstrAtPut(JVMFlagsWithType flag, ccstr value, JVMFlag::Flags origin);
 
-  static bool is_default(CommandLineFlag flag);
-  static bool is_ergo(CommandLineFlag flag);
-  static bool is_cmdline(CommandLineFlag flag);
+  static bool is_default(JVMFlags flag);
+  static bool is_ergo(JVMFlags flag);
+  static bool is_cmdline(JVMFlags flag);
 
-  static void setOnCmdLine(CommandLineFlagWithType flag);
+  static void setOnCmdLine(JVMFlagsWithType flag);
 };
 
 #endif // SHARE_VM_RUNTIME_GLOBALS_EXTENSION_HPP

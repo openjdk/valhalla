@@ -34,6 +34,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
+#include "runtime/objectMonitor.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vframe.hpp"
@@ -121,6 +122,9 @@ void ThreadService::add_thread(JavaThread* thread, bool daemon) {
 
 void ThreadService::remove_thread(JavaThread* thread, bool daemon) {
   Atomic::dec(&_exiting_threads_count);
+  if (daemon) {
+    Atomic::dec(&_exiting_daemon_threads_count);
+  }
 
   if (thread->is_hidden_from_external_view() ||
       thread->is_jvmti_agent_thread()) {
@@ -128,10 +132,8 @@ void ThreadService::remove_thread(JavaThread* thread, bool daemon) {
   }
 
   _live_threads_count->set_value(_live_threads_count->get_value() - 1);
-
   if (daemon) {
     _daemon_threads_count->set_value(_daemon_threads_count->get_value() - 1);
-    Atomic::dec(&_exiting_daemon_threads_count);
   }
 }
 
@@ -606,7 +608,7 @@ bool ThreadStackTrace::is_owned_monitor_on_stack(oop object) {
     for (int j = 0; j < len; j++) {
       oop monitor = locked_monitors->at(j);
       assert(monitor != NULL, "must be a Java object");
-      if (monitor == object) {
+      if (oopDesc::equals(monitor, object)) {
         found = true;
         break;
       }

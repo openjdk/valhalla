@@ -1051,7 +1051,8 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
          *  If lookup fails or access is not permitted, null is returned.
          *  Otherwise a fresh copy of the given member is returned, with modifier bits filled in.
          */
-        private MemberName resolve(byte refKind, MemberName ref, Class<?> lookupClass) {
+        private MemberName resolve(byte refKind, MemberName ref, Class<?> lookupClass,
+                                   boolean speculativeResolve) {
             MemberName m = ref.clone();  // JVM will side-effect the ref
             assert(refKind == m.getReferenceKind());
             try {
@@ -1070,7 +1071,10 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
                 //
                 // REFC view on PTYPES doesn't matter, since it is used only as a starting point for resolution and doesn't
                 // participate in method selection.
-                m = MethodHandleNatives.resolve(m, lookupClass);
+                m = MethodHandleNatives.resolve(m, lookupClass, speculativeResolve);
+                if (m == null && speculativeResolve) {
+                    return null;
+                }
                 m.checkForTypeAlias(m.getDeclaringClass());
                 m.resolution = null;
             } catch (ClassNotFoundException | LinkageError ex) {
@@ -1095,7 +1099,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         MemberName resolveOrFail(byte refKind, MemberName m, Class<?> lookupClass,
                                  Class<NoSuchMemberException> nsmClass)
                 throws IllegalAccessException, NoSuchMemberException {
-            MemberName result = resolve(refKind, m, lookupClass);
+            MemberName result = resolve(refKind, m, lookupClass, false);
             if (result.isResolved())
                 return result;
             ReflectiveOperationException ex = result.makeAccessException();
@@ -1110,8 +1114,8 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
          */
         public
         MemberName resolveOrNull(byte refKind, MemberName m, Class<?> lookupClass) {
-            MemberName result = resolve(refKind, m, lookupClass);
-            if (result.isResolved())
+            MemberName result = resolve(refKind, m, lookupClass, true);
+            if (result != null && result.isResolved())
                 return result;
             return null;
         }

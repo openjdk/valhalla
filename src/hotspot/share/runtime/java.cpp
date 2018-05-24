@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerOracle.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciCompiler.hpp"
@@ -55,8 +54,9 @@
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/init.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/memprofiler.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -74,10 +74,6 @@
 #include "utilities/histogram.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/cms/concurrentMarkSweepThread.hpp"
-#include "gc/parallel/psScavenge.hpp"
-#endif // INCLUDE_ALL_GCS
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
 #include "c1/c1_Runtime1.hpp"
@@ -267,17 +263,17 @@ void print_statistics() {
     IndexSet::print_statistics();
   }
 #endif // ASSERT
-#else
-#ifdef INCLUDE_JVMCI
+#else // COMPILER2
+#if INCLUDE_JVMCI
 #ifndef COMPILER1
   if ((TraceDeoptimization || LogVMOutput || LogCompilation) && UseCompiler) {
     FlagSetting fs(DisplayVMOutput, DisplayVMOutput && TraceDeoptimization);
     Deoptimization::print_statistics();
     SharedRuntime::print_statistics();
   }
-#endif
-#endif
-#endif
+#endif // COMPILER1
+#endif // INCLUDE_JVMCI
+#endif // COMPILER2
 
   if (PrintAOTStatistics) {
     AOTLoader::print_statistics();
@@ -316,8 +312,13 @@ void print_statistics() {
     CodeCache::print();
   }
 
-  if (PrintMethodFlushingStatistics) {
-    NMethodSweeper::print();
+  // CodeHeap State Analytics.
+  // Does also call NMethodSweeper::print(tty)
+  LogTarget(Trace, codecache) lt;
+  if (lt.is_enabled()) {
+    CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
+  } else if (PrintMethodFlushingStatistics) {
+    NMethodSweeper::print(tty);
   }
 
   if (PrintCodeCache2) {
@@ -341,7 +342,9 @@ void print_statistics() {
   }
 
   if (PrintSystemDictionaryAtExit) {
+    ResourceMark rm;
     SystemDictionary::print();
+    ClassLoaderDataGraph::print();
   }
 
   if (LogTouchedMethods && PrintTouchedMethodsAtExit) {
@@ -377,8 +380,13 @@ void print_statistics() {
     CodeCache::print();
   }
 
-  if (PrintMethodFlushingStatistics) {
-    NMethodSweeper::print();
+  // CodeHeap State Analytics.
+  // Does also call NMethodSweeper::print(tty)
+  LogTarget(Trace, codecache) lt;
+  if (lt.is_enabled()) {
+    CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
+  } else if (PrintMethodFlushingStatistics) {
+    NMethodSweeper::print(tty);
   }
 
 #ifdef COMPILER2
@@ -483,7 +491,7 @@ void before_exit(JavaThread* thread) {
     Universe::print_on(&ls_info);
     if (log.is_trace()) {
       LogStream ls_trace(log.trace());
-      ClassLoaderDataGraph::dump_on(&ls_trace);
+      ClassLoaderDataGraph::print_on(&ls_trace);
     }
   }
 

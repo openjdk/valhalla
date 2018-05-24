@@ -390,7 +390,7 @@ var getJibProfilesCommon = function (input, data) {
         };
     };
 
-    common.boot_jdk_version = "9";
+    common.boot_jdk_version = "10";
     common.boot_jdk_home = input.get("boot_jdk", "home_path") + "/jdk-"
         + common.boot_jdk_version
         + (input.build_os == "macosx" ? ".jdk/Contents/Home" : "");
@@ -432,7 +432,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_cpu: "x64",
             dependencies: ["devkit", "autoconf"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
-                "--with-macosx-version-max=10.7.0"),
+                "--with-macosx-version-max=10.9.0"),
         },
 
         "solaris-x64": {
@@ -472,7 +472,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             build_cpu: "x64",
             dependencies: ["devkit", "autoconf", "build_devkit", "cups"],
             configure_args: [
-                "--openjdk-target=aarch64-linux-gnu"
+                "--openjdk-target=aarch64-linux-gnu", "--with-freetype=bundled",
             ],
         },
 
@@ -497,8 +497,10 @@ var getJibProfilesProfiles = function (input, common, data) {
             configure_args: [
                 "--with-jvm-variants=minimal1,client",
                 "--with-x=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
+                "--with-fontconfig=" + input.get("devkit", "install_path") + "/arm-linux-gnueabihf/libc/usr/X11R6-PI",
                 "--openjdk-target=arm-linux-gnueabihf",
-                "--with-abi-profile=arm-vfp-hflt"
+                "--with-abi-profile=arm-vfp-hflt",
+                "--with-freetype=bundled"
             ],
         },
 
@@ -816,7 +818,7 @@ var getJibProfilesProfiles = function (input, common, data) {
 var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
-        linux_x64: "gcc4.9.2-OEL6.4+1.2",
+        linux_x64: "gcc7.3.0-OEL6.4+1.0",
         macosx_x64: "Xcode6.3-MacOSX10.9+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
         solaris_sparcv9: "SS12u4-Solaris11u1+1.1",
@@ -846,7 +848,7 @@ var getJibProfilesDependencies = function (input, common) {
             server: "jpg",
             product: "jdk",
             version: common.boot_jdk_version,
-            build_number: "181",
+            build_number: "46",
             file: "bundles/" + boot_jdk_platform + "/jdk-" + common.boot_jdk_version + "_"
                 + boot_jdk_platform + "_bin.tar.gz",
             configure_args: "--with-boot-jdk=" + common.boot_jdk_home,

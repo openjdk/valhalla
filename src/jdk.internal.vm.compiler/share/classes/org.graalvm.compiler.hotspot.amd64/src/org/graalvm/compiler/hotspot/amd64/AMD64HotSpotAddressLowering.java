@@ -25,7 +25,7 @@ package org.graalvm.compiler.hotspot.amd64;
 
 import static org.graalvm.compiler.core.common.GraalOptions.GeneratePIC;
 
-import org.graalvm.collections.EconomicMap;
+import jdk.internal.vm.compiler.collections.EconomicMap;
 import org.graalvm.compiler.asm.amd64.AMD64Address.Scale;
 import org.graalvm.compiler.core.amd64.AMD64AddressNode;
 import org.graalvm.compiler.core.amd64.AMD64CompressAddressLowering;
@@ -204,7 +204,7 @@ public class AMD64HotSpotAddressLowering extends AMD64CompressAddressLowering {
 
                         if (init >= 0 && extremum >= 0) {
                             long shortestTrip = (extremum - init) / stride + 1;
-                            if (shortestTrip == countedLoopInfo.constantMaxTripCount()) {
+                            if (countedLoopInfo.constantMaxTripCount().equals(shortestTrip)) {
                                 return graph.unique(new ZeroExtendNode(input, INT_BITS, ADDRESS_BITS, true));
                             }
                         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -319,7 +319,7 @@ void AwtList::SetMultiSelect(BOOL ms) {
 jobject AwtList::PreferredItemSize(JNIEnv *env)
 {
     jobject peer = GetPeer(env);
-    jobject dimension = JNU_CallMethodByName(env, NULL, peer, "preferredSize",
+    jobject dimension = JNU_CallMethodByName(env, NULL, peer, "getPreferredSize",
                                              "(I)Ljava/awt/Dimension;",
                                              1).l;
 
@@ -823,9 +823,9 @@ Java_sun_awt_windows_WListPeer_getMaxWidth(JNIEnv *env, jobject self)
 
     jobject selfGlobalRef = env->NewGlobalRef(self);
 
-    return (jint)AwtToolkit::GetInstance().SyncCall(
+    return (jint)((intptr_t)AwtToolkit::GetInstance().SyncCall(
         (void *(*)(void *))AwtList::_GetMaxWidth,
-        (void *)selfGlobalRef);
+        (void *)selfGlobalRef));
     // selfGlobalRef is deleted in _GetMaxWidth
 
     CATCH_BAD_ALLOC_RET(0);
@@ -1011,8 +1011,8 @@ Java_sun_awt_windows_WListPeer_isSelected(JNIEnv *env, jobject self,
     ses->list = env->NewGlobalRef(self);
     ses->index = index;
 
-    return (jboolean)AwtToolkit::GetInstance().SyncCall(
-        (void *(*)(void *))AwtList::_IsSelected, ses);
+    return (jboolean)((intptr_t)AwtToolkit::GetInstance().SyncCall(
+        (void *(*)(void *))AwtList::_IsSelected, ses));
     // global ref and ses are deleted in _IsSelected
 
     CATCH_BAD_ALLOC_RET(FALSE);

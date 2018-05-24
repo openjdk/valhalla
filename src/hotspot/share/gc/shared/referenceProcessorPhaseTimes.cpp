@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/referenceProcessor.inline.hpp"
+#include "gc/shared/workerDataArray.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 
 RefProcWorkerTimeTracker::RefProcWorkerTimeTracker(ReferenceProcessorPhaseTimes::RefProcPhaseNumbers number,
                                                    ReferenceProcessorPhaseTimes* phase_times,
@@ -76,8 +78,6 @@ static const char* phase_enum_2_phase_string(ReferenceProcessorPhaseTimes::RefPr
     case ReferenceProcessorPhaseTimes::FinalRefPhase3:
     case ReferenceProcessorPhaseTimes::PhantomRefPhase3:
       return "Phase3";
-    case ReferenceProcessorPhaseTimes::RefEnqueue:
-      return "Reference Enqueuing";
     default:
       ShouldNotReachHere();
       return NULL;
@@ -187,21 +187,6 @@ RefProcPhaseTimesTracker::~RefProcPhaseTimesTracker() {
   size_t after_count = _rp->total_reference_count(ref_type);
   size_t discovered = times->ref_discovered(ref_type);
   times->set_ref_cleared(ref_type, discovered - after_count);
-}
-
-RefProcEnqueueTimeTracker::RefProcEnqueueTimeTracker(ReferenceProcessorPhaseTimes* phase_times,
-                                                     ReferenceProcessorStats& stats) :
-  RefProcPhaseTimeBaseTracker("Reference Enqueuing", phase_times) {
-    phase_times->set_ref_enqueued(REF_SOFT, stats.soft_count());
-    phase_times->set_ref_enqueued(REF_WEAK, stats.weak_count());
-    phase_times->set_ref_enqueued(REF_FINAL, stats.final_count());
-    phase_times->set_ref_enqueued(REF_PHANTOM, stats.phantom_count());
-}
-
-RefProcEnqueueTimeTracker::~RefProcEnqueueTimeTracker() {
-  double elapsed = elapsed_time();
-
-  phase_times()->set_par_phase_time_ms(ReferenceProcessorPhaseTimes::RefEnqueue, elapsed);
 }
 
 ReferenceProcessorPhaseTimes::ReferenceProcessorPhaseTimes(GCTimer* gc_timer, uint max_gc_threads) :
@@ -365,17 +350,6 @@ ReferenceProcessorPhaseTimes::par_phase(RefProcPhaseNumbers phase_number) const 
   ASSERT_PAR_PHASE(result);
 
   return (RefProcParPhases)result;
-}
-
-void ReferenceProcessorPhaseTimes::print_enqueue_phase(uint base_indent, bool print_total) const {
-  if (print_total) {
-    print_phase(RefEnqueue, base_indent);
-  }
-
-  log_debug(gc, phases, ref)("%sReference Counts:  Soft: " SIZE_FORMAT "  Weak: " SIZE_FORMAT
-                             "  Final: " SIZE_FORMAT "  Phantom: " SIZE_FORMAT ,
-                             Indents[base_indent + 1], ref_enqueued(REF_SOFT), ref_enqueued(REF_WEAK),
-                             ref_enqueued(REF_FINAL), ref_enqueued(REF_PHANTOM));
 }
 
 #define TIME_FORMAT "%.1lfms"

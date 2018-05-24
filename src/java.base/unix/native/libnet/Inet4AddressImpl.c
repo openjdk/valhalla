@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,11 +41,6 @@
 extern jobjectArray lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6);
 #endif
 
-/* the initial size of our hostent buffers */
-#ifndef NI_MAXHOST
-#define NI_MAXHOST 1025
-#endif
-
 #define SET_NONBLOCKING(fd) {       \
     int flags = fcntl(fd, F_GETFL); \
     flags |= O_NONBLOCK;            \
@@ -66,9 +61,10 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
     char hostname[NI_MAXHOST + 1];
 
     hostname[0] = '\0';
-    if (gethostname(hostname, NI_MAXHOST) != 0) {
+    if (gethostname(hostname, sizeof(hostname)) != 0) {
         strcpy(hostname, "localhost");
     } else {
+#if defined(__solaris__)
         // try to resolve hostname via nameservice
         // if it is known but getnameinfo fails, hostname will still be the
         // value from gethostname
@@ -81,10 +77,14 @@ Java_java_net_Inet4AddressImpl_getLocalHostName(JNIEnv *env, jobject this) {
         hints.ai_family = AF_INET;
 
         if (getaddrinfo(hostname, NULL, &hints, &res) == 0) {
-            getnameinfo(res->ai_addr, res->ai_addrlen, hostname, NI_MAXHOST,
+            getnameinfo(res->ai_addr, res->ai_addrlen, hostname, sizeof(hostname),
                         NULL, 0, NI_NAMEREQD);
             freeaddrinfo(res);
         }
+#else
+        // make sure string is null-terminated
+        hostname[NI_MAXHOST] = '\0';
+#endif
     }
     return (*env)->NewStringUTF(env, hostname);
 }
@@ -241,7 +241,7 @@ Java_java_net_Inet4AddressImpl_getHostByAddr(JNIEnv *env, jobject this,
     sa.sin_family = AF_INET;
 
     if (getnameinfo((struct sockaddr *)&sa, sizeof(struct sockaddr_in),
-                    host, NI_MAXHOST, NULL, 0, NI_NAMEREQD)) {
+                    host, sizeof(host), NULL, 0, NI_NAMEREQD)) {
         JNU_ThrowByName(env, "java/net/UnknownHostException", NULL);
     } else {
         ret = (*env)->NewStringUTF(env, host);

@@ -1164,10 +1164,8 @@ public final class Long extends Number implements Comparable<Long> {
      * significantly better space and time performance by caching
      * frequently requested values.
      *
-     * Note that unlike the {@linkplain Integer#valueOf(int)
-     * corresponding method} in the {@code Integer} class, this method
-     * is <em>not</em> required to cache values within a particular
-     * range.
+     * This method will always cache values in the range -128 to 127,
+     * inclusive, and may cache other values outside of this range.
      *
      * @param  l a long value.
      * @return a {@code Long} instance representing {@code l}.
@@ -1719,14 +1717,7 @@ public final class Long extends Number implements Comparable<Long> {
      * @since 1.5
      */
     public static long highestOneBit(long i) {
-        // HD, Figure 3-1
-        i |= (i >>  1);
-        i |= (i >>  2);
-        i |= (i >>  4);
-        i |= (i >>  8);
-        i |= (i >> 16);
-        i |= (i >> 32);
-        return i - (i >>> 1);
+        return i & (MIN_VALUE >>> numberOfLeadingZeros(i));
     }
 
     /**

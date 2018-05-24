@@ -30,7 +30,8 @@
 #include "metaprogramming/isRegisteredEnum.hpp"
 #include "metaprogramming/integralConstant.hpp"
 #include "runtime/extendedPC.hpp"
-#include "runtime/handles.hpp"
+#include "utilities/exceptions.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
 #ifndef _WINDOWS
 # include <setjmp.h>
@@ -54,6 +55,7 @@ class Event;
 class DLL;
 class FileHandle;
 class NativeCallStack;
+class methodHandle;
 
 template<class E> class GrowableArray;
 
@@ -271,9 +273,9 @@ class os: AllStatic {
   static void map_stack_shadow_pages(address sp);
   static bool stack_shadow_pages_available(Thread *thread, const methodHandle& method, address sp);
 
-  // Return size of stack that is actually committed. For Java thread, the bottom should be above
-  // guard pages (stack grows downward)
-  static size_t committed_stack_size(address bottom, size_t size);
+  // Find committed memory region within specified range (start, start + size),
+  // return true if found any
+  static bool committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size);
 
   // OS interface to Virtual Memory
 
@@ -549,6 +551,7 @@ class os: AllStatic {
   static const int default_file_open_flags();
   static int open(const char *path, int oflag, int mode);
   static FILE* open(int fd, const char* mode);
+  static FILE* fopen(const char* path, const char* mode);
   static int close(int fd);
   static jlong lseek(int fd, jlong offset, int whence);
   static char* native_path(char *path);

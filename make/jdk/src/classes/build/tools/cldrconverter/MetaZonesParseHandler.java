@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,12 +27,21 @@ package build.tools.cldrconverter;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.*;
+import java.util.stream.*;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 class MetaZonesParseHandler extends AbstractLDMLHandler<String> {
+    final static String NO_METAZONE_KEY = "no.metazone.defined";
+
     private String tzid, metazone;
+
+    // for java.time.format.ZoneNames.java
+    private List<String> mzoneMapEntryList = new ArrayList<>();
+    private Map<String, String> zones = new HashMap<>();
 
     MetaZonesParseHandler() {
     }
@@ -64,6 +73,19 @@ class MetaZonesParseHandler extends AbstractLDMLHandler<String> {
             pushIgnoredContainer(qName);
             break;
 
+        case "mapZone":
+            String territory = attributes.getValue("territory");
+            if (territory.equals("001")) {
+                zones.put(attributes.getValue("other"), attributes.getValue("type"));
+            } else {
+                mzoneMapEntryList.add(String.format("        \"%s\", \"%s\", \"%s\",",
+                    attributes.getValue("other"),
+                    territory,
+                    attributes.getValue("type")));
+            }
+            pushIgnoredContainer(qName);
+            break;
+
         case "version":
         case "generation":
             pushIgnoredContainer(qName);
@@ -81,12 +103,27 @@ class MetaZonesParseHandler extends AbstractLDMLHandler<String> {
         assert qName.equals(currentContainer.getqName()) : "current=" + currentContainer.getqName() + ", param=" + qName;
         switch (qName) {
         case "timezone":
-            if (tzid == null || metazone == null) {
+            if (tzid == null) {
                 throw new InternalError();
+            } else if (metazone == null) {
+                String no_meta = get(NO_METAZONE_KEY);
+                put(NO_METAZONE_KEY, no_meta == null ? tzid : no_meta + " " + tzid);
+                CLDRConverter.info("No metazone defined for %s%n", tzid);
+            } else {
+                put(tzid, metazone);
             }
-            put(tzid, metazone);
+            tzid = null;
+            metazone = null;
             break;
         }
         currentContainer = currentContainer.getParent();
+    }
+
+    public Map<String, String> zidMap() {
+        return zones;
+    }
+
+    public Stream<String> mzoneMapEntry() {
+        return mzoneMapEntryList.stream();
     }
 }

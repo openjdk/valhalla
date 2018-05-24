@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,12 @@
 #include "classfile/placeholders.hpp"
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/weakHandle.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/hashtable.hpp"
@@ -148,7 +150,6 @@ template <class T, MEMFLAGS F> void RehashableHashtable<T, F>::move_to(Rehashabl
   }
   // give the new table the free list as well
   new_table->copy_freelist(this);
-  assert(new_table->number_of_entries() == saved_entry_count, "lost entry on dictionary copy?");
 
   // Destroy memory used by the buckets in the hashtable.  The memory
   // for the elements has been used in a new table and is not
@@ -242,9 +243,7 @@ template <MEMFLAGS F> void BasicHashtable<F>::copy_table(char* top, char* end) {
 // For oops and Strings the size of the literal is interesting. For other types, nobody cares.
 static int literal_size(ConstantPool*) { return 0; }
 static int literal_size(Klass*)        { return 0; }
-#if INCLUDE_ALL_GCS
 static int literal_size(nmethod*)      { return 0; }
-#endif
 
 static int literal_size(Symbol *symbol) {
   return symbol->size() * HeapWordSize;
@@ -261,6 +260,10 @@ static int literal_size(oop obj) {
   } else {
     return obj->size();
   }
+}
+
+static int literal_size(ClassLoaderWeakHandle v) {
+  return literal_size(v.peek());
 }
 
 template <MEMFLAGS F> bool BasicHashtable<F>::resize(int new_size) {
@@ -382,6 +385,13 @@ template <MEMFLAGS F> void BasicHashtable<F>::copy_buckets(char* top, char* end)
 }
 
 #ifndef PRODUCT
+template <class T> void print_literal(T l) {
+  l->print();
+}
+
+static void print_literal(ClassLoaderWeakHandle l) {
+  l.print();
+}
 
 template <class T, MEMFLAGS F> void Hashtable<T, F>::print() {
   ResourceMark rm;
@@ -390,7 +400,7 @@ template <class T, MEMFLAGS F> void Hashtable<T, F>::print() {
     HashtableEntry<T, F>* entry = bucket(i);
     while(entry != NULL) {
       tty->print("%d : ", i);
-      entry->literal()->print();
+      print_literal(entry->literal());
       tty->cr();
       entry = entry->next();
     }
@@ -436,28 +446,24 @@ template <class T> void BasicHashtable<F>::verify_table(const char* table_name) 
 #endif // PRODUCT
 
 // Explicitly instantiate these types
-#if INCLUDE_ALL_GCS
 template class Hashtable<nmethod*, mtGC>;
 template class HashtableEntry<nmethod*, mtGC>;
 template class BasicHashtable<mtGC>;
-#endif
 template class Hashtable<ConstantPool*, mtClass>;
 template class RehashableHashtable<Symbol*, mtSymbol>;
-template class RehashableHashtable<oopDesc*, mtSymbol>;
+template class RehashableHashtable<oop, mtSymbol>;
 template class Hashtable<Symbol*, mtSymbol>;
 template class Hashtable<Klass*, mtClass>;
 template class Hashtable<InstanceKlass*, mtClass>;
-template class Hashtable<oop, mtClass>;
+template class Hashtable<ClassLoaderWeakHandle, mtClass>;
 template class Hashtable<Symbol*, mtModule>;
-#if defined(SOLARIS) || defined(CHECK_UNHANDLED_OOPS)
 template class Hashtable<oop, mtSymbol>;
-template class RehashableHashtable<oop, mtSymbol>;
-#endif // SOLARIS || CHECK_UNHANDLED_OOPS
-template class Hashtable<oopDesc*, mtSymbol>;
+template class Hashtable<ClassLoaderWeakHandle, mtSymbol>;
 template class Hashtable<Symbol*, mtClass>;
 template class HashtableEntry<Symbol*, mtSymbol>;
 template class HashtableEntry<Symbol*, mtClass>;
 template class HashtableEntry<oop, mtSymbol>;
+template class HashtableEntry<ClassLoaderWeakHandle, mtSymbol>;
 template class HashtableBucket<mtClass>;
 template class BasicHashtableEntry<mtSymbol>;
 template class BasicHashtableEntry<mtCode>;

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "classfile/placeholders.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "oops/oop.inline.hpp"

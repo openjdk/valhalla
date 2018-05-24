@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
 #include "utilities/quickSort.hpp"
 
 G1CollectorState* G1CollectionSet::collector_state() {
-  return _g1->collector_state();
+  return _g1h->collector_state();
 }
 
 G1GCPhaseTimes* G1CollectionSet::phase_times() {
@@ -47,11 +47,11 @@ CollectionSetChooser* G1CollectionSet::cset_chooser() {
 }
 
 double G1CollectionSet::predict_region_elapsed_time_ms(HeapRegion* hr) {
-  return _policy->predict_region_elapsed_time_ms(hr, collector_state()->gcs_are_young());
+  return _policy->predict_region_elapsed_time_ms(hr, collector_state()->in_young_only_phase());
 }
 
 G1CollectionSet::G1CollectionSet(G1CollectedHeap* g1h, G1Policy* policy) :
-  _g1(g1h),
+  _g1h(g1h),
   _policy(policy),
   _cset_chooser(new CollectionSetChooser()),
   _eden_region_length(0),
@@ -80,7 +80,7 @@ G1CollectionSet::~G1CollectionSet() {
 
 void G1CollectionSet::init_region_lengths(uint eden_cset_region_length,
                                           uint survivor_cset_region_length) {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   _eden_region_length     = eden_cset_region_length;
   _survivor_region_length = survivor_cset_region_length;
@@ -103,13 +103,13 @@ void G1CollectionSet::set_recorded_rs_lengths(size_t rs_lengths) {
 
 // Add the heap region at the head of the non-incremental collection set
 void G1CollectionSet::add_old_region(HeapRegion* hr) {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   assert(_inc_build_state == Active, "Precondition");
   assert(hr->is_old(), "the region should be old");
 
   assert(!hr->in_collection_set(), "should not already be in the CSet");
-  _g1->register_old_region_with_cset(hr);
+  _g1h->register_old_region_with_cset(hr);
 
   _collection_set_regions[_collection_set_cur_length++] = hr->hrm_index();
   assert(_collection_set_cur_length <= _collection_set_max_length, "Collection set now larger than maximum size.");
@@ -167,7 +167,7 @@ void G1CollectionSet::finalize_incremental_building() {
 }
 
 void G1CollectionSet::clear() {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
   _collection_set_cur_length = 0;
 }
 
@@ -185,7 +185,7 @@ void G1CollectionSet::iterate_from(HeapRegionClosure* cl, uint worker_id, uint t
   size_t cur_pos = start_pos;
 
   do {
-    HeapRegion* r = G1CollectedHeap::heap()->region_at(_collection_set_regions[cur_pos]);
+    HeapRegion* r = _g1h->region_at(_collection_set_regions[cur_pos]);
     bool result = cl->do_heap_region(r);
     if (result) {
       cl->set_incomplete();
@@ -255,24 +255,26 @@ void G1CollectionSet::add_young_region_common(HeapRegion* hr) {
   // are calculated, aggregated with the policy collection set info,
   // and cached in the heap region here (initially) and (subsequently)
   // by the Young List sampling code.
+  // Ignore calls to this due to retirement during full gc.
 
-  size_t rs_length = hr->rem_set()->occupied();
-  double region_elapsed_time_ms = predict_region_elapsed_time_ms(hr);
+  if (!_g1h->collector_state()->in_full_gc()) {
+    size_t rs_length = hr->rem_set()->occupied();
+    double region_elapsed_time_ms = predict_region_elapsed_time_ms(hr);
 
-  // Cache the values we have added to the aggregated information
-  // in the heap region in case we have to remove this region from
-  // the incremental collection set, or it is updated by the
-  // rset sampling code
-  hr->set_recorded_rs_length(rs_length);
-  hr->set_predicted_elapsed_time_ms(region_elapsed_time_ms);
+    // Cache the values we have added to the aggregated information
+    // in the heap region in case we have to remove this region from
+    // the incremental collection set, or it is updated by the
+    // rset sampling code
+    hr->set_recorded_rs_length(rs_length);
+    hr->set_predicted_elapsed_time_ms(region_elapsed_time_ms);
 
-  size_t used_bytes = hr->used();
-  _inc_recorded_rs_lengths += rs_length;
-  _inc_predicted_elapsed_time_ms += region_elapsed_time_ms;
-  _inc_bytes_used_before += used_bytes;
+    _inc_recorded_rs_lengths += rs_length;
+    _inc_predicted_elapsed_time_ms += region_elapsed_time_ms;
+    _inc_bytes_used_before += hr->used();
+  }
 
   assert(!hr->in_collection_set(), "invariant");
-  _g1->register_young_region_with_cset(hr);
+  _g1h->register_young_region_with_cset(hr);
 }
 
 void G1CollectionSet::add_survivor_regions(HeapRegion* hr) {
@@ -314,7 +316,7 @@ public:
 };
 
 bool G1CollectionSet::verify_young_ages() {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   G1VerifyYoungAgesClosure cl;
   iterate(&cl);
@@ -366,14 +368,12 @@ double G1CollectionSet::finalize_young_part(double target_pause_time_ms, G1Survi
   log_trace(gc, ergo, cset)("Start choosing CSet. pending cards: " SIZE_FORMAT " predicted base time: %1.2fms remaining time: %1.2fms target pause time: %1.2fms",
                             pending_cards, base_time_ms, time_remaining_ms, target_pause_time_ms);
 
-  collector_state()->set_last_gc_was_young(collector_state()->gcs_are_young());
-
   // The young list is laid with the survivor regions from the previous
   // pause are appended to the RHS of the young list, i.e.
   //   [Newly Young Regions ++ Survivors from last pause].
 
   uint survivor_region_length = survivors->length();
-  uint eden_region_length = _g1->eden_regions_count();
+  uint eden_region_length = _g1h->eden_regions_count();
   init_region_lengths(eden_region_length, survivor_region_length);
 
   verify_young_cset_indices();
@@ -411,7 +411,7 @@ void G1CollectionSet::finalize_old_part(double time_remaining_ms) {
   double non_young_start_time_sec = os::elapsedTime();
   double predicted_old_time_ms = 0.0;
 
-  if (!collector_state()->gcs_are_young()) {
+  if (collector_state()->in_mixed_phase()) {
     cset_chooser()->verify();
     const uint min_old_cset_length = _policy->calc_min_old_cset_length();
     const uint max_old_cset_length = _policy->calc_max_old_cset_length();
@@ -476,7 +476,7 @@ void G1CollectionSet::finalize_old_part(double time_remaining_ms) {
       time_remaining_ms = MAX2(time_remaining_ms - predicted_time_ms, 0.0);
       predicted_old_time_ms += predicted_time_ms;
       cset_chooser()->pop(); // already have region via peek()
-      _g1->old_set_remove(hr);
+      _g1h->old_set_remove(hr);
       add_old_region(hr);
 
       hr = cset_chooser()->peek();
@@ -541,7 +541,7 @@ public:
 };
 
 void G1CollectionSet::verify_young_cset_indices() const {
-  assert_at_safepoint(true);
+  assert_at_safepoint_on_vm_thread();
 
   G1VerifyYoungCSetIndicesClosure cl(_collection_set_cur_length);
   iterate(&cl);

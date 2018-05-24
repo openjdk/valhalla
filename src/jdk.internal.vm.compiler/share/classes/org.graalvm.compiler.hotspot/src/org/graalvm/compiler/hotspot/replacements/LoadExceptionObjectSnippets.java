@@ -51,7 +51,7 @@ import org.graalvm.compiler.replacements.SnippetTemplate.SnippetInfo;
 import org.graalvm.compiler.replacements.Snippets;
 import org.graalvm.compiler.replacements.nodes.ReadRegisterNode;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.WordFactory;
+import jdk.internal.vm.compiler.word.WordFactory;
 
 import jdk.vm.ci.code.BytecodeFrame;
 import jdk.vm.ci.code.Register;
@@ -101,7 +101,7 @@ public class LoadExceptionObjectSnippets implements Snippets {
             } else {
                 Arguments args = new Arguments(loadException, loadExceptionObject.graph().getGuardsStage(), tool.getLoweringStage());
                 args.addConst("threadRegister", registers.getThreadRegister());
-                template(loadExceptionObject.getDebug(), args).instantiate(providers.getMetaAccess(), loadExceptionObject, DEFAULT_REPLACER, args);
+                template(loadExceptionObject, args).instantiate(providers.getMetaAccess(), loadExceptionObject, DEFAULT_REPLACER, args);
             }
         }
     }

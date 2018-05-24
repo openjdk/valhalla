@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -275,6 +275,10 @@ public class JavaCompiler {
      */
     protected Source source;
 
+    /** The preview language version.
+     */
+    protected Preview preview;
+
     /** The module for code generation.
      */
     protected Gen gen;
@@ -405,6 +409,7 @@ public class JavaCompiler {
             log.error(Errors.CantAccess(ex.sym, ex.getDetailValue()));
         }
         source = Source.instance(context);
+        preview = Preview.instance(context);
         attr = Attr.instance(context);
         analyzer = Analyzer.instance(context);
         chk = Check.instance(context);
@@ -779,7 +784,7 @@ public class JavaCompiler {
             try (BufferedWriter out = new BufferedWriter(outFile.openWriter())) {
                 new Pretty(out, true).printUnit(env.toplevel, cdef);
                 if (verbose)
-                    log.printVerbose("wrote.file", outFile);
+                    log.printVerbose("wrote.file", outFile.getName());
             }
             return outFile;
         }
@@ -1725,6 +1730,7 @@ public class JavaCompiler {
                 log.warning(Warnings.ProcUseProcOrImplicit);
         }
         chk.reportDeferredDiagnostics();
+        preview.reportDeferredDiagnostics();
         if (log.compressedOutput) {
             log.mandatoryNote(null, Notes.CompressedDiags);
         }

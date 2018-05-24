@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -349,10 +349,10 @@ class nmethod : public CompiledMethod {
     return _state;
   }
 
-  void  make_unloaded(BoolObjectClosure* is_alive, oop cause);
+  void  make_unloaded(oop cause);
 
   bool has_dependencies()                         { return dependencies_size() != 0; }
-  void flush_dependencies(BoolObjectClosure* is_alive);
+  void flush_dependencies(bool delete_immediately);
   bool has_flushed_dependencies()                 { return _has_flushed_dependencies; }
   void set_has_flushed_dependencies()             {
     assert(!has_flushed_dependencies(), "should only happen once");
@@ -488,7 +488,7 @@ public:
 #if INCLUDE_JVMCI
   // See comment for _jvmci_installed_code_triggers_unloading field.
   // Returns whether this nmethod was unloaded.
-  virtual bool do_unloading_jvmci(BoolObjectClosure* is_alive, bool unloading_occurred);
+  virtual bool do_unloading_jvmci(bool unloading_occurred);
 #endif
 
  private:
@@ -512,7 +512,7 @@ public:
  private:
   ScopeDesc* scope_desc_in(address begin, address end);
 
-  address* orig_pc_addr(const frame* fr) { return (address*) ((address)fr->unextended_sp() + _orig_pc_offset); }
+  address* orig_pc_addr(const frame* fr);
 
  public:
   // copying of debugging information

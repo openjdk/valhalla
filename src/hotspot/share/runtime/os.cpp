@@ -48,11 +48,12 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
@@ -245,17 +246,18 @@ OSReturn os::get_priority(const Thread* const thread, ThreadPriority& priority) 
   return OS_OK;
 }
 
-
-#if !defined(LINUX) && !defined(_WINDOWS)
-size_t os::committed_stack_size(address bottom, size_t size) {
-  return size;
-}
-#endif
-
 bool os::dll_build_name(char* buffer, size_t size, const char* fname) {
   int n = jio_snprintf(buffer, size, "%s%s%s", JNI_LIB_PREFIX, fname, JNI_LIB_SUFFIX);
   return (n != -1);
 }
+
+#if !defined(LINUX) && !defined(_WINDOWS)
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
+  committed_start = start;
+  committed_size = size;
+  return true;
+}
+#endif
 
 // Helper for dll_locate_lib.
 // Pass buffer and printbuffer as we already printed the path to buffer
@@ -1164,32 +1166,10 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
   st->print_cr(INTPTR_FORMAT " is an unknown value", p2i(addr));
 }
 
-// Looks like all platforms except IA64 can use the same function to check
-// if C stack is walkable beyond current frame. The check for fp() is not
+// Looks like all platforms can use the same function to check if C
+// stack is walkable beyond current frame. The check for fp() is not
 // necessary on Sparc, but it's harmless.
 bool os::is_first_C_frame(frame* fr) {
-#if (defined(IA64) && !defined(AIX)) && !defined(_WIN32)
-  // On IA64 we have to check if the callers bsp is still valid
-  // (i.e. within the register stack bounds).
-  // Notice: this only works for threads created by the VM and only if
-  // we walk the current stack!!! If we want to be able to walk
-  // arbitrary other threads, we'll have to somehow store the thread
-  // object in the frame.
-  Thread *thread = Thread::current();
-  if ((address)fr->fp() <=
-      thread->register_stack_base() HPUX_ONLY(+ 0x0) LINUX_ONLY(+ 0x50)) {
-    // This check is a little hacky, because on Linux the first C
-    // frame's ('start_thread') register stack frame starts at
-    // "register_stack_base + 0x48" while on HPUX, the first C frame's
-    // ('__pthread_bound_body') register stack frame seems to really
-    // start at "register_stack_base".
-    return true;
-  } else {
-    return false;
-  }
-#elif defined(IA64) && defined(_WIN32)
-  return true;
-#else
   // Load up sp, fp, sender sp and sender fp, check for reasonable values.
   // Check usp first, because if that's bad the other accessors may fault
   // on some architectures.  Ditto ufp second, etc.
@@ -1219,7 +1199,6 @@ bool os::is_first_C_frame(frame* fr) {
   if (old_fp - ufp > 64 * K) return true;
 
   return false;
-#endif
 }
 
 
@@ -1270,6 +1249,33 @@ char* os::format_boot_path(const char* format_string,
 
     assert((q - formatted_path) == formatted_path_len, "formatted_path size botched");
     return formatted_path;
+}
+
+// This function is a proxy to fopen, it tries to add a non standard flag ('e' or 'N')
+// that ensures automatic closing of the file on exec. If it can not find support in
+// the underlying c library, it will make an extra system call (fcntl) to ensure automatic
+// closing of the file on exec.
+FILE* os::fopen(const char* path, const char* mode) {
+  char modified_mode[20];
+  assert(strlen(mode) + 1 < sizeof(modified_mode), "mode chars plus one extra must fit in buffer");
+  sprintf(modified_mode, "%s" LINUX_ONLY("e") BSD_ONLY("e") WINDOWS_ONLY("N"), mode);
+  FILE* file = ::fopen(path, modified_mode);
+
+#if !(defined LINUX || defined BSD || defined _WINDOWS)
+  // assume fcntl FD_CLOEXEC support as a backup solution when 'e' or 'N'
+  // is not supported as mode in fopen
+  if (file != NULL) {
+    int fd = fileno(file);
+    if (fd != -1) {
+      int fd_flags = fcntl(fd, F_GETFD);
+      if (fd_flags != -1) {
+        fcntl(fd, F_SETFD, fd_flags | FD_CLOEXEC);
+      }
+    }
+  }
+#endif
+
+  return file;
 }
 
 bool os::set_boot_path(char fileSep, char pathSep) {

@@ -26,7 +26,7 @@
 #define SHARE_VM_UTILITIES_CONSTANTTAG_HPP
 
 #include "jvm.h"
-#include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 // constant tags in Java .class files
 
@@ -48,7 +48,7 @@ enum {
 };
 
 
-class constantTag VALUE_OBJ_CLASS_SPEC {
+class constantTag {
  private:
   jbyte _tag;
  public:

@@ -139,6 +139,8 @@ class JVMCIRuntime: public AllStatic {
   static address exception_handler_for_pc(JavaThread* thread);
   static void monitorenter(JavaThread* thread, oopDesc* obj, BasicLock* lock);
   static void monitorexit (JavaThread* thread, oopDesc* obj, BasicLock* lock);
+  static jboolean object_notify(JavaThread* thread, oopDesc* obj);
+  static jboolean object_notifyAll(JavaThread* thread, oopDesc* obj);
   static void vm_error(JavaThread* thread, jlong where, jlong format, jlong value);
   static oopDesc* load_and_clear_exception(JavaThread* thread);
   static void log_printf(JavaThread* thread, oopDesc* format, jlong v1, jlong v2, jlong v3);
@@ -148,8 +150,10 @@ class JVMCIRuntime: public AllStatic {
   // printed as a string, otherwise the type of the object is printed
   // followed by its address.
   static void log_object(JavaThread* thread, oopDesc* object, bool as_string, bool newline);
+#if INCLUDE_G1GC
   static void write_barrier_pre(JavaThread* thread, oopDesc* obj);
   static void write_barrier_post(JavaThread* thread, void* card);
+#endif
   static jboolean validate_object(JavaThread* thread, oopDesc* parent, oopDesc* child);
 
   // used to throw exceptions from compiled JVMCI code

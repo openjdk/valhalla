@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_VM_GC_SHARED_BLOCKOFFSETTABLE_HPP
 
 #include "gc/shared/memset_with_concurrent_readers.hpp"
+#include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/virtualspace.hpp"
 #include "runtime/globals.hpp"
@@ -77,7 +78,7 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // The BlockOffsetTable "interface"
 //////////////////////////////////////////////////////////////////////////
-class BlockOffsetTable VALUE_OBJ_CLASS_SPEC {
+class BlockOffsetTable {
   friend class VMStructs;
 protected:
   // These members describe the region covered by the table.
@@ -152,14 +153,14 @@ class BlockOffsetSharedArray: public CHeapObj<mtGC> {
 
   void fill_range(size_t start, size_t num_cards, u_char offset) {
     void* start_ptr = &_offset_array[start];
-#if INCLUDE_ALL_GCS
     // If collector is concurrent, special handling may be needed.
-    assert(!UseG1GC, "Shouldn't be here when using G1");
+    G1GC_ONLY(assert(!UseG1GC, "Shouldn't be here when using G1");)
+#if INCLUDE_CMSGC
     if (UseConcMarkSweepGC) {
       memset_with_concurrent_readers(start_ptr, offset, num_cards);
       return;
     }
-#endif // INCLUDE_ALL_GCS
+#endif // INCLUDE_CMSGC
     memset(start_ptr, offset, num_cards);
   }
 

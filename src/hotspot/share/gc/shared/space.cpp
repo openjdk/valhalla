@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "gc/serial/defNewGeneration.hpp"
 #include "gc/shared/blockOffsetTable.inline.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
@@ -33,7 +32,7 @@
 #include "gc/shared/space.hpp"
 #include "gc/shared/space.inline.hpp"
 #include "gc/shared/spaceDecorator.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/java.hpp"
@@ -44,6 +43,9 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_SERIALGC
+#include "gc/serial/defNewGeneration.hpp"
+#endif
 
 HeapWord* DirtyCardToOopClosure::get_actual_top(HeapWord* top,
                                                 HeapWord* top_obj) {
@@ -397,7 +399,7 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
   } else {
     // if the object isn't moving we can just set the mark to the default
     // mark and handle it specially later on.
-    q->init_mark();
+    q->init_mark_raw();
     assert(q->forwardee() == NULL, "should be forwarded to NULL");
   }
 
@@ -411,6 +413,8 @@ HeapWord* CompactibleSpace::forward(oop q, size_t size,
       cp->space->cross_threshold(compact_top - size, compact_top);
   return compact_top;
 }
+
+#if INCLUDE_SERIALGC
 
 void ContiguousSpace::prepare_for_compaction(CompactPoint* cp) {
   scan_and_forward(this, cp);
@@ -428,6 +432,8 @@ void CompactibleSpace::adjust_pointers() {
 void CompactibleSpace::compact() {
   scan_and_compact(this);
 }
+
+#endif // INCLUDE_SERIALGC
 
 void Space::print_short() const { print_short_on(tty); }
 
@@ -484,23 +490,6 @@ bool Space::obj_is_alive(const HeapWord* p) const {
   return true;
 }
 
-#if INCLUDE_ALL_GCS
-#define ContigSpace_PAR_OOP_ITERATE_DEFN(OopClosureType, nv_suffix)         \
-                                                                            \
-  void ContiguousSpace::par_oop_iterate(MemRegion mr, OopClosureType* blk) {\
-    HeapWord* obj_addr = mr.start();                                        \
-    HeapWord* t = mr.end();                                                 \
-    while (obj_addr < t) {                                                  \
-      assert(oopDesc::is_oop(oop(obj_addr)), "Should be an oop");           \
-      obj_addr += oop(obj_addr)->oop_iterate_size(blk);                     \
-    }                                                                       \
-  }
-
-  ALL_PAR_OOP_ITERATE_CLOSURES(ContigSpace_PAR_OOP_ITERATE_DEFN)
-
-#undef ContigSpace_PAR_OOP_ITERATE_DEFN
-#endif // INCLUDE_ALL_GCS
-
 void ContiguousSpace::oop_iterate(ExtendedOopClosure* blk) {
   if (is_empty()) return;
   HeapWord* obj_addr = bottom();
@@ -543,32 +532,6 @@ ContiguousSpace::object_iterate_careful(ObjectClosureCareful* blk) {
   }
   return NULL; // all done
 }
-
-#define ContigSpace_OOP_SINCE_SAVE_MARKS_DEFN(OopClosureType, nv_suffix)  \
-                                                                          \
-void ContiguousSpace::                                                    \
-oop_since_save_marks_iterate##nv_suffix(OopClosureType* blk) {            \
-  HeapWord* t;                                                            \
-  HeapWord* p = saved_mark_word();                                        \
-  assert(p != NULL, "expected saved mark");                               \
-                                                                          \
-  const intx interval = PrefetchScanIntervalInBytes;                      \
-  do {                                                                    \
-    t = top();                                                            \
-    while (p < t) {                                                       \
-      Prefetch::write(p, interval);                                       \
-      debug_only(HeapWord* prev = p);                                     \
-      oop m = oop(p);                                                     \
-      p += m->oop_iterate_size(blk);                                      \
-    }                                                                     \
-  } while (t < top());                                                    \
-                                                                          \
-  set_saved_mark_word(p);                                                 \
-}
-
-ALL_SINCE_SAVE_MARKS_CLOSURES(ContigSpace_OOP_SINCE_SAVE_MARKS_DEFN)
-
-#undef ContigSpace_OOP_SINCE_SAVE_MARKS_DEFN
 
 // Very general, slow implementation.
 HeapWord* ContiguousSpace::block_start_const(const void* p) const {
@@ -695,14 +658,14 @@ void ContiguousSpace::allocate_temporary_filler(int factor) {
     // allocate uninitialized int array
     typeArrayOop t = (typeArrayOop) allocate(size);
     assert(t != NULL, "allocation should succeed");
-    t->set_mark(markOopDesc::prototype());
+    t->set_mark_raw(markOopDesc::prototype());
     t->set_klass(Universe::intArrayKlassObj());
     t->set_length((int)length);
   } else {
     assert(size == CollectedHeap::min_fill_size(),
            "size for smallest fake object doesn't match");
     instanceOop obj = (instanceOop) allocate(size);
-    obj->set_mark(markOopDesc::prototype());
+    obj->set_mark_raw(markOopDesc::prototype());
     obj->set_klass_gap(0);
     obj->set_klass(SystemDictionary::Object_klass());
   }

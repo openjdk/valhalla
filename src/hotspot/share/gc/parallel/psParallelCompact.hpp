@@ -950,19 +950,7 @@ class PSParallelCompact : AllStatic {
     ParCompactionManager* _cm;
   };
 
-  class AdjustKlassClosure : public KlassClosure {
-   public:
-    AdjustKlassClosure(ParCompactionManager* cm) {
-      assert(cm != NULL, "associate ParCompactionManage should not be NULL");
-      _cm = cm;
-    }
-    void do_klass(Klass* klass);
-   private:
-    ParCompactionManager* _cm;
-  };
-
   friend class AdjustPointerClosure;
-  friend class AdjustKlassClosure;
   friend class RefProcTaskProxy;
   friend class PSParallelCompactTest;
 
@@ -980,6 +968,7 @@ class PSParallelCompact : AllStatic {
   static SpaceInfo            _space_info[last_space_id];
 
   // Reference processing (used in ...follow_contents)
+  static SpanSubjectToDiscoveryClosure  _span_based_discoverer;
   static ReferenceProcessor*  _ref_processor;
 
   // Values computed at initialization and used by dead_wood_limiter().

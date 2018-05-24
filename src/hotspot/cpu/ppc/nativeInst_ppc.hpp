@@ -27,7 +27,6 @@
 #define CPU_PPC_VM_NATIVEINST_PPC_HPP
 
 #include "asm/macroAssembler.hpp"
-#include "memory/allocation.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -45,7 +44,7 @@
 
 // The base class for different kinds of native instruction abstractions.
 // It provides the primitive operations to manipulate code relative to this.
-class NativeInstruction VALUE_OBJ_CLASS_SPEC {
+class NativeInstruction {
   friend class Relocation;
 
  public:

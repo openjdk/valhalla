@@ -25,16 +25,18 @@
 
 #include "aot/aotCodeHeap.hpp"
 #include "aot/aotLoader.hpp"
-#include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "classfile/javaAssertions.hpp"
 #include "gc/shared/cardTable.hpp"
-#include "gc/shared/cardTableModRefBS.hpp"
+#include "gc/shared/cardTableBarrierSet.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "gc/g1/heapRegion.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "interpreter/abstractInterpreter.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "jvmci/jvmciRuntime.hpp"
-#include "oops/method.hpp"
+#include "memory/allocation.inline.hpp"
+#include "oops/method.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vm_operations.hpp"
@@ -419,9 +421,11 @@ void AOTCodeHeap::link_graal_runtime_symbols()  {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_new_multi_array", address, JVMCIRuntime::new_multi_array);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_dynamic_new_array", address, JVMCIRuntime::dynamic_new_array);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_validate_object", address, JVMCIRuntime::validate_object);
+#if INCLUDE_G1GC
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_write_barrier_pre", address, JVMCIRuntime::write_barrier_pre);
-    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_identity_hash_code", address, JVMCIRuntime::identity_hash_code);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_write_barrier_post", address, JVMCIRuntime::write_barrier_post);
+#endif
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_identity_hash_code", address, JVMCIRuntime::identity_hash_code);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_dynamic_new_instance", address, JVMCIRuntime::dynamic_new_instance);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_thread_is_interrupted", address, JVMCIRuntime::thread_is_interrupted);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_jvmci_runtime_exception_handler_for_pc", address, JVMCIRuntime::exception_handler_for_pc);
@@ -443,6 +447,8 @@ void AOTCodeHeap::link_shared_runtime_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_handle_wrong_method_stub", address, SharedRuntime::get_handle_wrong_method_stub());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_exception_handler_for_return_address", address, SharedRuntime::exception_handler_for_return_address);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_register_finalizer", address, SharedRuntime::register_finalizer);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_object_notify", address, JVMCIRuntime::object_notify);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_object_notifyAll", address, JVMCIRuntime::object_notifyAll);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_OSR_migration_end", address, SharedRuntime::OSR_migration_end);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_resolve_dynamic_invoke", address, CompilerRuntime::resolve_dynamic_invoke);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_resolve_string_by_symbol", address, CompilerRuntime::resolve_string_by_symbol);
@@ -548,7 +554,9 @@ void AOTCodeHeap::link_global_lib_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_polling_page", address, os::get_polling_page());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_narrow_klass_base_address", address, Universe::narrow_klass_base());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_narrow_oop_base_address", address, Universe::narrow_oop_base());
+#if INCLUDE_G1GC
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_log_of_heap_region_grain_bytes", int, HeapRegion::LogOfHRGrainBytes);
+#endif
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_inline_contiguous_allocation_supported", bool, heap->supports_inline_contig_alloc());
     link_shared_runtime_symbols();
     link_stub_routines_symbols();

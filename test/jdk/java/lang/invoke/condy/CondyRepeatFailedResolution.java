@@ -25,7 +25,6 @@
  * @test
  * @bug 8186211
  * @summary Test basic invocation of multiple ldc's of the same dynamic constant that fail resolution
- * @requires os.arch != "sparcv9"
  * @library /java/lang/invoke/common
  * @modules java.base/jdk.experimental.bytecode
  * @run testng CondyRepeatFailedResolution
@@ -39,8 +38,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
@@ -216,9 +213,6 @@ public class CondyRepeatFailedResolution {
                                                 .areturn()
                                 ))
                 .build();
-
-        // For debugging purposes
-        new FileOutputStream(new File(genClassName + ".class")).write(byteArray);
 
         gc = MethodHandles.lookup().defineClass(byteArray);
     }

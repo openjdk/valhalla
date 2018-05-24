@@ -26,7 +26,6 @@
 #define SHARE_VM_CLASSFILE_VERIFIER_HPP
 
 #include "classfile/verificationType.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "oops/klass.hpp"
 #include "oops/method.hpp"
 #include "runtime/handles.hpp"
@@ -96,7 +95,7 @@ class StackMapTable;
 #define CHECK_VERIFY_(verifier, result) \
   CHECK_(result)); if ((verifier)->has_error()) return (result); ((void)0
 
-class TypeOrigin VALUE_OBJ_CLASS_SPEC {
+class TypeOrigin {
  private:
   typedef enum {
     CF_LOCALS,  // Comes from the current frame locals
@@ -146,7 +145,7 @@ class TypeOrigin VALUE_OBJ_CLASS_SPEC {
 #endif
 };
 
-class ErrorContext VALUE_OBJ_CLASS_SPEC {
+class ErrorContext {
  private:
   typedef enum {
     INVALID_BYTECODE,     // There was a problem with the bytecode

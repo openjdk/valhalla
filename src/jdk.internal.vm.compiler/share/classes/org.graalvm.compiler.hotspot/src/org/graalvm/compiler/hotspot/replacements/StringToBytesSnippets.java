@@ -42,7 +42,7 @@ import org.graalvm.compiler.replacements.SnippetTemplate.SnippetInfo;
 import org.graalvm.compiler.replacements.Snippets;
 import org.graalvm.compiler.replacements.nodes.CStringConstant;
 import org.graalvm.compiler.word.Word;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.meta.JavaKind;
@@ -83,7 +83,7 @@ public class StringToBytesSnippets implements Snippets {
         public void lower(StringToBytesNode stringToBytesNode, LoweringTool tool) {
             Arguments args = new Arguments(create, stringToBytesNode.graph().getGuardsStage(), tool.getLoweringStage());
             args.addConst("compilationTimeString", stringToBytesNode.getValue());
-            SnippetTemplate template = template(stringToBytesNode.getDebug(), args);
+            SnippetTemplate template = template(stringToBytesNode, args);
             template.instantiate(providers.getMetaAccess(), stringToBytesNode, DEFAULT_REPLACER, args);
         }
 

@@ -31,14 +31,6 @@
 #include "runtime/fieldType.hpp"
 #include "runtime/signature.hpp"
 
-void FieldType::skip_optional_size(Symbol* signature, int* index) {
-  jchar c = signature->byte_at(*index);
-  while (c >= '0' && c <= '9') {
-    *index = *index + 1;
-    c = signature->byte_at(*index);
-  }
-}
-
 BasicType FieldType::basic_type(Symbol* signature) {
   return char2type(signature->byte_at(0));
 }
@@ -77,11 +69,9 @@ BasicType FieldType::get_array_info(Symbol* signature, FieldArrayInfo& fd, TRAPS
   assert(basic_type(signature) == T_ARRAY, "must be array");
   int index = 1;
   int dim   = 1;
-  skip_optional_size(signature, &index);
   while (signature->byte_at(index) == '[') {
     index++;
     dim++;
-    skip_optional_size(signature, &index);
   }
   ResourceMark rm;
   char *element = signature->as_C_string() + index;

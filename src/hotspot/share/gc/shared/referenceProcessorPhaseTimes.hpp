@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #define SHARE_VM_GC_SHARED_REFERENCEPROCESSORPHASETIMES_HPP
 
 #include "gc/shared/referenceProcessorStats.hpp"
-#include "gc/shared/workerDataArray.inline.hpp"
+#include "gc/shared/workerDataArray.hpp"
 #include "memory/referenceType.hpp"
 #include "utilities/ticks.hpp"
 
@@ -46,7 +46,6 @@ public:
     FinalRefPhase3,
     PhantomRefPhase2,
     PhantomRefPhase3,
-    RefEnqueue,
     RefParPhaseMax
   };
 
@@ -133,7 +132,6 @@ public:
   // Reset all fields. If not reset at next cycle, an assertion will fail.
   void reset();
 
-  void print_enqueue_phase(uint base_indent = 0, bool print_total = true) const;
   void print_all_references(uint base_indent = 0, bool print_total = true) const;
 };
 
@@ -201,15 +199,6 @@ public:
                            ReferenceProcessorPhaseTimes* phase_times,
                            ReferenceProcessor* rp);
   ~RefProcPhaseTimesTracker();
-};
-
-// Updates enqueue time related information.
-// - Enqueueing time, enqueued reference count and stats for each working thread if MT processed.
-class RefProcEnqueueTimeTracker : public RefProcPhaseTimeBaseTracker {
-public:
-  RefProcEnqueueTimeTracker(ReferenceProcessorPhaseTimes* phase_times,
-                            ReferenceProcessorStats& stats);
-  ~RefProcEnqueueTimeTracker();
 };
 
 #endif // SHARE_VM_GC_SHARED_REFERENCEPROCESSORPHASETIMES_HPP

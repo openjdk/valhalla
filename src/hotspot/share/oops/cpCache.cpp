@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,16 @@
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "interpreter/interpreter.hpp"
+#include "interpreter/linkResolver.hpp"
 #include "interpreter/rewriter.hpp"
 #include "logging/log.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/cpCache.hpp"
+#include "oops/constantPool.inline.hpp"
+#include "oops/cpCache.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -251,14 +253,13 @@ void ConstantPoolCacheEntry::set_direct_or_vtable_call(Bytecodes::Code invoke_co
       // virtual method in java.lang.Object. This is a corner case in the spec
       // but is presumably legal. javac does not generate this code.
       //
-      // We set bytecode_1() to _invokeinterface, because that is the
-      // bytecode # used by the interpreter to see if it is resolved.
+      // We do not set bytecode_1() to _invokeinterface, because that is the
+      // bytecode # used by the interpreter to see if it is resolved.  In this
+      // case, the method gets reresolved with caller for each interface call
+      // because the actual selected method may not be public.
+      //
       // We set bytecode_2() to _invokevirtual.
       // See also interpreterRuntime.cpp. (8/25/2000)
-      // Only set resolved for the invokeinterface case if method is public.
-      // Otherwise, the method needs to be reresolved with caller for each
-      // interface call.
-      if (method->is_public()) set_bytecode_1(invoke_code);
       invoke_code = Bytecodes::_invokevirtual;
     } else {
       assert(invoke_code == Bytecodes::_invokevirtual, "");

@@ -504,6 +504,9 @@ Node *Node::clone() const {
   if (cast != NULL && cast->has_range_check()) {
     C->add_range_check_cast(cast);
   }
+  if (n->Opcode() == Op_Opaque4) {
+    C->add_opaque4_node(n);
+  }
 
   n->set_idx(C->next_unique()); // Get new unique index as well
   debug_only( n->verify_construction() );
@@ -615,6 +618,9 @@ void Node::destruct() {
   if (cast != NULL && cast->has_range_check()) {
     compile->remove_range_check_cast(cast);
   }
+  if (Opcode() == Op_Opaque4) {
+    compile->remove_opaque4_node(this);
+  }
   if (is_ValueTypeBase()) {
     compile->remove_value_type(this);
   }
@@ -700,7 +706,7 @@ bool Node::is_dead() const {
 //------------------------------is_unreachable---------------------------------
 bool Node::is_unreachable(PhaseIterGVN &igvn) const {
   assert(!is_Mach(), "doesn't work with MachNodes");
-  return outcnt() == 0 || igvn.type(this) == Type::TOP || in(0)->is_top();
+  return outcnt() == 0 || igvn.type(this) == Type::TOP || (in(0) != NULL && in(0)->is_top());
 }
 
 //------------------------------add_req----------------------------------------
@@ -1357,6 +1363,9 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
       CastIINode* cast = dead->isa_CastII();
       if (cast != NULL && cast->has_range_check()) {
         igvn->C->remove_range_check_cast(cast);
+      }
+      if (dead->Opcode() == Op_Opaque4) {
+        igvn->C->remove_range_check_cast(dead);
       }
       if (dead->is_ValueTypeBase()) {
         igvn->C->remove_value_type(dead);

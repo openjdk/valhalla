@@ -24,21 +24,24 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "gc/shared/gcLocker.hpp"
+#include "interpreter/linkResolver.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klassVtable.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/flags/flagSetting.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "utilities/copy.hpp"
 
 inline InstanceKlass* klassVtable::ik() const {
@@ -496,7 +499,7 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, const methodHand
           // to link to the first super, and we get all the others.
           Handle super_loader(THREAD, super_klass->class_loader());
 
-          if (target_loader() != super_loader()) {
+          if (!oopDesc::equals(target_loader(), super_loader())) {
             ResourceMark rm(THREAD);
             Symbol* failed_type_symbol =
               SystemDictionary::check_signature_loaders(signature, target_loader,
@@ -504,21 +507,21 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, const methodHand
                                                         CHECK_(false));
             if (failed_type_symbol != NULL) {
               const char* msg = "loader constraint violation for class %s: when selecting "
-                "overriding method \"%s\" the class loader (instance of %s) of the "
-                "selected method's type %s, and the class loader (instance of %s) for its super "
+                "overriding method %s the class loader %s of the "
+                "selected method's type %s, and the class loader %s for its super "
                 "type %s have different Class objects for the type %s used in the signature";
-              char* curr_class = klass->name()->as_C_string();
-              char* sig = target_method()->name_and_sig_as_C_string();
-              const char* loader1 = SystemDictionary::loader_name(target_loader());
-              char* sel_class = target_klass->name()->as_C_string();
-              const char* loader2 = SystemDictionary::loader_name(super_loader());
-              char* super_class = super_klass->name()->as_C_string();
-              char* failed_type_name = failed_type_symbol->as_C_string();
-              size_t buflen = strlen(msg) + strlen(curr_class) + strlen(sig) +
+              const char* curr_class = klass->external_name();
+              const char* method = target_method()->name_and_sig_as_C_string();
+              const char* loader1 = java_lang_ClassLoader::describe_external(target_loader());
+              const char* sel_class = target_klass->external_name();
+              const char* loader2 = java_lang_ClassLoader::describe_external(super_loader());
+              const char* super_class = super_klass->external_name();
+              const char* failed_type_name = failed_type_symbol->as_klass_external_name();
+              size_t buflen = strlen(msg) + strlen(curr_class) + strlen(method) +
                 strlen(loader1) + strlen(sel_class) + strlen(loader2) +
                 strlen(super_class) + strlen(failed_type_name);
               char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, buflen);
-              jio_snprintf(buf, buflen, msg, curr_class, sig, loader1, sel_class, loader2,
+              jio_snprintf(buf, buflen, msg, curr_class, method, loader1, sel_class, loader2,
                            super_class, failed_type_name);
               THROW_MSG_(vmSymbols::java_lang_LinkageError(), buf, false);
             }
@@ -1225,7 +1228,7 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Klass
       // if checkconstraints requested
       if (checkconstraints) {
         Handle method_holder_loader (THREAD, target->method_holder()->class_loader());
-        if (method_holder_loader() != interface_loader()) {
+        if (!oopDesc::equals(method_holder_loader(), interface_loader())) {
           ResourceMark rm(THREAD);
           Symbol* failed_type_symbol =
             SystemDictionary::check_signature_loaders(m->signature(),
@@ -1234,17 +1237,17 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Klass
                                                       true, CHECK);
           if (failed_type_symbol != NULL) {
             const char* msg = "loader constraint violation in interface itable"
-              " initialization for class %s: when selecting method \"%s\" the"
-              " class loader (instance of %s) for super interface %s, and the class"
-              " loader (instance of %s) of the selected method's type, %s have"
+              " initialization for class %s: when selecting method %s the"
+              " class loader %s for super interface %s, and the class"
+              " loader %s of the selected method's type, %s have"
               " different Class objects for the type %s used in the signature";
-            char* current = _klass->name()->as_C_string();
-            char* sig = m->name_and_sig_as_C_string();
-            const char* loader1 = SystemDictionary::loader_name(interface_loader());
-            char* iface = InstanceKlass::cast(interf)->name()->as_C_string();
-            const char* loader2 = SystemDictionary::loader_name(method_holder_loader());
-            char* mclass = target()->method_holder()->name()->as_C_string();
-            char* failed_type_name = failed_type_symbol->as_C_string();
+            const char* current = _klass->external_name();
+            const char* sig = m->name_and_sig_as_C_string();
+            const char* loader1 = java_lang_ClassLoader::describe_external(interface_loader());
+            const char* iface = InstanceKlass::cast(interf)->external_name();
+            const char* loader2 = java_lang_ClassLoader::describe_external(method_holder_loader());
+            const char* mclass = target()->method_holder()->external_name();
+            const char* failed_type_name = failed_type_symbol->as_klass_external_name();
             size_t buflen = strlen(msg) + strlen(current) + strlen(sig) +
               strlen(loader1) + strlen(iface) + strlen(loader2) + strlen(mclass) +
               strlen(failed_type_name);

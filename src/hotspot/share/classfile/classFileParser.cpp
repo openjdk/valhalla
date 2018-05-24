@@ -37,15 +37,15 @@
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "gc/shared/gcLocker.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/annotations.hpp"
+#include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
@@ -58,9 +58,12 @@
 #include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
+#include "runtime/arguments.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/safepointVerifiers.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/timer.hpp"
 #include "services/classLoadingService.hpp"
@@ -68,6 +71,7 @@
 #include "trace/traceMacros.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/growableArray.hpp"
@@ -87,7 +91,7 @@
 
 #define JAVA_CLASSFILE_MAGIC              0xCAFEBABE
 #define JAVA_MIN_SUPPORTED_VERSION        45
-#define JAVA_MAX_SUPPORTED_MINOR_VERSION  1
+#define JAVA_PREVIEW_MINOR_VERSION        65535
 
 // Used for two backward compatibility reasons:
 // - to check for new additions to the class file format in JDK1.5
@@ -773,6 +777,13 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
       }
     }  // switch(tag)
   }  // end of for
+}
+
+Handle ClassFileParser::clear_cp_patch_at(int index) {
+  Handle patch = cp_patch_at(index);
+  _cp_patches->at_put(index, Handle());
+  assert(!has_cp_patch_at(index), "");
+  return patch;
 }
 
 void ClassFileParser::patch_class(ConstantPool* cp, int class_index, Klass* k, Symbol* name) {
@@ -1904,7 +1915,7 @@ class LVT_Hash : public AllStatic {
 
 
 // Class file LocalVariableTable elements.
-class Classfile_LVT_Element VALUE_OBJ_CLASS_SPEC {
+class Classfile_LVT_Element {
  public:
   u2 start_bci;
   u2 length;
@@ -3694,8 +3705,13 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_inner_classes(_inner_classes);
   this_klass->set_value_types(_value_types);
   this_klass->set_local_interfaces(_local_interfaces);
-  this_klass->set_transitive_interfaces(_transitive_interfaces);
   this_klass->set_annotations(_combined_annotations);
+  // Delay the setting of _transitive_interfaces until after initialize_supers() in
+  // fill_instance_klass(). It is because the _transitive_interfaces may be shared with
+  // its _super. If an OOM occurs while loading the current klass, its _super field
+  // may not have been set. When GC tries to free the klass, the _transitive_interfaces
+  // may be deallocated mistakenly in InstanceKlass::deallocate_interfaces(). Subsequent
+  // dereferences to the deallocated _transitive_interfaces will result in a crash.
 
   // Clear out these fields so they don't get deallocated by the destructor
   clear_class_metadata();
@@ -3997,9 +4013,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Value types in static fields are not embedded, they are handled with oops
   int next_static_double_offset = next_static_oop_offset +
                                   ((fac->count[STATIC_OOP] + fac->count[STATIC_FLATTENABLE]) * heapOopSize);
-  if ( fac->count[STATIC_DOUBLE] &&
-       (Universe::field_type_should_be_aligned(T_DOUBLE) ||
-        Universe::field_type_should_be_aligned(T_LONG)) ) {
+  if (fac->count[STATIC_DOUBLE]) {
     next_static_double_offset = align_up(next_static_double_offset, BytesPerLong);
   }
 
@@ -4701,7 +4715,7 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
     // add super class dependency
     Klass* const super = defined_klass->super();
     if (super != NULL) {
-      defining_loader_data->record_dependency(super, CHECK);
+      defining_loader_data->record_dependency(super);
     }
 
     // add super interface dependencies
@@ -4709,7 +4723,7 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
     if (local_interfaces != NULL) {
       const int length = local_interfaces->length();
       for (int i = 0; i < length; i++) {
-        defining_loader_data->record_dependency(local_interfaces->at(i), CHECK);
+        defining_loader_data->record_dependency(local_interfaces->at(i));
       }
     }
 
@@ -5022,12 +5036,63 @@ static bool has_illegal_visibility(jint flags) {
           (is_protected && is_private));
 }
 
-static bool is_supported_version(u2 major, u2 minor) {
+// A legal major_version.minor_version must be one of the following:
+//
+//   Major_version = 45, any minor_version.
+//   Major_version >= 46 and major_version <= current_major_version and minor_version = 0.
+//   Major_version = current_major_version and minor_version = 65535 and --enable-preview is present.
+//
+static void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS){
   const u2 max_version = JVM_CLASSFILE_MAJOR_VERSION;
-  return (major >= JAVA_MIN_SUPPORTED_VERSION) &&
-         (major <= max_version) &&
-         ((major != max_version) ||
-          (minor <= JVM_CLASSFILE_MINOR_VERSION));
+  if (major != JAVA_MIN_SUPPORTED_VERSION) { // All 45.* are ok including 45.65535
+    if (minor == JAVA_PREVIEW_MINOR_VERSION) {
+      if (major != max_version) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_UnsupportedClassVersionError(),
+          "%s (class file version %u.%u) was compiled with preview features that are unsupported. "
+          "This version of the Java Runtime only recognizes preview features for class file version %u.%u",
+          class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION, JAVA_PREVIEW_MINOR_VERSION);
+        return;
+      }
+
+      if (!Arguments::enable_preview()) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_UnsupportedClassVersionError(),
+          "Preview features are not enabled for %s (class file version %u.%u). Try running with '--enable-preview'",
+          class_name->as_C_string(), major, minor);
+        return;
+      }
+
+    } else { // minor != JAVA_PREVIEW_MINOR_VERSION
+      if (major > max_version) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_UnsupportedClassVersionError(),
+          "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
+          "this version of the Java Runtime only recognizes class file versions up to %u.0",
+          class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION);
+      } else if (major < JAVA_MIN_SUPPORTED_VERSION) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_UnsupportedClassVersionError(),
+          "%s (class file version %u.%u) was compiled with an invalid major version",
+          class_name->as_C_string(), major, minor);
+      } else if (minor != 0) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_UnsupportedClassVersionError(),
+          "%s (class file version %u.%u) was compiled with an invalid non-zero minor version",
+          class_name->as_C_string(), major, minor);
+      }
+    }
+  }
 }
 
 void ClassFileParser::verify_legal_field_modifiers(jint flags,
@@ -5709,6 +5774,16 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loadhook, TRAPS) {
   assert(ik != NULL, "invariant");
 
+  // Set name and CLD before adding to CLD
+  ik->set_class_loader_data(_loader_data);
+  ik->set_name(_class_name);
+
+  // Add all classes to our internal class loader list here,
+  // including classes in the bootstrap (NULL) class loader.
+  const bool publicize = !is_internal();
+
+  _loader_data->add_class(ik, publicize);
+
   set_klass_to_deallocate(ik);
 
   assert(_field_info != NULL, "invariant");
@@ -5723,7 +5798,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   ik->set_should_verify_class(_need_verify);
 
   // Not yet: supers are done below to support the new subtype-checking fields
-  ik->set_class_loader_data(_loader_data);
   ik->set_nonstatic_field_size(_field_info->nonstatic_field_size);
   ik->set_has_nonstatic_fields(_field_info->has_nonstatic_fields);
   assert(_fac != NULL, "invariant");
@@ -5739,7 +5813,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   assert(NULL == _methods, "invariant");
   assert(NULL == _inner_classes, "invariant");
   assert(NULL == _local_interfaces, "invariant");
-  assert(NULL == _transitive_interfaces, "invariant");
   assert(NULL == _combined_annotations, "invariant");
 
   if (_has_final_method) {
@@ -5754,7 +5827,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   // has to be changed accordingly.
   ik->set_initial_method_idnum(ik->methods()->length());
 
-  ik->set_name(_class_name);
+  ik->set_this_class_index(_this_class_index);
 
   if (is_anonymous()) {
     // _this_class_index is a CONSTANT_Class entry that refers to this
@@ -5806,7 +5879,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   }
 
   // Fill in information needed to compute superclasses.
-  ik->initialize_supers(const_cast<InstanceKlass*>(_super_klass), CHECK);
+  ik->initialize_supers(const_cast<InstanceKlass*>(_super_klass), _transitive_interfaces, CHECK);
+  ik->set_transitive_interfaces(_transitive_interfaces);
+  _transitive_interfaces = NULL;
 
   // Initialize itable offset tables
   klassItable::setup_itable_offset_table(ik);
@@ -5901,6 +5976,13 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
       ResourceMark rm;
       const char* module_name = (module_entry->name() == NULL) ? UNNAMED_MODULE : module_entry->name()->as_C_string();
       ik->print_class_load_logging(_loader_data, module_name, _stream);
+    }
+
+    if (ik->minor_version() == JAVA_PREVIEW_MINOR_VERSION &&
+        ik->major_version() != JAVA_MIN_SUPPORTED_VERSION &&
+        log_is_enabled(Info, class, preview)) {
+      ResourceMark rm;
+      log_info(class, preview)("Loading preview feature type %s", ik->external_name());
     }
 
     if (log_is_enabled(Debug, class, resolve))  {
@@ -6128,7 +6210,6 @@ void ClassFileParser::clear_class_metadata() {
   _methods = NULL;
   _inner_classes = NULL;
   _local_interfaces = NULL;
-  _transitive_interfaces = NULL;
   _combined_annotations = NULL;
   _annotations = _type_annotations = NULL;
   _fields_annotations = _fields_type_annotations = NULL;
@@ -6180,6 +6261,7 @@ ClassFileParser::~ClassFileParser() {
   }
 
   clear_class_metadata();
+  _transitive_interfaces = NULL;
 
   // deallocate the klass if already created.  Don't directly deallocate, but add
   // to the deallocate list so that the klass is removed from the CLD::_klasses list
@@ -6220,20 +6302,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
 
   // Check version numbers - we check this even with verifier off
-  if (!is_supported_version(_major_version, _minor_version)) {
-    ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_UnsupportedClassVersionError(),
-      "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
-      "this version of the Java Runtime only recognizes class file versions up to %u.%u",
-      _class_name->as_C_string(),
-      _major_version,
-      _minor_version,
-      JVM_CLASSFILE_MAJOR_VERSION,
-      JVM_CLASSFILE_MINOR_VERSION);
-    return;
-  }
+  verify_class_version(_major_version, _minor_version, _class_name, CHECK);
 
   stream->guarantee_more(3, CHECK); // length, first cp tag
   u2 cp_size = stream->get_u2_fast();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
 class Generation;
 class HeapWord;
 class CardTableRS;
-class CardTableModRefBS;
+class CardTableBarrierSet;
 class DefNewGeneration;
 class KlassRemSet;
 
@@ -94,6 +94,7 @@ class OopsInClassLoaderDataOrGenClosure: public OopsInGenClosure {
   void do_cld_barrier();
 };
 
+#if INCLUDE_SERIALGC
 
 // Closure for scanning DefNewGeneration.
 //
@@ -132,6 +133,8 @@ class FastScanClosure: public OopsInClassLoaderDataOrGenClosure {
   inline void do_oop_nv(narrowOop* p);
 };
 
+#endif // INCLUDE_SERIALGC
+
 class CLDScanClosure: public CLDClosure {
   OopsInClassLoaderDataOrGenClosure*   _scavenge_closure;
   // true if the the modified oops state should be saved.
@@ -151,7 +154,7 @@ class FilteringClosure: public ExtendedOopClosure {
   template <class T> inline void do_oop_work(T* p);
  public:
   FilteringClosure(HeapWord* boundary, ExtendedOopClosure* cl) :
-    ExtendedOopClosure(cl->ref_processor()), _boundary(boundary),
+    ExtendedOopClosure(cl->ref_discoverer()), _boundary(boundary),
     _cl(cl) {}
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
@@ -160,6 +163,8 @@ class FilteringClosure: public ExtendedOopClosure {
   virtual bool do_metadata()          { return do_metadata_nv(); }
   inline bool do_metadata_nv()        { assert(!_cl->do_metadata(), "assumption broken, must change to 'return _cl->do_metadata()'"); return false; }
 };
+
+#if INCLUDE_SERIALGC
 
 // Closure for scanning DefNewGeneration's weak references.
 // NOTE: very much like ScanClosure but not derived from
@@ -177,5 +182,7 @@ class ScanWeakRefClosure: public OopClosure {
   inline void do_oop_nv(oop* p);
   inline void do_oop_nv(narrowOop* p);
 };
+
+#endif // INCLUDE_SERIALGC
 
 #endif // SHARE_VM_GC_SHARED_GENOOPCLOSURES_HPP

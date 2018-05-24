@@ -28,6 +28,7 @@
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
+#include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -44,6 +45,7 @@
 #include "logging/log.hpp"
 #include "logging/logMessage.hpp"
 #include "logging/logStream.hpp"
+#include "memory/allocation.inline.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/metadataFactory.hpp"
@@ -187,9 +189,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     return NULL;
   }
 
-  assert(ik != NULL, "invariant");
-
-  const bool publicize = !parser.is_internal();
 #ifdef ASSERT
   assert(ik->size() == size, "");
   ik->bounds_check((address) ik->start_of_vtable(), false, size);
@@ -197,10 +196,6 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
   ik->bounds_check((address) ik->end_of_itable(), true, size);
   ik->bounds_check((address) ik->end_of_nonstatic_oop_maps(), true, size);
 #endif //ASSERT
-
-  // Add all classes to our internal class loader list here,
-  // including classes in the bootstrap (NULL) class loader.
-  loader_data->add_class(ik, publicize);
   return ik;
 }
 
@@ -1027,9 +1022,10 @@ bool InstanceKlass::can_be_primary_super_slow() const {
     return Klass::can_be_primary_super_slow();
 }
 
-GrowableArray<Klass*>* InstanceKlass::compute_secondary_supers(int num_extra_slots) {
+GrowableArray<Klass*>* InstanceKlass::compute_secondary_supers(int num_extra_slots,
+                                                               Array<Klass*>* transitive_interfaces) {
   // The secondaries are the implemented interfaces.
-  Array<Klass*>* interfaces = transitive_interfaces();
+  Array<Klass*>* interfaces = transitive_interfaces;
   int num_secondaries = num_extra_slots + interfaces->length();
   if (num_secondaries == 0) {
     // Must share this for correct bootstrapping!
@@ -1122,6 +1118,10 @@ instanceOop InstanceKlass::allocate_instance(TRAPS) {
     i = register_finalizer(i, CHECK_NULL);
   }
   return i;
+}
+
+instanceHandle InstanceKlass::allocate_instance_handle(TRAPS) {
+  return instanceHandle(THREAD, allocate_instance(THREAD));
 }
 
 void InstanceKlass::check_valid_for_instantiation(bool throwError, TRAPS) {
@@ -1997,22 +1997,22 @@ bool InstanceKlass::is_dependent_nmethod(nmethod* nm) {
 }
 #endif //PRODUCT
 
-void InstanceKlass::clean_weak_instanceklass_links(BoolObjectClosure* is_alive) {
-  clean_implementors_list(is_alive);
-  clean_method_data(is_alive);
+void InstanceKlass::clean_weak_instanceklass_links() {
+  clean_implementors_list();
+  clean_method_data();
 
   // Since GC iterates InstanceKlasses sequentially, it is safe to remove stale entries here.
   DependencyContext dep_context(&_dep_context);
   dep_context.expunge_stale_entries();
 }
 
-void InstanceKlass::clean_implementors_list(BoolObjectClosure* is_alive) {
-  assert(class_loader_data()->is_alive(is_alive), "this klass should be live");
+void InstanceKlass::clean_implementors_list() {
+  assert(is_loader_alive(), "this klass should be live");
   if (is_interface()) {
     if (ClassUnloading) {
       Klass* impl = implementor();
       if (impl != NULL) {
-        if (!impl->is_loader_alive(is_alive)) {
+        if (!impl->is_loader_alive()) {
           // remove this guy
           Klass** klass = adr_implementor();
           assert(klass != NULL, "null klass");
@@ -2025,11 +2025,11 @@ void InstanceKlass::clean_implementors_list(BoolObjectClosure* is_alive) {
   }
 }
 
-void InstanceKlass::clean_method_data(BoolObjectClosure* is_alive) {
+void InstanceKlass::clean_method_data() {
   for (int m = 0; m < methods()->length(); m++) {
     MethodData* mdo = methods()->at(m)->method_data();
     if (mdo != NULL) {
-      mdo->clean_method_data(is_alive);
+      mdo->clean_method_data(/*always_clean*/false);
     }
   }
 }
@@ -2369,12 +2369,6 @@ void InstanceKlass::set_source_debug_extension(const char* array, int length) {
   }
 }
 
-address InstanceKlass::static_field_addr(int offset) {
-  assert(offset >= InstanceMirrorKlass::offset_of_static_fields(), "has already been adjusted");
-  return (address)(offset + cast_from_oop<intptr_t>(java_mirror()));
-}
-
-
 const char* InstanceKlass::signature_name() const {
   int hash_len = 0;
   char hash_buf[40];
@@ -2521,7 +2515,7 @@ bool InstanceKlass::is_same_class_package(const Klass* class2) const {
   // and package entries. Both must be the same. This rule
   // applies even to classes that are defined in the unnamed
   // package, they still must have the same class loader.
-  if ((classloader1 == classloader2) && (classpkg1 == classpkg2)) {
+  if (oopDesc::equals(classloader1, classloader2) && (classpkg1 == classpkg2)) {
     return true;
   }
 
@@ -2532,7 +2526,7 @@ bool InstanceKlass::is_same_class_package(const Klass* class2) const {
 // and classname information is enough to determine a class's package
 bool InstanceKlass::is_same_class_package(oop other_class_loader,
                                           const Symbol* other_class_name) const {
-  if (class_loader() != other_class_loader) {
+  if (!oopDesc::equals(class_loader(), other_class_loader)) {
     return false;
   }
   if (name()->fast_compare(other_class_name) == 0) {
@@ -3394,7 +3388,7 @@ void InstanceKlass::collect_statistics(KlassSizeStats *sz) const {
 class VerifyFieldClosure: public OopClosure {
  protected:
   template <class T> void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
+    oop obj = RawAccess<>::oop_load(p);
     if (!oopDesc::is_oop_or_null(obj)) {
       tty->print_cr("Failed: " PTR_FORMAT " -> " PTR_FORMAT, p2i(p), p2i(obj));
       Universe::print_on(tty);
@@ -3591,14 +3585,8 @@ void JNIid::verify(Klass* holder) {
   }
 }
 
-oop InstanceKlass::klass_holder_phantom() {
-  oop* addr;
-  if (is_anonymous()) {
-    addr = _java_mirror.ptr_raw();
-  } else {
-    addr = &class_loader_data()->_class_loader;
-  }
-  return RootAccess<IN_CONCURRENT_ROOT | ON_PHANTOM_OOP_REF>::oop_load(addr);
+oop InstanceKlass::holder_phantom() const {
+  return class_loader_data()->holder_phantom();
 }
 
 #ifdef ASSERT

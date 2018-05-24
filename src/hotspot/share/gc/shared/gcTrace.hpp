@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,12 +30,11 @@
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcName.hpp"
 #include "gc/shared/gcWhen.hpp"
-#include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/referenceType.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
-#if INCLUDE_ALL_GCS
+#if INCLUDE_G1GC
 #include "gc/g1/g1YCTypes.hpp"
 #endif
 
@@ -50,7 +49,7 @@ class ReferenceProcessorStats;
 class TimePartitions;
 class BoolObjectClosure;
 
-class SharedGCInfo VALUE_OBJ_CLASS_SPEC {
+class SharedGCInfo {
  private:
   GCName _name;
   GCCause::Cause _cause;
@@ -88,7 +87,7 @@ class SharedGCInfo VALUE_OBJ_CLASS_SPEC {
   const Tickspan longest_pause() const { return _longest_pause; }
 };
 
-class ParallelOldGCInfo VALUE_OBJ_CLASS_SPEC {
+class ParallelOldGCInfo {
   void* _dense_prefix;
  public:
   ParallelOldGCInfo() : _dense_prefix(NULL) {}
@@ -98,9 +97,9 @@ class ParallelOldGCInfo VALUE_OBJ_CLASS_SPEC {
   void* dense_prefix() const { return _dense_prefix; }
 };
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_G1GC
 
-class G1YoungGCInfo VALUE_OBJ_CLASS_SPEC {
+class G1YoungGCInfo {
   G1YCType _type;
  public:
   G1YoungGCInfo() : _type(G1YCTypeEndSentinel) {}
@@ -110,7 +109,7 @@ class G1YoungGCInfo VALUE_OBJ_CLASS_SPEC {
   G1YCType type() const { return _type; }
 };
 
-#endif // INCLUDE_ALL_GCS
+#endif // INCLUDE_G1GC
 
 class GCTracer : public ResourceObj {
  protected:
@@ -233,7 +232,7 @@ class ParNewTracer : public YoungGCTracer {
   ParNewTracer() : YoungGCTracer(ParNew) {}
 };
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_G1GC
 class G1MMUTracer : public AllStatic {
   static void send_g1_mmu_event(double time_slice_ms, double gc_time_ms, double max_time_ms);
 
@@ -295,7 +294,7 @@ class G1FullGCTracer : public OldGCTracer {
   G1FullGCTracer() : OldGCTracer(G1Full) {}
 };
 
-#endif
+#endif // INCLUDE_G1GC
 
 class CMSTracer : public OldGCTracer {
  public:

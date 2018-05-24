@@ -26,10 +26,7 @@
 #define SHARE_GC_SHARED_OOPSTORAGEPARSTATE_HPP
 
 #include "gc/shared/oopStorage.hpp"
-#include "memory/allocation.hpp"
 #include "utilities/macros.hpp"
-
-#if INCLUDE_ALL_GCS
 
 //////////////////////////////////////////////////////////////////////////////
 // Support for parallel and optionally concurrent state iteration.
@@ -39,9 +36,8 @@
 //
 // Concurrent Iteration
 //
-// Iteration involves the _active_list, which contains all of the blocks owned
-// by a storage object.  This is a doubly-linked list, linked through
-// dedicated fields in the blocks.
+// Iteration involves the _active_array (a BlockArray), which contains all of
+// the blocks owned by a storage object.
 //
 // At most one concurrent ParState can exist at a time for a given storage
 // object.
@@ -51,27 +47,29 @@
 // sets it false when the state is destroyed.  These assignments are made with
 // _active_mutex locked.  Meanwhile, empty block deletion is not done while
 // _concurrent_iteration_active is true.  The flag check and the dependent
-// removal of a block from the _active_list is performed with _active_mutex
+// removal of a block from the _active_array is performed with _active_mutex
 // locked.  This prevents concurrent iteration and empty block deletion from
 // interfering with with each other.
 //
 // Both allocate() and delete_empty_blocks_concurrent() lock the
-// _allocate_mutex while performing their respective list manipulations,
-// preventing them from interfering with each other.
+// _allocate_mutex while performing their respective list and array
+// manipulations, preventing them from interfering with each other.
 //
-// When allocate() creates a new block, it is added to the front of the
-// _active_list.  Then _active_head is set to the new block.  When concurrent
-// iteration is started (by a parallel worker thread calling the state's
-// iterate() function), the current _active_head is used as the initial block
-// for the iteration, with iteration proceeding down the list headed by that
-// block.
+// When allocate() creates a new block, it is added to the end of the
+// _active_array.  Then _active_array's _block_count is incremented to account
+// for the new block.  When concurrent iteration is started (by a parallel
+// worker thread calling the state's iterate() function), the current
+// _active_array and its _block_count are captured for use by the iteration,
+// with iteration processing all blocks in that array up to that block count.
 //
-// As a result, the list over which concurrent iteration operates is stable.
-// However, once the iteration is started, later allocations may add blocks to
-// the front of the list that won't be examined by the iteration.  And while
-// the list is stable, concurrent allocate() and release() operations may
-// change the set of allocated entries in a block at any time during the
-// iteration.
+// As a result, the sequence over which concurrent iteration operates is
+// stable.  However, once the iteration is started, later allocations may add
+// blocks to the end of the array that won't be examined by the iteration.
+// An allocation may even require expansion of the array, so the iteration is
+// no longer processing the current array, but rather the previous one.
+// And while the sequence is stable, concurrent allocate() and release()
+// operations may change the set of allocated entries in a block at any time
+// during the iteration.
 //
 // As a result, a concurrent iteration handler must accept that some
 // allocations and releases that occur after the iteration started will not be
@@ -140,37 +138,50 @@
 //   If is_alive->do_object_b(*p) is false, then cl will not be
 //   invoked on p.
 
-class OopStorage::BasicParState VALUE_OBJ_CLASS_SPEC {
-  OopStorage* _storage;
-  void* volatile _next_block;
+class OopStorage::BasicParState {
+  const OopStorage* _storage;
+  BlockArray* _active_array;
+  size_t _block_count;
+  volatile size_t _next_block;
+  uint _estimated_thread_count;
   bool _concurrent;
 
   // Noncopyable.
   BasicParState(const BasicParState&);
   BasicParState& operator=(const BasicParState&);
 
+  struct IterationData;
+
   void update_iteration_state(bool value);
-  void ensure_iteration_started();
-  Block* claim_next_block();
+  bool claim_next_segment(IterationData* data);
+  bool finish_iteration(const IterationData* data) const;
 
   // Wrapper for iteration handler; ignore handler result and return true.
   template<typename F> class AlwaysTrueFn;
 
 public:
-  BasicParState(OopStorage* storage, bool concurrent);
+  BasicParState(const OopStorage* storage,
+                uint estimated_thread_count,
+                bool concurrent);
   ~BasicParState();
 
   template<bool is_const, typename F> void iterate(F f);
+
+  static uint default_estimated_thread_count(bool concurrent);
 };
 
 template<bool concurrent, bool is_const>
-class OopStorage::ParState VALUE_OBJ_CLASS_SPEC {
+class OopStorage::ParState {
   BasicParState _basic_state;
 
+  typedef typename Conditional<is_const,
+                               const OopStorage*,
+                               OopStorage*>::type StoragePtr;
+
 public:
-  ParState(const OopStorage* storage) :
-    // For simplicity, always recorded as non-const.
-    _basic_state(const_cast<OopStorage*>(storage), concurrent)
+  ParState(StoragePtr storage,
+           uint estimated_thread_count = BasicParState::default_estimated_thread_count(concurrent)) :
+    _basic_state(storage, estimated_thread_count, concurrent)
   {}
 
   template<typename F> void iterate(F f);
@@ -178,12 +189,13 @@ public:
 };
 
 template<>
-class OopStorage::ParState<false, false> VALUE_OBJ_CLASS_SPEC {
+class OopStorage::ParState<false, false> {
   BasicParState _basic_state;
 
 public:
-  ParState(OopStorage* storage) :
-    _basic_state(storage, false)
+  ParState(OopStorage* storage,
+           uint estimated_thread_count = BasicParState::default_estimated_thread_count(false)) :
+    _basic_state(storage, estimated_thread_count, false)
   {}
 
   template<typename F> void iterate(F f);
@@ -192,7 +204,5 @@ public:
   template<typename IsAliveClosure, typename Closure>
   void weak_oops_do(IsAliveClosure* is_alive, Closure* cl);
 };
-
-#endif // INCLUDE_ALL_GCS
 
 #endif // SHARE_GC_SHARED_OOPSTORAGEPARSTATE_HPP

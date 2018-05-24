@@ -253,7 +253,7 @@ import jdk.internal.misc.Unsafe;
  * <p>All arguments to all task methods must be non-null.
  *
  * <p>This class is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @since 1.5
@@ -6383,11 +6383,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         ABASE = U.arrayBaseOffset(Node[].class);
         int scale = U.arrayIndexScale(Node[].class);
         if ((scale & (scale - 1)) != 0)
-            throw new Error("array index scale not a power of two");
+            throw new ExceptionInInitializerError("array index scale not a power of two");
         ASHIFT = 31 - Integer.numberOfLeadingZeros(scale);
 
         // Reduce the risk of rare disastrous classloading in first call to
         // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
         Class<?> ensureLoaded = LockSupport.class;
+
+        // Eager class load observed to help JIT during startup
+        ensureLoaded = ReservationNode.class;
     }
 }

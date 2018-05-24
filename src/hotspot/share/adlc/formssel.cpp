@@ -1172,6 +1172,9 @@ const char *InstructForm::mach_base_class(FormDict &globals)  const {
   else if (is_ideal_nop()) {
     return "MachNopNode";
   }
+  else if (is_ideal_jump()) {
+    return "MachJumpNode";
+  }
   else if (is_mach_constant()) {
     return "MachConstantNode";
   }
@@ -4181,7 +4184,7 @@ bool MatchRule::is_vector() const {
     "URShiftVB","URShiftVS","URShiftVI","URShiftVL",
     "ReplicateB","ReplicateS","ReplicateI","ReplicateL","ReplicateF","ReplicateD",
     "LoadVector","StoreVector",
-    "FmaVD", "FmaVF",
+    "FmaVD", "FmaVF","PopCountVI",
     // Next are not supported currently.
     "PackB","PackS","PackI","PackL","PackF","PackD","Pack2L","Pack2D",
     "ExtractB","ExtractUB","ExtractC","ExtractS","ExtractI","ExtractL","ExtractF","ExtractD"

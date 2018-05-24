@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2035,11 +2035,26 @@ return mh1;
                                             ReflectiveOperationException.class);
         }
 
+        MemberName resolveOrNull(byte refKind, MemberName member) {
+            // do this before attempting to resolve
+            if (!isClassAccessible(member.getDeclaringClass())) {
+                return null;
+            }
+            Objects.requireNonNull(member.getName());
+            Objects.requireNonNull(member.getType());
+            return IMPL_NAMES.resolveOrNull(refKind, member, lookupClassOrNull());
+        }
+
         void checkSymbolicClass(Class<?> refc) throws IllegalAccessException {
+            if (!isClassAccessible(refc)) {
+                throw new MemberName(refc).makeAccessException("symbolic reference class is not accessible", this);
+            }
+        }
+
+        boolean isClassAccessible(Class<?> refc) {
             Objects.requireNonNull(refc);
             Class<?> caller = lookupClassOrNull();
-            if (caller != null && !VerifyAccess.isClassAccessible(refc, caller, allowedModes))
-                throw new MemberName(refc).makeAccessException("symbolic reference class is not accessible", this);
+            return caller == null || VerifyAccess.isClassAccessible(refc, caller, allowedModes);
         }
 
         /** Check name for an illegal leading "&lt;" character. */
@@ -2252,27 +2267,27 @@ return mh1;
         }
 
         /** Check access and get the requested method. */
-        private MethodHandle getDirectMethod(byte refKind, Class<?> refc, MemberName method, Class<?> callerClass) throws IllegalAccessException {
+        private MethodHandle getDirectMethod(byte refKind, Class<?> refc, MemberName method, Class<?> boundCallerClass) throws IllegalAccessException {
             final boolean doRestrict    = true;
             final boolean checkSecurity = true;
-            return getDirectMethodCommon(refKind, refc, method, checkSecurity, doRestrict, callerClass);
+            return getDirectMethodCommon(refKind, refc, method, checkSecurity, doRestrict, boundCallerClass);
         }
         /** Check access and get the requested method, for invokespecial with no restriction on the application of narrowing rules. */
-        private MethodHandle getDirectMethodNoRestrictInvokeSpecial(Class<?> refc, MemberName method, Class<?> callerClass) throws IllegalAccessException {
+        private MethodHandle getDirectMethodNoRestrictInvokeSpecial(Class<?> refc, MemberName method, Class<?> boundCallerClass) throws IllegalAccessException {
             final boolean doRestrict    = false;
             final boolean checkSecurity = true;
-            return getDirectMethodCommon(REF_invokeSpecial, refc, method, checkSecurity, doRestrict, callerClass);
+            return getDirectMethodCommon(REF_invokeSpecial, refc, method, checkSecurity, doRestrict, boundCallerClass);
         }
         /** Check access and get the requested method, eliding security manager checks. */
-        private MethodHandle getDirectMethodNoSecurityManager(byte refKind, Class<?> refc, MemberName method, Class<?> callerClass) throws IllegalAccessException {
+        private MethodHandle getDirectMethodNoSecurityManager(byte refKind, Class<?> refc, MemberName method, Class<?> boundCallerClass) throws IllegalAccessException {
             final boolean doRestrict    = true;
             final boolean checkSecurity = false;  // not needed for reflection or for linking CONSTANT_MH constants
-            return getDirectMethodCommon(refKind, refc, method, checkSecurity, doRestrict, callerClass);
+            return getDirectMethodCommon(refKind, refc, method, checkSecurity, doRestrict, boundCallerClass);
         }
         /** Common code for all methods; do not call directly except from immediately above. */
         private MethodHandle getDirectMethodCommon(byte refKind, Class<?> refc, MemberName method,
                                                    boolean checkSecurity,
-                                                   boolean doRestrict, Class<?> callerClass) throws IllegalAccessException {
+                                                   boolean doRestrict, Class<?> boundCallerClass) throws IllegalAccessException {
             checkMethod(refKind, refc, method);
             // Optionally check with the security manager; this isn't needed for unreflect* calls.
             if (checkSecurity)
@@ -2310,25 +2325,25 @@ return mh1;
                 checkMethod(refKind, refc, method);
             }
 
-            DirectMethodHandle dmh = DirectMethodHandle.make(refKind, refc, method);
+            DirectMethodHandle dmh = DirectMethodHandle.make(refKind, refc, method, lookupClass());
             MethodHandle mh = dmh;
-            // Optionally narrow the receiver argument to refc using restrictReceiver.
+            // Optionally narrow the receiver argument to lookupClass using restrictReceiver.
             if ((doRestrict && refKind == REF_invokeSpecial) ||
                     (MethodHandleNatives.refKindHasReceiver(refKind) && restrictProtectedReceiver(method))) {
                 mh = restrictReceiver(method, dmh, lookupClass());
             }
-            mh = maybeBindCaller(method, mh, callerClass);
+            mh = maybeBindCaller(method, mh, boundCallerClass);
             mh = mh.setVarargs(method);
             return mh;
         }
         private MethodHandle maybeBindCaller(MemberName method, MethodHandle mh,
-                                             Class<?> callerClass)
+                                             Class<?> boundCallerClass)
                                              throws IllegalAccessException {
             if (allowedModes == TRUSTED || !MethodHandleNatives.isCallerSensitive(method))
                 return mh;
             Class<?> hostClass = lookupClass;
             if (!hasPrivateAccess())  // caller must have private access
-                hostClass = callerClass;  // callerClass came from a security manager style stack walk
+                hostClass = boundCallerClass;  // boundCallerClass came from a security manager style stack walk
             MethodHandle cbmh = MethodHandleImpl.bindCaller(mh, hostClass);
             // Note: caller will apply varargs after this step happens.
             return cbmh;
@@ -2484,10 +2499,13 @@ return mh1;
                 }
             }
             try {
-                MemberName resolved2 = publicLookup().resolveOrFail(refKind,
+                MemberName resolved2 = publicLookup().resolveOrNull(refKind,
                     new MemberName(refKind, defc, member.getName(), member.getType()));
+                if (resolved2 == null) {
+                    return false;
+                }
                 checkSecurityManager(defc, resolved2);
-            } catch (ReflectiveOperationException | SecurityException ex) {
+            } catch (SecurityException ex) {
                 return false;
             }
             return true;
@@ -5886,6 +5904,19 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * In rare cases where exceptions must be converted in that way, first wrap
      * the target with {@link #catchException(MethodHandle, Class, MethodHandle)}
      * to capture an outgoing exception, and then wrap with {@code tryFinally}.
+     * <p>
+     * It is recommended that the first parameter type of {@code cleanup} be
+     * declared {@code Throwable} rather than a narrower subtype.  This ensures
+     * {@code cleanup} will always be invoked with whatever exception that
+     * {@code target} throws.  Declaring a narrower type may result in a
+     * {@code ClassCastException} being thrown by the {@code try-finally}
+     * handle if the type of the exception thrown by {@code target} is not
+     * assignable to the first parameter type of {@code cleanup}.  Note that
+     * various exception types of {@code VirtualMachineError},
+     * {@code LinkageError}, and {@code RuntimeException} can in principle be
+     * thrown by almost any kind of Java code, and a finally clause that
+     * catches (say) only {@code IOException} would mask any of the others
+     * behind a {@code ClassCastException}.
      *
      * @param target the handle whose execution is to be wrapped in a {@code try} block.
      * @param cleanup the handle that is invoked in the finally block.
@@ -5902,7 +5933,6 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      */
     public static MethodHandle tryFinally(MethodHandle target, MethodHandle cleanup) {
         List<Class<?>> targetParamTypes = target.type().parameterList();
-        List<Class<?>> cleanupParamTypes = cleanup.type().parameterList();
         Class<?> rtype = target.type().returnType();
 
         tryFinallyChecks(target, cleanup);
@@ -5911,6 +5941,10 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
         // The cleanup parameter list (minus the leading Throwable and result parameters) must be a sublist of the
         // target parameter list.
         cleanup = dropArgumentsToMatch(cleanup, (rtype == void.class ? 1 : 2), targetParamTypes, 0);
+
+        // Ensure that the intrinsic type checks the instance thrown by the
+        // target against the first parameter of cleanup
+        cleanup = cleanup.asType(cleanup.type().changeParameterType(0, Throwable.class));
 
         // Use asFixedArity() to avoid unnecessary boxing of last argument for VarargsCollector case.
         return MethodHandleImpl.makeTryFinally(target.asFixedArity(), cleanup.asFixedArity(), rtype, targetParamTypes);

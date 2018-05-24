@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 #include "gc/shared/gcCause.hpp"
 #include "memory/allocation.hpp"
+#include "oops/oop.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/timer.hpp"
@@ -68,7 +69,7 @@ public:
 
   void add_pool(MemoryPool* pool);
 
-  bool is_manager(instanceHandle mh)     { return mh() == _memory_mgr_obj; }
+  bool is_manager(instanceHandle mh)     { return oopDesc::equals(mh(), _memory_mgr_obj); }
 
   virtual instanceOop get_memory_manager_instance(TRAPS);
   virtual bool is_gc_memory_manager()    { return false; }
@@ -136,7 +137,6 @@ private:
   // TODO: We should unify the GCCounter and GCMemoryManager statistic
   size_t       _num_collections;
   elapsedTimer _accumulated_timer;
-  elapsedTimer _gc_timer;         // for measuring every GC duration
   GCStatInfo*  _last_gc_stat;
   Mutex*       _last_gc_lock;
   GCStatInfo*  _current_gc_stat;

@@ -258,6 +258,11 @@ public final class Constructor<T> extends Executable {
         return parameterTypes;
     }
 
+    @Override
+    Class<?>[] getSharedExceptionTypes() {
+        return exceptionTypes;
+    }
+
     /**
      * {@inheritDoc}
      */

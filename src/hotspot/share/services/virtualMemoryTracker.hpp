@@ -39,7 +39,7 @@
 /*
  * Virtual memory counter
  */
-class VirtualMemory VALUE_OBJ_CLASS_SPEC {
+class VirtualMemory {
  private:
   size_t     _reserved;
   size_t     _committed;
@@ -175,7 +175,7 @@ class VirtualMemorySummary : AllStatic {
 /*
  * A virtual memory region
  */
-class VirtualMemoryRegion VALUE_OBJ_CLASS_SPEC {
+class VirtualMemoryRegion {
  private:
   address      _base_address;
   size_t       _size;
@@ -390,7 +390,7 @@ class VirtualMemoryWalker : public StackObj {
 // Main class called from MemTracker to track virtual memory allocations, commits and releases.
 class VirtualMemoryTracker : AllStatic {
   friend class VirtualMemoryTrackerTest;
-  friend class ThreadStackTrackingTest;
+  friend class CommittedVirtualMemoryTest;
 
  public:
   static bool initialize(NMT_TrackingLevel level);

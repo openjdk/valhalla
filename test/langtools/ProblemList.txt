@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ jdk/javadoc/doclet/testIOException/TestIOException.java                         
 
 jdk/jshell/UserJdiUserRemoteTest.java                                           8173079    linux-all
 jdk/jshell/UserInputTest.java                                                   8169536    generic-all
+jdk/jshell/ExceptionsTest.java                                                  8200701    windows-all
 
 ###########################################################################
 #
@@ -55,13 +56,13 @@ tools/javac/annotations/typeAnnotations/referenceinfos/NestedTypes.java         
 tools/javac/warnings/suppress/TypeAnnotations.java                              8057683    generic-all    improve ordering of errors with type annotations
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
 tools/javac/options/release/ReleaseOptionUnsupported.java                       8193784    generic-all    temporary until support for --release 11 is worked out
-tools/javac/jvm/VerboseOutTest.java                                             8194968    windows-all
 
 ###########################################################################
 #
 # javap
 
 tools/javap/output/RepeatingTypeAnnotations.java                                8057687    generic-all    emit correct byte code an attributes for type annotations
+tools/javap/T6587786.java                                                       8195589    generic-all    T6587786.java failed after JDK-8189997
 
 ###########################################################################
 #

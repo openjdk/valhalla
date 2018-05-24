@@ -24,9 +24,9 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
-#include "gc/shared/barrierSet.inline.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/cardTable.hpp"
-#include "gc/shared/cardTableModRefBS.inline.hpp"
+#include "gc/shared/cardTableBarrierSet.inline.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interp_masm_arm.hpp"
 #include "interpreter/interpreter.hpp"
@@ -40,13 +40,8 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
+#include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
-
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1CollectedHeap.inline.hpp"
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "gc/g1/heapRegion.hpp"
-#endif // INCLUDE_ALL_GCS
 
 //--------------------------------------------------------------------
 // Implementation of InterpreterMacroAssembler
@@ -405,87 +400,6 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
   bind(ok_is_subtype);
 }
 
-
-// The 1st part of the store check.
-// Sets card_table_base register.
-void InterpreterMacroAssembler::store_check_part1(Register card_table_base) {
-  // Check barrier set type (should be card table) and element size
-  BarrierSet* bs = Universe::heap()->barrier_set();
-  assert(bs->kind() == BarrierSet::CardTableModRef,
-         "Wrong barrier set kind");
-
-  CardTableModRefBS* ctbs = barrier_set_cast<CardTableModRefBS>(bs);
-  CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "Adjust store check code");
-
-  // Load card table base address.
-
-  /* Performance note.
-
-     There is an alternative way of loading card table base address
-     from thread descriptor, which may look more efficient:
-
-     ldr(card_table_base, Address(Rthread, JavaThread::card_table_base_offset()));
-
-     However, performance measurements of micro benchmarks and specJVM98
-     showed that loading of card table base from thread descriptor is
-     7-18% slower compared to loading of literal embedded into the code.
-     Possible cause is a cache miss (card table base address resides in a
-     rarely accessed area of thread descriptor).
-  */
-  // TODO-AARCH64 Investigate if mov_slow is faster than ldr from Rthread on AArch64
-  mov_address(card_table_base, (address)ct->byte_map_base(), symbolic_Relocation::card_table_reference);
-}
-
-// The 2nd part of the store check.
-void InterpreterMacroAssembler::store_check_part2(Register obj, Register card_table_base, Register tmp) {
-  assert_different_registers(obj, card_table_base, tmp);
-
-  assert(CardTable::dirty_card_val() == 0, "Dirty card value must be 0 due to optimizations.");
-#ifdef AARCH64
-  add(card_table_base, card_table_base, AsmOperand(obj, lsr, CardTable::card_shift));
-  Address card_table_addr(card_table_base);
-#else
-  Address card_table_addr(card_table_base, obj, lsr, CardTable::card_shift);
-#endif
-
-  if (UseCondCardMark) {
-    if (UseConcMarkSweepGC) {
-      membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreLoad), noreg);
-    }
-    Label already_dirty;
-
-    ldrb(tmp, card_table_addr);
-    cbz(tmp, already_dirty);
-
-    set_card(card_table_base, card_table_addr, tmp);
-    bind(already_dirty);
-
-  } else {
-    if (UseConcMarkSweepGC && CMSPrecleaningEnabled) {
-      membar(MacroAssembler::Membar_mask_bits(MacroAssembler::StoreStore), noreg);
-    }
-    set_card(card_table_base, card_table_addr, tmp);
-  }
-}
-
-void InterpreterMacroAssembler::set_card(Register card_table_base, Address card_table_addr, Register tmp) {
-#ifdef AARCH64
-  strb(ZR, card_table_addr);
-#else
-  CardTableModRefBS* ctbs = barrier_set_cast<CardTableModRefBS>(Universe::heap()->barrier_set());
-  CardTable* ct = ctbs->card_table();
-  if ((((uintptr_t)ct->byte_map_base() & 0xff) == 0)) {
-    // Card table is aligned so the lowest byte of the table address base is zero.
-    // This works only if the code is not saved for later use, possibly
-    // in a context where the base would no longer be aligned.
-    strb(card_table_base, card_table_addr);
-  } else {
-    mov(tmp, 0);
-    strb(tmp, card_table_addr);
-  }
-#endif // AARCH64
-}
 
 //////////////////////////////////////////////////////////////////////////////////
 

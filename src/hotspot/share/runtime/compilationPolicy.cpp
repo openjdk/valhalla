@@ -30,10 +30,9 @@
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/methodData.hpp"
-#include "oops/method.hpp"
+#include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
-#include "runtime/advancedThresholdPolicy.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/handles.inline.hpp"
@@ -74,15 +73,8 @@ void compilationPolicy_init() {
     Unimplemented();
 #endif
     break;
-  case 3:
-#ifdef TIERED
-    CompilationPolicy::set_policy(new AdvancedThresholdPolicy());
-#else
-    Unimplemented();
-#endif
-    break;
   default:
-    fatal("CompilationPolicyChoice must be in the range: [0-3]");
+    fatal("CompilationPolicyChoice must be in the range: [0-2]");
   }
   CompilationPolicy::policy()->initialize();
 }

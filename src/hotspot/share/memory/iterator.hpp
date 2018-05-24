@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
 
 class CodeBlob;
 class nmethod;
-class ReferenceProcessor;
+class ReferenceDiscoverer;
 class DataLayout;
 class KlassClosure;
 class ClassLoaderData;
@@ -62,17 +62,17 @@ extern DoNothingClosure do_nothing_cl;
 // pollute the OopClosure interface.
 class ExtendedOopClosure : public OopClosure {
  private:
-  ReferenceProcessor* _ref_processor;
+  ReferenceDiscoverer* _ref_discoverer;
 
  protected:
-  ExtendedOopClosure(ReferenceProcessor* rp) : _ref_processor(rp) { }
-  ExtendedOopClosure() : _ref_processor(NULL) { }
+  ExtendedOopClosure(ReferenceDiscoverer* rd) : _ref_discoverer(rd) { }
+  ExtendedOopClosure() : _ref_discoverer(NULL) { }
   ~ExtendedOopClosure() { }
 
-  void set_ref_processor_internal(ReferenceProcessor* rp) { _ref_processor = rp; }
+  void set_ref_discoverer_internal(ReferenceDiscoverer* rd) { _ref_discoverer = rd; }
 
  public:
-  ReferenceProcessor* ref_processor() const { return _ref_processor; }
+  ReferenceDiscoverer* ref_discoverer() const { return _ref_discoverer; }
 
   // Iteration of InstanceRefKlasses differ depending on the closure,
   // the below enum describes the different alternatives.
@@ -172,7 +172,7 @@ class MetadataAwareOopClosure: public ExtendedOopClosure {
 
  public:
   MetadataAwareOopClosure() : ExtendedOopClosure() { }
-  MetadataAwareOopClosure(ReferenceProcessor* rp) : ExtendedOopClosure(rp) { }
+  MetadataAwareOopClosure(ReferenceDiscoverer* rd) : ExtendedOopClosure(rd) { }
 
   bool do_metadata_nv()      { return true; }
   virtual bool do_metadata() { return do_metadata_nv(); }
@@ -350,6 +350,9 @@ public:
   // for verification that sections of the serialized data are of the
   // correct length.
   virtual void do_tag(int tag) = 0;
+
+  // Read/write the oop
+  virtual void do_oop(oop* o) = 0;
 
   bool writing() {
     return !reading();

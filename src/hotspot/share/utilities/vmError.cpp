@@ -27,8 +27,9 @@
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/gcConfig.hpp"
 #include "logging/logConfiguration.hpp"
+#include "memory/resourceArea.hpp"
 #include "prims/whitebox.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
@@ -303,14 +304,6 @@ static void print_oom_reasons(outputStream* st) {
   st->print_cr("# This output file may be truncated or incomplete.");
 }
 
-static const char* gc_mode() {
-  if (UseG1GC)            return "g1 gc";
-  if (UseParallelGC)      return "parallel gc";
-  if (UseConcMarkSweepGC) return "concurrent mark sweep gc";
-  if (UseSerialGC)        return "serial gc";
-  return "ERROR in GC mode";
-}
-
 static void report_vm_version(outputStream* st, char* buf, int buflen) {
    // VM version
    st->print_cr("#");
@@ -339,7 +332,7 @@ static void report_vm_version(outputStream* st, char* buf, int buflen) {
                  "", "",
 #endif
                  UseCompressedOops ? ", compressed oops" : "",
-                 gc_mode(),
+                 GCConfig::hs_err_name(),
                  Abstract_VM_Version::vm_platform_string()
                );
 }
@@ -773,7 +766,10 @@ void VMError::report(outputStream* st, bool _verbose) {
            if (desc != NULL) {
              desc->print_on(st);
              Disassembler::decode(desc->begin(), desc->end(), st);
-           } else {
+           } else if (_thread != NULL) {
+             // Disassembling nmethod will incur resource memory allocation,
+             // only do so when thread is valid.
+             ResourceMark rm(_thread);
              Disassembler::decode(cb, st);
              st->cr();
            }
@@ -864,6 +860,13 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
        st->print_cr("Polling page: " INTPTR_FORMAT, p2i(os::get_polling_page()));
        st->cr();
+     }
+
+  STEP("printing metaspace information")
+
+     if (_verbose && Universe::is_fully_initialized()) {
+       st->print_cr("Metaspace:");
+       MetaspaceUtils::print_basic_report(st, 0);
      }
 
   STEP("printing code cache information")
@@ -1050,6 +1053,13 @@ void VMError::print_vm_info(outputStream* st) {
     st->cr();
   }
 
+  // STEP("printing metaspace information")
+
+  if (Universe::is_fully_initialized()) {
+    st->print_cr("Metaspace:");
+    MetaspaceUtils::print_basic_report(st, 0);
+  }
+
   // STEP("printing code cache information")
 
   if (Universe::is_fully_initialized()) {
@@ -1234,10 +1244,10 @@ void VMError::report_and_die(const char* message)
   report_and_die(message, "%s", "");
 }
 
-void VMError::report_and_die(Thread* thread, const char* filename, int lineno, const char* message,
+void VMError::report_and_die(Thread* thread, void* context, const char* filename, int lineno, const char* message,
                              const char* detail_fmt, va_list detail_args)
 {
-  report_and_die(INTERNAL_ERROR, message, detail_fmt, detail_args, thread, NULL, NULL, NULL, filename, lineno, 0);
+  report_and_die(INTERNAL_ERROR, message, detail_fmt, detail_args, thread, NULL, NULL, context, filename, lineno, 0);
 }
 
 void VMError::report_and_die(Thread* thread, const char* filename, int lineno, size_t size,
@@ -1474,7 +1484,7 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       out.print_raw   ("/bin/sh -c ");
 #elif defined(SOLARIS)
       out.print_raw   ("/usr/bin/sh -c ");
-#elif defined(WINDOWS)
+#elif defined(_WINDOWS)
       out.print_raw   ("cmd /C ");
 #endif
       out.print_raw   ("\"");
@@ -1610,6 +1620,9 @@ bool VMError::check_timeout() {
 }
 
 #ifndef PRODUCT
+#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
+#pragma error_messages(off, SEC_NULL_PTR_DEREF)
+#endif
 typedef void (*voidfun_t)();
 // Crash with an authentic sigfpe
 static void crash_with_sigfpe() {
@@ -1670,24 +1683,24 @@ void VMError::controlled_crash(int how) {
   // Case 16 is tested by test/hotspot/jtreg/runtime/ErrorHandling/ThreadsListHandleInErrorHandlingTest.java.
   // Case 17 is tested by test/hotspot/jtreg/runtime/ErrorHandling/NestedThreadsListHandleInErrorHandlingTest.java.
   switch (how) {
-    case  1: vmassert(str == NULL, "expected null");
+    case  1: vmassert(str == NULL, "expected null"); break;
     case  2: vmassert(num == 1023 && *str == 'X',
-                      "num=" SIZE_FORMAT " str=\"%s\"", num, str);
-    case  3: guarantee(str == NULL, "expected null");
+                      "num=" SIZE_FORMAT " str=\"%s\"", num, str); break;
+    case  3: guarantee(str == NULL, "expected null"); break;
     case  4: guarantee(num == 1023 && *str == 'X',
-                       "num=" SIZE_FORMAT " str=\"%s\"", num, str);
-    case  5: fatal("expected null");
-    case  6: fatal("num=" SIZE_FORMAT " str=\"%s\"", num, str);
+                       "num=" SIZE_FORMAT " str=\"%s\"", num, str); break;
+    case  5: fatal("expected null"); break;
+    case  6: fatal("num=" SIZE_FORMAT " str=\"%s\"", num, str); break;
     case  7: fatal("%s%s#    %s%s#    %s%s#    %s%s#    %s%s#    "
                    "%s%s#    %s%s#    %s%s#    %s%s#    %s%s#    "
                    "%s%s#    %s%s#    %s%s#    %s%s#    %s",
                    msg, eol, msg, eol, msg, eol, msg, eol, msg, eol,
                    msg, eol, msg, eol, msg, eol, msg, eol, msg, eol,
-                   msg, eol, msg, eol, msg, eol, msg, eol, msg);
-    case  8: vm_exit_out_of_memory(num, OOM_MALLOC_ERROR, "ChunkPool::allocate");
-    case  9: ShouldNotCallThis();
-    case 10: ShouldNotReachHere();
-    case 11: Unimplemented();
+                   msg, eol, msg, eol, msg, eol, msg, eol, msg); break;
+    case  8: vm_exit_out_of_memory(num, OOM_MALLOC_ERROR, "ChunkPool::allocate"); break;
+    case  9: ShouldNotCallThis(); break;
+    case 10: ShouldNotReachHere(); break;
+    case 11: Unimplemented(); break;
     // There's no guarantee the bad data pointer will crash us
     // so "break" out to the ShouldNotReachHere().
     case 12: *dataPtr = '\0'; break;
@@ -1710,6 +1723,7 @@ void VMError::controlled_crash(int how) {
 
     default: tty->print_cr("ERROR: %d: unexpected test_num value.", how);
   }
+  tty->print_cr("VMError::controlled_crash: survived intentional crash. Did you suppress the assert?");
   ShouldNotReachHere();
 }
 #endif // !PRODUCT

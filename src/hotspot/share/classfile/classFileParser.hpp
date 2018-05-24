@@ -26,7 +26,7 @@
 #define SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP
 
 #include "memory/referenceType.hpp"
-#include "runtime/handles.inline.hpp"
+#include "oops/annotations.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/typeArrayOop.hpp"
 #include "utilities/accessFlags.hpp"
@@ -49,7 +49,7 @@ class TempNewSymbol;
 //
 // The bytes describing the class file structure is read from a Stream object
 
-class ClassFileParser VALUE_OBJ_CLASS_SPEC {
+class ClassFileParser {
 
  class ClassAnnotationCollector;
  class FieldAllocationCount;
@@ -453,12 +453,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
     return _cp_patches->at(index);
   }
 
-  Handle clear_cp_patch_at(int index) {
-    Handle patch = cp_patch_at(index);
-    _cp_patches->at_put(index, Handle());
-    assert(!has_cp_patch_at(index), "");
-    return patch;
-  }
+  Handle clear_cp_patch_at(int index);
 
   void patch_class(ConstantPool* cp, int class_index, Klass* k, Symbol* name);
   void patch_constant_pool(ConstantPool* cp,
@@ -557,7 +552,7 @@ class ClassFileParser VALUE_OBJ_CLASS_SPEC {
   const GrowableArray<Handle>* cp_patches() const { return _cp_patches; }
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }
-  const Klass* super_klass() const { return _super_klass; }
+  const InstanceKlass* super_klass() const { return _super_klass; }
 
   ReferenceType reference_type() const { return _rt; }
   AccessFlags access_flags() const { return _access_flags; }

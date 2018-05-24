@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,7 @@ private:
   unsigned  _slow_refill_waste;
   unsigned  _gc_waste;
   unsigned  _slow_allocations;
+  size_t    _allocated_size;
 
   AdaptiveWeightedAverage _allocation_fraction;  // fraction of eden allocated in tlabs
 
@@ -141,6 +142,9 @@ public:
   // Otherwise return 0;
   inline size_t compute_size(size_t obj_size);
 
+  // Compute the minimal needed tlab size for the given object size.
+  static inline size_t compute_min_size(size_t obj_size);
+
   // Record slow allocation
   inline void record_slow_allocation(size_t obj_size);
 
@@ -163,6 +167,13 @@ public:
   void initialize();
 
   static size_t refill_waste_limit_increment()   { return TLABWasteIncrement; }
+
+  template <typename T> void addresses_do(T f) {
+    f(&_start);
+    f(&_top);
+    f(&_pf_top);
+    f(&_end);
+  }
 
   // Code generation support
   static ByteSize start_offset()                 { return byte_offset_of(ThreadLocalAllocBuffer, _start); }

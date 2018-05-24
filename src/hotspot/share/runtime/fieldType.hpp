@@ -51,7 +51,6 @@ class FieldArrayInfo : public StackObj {
 
 class FieldType: public AllStatic {
  private:
-  static void skip_optional_size(Symbol* signature, int* index);
   static bool is_valid_array_signature(Symbol* signature);
  public:
 

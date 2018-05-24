@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,12 @@
 #include "classfile/altHashing.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1Allocator.inline.hpp"
-#endif
 
 bool always_do_update_barrier = false;
 
@@ -121,15 +119,12 @@ unsigned int oopDesc::new_hash(juint seed) {
 
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
-  if (!check_obj_alignment(obj)) return false;
-  if (!Universe::heap()->is_in_reserved(obj)) {
+  if (!Universe::heap()->is_oop(obj)) {
     assert(obj->klass()->is_value(), "Only value type can be outside of the Java heap");
     VTBufferChunk* chunk = VTBufferChunk::chunk(obj);
     assert(chunk->is_valid(), "if not in the heap, should a buffered VT");
     if (!VTBuffer::is_in_vt_buffer(obj)) return false;
   }
-  // obj is aligned and accessible in heap
-  if (Universe::heap()->is_in_reserved(obj->klass_or_null())) return false;
 
   // Header verification: the mark is typically non-NULL. If we're
   // at a safepoint, it must not be null.
@@ -138,7 +133,7 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (ignore_mark_word) {
     return true;
   }
-  if (obj->mark() != NULL) {
+  if (obj->mark_raw() != NULL) {
     return true;
   }
   return !SafepointSynchronize::is_at_safepoint()
@@ -161,7 +156,7 @@ bool oopDesc::is_unlocked_oop() const {
 VerifyOopClosure VerifyOopClosure::verify_oop;
 
 template <class T> void VerifyOopClosure::do_oop_work(T* p) {
-  oop obj = oopDesc::load_decode_heap_oop(p);
+  oop obj = RawAccess<>::oop_load(p);
   guarantee(oopDesc::is_oop_or_null(obj), "invalid oop: " INTPTR_FORMAT, p2i((oopDesc*) obj));
 }
 
@@ -222,9 +217,3 @@ void oopDesc::release_float_field_put(int offset, jfloat value)       { HeapAcce
 
 jdouble oopDesc::double_field_acquire(int offset) const               { return HeapAccess<MO_ACQUIRE>::load_at(as_oop(), offset); }
 void oopDesc::release_double_field_put(int offset, jdouble value)     { HeapAccess<MO_RELEASE>::store_at(as_oop(), offset, value); }
-
-#if INCLUDE_CDS_JAVA_HEAP
-bool oopDesc::is_archive_object(oop p) {
-  return (p == NULL) ? false : G1ArchiveAllocator::is_archive_object(p);
-}
-#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -134,8 +134,6 @@ public class TestGCLogMessages {
         // Humongous Eager Reclaim
         new LogMessageWithLevel("Humongous Reclaim", Level.DEBUG),
         new LogMessageWithLevel("Humongous Register", Level.DEBUG),
-        // Preserve CM Referents
-        new LogMessageWithLevel("Preserve CM Refs", Level.DEBUG),
         // Merge PSS
         new LogMessageWithLevel("Merge Per-Thread State", Level.DEBUG),
         // TLAB handling
@@ -143,7 +141,8 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Resize TLABs", Level.DEBUG),
         // Reference Processing
         new LogMessageWithLevel("Reference Processing", Level.DEBUG),
-        new LogMessageWithLevel("Reference Enqueuing", Level.DEBUG),
+        // VM internal reference processing
+        new LogMessageWithLevel("Weak Processing", Level.DEBUG),
 
         new LogMessageWithLevelC2OrJVMCIOnly("DerivedPointerTable Update", Level.DEBUG),
         new LogMessageWithLevel("Start New Collection Set", Level.DEBUG),

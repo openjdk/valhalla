@@ -26,7 +26,6 @@
 #define SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP
 
 #include "classfile/classLoader.hpp"
-#include "classfile/systemDictionary_ext.hpp"
 #include "jvmci/systemDictionary_jvmci.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/objArrayOop.hpp"
@@ -35,7 +34,6 @@
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/hashtable.hpp"
-#include "utilities/hashtable.inline.hpp"
 
 // The dictionary in each ClassLoaderData stores all loaded classes, either
 // initiatied by its class loader or defined by its class loader:
@@ -86,6 +84,7 @@ class SymbolPropertyTable;
 class ProtectionDomainCacheTable;
 class ProtectionDomainCacheEntry;
 class GCTimer;
+class OopStorage;
 
 // Certain classes are preloaded, such as java.lang.Object and java.lang.String.
 // They are all "well-known", in the sense that no class loader is allowed
@@ -186,6 +185,7 @@ class GCTimer;
   do_klass(File_klass,                                  java_io_File,                              Pre                 ) \
   do_klass(URL_klass,                                   java_net_URL,                              Pre                 ) \
   do_klass(Jar_Manifest_klass,                          java_util_jar_Manifest,                    Pre                 ) \
+  do_klass(jdk_internal_loader_ClassLoaders_klass,      jdk_internal_loader_ClassLoaders,          Pre                 ) \
   do_klass(jdk_internal_loader_ClassLoaders_AppClassLoader_klass,      jdk_internal_loader_ClassLoaders_AppClassLoader,       Pre ) \
   do_klass(jdk_internal_loader_ClassLoaders_PlatformClassLoader_klass, jdk_internal_loader_ClassLoaders_PlatformClassLoader,  Pre ) \
   do_klass(CodeSource_klass,                            java_security_CodeSource,                  Pre                 ) \
@@ -214,8 +214,6 @@ class GCTimer;
   do_klass(Long_klass,                                  java_lang_Long,                            Pre                 ) \
                                                                                                                          \
                                                                                                                          \
-  /* Extensions */                                                                                                       \
-  WK_KLASSES_DO_EXT(do_klass)                                                                                            \
   /* JVMCI classes. These are loaded on-demand. */                                                                       \
   JVMCI_WK_KLASSES_DO(do_klass)                                                                                          \
                                                                                                                          \
@@ -225,7 +223,6 @@ class GCTimer;
 class SystemDictionary : AllStatic {
   friend class VMStructs;
   friend class SystemDictionaryHandles;
-  friend class SharedClassUtil;
 
  public:
   enum WKID {
@@ -504,7 +501,7 @@ public:
   static void compute_java_loaders(TRAPS);
 
   // Register a new class loader
-  static ClassLoaderData* register_loader(Handle class_loader, TRAPS);
+  static ClassLoaderData* register_loader(Handle class_loader);
 protected:
   // Mirrors for primitive classes (created eagerly)
   static oop check_mirror(oop m) {
@@ -649,6 +646,9 @@ public:
   // ProtectionDomain cache
   static ProtectionDomainCacheTable*   _pd_cache_table;
 
+  // VM weak OopStorage object.
+  static OopStorage*             _vm_weak_oop_storage;
+
 protected:
   static void validate_protection_domain(InstanceKlass* klass,
                                          Handle class_loader,
@@ -701,6 +701,9 @@ public:
     assert(m != NULL, "Unexpected NULL Method*");
     return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
   }
+
+  static void initialize_oop_storage();
+  static OopStorage* vm_weak_oop_storage();
 
 protected:
   static InstanceKlass* find_shared_class(Symbol* class_name);

@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_KLASS_HPP
 #define SHARE_VM_OOPS_KLASS_HPP
 
+#include "classfile/classLoaderData.hpp"
 #include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
@@ -53,7 +54,6 @@
 // Forward declarations.
 template <class T> class Array;
 template <class T> class GrowableArray;
-class ClassLoaderData;
 class fieldDescriptor;
 class KlassSizeStats;
 class klassVtable;
@@ -151,13 +151,24 @@ class Klass : public Metadata {
   int _vtable_len;
 
 private:
-  // This is an index into FileMapHeader::_classpath_entry_table[], to
+  // This is an index into FileMapHeader::_shared_path_table[], to
   // associate this class with the JAR file where it's loaded from during
   // dump time. If a class is not loaded from the shared archive, this field is
   // -1.
   jshort _shared_class_path_index;
 
-  friend class SharedClassUtil;
+#if INCLUDE_CDS
+  // Flags of the current shared class.
+  u2     _shared_class_flags;
+  enum {
+    _has_raw_archived_mirror = 1,
+    _has_signer_and_not_archived = 1 << 2
+  };
+#endif
+  // The _archived_mirror is set at CDS dump time pointing to the cached mirror
+  // in the open archive heap region when archiving java object is supported.
+  CDS_JAVA_HEAP_ONLY(narrowOop _archived_mirror;)
+
 protected:
 
   // Constructor
@@ -181,12 +192,13 @@ protected:
   void set_super(Klass* k)           { _super = k; }
 
   // initializes _super link, _primary_supers & _secondary_supers arrays
-  void initialize_supers(Klass* k, TRAPS);
+  void initialize_supers(Klass* k, Array<Klass*>* transitive_interfaces, TRAPS);
   void initialize_supers_impl1(Klass* k);
   void initialize_supers_impl2(Klass* k);
 
   // klass-specific helper for initializing _secondary_supers
-  virtual GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots);
+  virtual GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
+                                                          Array<Klass*>* transitive_interfaces);
 
   // java_super is the Java-level super type as specified by Class.getSuperClass.
   virtual Klass* java_super() const  { return NULL; }
@@ -233,11 +245,17 @@ protected:
   oop java_mirror() const;
   void set_java_mirror(Handle m);
 
+  oop archived_java_mirror_raw() NOT_CDS_JAVA_HEAP_RETURN_(NULL); // no GC barrier
+  oop archived_java_mirror() NOT_CDS_JAVA_HEAP_RETURN_(NULL);     // accessor with GC barrier
+  void set_archived_java_mirror_raw(oop m) NOT_CDS_JAVA_HEAP_RETURN; // no GC barrier
+
   // Temporary mirror switch used by RedefineClasses
   // Both mirrors are on the ClassLoaderData::_handles list already so no
   // barriers are needed.
   void set_java_mirror_handle(OopHandle mirror) { _java_mirror = mirror; }
-  OopHandle java_mirror_handle() const          { return _java_mirror; }
+  OopHandle java_mirror_handle() const          {
+    return _java_mirror;
+  }
 
   // modifier flags
   jint modifier_flags() const          { return _modifier_flags; }
@@ -270,6 +288,26 @@ protected:
   void set_shared_classpath_index(int index) {
     _shared_class_path_index = index;
   };
+
+  void set_has_raw_archived_mirror() {
+    CDS_ONLY(_shared_class_flags |= _has_raw_archived_mirror;)
+  }
+  void clear_has_raw_archived_mirror() {
+    CDS_ONLY(_shared_class_flags &= ~_has_raw_archived_mirror;)
+  }
+  bool has_raw_archived_mirror() const {
+    CDS_ONLY(return (_shared_class_flags & _has_raw_archived_mirror) != 0;)
+    NOT_CDS(return false;)
+  }
+#if INCLUDE_CDS
+  void set_has_signer_and_not_archived() {
+    _shared_class_flags |= _has_signer_and_not_archived;
+  }
+  bool has_signer_and_not_archived() const {
+    assert(DumpSharedSpaces, "dump time only");
+    return (_shared_class_flags & _has_signer_and_not_archived) != 0;
+  }
+#endif // INCLUDE_CDS
 
   // Obtain the module or package for this class
   virtual ModuleEntry* module() const = 0;
@@ -415,10 +453,6 @@ protected:
     }
   }
 
-  // Is an oop/narrowOop null or subtype of this Klass?
-  template <typename T>
-  bool is_instanceof_or_null(T element);
-
   bool search_secondary_supers(Klass* k) const;
 
   // Find LCA in class hierarchy
@@ -513,6 +547,9 @@ protected:
   virtual const char* signature_name() const;
 
   const char* class_loader_and_module_name() const;
+
+  // Returns "interface", "abstract class" or "class".
+  const char* external_kind() const;
 
   // type testing operations
 #ifdef ASSERT
@@ -614,18 +651,17 @@ protected:
   virtual MetaspaceObj::Type type() const { return ClassType; }
 
   // Iff the class loader (or mirror for anonymous classes) is alive the
-  // Klass is considered alive.
-  // The is_alive closure passed in depends on the Garbage Collector used.
-  bool is_loader_alive(BoolObjectClosure* is_alive);
+  // Klass is considered alive.  Has already been marked as unloading.
+  bool is_loader_alive() const { return !class_loader_data()->is_unloading(); }
 
-  static void clean_weak_klass_links(BoolObjectClosure* is_alive, bool clean_alive_klasses = true);
-  static void clean_subklass_tree(BoolObjectClosure* is_alive) {
-    clean_weak_klass_links(is_alive, false /* clean_alive_klasses */);
+  static void clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses = true);
+  static void clean_subklass_tree() {
+    clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
   }
 
   // GC specific object visitors
   //
-#if INCLUDE_ALL_GCS
+#if INCLUDE_PARALLELGC
   // Parallel Scavenge
   virtual void oop_ps_push_contents(  oop obj, PSPromotionManager* pm)   = 0;
   // Parallel Compact
@@ -643,13 +679,13 @@ protected:
   ALL_OOP_OOP_ITERATE_CLOSURES_1(Klass_OOP_OOP_ITERATE_DECL)
   ALL_OOP_OOP_ITERATE_CLOSURES_2(Klass_OOP_OOP_ITERATE_DECL)
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 #define Klass_OOP_OOP_ITERATE_DECL_BACKWARDS(OopClosureType, nv_suffix)                     \
   virtual void oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure) = 0;
 
   ALL_OOP_OOP_ITERATE_CLOSURES_1(Klass_OOP_OOP_ITERATE_DECL_BACKWARDS)
   ALL_OOP_OOP_ITERATE_CLOSURES_2(Klass_OOP_OOP_ITERATE_DECL_BACKWARDS)
-#endif // INCLUDE_ALL_GCS
+#endif
 
   virtual void array_klasses_do(void f(Klass* k)) {}
 
@@ -713,10 +749,10 @@ protected:
   void oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure);                        \
   void oop_oop_iterate_bounded##nv_suffix(oop obj, OopClosureType* closure, MemRegion mr);
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 #define OOP_OOP_ITERATE_DECL_BACKWARDS(OopClosureType, nv_suffix)               \
   void oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure);
-#endif // INCLUDE_ALL_GCS
+#endif
 
 
 // Oop iteration macros for definitions.
@@ -727,7 +763,7 @@ void KlassType::oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure) {  
   oop_oop_iterate<nvs_to_bool(nv_suffix)>(obj, closure);                        \
 }
 
-#if INCLUDE_ALL_GCS
+#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 #define OOP_OOP_ITERATE_DEFN_BACKWARDS(KlassType, OopClosureType, nv_suffix)              \
 void KlassType::oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure) {  \
   oop_oop_iterate_reverse<nvs_to_bool(nv_suffix)>(obj, closure);                          \

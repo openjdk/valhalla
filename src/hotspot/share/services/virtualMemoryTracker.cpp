@@ -23,6 +23,7 @@
  */
 #include "precompiled.hpp"
 
+#include "logging/log.hpp"
 #include "memory/metaspace.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
@@ -486,6 +487,43 @@ bool VirtualMemoryTracker::remove_released_region(address addr, size_t size) {
   }
 }
 
+// Iterate the range, find committed region within its bound.
+class RegionIterator : public StackObj {
+private:
+  const address _start;
+  const size_t  _size;
+
+  address _current_start;
+  size_t  _current_size;
+public:
+  RegionIterator(address start, size_t size) :
+    _start(start), _size(size), _current_start(start), _current_size(size) {
+  }
+
+  // return true if committed region is found
+  bool next_committed(address& start, size_t& size);
+private:
+  address end() const { return _start + _size; }
+};
+
+bool RegionIterator::next_committed(address& committed_start, size_t& committed_size) {
+  if (end() <= _current_start) return false;
+
+  const size_t page_sz = os::vm_page_size();
+  assert(_current_start + _current_size == end(), "Must be");
+  if (os::committed_in_range(_current_start, _current_size, committed_start, committed_size)) {
+    assert(committed_start != NULL, "Must be");
+    assert(committed_size > 0 && is_aligned(committed_size, os::vm_page_size()), "Must be");
+
+    size_t remaining_size = (_current_start + _current_size) - (committed_start + committed_size);
+    _current_start = committed_start + committed_size;
+    _current_size = remaining_size;
+    return true;
+  } else {
+    return false;
+  }
+}
+
 // Walk all known thread stacks, snapshot their committed ranges.
 class SnapshotThreadStackWalker : public VirtualMemoryWalker {
 public:
@@ -494,15 +532,26 @@ public:
   bool do_allocation_site(const ReservedMemoryRegion* rgn) {
     if (rgn->flag() == mtThreadStack) {
       address stack_bottom = rgn->thread_stack_uncommitted_bottom();
+      address committed_start;
+      size_t  committed_size;
       size_t stack_size = rgn->base() + rgn->size() - stack_bottom;
-      size_t committed_size = os::committed_stack_size(stack_bottom, stack_size);
-      if (committed_size > 0) {
-        ReservedMemoryRegion* region = const_cast<ReservedMemoryRegion*>(rgn);
-        NativeCallStack ncs; // empty stack
 
-        // Stack grows downward
-        region->add_committed_region(rgn->base() + rgn->size() - committed_size, committed_size, ncs);
+      ReservedMemoryRegion* region = const_cast<ReservedMemoryRegion*>(rgn);
+      NativeCallStack ncs; // empty stack
+
+      RegionIterator itr(stack_bottom, stack_size);
+      DEBUG_ONLY(bool found_stack = false;)
+      while (itr.next_committed(committed_start, committed_size)) {
+        assert(committed_start != NULL, "Should not be null");
+        assert(committed_size > 0, "Should not be 0");
+        region->add_committed_region(committed_start, committed_size, ncs);
+        DEBUG_ONLY(found_stack = true;)
       }
+#ifdef ASSERT
+      if (!found_stack) {
+        log_debug(thread)("Thread exited without proper cleanup, may leak thread object");
+      }
+#endif
     }
     return true;
   }
@@ -562,13 +611,13 @@ MetaspaceSnapshot::MetaspaceSnapshot() {
 void MetaspaceSnapshot::snapshot(Metaspace::MetadataType type, MetaspaceSnapshot& mss) {
   assert_valid_metadata_type(type);
 
-  mss._reserved_in_bytes[type]   = MetaspaceAux::reserved_bytes(type);
-  mss._committed_in_bytes[type]  = MetaspaceAux::committed_bytes(type);
-  mss._used_in_bytes[type]       = MetaspaceAux::used_bytes(type);
+  mss._reserved_in_bytes[type]   = MetaspaceUtils::reserved_bytes(type);
+  mss._committed_in_bytes[type]  = MetaspaceUtils::committed_bytes(type);
+  mss._used_in_bytes[type]       = MetaspaceUtils::used_bytes(type);
 
-  size_t free_in_bytes = (MetaspaceAux::capacity_bytes(type) - MetaspaceAux::used_bytes(type))
-                       + MetaspaceAux::free_chunks_total_bytes(type)
-                       + MetaspaceAux::free_bytes(type);
+  size_t free_in_bytes = (MetaspaceUtils::capacity_bytes(type) - MetaspaceUtils::used_bytes(type))
+                       + MetaspaceUtils::free_chunks_total_bytes(type)
+                       + MetaspaceUtils::free_in_vs_bytes(type);
   mss._free_in_bytes[type] = free_in_bytes;
 }
 

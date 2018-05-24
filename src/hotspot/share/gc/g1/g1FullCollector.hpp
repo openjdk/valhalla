@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,16 @@ class G1FullGCCompactionPoint;
 class GCMemoryManager;
 class ReferenceProcessor;
 
+// Subject-to-discovery closure for reference processing during Full GC. During
+// Full GC the whole heap is subject to discovery.
+class G1FullGCSubjectToDiscoveryClosure: public BoolObjectClosure {
+public:
+  bool do_object_b(oop p) {
+    assert(p != NULL, "must be");
+    return true;
+  }
+};
+
 // The G1FullCollector holds data associated with the current Full GC.
 class G1FullCollector : StackObj {
   G1CollectedHeap*          _heap;
@@ -55,6 +65,11 @@ class G1FullCollector : StackObj {
   G1FullGCCompactionPoint   _serial_compaction_point;
   G1IsAliveClosure          _is_alive;
   ReferenceProcessorIsAliveMutator _is_alive_mutator;
+
+  static uint calc_active_workers();
+
+  G1FullGCSubjectToDiscoveryClosure _always_subject_to_discovery;
+  ReferenceProcessorSubjectToDiscoveryMutator _is_subject_mutator;
 
 public:
   G1FullCollector(G1CollectedHeap* heap, GCMemoryManager* memory_manager, bool explicit_gc, bool clear_soft_refs);
@@ -85,10 +100,6 @@ private:
   void verify_after_marking();
 
   void run_task(AbstractGangTask* task);
-
-  // Prepare compaction extension support.
-  void prepare_compaction_ext();
-  void prepare_compaction_common();
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,13 @@
  * questions.
  */
 
-// key: compiler.misc.incompatible.upper.lower.bounds
+// key: compiler.misc.incompatible.bounds
 // key: compiler.misc.where.description.typevar
 // key: compiler.misc.where.typevar
 // key: compiler.err.prob.found.req
-// options: --diags:formatterOptions=where
+// key: compiler.misc.lower.bounds
+// key: compiler.misc.upper.bounds
+// options: --diags=formatterOptions=where
 // run: simple
 
 class WhereTypeVar2 {

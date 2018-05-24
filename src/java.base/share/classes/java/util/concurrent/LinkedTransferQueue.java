@@ -81,7 +81,7 @@ import java.util.function.Predicate;
  * the {@code LinkedTransferQueue} in another thread.
  *
  * <p>This class is a member of the
- * <a href="{@docRoot}/java/util/package-summary.html#CollectionsFramework">
+ * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">
  * Java Collections Framework</a>.
  *
  * @since 1.7
@@ -1739,7 +1739,7 @@ public class LinkedTransferQueue<E> extends AbstractQueue<E>
             NEXT = l.findVarHandle(Node.class, "next", Node.class);
             WAITER = l.findVarHandle(Node.class, "waiter", Thread.class);
         } catch (ReflectiveOperationException e) {
-            throw new Error(e);
+            throw new ExceptionInInitializerError(e);
         }
 
         // Reduce the risk of rare disastrous classloading in first call to

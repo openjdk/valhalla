@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,17 +40,6 @@ REGISTER_DECLARATION(FloatRegister, Ftos_f , F0); // for floats
 REGISTER_DECLARATION(FloatRegister, Ftos_d , F0); // for doubles
 REGISTER_DECLARATION(FloatRegister, Ftos_d1, F0); // for 1st part of double
 REGISTER_DECLARATION(FloatRegister, Ftos_d2, F1); // for 2nd part of double
-
-#ifndef DONT_USE_REGISTER_DEFINES
-#define Otos_i  O0
-#define Otos_l  O0
-#define Otos_l1 O0
-#define Otos_l2 O1
-#define Ftos_f  F0
-#define Ftos_d  F0
-#define Ftos_d1 F0
-#define Ftos_d2 F1
-#endif // DONT_USE_REGISTER_DEFINES
 
 class InterpreterMacroAssembler: public MacroAssembler {
  protected:
@@ -194,7 +183,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void get_cache_index_at_bcp(Register temp, Register index, int bcp_offset, size_t index_size = sizeof(u2));
 
   // load cpool->resolved_references(index);
-  void load_resolved_reference_at_index(Register result, Register index);
+  void load_resolved_reference_at_index(Register result, Register index, Register tmp);
 
   // load cpool->resolved_klass_at(index)
   void load_resolved_klass_at_offset(Register Rcpool, Register Roffset, Register Rklass);

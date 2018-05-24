@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,9 @@
 
 // Implement ADD using a CAS loop.
 template<size_t byte_size>
-struct Atomic::PlatformAdd VALUE_OBJ_CLASS_SPEC {
+struct Atomic::PlatformAdd {
   template<typename I, typename D>
-  inline D operator()(I add_value, D volatile* dest) const {
+  inline D operator()(I add_value, D volatile* dest, atomic_memory_order order) const {
     D old_value = *dest;
     while (true) {
       D new_value = old_value + add_value;
@@ -46,7 +46,8 @@ struct Atomic::PlatformAdd VALUE_OBJ_CLASS_SPEC {
 template<>
 template<typename T>
 inline T Atomic::PlatformXchg<4>::operator()(T exchange_value,
-                                             T volatile* dest) const {
+                                             T volatile* dest,
+                                             atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(T));
   __asm__ volatile (  "swap [%2],%0"
                     : "=r" (exchange_value)
@@ -58,7 +59,8 @@ inline T Atomic::PlatformXchg<4>::operator()(T exchange_value,
 template<>
 template<typename T>
 inline T Atomic::PlatformXchg<8>::operator()(T exchange_value,
-                                             T volatile* dest) const {
+                                             T volatile* dest,
+                                             atomic_memory_order order) const {
   STATIC_ASSERT(8 == sizeof(T));
   T old_value = *dest;
   while (true) {
@@ -78,7 +80,7 @@ template<typename T>
 inline T Atomic::PlatformCmpxchg<4>::operator()(T exchange_value,
                                                 T volatile* dest,
                                                 T compare_value,
-                                                cmpxchg_memory_order order) const {
+                                                atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(T));
   T rv;
   __asm__ volatile(
@@ -94,7 +96,7 @@ template<typename T>
 inline T Atomic::PlatformCmpxchg<8>::operator()(T exchange_value,
                                                 T volatile* dest,
                                                 T compare_value,
-                                                cmpxchg_memory_order order) const {
+                                                atomic_memory_order order) const {
   STATIC_ASSERT(8 == sizeof(T));
   T rv;
   __asm__ volatile(

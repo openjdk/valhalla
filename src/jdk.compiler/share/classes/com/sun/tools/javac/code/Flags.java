@@ -330,6 +330,11 @@ public class Flags {
      */
     public static final long NOT_FLATTENED = 1L<<58;
 
+     * Flag that marks finalize block as body-only, should not be copied into catch clauses.
+     * Used to implement try-with-resources.
+     */
+    public static final long BODY_ONLY_FINALIZE = 1L<<17; //blocks only
+
     /** Modifier masks.
      */
     public static final int

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/cms/cmsHeap.hpp"
+#include "gc/cms/cmsHeap.inline.hpp"
 #include "gc/cms/compactibleFreeListSpace.hpp"
 #include "gc/cms/concurrentMarkSweepGeneration.hpp"
 #include "gc/cms/parNewGeneration.inline.hpp"
@@ -36,7 +36,6 @@
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
-#include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/plab.inline.hpp"
@@ -51,6 +50,8 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/access.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
@@ -679,8 +680,7 @@ template <class T>
 void /*ParNewGeneration::*/ParKeepAliveClosure::do_oop_work(T* p) {
 #ifdef ASSERT
   {
-    assert(!oopDesc::is_null(*p), "expected non-null ref");
-    oop obj = oopDesc::load_decode_heap_oop_not_null(p);
+    oop obj = RawAccess<OOP_NOT_NULL>::oop_load(p);
     // We never expect to see a null reference being processed
     // as a weak reference.
     assert(oopDesc::is_oop(obj), "expected an oop while scanning weak refs");
@@ -690,7 +690,7 @@ void /*ParNewGeneration::*/ParKeepAliveClosure::do_oop_work(T* p) {
   _par_cl->do_oop_nv(p);
 
   if (CMSHeap::heap()->is_in_reserved(p)) {
-    oop obj = oopDesc::load_decode_heap_oop_not_null(p);
+    oop obj = RawAccess<OOP_NOT_NULL>::oop_load(p);;
     _rs->write_ref_field_gc_par(p, obj);
   }
 }
@@ -706,8 +706,7 @@ template <class T>
 void /*ParNewGeneration::*/KeepAliveClosure::do_oop_work(T* p) {
 #ifdef ASSERT
   {
-    assert(!oopDesc::is_null(*p), "expected non-null ref");
-    oop obj = oopDesc::load_decode_heap_oop_not_null(p);
+    oop obj = RawAccess<OOP_NOT_NULL>::oop_load(p);
     // We never expect to see a null reference being processed
     // as a weak reference.
     assert(oopDesc::is_oop(obj), "expected an oop while scanning weak refs");
@@ -717,7 +716,7 @@ void /*ParNewGeneration::*/KeepAliveClosure::do_oop_work(T* p) {
   _cl->do_oop_nv(p);
 
   if (CMSHeap::heap()->is_in_reserved(p)) {
-    oop obj = oopDesc::load_decode_heap_oop_not_null(p);
+    oop obj = RawAccess<OOP_NOT_NULL>::oop_load(p);
     _rs->write_ref_field_gc_par(p, obj);
   }
 }
@@ -726,15 +725,15 @@ void /*ParNewGeneration::*/KeepAliveClosure::do_oop(oop* p)       { KeepAliveClo
 void /*ParNewGeneration::*/KeepAliveClosure::do_oop(narrowOop* p) { KeepAliveClosure::do_oop_work(p); }
 
 template <class T> void ScanClosureWithParBarrier::do_oop_work(T* p) {
-  T heap_oop = oopDesc::load_heap_oop(p);
-  if (!oopDesc::is_null(heap_oop)) {
-    oop obj = oopDesc::decode_heap_oop_not_null(heap_oop);
+  T heap_oop = RawAccess<>::oop_load(p);
+  if (!CompressedOops::is_null(heap_oop)) {
+    oop obj = CompressedOops::decode_not_null(heap_oop);
     if ((HeapWord*)obj < _boundary) {
       assert(!_g->to()->is_in_reserved(obj), "Scanning field twice?");
       oop new_obj = obj->is_forwarded()
                       ? obj->forwardee()
                       : _g->DefNewGeneration::copy_to_survivor_space(obj);
-      oopDesc::encode_store_heap_oop_not_null(p, new_obj);
+      RawAccess<OOP_NOT_NULL>::oop_store(p, new_obj);
     }
     if (_gc_barrier) {
       // If p points to a younger generation, mark the card.
@@ -790,21 +789,6 @@ void ParNewRefProcTaskProxy::work(uint worker_id) {
              par_scan_state.evacuate_followers_closure());
 }
 
-class ParNewRefEnqueueTaskProxy: public AbstractGangTask {
-  typedef AbstractRefProcTaskExecutor::EnqueueTask EnqueueTask;
-  EnqueueTask& _task;
-
-public:
-  ParNewRefEnqueueTaskProxy(EnqueueTask& task)
-    : AbstractGangTask("ParNewGeneration parallel reference enqueue"),
-      _task(task)
-  { }
-
-  virtual void work(uint worker_id) {
-    _task.work(worker_id);
-  }
-};
-
 void ParNewRefProcTaskExecutor::execute(ProcessTask& task) {
   CMSHeap* gch = CMSHeap::heap();
   WorkGang* workers = gch->workers();
@@ -815,14 +799,6 @@ void ParNewRefProcTaskExecutor::execute(ProcessTask& task) {
   workers->run_task(&rp_task);
   _state_set.reset(0 /* bad value in debug if not reset */,
                    _young_gen.promotion_failed());
-}
-
-void ParNewRefProcTaskExecutor::execute(EnqueueTask& task) {
-  CMSHeap* gch = CMSHeap::heap();
-  WorkGang* workers = gch->workers();
-  assert(workers != NULL, "Need parallel worker threads.");
-  ParNewRefEnqueueTaskProxy enq_task(task);
-  workers->run_task(&enq_task);
 }
 
 void ParNewRefProcTaskExecutor::set_single_threaded_mode() {
@@ -836,20 +812,19 @@ ScanClosureWithParBarrier(ParNewGeneration* g, bool gc_barrier) :
   ScanClosure(g, gc_barrier)
 { }
 
-EvacuateFollowersClosureGeneral::
+template <typename OopClosureType1, typename OopClosureType2>
+EvacuateFollowersClosureGeneral<OopClosureType1, OopClosureType2>::
 EvacuateFollowersClosureGeneral(CMSHeap* heap,
-                                OopsInGenClosure* cur,
-                                OopsInGenClosure* older) :
+                                OopClosureType1* cur,
+                                OopClosureType2* older) :
   _heap(heap),
   _scan_cur_or_nonheap(cur), _scan_older(older)
 { }
 
-void EvacuateFollowersClosureGeneral::do_void() {
+template <typename OopClosureType1, typename OopClosureType2>
+void EvacuateFollowersClosureGeneral<OopClosureType1, OopClosureType2>::do_void() {
   do {
-    // Beware: this call will lead to closure applications via virtual
-    // calls.
-    _heap->oop_since_save_marks_iterate(GenCollectedHeap::YoungGen,
-                                        _scan_cur_or_nonheap,
+    _heap->oop_since_save_marks_iterate(_scan_cur_or_nonheap,
                                         _scan_older);
   } while (!_heap->no_allocs_since_save_marks());
 }
@@ -977,13 +952,13 @@ void ParNewGeneration::collect(bool   full,
   ScanClosure               scan_without_gc_barrier(this, false);
   ScanClosureWithParBarrier scan_with_gc_barrier(this, true);
   set_promo_failure_scan_stack_closure(&scan_without_gc_barrier);
-  EvacuateFollowersClosureGeneral evacuate_followers(gch,
-    &scan_without_gc_barrier, &scan_with_gc_barrier);
+  EvacuateFollowersClosureGeneral<ScanClosure, ScanClosureWithParBarrier> evacuate_followers(
+      gch, &scan_without_gc_barrier, &scan_with_gc_barrier);
   rp->setup_policy(clear_all_soft_refs);
   // Can  the mt_degree be set later (at run_task() time would be best)?
   rp->set_active_mt_degree(active_workers);
   ReferenceProcessorStats stats;
-  ReferenceProcessorPhaseTimes pt(_gc_timer, rp->num_q());
+  ReferenceProcessorPhaseTimes pt(_gc_timer, rp->num_queues());
   if (rp->processing_is_mt()) {
     ParNewRefProcTaskExecutor task_executor(*this, *_old_gen, thread_state_set);
     stats = rp->process_discovered_references(&is_alive, &keep_alive,
@@ -1056,17 +1031,9 @@ void ParNewGeneration::collect(bool   full,
   update_time_of_last_gc(now);
 
   rp->set_enqueuing_is_done(true);
-  if (rp->processing_is_mt()) {
-    ParNewRefProcTaskExecutor task_executor(*this, *_old_gen, thread_state_set);
-    rp->enqueue_discovered_references(&task_executor, &pt);
-  } else {
-    rp->enqueue_discovered_references(NULL, &pt);
-  }
   rp->verify_no_references_recorded();
 
   gch->trace_heap_after_gc(gc_tracer());
-
-  pt.print_enqueue_phase();
 
   _gc_timer->register_gc_end();
 
@@ -1133,7 +1100,7 @@ oop ParNewGeneration::copy_to_survivor_space(ParScanThreadState* par_scan_state,
   // a forwarding pointer by a parallel thread.  So we must save the mark
   // word in a local and then analyze it.
   oopDesc dummyOld;
-  dummyOld.set_mark(m);
+  dummyOld.set_mark_raw(m);
   assert(!dummyOld.is_forwarded(),
          "should not be called with forwarding pointer mark word.");
 
@@ -1181,7 +1148,7 @@ oop ParNewGeneration::copy_to_survivor_space(ParScanThreadState* par_scan_state,
     assert(CMSHeap::heap()->is_in_reserved(new_obj), "illegal forwarding pointer value.");
     forward_ptr = old->forward_to_atomic(new_obj);
     // Restore the mark word copied above.
-    new_obj->set_mark(m);
+    new_obj->set_mark_raw(m);
     // Increment age if obj still in new generation
     new_obj->incr_age();
     par_scan_state->age_table()->add(new_obj, sz);
@@ -1471,8 +1438,9 @@ bool ParNewGeneration::take_from_overflow_list_work(ParScanThreadState* par_scan
 void ParNewGeneration::ref_processor_init() {
   if (_ref_processor == NULL) {
     // Allocate and initialize a reference processor
+    _span_based_discoverer.set_span(_reserved);
     _ref_processor =
-      new ReferenceProcessor(_reserved,                  // span
+      new ReferenceProcessor(&_span_based_discoverer,    // span
                              ParallelRefProcEnabled && (ParallelGCThreads > 1), // mt processing
                              ParallelGCThreads,          // mt processing degree
                              refs_discovery_is_mt(),     // mt discovery

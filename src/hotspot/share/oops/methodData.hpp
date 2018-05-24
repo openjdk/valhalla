@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,10 @@
 
 #include "interpreter/bytecodes.hpp"
 #include "memory/universe.hpp"
+#include "oops/metadata.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/align.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci_globals.hpp"
@@ -75,7 +76,7 @@ class ProfileData;
 // DataLayout
 //
 // Overlay for generic profiling data.
-class DataLayout VALUE_OBJ_CLASS_SPEC {
+class DataLayout {
   friend class VMStructs;
   friend class JVMCIVMStructs;
 
@@ -201,9 +202,7 @@ public:
   void set_cell_at(int index, intptr_t value) {
     _cells[index] = value;
   }
-  void release_set_cell_at(int index, intptr_t value) {
-    OrderAccess::release_store(&_cells[index], value);
-  }
+  void release_set_cell_at(int index, intptr_t value);
   intptr_t cell_at(int index) const {
     return _cells[index];
   }
@@ -255,7 +254,7 @@ public:
   ProfileData* data_in();
 
   // GC support
-  void clean_weak_klass_links(BoolObjectClosure* cl);
+  void clean_weak_klass_links(bool always_clean);
 
   // Redefinition support
   void clean_weak_method_links();
@@ -325,10 +324,7 @@ protected:
     assert(0 <= index && index < cell_count(), "oob");
     data()->set_cell_at(index, value);
   }
-  void release_set_intptr_at(int index, intptr_t value) {
-    assert(0 <= index && index < cell_count(), "oob");
-    data()->release_set_cell_at(index, value);
-  }
+  void release_set_intptr_at(int index, intptr_t value);
   intptr_t intptr_at(int index) const {
     assert(0 <= index && index < cell_count(), "oob");
     return data()->cell_at(index);
@@ -336,18 +332,14 @@ protected:
   void set_uint_at(int index, uint value) {
     set_intptr_at(index, (intptr_t) value);
   }
-  void release_set_uint_at(int index, uint value) {
-    release_set_intptr_at(index, (intptr_t) value);
-  }
+  void release_set_uint_at(int index, uint value);
   uint uint_at(int index) const {
     return (uint)intptr_at(index);
   }
   void set_int_at(int index, int value) {
     set_intptr_at(index, (intptr_t) value);
   }
-  void release_set_int_at(int index, int value) {
-    release_set_intptr_at(index, (intptr_t) value);
-  }
+  void release_set_int_at(int index, int value);
   int int_at(int index) const {
     return (int)intptr_at(index);
   }
@@ -513,7 +505,7 @@ public:
   virtual void post_initialize(BytecodeStream* stream, MethodData* mdo) {}
 
   // GC support
-  virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure) {}
+  virtual void clean_weak_klass_links(bool always_clean) {}
 
   // Redefinition support
   virtual void clean_weak_method_links() {}
@@ -828,9 +820,6 @@ public:
 
   static void print_klass(outputStream* st, intptr_t k);
 
-  // GC support
-  static bool is_loader_alive(BoolObjectClosure* is_alive_cl, intptr_t p);
-
 protected:
   // ProfileData object these entries are part of
   ProfileData* _pd;
@@ -938,7 +927,7 @@ public:
   }
 
   // GC support
-  void clean_weak_klass_links(BoolObjectClosure* is_alive_closure);
+  void clean_weak_klass_links(bool always_clean);
 
   void print_data_on(outputStream* st) const;
 };
@@ -981,7 +970,7 @@ public:
   }
 
   // GC support
-  void clean_weak_klass_links(BoolObjectClosure* is_alive_closure);
+  void clean_weak_klass_links(bool always_clean);
 
   void print_data_on(outputStream* st) const;
 };
@@ -1165,12 +1154,12 @@ public:
   }
 
   // GC support
-  virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure) {
+  virtual void clean_weak_klass_links(bool always_clean) {
     if (has_arguments()) {
-      _args.clean_weak_klass_links(is_alive_closure);
+      _args.clean_weak_klass_links(always_clean);
     }
     if (has_return()) {
-      _ret.clean_weak_klass_links(is_alive_closure);
+      _ret.clean_weak_klass_links(always_clean);
     }
   }
 
@@ -1311,7 +1300,7 @@ public:
   }
 
   // GC support
-  virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure);
+  virtual void clean_weak_klass_links(bool always_clean);
 
 #ifdef CC_INTERP
   static int receiver_type_data_size_in_bytes() {
@@ -1441,7 +1430,7 @@ public:
   }
 
   // GC support
-  virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure);
+  virtual void clean_weak_klass_links(bool always_clean);
 
   // Redefinition support
   virtual void clean_weak_method_links();
@@ -1570,13 +1559,13 @@ public:
   }
 
   // GC support
-  virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure) {
-    ReceiverTypeData::clean_weak_klass_links(is_alive_closure);
+  virtual void clean_weak_klass_links(bool always_clean) {
+    ReceiverTypeData::clean_weak_klass_links(always_clean);
     if (has_arguments()) {
-      _args.clean_weak_klass_links(is_alive_closure);
+      _args.clean_weak_klass_links(always_clean);
     }
     if (has_return()) {
-      _ret.clean_weak_klass_links(is_alive_closure);
+      _ret.clean_weak_klass_links(always_clean);
     }
   }
 
@@ -1603,12 +1592,7 @@ protected:
     assert((uint)row < row_limit(), "oob");
     set_int_at(bci0_offset + row * ret_row_cell_count, bci);
   }
-  void release_set_bci(uint row, int bci) {
-    assert((uint)row < row_limit(), "oob");
-    // 'release' when setting the bci acts as a valid flag for other
-    // threads wrt bci_count and bci_displacement.
-    release_set_int_at(bci0_offset + row * ret_row_cell_count, bci);
-  }
+  void release_set_bci(uint row, int bci);
   void set_bci_count(uint row, uint count) {
     assert((uint)row < row_limit(), "oob");
     set_uint_at(count0_offset + row * ret_row_cell_count, count);
@@ -2034,8 +2018,8 @@ public:
     _parameters.set_type(i, TypeEntries::with_status((intptr_t)k, current));
   }
 
-  virtual void clean_weak_klass_links(BoolObjectClosure* is_alive_closure) {
-    _parameters.clean_weak_klass_links(is_alive_closure);
+  virtual void clean_weak_klass_links(bool always_clean) {
+    _parameters.clean_weak_klass_links(always_clean);
   }
 
   virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
@@ -2623,7 +2607,7 @@ public:
   static bool profile_parameters();
   static bool profile_return_jsr292_only();
 
-  void clean_method_data(BoolObjectClosure* is_alive);
+  void clean_method_data(bool always_clean);
   void clean_weak_method_links();
   DEBUG_ONLY(void verify_clean_weak_method_links();)
   Mutex* extra_data_lock() { return &_extra_data_lock; }

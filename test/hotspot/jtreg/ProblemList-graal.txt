@@ -47,15 +47,11 @@ compiler/jvmci/SecurityRestrictionsTest.java                    8181837   generi
 compiler/jvmci/TestValidateModules.java                         8194942   generic-all
 gc/arguments/TestVerifyBeforeAndAfterGCFlags.java               8194942   generic-all
 
-compiler/rangechecks/TestRangeCheckSmearing.java                8195632   generic-all
-compiler/uncommontrap/Test8009761.java                          8195632   generic-all
-compiler/whitebox/ForceNMethodSweepTest.java                    8195632   generic-all
-
 compiler/unsafe/UnsafeGetConstantField.java                     8181833   generic-all
 compiler/unsafe/UnsafeGetStableArrayElement.java                8181833   generic-all
 compiler/unsafe/UnsafeOffHeapBooleanTest.java                   8181833   generic-all
 compiler/unsafe/UnsafeOnHeapBooleanTest.java                    8181833   generic-all
-:1
+
 compiler/whitebox/ClearMethodStateTest.java                     8181831   generic-all
 compiler/whitebox/EnqueueMethodForCompilationTest.java          8181831   generic-all
 compiler/whitebox/MakeMethodNotCompilableTest.java              8181831   generic-all
@@ -70,12 +66,72 @@ gc/g1/plab/TestPLABResize.java                                  8191048   generi
 
 gc/TestNUMAPageSize.java                                        8194949   generic-all
 
-runtime/appcds/UseAppCDS.java                                   8196626   generic-all
-
 runtime/ReservedStack/ReservedStackTestCompiler.java            8181855   generic-all
 
 serviceability/jvmti/GetModulesInfo/JvmtiGetAllModulesTest.java 8195156   generic-all
 
-runtime/Metaspace/DefineClass.java                              8197442   generic-all
+compiler/compilercontrol/directives/LogTest.java                8181753   generic-all
 
-compiler/compilercontrol/directives/LogTest.java                8197446   generic-all
+gc/g1/ihop/TestIHOPStatic.java                                  8199486   generic-all
+
+compiler/jvmci/compilerToVM/ReprofileTest.java                  8201333   generic-all
+
+compiler/tiered/TieredLevelsTest.java                           8202124   generic-all
+compiler/tiered/NonTieredLevelsTest.java                        8202124   generic-all
+compiler/intrinsics/mathexact/sanity/SubtractExactLongTest.java 8202124   generic-all
+
+compiler/jvmci/meta/StableFieldTest.java                        CODETOOLS-7902162   generic-all
+compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/HotSpotConstantReflectionProviderTest.java   CODETOOLS-7902162   generic-all
+compiler/jvmci/jdk.vm.ci.hotspot.test/src/jdk/vm/ci/hotspot/test/MemoryAccessProviderTest.java                CODETOOLS-7902162   generic-all
+compiler/jvmci/events/JvmciShutdownEventTest.java               CODETOOLS-7902162   generic-all
+
+vmTestbase/nsk/jdi/ThreadReference/forceEarlyReturn/forceEarlyReturn009/forceEarlyReturn009.java   8191047   generic-all
+
+vmTestbase/nsk/jdi/ClassType/invokeMethod/invokemethod012/TestDescription.java                     8195600   generic-all
+vmTestbase/nsk/jdi/ClassType/setValue/setvalue006/TestDescription.java                             8195600   generic-all
+vmTestbase/nsk/jdi/ListeningConnector/listennosuspend/listennosuspend001/TestDescription.java      8195600   generic-all
+vmTestbase/nsk/jdi/Location/lineNumber_s/lineNumber_s002/lineNumber_s002.java                      8195600   generic-all
+vmTestbase/nsk/jdi/Location/sourcePath_s/sourcePath_s002/sourcePath_s002.java                      8195600   generic-all
+vmTestbase/nsk/jdi/Method/allLineLocations_ss/allLineLocations_ss003/allLineLocations_ss003.java   8195600   generic-all
+vmTestbase/nsk/jdi/Method/locationsOfLine_ssi/locationsOfLine_ssi003/locationsOfLine_ssi003.java   8195600   generic-all
+vmTestbase/nsk/jdi/ObjectReference/invokeMethod/invokemethod011/TestDescription.java               8195600   generic-all
+vmTestbase/nsk/jdi/ObjectReference/invokeMethod/invokemethod012/TestDescription.java               8195600   generic-all
+vmTestbase/nsk/jdi/ObjectReference/referringObjects/referringObjects001/referringObjects001.java   8195600   generic-all
+vmTestbase/nsk/jdi/ObjectReference/referringObjects/referringObjects002/referringObjects002.java   8195600   generic-all
+vmTestbase/nsk/jdi/ObjectReference/referringObjects/referringObjects004/referringObjects004.java   8195600   generic-all
+vmTestbase/nsk/jdi/ObjectReference/setValue/setvalue005/TestDescription.java                       8195600   generic-all
+vmTestbase/nsk/jdi/ReferenceType/instances/instances001/instances001.java                          8195600   generic-all
+vmTestbase/nsk/jdi/ReferenceType/instances/instances002/instances002.java                          8195600   generic-all
+vmTestbase/nsk/jdi/ReferenceType/instances/instances005/instances005.java                          8195600   generic-all
+vmTestbase/nsk/jdi/ThreadReference/forceEarlyReturn/forceEarlyReturn007/TestDescription.java       8195600   generic-all
+vmTestbase/nsk/jdi/ThreadReference/ownedMonitorsAndFrames/ownedMonitorsAndFrames001/ownedMonitorsAndFrames001.java 8195600   generic-all
+vmTestbase/nsk/jdi/VMOutOfMemoryException/VMOutOfMemoryException001/VMOutOfMemoryException001.java 8195600   generic-all
+vmTestbase/nsk/jdi/VirtualMachine/instanceCounts/instancecounts003/instancecounts003.java          8195600   generic-all
+vmTestbase/nsk/jdi/stress/serial/ownedMonitorsAndFrames002/TestDescription.java                    8195600   generic-all
+vmTestbase/nsk/jdi/ThreadReference/forceEarlyReturn/forceEarlyReturn003/forceEarlyReturn003.java   8195600   generic-all
+vmTestbase/nsk/jdi/ThreadReference/forceEarlyReturn/forceEarlyReturn004/forceEarlyReturn004.java   8195600   generic-all
+
+vmTestbase/nsk/jdi/Location/sourceName_s/sourceName_s002/sourceName_s002.java                            8200387  generic-all
+vmTestbase/nsk/jdi/Method/allLineLocations_ss/allLineLocations_ss002/allLineLocations_ss002.java         8200387  generic-all
+vmTestbase/nsk/jdi/Method/locationsOfLine_ssi/locationsOfLine_ssi002/locationsOfLine_ssi002.java         8200387  generic-all
+vmTestbase/nsk/jdi/ObjectReference/referringObjects/referringObjects003/referringObjects003.java         8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/allLineLocations_ss/allLineLocations_ss003/allLineLocations_ss003.java  8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/allLineLocations_ss/allLineLocations_ss004/allLineLocations_ss004.java  8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/availableStrata/availableStrata002/availableStrata002.java              8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/defaultStratum/defaultStratum002/defaultStratum002.java                 8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/locationsOfLine_ssi/locationsOfLine_ssi003/locationsOfLine_ssi003.java  8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/locationsOfLine_ssi/locationsOfLine_ssi004/locationsOfLine_ssi004.java  8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/sourceNames/sourceNames003/sourceNames003.java                          8200387  generic-all
+vmTestbase/nsk/jdi/ReferenceType/sourcePaths/sourcePaths003/sourcePaths003.java                          8200387  generic-all
+vmTestbase/nsk/jdi/StackFrame/getArgumentValues/getArgumentValues002/getArgumentValues002.java           8200387  generic-all
+vmTestbase/nsk/jdi/StackFrame/getArgumentValues/getArgumentValues003/getArgumentValues003.java           8200387  generic-all
+vmTestbase/nsk/jdi/stress/serial/heapwalking001/TestDescription.java                                     8200387  generic-all
+vmTestbase/nsk/jdi/ThreadReference/ownedMonitorsAndFrames/ownedMonitorsAndFrames004/ownedMonitorsAndFrames004.java  8200387  generic-all
+vmTestbase/nsk/jdi/VirtualMachine/instanceCounts/instancecounts001/instancecounts001.java                8200387  generic-all
+vmTestbase/nsk/jdi/VirtualMachine/instanceCounts/instancecounts002/TestDescription.java                  8200387  generic-all
+vmTestbase/nsk/jdi/VirtualMachine/setDefaultStratum/setDefaultStratum002/setDefaultStratum002.java       8200387  generic-all
+
+vmTestbase/nsk/jdi/VirtualMachine/redefineClasses/redefineclasses026/TestDescription.java   8195627   generic-all
+vmTestbase/nsk/jdi/VirtualMachine/redefineClasses/redefineclasses028/TestDescription.java   8195627   generic-all
+vmTestbase/nsk/jdi/VirtualMachine/redefineClasses/redefineclasses030/TestDescription.java   8195627   generic-all
+

@@ -37,12 +37,10 @@ import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
-import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeFieldWriter;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
-
 
 /**
  * Writes annotation type field documentation in HTML format.
@@ -285,31 +283,6 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
                 member, utils.getFullyQualifiedName(member));
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    protected Content getNavSummaryLink(TypeElement typeElement, boolean link) {
-        if (link) {
-            return links.createLink(
-                    SectionName.ANNOTATION_TYPE_FIELD_SUMMARY,
-                    contents.navField);
-        } else {
-            return contents.navField;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    protected void addNavDetailLink(boolean link, Content liNav) {
-        if (link) {
-            liNav.addContent(links.createLink(
-                    SectionName.ANNOTATION_TYPE_FIELD_DETAIL,
-                    contents.navField));
-        } else {
-            liNav.addContent(contents.navField);
-        }
-    }
     private TypeMirror getType(Element member) {
         if (utils.isConstructor(member))
             return null;

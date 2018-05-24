@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/valueKlass.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/align.hpp"
 #ifdef COMPILER1
@@ -266,9 +267,9 @@ OopMap* OopMapSet::find_map_at_offset(int pc_offset) const {
 }
 
 static void add_derived_oop(oop* base, oop* derived) {
-#if !defined(TIERED) && !defined(INCLUDE_JVMCI)
+#if !defined(TIERED) && !INCLUDE_JVMCI
   COMPILER1_PRESENT(ShouldNotReachHere();)
-#endif // !defined(TIERED) && !defined(INCLUDE_JVMCI)
+#endif // !defined(TIERED) && !INCLUDE_JVMCI
 #if COMPILER2_OR_JVMCI
   DerivedPointerTable::add(derived, base);
 #endif // COMPILER2_OR_JVMCI
@@ -470,7 +471,7 @@ void OopMapSet::update_register_map(const frame *fr, RegisterMap *reg_map) {
 #ifndef PRODUCT
 
 bool ImmutableOopMap::has_derived_pointer() const {
-#if !defined(TIERED) && !defined(INCLUDE_JVMCI)
+#if !defined(TIERED) && !INCLUDE_JVMCI
   COMPILER1_PRESENT(return false);
 #endif // !TIERED
 #if COMPILER2_OR_JVMCI

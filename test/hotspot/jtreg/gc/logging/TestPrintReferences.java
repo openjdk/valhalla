@@ -54,30 +54,36 @@ public class TestPrintReferences {
   static final String gcLogTimeRegex = ".* GC\\([0-9]+\\) ";
 
   public static void main(String[] args) throws Exception {
-    ProcessBuilder pb_enabled = ProcessTools.createJavaProcessBuilder("-Xlog:gc+phases+ref=debug",
-                                                                      "-XX:+UseG1GC",
-                                                                      "-Xmx32M",
-                                                                      // Explicit thread setting is required to avoid using only 1 thread
-                                                                      "-XX:ParallelGCThreads=2",
-                                                                      GCTest.class.getName());
-    OutputAnalyzer output = new OutputAnalyzer(pb_enabled.start());
-
-    checkLogFormat(output);
-    checkLogValue(output);
-
-    output.shouldHaveExitValue(0);
+    test(true);
+    test(false);
   }
 
   static String indent(int count) {
     return " {" + count + "}";
   }
 
+  public static void test(boolean parallelRefProcEnabled) throws Exception {
+    ProcessBuilder pb_enabled = ProcessTools.createJavaProcessBuilder("-Xlog:gc+phases+ref=debug",
+                                                                      "-XX:+UseG1GC",
+                                                                      "-Xmx32M",
+                                                                      // Explicit thread setting is required to avoid using only 1 thread
+                                                                      "-XX:" + (parallelRefProcEnabled ? "+" : "-") + "ParallelRefProcEnabled",
+                                                                      "-XX:ParallelGCThreads=2",
+                                                                      GCTest.class.getName());
+    OutputAnalyzer output = new OutputAnalyzer(pb_enabled.start());
+
+    checkLogFormat(output, parallelRefProcEnabled);
+    checkLogValue(output);
+
+    output.shouldHaveExitValue(0);
+  }
+
   // Find the first Reference Processing log and check its format.
-  public static void checkLogFormat(OutputAnalyzer output) {
+  public static void checkLogFormat(OutputAnalyzer output, boolean parallelRefProcEnabled) {
     String countRegex = "[0-9]+";
     String timeRegex = doubleRegex + "ms";
     String totalRegex = gcLogTimeRegex + indent(4) + referenceProcessing + ": " + timeRegex + "\n";
-    String balanceRegex = gcLogTimeRegex + indent(8) + "Balance queues: " + timeRegex + "\n";
+    String balanceRegex = parallelRefProcEnabled ? gcLogTimeRegex + indent(8) + "Balance queues: " + timeRegex + "\n" : "";
     String softRefRegex = gcLogTimeRegex + indent(6) + softReference + ": " + timeRegex + "\n";
     String weakRefRegex = gcLogTimeRegex + indent(6) + weakReference + ": " + timeRegex + "\n";
     String finalRefRegex = gcLogTimeRegex + indent(6) + finalReference + ": " + timeRegex + "\n";
@@ -87,9 +93,6 @@ public class TestPrintReferences {
                             gcLogTimeRegex + indent(8) + "Discovered: " + countRegex + "\n" +
                             gcLogTimeRegex + indent(8) + "Cleared: " + countRegex + "\n";
     String softRefDetailRegex = gcLogTimeRegex + indent(8) + phase1 + ": " + timeRegex + "\n" + refDetailRegex;
-    String enqueueRegex = gcLogTimeRegex + indent(4) + "Reference Enqueuing: " + timeRegex + "\n";
-    String enqueueDetailRegex = gcLogTimeRegex + indent(6) + "Reference Counts:  Soft: " + countRegex +
-                                "  Weak: " + countRegex + "  Final: " + countRegex + "  Phantom: " + countRegex + "\n";
 
     output.shouldMatch(/* Total Reference processing time */
                        totalRegex +
@@ -100,11 +103,7 @@ public class TestPrintReferences {
                        /* FinalReference processing */
                        finalRefRegex + balanceRegex + refDetailRegex +
                        /* PhantomReference processing */
-                       phantomRefRegex + balanceRegex + refDetailRegex +
-                       /* Total Enqueuing time */
-                       enqueueRegex +
-                         /* Enqueued Stats */
-                       enqueueDetailRegex
+                       phantomRefRegex + balanceRegex + refDetailRegex
                        );
   }
 

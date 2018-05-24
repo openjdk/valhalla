@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,15 @@
  * @test
  * @bug 4476378
  * @summary Check the specific behaviour of the setReuseAddress(boolean)
- * method.
+ *          method.
  * @run main Basic
  * @run main/othervm -Dsun.net.useExclusiveBind Basic
+ * @run main/othervm -Dsun.net.useExclusiveBind=true Basic
+ * @run main/othervm -Djava.net.preferIPv4Stack=true Basic
+ * @run main/othervm -Dsun.net.useExclusiveBind
+ *                   -Djava.net.preferIPv4Stack=true Basic
+ * @run main/othervm -Dsun.net.useExclusiveBind=true
+ *                   -Djava.net.preferIPv4Stack=true Basic
  */
 import java.net.*;
 

@@ -2792,6 +2792,9 @@ public class Attr extends JCTree.Visitor {
                 Type target = null;
                 for (Type bound : ict.getExplicitComponents()) {
                     TypeSymbol boundSym = bound.tsym;
+                    if (bound.tsym == syms.objectType.tsym) {
+                        continue;
+                    }
                     if (types.isFunctionalInterface(boundSym) &&
                             types.findDescriptorSymbol(boundSym) == desc) {
                         target = bound;
@@ -3821,11 +3824,7 @@ public class Attr extends JCTree.Visitor {
                 } else if (name == names._class) {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
-                    Type t = syms.classType;
-                    List<Type> typeargs = List.of(types.erasure(site));
-                    t = new ClassType(t.getEnclosingType(), typeargs, t.tsym);
-                    return new VarSymbol(
-                        STATIC | PUBLIC | FINAL, names._class, t, site.tsym);
+                    return syms.getClassField(site, types);
                 } else {
                     // We are seeing a plain identifier as selector.
                     Symbol sym = rs.findIdentInType(env, site, name, resultInfo.pkind);
@@ -3863,11 +3862,7 @@ public class Attr extends JCTree.Visitor {
                 if (name == names._class) {
                     // In this case, we have already made sure in Select that
                     // qualifier expression is a type.
-                    Type t = syms.classType;
-                    Type arg = types.boxedClass(site).type;
-                    t = new ClassType(t.getEnclosingType(), List.of(arg), t.tsym);
-                    return new VarSymbol(
-                        STATIC | PUBLIC | FINAL, names._class, t, site.tsym);
+                    return syms.getClassField(site, types);
                 } else {
                     log.error(pos, Errors.CantDeref(site));
                     return syms.errSymbol;

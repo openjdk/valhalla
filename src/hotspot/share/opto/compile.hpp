@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "libadt/dict.hpp"
 #include "libadt/vectset.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/methodData.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/phasetype.hpp"
 #include "opto/phase.hpp"
@@ -417,6 +418,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _predicate_opaqs;       // List of Opaque1 nodes for the loop predicates.
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
+  GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
   Unique_Node_List*     _value_type_nodes;      // List of ValueType nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
@@ -811,6 +813,16 @@ class Compile : public Phase {
   int   range_check_cast_count()       const { return _range_check_casts->length(); }
   // Remove all range check dependent CastIINodes.
   void  remove_range_check_casts(PhaseIterGVN &igvn);
+
+  void add_opaque4_node(Node* n);
+  void remove_opaque4_node(Node* n) {
+    if (_opaque4_nodes->contains(n)) {
+      _opaque4_nodes->remove(n);
+    }
+  }
+  Node* opaque4_node(int idx) const { return _opaque4_nodes->at(idx);  }
+  int   opaque4_count()       const { return _opaque4_nodes->length(); }
+  void  remove_opaque4_nodes(PhaseIterGVN &igvn);
 
   // Keep track of value type nodes for later processing
   void add_value_type(Node* n);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1550,13 +1550,22 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     public String getSimpleName() {
-        if (isArray())
-            return getComponentType().getSimpleName()+"[]";
+        ReflectionData<T> rd = reflectionData();
+        String simpleName = rd.simpleName;
+        if (simpleName == null) {
+            rd.simpleName = simpleName = getSimpleName0();
+        }
+        return simpleName;
+    }
 
+    private String getSimpleName0() {
+        if (isArray()) {
+            return getComponentType().getSimpleName() + "[]";
+        }
         String simpleName = getSimpleBinaryName();
         if (simpleName == null) { // top level class
             simpleName = getName();
-            return simpleName.substring(simpleName.lastIndexOf('.')+1); // strip the package name
+            simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
         return simpleName;
     }
@@ -1572,10 +1581,10 @@ public final class Class<T> implements java.io.Serializable,
             try {
                 Class<?> cl = this;
                 int dimensions = 0;
-                while (cl.isArray()) {
+                do {
                     dimensions++;
                     cl = cl.getComponentType();
-                }
+                } while (cl.isArray());
                 StringBuilder sb = new StringBuilder();
                 sb.append(cl.getName());
                 for (int i = 0; i < dimensions; i++) {
@@ -1598,22 +1607,31 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.5
      */
     public String getCanonicalName() {
+        ReflectionData<T> rd = reflectionData();
+        String canonicalName = rd.canonicalName;
+        if (canonicalName == null) {
+            rd.canonicalName = canonicalName = getCanonicalName0();
+        }
+        return canonicalName == ReflectionData.NULL_SENTINEL? null : canonicalName;
+    }
+
+    private String getCanonicalName0() {
         if (isArray()) {
             String canonicalName = getComponentType().getCanonicalName();
             if (canonicalName != null)
                 return canonicalName + "[]";
             else
-                return null;
+                return ReflectionData.NULL_SENTINEL;
         }
         if (isLocalOrAnonymousClass())
-            return null;
+            return ReflectionData.NULL_SENTINEL;
         Class<?> enclosingClass = getEnclosingClass();
         if (enclosingClass == null) { // top level class
             return getName();
         } else {
             String enclosingName = enclosingClass.getCanonicalName();
             if (enclosingName == null)
-                return null;
+                return ReflectionData.NULL_SENTINEL;
             return enclosingName + "." + getSimpleName();
         }
     }
@@ -2921,7 +2939,8 @@ public final class Class<T> implements java.io.Serializable,
      * Reflection support.
      */
 
-    // reflection data that might get invalidated when JVM TI RedefineClasses() is called
+    // Reflection data caches various derived names and reflective members. Cached
+    // values may be invalidated when JVM TI RedefineClasses() is called
     private static class ReflectionData<T> {
         volatile Field[] declaredFields;
         volatile Field[] publicFields;
@@ -2933,6 +2952,11 @@ public final class Class<T> implements java.io.Serializable,
         volatile Field[] declaredPublicFields;
         volatile Method[] declaredPublicMethods;
         volatile Class<?>[] interfaces;
+
+        // Cached names
+        String simpleName;
+        String canonicalName;
+        static final String NULL_SENTINEL = new String();
 
         // Value of classRedefinedCount when we created this ReflectionData instance
         final int redefinedCount;
@@ -3555,7 +3579,7 @@ public final class Class<T> implements java.io.Serializable,
             if (universe == null)
                 throw new IllegalArgumentException(
                     getName() + " is not an enum type");
-            directory = new HashMap<>(2 * universe.length);
+            directory = new HashMap<>((int)(universe.length / 0.75f) + 1);
             for (T constant : universe) {
                 directory.put(((Enum<?>)constant).name(), constant);
             }

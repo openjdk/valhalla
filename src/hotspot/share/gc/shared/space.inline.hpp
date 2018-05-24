@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,18 @@
 #ifndef SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
 #define SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
 
-#include "gc/serial/markSweep.inline.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/space.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "memory/universe.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepoint.hpp"
+#if INCLUDE_SERIALGC
+#include "gc/serial/markSweep.inline.hpp"
+#endif
 
 inline HeapWord* Space::block_start(const void* p) {
   return block_start_const(p);
@@ -76,6 +79,8 @@ size_t CompactibleSpace::obj_size(const HeapWord* addr) const {
   return oop(addr)->size();
 }
 
+#if INCLUDE_SERIALGC
+
 class DeadSpacer : StackObj {
   size_t _allowed_deadspace_words;
   bool _active;
@@ -112,7 +117,7 @@ public:
       _allowed_deadspace_words -= dead_length;
       CollectedHeap::fill_with_object(dead_start, dead_length);
       oop obj = oop(dead_start);
-      obj->set_mark(obj->mark()->set_marked());
+      obj->set_mark_raw(obj->mark_raw()->set_marked());
 
       assert(dead_length == (size_t)obj->size(), "bad filler object size");
       log_develop_trace(gc, compaction)("Inserting object to dead space: " PTR_FORMAT ", " PTR_FORMAT ", " SIZE_FORMAT "b",
@@ -159,8 +164,8 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 
   while (cur_obj < scan_limit) {
     assert(!space->scanned_block_is_obj(cur_obj) ||
-           oop(cur_obj)->mark()->is_marked() || oop(cur_obj)->mark()->is_unlocked() ||
-           oop(cur_obj)->mark()->has_bias_pattern(),
+           oop(cur_obj)->mark_raw()->is_marked() || oop(cur_obj)->mark_raw()->is_unlocked() ||
+           oop(cur_obj)->mark_raw()->has_bias_pattern(),
            "these are the only valid states during a mark sweep");
     if (space->scanned_block_is_obj(cur_obj) && oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
@@ -335,7 +340,7 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
       // copy object and reinit its mark
       assert(cur_obj != compaction_top, "everything in this pass should be moving");
       Copy::aligned_conjoint_words(cur_obj, compaction_top, size);
-      oop(compaction_top)->init_mark();
+      oop(compaction_top)->init_mark_raw();
       assert(oop(compaction_top)->klass() != NULL, "should have a class");
 
       debug_only(prev_obj = cur_obj);
@@ -346,8 +351,40 @@ inline void CompactibleSpace::scan_and_compact(SpaceType* space) {
   clear_empty_region(space);
 }
 
+#endif // INCLUDE_SERIALGC
+
 size_t ContiguousSpace::scanned_block_size(const HeapWord* addr) const {
   return oop(addr)->size();
+}
+
+template <typename OopClosureType>
+void ContiguousSpace::oop_since_save_marks_iterate(OopClosureType* blk) {
+  HeapWord* t;
+  HeapWord* p = saved_mark_word();
+  assert(p != NULL, "expected saved mark");
+
+  const intx interval = PrefetchScanIntervalInBytes;
+  do {
+    t = top();
+    while (p < t) {
+      Prefetch::write(p, interval);
+      debug_only(HeapWord* prev = p);
+      oop m = oop(p);
+      p += m->oop_iterate_size(blk);
+    }
+  } while (t < top());
+
+  set_saved_mark_word(p);
+}
+
+template <typename OopClosureType>
+void ContiguousSpace::par_oop_iterate(MemRegion mr, OopClosureType* blk) {
+  HeapWord* obj_addr = mr.start();
+  HeapWord* limit = mr.end();
+  while (obj_addr < limit) {
+    assert(oopDesc::is_oop(oop(obj_addr)), "Should be an oop");
+    obj_addr += oop(obj_addr)->oop_iterate_size(blk);
+  }
 }
 
 #endif // SHARE_VM_GC_SHARED_SPACE_INLINE_HPP

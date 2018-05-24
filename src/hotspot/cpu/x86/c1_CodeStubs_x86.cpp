@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,9 +33,6 @@
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
 #include "vmreg_x86.inline.hpp"
-#if INCLUDE_ALL_GCS
-#include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#endif // INCLUDE_ALL_GCS
 
 
 #define __ ce->masm()->
@@ -520,46 +517,5 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
 
   __ jmp(_continuation);
 }
-
-/////////////////////////////////////////////////////////////////////////////
-#if INCLUDE_ALL_GCS
-
-void G1PreBarrierStub::emit_code(LIR_Assembler* ce) {
-  // At this point we know that marking is in progress.
-  // If do_load() is true then we have to emit the
-  // load of the previous value; otherwise it has already
-  // been loaded into _pre_val.
-
-  __ bind(_entry);
-  assert(pre_val()->is_register(), "Precondition.");
-
-  Register pre_val_reg = pre_val()->as_register();
-
-  if (do_load()) {
-    ce->mem2reg(addr(), pre_val(), T_OBJECT, patch_code(), info(), false /*wide*/, false /*unaligned*/);
-  }
-
-  __ cmpptr(pre_val_reg, (int32_t) NULL_WORD);
-  __ jcc(Assembler::equal, _continuation);
-  ce->store_parameter(pre_val()->as_register(), 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_pre_barrier_slow_id)));
-  __ jmp(_continuation);
-
-}
-
-void G1PostBarrierStub::emit_code(LIR_Assembler* ce) {
-  __ bind(_entry);
-  assert(addr()->is_register(), "Precondition.");
-  assert(new_val()->is_register(), "Precondition.");
-  Register new_val_reg = new_val()->as_register();
-  __ cmpptr(new_val_reg, (int32_t) NULL_WORD);
-  __ jcc(Assembler::equal, _continuation);
-  ce->store_parameter(addr()->as_pointer_register(), 0);
-  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::g1_post_barrier_slow_id)));
-  __ jmp(_continuation);
-}
-
-#endif // INCLUDE_ALL_GCS
-/////////////////////////////////////////////////////////////////////////////
 
 #undef __

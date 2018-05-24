@@ -79,13 +79,4 @@ inline bool Klass::ptr_is_value_type(Klass* v) {
  return ((uintptr_t)v & KlassPtrValueTypeMask) != 0;
 }
 
-template <typename T>
-bool Klass::is_instanceof_or_null(T element) {
-  if (oopDesc::is_null(element)) {
-    return true;
-  }
-  oop obj = oopDesc::decode_heap_oop_not_null(element);
-  return obj->klass()->is_subtype_of(this);
-}
-
 #endif // SHARE_VM_OOPS_KLASS_INLINE_HPP

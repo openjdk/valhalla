@@ -40,6 +40,7 @@
 #include "opto/valuetypenode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/copy.hpp"
 

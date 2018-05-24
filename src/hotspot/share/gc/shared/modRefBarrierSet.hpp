@@ -32,8 +32,12 @@ class Klass;
 
 class ModRefBarrierSet: public BarrierSet {
 protected:
-  ModRefBarrierSet(const BarrierSet::FakeRtti& fake_rtti)
-    : BarrierSet(fake_rtti.add_tag(BarrierSet::ModRef)) { }
+  ModRefBarrierSet(BarrierSetAssembler* barrier_set_assembler,
+                   BarrierSetC1* barrier_set_c1,
+                   const BarrierSet::FakeRtti& fake_rtti)
+    : BarrierSet(barrier_set_assembler,
+                 barrier_set_c1,
+                 fake_rtti.add_tag(BarrierSet::ModRef)) { }
   ~ModRefBarrierSet() { }
 
 public:
@@ -47,6 +51,22 @@ public:
   virtual void invalidate(MemRegion mr) = 0;
   virtual void write_region(MemRegion mr) = 0;
 
+  // Operations on arrays, or general regions (e.g., for "clone") may be
+  // optimized by some barriers.
+
+  // Below length is the # array elements being written
+  virtual void write_ref_array_pre(oop* dst, size_t length,
+                                   bool dest_uninitialized = false) {}
+  virtual void write_ref_array_pre(narrowOop* dst, size_t length,
+                                   bool dest_uninitialized = false) {}
+  // Below count is the # array elements being written, starting
+  // at the address "start", which may not necessarily be HeapWord-aligned
+  inline void write_ref_array(HeapWord* start, size_t count);
+
+ protected:
+  virtual void write_ref_array_work(MemRegion mr) = 0;
+
+ public:
   // The ModRef abstraction introduces pre and post barriers
   template <DecoratorSet decorators, typename BarrierSetT>
   class AccessBarrier: public BarrierSet::AccessBarrier<decorators, BarrierSetT> {

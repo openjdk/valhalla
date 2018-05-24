@@ -36,7 +36,7 @@ import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.java.MethodCallTargetNode;
 import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
-import org.graalvm.word.LocationIdentity;
+import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.code.BytecodeFrame;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -85,7 +85,7 @@ public abstract class MacroStateSplitNode extends MacroNode implements StateSpli
             }
             assert invoke.stateAfter().bci == BytecodeFrame.AFTER_BCI;
             // Here we need to fix the bci of the invoke
-            InvokeNode newInvoke = snippetGraph.add(new InvokeNode(invoke.callTarget(), getBci()));
+            InvokeNode newInvoke = snippetGraph.add(new InvokeNode(invoke.callTarget(), bci()));
             newInvoke.setStateAfter(invoke.stateAfter());
             snippetGraph.replaceFixedWithFixed((InvokeNode) invoke.asNode(), newInvoke);
         }

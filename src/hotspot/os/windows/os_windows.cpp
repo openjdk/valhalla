@@ -47,7 +47,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
-#include "runtime/interfaceSupport.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -99,6 +99,8 @@
 // for enumerating dll libraries
 #include <vdmdbg.h>
 #include <psapi.h>
+#include <mmsystem.h>
+#include <winsock2.h>
 
 // for timer info max values which include all bits
 #define ALL_64_BITS CONST64(-1)
@@ -363,23 +365,37 @@ size_t os::current_stack_size() {
   return sz;
 }
 
-size_t os::committed_stack_size(address bottom, size_t size) {
+bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
   MEMORY_BASIC_INFORMATION minfo;
-  address top = bottom + size;
-  size_t committed_size = 0;
-
-  while (committed_size < size) {
-    // top is exclusive
-    VirtualQuery(top - 1, &minfo, sizeof(minfo));
-    if ((minfo.State & MEM_COMMIT) != 0) {
-      committed_size += minfo.RegionSize;
-      top -= minfo.RegionSize;
-    } else {
-      break;
+  committed_start = NULL;
+  committed_size = 0;
+  address top = start + size;
+  const address start_addr = start;
+  while (start < top) {
+    VirtualQuery(start, &minfo, sizeof(minfo));
+    if ((minfo.State & MEM_COMMIT) == 0) {  // not committed
+      if (committed_start != NULL) {
+        break;
+      }
+    } else {  // committed
+      if (committed_start == NULL) {
+        committed_start = start;
+      }
+      size_t offset = start - (address)minfo.BaseAddress;
+      committed_size += minfo.RegionSize - offset;
     }
+    start = (address)minfo.BaseAddress + minfo.RegionSize;
   }
 
-  return MIN2(committed_size, size);
+  if (committed_start == NULL) {
+    assert(committed_size == 0, "Sanity");
+    return false;
+  } else {
+    assert(committed_start >= start_addr && committed_start < top, "Out of range");
+    // current region may go beyond the limit, trim to the limit
+    committed_size = MIN2(committed_size, size_t(top - committed_start));
+    return true;
+  }
 }
 
 struct tm* os::localtime_pd(const time_t* clock, struct tm* res) {
@@ -1537,7 +1553,7 @@ int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
     result = _vsnprintf(buf, len, fmt, args);
     // If output (including NUL terminator) is truncated, the buffer
     // won't be NUL terminated.  Add the trailing NUL specified by C99.
-    if ((result < 0) || (result >= len)) {
+    if ((result < 0) || ((size_t)result >= len)) {
       buf[len - 1] = '\0';
     }
   }
