@@ -70,21 +70,23 @@ public class BadValueTypes {
         runTest("ValueSuperClass", "Value type must have java.lang.Object as superclass");
 
         // Test that ClassCircularityError gets detected for instance fields.
+        System.out.println("Testing ClassCircularityError for instance fields");
         try {
             Class newClass = Class.forName("Circ");
             throw new RuntimeException( "java.lang.ClassCircularityError exception not thrown!");
         } catch (java.lang.ClassCircularityError e) {
-             if (!e.getMessage().contains("Circ2")) {
+             if (!e.getMessage().contains("Circ")) {
                  throw new RuntimeException( "Wrong ClassCircularityError: " + e.getMessage());
              }
          }
 
         // Test that ClassCircularityError gets detected for static fields.
+        System.out.println("Testing ClassCircularityError for static fields");
         try {
             Class newClass = Class.forName("CircStaticB");
             throw new RuntimeException( "java.lang.ClassCircularityError exception not thrown!");
         } catch (java.lang.ClassCircularityError e) {
-             if (!e.getMessage().contains("CircStaticA")) {
+             if (!e.getMessage().contains("CircStatic")) {
                  throw new RuntimeException( "Wrong ClassCircularityError: " + e.getMessage());
              }
          }
