@@ -1544,41 +1544,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     }
   }
 
-  // Value type pointers need flattening
-  const TypeValueTypePtr* tv = tj->isa_valuetypeptr();
-  if (tv != NULL && _AliasLevel >= 2) {
-    assert(tv->speculative() == NULL, "should not have speculative type information");
-    ciValueKlass* vk = tv->klass()->as_value_klass();
-    if (ptr == TypePtr::Constant) {
-      assert(!is_known_inst, "not scalarizable allocation");
-      tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, tv->value_klass(), NULL, Type::Offset(offset));
-    } else if (is_known_inst) {
-      tj = tv; // Keep NotNull and klass_is_exact for instance type
-    } else if (ptr == TypePtr::NotNull || tv->klass_is_exact()) {
-      // During the 2nd round of IterGVN, NotNull castings are removed.
-      // Make sure the Bottom and NotNull variants alias the same.
-      // Also, make sure exact and non-exact variants alias the same.
-      tj = tv = TypeValueTypePtr::make(TypePtr::BotPTR, tv->value_klass(), tv->const_oop(), Type::Offset(offset));
-    }
-    // Canonicalize the holder of this field
-    if (offset >= 0 && offset < instanceOopDesc::base_offset_in_bytes()) {
-      // First handle header references such as a LoadKlassNode, even if the
-      // object's klass is unloaded at compile time (4965979).
-      if (!is_known_inst) { // Do it only for non-instance types
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset));
-      }
-    } else if (offset < 0 || offset >= vk->size_helper() * wordSize) {
-      // Static fields are in the space above the normal instance
-      // fields in the java.lang.Class instance.
-      tv = NULL;
-      tj = TypeOopPtr::BOTTOM;
-      offset = tj->offset();
-    } else {
-      ciInstanceKlass* canonical_holder = vk->get_canonical_holder(offset);
-      assert(vk->equals(canonical_holder), "value types should not inherit fields");
-    }
-  }
-
   // Klass pointers to object array klasses need some flattening
   const TypeKlassPtr *tk = tj->isa_klassptr();
   if( tk ) {
@@ -1842,7 +1807,6 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
 
     // Check for final fields.
     const TypeInstPtr* tinst = flat->isa_instptr();
-    const TypeValueTypePtr* vtptr = flat->isa_valuetypeptr();
     if (tinst && tinst->offset() >= instanceOopDesc::base_offset_in_bytes()) {
       if (tinst->const_oop() != NULL &&
           tinst->klass() == ciEnv::current()->Class_klass() &&
@@ -1850,14 +1814,14 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         // static field
         ciInstanceKlass* k = tinst->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
         field = k->get_field_by_offset(tinst->offset(), true);
+      } else if (tinst->klass()->is_valuetype()) {
+        // Value type field
+        ciValueKlass* vk = tinst->value_klass();
+        field = vk->get_field_by_offset(tinst->offset(), false);
       } else {
-        ciInstanceKlass *k = tinst->klass()->as_instance_klass();
+        ciInstanceKlass* k = tinst->klass()->as_instance_klass();
         field = k->get_field_by_offset(tinst->offset(), false);
       }
-    } else if (vtptr) {
-      // Value type field
-      ciValueKlass* vk = vtptr->klass()->as_value_klass();
-      field = vk->get_field_by_offset(vtptr->offset(), false);
     }
     assert(field == NULL ||
            original_field == NULL ||

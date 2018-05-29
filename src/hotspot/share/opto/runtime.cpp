@@ -1692,7 +1692,7 @@ const TypeFunc *OptoRuntime::store_value_type_fields_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeValueTypePtr::NOTNULL;
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
 
@@ -1720,7 +1720,7 @@ const TypeFunc *OptoRuntime::pack_value_type_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeValueTypePtr::NOTNULL;
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
 

@@ -1532,7 +1532,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened (but flattenable) value type from memory
     // We need to return the default value type if the field is null
-    ld = ValueTypeNode::make_from_oop(this, ld, t->make_valuetypeptr()->value_klass(), true /* null check */);
+    ld = ValueTypeNode::make_from_oop(this, ld, t->make_oopptr()->value_klass(), true /* null check */);
   } else if (bt == T_VALUETYPEPTR) {
     // Loading non-flattenable value type from memory
     inc_sp(1);
@@ -1546,7 +1546,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
       uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
     }
     dec_sp(1);
-    ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_valuetypeptr()->value_klass());
+    ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_oopptr()->value_klass());
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
@@ -1783,7 +1783,8 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     if (ValueTypePassFieldsAsArgs) {
       if (arg->is_ValueType()) {
         ValueTypeNode* vt = arg->as_ValueType();
-        if (!domain->field_at(i)->is_valuetypeptr()->is__Value()) {
+        // TODO fix this with the calling convention changes
+        if (true /*!domain->field_at(i)->is_valuetypeptr()->is__Value()*/) {
           // We don't pass value type arguments by reference but instead
           // pass each field of the value type
           idx += vt->pass_fields(call, idx, *this);
@@ -1870,8 +1871,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       // ValueType node, each field is a projection from the call.
       const TypeTuple* range_sig = call->tf()->range_sig();
       const Type* t = range_sig->field_at(TypeFunc::Parms);
-      assert(t->isa_valuetypeptr(), "only value types for multiple return values");
-      ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
+      assert(t->is_valuetypeptr(), "only value types for multiple return values");
+      ciValueKlass* vk = t->value_klass();
       Node* ctl = control();
       ret = ValueTypeNode::make_from_multi(_gvn, ctl, merged_memory(), call, vk, TypeFunc::Parms+1, false);
       set_control(ctl);
@@ -2339,7 +2340,7 @@ void GraphKit::record_profiled_arguments_for_speculation(ciMethod* dest_method, 
   int skip = Bytecodes::has_receiver(bc) ? 1 : 0;
   for (int j = skip, i = 0; j < nargs && i < TypeProfileArgsLimit; j++) {
     const Type *targ = tf->domain_sig()->field_at(j + TypeFunc::Parms);
-    if (targ->isa_oopptr() && !targ->isa_valuetypeptr()) {
+    if (targ->isa_oopptr()) {
       ProfilePtrKind ptr_kind = ProfileMaybeNull;
       ciKlass* better_type = NULL;
       if (method()->argument_profiled_type(bci(), i, better_type, ptr_kind)) {
@@ -3131,12 +3132,12 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
                               Node* *failure_control) {
   kill_dead_locals();           // Benefit all the uncommon traps
-  const TypeKlassPtr *tk = _gvn.type(superklass)->is_klassptr();
-  const Type *toop = TypeOopPtr::make_from_klass(tk->klass());
-  if (toop->isa_valuetypeptr()) {
+  const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
+  const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
+  if (toop->is_valuetypeptr()) {
     if (obj->is_ValueType()) {
       const TypeValueType* tvt = _gvn.type(obj)->is_valuetype();
-      if (toop->is_valuetypeptr()->value_klass() == tvt->value_klass()) {
+      if (toop->klass() == tvt->value_klass()) {
         return obj;
       } else {
         builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(tvt->value_klass())));
@@ -3175,8 +3176,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
         // the profiling data at this bytecode. Don't lose it, feed it
         // to the type system as a speculative type.
         obj = record_profiled_receiver_for_speculation(obj);
-        if (toop->isa_valuetypeptr()) {
-          obj = ValueTypeNode::make_from_oop(this, obj, toop->isa_valuetypeptr()->value_klass());
+        if (toop->is_valuetypeptr()) {
+          obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
         }
         return obj;
       case Compile::SSC_always_false:
@@ -3290,8 +3291,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   record_for_igvn(region);
 
   res = record_profiled_receiver_for_speculation(res);
-  if (toop->isa_valuetypeptr()) {
-    res = ValueTypeNode::make_from_oop(this, res, toop->isa_valuetypeptr()->value_klass());
+  if (toop->is_valuetypeptr()) {
+    res = ValueTypeNode::make_from_oop(this, res, toop->value_klass());
   }
   return res;
 }
@@ -3625,7 +3626,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         int            elemidx  = C->get_alias_index(telemref);
         hook_memory_on_init(*this, elemidx, minit_in, minit_out);
       }
-    } else if (oop_type->isa_instptr() || oop_type->isa_valuetypeptr()) {
+    } else if (oop_type->isa_instptr()) {
       ciInstanceKlass* ik = oop_type->klass()->as_instance_klass();
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
         ciField* field = ik->nonstatic_field_at(i);
@@ -3992,7 +3993,7 @@ void GraphKit::initialize_value_type_array(Node* array, Node* length, ciValueKla
   set_control(loop);
   set_all_memory(mem);
   Node* adr = array_element_address(array, index, T_OBJECT);
-  const TypeOopPtr* elemtype = TypeValueTypePtr::make(TypePtr::NotNull, vk);
+  const TypeOopPtr* elemtype = TypeInstPtr::make(TypePtr::NotNull, vk);
   store_oop_to_array(control(), array, adr, TypeAryPtr::OOPS, oop, elemtype, T_VALUETYPE, MemNode::release);
 
   // Check if we need to execute another loop iteration

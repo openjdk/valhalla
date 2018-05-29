@@ -98,7 +98,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test creation of a value type array and element access
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + LOADP + STORE + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public long test2() {
         MyValue1[] va = new MyValue1[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -141,7 +141,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test returning a value type array received from the interpreter
-    @Test(failOn = ALLOC + ALLOCA + LOAD + LOADP + STORE + LOOP + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
     public MyValue1[] test4(MyValue1[] va) {
         return va;
     }
@@ -658,7 +658,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test(failOn = ALLOCA + LOOP + LOAD + LOADP + TRAP)
+    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
     public MyValue2 test28() {
         MyValue2[] src = new MyValue2[10];
         src[0] = MyValue2.createWithFieldsInline(rI, false);
@@ -674,7 +674,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test(failOn = ALLOCA + LOOP + LOAD + LOADP + TRAP)
+    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -713,7 +713,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocation with memory phi
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + LOADP + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + TRAP)
     public long test31(boolean b, boolean deopt) {
         MyValue2[] src = new MyValue2[1];
         if (b) {

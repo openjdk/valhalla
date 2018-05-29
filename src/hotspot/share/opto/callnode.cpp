@@ -371,7 +371,6 @@ static void format_helper( PhaseRegAlloc *regalloc, outputStream* st, Node *n, c
       st->print(" %s%d]=#NULL",msg,i);
       break;
     case Type::AryPtr:
-    case Type::ValueTypePtr:
     case Type::InstPtr:
       st->print(" %s%d]=#Ptr" INTPTR_FORMAT,msg,i,p2i(t->isa_oopptr()->const_oop()));
       break;

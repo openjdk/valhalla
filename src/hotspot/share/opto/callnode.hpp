@@ -727,8 +727,9 @@ public:
         method != NULL &&
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&
-        r->field_at(TypeFunc::Parms)->isa_valuetypeptr() &&
-        r->field_at(TypeFunc::Parms)->is_valuetypeptr()->is__Value()) {
+        r->field_at(TypeFunc::Parms)->is_valuetypeptr() &&
+        // TODO fix this with the calling convention changes
+        false /*r->field_at(TypeFunc::Parms)->is_valuetypeptr()->is__Value()*/) {
       init_flags(Flag_is_macro);
       C->add_macro_node(this);
     }

@@ -2080,7 +2080,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     }
   } else if (offset != oopDesc::klass_offset_in_bytes()) {
-    if (adr_type->isa_instptr() || adr_type->isa_valuetypeptr()) {
+    if (adr_type->isa_instptr()) {
       ciField* field = _compile->alias_type(adr_type->is_ptr())->field();
       if (field != NULL) {
         bt = field->layout_type();
@@ -3041,7 +3041,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       n->raise_bottom_type(tinst);
       igvn->hash_insert(n);
       record_for_optimizer(n);
-      if (alloc->is_Allocate() && (t->isa_instptr() || t->isa_aryptr() || t->isa_valuetypeptr())) {
+      if (alloc->is_Allocate() && (t->isa_instptr() || t->isa_aryptr())) {
 
         // First, put on the worklist all Field edges from Connection Graph
         // which is more accurate than putting immediate users from Ideal Graph.

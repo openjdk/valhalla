@@ -39,12 +39,12 @@ protected:
   }
 
   enum { Control,   // Control input
-         Oop,       // Oop of TypeValueTypePtr
+         Oop,       // Oop of TypeInstPtr
          Values     // Nodes corresponding to values of the value type's fields.
                     // Nodes are connected in increasing order of the index of the field they correspond to.
   };
 
-  virtual const TypeValueTypePtr* value_type_ptr() const = 0;
+  virtual const TypeInstPtr* value_ptr() const = 0;
   // Get the klass defining the field layout of the value type
   virtual ciValueKlass* value_klass() const = 0;
 
@@ -110,7 +110,7 @@ private:
   // Checks if the value type fields are all set to default values
   bool is_default(PhaseGVN& gvn) const;
 
-  const TypeValueTypePtr* value_type_ptr() const { return TypeValueTypePtr::make(TypePtr::BotPTR, value_klass()); }
+  const TypeInstPtr* value_ptr() const { return TypeInstPtr::make(TypePtr::BotPTR, value_klass()); }
   ciValueKlass* value_klass() const { return type()->is_valuetype()->value_klass(); }
 
 public:
@@ -148,11 +148,11 @@ public:
 // Node representing a value type as a pointer in C2 IR
 class ValueTypePtrNode : public ValueTypeBaseNode {
 private:
-  const TypeValueTypePtr* value_type_ptr() const { return type()->isa_valuetypeptr(); }
-  ciValueKlass* value_klass() const { return value_type_ptr()->value_klass(); }
+  const TypeInstPtr* value_ptr() const { return type()->isa_instptr(); }
+  ciValueKlass* value_klass() const { return value_ptr()->value_klass(); }
 
   ValueTypePtrNode(ciValueKlass* vk, Node* oop)
-    : ValueTypeBaseNode(TypeValueTypePtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields()) {
+    : ValueTypeBaseNode(TypeInstPtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_ValueTypePtr);
     init_req(Oop, oop);
   }

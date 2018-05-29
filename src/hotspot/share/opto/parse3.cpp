@@ -326,10 +326,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       return;
     }
     if (is_flattened) {
-      // if (!val->is_ValueType()) {
-      //   const TypeValueTypePtr* vtptr = _gvn.type(val)->isa_valuetypeptr();
-      //   val = ValueTypeNode::make_from_oop(this, val, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ false);
-      // }
       // Store flattened value type to a non-static field
       assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
       val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);

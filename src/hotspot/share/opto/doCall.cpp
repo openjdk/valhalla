@@ -653,8 +653,8 @@ void Parse::do_call() {
           uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
           set_bci(iter().cur_bci());
         }
-        const TypeValueTypePtr* vtptr = _gvn.type(retnode)->isa_valuetypeptr();
-        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vtptr->value_klass());
+        ciValueKlass* vk = _gvn.type(retnode)->value_klass();
+        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vk);
         push_node(T_VALUETYPE, vt);
       }
     }

@@ -190,8 +190,7 @@ int ValueTypeBaseNode::make_scalar_in_safepoint(Unique_Node_List& worklist, Safe
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != NULL, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
-  const TypeValueTypePtr* res_type = value_type_ptr();
-  SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(res_type,
+  SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(value_ptr(),
 #ifdef ASSERT
                                                                   NULL,
 #endif
@@ -327,7 +326,7 @@ void ValueTypeBaseNode::load(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* base, N
       if (con_type != NULL) {
         // Found a constant field value
         value = gvn.transform(gvn.makecon(con_type));
-        if (con_type->isa_valuetypeptr()) {
+        if (con_type->is_valuetypeptr()) {
           // Constant, non-flattened value type field
           value = ValueTypeNode::make_from_oop(gvn, ctl, mem, value, ft->as_value_klass());
         }
@@ -404,7 +403,7 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on
   // Emit runtime check that may be folded later.
   assert(!is_allocated(&kit->gvn()), "should not be allocated");
   RegionNode* region = new RegionNode(3);
-  PhiNode* oop = new PhiNode(region, value_type_ptr());
+  PhiNode* oop = new PhiNode(region, value_ptr());
   PhiNode* io  = new PhiNode(region, Type::ABIO);
   PhiNode* mem = new PhiNode(region, Type::MEMORY, TypePtr::BOTTOM);
 
@@ -595,7 +594,7 @@ ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem
     Node* region = new RegionNode(3);
     region->init_req(1, gvn.transform(new IfTrueNode(iff)));
     region->init_req(2, gvn.transform(new IfFalseNode(iff)));
-    Node* new_oop = new PhiNode(region, vt->value_type_ptr());
+    Node* new_oop = new PhiNode(region, vt->value_ptr());
     new_oop->init_req(1, oop);
     new_oop->init_req(2, gvn.zerocon(T_VALUETYPE));
 
@@ -666,8 +665,8 @@ Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, in
       } else if (base == NULL) {
         // Set base and check if pointer type matches
         base = lbase;
-        const TypeValueTypePtr* vtptr = phase->type(base)->isa_valuetypeptr();
-        if (vtptr == NULL || !vtptr->value_klass()->equals(vk)) {
+        const TypeInstPtr* vtptr = phase->type(base)->isa_instptr();
+        if (vtptr == NULL || !vtptr->klass()->equals(vk)) {
           return NULL;
         }
       }
@@ -917,7 +916,7 @@ ValueTypePtrNode* ValueTypePtrNode::make_from_call(GraphKit* kit, ciValueKlass* 
 ValueTypePtrNode* ValueTypePtrNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop) {
   // Create and initialize a ValueTypePtrNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  ciValueKlass* vk = gvn.type(oop)->is_valuetypeptr()->value_klass();
+  ciValueKlass* vk = gvn.type(oop)->value_klass();
   ValueTypePtrNode* vtptr = new ValueTypePtrNode(vk, oop);
   vtptr->load(gvn, ctl, mem, oop, oop, vk);
   return vtptr;

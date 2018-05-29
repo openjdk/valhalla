@@ -291,7 +291,7 @@ Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
   // the same type: push the cast through the phi.
   if (phase->is_IterGVN() &&
       in(0) == NULL &&
-      type()->isa_valuetypeptr() &&
+      type()->is_valuetypeptr() &&
       in(1) != NULL &&
       in(1)->is_Phi()) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
@@ -409,17 +409,16 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // This is a value type. Its input is the return of a call: the call
   // returns a value type and we now know its exact type: build a
   // ValueTypePtrNode from the call.
+  const TypeInstPtr* cast_type = type()->isa_instptr();
   if (can_reshape &&
       in(0) == NULL &&
       phase->C->can_add_value_type() &&
-      type()->isa_valuetypeptr() &&
+      cast_type && cast_type->is_valuetypeptr() &&
       in(1) != NULL && in(1)->is_Proj() &&
       in(1)->in(0) != NULL && in(1)->in(0)->is_CallStaticJava() &&
       in(1)->in(0)->as_CallStaticJava()->method() != NULL &&
       in(1)->as_Proj()->_con == TypeFunc::Parms) {
-    const TypeValueTypePtr* cast_type = type()->is_valuetypeptr();
     ciValueKlass* vk = cast_type->value_klass();
-    assert(!vk->is__Value(), "why cast to __Value?");
     PhaseIterGVN* igvn = phase->is_IterGVN();
 
     if (ValueTypeReturnedAsFields && vk->can_be_returned_as_fields()) {

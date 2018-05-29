@@ -125,7 +125,8 @@ class DirectCallGenerator : public CallGenerator {
     : CallGenerator(method),
       _separate_io_proj(separate_io_proj)
   {
-    if (method->signature()->return_type()->is__Value()) {
+    // TODO fix this with the calling convention changes
+    if (false /*method->signature()->return_type()->is__Value()*/) {
       // If that call has not been optimized by the time optimizations
       // are over, we'll need to add a call to create a value type
       // instance from the klass returned by the call. Separating
@@ -180,8 +181,6 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
-  // Check if return value is a value type pointer
-  const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
   kit.push_node(method()->return_type()->basic_type(), ret);
   return kit.transfer_exceptions_into_jvms();
 }
@@ -205,7 +204,6 @@ public:
 JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   GraphKit kit(jvms);
   Node* receiver = kit.argument(0);
-  PhaseGVN& gvn = kit.gvn();
   kit.C->print_inlining_update(this);
 
   if (kit.C->log() != NULL) {
@@ -265,8 +263,6 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   kit.set_arguments_for_java_call(call);
   kit.set_edges_for_java_call(call);
   Node* ret = kit.set_results_for_java_call(call);
-  // Check if return value is a value type pointer
-  const TypeValueTypePtr* vtptr = gvn.type(ret)->isa_valuetypeptr();
   kit.push_node(method()->return_type()->basic_type(), ret);
 
   // Represent the effect of an implicit receiver null_check
@@ -438,15 +434,15 @@ void LateInlineCallGenerator::do_late_inline() {
     const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
     if (!ValueTypePassFieldsAsArgs) {
       Node* arg = call->in(TypeFunc::Parms + i1);
-      if (t->isa_valuetypeptr()) {
+      if (t->is_valuetypeptr()) {
         Node* ctl = map->control();
-        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg, gvn.type(arg)->is_valuetypeptr()->value_klass());
+        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg, t->value_klass());
         map->set_control(ctl);
       }
       map->set_argument(jvms, i1, arg);
     } else {
-      if (t->isa_valuetypeptr() && !t->is_valuetypeptr()->is__Value()) {
-        ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
+      if (t->is_valuetypeptr()) {
+        ciValueKlass* vk = t->value_klass();
         Node* ctl = map->control();
         ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), call, vk, j, true);
         map->set_control(ctl);
@@ -517,8 +513,7 @@ void LateInlineCallGenerator::do_late_inline() {
           result = vt->get_oop();
         }
       }
-    } else if (gvn.type(result)->isa_valuetypeptr() && returned_as_fields) {
-      assert(!vt_t->is_valuetypeptr()->is__Value(), "__Value not supported");
+    } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
       Node* cast = new CheckCastPPNode(NULL, result, vt_t);
       gvn.record_for_igvn(cast);
       Node* ctl = kit.control();
@@ -526,7 +521,7 @@ void LateInlineCallGenerator::do_late_inline() {
       kit.set_control(ctl);
       vtptr->replace_call_results(&kit, call, C);
       result = cast;
-    } else if (!return_type->is__Value()) {
+    } else {
       assert(result->is_top(), "what else?");
       for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
         ProjNode *pn = call->fast_out(i)->as_Proj();
@@ -916,15 +911,14 @@ static void cast_argument(int arg_nb, ciType* t, GraphKit& kit) {
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
   if (t->is_valuetype()) {
-    assert(!(arg_type->isa_valuetype() && t->is__Value()), "need a pointer to the value type");
-    if (arg_type->isa_valuetypeptr() && !t->is__Value()) {
+    if (arg_type->is_valuetypeptr()) {
       // Value type arguments cannot be NULL
       sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
       Node* cast = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
       ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, cast, t->as_value_klass());
       kit.set_argument(arg_nb, vt);
     } else {
-      assert(t->is__Value() || arg->is_ValueType(), "inconsistent argument");
+      assert(arg->is_ValueType(), "inconsistent argument");
     }
   } else if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
     Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));

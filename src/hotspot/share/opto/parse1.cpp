@@ -126,14 +126,14 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
   case T_VALUETYPE: {
     // Load oop and create a new ValueTypeNode
-    const TypeValueTypePtr* vtptr_type = TypeValueTypePtr::make(TypePtr::NotNull, type->is_valuetype()->value_klass());
-    l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, vtptr_type, MemNode::unordered));
+    const TypeInstPtr* ptr_type = TypeInstPtr::make(TypePtr::NotNull, type->is_valuetype()->value_klass());
+    l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, ptr_type, MemNode::unordered));
     // Value type oop may point to the TLVB
-    l = ValueTypeNode::make_from_oop(this, l, vtptr_type->value_klass(), /* null_check */ false, /* buffer_check */ true);
+    l = ValueTypeNode::make_from_oop(this, l, type->is_valuetype()->value_klass(), /* null_check */ false, /* buffer_check */ true);
     break;
   }
   case T_VALUETYPEPTR: {
-    l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeValueTypePtr::NOTNULL, MemNode::unordered);
+    l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::NOTNULL, MemNode::unordered);
     break;
   }
   case T_LONG:
@@ -610,8 +610,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   int arg_size_sig = tf()->domain_sig()->cnt();
   for (uint i = 0; i < (uint)arg_size_sig; i++) {
     Node* parm = map()->in(i);
-    const TypeValueTypePtr* vtptr = _gvn.type(parm)->isa_valuetypeptr();
-    if (vtptr != NULL) {
+    const Type* t = _gvn.type(parm);
+    if (t->is_valuetypeptr()) {
       // Create ValueTypeNode from the oop and replace the parameter
       Node* null_ctl = top();
       Node* not_null_obj = null_check_common(parm, T_VALUETYPE, false, &null_ctl, false);
@@ -623,7 +623,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
         uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
       }
       // Value type oop may point to the TLVB
-      Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vtptr->value_klass(), /* null_check */ false, /* buffer_check */ true);
+      Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, t->value_klass(), /* null_check */ false, /* buffer_check */ true);
       map()->replace_edge(parm, vt);
     }
   }
@@ -827,11 +827,10 @@ void Parse::build_exits() {
     if (ret_oop_type && !ret_oop_type->klass()->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
-    if ((_caller->has_method() || tf()->returns_value_type_as_fields()) &&
-        ret_type->isa_valuetypeptr() && !ret_type->is_valuetypeptr()->is__Value()) {
+    if ((_caller->has_method() || tf()->returns_value_type_as_fields()) && ret_type->is_valuetypeptr()) {
       // When inlining or with multiple return values: return value
       // type as ValueTypeNode not as oop
-      ret_type = TypeValueType::make(ret_type->is_valuetypeptr()->value_klass());
+      ret_type = TypeValueType::make(ret_type->value_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
     Node*       ret_phi  = new PhiNode(region, ret_type);
@@ -880,8 +879,8 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
         // argument per field of the value type. Build ValueTypeNodes
         // from the value type arguments.
         const Type* t = tf->domain_sig()->field_at(i);
-        if (t->isa_valuetypeptr() && !t->is_valuetypeptr()->is__Value()) {
-          ciValueKlass* vk = t->is_valuetypeptr()->value_klass();
+        if (t->is_valuetypeptr()) {
+          ciValueKlass* vk = t->value_klass();
           Node* ctl = map->control();
           ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), start, vk, j, true);
           map->set_control(ctl);
@@ -1133,7 +1132,7 @@ void Parse::do_exits() {
       BasicType ret_bt = method()->return_type()->basic_type();
       ret_phi = mask_int_value(ret_phi, ret_bt, &_gvn);
     }
-    if (_caller->has_method() && ret_type->isa_valuetypeptr()) {
+    if (_caller->has_method() && ret_type->is_valuetypeptr()) {
       // Inlined methods return a ValueTypeNode
       _exits.push_node(T_VALUETYPE, ret_phi);
     } else {

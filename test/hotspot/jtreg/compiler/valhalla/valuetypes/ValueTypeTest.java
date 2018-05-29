@@ -141,11 +141,9 @@ public abstract class ValueTypeTest {
     protected static final String END = ")|";
     protected static final String ALLOC  = "(.*precise klass compiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_instance_Java" + END;
     protected static final String ALLOCA = "(.*precise klass \\[Lcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
-    protected static final String LOAD   = START + "Load(B|S|I|L|F|D)" + MID + "valuetype\\*" + END;
-    protected static final String LOADP  = START + "Load(P|N)" + MID + "valuetype\\*" + END;
+    protected static final String LOAD   = START + "Load(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOADK  = START + "LoadK" + MID + END;
-    protected static final String STORE  = START + "Store(B|S|I|L|F|D)" + MID + "valuetype\\*" + END;
-    protected static final String STOREP = START + "Store(P|N)" + MID + "valuetype\\*" + END;
+    protected static final String STORE  = START + "Store(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOOP   = START + "Loop" + MID + "" + END;
     protected static final String TRAP   = START + "CallStaticJava" + MID + "uncommon_trap.*(unstable_if|predicate)" + END;
     protected static final String RETURN = START + "Return" + MID + "returns" + END;

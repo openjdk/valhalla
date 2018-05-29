@@ -635,7 +635,6 @@ void Compile::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
     array->append(new ConstantOopWriteValue(NULL));
     break;
   case Type::AryPtr:
-  case Type::ValueTypePtr:
   case Type::InstPtr:          // fall through
     array->append(new ConstantOopWriteValue(t->isa_oopptr()->const_oop()->constant_encoding()));
     break;

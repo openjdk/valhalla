@@ -198,7 +198,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     // Merge value types created from two branches
     @Test(valid = ValueTypePassFieldsAsArgsOn, match = {LOAD}, matchCount = {10}, failOn = TRAP + ALLOC + STORE)
-    @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 3}, failOn = LOAD + TRAP)
+    @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 5}, failOn = LOAD + TRAP)
     public MyValue1 test9(boolean b) {
         MyValue1 v;
         if (b) {
@@ -491,7 +491,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Test defaultvalue
-    @Test(failOn = ALLOC + LOAD + LOADP + STORE + LOOP + TRAP)
+    @Test(failOn = ALLOC + LOAD + STORE + LOOP + TRAP)
     public long test23() {
         MyValue2 v = MyValue2.createDefaultInline();
         return v.hash();
@@ -518,7 +518,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Test withfield
-    @Test(failOn = ALLOC + LOAD + LOADP + STORE + LOOP + TRAP)
+    @Test(failOn = ALLOC + LOAD + STORE + LOOP + TRAP)
     public long test25() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
         return v.hash();

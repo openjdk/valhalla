@@ -66,7 +66,6 @@ class     TypeRawPtr;
 class     TypeOopPtr;
 class       TypeInstPtr;
 class       TypeAryPtr;
-class       TypeValueTypePtr;
 class     TypeKlassPtr;
 class     TypeMetadataPtr;
 
@@ -303,9 +302,6 @@ public:
   bool is_ptr_to_narrowoop() const;
   bool is_ptr_to_narrowklass() const;
 
-  bool is_ptr_to_boxing_obj() const;
-
-
   // Convenience access
   float getf() const;
   double getd() const;
@@ -340,8 +336,6 @@ public:
   const TypeAryPtr   *is_aryptr() const;         // Array oop
   const TypeValueType* isa_valuetype() const;    // Returns NULL if not Value Type
   const TypeValueType* is_valuetype() const;     // Value Type
-  const TypeValueTypePtr* isa_valuetypeptr() const; // Value Type Pointer
-  const TypeValueTypePtr* is_valuetypeptr() const;  // Returns NULL if not Value Type Pointer
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns NULL if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
@@ -351,16 +345,15 @@ public:
   virtual bool      is_finite() const;           // Has a finite value
   virtual bool      is_nan()    const;           // Is not a number (NaN)
 
+  bool is_valuetypeptr() const;
+  ciValueKlass* value_klass() const;
+
   // Returns this ptr type or the equivalent ptr type for this compressed pointer.
   const TypePtr* make_ptr() const;
 
   // Returns this oopptr type or the equivalent oopptr type for this compressed pointer.
   // Asserts if the underlying type is not an oopptr or narrowoop.
   const TypeOopPtr* make_oopptr() const;
-
-  // Returns this valuetypeptr type or the equivalent valuetypeptr type for this compressed pointer.
-  // Asserts if the underlying type is not a valuetypeptr or narrow valuetypeptr.
-  const TypeValueTypePtr* make_valuetypeptr() const;
 
   // Returns this compressed pointer or the equivalent compressed version
   // of this pointer type.
@@ -1091,7 +1084,7 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
-  bool can_be_value_type() const { return EnableValhalla && (_base == ValueTypePtr || _klass->is_java_lang_Object() || _klass->is_interface()); }
+  bool can_be_value_type() const { return EnableValhalla && (_klass->is_valuetype() || _klass->is_java_lang_Object() || _klass->is_interface()); }
 
   virtual intptr_t get_con() const;
 
@@ -1324,41 +1317,6 @@ public:
 #endif
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping
-#endif
-};
-
-//------------------------------TypeValueTypePtr-------------------------------------
-// Class of value type pointers
-class TypeValueTypePtr : public TypeOopPtr {
-  TypeValueTypePtr(PTR ptr, ciValueKlass* vk, ciObject* o, Offset offset, int instance_id, const TypePtr* speculative, int inline_depth)
-    : TypeOopPtr(ValueTypePtr, ptr, vk, true, o, offset, Offset::bottom, instance_id, speculative, inline_depth) {
-  }
-
-public:
-  // Make a pointer to a value type
-  static const TypeValueTypePtr* make(PTR ptr, ciValueKlass* vk, ciObject* o = NULL, Offset offset = Offset(0),
-                                      int instance_id = InstanceBot, const TypePtr* speculative = NULL, int inline_depth = InlineDepthBottom);
-  // Make a pointer to a constant value type
-  static const TypeValueTypePtr* make(ciObject* o) { return make(TypePtr::Constant, o->klass()->as_value_klass(), o); }
-
-  ciValueKlass* value_klass() const { return klass()->as_value_klass(); }
-
-  virtual const TypePtr* add_offset(intptr_t offset) const;
-
-  virtual const Type* cast_to_ptr_type(PTR ptr) const;
-  virtual const TypeOopPtr* cast_to_instance_id(int instance_id) const;
-
-  virtual bool eq(const Type* t) const;
-  virtual int  hash() const;             // Type specific hashing
-  bool is__Value() const;
-
-  virtual const Type* xmeet_helper(const Type* t) const;
-  virtual const Type* xdual() const;
-
-  static const TypeValueTypePtr* NOTNULL;
-
-#ifndef PRODUCT
-  virtual void dump2(Dict &d, uint depth, outputStream* st) const; // Specialized per-Type dumping
 #endif
 };
 
@@ -1788,15 +1746,6 @@ inline const TypeValueType* Type::is_valuetype() const {
   return (TypeValueType*)this;
 }
 
-inline const TypeValueTypePtr* Type::isa_valuetypeptr() const {
-  return (_base == ValueTypePtr) ? (TypeValueTypePtr*)this : NULL;
-}
-
-inline const TypeValueTypePtr* Type::is_valuetypeptr() const {
-  assert(_base == ValueTypePtr, "Not a value type pointer");
-  return (TypeValueTypePtr*)this;
-}
-
 inline const TypeNarrowOop *Type::is_narrowoop() const {
   // OopPtr is the first and KlassPtr the last, with no non-oops between.
   assert(_base == NarrowOop, "Not a narrow oop" ) ;
@@ -1846,10 +1795,6 @@ inline const TypeOopPtr* Type::make_oopptr() const {
   return (_base == NarrowOop) ? is_narrowoop()->get_ptrtype()->isa_oopptr() : isa_oopptr();
 }
 
-inline const TypeValueTypePtr* Type::make_valuetypeptr() const {
-  return (_base == NarrowOop) ? is_narrowoop()->get_ptrtype()->isa_valuetypeptr() : isa_valuetypeptr();
-}
-
 inline const TypeNarrowOop* Type::make_narrowoop() const {
   return (_base == NarrowOop) ? is_narrowoop() :
                                 (isa_ptr() ? TypeNarrowOop::make(is_ptr()) : NULL);
@@ -1867,11 +1812,14 @@ inline bool Type::is_floatingpoint() const {
   return false;
 }
 
-inline bool Type::is_ptr_to_boxing_obj() const {
-  const TypeInstPtr* tp = isa_instptr();
-  return (tp != NULL) && (tp->offset() == 0) &&
-         tp->klass()->is_instance_klass()  &&
-         tp->klass()->as_instance_klass()->is_box_klass();
+inline bool Type::is_valuetypeptr() const {
+  return isa_instptr() != NULL && is_instptr()->klass()->is_valuetype();
+}
+
+
+inline ciValueKlass* Type::value_klass() const {
+  assert(is_valuetypeptr(), "must be a value type ptr");
+  return is_instptr()->klass()->as_value_klass();
 }
 
 

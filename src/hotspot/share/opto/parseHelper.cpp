@@ -146,7 +146,7 @@ void Parse::do_instanceof() {
 Node* Parse::array_store_check(Node* ary, Node* idx, Node* obj) {
   const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
-  bool is_value_array = elemtype->isa_valuetype() != NULL || elemtype->make_valuetypeptr() != NULL;
+  bool is_value_array = elemtype->isa_valuetype() != NULL || (elemptr != NULL && elemptr->is_valuetypeptr());
   bool can_be_value_array = is_value_array || (elemptr != NULL && (elemptr->can_be_value_type()));
 
   if (_gvn.type(obj) == TypePtr::NULL_PTR) {
@@ -245,7 +245,7 @@ Node* Parse::array_store_check(Node* ary, Node* idx, Node* obj) {
   if (is_value_array) {
     // We statically know that this is a value type array, use precise klass ptr
     ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() :
-                                                   elemtype->make_valuetypeptr()->value_klass();
+                                                   elemptr->value_klass();
     a_e_klass = makecon(TypeKlassPtr::make(vk));
   } else if (can_be_value_array && !obj->is_ValueType()) {
     // We cannot statically determine if the array is a value type array

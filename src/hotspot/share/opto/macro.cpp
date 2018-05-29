@@ -861,8 +861,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
   if (res != NULL) {
     klass = res_type->klass();
-    // Value types are only allocated on demand
-    if (res_type->isa_instptr() || res_type->isa_valuetypeptr()) {
+    if (res_type->isa_instptr()) {
       // find the fields of the class which will be needed for safepoint debug information
       assert(klass->is_instance_klass(), "must be an instance klass.");
       iklass = klass->as_instance_klass();
@@ -2682,7 +2681,8 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   if (ret == NULL) {
     return;
   }
-  assert(ret->bottom_type()->is_valuetypeptr()->is__Value(), "unexpected return type from MH intrinsic");
+  // TODO fix this with the calling convention changes
+  //assert(ret->bottom_type()->is_valuetypeptr()->is__Value(), "unexpected return type from MH intrinsic");
   const TypeFunc* tf = call->_tf;
   const TypeTuple* domain = OptoRuntime::store_value_type_fields_Type()->domain_cc();
   const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
@@ -2713,7 +2713,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* allocation_ctl = transform_later(new IfTrueNode(allocation_iff));
   Node* no_allocation_ctl = transform_later(new IfFalseNode(allocation_iff));
 
-  Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeValueTypePtr::NOTNULL));
+  Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeInstPtr::NOTNULL));
 
   Node* mask2 = MakeConX(-2);
   Node* masked2 = transform_later(new AndXNode(cast, mask2));

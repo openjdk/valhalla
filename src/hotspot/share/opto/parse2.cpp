@@ -67,7 +67,7 @@ void Parse::array_load(BasicType elem_type) {
     ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
-  } else if (elemptr != NULL && elemptr->isa_valuetypeptr() != NULL) {
+  } else if (elemptr != NULL && elemptr->is_valuetypeptr()) {
     // Load from non-flattened value type array (elements can never be null)
     elem_type = T_VALUETYPE;
     assert(elemptr->meet(TypePtr::NULL_PTR) != elemptr, "value type array elements should never be null");
