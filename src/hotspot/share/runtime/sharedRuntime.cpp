@@ -2293,7 +2293,10 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         // between a T_VALUETYPE and a T_OBJECT in the signature.
         return ValueTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
       }
+
       case T_VALUETYPEPTR:
+        return T_VALUETYPE; // TODO hack because we don't have enough bits to represent T_VALUETYPEPTR.
+
       case T_OBJECT:
       case T_ARRAY:
         // In other words, we assume that any register good enough for
@@ -2675,8 +2678,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
         }
       }
       for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-        if (ss.type() == T_VALUETYPE) {
-          Symbol* name = ss.as_symbol(CHECK_NULL);
+        Symbol* sym = ss.as_symbol_or_null();
+        if (sym != NULL && method->method_holder()->is_declared_value_type(sym)) {
           if (!ValueTypePassFieldsAsArgs) {
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
           } else {

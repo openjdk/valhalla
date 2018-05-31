@@ -294,6 +294,7 @@ public class TestLWorld extends ValueTypeTest {
     __NotFlattened MyValue1 nullField;
 
     @Test
+    @Warmup(10000) // Warmup to make sure 'callTest7WithNull' is compiled
     public long test7(MyValue1 vt) {
         long result = 0;
         try {

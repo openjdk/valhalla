@@ -1780,34 +1780,34 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
   uint nargs = domain->cnt();
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
-    if (ValueTypePassFieldsAsArgs) {
-      if (arg->is_ValueType()) {
-        ValueTypeNode* vt = arg->as_ValueType();
-        // TODO fix this with the calling convention changes
-        if (true /*!domain->field_at(i)->is_valuetypeptr()->is__Value()*/) {
-          // We don't pass value type arguments by reference but instead
-          // pass each field of the value type
-          idx += vt->pass_fields(call, idx, *this);
-          // If a value type argument is passed as fields, attach the Method* to the call site
-          // to be able to access the extended signature later via attached_method_before_pc().
-          // For example, see CompiledMethod::preserve_callee_argument_oops().
-          call->set_override_symbolic_info(true);
-        } else {
-          arg = arg->as_ValueType()->allocate(this)->get_oop();
-          call->init_req(idx, arg);
-          idx++;
-        }
+    const Type* t = domain->field_at(i);
+    if (arg->is_ValueType()) {
+      assert(t->is_oopptr()->can_be_value_type(), "wrong argument type");
+      ValueTypeNode* vt = arg->as_ValueType();
+      if (ValueTypePassFieldsAsArgs) {
+        // We don't pass value type arguments by reference but instead
+        // pass each field of the value type
+        idx += vt->pass_fields(call, idx, *this);
+        // If a value type argument is passed as fields, attach the Method* to the call site
+        // to be able to access the extended signature later via attached_method_before_pc().
+        // For example, see CompiledMethod::preserve_callee_argument_oops().
+        call->set_override_symbolic_info(true);
+        continue;
       } else {
-        call->init_req(idx, arg);
-        idx++;
-      }
-    } else {
-      if (arg->is_ValueType()) {
         // Pass value type argument via oop to callee
-        arg = arg->as_ValueType()->allocate(this)->get_oop();
+        arg = vt->allocate(this)->get_oop();
       }
-      call->init_req(i, arg);
+    } else if (t->is_valuetypeptr()) {
+      // Constant null passed for a value type argument
+      assert(arg->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+      ciMethod* declared_method = method()->get_method_at_bci(bci());
+      int arg_size = declared_method->signature()->arg_size_for_bc(java_bc());
+      inc_sp(arg_size); // restore arguments
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+      return;
     }
+    call->init_req(idx, arg);
+    idx++;
   }
 }
 

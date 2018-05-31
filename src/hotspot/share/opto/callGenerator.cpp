@@ -179,6 +179,9 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
     }
   }
   kit.set_arguments_for_java_call(call);
+  if (kit.stopped()) {
+    return kit.transfer_exceptions_into_jvms();
+  }
   kit.set_edges_for_java_call(call, false, _separate_io_proj);
   Node* ret = kit.set_results_for_java_call(call, _separate_io_proj);
   kit.push_node(method()->return_type()->basic_type(), ret);
@@ -261,6 +264,9 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
     call->set_override_symbolic_info(true);
   }
   kit.set_arguments_for_java_call(call);
+  if (kit.stopped()) {
+    return kit.transfer_exceptions_into_jvms();
+  }
   kit.set_edges_for_java_call(call);
   Node* ret = kit.set_results_for_java_call(call);
   kit.push_node(method()->return_type()->basic_type(), ret);

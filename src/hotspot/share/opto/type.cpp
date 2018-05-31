@@ -2035,12 +2035,7 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
       ciValueKlass* vk = (ciValueKlass*)recv;
       collect_value_fields(vk, field_array, pos);
     } else {
-      if (recv->is_valuetype()) {
-        // TODO For now, we just deoptimize if the value type receiver is null
-        field_array[pos++] = get_const_type(recv);
-      } else {
-        field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
-      }
+      field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
     }
   } else {
     field_array = fields(arg_cnt + vt_extra);
@@ -2078,9 +2073,7 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
         collect_value_fields(vk, field_array, pos);
       } else {
         // Value types arguments cannot be NULL
-        // field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
-        // TODO they can be NULL in LWorld
-        field_array[pos++] = get_const_type(type);
+        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
       }
       break;
     }

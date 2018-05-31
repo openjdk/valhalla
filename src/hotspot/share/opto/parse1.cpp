@@ -613,17 +613,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_valuetypeptr()) {
       // Create ValueTypeNode from the oop and replace the parameter
-      Node* null_ctl = top();
-      Node* not_null_obj = null_check_common(parm, T_VALUETYPE, false, &null_ctl, false);
-      if (null_ctl != top()) {
-        // TODO For now, we just deoptimize if value type is NULL
-        PreserveJVMState pjvms(this);
-        set_control(null_ctl);
-        replace_in_map(parm, null());
-        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      }
-      // Value type oop may point to the TLVB
-      Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, t->value_klass(), /* null_check */ false, /* buffer_check */ true);
+      Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* null_check */ false, /* buffer_check */ true);
       map()->replace_edge(parm, vt);
     }
   }

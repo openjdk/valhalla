@@ -539,7 +539,7 @@ ValueTypeNode* ValueTypeNode::make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem
   }
   // Create and initialize a ValueTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  ValueTypeNode*  vt = new ValueTypeNode(TypeValueType::make(vk), oop);
+  ValueTypeNode* vt = new ValueTypeNode(TypeValueType::make(vk), oop);
 
   if (null_check && !vt->is_allocated(&gvn)) {
     // Add oop null check
