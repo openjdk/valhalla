@@ -4095,6 +4095,17 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
   Node* end               = is_copyOfRange? argument(2): argument(1);
   Node* array_type_mirror = is_copyOfRange? argument(3): argument(2);
 
+  const TypeAryPtr* original_t = _gvn.type(original)->isa_aryptr();
+  const TypeInstPtr* mirror_t = _gvn.type(array_type_mirror)->isa_instptr();
+  if (EnableValhalla && ValueArrayFlatten &&
+      (original_t == NULL || mirror_t == NULL ||
+       (mirror_t->java_mirror_type() == NULL && original_t->elem()->make_oopptr() != NULL &&
+        original_t->elem()->make_oopptr()->can_be_value_type()))) {
+    // We need to know statically if the copy is to a flattened array
+    // or not but can't tell.
+    return false;
+  }
+
   Node* newcopy = NULL;
 
   // Set the original stack and the reexecute bit for the interpreter to reexecute
@@ -4118,7 +4129,9 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
 
     // Despite the generic type of Arrays.copyOf, the mirror might be int, int[], etc.
     // Bail out if that is so.
-    Node* not_objArray = generate_non_objArray_guard(klass_node, bailout);
+    // Value type array may have object field that would require a
+    // write barrier. Conservatively, go to slow path.
+    Node* not_objArray = use_ReduceInitialCardMarks() ? generate_typeArray_guard(klass_node, bailout) : generate_non_objArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
@@ -4126,6 +4139,44 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       Node* cast = new CastPPNode(klass_node, akls);
       cast->init_req(0, control());
       klass_node = _gvn.transform(cast);
+    }
+
+    Node* original_kls = load_object_klass(original);
+    // ArrayCopyNode:Ideal may transform the ArrayCopyNode to
+    // loads/stores but it is legal only if we're sure the
+    // Arrays.copyOf would succeed. So we need all input arguments
+    // to the copyOf to be validated, including that the copy to the
+    // new array won't trigger an ArrayStoreException. That subtype
+    // check can be optimized if we know something on the type of
+    // the input array from type speculation.
+    if (_gvn.type(klass_node)->singleton() && !stopped()) {
+      ciKlass* subk   = _gvn.type(original_kls)->is_klassptr()->klass();
+      ciKlass* superk = _gvn.type(klass_node)->is_klassptr()->klass();
+
+      int test = C->static_subtype_check(superk, subk);
+      if (test != Compile::SSC_always_true && test != Compile::SSC_always_false) {
+        const TypeOopPtr* t_original = _gvn.type(original)->is_oopptr();
+        if (t_original->speculative_type() != NULL) {
+          original = maybe_cast_profiled_obj(original, t_original->speculative_type(), true);
+          original_kls = load_object_klass(original);
+        }
+      }
+    }
+
+    if (EnableValhalla) {
+      // Either both or neither new array klass and original array
+      // klass must be flattened
+      Node* flattened_klass = generate_valueArray_guard(klass_node, NULL);
+      generate_valueArray_guard(original_kls, bailout);
+      if (flattened_klass != NULL) {
+        RegionNode* r = new RegionNode(2);
+        record_for_igvn(r);
+        r->init_req(1, control());
+        set_control(flattened_klass);
+        generate_valueArray_guard(original_kls, r);
+        bailout->add_req(control());
+        set_control(_gvn.transform(r));
+      }
     }
 
     // Bail out if either start or end is negative.
@@ -4162,31 +4213,11 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       // Extreme case:  Arrays.copyOf((Integer[])x, 10, String[].class).
       // This will fail a store-check if x contains any non-nulls.
 
-      // ArrayCopyNode:Ideal may transform the ArrayCopyNode to
-      // loads/stores but it is legal only if we're sure the
-      // Arrays.copyOf would succeed. So we need all input arguments
-      // to the copyOf to be validated, including that the copy to the
-      // new array won't trigger an ArrayStoreException. That subtype
-      // check can be optimized if we know something on the type of
-      // the input array from type speculation.
-      if (_gvn.type(klass_node)->singleton()) {
-        ciKlass* subk   = _gvn.type(load_object_klass(original))->is_klassptr()->klass();
-        ciKlass* superk = _gvn.type(klass_node)->is_klassptr()->klass();
-
-        int test = C->static_subtype_check(superk, subk);
-        if (test != Compile::SSC_always_true && test != Compile::SSC_always_false) {
-          const TypeOopPtr* t_original = _gvn.type(original)->is_oopptr();
-          if (t_original->speculative_type() != NULL) {
-            original = maybe_cast_profiled_obj(original, t_original->speculative_type(), true);
-          }
-        }
-      }
-
       bool validated = false;
       // Reason_class_check rather than Reason_intrinsic because we
       // want to intrinsify even if this traps.
       if (!too_many_traps(Deoptimization::Reason_class_check)) {
-        Node* not_subtype_ctrl = gen_subtype_check(load_object_klass(original),
+        Node* not_subtype_ctrl = gen_subtype_check(original_kls,
                                                    klass_node);
 
         if (not_subtype_ctrl != top()) {
@@ -4203,7 +4234,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         newcopy = new_array(klass_node, length, 0);  // no arguments to push
 
         ArrayCopyNode* ac = ArrayCopyNode::make(this, true, original, start, newcopy, intcon(0), moved, true, false,
-                                                load_object_klass(original), klass_node);
+                                                original_kls, klass_node);
         if (!is_copyOfRange) {
           ac->set_copyof(validated);
         } else {
@@ -4679,6 +4710,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
     // We will be completely responsible for initializing this object -
     // mark Initialize node as complete.
     alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
+    alloc->initialization()->clear_unknown_value();
     // The object was just allocated - there should be no any stores!
     guarantee(alloc != NULL && alloc->maybe_set_complete(&_gvn), "");
     // Mark as complete_with_arraycopy so that on AllocateNode
@@ -5323,6 +5355,26 @@ bool LibraryCallKit::inline_arraycopy() {
                     Deoptimization::Action_make_not_entrant);
       assert(stopped(), "Should be stopped");
     }
+
+    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
+    const Type *toop = TypeOopPtr::make_from_klass(dest_klass_t->klass());
+    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
+
+    src_type = _gvn.type(src);
+    top_src  = src_type->isa_aryptr();
+
+    if (top_dest != NULL &&
+        top_dest->elem()->make_oopptr() != NULL &&
+        top_dest->elem()->make_oopptr()->can_be_value_type()) {
+      generate_valueArray_guard(load_object_klass(dest), slow_region);
+    }
+
+    if (top_src != NULL &&
+        top_src->elem()->make_oopptr() != NULL &&
+        top_src->elem()->make_oopptr()->can_be_value_type()) {
+      generate_valueArray_guard(load_object_klass(src), slow_region);
+    }
+
     {
       PreserveJVMState pjvms(this);
       set_control(_gvn.transform(slow_region));
@@ -5330,10 +5382,6 @@ bool LibraryCallKit::inline_arraycopy() {
                     Deoptimization::Action_make_not_entrant);
       assert(stopped(), "Should be stopped");
     }
-
-    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
-    const Type *toop = TypeOopPtr::make_from_klass(dest_klass_t->klass());
-    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
   }
 
   arraycopy_move_allocation_here(alloc, dest, saved_jvms, saved_reexecute_sp, new_idx);

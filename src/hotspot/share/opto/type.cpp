@@ -3471,7 +3471,7 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
       return TypeInstPtr::make(TypePtr::NotNull, klass, true, NULL, Offset(0));
     }
     return TypeInstPtr::make(o);
-  } else if (klass->is_obj_array_klass() || klass->is_value_array_klass()) {
+  } else if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr *etype =
       TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass());
@@ -3493,6 +3493,19 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()));
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
+    if (require_constant) {
+      if (!o->can_be_constant())  return NULL;
+    } else if (!o->should_be_constant()) {
+      return TypeAryPtr::make(TypePtr::NotNull, arr0, klass, true, Offset(0));
+    }
+    const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::Constant, o, arr0, klass, true, Offset(0));
+    return arr;
+  } else if (klass->is_value_array_klass()) {
+    ciValueKlass* vk = klass->as_array_klass()->element_klass()->as_value_klass();
+    const TypeAry* arr0 = TypeAry::make(TypeValueType::make(vk), TypeInt::make(o->as_array()->length()));
+    // We used to pass NotNull in here, asserting that the sub-arrays
+    // are all not-null.  This is not true in generally, as code can
+    // slam NULLs down in the subarrays.
     if (require_constant) {
       if (!o->can_be_constant())  return NULL;
     } else if (!o->should_be_constant()) {

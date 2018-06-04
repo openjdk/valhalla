@@ -3210,6 +3210,7 @@ bool InitializeNode::is_non_zero() {
 
 void InitializeNode::set_complete(PhaseGVN* phase) {
   assert(!is_complete(), "caller responsibility");
+  assert(!is_unknown_value(), "unsupported");
   _is_complete = Complete;
 
   // After this node is complete, it contains a bunch of
@@ -3225,7 +3226,9 @@ void InitializeNode::set_complete(PhaseGVN* phase) {
 // return false if the init contains any stores already
 bool AllocateNode::maybe_set_complete(PhaseGVN* phase) {
   InitializeNode* init = initialization();
-  if (init == NULL || init->is_complete())  return false;
+  if (init == NULL || init->is_complete() || init->is_unknown_value()) {
+    return false;
+  }
   init->remove_extra_zeroes();
   // for now, if this allocation has already collected any inits, bail:
   if (init->is_non_zero())  return false;

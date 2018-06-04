@@ -86,7 +86,14 @@ __ByValue public final class MyValue1 implements MyInterface {
 
     @ForceInline
     public long hash() {
-        return hashPrimitive() + o + oa[0];
+        long res = hashPrimitive();
+        try {
+            res += o;
+        } catch(NullPointerException npe) {}
+        try {
+            res += oa[0];
+        } catch(NullPointerException npe) {}
+        return res;
     }
 
     @DontCompile

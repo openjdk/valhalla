@@ -137,6 +137,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // array must be too.
 
       assert((get_length_if_constant(phase) == -1) == !ary_src->size()->is_con() ||
+             (ValueArrayFlatten && ary_src->elem()->make_oopptr() != NULL && ary_src->elem()->make_oopptr()->can_be_value_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally(), "inconsistent");
 
       if (ary_src->size()->is_con()) {
@@ -507,7 +508,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       const Type* src_type = phase->type(src);
       const TypeAryPtr* ary_src = src_type->isa_aryptr();
       BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
-      assert(!is_clonebasic() || (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+      assert(!is_clonebasic() || !GraphKit::use_ReduceInitialCardMarks() || (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
 #endif
       return false;
     }
@@ -661,7 +662,9 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   mem = kit.map()->memory();
   if (!finish_transform(phase, can_reshape, kit.control(), mem)) {
-    phase->record_for_igvn(this);
+    if (!can_reshape) {
+      phase->record_for_igvn(this);
+    }
     return NULL;
   }
 

@@ -238,4 +238,23 @@ __ByValue public final class MyValue3 implements MyInterface {
         Asserts.assertEQ(v1.f7, other.v1.f7);
         Asserts.assertEQ(v1.f8, other.v1.f8);
     }
+
+    @ForceInline
+    public long hash() {
+        return c +
+            bb +
+            s +
+            i +
+            l +
+            o.hashCode() +
+            Float.hashCode(f1) +
+            Double.hashCode(f2) +
+            Float.hashCode(f3) +
+            Double.hashCode(f4) +
+            Float.hashCode(f5) +
+            Double.hashCode(f6) +
+            Float.hashCode(v1.f7) +
+            Double.hashCode(v1.f8);
+    }
 }
+

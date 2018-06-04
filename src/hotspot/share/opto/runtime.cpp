@@ -263,7 +263,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
     // that latter value in hand for the fast path.
     Handle holder(THREAD, array_type->klass_holder()); // keep the array klass alive
     Klass* elem_type = ObjArrayKlass::cast(array_type)->element_klass();
-    result = oopFactory::new_objArray(elem_type, len, THREAD);
+    result = oopFactory::new_array(elem_type, len, THREAD);
   }
 
   // Pass oops back through thread local storage.  Our apparent type to Java

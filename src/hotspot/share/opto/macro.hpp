@@ -125,7 +125,9 @@ private:
 
   // More helper methods for array copy
   Node* generate_nonpositive_guard(Node** ctrl, Node* index, bool never_negative);
-  Node* generate_valueArray_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region);
+  Node* generate_flattened_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region);
+  Node* generate_object_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region);
+  Node* generate_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region, jint lh_con);
 
   void finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type);
   address basictype2arraycopy(BasicType t,
@@ -144,7 +146,6 @@ private:
                            Node* copy_length,
                            bool disjoint_bases = false,
                            bool length_never_negative = false,
-                           bool vt_with_oops_field = false,
                            RegionNode* slow_region = NULL);
   void generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
                             const TypePtr* adr_type,
@@ -184,7 +185,8 @@ private:
                                     Node* src,  Node* src_offset,
                                     Node* dest, Node* dest_offset,
                                     Node* copy_length, bool dest_uninitialized);
-
+  const TypePtr* adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
+                                          Node*& dest_offset, Node*& length, BasicType& dest_elem);
   void expand_arraycopy_node(ArrayCopyNode *ac);
 
   int replace_input(Node *use, Node *oldref, Node *newref);

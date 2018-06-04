@@ -831,6 +831,11 @@ public class TestLWorld extends ValueTypeTest {
         public MyObject(int x) {
             this.x = x;
         }
+
+        @ForceInline
+        public long hash() {
+            return x;
+        }
     }
 
     // Test merging value types and interfaces

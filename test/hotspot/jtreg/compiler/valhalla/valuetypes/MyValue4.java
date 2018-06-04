@@ -64,4 +64,9 @@ __ByValue final class MyValue4 implements MyInterface {
         v1.verify(other.v1);
         v2.verify(other.v2);
     }
+
+    @ForceInline
+    public long hash() {
+        return v1.hash() + v2.hash();
+    }
 }

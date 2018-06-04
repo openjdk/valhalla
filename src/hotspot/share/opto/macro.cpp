@@ -1428,30 +1428,70 @@ void PhaseMacroExpand::expand_allocate_common(
     initial_slow_test = NULL;
   }
 
-
-  enum { too_big_or_final_path = 1, need_gc_path = 2 };
   Node *slow_region = NULL;
   Node *toobig_false = ctrl;
+
+  if (!always_slow && alloc->initialization() != NULL && alloc->initialization()->is_unknown_value()) {
+    const TypeOopPtr* ary_type = _igvn.type(klass_node)->is_klassptr()->as_instance_type();
+    const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
+
+    ciKlass* elem_klass = NULL;
+    if (ary_ptr != NULL && ary_ptr->klass() != NULL) {
+      elem_klass = ary_ptr->klass()->as_array_klass()->element_klass();
+    }
+
+    if (elem_klass == NULL || (elem_klass->is_java_lang_Object() && !ary_ptr->klass_is_exact()) || elem_klass->is_valuetype()) {
+      // If it's an array of values we must go to the slow path so it is
+      // correctly initialized with default values.
+      Node* fast_region = new RegionNode(3);
+      Node* not_obj_array = ctrl;
+      Node* obj_array = generate_object_array_guard(&not_obj_array, mem, klass_node, NULL);
+
+      fast_region->init_req(1, not_obj_array);
+      slow_region = new RegionNode(1);
+      Node* k_adr = basic_plus_adr(klass_node, klass_node, in_bytes(ArrayKlass::element_klass_offset()));
+      Node* elem_klass = LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS);
+      transform_later(elem_klass);
+      Node* flags = make_load(NULL, mem, elem_klass, in_bytes(Klass::access_flags_offset()), TypeInt::INT, T_INT);
+      Node* is_value_elem = new AndINode(flags, intcon(JVM_ACC_VALUE));
+      transform_later(is_value_elem);
+      Node* cmp = new CmpINode(is_value_elem, _igvn.intcon(0));
+      transform_later(cmp);
+      Node* bol = new BoolNode(cmp, BoolTest::ne);
+      transform_later(bol);
+      IfNode* value_array_iff = new IfNode(obj_array, bol, PROB_MIN, COUNT_UNKNOWN);
+      transform_later(value_array_iff);
+      Node* value_array = new IfTrueNode(value_array_iff);
+      transform_later(value_array);
+      slow_region->add_req(value_array);
+      Node* not_value_array = new IfFalseNode(value_array_iff);
+      transform_later(not_value_array);
+      fast_region->init_req(2, not_value_array);
+      transform_later(fast_region);
+      ctrl = fast_region;
+    }
+    alloc->initialization()->clear_unknown_value();
+  }
 
   assert (initial_slow_test == NULL || !always_slow, "arguments must be consistent");
   // generate the initial test if necessary
   if (initial_slow_test != NULL ) {
-    slow_region = new RegionNode(3);
-
+    if (slow_region == NULL) {
+      slow_region = new RegionNode(1);
+    }
     // Now make the initial failure test.  Usually a too-big test but
     // might be a TRUE for finalizers or a fancy class check for
     // newInstance0.
-    IfNode *toobig_iff = new IfNode(ctrl, initial_slow_test, PROB_MIN, COUNT_UNKNOWN);
+    IfNode* toobig_iff = new IfNode(ctrl, initial_slow_test, PROB_MIN, COUNT_UNKNOWN);
     transform_later(toobig_iff);
     // Plug the failing-too-big test into the slow-path region
-    Node *toobig_true = new IfTrueNode( toobig_iff );
+    Node* toobig_true = new IfTrueNode(toobig_iff);
     transform_later(toobig_true);
-    slow_region    ->init_req( too_big_or_final_path, toobig_true );
-    toobig_false = new IfFalseNode( toobig_iff );
+    slow_region    ->add_req(toobig_true);
+    toobig_false = new IfFalseNode(toobig_iff);
     transform_later(toobig_false);
   } else {         // No initial test, just fall into next case
     toobig_false = ctrl;
-    debug_only(slow_region = NodeSentinel);
   }
 
   Node *slow_mem = mem;  // save the current memory state for slow path
@@ -1524,11 +1564,11 @@ void PhaseMacroExpand::expand_allocate_common(
     // Plug the failing-heap-space-need-gc test into the slow-path region
     Node *needgc_true = new IfTrueNode(needgc_iff);
     transform_later(needgc_true);
-    if (initial_slow_test) {
-      slow_region->init_req(need_gc_path, needgc_true);
+    if (slow_region != NULL) {
+      slow_region->add_req(needgc_true);
       // This completes all paths into the slow merge point
       transform_later(slow_region);
-    } else {                      // No initial slow path needed!
+    } else {
       // Just fall from the need-GC path straight into the VM call.
       slow_region = needgc_true;
     }

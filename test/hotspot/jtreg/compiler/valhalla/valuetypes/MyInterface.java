@@ -24,6 +24,6 @@
 package compiler.valhalla.valuetypes;
 
 public interface MyInterface {
-
+    public long hash();
 }
 

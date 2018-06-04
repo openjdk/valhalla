@@ -545,9 +545,6 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
     case vmIntrinsics::_hashCode:
     case vmIntrinsics::_identityHashCode:
     case vmIntrinsics::_newArray:
-    case vmIntrinsics::_copyOf:
-    case vmIntrinsics::_copyOfRange:
-    case vmIntrinsics::_arraycopy:
       return true;
       break;
     default:

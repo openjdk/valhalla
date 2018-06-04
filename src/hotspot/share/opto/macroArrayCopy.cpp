@@ -188,15 +188,29 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
   return is_notp;
 }
 
-Node* PhaseMacroExpand::generate_valueArray_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region) {
+Node* PhaseMacroExpand::generate_flattened_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
+  return generate_array_guard(ctrl, mem, obj_or_klass, region, Klass::_lh_array_tag_vt_value);
+}
+
+Node* PhaseMacroExpand::generate_object_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
+  return generate_array_guard(ctrl, mem, obj_or_klass, region, Klass::_lh_array_tag_obj_value);
+}
+
+Node* PhaseMacroExpand::generate_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region, jint lh_con) {
   if ((*ctrl)->is_top())  return NULL;
 
-  Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  Node* kls = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS));
+  Node* kls = NULL;
+  if (_igvn.type(obj_or_klass)->isa_oopptr()) {
+    Node* k_adr = basic_plus_adr(obj_or_klass, oopDesc::klass_offset_in_bytes());
+    kls = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS));
+  } else {
+    assert(_igvn.type(obj_or_klass)->isa_klassptr(), "what else?");
+    kls = obj_or_klass;
+  }
   Node* layout_val = make_load(NULL, mem, kls, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
 
   layout_val = transform_later(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-  Node* cmp = transform_later(new CmpINode(layout_val, intcon(Klass::_lh_array_tag_vt_value)));
+  Node* cmp = transform_later(new CmpINode(layout_val, intcon(lh_con)));
   Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
 
   return generate_fair_guard(ctrl, bol, region);
@@ -257,6 +271,21 @@ address PhaseMacroExpand::basictype2arraycopy(BasicType t,
 bool PhaseMacroExpand::can_try_zeroing_elimination(AllocateArrayNode* alloc,
                                                    Node* src,
                                                    Node* dest) const {
+  const TypeAryPtr* top_dest = _igvn.type(dest)->isa_aryptr();
+
+  if (top_dest != NULL) {
+    if (top_dest->klass() == NULL) {
+      return false;
+    }
+    ciKlass* elem_klass = top_dest->klass()->as_array_klass()->element_klass();
+    if (elem_klass != NULL && elem_klass->is_valuetype()) {
+      ciValueKlass* vk = elem_klass->as_value_klass();
+      if (!vk->flatten_array()) {
+        return false;
+      }
+    }
+  }
+  
   return ReduceBulkZeroing
     && !(UseTLAB && ZeroTLAB) // pointless if already zeroed
     && !src->eqv_uncast(dest)
@@ -309,7 +338,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                                            Node* copy_length,
                                            bool disjoint_bases,
                                            bool length_never_negative,
-                                           bool vt_with_oops_field,
                                            RegionNode* slow_region) {
   if (slow_region == NULL) {
     slow_region = new RegionNode(1);
@@ -1113,6 +1141,33 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
   finish_arraycopy_call(call, ctrl, mem, adr_type);
 }
 
+const TypePtr* PhaseMacroExpand::adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
+                                                          Node*& dest_offset, Node*& length, BasicType& dest_elem) {
+  assert(top_dest->klass()->is_value_array_klass(), "inconsistent");
+  int elem_size = ((ciValueArrayKlass*)top_dest->klass())->element_byte_size();
+  if (elem_size >= 8) {
+    if (elem_size > 8) {
+      // treat as array of long but scale length, src offset and dest offset
+      assert((elem_size % 8) == 0, "not a power of 2?");
+      int factor = elem_size / 8;
+      length = transform_later(new MulINode(length, intcon(factor)));
+      src_offset = transform_later(new MulINode(src_offset, intcon(factor)));
+      dest_offset = transform_later(new MulINode(dest_offset, intcon(factor)));
+      elem_size = 8;
+    }
+    dest_elem = T_LONG;
+  } else if (elem_size == 4) {
+    dest_elem = T_INT;
+  } else if (elem_size == 2) {
+    dest_elem = T_CHAR;
+  } else if (elem_size == 1) {
+    dest_elem = T_BYTE;
+  } else {
+    ShouldNotReachHere();
+  }
+  return TypeRawPtr::BOTTOM;
+}
+
 void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   Node* ctrl = ac->in(TypeFunc::Control);
   Node* io = ac->in(TypeFunc::I_O);
@@ -1140,28 +1195,40 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     _igvn.replace_node(ac, call);
     return;
   } else if (ac->is_copyof() || ac->is_copyofrange() || ac->is_cloneoop()) {
+    const Type* dest_type = _igvn.type(dest);
+    const TypeAryPtr* top_dest = dest_type->isa_aryptr();
+
+    BasicType dest_elem = top_dest->klass()->as_array_klass()->element_type()->basic_type();
+    if (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass()) {
+      dest_elem = T_OBJECT;
+    }
+
     Node* mem = ac->in(TypeFunc::Memory);
     merge_mem = MergeMemNode::make(mem);
     transform_later(merge_mem);
-
-    RegionNode* slow_region = new RegionNode(1);
-    transform_later(slow_region);
 
     AllocateArrayNode* alloc = NULL;
     if (ac->is_alloc_tightly_coupled()) {
       alloc = AllocateArrayNode::Ideal_array_allocation(dest, &_igvn);
       assert(alloc != NULL, "expect alloc");
     }
+    assert(dest_elem != T_VALUETYPE || alloc != NULL, "unsupported");
 
-    const TypePtr* adr_type = _igvn.type(dest)->is_oopptr()->add_offset(Type::OffsetBot);
-    if (ac->_dest_type != TypeOopPtr::BOTTOM) {
-      adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
-    }
-    if (ac->_src_type != ac->_dest_type) {
-      adr_type = TypeRawPtr::BOTTOM;
+    const TypePtr* adr_type = NULL;
+
+    if (dest_elem == T_VALUETYPE) {
+      adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem);
+    } else {
+      adr_type = _igvn.type(dest)->is_oopptr()->add_offset(Type::OffsetBot);
+      if (ac->_dest_type != TypeOopPtr::BOTTOM) {
+        adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
+      }
+      if (ac->_src_type != ac->_dest_type) {
+        adr_type = TypeRawPtr::BOTTOM;
+      }
     }
     generate_arraycopy(ac, alloc, &ctrl, merge_mem, &io,
-                       adr_type, T_OBJECT,
+                       adr_type, dest_elem,
                        src, src_offset, dest, dest_offset, length,
                        true, !ac->is_copyofrange());
 
@@ -1224,7 +1291,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     RegionNode* slow_region = new RegionNode(1);
     transform_later(slow_region);
 
-    generate_valueArray_guard(&ctrl, merge_mem, dest, slow_region);
+    generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
 
     // Call StubRoutines::generic_arraycopy stub.
     Node* mem = generate_arraycopy(ac, NULL, &ctrl, merge_mem, &io,
@@ -1232,7 +1299,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                                    src, src_offset, dest, dest_offset, length,
                                    // If a  negative length guard was generated for the ArrayCopyNode,
                                    // the length of the array can never be negative.
-                                   false, ac->has_negative_length_guard(), false,
+                                   false, ac->has_negative_length_guard(),
                                    slow_region);
 
     return;
@@ -1329,33 +1396,24 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
   }
+
+  if (dest_elem == T_OBJECT &&
+      ValueArrayFlatten && 
+      top_dest->elem()->make_oopptr()->can_be_value_type()) {
+    generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
+  }
+
+  if (src_elem == T_OBJECT &&
+      ValueArrayFlatten && 
+      top_src->elem()->make_oopptr()->can_be_value_type()) {
+    generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
+  }
+
   // This is where the memory effects are placed:
   const TypePtr* adr_type = NULL;
 
   if (dest_elem == T_VALUETYPE) {
-    assert(top_dest->klass()->is_value_array_klass(), "inconsistent");
-    int elem_size = ((ciValueArrayKlass*)top_dest->klass())->element_byte_size();
-    if (elem_size >= 8) {
-      if (elem_size > 8) {
-        // treat as array of long but scale length, src offset and dest offset
-        assert((elem_size % 8) == 0, "not a power of 2?");
-        int factor = elem_size / 8;
-        length = transform_later(new MulINode(length, intcon(factor)));
-        src_offset = transform_later(new MulINode(src_offset, intcon(factor)));
-        dest_offset = transform_later(new MulINode(dest_offset, intcon(factor)));
-        elem_size = 8;
-      }
-      dest_elem = T_LONG;
-    } else if (elem_size == 4) {
-      dest_elem = T_INT;
-    } else if (elem_size == 2) {
-      dest_elem = T_CHAR;
-    } else if (elem_size == 1) {
-      dest_elem = T_BYTE;
-    } else {
-      ShouldNotReachHere();
-    }
-    adr_type = TypeRawPtr::BOTTOM;
+    adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
   } else {
@@ -1367,6 +1425,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
                      src, src_offset, dest, dest_offset, length,
                      // If a  negative length guard was generated for the ArrayCopyNode,
                      // the length of the array can never be negative.
-                     false, ac->has_negative_length_guard(), vt_with_oops_field,
+                     false, ac->has_negative_length_guard(),
                      slow_region);
 }

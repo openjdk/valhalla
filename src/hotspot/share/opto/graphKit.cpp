@@ -3543,7 +3543,12 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     ciKlass* klass = inst_klass->klass();
     assert(klass != NULL, "klass should not be NULL");
     bool    xklass = inst_klass->klass_is_exact();
-    if (xklass || klass->is_array_klass()) {
+    bool can_be_value_array = false;
+    if (klass->is_array_klass() && EnableValhalla && ValueArrayFlatten) {
+      ciKlass* elem = klass->as_array_klass()->element_klass();
+      can_be_value_array = elem != NULL && (elem->is_java_lang_Object() || elem->is_interface());
+    }
+    if (xklass || (klass->is_array_klass() && !can_be_value_array)) {
       jint lhelper = klass->layout_helper();
       if (lhelper != Klass::_lh_neutral_value) {
         constant_value = lhelper;
@@ -3946,6 +3951,9 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
       // InitializeNode* init = alloc->initialization();
       //init->set_complete_with_arraycopy();
     }
+  } else if (EnableValhalla && (!layout_con || (elem_klass != NULL && elem_klass->is_java_lang_Object() && !ary_type->klass_is_exact()))) {
+    InitializeNode* init = alloc->initialization();
+    init->set_unknown_value();
   }
 
   return javaoop;

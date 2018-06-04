@@ -24,6 +24,8 @@
 package compiler.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 
 /*
  * @test
@@ -737,4 +739,720 @@ public class TestArrays extends ValueTypeTest {
         long result2 = test31(false, !warmup);
         Asserts.assertEQ(result2, v2.hash());
     }
+
+    // Tests with Object arrays and clone/arraycopy
+    // clone() as stub call
+    @Test
+    public Object[] test32(Object[] va) {
+        return va.clone();
+    }
+
+    @DontCompile
+    public void test32_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = (MyValue1[])test32(va);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(result[i].hash(), va[i].hash());
+        }
+    }
+
+    @Test
+    public Object[] test33(Object[] va) {
+        return va.clone();
+    }
+
+    @DontCompile
+    public void test33_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] va = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        Object[] result = test33(va);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+        }
+    }
+
+    // clone() as series of loads/stores
+    static Object[] test34_orig = null;
+
+    @ForceInline
+    public Object[] test34_helper(boolean flag) {
+        Object[] va = null;
+        if (flag) {
+            va = new MyValue1[8];
+            for (int i = 0; i < va.length; ++i) {
+                va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
+            }
+        } else {
+            va = new Object[8];
+        }
+        return va;
+    }
+
+    @Test
+    public Object[] test34(boolean flag) {
+        Object[] va = test34_helper(flag);
+        test34_orig = va;
+
+        return va.clone();
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) {
+        test34(false);
+        MyValue1[] result = (MyValue1[])test34(true);
+        for (int i = 0; i < test34_orig.length; ++i) {
+            Asserts.assertEQ(result[i].hash(), ((MyValue1[])test34_orig)[i].hash());
+        }
+    }
+
+    static void verify(Object[] src, Object[] dst) {
+        for (int i = 0; i < src.length; ++i) {
+            Asserts.assertEQ(((MyInterface)src[i]).hash(), ((MyInterface)dst[i]).hash());
+        }
+    }
+
+
+    static boolean compile_and_run_again_if_deoptimized(boolean warmup, String test) {
+        if (!warmup) {
+            Method m = tests.get(test);
+            if (!WHITE_BOX.isMethodCompiled(m, false)) {
+                if (!ValueTypeArrayFlatten && !XCOMP) {
+                    throw new RuntimeException("Unexpected deoptimization");
+                }
+                WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // arraycopy() of value type array of unknown size
+    @Test
+    public void test35(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        MyValue1[] dst = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test35(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test35")) {
+            test35(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test36(Object[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue2[] src = new MyValue2[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test36(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test36")) {
+            test36(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test37(MyValue2[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue2[] src = new MyValue2[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test37(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test37")) {
+            test37(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test38(Object[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] src = new Object[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test38(src, dst);
+        verify(src, dst);
+        if (!warmup) {
+            Method m = tests.get("TestArrays::test38");
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("Type check should have caused it to deoptimize");
+            }
+            WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+            test38(src, dst);
+            verify(src, dst);
+            if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("unexpected deoptimization");
+            }
+        }
+    }
+
+    @Test
+    public void test39(MyValue2[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue2[] src = new MyValue2[len];
+        Object[] dst = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test39(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test39")) {
+            test39(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test40(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] src = new Object[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test40(src, dst);
+        verify(src, dst);
+        if (!warmup) {
+            Method m = tests.get("TestArrays::test40");
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("Type check should have caused it to deoptimize");
+            }
+            WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+            test40(src, dst);
+            verify(src, dst);
+            if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("unexpected deoptimization");
+            }
+        }
+    }
+
+    @Test
+    public void test41(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test41_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue2[] src = new MyValue2[len];
+        Object[] dst = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test41(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test41")) {
+            test41(src, dst);
+            verify(src, dst);
+        }
+    }
+
+
+    @Test
+    public void test42(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test42_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] src = new Object[len];
+        Object[] dst = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test42(src, dst);
+        verify(src, dst);
+        if (!warmup) {
+            Method m = tests.get("TestArrays::test42");
+            if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("unexpected deoptimization");
+            }
+        }
+    }
+
+    // short arraycopy()'s
+    @Test
+    public void test43(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test43_verifier(boolean warmup) {
+        MyValue1[] src = new MyValue1[8];
+        MyValue1[] dst = new MyValue1[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test43(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test43")) {
+            test43(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test44(Object[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test44_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[8];
+        MyValue2[] dst = new MyValue2[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test44(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test44")) {
+            test44(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test45(MyValue2[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test45_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[8];
+        MyValue2[] dst = new MyValue2[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test45(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test45")) {
+            test45(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test46(Object[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test46_verifier(boolean warmup) {
+        Object[] src = new Object[8];
+        MyValue2[] dst = new MyValue2[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test46(src, dst);
+        verify(src, dst);
+        if (!warmup) {
+            Method m = tests.get("TestArrays::test46");
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("Type check should have caused it to deoptimize");
+            }
+            WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+            test46(src, dst);
+            verify(src, dst);
+            if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("unexpected deoptimization");
+            }
+        }
+    }
+
+    @Test
+    public void test47(MyValue2[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test47_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[8];
+        Object[] dst = new Object[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test47(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test47")) {
+            test47(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test48(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test48_verifier(boolean warmup) {
+        Object[] src = new Object[8];
+        MyValue2[] dst = new MyValue2[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test48(src, dst);
+        verify(src, dst);
+        if (!warmup) {
+            Method m = tests.get("TestArrays::test48");
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("Type check should have caused it to deoptimize");
+            }
+            WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+            test48(src, dst);
+            verify(src, dst);
+            if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("unexpected deoptimization");
+            }
+        }
+    }
+
+    @Test
+    public void test49(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test49_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[8];
+        Object[] dst = new Object[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test49(src, dst);
+        verify(src, dst);
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test49")) {
+            test49(src, dst);
+            verify(src, dst);
+        }
+    }
+
+    @Test
+    public void test50(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test50_verifier(boolean warmup) {
+        Object[] src = new Object[8];
+        Object[] dst = new Object[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test50(src, dst);
+        verify(src, dst);
+        if (!warmup) {
+            Method m = tests.get("TestArrays::test50");
+            if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+                throw new RuntimeException("unexpected deoptimization");
+            }
+        }
+    }
+
+    @Test
+    public MyValue1[] test51(MyValue1[] va) {
+        return Arrays.copyOf(va, va.length, MyValue1[].class);
+    }
+
+    @DontCompile
+    public void test51_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = test51(va);
+        verify(va, result);
+    }
+
+    static final MyValue1[] test52_va = new MyValue1[8];
+
+    @Test
+    public MyValue1[] test52() {
+        return Arrays.copyOf(test52_va, 8, MyValue1[].class);
+    }
+
+    @DontCompile
+    public void test52_verifier(boolean warmup) {
+        for (int i = 0; i < 8; ++i) {
+            test52_va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = test52();
+        verify(test52_va, result);
+    }
+
+    @Test
+    public MyValue1[] test53(Object[] va) {
+        return Arrays.copyOf(va, va.length, MyValue1[].class);
+    }
+
+    @DontCompile
+    public void test53_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = test53(va);
+        verify(va, result);
+    }
+
+    @Test
+    public Object[] test54(MyValue1[] va) {
+        return Arrays.copyOf(va, va.length, Object[].class);
+    }
+
+    @DontCompile
+    public void test54_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        Object[] result = test54(va);
+        verify(va, result);
+    }
+
+    @Test
+    public Object[] test55(Object[] va) {
+        return Arrays.copyOf(va, va.length, Object[].class);
+    }
+
+    @DontCompile
+    public void test55_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        Object[] result = test55(va);
+        verify(va, result);
+    }
+
+    @Test
+    public MyValue1[] test56(Object[] va) {
+        return Arrays.copyOf(va, va.length, MyValue1[].class);
+    }
+
+    @DontCompile
+    public void test56_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] va = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = test56(va);
+        verify(va, result);
+    }
+
+    @Test
+    public Object[] test57(Object[] va, Class klass) {
+        return Arrays.copyOf(va, va.length, klass);
+    }
+
+    @DontCompile
+    public void test57_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        Object[] result = test57(va, MyValue1[].class);
+        verify(va, result);
+    }
+
+    @Test
+    public Object[] test58(MyValue1[] va, Class klass) {
+        return Arrays.copyOf(va, va.length, klass);
+    }
+
+    @DontCompile
+    public void test58_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        Object[] result = test58(va, MyValue1[].class);
+        verify(va, result);
+    }
+
+    @Test
+    public Object[] test59(MyValue1[] va) {
+        return Arrays.copyOf(va, va.length+1, MyValue1[].class);
+    }
+
+    @DontCompile
+    public void test59_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        MyValue1[] verif = new MyValue1[len+1];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            verif[i] = va[i];
+        }
+        Object[] result = test59(va);
+        verify(verif, result);
+    }
+
+    @Test
+    public Object[] test60(Object[] va, Class klass) {
+        return Arrays.copyOf(va, va.length+1, klass);
+    }
+
+    @DontCompile
+    public void test60_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        MyValue1[] verif = new MyValue1[len+1];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            verif[i] = va[i];
+        }
+        Object[] result = test60(va, MyValue1[].class);
+        verify(verif, result);
+    }
+
+    @Test
+    public Object[] test61(Object[] va, Class klass) {
+        return Arrays.copyOf(va, va.length+1, klass);
+    }
+
+    @DontCompile
+    public void test61_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        Object[] va = new Integer[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = new Integer(rI);
+        }
+        Object[] result = test61(va, Integer[].class);
+        for (int i = 0; i < va.length; ++i) {
+            Asserts.assertEQ(va[i], result[i]);
+        }
+    }
+
+    @ForceInline
+    public Object[] test62_helper(int i, MyValue1[] va, Integer[] oa) {
+        Object[] arr = null;
+        if (i == 10) {
+            arr = oa;
+        } else {
+            arr = va;
+        }
+        return arr;
+    }
+
+    @Test
+    public Object[] test62(MyValue1[] va, Integer[] oa) {
+        int i = 0;
+        for (; i < 10; i++);
+
+        Object[] arr = test62_helper(i, va, oa);
+
+        return Arrays.copyOf(arr, arr.length+1, arr.getClass());
+    }
+
+    @DontCompile
+    public void test62_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        Integer[] oa = new Integer[len];
+        for (int i = 0; i < len; ++i) {
+            oa[i] = new Integer(rI);
+        }
+        test62_helper(42, va, oa);
+        Object[] result = test62(va, oa);
+        for (int i = 0; i < va.length; ++i) {
+            Asserts.assertEQ(oa[i], result[i]);
+        }
+    }
+
+    // type system bug makes this one fail for now
+
+    // @ForceInline
+    // public Object[] test63_helper(int i, MyValue1[] va, Integer[] oa) {
+    //     Object[] arr = null;
+    //     if (i == 10) {
+    //         arr = va;
+    //     } else {
+    //         arr = oa;
+    //     }
+    //     return arr;
+    // }
+
+    // @Test
+    // public Object[] test63(MyValue1[] va, Integer[] oa) {
+    //     int i = 0;
+    //     for (; i < 10; i++);
+
+    //     Object[] arr = test63_helper(i, va, oa);
+
+    //     return Arrays.copyOf(arr, arr.length+1, arr.getClass());
+    // }
+
+    // @DontCompile
+    // public void test63_verifier(boolean warmup) {
+    //     int len = Math.abs(rI) % 10;
+    //     MyValue1[] va = new MyValue1[len];
+    //     MyValue1[] verif = new MyValue1[len+1];
+    //     for (int i = 0; i < len; ++i) {
+    //         va[i] = MyValue1.createWithFieldsInline(rI, rL);
+    //         verif[i] = va[i];
+    //     }
+    //     Integer[] oa = new Integer[len];
+    //     test63_helper(42, va, oa);
+    //     Object[] result = test63(va, oa);
+    //     verify(verif, result);
+    // }
 }
