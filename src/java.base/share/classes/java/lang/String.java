@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -2179,14 +2180,23 @@ public final class String
      *
      * <p> The {@code limit} parameter controls the number of times the
      * pattern is applied and therefore affects the length of the resulting
-     * array.  If the limit <i>n</i> is greater than zero then the pattern
-     * will be applied at most <i>n</i>&nbsp;-&nbsp;1 times, the array's
-     * length will be no greater than <i>n</i>, and the array's last entry
-     * will contain all input beyond the last matched delimiter.  If <i>n</i>
-     * is non-positive then the pattern will be applied as many times as
-     * possible and the array can have any length.  If <i>n</i> is zero then
-     * the pattern will be applied as many times as possible, the array can
-     * have any length, and trailing empty strings will be discarded.
+     * array.
+     * <ul>
+     *    <li><p>
+     *    If the <i>limit</i> is positive then the pattern will be applied
+     *    at most <i>limit</i>&nbsp;-&nbsp;1 times, the array's length will be
+     *    no greater than <i>limit</i>, and the array's last entry will contain
+     *    all input beyond the last matched delimiter.</p></li>
+     *
+     *    <li><p>
+     *    If the <i>limit</i> is zero then the pattern will be applied as
+     *    many times as possible, the array can have any length, and trailing
+     *    empty strings will be discarded.</p></li>
+     *
+     *    <li><p>
+     *    If the <i>limit</i> is negative then the pattern will be applied
+     *    as many times as possible and the array can have any length.</p></li>
+     * </ul>
      *
      * <p> The string {@code "boo:and:foo"}, for example, yields the
      * following results with these parameters:
@@ -2602,7 +2612,7 @@ public final class String
      * Returns a string whose value is this string, with all leading
      * and trailing space removed, where space is defined
      * as any character whose codepoint is less than or equal to
-     * {@code '\u005Cu0020'} (the space character).
+     * {@code 'U+0020'} (the space character).
      * <p>
      * If this {@code String} object represents an empty character
      * sequence, or the first and last characters of character sequence
@@ -2634,6 +2644,156 @@ public final class String
         String ret = isLatin1() ? StringLatin1.trim(value)
                                 : StringUTF16.trim(value);
         return ret == null ? this : ret;
+    }
+
+    /**
+     * Returns a string whose value is this string, with all leading
+     * and trailing {@link Character#isWhitespace(int) white space}
+     * removed.
+     * <p>
+     * If this {@code String} object represents an empty string,
+     * or if all code points in this string are
+     * {@link Character#isWhitespace(int) white space}, then an empty string
+     * is returned.
+     * <p>
+     * Otherwise, returns a substring of this string beginning with the first
+     * code point that is not a {@link Character#isWhitespace(int) white space}
+     * up to and including the last code point that is not a
+     * {@link Character#isWhitespace(int) white space}.
+     * <p>
+     * This method may be used to strip
+     * {@link Character#isWhitespace(int) white space} from
+     * the beginning and end of a string.
+     *
+     * @return  a string whose value is this string, with all leading
+     *          and trailing white space removed
+     *
+     * @see Character#isWhitespace(int)
+     *
+     * @since 11
+     */
+    public String strip() {
+        String ret = isLatin1() ? StringLatin1.strip(value)
+                                : StringUTF16.strip(value);
+        return ret == null ? this : ret;
+    }
+
+    /**
+     * Returns a string whose value is this string, with all leading
+     * {@link Character#isWhitespace(int) white space} removed.
+     * <p>
+     * If this {@code String} object represents an empty string,
+     * or if all code points in this string are
+     * {@link Character#isWhitespace(int) white space}, then an empty string
+     * is returned.
+     * <p>
+     * Otherwise, returns a substring of this string beginning with the first
+     * code point that is not a {@link Character#isWhitespace(int) white space}
+     * up to to and including the last code point of this string.
+     * <p>
+     * This method may be used to trim
+     * {@link Character#isWhitespace(int) white space} from
+     * the beginning of a string.
+     *
+     * @return  a string whose value is this string, with all leading white
+     *          space removed
+     *
+     * @see Character#isWhitespace(int)
+     *
+     * @since 11
+     */
+    public String stripLeading() {
+        String ret = isLatin1() ? StringLatin1.stripLeading(value)
+                                : StringUTF16.stripLeading(value);
+        return ret == null ? this : ret;
+    }
+
+    /**
+     * Returns a string whose value is this string, with all trailing
+     * {@link Character#isWhitespace(int) white space} removed.
+     * <p>
+     * If this {@code String} object represents an empty string,
+     * or if all characters in this string are
+     * {@link Character#isWhitespace(int) white space}, then an empty string
+     * is returned.
+     * <p>
+     * Otherwise, returns a substring of this string beginning with the first
+     * code point of this string up to and including the last code point
+     * that is not a {@link Character#isWhitespace(int) white space}.
+     * <p>
+     * This method may be used to trim
+     * {@link Character#isWhitespace(int) white space} from
+     * the end of a string.
+     *
+     * @return  a string whose value is this string, with all trailing white
+     *          space removed
+     *
+     * @see Character#isWhitespace(int)
+     *
+     * @since 11
+     */
+    public String stripTrailing() {
+        String ret = isLatin1() ? StringLatin1.stripTrailing(value)
+                                : StringUTF16.stripTrailing(value);
+        return ret == null ? this : ret;
+    }
+
+    /**
+     * Returns {@code true} if the string is empty or contains only
+     * {@link Character#isWhitespace(int) white space} codepoints,
+     * otherwise {@code false}.
+     *
+     * @return {@code true} if the string is empty or contains only
+     *         {@link Character#isWhitespace(int) white space} codepoints,
+     *         otherwise {@code false}
+     *
+     * @see Character#isWhitespace(int)
+     *
+     * @since 11
+     */
+    public boolean isBlank() {
+        return indexOfNonWhitespace() == length();
+    }
+
+    private int indexOfNonWhitespace() {
+        if (isLatin1()) {
+            return StringLatin1.indexOfNonWhitespace(value);
+        } else {
+            return StringUTF16.indexOfNonWhitespace(value);
+        }
+    }
+
+    /**
+     * Returns a stream of substrings extracted from this string
+     * partitioned by line terminators.
+     * <p>
+     * Line terminators recognized are line feed
+     * {@code "\n"} ({@code U+000A}),
+     * carriage return
+     * {@code "\r"} ({@code U+000D})
+     * and a carriage return followed immediately by a line feed
+     * {@code "\r\n"} ({@code U+000D U+000A}).
+     * <p>
+     * The stream returned by this method contains each line of
+     * this string that is terminated by a line terminator except that
+     * the last line can either be terminated by a line terminator or the
+     * end of the string.
+     * The lines in the stream are in the order in which
+     * they occur in this string and do not include the line terminators
+     * partitioning the lines.
+     *
+     * @implNote This method provides better performance than
+     *           split("\R") by supplying elements lazily and
+     *           by faster search of new line terminators.
+     *
+     * @return  the stream of strings extracted from this string
+     *          partitioned by line terminators
+     *
+     * @since 11
+     */
+    public Stream<String> lines() {
+        return isLatin1() ? StringLatin1.lines(value)
+                          : StringUTF16.lines(value);
     }
 
     /**

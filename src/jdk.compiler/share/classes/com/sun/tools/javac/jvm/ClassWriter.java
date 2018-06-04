@@ -43,6 +43,7 @@ import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Directive.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.file.PathFileObject;
@@ -50,6 +51,8 @@ import com.sun.tools.javac.jvm.Pool.DynamicMethod;
 import com.sun.tools.javac.jvm.Pool.Method;
 import com.sun.tools.javac.jvm.Pool.MethodHandle;
 import com.sun.tools.javac.jvm.Pool.Variable;
+import com.sun.tools.javac.resources.CompilerProperties.Errors;
+import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.Flags.*;
@@ -1740,6 +1743,8 @@ public class ClassWriter extends ClassFile {
                 log.printVerbose("wrote.file", outFile.getName());
             out.close();
             out = null;
+        } catch (InvalidSignatureException ex) {
+            log.error(Errors.CannotGenerateClass(c, Fragments.IllegalSignature(c, ex.type())));
         } finally {
             if (out != null) {
                 // if we are propagating an exception, delete the file

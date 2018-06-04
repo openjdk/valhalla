@@ -33,8 +33,8 @@ import jdk.test.lib.JDKToolFinder;
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main/othervm -XX:MaxMetaspaceSize=201M -XX:+VerifyMetaspace -XX:+UseCompressedClassPointers PrintMetaspaceDcmd with-compressed-class-space
- * @run main/othervm -XX:MaxMetaspaceSize=201M -XX:+VerifyMetaspace -XX:-UseCompressedClassPointers PrintMetaspaceDcmd without-compressed-class-space
+ * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:+UseCompressedOops -XX:+UseCompressedClassPointers PrintMetaspaceDcmd with-compressed-class-space
+ * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M -XX:-UseCompressedOops -XX:-UseCompressedClassPointers PrintMetaspaceDcmd without-compressed-class-space
  */
 
 public class PrintMetaspaceDcmd {
@@ -73,7 +73,7 @@ public class PrintMetaspaceDcmd {
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "show-loaders"});
         output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
-        output.shouldMatch("ClassLoaderData.*for <bootloader>");
+        output.shouldMatch("CLD.*<bootstrap>");
 
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "by-chunktype"});
         output = new OutputAnalyzer(pb.start());

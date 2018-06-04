@@ -38,10 +38,13 @@
 #include "oops/klassVtable.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/os.hpp"
-#include "trace/traceMacros.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_JFR
+#include "jfr/support/jfrKlassExtension.hpp"
+#endif
+
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -333,6 +336,10 @@ class InstanceKlass: public Klass {
   }
   bool is_shared_app_class() const {
     return (_misc_flags & _misc_is_shared_app_class) != 0;
+  }
+
+  void clear_class_loader_type() {
+    _misc_flags &= ~loader_type_bits();
   }
 
   void set_class_loader_type(s2 loader_type) {
@@ -995,7 +1002,7 @@ public:
 
   // support for stub routines
   static ByteSize init_state_offset()  { return in_ByteSize(offset_of(InstanceKlass, _init_state)); }
-  TRACE_DEFINE_KLASS_TRACE_ID_OFFSET;
+  JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
   // subclass/subinterface checks

@@ -26,7 +26,10 @@
 # All valid JVM features, regardless of platform
 VALID_JVM_FEATURES="compiler1 compiler2 zero minimal dtrace jvmti jvmci \
     graal vm-structs jni-check services management cmsgc g1gc parallelgc serialgc nmt cds \
-    static-build link-time-opt aot"
+    static-build link-time-opt aot jfr"
+
+# Deprecated JVM features (these are ignored, but with a warning)
+DEPRECATED_JVM_FEATURES="trace"
 
 # All valid JVM variants
 VALID_JVM_VARIANTS="server client minimal core zero custom"
@@ -206,7 +209,7 @@ AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_AOT],
 
   if test "x$ENABLE_AOT" = "xtrue"; then
     # Only enable AOT on X64 platforms.
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
       if test -e "${TOPDIR}/src/jdk.aot"; then
         if test -e "${TOPDIR}/src/jdk.internal.vm.compiler"; then
           ENABLE_AOT="true"
@@ -269,16 +272,25 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     USER_JVM_FEATURE_LIST=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
     AC_MSG_RESULT([$user_jvm_feature_list])
     # These features will be added to all variant defaults
-    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) print $i }'`
+    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
     # These features will be removed from all variant defaults
-    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) print substr($i, 2) }'`
+    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
 
     # Verify that the user has provided valid features
-    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES)
+    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES $DEPRECATED_JVM_FEATURES)
     if test "x$INVALID_FEATURES" != x; then
       AC_MSG_NOTICE([Unknown JVM features specified: "$INVALID_FEATURES"])
       AC_MSG_NOTICE([The available JVM features are: "$VALID_JVM_FEATURES"])
       AC_MSG_ERROR([Cannot continue])
+    fi
+
+    # Check if the user has provided deprecated features
+    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $DEPRECATED_JVM_FEATURES)
+    if test "x$DEPRECATED_FEATURES" != x; then
+      AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$DEPRECATED_FEATURES"])
+      # Filter out deprecated features
+      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES, $JVM_FEATURES, $DEPRECATED_FEATURES)
+      BASIC_GET_NON_MATCHING_VALUES(DISABLED_JVM_FEATURES, $DISABLED_JVM_FEATURES, $DEPRECATED_FEATURES)
     fi
 
   fi
@@ -307,6 +319,13 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   if HOTSPOT_CHECK_JVM_FEATURE(cmsgc) && ! HOTSPOT_CHECK_JVM_FEATURE(serialgc); then
     AC_MSG_ERROR([Specified JVM feature 'cmsgc' requires feature 'serialgc'])
+  fi
+
+  # Enable JFR by default, except for Zero, linux-sparcv9 and on minimal.
+  if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
+    if test "x$OPENJDK_TARGET_OS" != xlinux || test "x$OPENJDK_TARGET_CPU" != xsparcv9; then
+      NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES jfr"
+    fi
   fi
 
   # Turn on additional features based on other parts of configure
@@ -396,7 +415,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cds"
   fi
 
-  # Enable default features depending on variant.
+  # Enable features depending on variant.
   JVM_FEATURES_server="compiler1 compiler2 $NON_MINIMAL_FEATURES $JVM_FEATURES $JVM_FEATURES_jvmci $JVM_FEATURES_aot $JVM_FEATURES_graal"
   JVM_FEATURES_client="compiler1 $NON_MINIMAL_FEATURES $JVM_FEATURES $JVM_FEATURES_jvmci"
   JVM_FEATURES_core="$NON_MINIMAL_FEATURES $JVM_FEATURES"
