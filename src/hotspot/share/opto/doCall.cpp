@@ -492,7 +492,12 @@ void Parse::do_call() {
   ciKlass* speculative_receiver_type = NULL;
   if (is_virtual_or_interface) {
     Node* receiver_node             = stack(sp() - nargs);
-    const TypeOopPtr* receiver_type = _gvn.type(receiver_node)->isa_oopptr();
+    const TypeOopPtr* receiver_type = NULL;
+    if (receiver_node->is_ValueType()) {
+      receiver_type = TypeInstPtr::make(TypePtr::NotNull, _gvn.type(receiver_node)->is_valuetype()->value_klass());
+    } else {
+      receiver_type = _gvn.type(receiver_node)->isa_oopptr();
+    }
     // call_does_dispatch and vtable_index are out-parameters.  They might be changed.
     // For arrays, klass below is Object. When vtable calls are used,
     // resolving the call with Object would allow an illegal call to
@@ -571,7 +576,7 @@ void Parse::do_call() {
   Node* receiver = has_receiver ? argument(0) : NULL;
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
-  if (receiver != NULL && !call_does_dispatch && !cg->is_string_late_inline()) {
+  if (receiver != NULL && !receiver->is_ValueType() && !call_does_dispatch && !cg->is_string_late_inline()) {
     // Feed profiling data for a single receiver to the type system so
     // it can propagate it as a speculative type
     receiver = record_profiled_receiver_for_speculation(receiver);

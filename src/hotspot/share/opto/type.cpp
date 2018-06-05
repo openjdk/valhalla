@@ -893,15 +893,6 @@ const Type *Type::meet_helper(const Type *t, bool include_speculative) const {
   const Type *t2t    = dual_join->xmeet(t->_dual);
   const Type *t2this = dual_join->xmeet(this_t->_dual);
 
-  // TODO a value type (array) meeting an oop is not symmetric
-  if (_base == ValueType || t->_base == ValueType ||
-      (isa_aryptr() && is_aryptr()->ary()->is_value_type_array()) ||
-      (t->isa_aryptr() && t->is_aryptr()->ary()->is_value_type_array()) ||
-      (_base == Array && ((TypeAry*)this)->is_value_type_array()) ||
-      (t->_base == Array && ((TypeAry*)t)->is_value_type_array())) {
-    return mt;
-  }
-
   // Interface meet Oop is Not Symmetric:
   // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
@@ -2416,7 +2407,11 @@ const Type* TypeValueType::xmeet(const Type* t) const {
     return this;
 
   case NarrowOop: {
-    return t->make_ptr()->xmeet(this)->make_narrowoop();
+    const Type* res = t->make_ptr()->xmeet(this);
+    if (res->isa_ptr()) {
+      return res->make_narrowoop();
+    }
+    return res;
   }
 
   case AryPtr:
@@ -4175,8 +4170,18 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
   } // End of case InstPtr
 
   case ValueType: {
+    const TypeValueType *tv = t->is_valuetype();
+
     // All value types inherit from Object
-    return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+    if (above_centerline(ptr())) {
+      if (tv->value_klass()->is_subtype_of(_klass)) {
+        return t;
+      } else {
+        return TypeInstPtr::make(NotNull, ciEnv::current()->Object_klass());
+      }
+    } else {
+      return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+    }
   }
 
   } // End of switch

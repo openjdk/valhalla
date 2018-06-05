@@ -1420,39 +1420,39 @@ public class TestArrays extends ValueTypeTest {
 
     // type system bug makes this one fail for now
 
-    // @ForceInline
-    // public Object[] test63_helper(int i, MyValue1[] va, Integer[] oa) {
-    //     Object[] arr = null;
-    //     if (i == 10) {
-    //         arr = va;
-    //     } else {
-    //         arr = oa;
-    //     }
-    //     return arr;
-    // }
+    @ForceInline
+    public Object[] test63_helper(int i, MyValue1[] va, Integer[] oa) {
+        Object[] arr = null;
+        if (i == 10) {
+            arr = va;
+        } else {
+            arr = oa;
+        }
+        return arr;
+    }
 
-    // @Test
-    // public Object[] test63(MyValue1[] va, Integer[] oa) {
-    //     int i = 0;
-    //     for (; i < 10; i++);
+    @Test
+    public Object[] test63(MyValue1[] va, Integer[] oa) {
+        int i = 0;
+        for (; i < 10; i++);
 
-    //     Object[] arr = test63_helper(i, va, oa);
+        Object[] arr = test63_helper(i, va, oa);
 
-    //     return Arrays.copyOf(arr, arr.length+1, arr.getClass());
-    // }
+        return Arrays.copyOf(arr, arr.length+1, arr.getClass());
+    }
 
-    // @DontCompile
-    // public void test63_verifier(boolean warmup) {
-    //     int len = Math.abs(rI) % 10;
-    //     MyValue1[] va = new MyValue1[len];
-    //     MyValue1[] verif = new MyValue1[len+1];
-    //     for (int i = 0; i < len; ++i) {
-    //         va[i] = MyValue1.createWithFieldsInline(rI, rL);
-    //         verif[i] = va[i];
-    //     }
-    //     Integer[] oa = new Integer[len];
-    //     test63_helper(42, va, oa);
-    //     Object[] result = test63(va, oa);
-    //     verify(verif, result);
-    // }
+    @DontCompile
+    public void test63_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        MyValue1[] verif = new MyValue1[len+1];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            verif[i] = va[i];
+        }
+        Integer[] oa = new Integer[len];
+        test63_helper(42, va, oa);
+        Object[] result = test63(va, oa);
+        verify(verif, result);
+    }
 }

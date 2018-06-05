@@ -2862,7 +2862,12 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   // Subsume downstream occurrences of receiver with a cast to
   // recv_xtype, since now we know what the type will be.
   Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
-  (*casted_receiver) = _gvn.transform(cast);
+  Node* res = _gvn.transform(cast);
+  if (recv_xtype->is_valuetypeptr()) {
+    res = ValueTypeNode::make_from_oop(this, res, recv_xtype->value_klass());
+  }
+
+  (*casted_receiver) = res;
   // (User must make the replace_in_map call.)
 
   return fail;
@@ -3240,6 +3245,13 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
     ciKlass* spec_obj_type = obj_type->speculative_type();
     if (spec_obj_type != NULL || data != NULL) {
       cast_obj = maybe_cast_profiled_receiver(not_null_obj, tk->klass(), spec_obj_type, safe_for_replace);
+      if (cast_obj != NULL && cast_obj->is_ValueType()) {
+        if (null_ctl != top()) {
+          cast_obj = NULL; // A value that's sometimes null is not something we can optimize well
+        } else {
+          return cast_obj;
+        }
+      }
       if (cast_obj != NULL) {
         if (failure_control != NULL) // failure is now impossible
           (*failure_control) = top();

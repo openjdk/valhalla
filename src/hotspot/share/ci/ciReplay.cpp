@@ -880,7 +880,7 @@ class CompileReplay : public StackObj {
           value = oopFactory::new_longArray(length, CHECK_(true));
         } else if (field_signature[0] == '[' && field_signature[1] == 'L') {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-          value = oopFactory::new_objArray(kelem, length, CHECK_(true));
+          value = oopFactory::new_array(kelem, length, CHECK_(true));
         } else {
           report_error("unhandled array staticfield");
         }
