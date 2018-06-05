@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Test that final fields of value classes follow the same assignment rules as vanilla classes.
- * @compile/fail/ref=FinalFieldTest.out --should-stop:at=FLOW -XDrawDiagnostics  FinalFieldTest.java
+ * @compile/fail/ref=FinalFieldTest.out --should-stop=at=FLOW -XDrawDiagnostics  FinalFieldTest.java
  */
 
 final __ByValue class Blah {
