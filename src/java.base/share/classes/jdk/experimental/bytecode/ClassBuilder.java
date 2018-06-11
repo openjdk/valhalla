@@ -227,12 +227,15 @@ public class ClassBuilder<S, T, C extends ClassBuilder<S, T, C>>
      */
     @SuppressWarnings({"unchecked"})
     public C withValueTypes(S... valueTypes) {
-        GrowableByteBuffer a = new GrowableByteBuffer();
-        a.writeChar(valueTypes.length);
-        for (S vt: valueTypes) {
-            a.writeChar(poolHelper.putClass(vt));
+        if (valueTypes != null && valueTypes.length > 0) {
+            GrowableByteBuffer a = new GrowableByteBuffer();
+            a.writeChar(valueTypes.length);
+            for (S vt: valueTypes) {
+                a.writeChar(poolHelper.putClass(vt));
+            }
+            return withAttribute("ValueTypes", a.bytes());
         }
-        return withAttribute("ValueTypes", a.bytes());
+        return thisBuilder();
     }
 
     /**

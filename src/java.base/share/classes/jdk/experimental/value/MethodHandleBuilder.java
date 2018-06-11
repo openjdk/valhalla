@@ -68,11 +68,11 @@ public class MethodHandleBuilder {
         DUMP_CLASS_FILES_DIR = props.getProperty("valhalla.DUMP_CLASS_FILES_DIR");
     }
 
-    public static MethodHandle loadCode(Lookup lookup, String name, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
-        return loadCode(lookup, name, name, type, builder);
+    public static MethodHandle loadCode(Lookup lookup, String name, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder, Class<?> ... valueTypes) {
+        return loadCode(lookup, name, name, type, builder, valueTypes);
     }
 
-    public static MethodHandle loadCode(Lookup lookup, String className, String methodName, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
+    public static MethodHandle loadCode(Lookup lookup, String className, String methodName, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder, Class<?> ... valueTypes) {
         String descriptor = type.toMethodDescriptorString();
         return loadCode(lookup, className, methodName, descriptor, MethodHandleCodeBuilder::new,
                     clazz -> {
@@ -82,13 +82,13 @@ public class MethodHandleBuilder {
                             throw new IllegalStateException(ex);
                         }
                     },
-                    builder);
+                    builder, valueTypes);
     }
 
     protected static <Z, C extends CodeBuilder<Class<?>, String, byte[], ?>> Z loadCode(
             Lookup lookup, String className, String methodName, String type,
             Function<MethodBuilder<Class<?>, String, byte[]>, ? extends C> builderFunc,
-            Function<Class<?>, Z> resFunc, Consumer<? super C> builder) {
+            Function<Class<?>, Z> resFunc, Consumer<? super C> builder, Class<?> ... valueTypes) {
 
         IsolatedMethodBuilder isolatedMethodBuilder = new IsolatedMethodBuilder(className, lookup);
         isolatedMethodBuilder
@@ -96,6 +96,7 @@ public class MethodHandleBuilder {
                 .withMajorVersion(52)
                 .withMinorVersion(0)
                 .withFlags(Flag.ACC_PUBLIC)
+                .withValueTypes(valueTypes)
                 .withMethod(methodName, type, M ->
                         M.withFlags(Flag.ACC_STATIC, Flag.ACC_PUBLIC)
                                 .withCode(builderFunc, builder));
