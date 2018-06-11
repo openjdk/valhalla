@@ -3031,7 +3031,6 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   bool speculative_not_null = false;
   bool never_see_null = (ProfileDynamicTypes  // aggressive use of profile
                          && seems_never_null(obj, data, speculative_not_null));
-
   bool is_value = obj->is_ValueType();
 
   // Null check; get casted pointer; set region slot 3
@@ -3076,8 +3075,11 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
           set_control(null_ctl);    // Null is the only remaining possibility.
           return intcon(0);
         }
-        if (cast_obj != NULL) {
+        if (cast_obj != NULL &&
+            // A value that's sometimes null is not something we can optimize well
+            !(cast_obj->is_ValueType() && null_ctl != top())) {
           not_null_obj = cast_obj;
+          is_value = not_null_obj->is_ValueType();
         }
       }
     }
@@ -3086,7 +3088,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   // Load the object's klass
   Node* obj_klass = NULL;
   if (is_value) {
-    obj_klass = makecon(TypeKlassPtr::make(_gvn.type(obj)->is_valuetype()->value_klass()));
+    obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->is_valuetype()->value_klass()));
   } else {
     obj_klass = load_object_klass(not_null_obj);
   }
