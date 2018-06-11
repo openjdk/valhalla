@@ -39,6 +39,10 @@
 #define ALWAYSINLINE inline
 #endif
 
+#ifndef ATTRIBUTE_ALIGNED
+#define ATTRIBUTE_ALIGNED(x)
+#endif
+
 // This file holds all globally used constants & types, class (forward)
 // declarations and a few frequently used utility functions.
 
@@ -1097,7 +1101,7 @@ inline int exact_log2(intptr_t x) {
 // the argument doesn't need to be a power of two
 inline int upper_log2(intptr_t x) {
   int shift = log2_intptr(x);
-  intptr_t y = 1 << shift;
+  intptr_t y = 1ULL << shift;
   if (y < x) {
     shift++;
   }

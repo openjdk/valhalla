@@ -143,7 +143,12 @@ void Parse::do_instanceof() {
 
 //------------------------------array_store_check------------------------------
 // pull array from stack and check that the store is valid
-Node* Parse::array_store_check(Node* ary, Node* idx, Node* obj) {
+Node* Parse::array_store_check() {
+  // Shorthand access to array store elements without popping them.
+  Node *obj = peek(0);
+  Node *idx = peek(1);
+  Node *ary = peek(2);
+
   const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
   bool is_value_array = elemtype->isa_valuetype() != NULL || (elemptr != NULL && elemptr->is_valuetypeptr());

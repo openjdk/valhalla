@@ -285,7 +285,7 @@ bool PhaseMacroExpand::can_try_zeroing_elimination(AllocateArrayNode* alloc,
       }
     }
   }
-  
+
   return ReduceBulkZeroing
     && !(UseTLAB && ZeroTLAB) // pointless if already zeroed
     && !src->eqv_uncast(dest)
@@ -603,9 +603,9 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     }
     // At this point we know we do not need type checks on oop stores.
 
-    // Let's see if we need card marks:
-    if (alloc != NULL && GraphKit::use_ReduceInitialCardMarks()) {
-      // If we do not need card marks, copy using the jint or jlong stub.
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    if (alloc != NULL && !bs->array_copy_requires_gc_barriers(copy_type)) {
+      // If we do not need gc barriers, copy using the jint or jlong stub.
       copy_type = LP64_ONLY(UseCompressedOops ? T_INT : T_LONG) NOT_LP64(T_INT);
       assert(type2aelembytes(basic_elem_type) == type2aelembytes(copy_type),
              "sizes agree");
@@ -1319,8 +1319,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // We have no stub to copy flattened value type arrays with oop
   // fields if we need to emit write barriers.
   //
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   if (src_elem != dest_elem || dest_elem == T_VOID ||
-      (vt_with_oops_field && (!can_try_zeroing_elimination(alloc, src, dest) || !GraphKit::use_ReduceInitialCardMarks()))) {
+      (vt_with_oops_field && (!can_try_zeroing_elimination(alloc, src, dest) || bs->array_copy_requires_gc_barriers(T_OBJECT)))) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
     {
@@ -1398,13 +1399,13 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   }
 
   if (dest_elem == T_OBJECT &&
-      ValueArrayFlatten && 
+      ValueArrayFlatten &&
       top_dest->elem()->make_oopptr()->can_be_value_type()) {
     generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
   }
 
   if (src_elem == T_OBJECT &&
-      ValueArrayFlatten && 
+      ValueArrayFlatten &&
       top_src->elem()->make_oopptr()->can_be_value_type()) {
     generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
   }

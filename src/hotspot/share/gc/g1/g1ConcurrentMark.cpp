@@ -1665,7 +1665,7 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
   // Unload Klasses, String, Symbols, Code Cache, etc.
   if (ClassUnloadingWithConcurrentMark) {
     GCTraceTime(Debug, gc, phases) debug("Class Unloading", _gc_timer_cm);
-    bool purged_classes = SystemDictionary::do_unloading(&g1_is_alive, _gc_timer_cm, false /* Defer cleaning */);
+    bool purged_classes = SystemDictionary::do_unloading(_gc_timer_cm, false /* Defer cleaning */);
     _g1h->complete_cleaning(&g1_is_alive, purged_classes);
   } else {
     GCTraceTime(Debug, gc, phases) debug("Cleanup", _gc_timer_cm);
@@ -1673,6 +1673,44 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
     // class unloading is disabled.
     _g1h->partial_cleaning(&g1_is_alive, false, false, G1StringDedup::is_enabled());
   }
+}
+
+class G1PrecleanYieldClosure : public YieldClosure {
+  G1ConcurrentMark* _cm;
+
+public:
+  G1PrecleanYieldClosure(G1ConcurrentMark* cm) : _cm(cm) { }
+
+  virtual bool should_return() {
+    return _cm->has_aborted();
+  }
+
+  virtual bool should_return_fine_grain() {
+    _cm->do_yield_check();
+    return _cm->has_aborted();
+  }
+};
+
+void G1ConcurrentMark::preclean() {
+  assert(G1UseReferencePrecleaning, "Precleaning must be enabled.");
+
+  SuspendibleThreadSetJoiner joiner;
+
+  G1CMKeepAliveAndDrainClosure keep_alive(this, task(0), true /* is_serial */);
+  G1CMDrainMarkingStackClosure drain_mark_stack(this, task(0), true /* is_serial */);
+
+  set_concurrency_and_phase(1, true);
+
+  G1PrecleanYieldClosure yield_cl(this);
+
+  ReferenceProcessor* rp = _g1h->ref_processor_cm();
+  // Precleaning is single threaded. Temporarily disable MT discovery.
+  ReferenceProcessorMTDiscoveryMutator rp_mut_discovery(rp, false);
+  rp->preclean_discovered_references(rp->is_alive_non_header(),
+                                     &keep_alive,
+                                     &drain_mark_stack,
+                                     &yield_cl,
+                                     _gc_timer_cm);
 }
 
 // When sampling object counts, we already swapped the mark bitmaps, so we need to use

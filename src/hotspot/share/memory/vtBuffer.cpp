@@ -35,7 +35,6 @@
 #include "runtime/thread.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ticks.hpp"
-#include "utilities/ticks.inline.hpp"
 
 VTBufferChunk* VTBuffer::_free_list = NULL;
 Mutex* VTBuffer::_pool_lock = new Mutex(Mutex::leaf, "VTBuffer::_pool_lock", true, Monitor::_safepoint_check_never);

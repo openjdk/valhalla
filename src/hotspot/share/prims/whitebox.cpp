@@ -100,6 +100,7 @@
 #define CHECK_JNI_EXCEPTION_(env, value)                               \
   do {                                                                 \
     JavaThread* THREAD = JavaThread::thread_from_jni_environment(env); \
+    THREAD->clear_pending_jni_exception_check();                       \
     if (HAS_PENDING_EXCEPTION) {                                       \
       return(value);                                                   \
     }                                                                  \
@@ -108,6 +109,7 @@
 #define CHECK_JNI_EXCEPTION(env)                                       \
   do {                                                                 \
     JavaThread* THREAD = JavaThread::thread_from_jni_environment(env); \
+    THREAD->clear_pending_jni_exception_check();                       \
     if (HAS_PENDING_EXCEPTION) {                                       \
       return;                                                          \
     }                                                                  \

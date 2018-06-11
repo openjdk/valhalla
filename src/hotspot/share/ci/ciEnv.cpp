@@ -43,6 +43,7 @@
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -61,7 +62,6 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.inline.hpp"
-#include "trace/tracing.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
@@ -1153,7 +1153,6 @@ void ciEnv::record_failure(const char* reason) {
 }
 
 void ciEnv::report_failure(const char* reason) {
-  // Create and fire JFR event
   EventCompilationFailure event;
   if (event.should_commit()) {
     event.set_compileId(compile_id());

@@ -383,8 +383,11 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         const TypeOopPtr* val_type = Type::get_const_type(ft)->is_oopptr();
         assert(adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
-        bool is_array = ary_type != NULL;
-        kit->store_oop(kit->control(), base, adr, adr_type, value, val_type, bt, is_array, MemNode::unordered, false, deoptimize_on_exception);
+        DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
+        if (ary_type != NULL) {
+          decorators |= IN_HEAP_ARRAY;
+        }
+        kit->access_store_at(kit->control(), base, adr, adr_type, value, val_type, bt, decorators, deoptimize_on_exception);
       }
     }
   }

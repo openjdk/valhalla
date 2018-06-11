@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,12 +38,14 @@ module jdk.internal.vm.compiler {
     uses org.graalvm.compiler.hotspot.HotSpotCodeCacheListener;
     uses org.graalvm.compiler.hotspot.HotSpotGraalManagementRegistration;
     uses org.graalvm.compiler.nodes.graphbuilderconf.NodeIntrinsicPluginFactory;
+    uses org.graalvm.compiler.serviceprovider.GraalServices.JMXService;
 
     exports jdk.internal.vm.compiler.collections        to jdk.internal.vm.compiler.management;
     exports org.graalvm.compiler.api.directives         to jdk.aot;
     exports org.graalvm.compiler.api.runtime            to jdk.aot;
     exports org.graalvm.compiler.api.replacements       to jdk.aot;
     exports org.graalvm.compiler.asm.amd64              to jdk.aot;
+    exports org.graalvm.compiler.asm.aarch64            to jdk.aot;
     exports org.graalvm.compiler.bytecode               to jdk.aot;
     exports org.graalvm.compiler.code                   to jdk.aot;
     exports org.graalvm.compiler.core                   to jdk.aot;

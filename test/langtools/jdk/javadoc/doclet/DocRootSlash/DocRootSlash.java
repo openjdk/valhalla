@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 4524350 4662945 4633447
+ * @bug 4524350 4662945 4633447 8196202
  * @summary stddoclet: {@docRoot} inserts an extra trailing "/"
  * @author dkramer
  * @library ../lib
@@ -51,9 +51,12 @@ public class DocRootSlash extends JavadocTester {
         // Directory that contains source files that javadoc runs on
         String srcdir = System.getProperty("test.src", ".");
 
+        setAutomaticCheckLinks(false); // @ignore JDK-8202621
+
         javadoc("-d", "out",
                 "-Xdoclint:none",
                 "-overview", (srcdir + "/overview.html"),
+                "--frames",
                 "-header", "<A HREF=\"{@docroot}/package-list\">{&#064;docroot}</A> <A HREF=\"{@docRoot}/help-doc\">{&#064;docRoot}</A>",
                 "-sourcepath", srcdir,
                 "p1", "p2");

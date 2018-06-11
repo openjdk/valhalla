@@ -52,82 +52,88 @@ extern int explicit_null_checks_inserted,
 #endif
 
 //---------------------------------array_load----------------------------------
-void Parse::array_load(BasicType elem_type) {
-  const Type* elem = Type::TOP;
-  Node* adr = array_addressing(elem_type, 0, &elem);
-  if (stopped()) return; // guaranteed null or range check
+void Parse::array_load(BasicType bt) {
+  const Type* elemtype = Type::TOP;
+  Node* adr = array_addressing(bt, 0, &elemtype);
+  if (stopped())  return;     // guaranteed null or range check
+
   Node* idx = pop();
   Node* ary = pop();
 
   // Handle value type arrays
-  const TypeOopPtr* elemptr = elem->make_oopptr();
-  if (elem->isa_valuetype() != NULL) {
+  const TypeOopPtr* elemptr = elemtype->make_oopptr();
+  if (elemtype->isa_valuetype() != NULL) {
     // Load from flattened value type array
-    ciValueKlass* vk = elem->is_valuetype()->value_klass();
+    ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
     ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
   } else if (elemptr != NULL && elemptr->is_valuetypeptr()) {
     // Load from non-flattened value type array (elements can never be null)
-    elem_type = T_VALUETYPE;
+    bt = T_VALUETYPE;
     assert(elemptr->meet(TypePtr::NULL_PTR) != elemptr, "value type array elements should never be null");
   } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type()) {
     // Cannot statically determine if array is flattened, emit runtime check
     gen_flattened_array_guard(ary, 2);
   }
 
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
-  push(ld);
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
+  }
+
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+  Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
+                            IN_HEAP | IN_HEAP_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+  push_node(bt, ld);
 }
 
 
 //--------------------------------array_store----------------------------------
-void Parse::array_store(BasicType elem_type) {
-  const Type* elem = Type::TOP;
-  Node* adr = array_addressing(elem_type, 1, &elem);
+void Parse::array_store(BasicType bt) {
+  const Type* elemtype = Type::TOP;
+  Node* adr = array_addressing(bt, type2size[bt], &elemtype);
   if (stopped())  return;     // guaranteed null or range check
-
-  Node* val = peek(0); // Value to store
-  Node* idx = peek(1); // Index in the array
-  Node* ary = peek(2); // The array itself
-
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
-  if (elem_type != T_OBJECT) {
-    dec_sp(3); // Pop array, index and value
-    if (elem == TypeInt::BOOL) {
-      elem_type = T_BOOLEAN;
-    }
-    store_to_memory(control(), adr, val, elem_type, adr_type, StoreNode::release_if_reference(elem_type));
-    return;
+  Node* cast_val = NULL;
+  if (bt == T_OBJECT) {
+    cast_val = array_store_check();
+    if (stopped()) return;
   }
-
-  Node* cast_val = array_store_check(ary, idx, val);
-  if (stopped()) return;
-  dec_sp(3); // Pop array, index and value
+  Node* val = pop_node(bt); // Value to store
+  Node* idx = pop();        // Index in the array
+  Node* ary = pop();        // The array itself
 
   // Handle value type arrays
-  const TypeValueType* vt = _gvn.type(cast_val)->isa_valuetype();
-  if (vt != NULL && vt->value_klass()->flatten_array()) {
-    // Store to flattened value type array
-    if (elem->isa_valuetype() == NULL) {
-      // Object/interface array must be flattened, cast it
-      assert(elem->make_oopptr()->can_be_value_type(), "must be object or interface array");
-      ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
-      const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-      ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-      adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
+  if (bt == T_OBJECT) {
+    const TypeValueType* vt = _gvn.type(cast_val)->isa_valuetype();
+    if (vt != NULL && vt->value_klass()->flatten_array()) {
+      // Store to flattened value type array
+      if (elemtype->isa_valuetype() == NULL) {
+        // Object/interface array must be flattened, cast it
+        assert(elemtype->make_oopptr()->can_be_value_type(), "must be object or interface array");
+        ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
+        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+        ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
+        adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
+      }
+      cast_val->as_ValueType()->store_flattened(this, ary, adr);
+      return;
+    } else if (vt != NULL) {
+      // Store to non-flattened value type array
+      bt = T_VALUETYPE;
+      val = cast_val;
     }
-    cast_val->as_ValueType()->store_flattened(this, ary, adr);
-    return;
-  } else if (vt != NULL) {
-    // Store to non-flattened value type array
-    elem_type = T_VALUETYPE;
-    val = cast_val;
   }
 
-  store_oop_to_array(control(), ary, adr, adr_type, val, elem->make_oopptr(), elem_type,
-                     StoreNode::release_if_reference(T_OBJECT));
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
+  }
+
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+  access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IN_HEAP_ARRAY);
 }
 
 
@@ -2195,49 +2201,22 @@ void Parse::do_one_bytecode() {
     break;
   }
 
-  case Bytecodes::_baload: array_load(T_BYTE);   break;
-  case Bytecodes::_caload: array_load(T_CHAR);   break;
-  case Bytecodes::_iaload: array_load(T_INT);    break;
-  case Bytecodes::_saload: array_load(T_SHORT);  break;
-  case Bytecodes::_faload: array_load(T_FLOAT);  break;
-  case Bytecodes::_aaload: array_load(T_OBJECT); break;
-  case Bytecodes::_laload: {
-    a = array_addressing(T_LONG, 0);
-    if (stopped())  return;     // guaranteed null or range check
-    dec_sp(2);                  // Pop array and index
-    push_pair(make_load(control(), a, TypeLong::LONG, T_LONG, TypeAryPtr::LONGS, MemNode::unordered));
-    break;
-  }
-  case Bytecodes::_daload: {
-    a = array_addressing(T_DOUBLE, 0);
-    if (stopped())  return;     // guaranteed null or range check
-    dec_sp(2);                  // Pop array and index
-    push_pair(make_load(control(), a, Type::DOUBLE, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered));
-    break;
-  }
+  case Bytecodes::_baload:  array_load(T_BYTE);    break;
+  case Bytecodes::_caload:  array_load(T_CHAR);    break;
+  case Bytecodes::_iaload:  array_load(T_INT);     break;
+  case Bytecodes::_saload:  array_load(T_SHORT);   break;
+  case Bytecodes::_faload:  array_load(T_FLOAT);   break;
+  case Bytecodes::_aaload:  array_load(T_OBJECT);  break;
+  case Bytecodes::_laload:  array_load(T_LONG);    break;
+  case Bytecodes::_daload:  array_load(T_DOUBLE);  break;
   case Bytecodes::_bastore: array_store(T_BYTE);   break;
   case Bytecodes::_castore: array_store(T_CHAR);   break;
   case Bytecodes::_iastore: array_store(T_INT);    break;
   case Bytecodes::_sastore: array_store(T_SHORT);  break;
   case Bytecodes::_fastore: array_store(T_FLOAT);  break;
   case Bytecodes::_aastore: array_store(T_OBJECT); break;
-  case Bytecodes::_lastore: {
-    a = array_addressing(T_LONG, 2);
-    if (stopped())  return;     // guaranteed null or range check
-    c = pop_pair();
-    dec_sp(2);                  // Pop array and index
-    store_to_memory(control(), a, c, T_LONG, TypeAryPtr::LONGS, MemNode::unordered);
-    break;
-  }
-  case Bytecodes::_dastore: {
-    a = array_addressing(T_DOUBLE, 2);
-    if (stopped())  return;     // guaranteed null or range check
-    c = pop_pair();
-    dec_sp(2);                  // Pop array and index
-    c = dstore_rounding(c);
-    store_to_memory(control(), a, c, T_DOUBLE, TypeAryPtr::DOUBLES, MemNode::unordered);
-    break;
-  }
+  case Bytecodes::_lastore: array_store(T_LONG);   break;
+  case Bytecodes::_dastore: array_store(T_DOUBLE); break;
 
   case Bytecodes::_getfield:
     do_getfield();

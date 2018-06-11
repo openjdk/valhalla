@@ -847,8 +847,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   experimental(intx, SyncVerbose, 0, "(Unstable)")                          \
                                                                             \
-  diagnostic(bool, InlineNotify, true, "intrinsify subset of notify")       \
-                                                                            \
   experimental(intx, hashCode, 5,                                           \
                "(Unstable) select hashCode generation algorithm")           \
                                                                             \
@@ -2620,12 +2618,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   experimental(bool, AlwaysAtomicAccesses, false,                           \
           "Accesses to all variables should always be atomic")              \
                                                                             \
-  product(bool, EnableTracing, false,                                       \
-          "Enable event-based tracing")                                     \
-                                                                            \
-  product(bool, UseLockedTracing, false,                                    \
-          "Use locked-tracing when doing event-based tracing")              \
-                                                                            \
   diagnostic(bool, UseUnalignedAccesses, false,                             \
           "Use unaligned memory accesses in Unsafe")                        \
                                                                             \
@@ -2674,6 +2666,18 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   experimental(bool, UseSwitchProfiling, true,                              \
           "leverage profiling for table/lookup switch")                     \
                                                                             \
+  JFR_ONLY(product(bool, FlightRecorder, false,                             \
+          "Enable Flight Recorder"))                                        \
+                                                                            \
+  JFR_ONLY(product(ccstr, FlightRecorderOptions, NULL,                      \
+          "Flight Recorder options"))                                       \
+                                                                            \
+  JFR_ONLY(product(ccstr, StartFlightRecording, NULL,                       \
+          "Start flight recording with options"))                           \
+                                                                            \
+  experimental(bool, UseFastUnorderedTimeStamps, false,                     \
+          "Use platform unstable time where supported for timestamps only") \
+                                                                            \
   product(bool, EnableValhalla, false,                                      \
           "Enable experimental Valhalla features")                          \
                                                                             \
@@ -2703,7 +2707,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
           "stress return of fields instead of a value type reference")      \
-
 
 
 #define VM_FLAGS(develop,                                                   \

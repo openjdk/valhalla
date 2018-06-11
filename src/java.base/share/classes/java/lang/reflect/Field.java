@@ -1164,6 +1164,11 @@ class Field extends AccessibleObject implements Member {
         }
     }
 
+    @Override
+    Field getRoot() {
+        return root;
+    }
+
     /**
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5

@@ -1482,7 +1482,7 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     if (projs->resproj[0] != NULL) {
       igvn->replace_node(projs->resproj[0], phase->C->top());
     }
-    igvn->remove_dead_node(this);
+    igvn->replace_node(this, phase->C->top());
     return NULL;
   }
 

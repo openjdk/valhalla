@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8190003
+ * @bug 8190003 8196201 8196202
  * @summary Special characters in group names should be escaped
  * @library /tools/lib ../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
@@ -58,13 +58,14 @@ public class TestGroupName extends JavadocTester {
                 "package p3; public class C3 { }");
 
         javadoc("-d", base.resolve("out").toString(),
+                "--frames",
                 "-sourcepath", src.toString(),
                 "-group", "abc < & > def", "p1",
                 "p1", "p2", "p3");
         checkExit(Exit.OK);
 
         checkOutput("overview-summary.html", true,
-                "<span><a href=\"javascript:showGroups(1);\">abc &lt; &amp; &gt; def</a></span>",
+                "<span><a href=\"javascript:show(1);\">abc &lt; &amp; &gt; def</a></span>",
                 ",\"abc < & > def\"],");
     }
 
@@ -90,6 +91,7 @@ public class TestGroupName extends JavadocTester {
                 "package pc3; public class CC3 { }");
 
         javadoc("-d", base.resolve("out").toString(),
+                "--frames",
                 "--module-source-path", src.toString(),
                 "-group", "abc < & > def", "ma",
                 "--module", "ma,mb,mc");
@@ -97,7 +99,7 @@ public class TestGroupName extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("overview-summary.html", true,
-                "<span><a href=\"javascript:showGroups(1);\">abc &lt; &amp; &gt; def</a></span>",
+                "<span><a href=\"javascript:show(1);\">abc &lt; &amp; &gt; def</a></span>",
                 ",\"abc < & > def\"],");
     }
 }

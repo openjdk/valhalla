@@ -571,7 +571,6 @@ public class AccessibleObject implements AnnotatedElement {
         throw new AssertionError("All subclasses should override this method");
     }
 
-
     // Shared access checking logic.
 
     // For non-public members or members in package-private classes,
@@ -680,5 +679,14 @@ public class AccessibleObject implements AnnotatedElement {
             printStackPropertiesSet = true;
         }
         return printStackWhenAccessFails;
+    }
+
+    /**
+     * Returns the root AccessibleObject; or null if this object is the root.
+     *
+     * All subclasses override this method.
+     */
+    AccessibleObject getRoot() {
+        throw new InternalError();
     }
 }
