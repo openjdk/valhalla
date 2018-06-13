@@ -916,18 +916,15 @@ static void cast_argument(int arg_nb, ciType* t, GraphKit& kit) {
   Node* arg = kit.argument(arg_nb);
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
-  if (t->is_valuetype()) {
-    if (arg_type->is_valuetypeptr()) {
+  if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
+    if (sig_type->is_valuetypeptr()) {
       // Value type arguments cannot be NULL
       sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
-      Node* cast = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-      ValueTypeNode* vt = ValueTypeNode::make_from_oop(&kit, cast, t->as_value_klass());
-      kit.set_argument(arg_nb, vt);
-    } else {
-      assert(arg->is_ValueType(), "inconsistent argument");
     }
-  } else if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
     Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
+    if (sig_type->is_valuetypeptr()) {
+      cast_obj = ValueTypeNode::make_from_oop(&kit, cast_obj, t->as_value_klass());
+    }
     kit.set_argument(arg_nb, cast_obj);
   }
 }

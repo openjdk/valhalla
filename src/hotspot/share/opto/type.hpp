@@ -777,6 +777,9 @@ public:
   virtual const Type* xmeet(const Type* t) const;
   virtual const Type* xdual() const;     // Compute dual right now.
 
+  virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const { return false; }
+  virtual bool would_improve_ptr(ProfilePtrKind ptr_kind) const { return false; }
+
 #ifndef PRODUCT
   virtual void dump2(Dict &d, uint, outputStream* st) const; // Specialized per-Type dumping
 #endif
