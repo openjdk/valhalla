@@ -799,7 +799,6 @@ public class TestArrays extends ValueTypeTest {
     public Object[] test34(boolean flag) {
         Object[] va = test34_helper(flag);
         test34_orig = va;
-
         return va.clone();
     }
 
@@ -898,6 +897,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
+    @Warmup(1) // Avoid early compilation
     public void test38(Object[] src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
@@ -948,6 +948,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
+    @Warmup(1) // Avoid early compilation
     public void test40(Object[] src, Object[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
@@ -1083,6 +1084,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
+    @Warmup(1) // Avoid early compilation
     public void test46(Object[] src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
@@ -1131,6 +1133,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
+    @Warmup(1) // Avoid early compilation
     public void test48(Object[] src, Object[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
