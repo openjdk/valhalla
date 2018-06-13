@@ -1199,7 +1199,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     const TypeAryPtr* top_dest = dest_type->isa_aryptr();
 
     BasicType dest_elem = top_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass()) {
+    if (dest_elem == T_ARRAY || (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass())) {
       dest_elem = T_OBJECT;
     }
 
@@ -1262,12 +1262,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   if (top_src != NULL && top_src->klass() != NULL) {
     src_elem = top_src->klass()->as_array_klass()->element_type()->basic_type();
   }
-  if (src_elem == T_ARRAY ||
-      (src_elem == T_VALUETYPE && top_src->klass()->is_obj_array_klass())) {
+  if (src_elem == T_ARRAY || (src_elem == T_VALUETYPE && top_src->klass()->is_obj_array_klass())) {
     src_elem = T_OBJECT;
   }
-  if (dest_elem == T_ARRAY ||
-      (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass())) {
+  if (dest_elem == T_ARRAY || (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass())) {
     dest_elem = T_OBJECT;
   }
 
@@ -1396,18 +1394,18 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
-  }
 
-  if (dest_elem == T_OBJECT &&
-      ValueArrayFlatten &&
-      top_dest->elem()->make_oopptr()->can_be_value_type()) {
-    generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
-  }
+    if (dest_elem == T_OBJECT &&
+        ValueArrayFlatten &&
+        top_dest->elem()->make_oopptr()->can_be_value_type()) {
+      generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
+    }
 
-  if (src_elem == T_OBJECT &&
-      ValueArrayFlatten &&
-      top_src->elem()->make_oopptr()->can_be_value_type()) {
-    generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
+    if (src_elem == T_OBJECT &&
+        ValueArrayFlatten &&
+        top_src->elem()->make_oopptr()->can_be_value_type()) {
+      generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
+    }
   }
 
   // This is where the memory effects are placed:
