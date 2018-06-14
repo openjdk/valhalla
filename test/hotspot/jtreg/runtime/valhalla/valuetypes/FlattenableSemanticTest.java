@@ -145,7 +145,7 @@ public class FlattenableSemanticTest {
                                   .aload(1)
                                   .putstatic(thisClass, name, sig)
                                   .return_();
-                          });
+                          }, argType);
         } else {
             return MethodHandleBuilder
                 .loadCode(mhLookup, "set_" + name, mt,
@@ -155,7 +155,7 @@ public class FlattenableSemanticTest {
                                   .aload(1)
                                   .putfield(thisClass, name, sig)
                                   .return_();
-                          });
+                          }, argType);
         }
     }
 

@@ -2064,7 +2064,8 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
         collect_value_fields(vk, field_array, pos);
       } else {
         // Value types arguments cannot be NULL
-        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
+        //field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
+        field_array[pos++] = get_const_type(type);
       }
       break;
     }

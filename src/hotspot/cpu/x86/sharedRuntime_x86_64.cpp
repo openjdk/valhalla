@@ -1025,6 +1025,8 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // If this happens, control eventually transfers back to the compiled
   // caller, but with an uncorrected stack, causing delayed havoc.
 
+  /*
+  // TODO we currently check value type arguments for null at compiled method entry
   Label value_arg_is_null;
   bool has_null_check = false;
   if (EnableValhalla) {
@@ -1039,6 +1041,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       }
     }
   }
+  */
 
   // Pick up the return address
   __ movptr(rax, Address(rsp, 0));
@@ -1196,12 +1199,14 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ mov(rax, rbx);
   __ jmp(r11);
 
+  /*
   if (has_null_check) {
     __ bind(value_arg_is_null);
     // TODO For now, we just call the interpreter if a value type argument is NULL
     __ movptr(r11, Address(rbx, in_bytes(Method::interpreter_entry_offset())));
     __ jmp(r11);
   }
+  */
 }
 
 // ---------------------------------------------------------------

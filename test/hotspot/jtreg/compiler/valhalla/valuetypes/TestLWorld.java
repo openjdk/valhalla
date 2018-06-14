@@ -1795,10 +1795,4 @@ public class TestLWorld extends ValueTypeTest {
         boolean result = test63(new Integer(42));
         Asserts.assertFalse(result);
     }
-
-    // TODO add IR matching rules
-
-    // TODO more instanceof tests
-
-    // TODO Add tests for value type with non-flattened/non-flattenable value type field
 }
