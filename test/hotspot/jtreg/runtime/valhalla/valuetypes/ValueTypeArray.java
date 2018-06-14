@@ -411,8 +411,7 @@ public class ValueTypeArray {
         oarr = new Object[3];
         try {
             System.arraycopy(oarr, 0, pts, 0, 3);
-            // TODO fix this
-            //throw new RuntimeException("Expected NPE");
+            throw new RuntimeException("Expected NPE");
         }
         catch (NullPointerException npe) {}
 

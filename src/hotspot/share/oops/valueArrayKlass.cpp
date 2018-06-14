@@ -296,12 +296,12 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
          src_pos++;
        }
      }
-   } else { // objArray-to-valueArray
-     assert(d->is_valueArray(), "objArray copy to valueArray expected");
-
+   } else {
+     assert(s->is_objArray(), "Expected objArray");
+     objArrayOop sa = objArrayOop(s);
+     assert(d->is_valueArray(), "Excepted valueArray");  // objArray-to-valueArray
      ValueKlass* d_elem_vklass = ValueKlass::cast(d_elem_klass);
      valueArrayOop da = valueArrayOop(d);
-     objArrayOop sa = objArrayOop(s);
 
      int src_end = src_pos + length;
      int delem_incr = 1 << dk->log2_element_size();

@@ -226,9 +226,11 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
                                int dst_pos, int length, TRAPS) {
   assert(s->is_objArray(), "must be obj array");
 
-  if (d->is_valueArray()) {
-    ValueArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
-    return;
+  if (EnableValhalla) {
+    if (d->is_valueArray()) {
+      ValueArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+      return;
+    }
   }
 
   if (!d->is_objArray()) {
@@ -274,7 +276,26 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
   if (length==0) {
     return;
   }
-  if (UseCompressedOops) {
+  if (EnableValhalla && ArrayKlass::cast(d->klass())->element_klass()->is_value()) {
+    assert(d->is_objArray(), "Expected objArray");
+    ValueKlass* d_elem_vklass = ValueKlass::cast(ArrayKlass::cast(d->klass())->element_klass());
+    objArrayOop da = objArrayOop(d);
+    objArrayOop sa = objArrayOop(s);
+    int src_end = src_pos + length;
+    while (src_pos < src_end) {
+      oop se = sa->obj_at(src_pos);
+      if (se == NULL) {
+        THROW(vmSymbols::java_lang_NullPointerException());
+      }
+      // Check exact type per element
+      if (se->klass() != d_elem_vklass) {
+        THROW(vmSymbols::java_lang_ArrayStoreException());
+      }
+      da->obj_at_put(dst_pos, se);  // TODO: review with ValueArrayKlass::copy_array and Access API
+      dst_pos++;
+      src_pos++;
+    }
+  } else if (UseCompressedOops) {
     narrowOop* const src = objArrayOop(s)->obj_at_addr<narrowOop>(src_pos);
     narrowOop* const dst = objArrayOop(d)->obj_at_addr<narrowOop>(dst_pos);
     do_copy<narrowOop>(s, src, d, dst, length, CHECK);
