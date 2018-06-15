@@ -317,6 +317,12 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     base_dest = dest->in(AddPNode::Base);
 
     assert(phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con() == phase->type(dest->in(AddPNode::Offset))->is_intptr_t()->get_con(), "same start offset?");
+
+    if (ary_src->elem()->make_oopptr() != NULL &&
+        ary_src->elem()->make_oopptr()->can_be_value_type()) {
+      return false;
+    }
+
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     if (elem == T_ARRAY ||
         (elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass())) {

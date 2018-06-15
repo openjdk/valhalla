@@ -3612,8 +3612,10 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
   const TypeInstPtr* mirror_t = _gvn.type(array_type_mirror)->isa_instptr();
   if (EnableValhalla && ValueArrayFlatten &&
       (original_t == NULL || mirror_t == NULL ||
-       (mirror_t->java_mirror_type() == NULL && original_t->elem()->make_oopptr() != NULL &&
-        original_t->elem()->make_oopptr()->can_be_value_type()))) {
+       (mirror_t->java_mirror_type() == NULL &&
+        (original_t->elem()->isa_valuetype() ||
+         (original_t->elem()->make_oopptr() != NULL &&
+          original_t->elem()->make_oopptr()->can_be_value_type()))))) {
     // We need to know statically if the copy is to a flattened array
     // or not but can't tell.
     return false;

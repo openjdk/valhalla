@@ -805,9 +805,13 @@ public class TestArrays extends ValueTypeTest {
     @DontCompile
     public void test34_verifier(boolean warmup) {
         test34(false);
-        MyValue1[] result = (MyValue1[])test34(true);
-        for (int i = 0; i < test34_orig.length; ++i) {
-            Asserts.assertEQ(result[i].hash(), ((MyValue1[])test34_orig)[i].hash());
+        for (int i = 0; i < 10; i++) { // make sure we do deopt
+            MyValue1[] result = (MyValue1[])test34(true);
+            verify(test34_orig, result);
+        }
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test34")) {
+            MyValue1[] result = (MyValue1[])test34(true);
+            verify(test34_orig, result);
         }
     }
 
@@ -1327,8 +1331,14 @@ public class TestArrays extends ValueTypeTest {
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
-        Object[] result = test58(va, MyValue1[].class);
-        verify(va, result);
+        for (int i = 0; i < 10; i++) {
+            Object[] result = test58(va, MyValue1[].class);
+            verify(va, result);
+        }
+        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test58")) {
+            Object[] result = test58(va, MyValue1[].class);
+            verify(va, result);
+        }
     }
 
     @Test
