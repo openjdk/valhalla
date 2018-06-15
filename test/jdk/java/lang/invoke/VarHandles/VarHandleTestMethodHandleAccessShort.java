@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @run testng/othervm -Xint -Diters=2000 VarHandleTestMethodHandleAccessShort
+ * @run testng/othervm -XX:+EnableValhalla -Diters=2000 VarHandleTestMethodHandleAccessShort
  */
 
 import org.testng.annotations.BeforeClass;

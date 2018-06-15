@@ -78,6 +78,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
 
         vhArray = MethodHandles.arrayElementVarHandle(String[].class);
         vhArrayObject = MethodHandles.arrayElementVarHandle(Object[].class);
+
     }
 
 

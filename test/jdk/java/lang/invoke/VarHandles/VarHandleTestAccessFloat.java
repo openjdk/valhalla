@@ -23,12 +23,10 @@
 
 /*
  * @test
- * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessFloat
- */
-/* Disabled temporarily for lworld
- * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessFloat
- * @run testng/othervm -Diters=20000                         VarHandleTestAccessFloat
- * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessFloat
+ * @run testng/othervm -Diters=10    -XX:+EnableValhalla -Xint                   VarHandleTestAccessFloat
+ * @run testng/othervm -Diters=20000 -XX:+EnableValhalla -XX:TieredStopAtLevel=1 VarHandleTestAccessFloat
+ * @run testng/othervm -Diters=20000 -XX:+EnableValhalla                         VarHandleTestAccessFloat
+ * @run testng/othervm -Diters=20000 -XX:+EnableValhalla -XX:-TieredCompilation  VarHandleTestAccessFloat
  */
 
 import org.testng.annotations.BeforeClass;

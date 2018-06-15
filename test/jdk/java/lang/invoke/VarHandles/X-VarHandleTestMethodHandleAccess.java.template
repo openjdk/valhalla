@@ -24,7 +24,7 @@
 /*
  * @test
 #if[Value]
- * @run testng/othervm -Xint -Diters=2000 VarHandleTestMethodHandleAccess$Type$
+ * @run testng/othervm -XX:+EnableValhalla -Diters=2000 VarHandleTestMethodHandleAccess$Type$
 #else[Value]
  * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccess$Type$
 #end[Value]
