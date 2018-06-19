@@ -49,8 +49,7 @@ public final class ValueBootstrapMethods {
     /**
      * Makes a bootstrap method for the named operation for the given Class.
      *
-     * @apiNote {@code c} parameter is temporary until javac generates code
-     * for value types
+     * @apiNote {@code c} parameter for testing purpose.  This method will be removed.
      *
      * @param caller    A lookup context
      * @param name      The name of the method to implement.
@@ -64,9 +63,25 @@ public final class ValueBootstrapMethods {
                                                Class<?> c) {
         MethodHandles.Lookup lookup = caller;
         if (caller.lookupClass() != c) {
-            // temporary for testing
             lookup = new MethodHandles.Lookup(c);
         }
+        return makeBootstrapMethod(lookup, name, type);
+    }
+
+    /**
+     * Makes a bootstrap method for the named operation for the given Class.
+     *
+     * @apiNote {@code c} parameter is temporary until javac generates code
+     * for value types
+     *
+     * @param lookup    A lookup context
+     * @param name      The name of the method to implement.
+     * @param type      The expected signature of the {@code CallSite}
+     * @return a CallSite whose target can be used to perform the named operation
+     */
+    public static CallSite makeBootstrapMethod(MethodHandles.Lookup lookup,
+                                               String name,
+                                               MethodType type) {
         return new ConstantCallSite(generateTarget(lookup, name, type));
     }
 

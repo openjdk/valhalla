@@ -57,10 +57,6 @@ public class ValueBootstrapMethods {
         int hash = (int)hashCode.invoke(null, value);
         assertEquals(hash, value.hashCode());
 
-        Method longHashCode = test.getMethod("longHashCode", Object.class);
-        long lHash = (long)longHashCode.invoke(null, value);
-        assertEquals(lHash, value.longHashCode());
-
         Method toString = test.getMethod("toString", Object.class);
         String s = (String)toString.invoke(null, value);
         assertEquals(s, value.toString());
@@ -92,20 +88,12 @@ public class ValueBootstrapMethods {
             return v;
         }
 
-        private List<Object> values() {
+        List<Object> values() {
             return List.of(Value.class, i, d, s, l);
         }
 
         public int hashCode() {
             return values().hashCode();
-        }
-
-        public long longHashCode() {
-            long hash = 1;
-            for (Object o : values()) {
-                hash = 31 * hash + o.hashCode();
-            }
-            return hash;
         }
 
         public String toString() {

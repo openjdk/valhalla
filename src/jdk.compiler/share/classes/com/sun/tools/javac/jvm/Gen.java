@@ -60,6 +60,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
  *  deletion without notice.</b>
  */
 public class Gen extends JCTree.Visitor {
+    private static final Object[] NO_STATIC_ARGS = new Object[0];
     protected static final Context.Key<Gen> genKey = new Context.Key<>();
 
     private final Log log;
@@ -1042,8 +1043,7 @@ public class Gen extends JCTree.Visitor {
 
             List<Type> bsm_staticArgs = List.of(syms.methodHandleLookupType,
                                                 syms.stringType,
-                                                syms.methodTypeType,
-                                                syms.classType);
+                                                syms.methodTypeType);
 
             Symbol bsm = rs.resolveInternalMethod(methodDecl.pos(),
                     getAttrEnv(),
@@ -1057,7 +1057,7 @@ public class Gen extends JCTree.Visitor {
                     ClassFile.REF_invokeStatic,
                     (Symbol.MethodSymbol)bsm,
                     indyType,
-                    List.of(methodDecl.sym.owner).toArray());
+                    NO_STATIC_ARGS);
 
 
             switch (methodDecl.name.toString()) {
