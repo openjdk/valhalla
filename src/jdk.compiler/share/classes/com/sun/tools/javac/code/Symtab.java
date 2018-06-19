@@ -208,6 +208,7 @@ public class Symtab {
     public final Type trustMeType;
     public final Type lambdaMetafactory;
     public final Type stringConcatFactory;
+    public final Type valueBootstrapMethods;
     public final Type repeatableType;
     public final Type documentedType;
     public final Type elementTypeType;
@@ -565,6 +566,7 @@ public class Symtab {
         nativeHeaderType = enterClass("java.lang.annotation.Native");
         lambdaMetafactory = enterClass("java.lang.invoke.LambdaMetafactory");
         stringConcatFactory = enterClass("java.lang.invoke.StringConcatFactory");
+        valueBootstrapMethods = enterClass("java.lang.invoke.ValueBootstrapMethods");
         functionalInterfaceType = enterClass("java.lang.FunctionalInterface");
         valueBasedType = enterClass("java.lang.ValueBased");
 

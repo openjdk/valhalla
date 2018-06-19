@@ -964,6 +964,10 @@ public class TypeEnter implements Completer {
             }
             memberEnter.memberEnter(tree.defs, env);
 
+            if ((tree.mods.flags & (Flags.VALUE | Flags.INTERFACE)) == Flags.VALUE && !tree.sym.type.hasTag(ERROR)) {
+                addValueMembers(tree, env);
+            }
+
             if (tree.sym.isAnnotationType()) {
                 Assert.check(tree.sym.isCompleted());
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
@@ -1004,6 +1008,105 @@ public class TypeEnter implements Completer {
             memberEnter.memberEnter(valueOf, env);
         }
 
+        /** Add the implicit members for a value type to the parse tree and the symbol table.
+         */
+        private void addValueMembers(JCClassDecl tree, Env<AttrContext> env) {
+
+            boolean requireHashCode = true, requireEquals = true, requireToString = true;
+
+            for (JCTree def : tree.defs) {
+                if (def.getTag() == METHODDEF) {
+                    JCMethodDecl methodDecl = (JCMethodDecl)def;
+                    if (methodDecl.sym != null
+                            && methodDecl.sym.type != null
+                            && !methodDecl.sym.type.isErroneous()
+                            && (methodDecl.sym.flags() & STATIC) == 0) {
+                        final List<Type> parameterTypes = methodDecl.sym.type.getParameterTypes();
+                        switch (parameterTypes.size()) {
+                            case 0:
+                                String name = methodDecl.name.toString();
+                                if (name.equals("hashCode"))
+                                    requireHashCode = false;
+                                else if (name.equals("toString"))
+                                    requireToString = false;
+                                break;
+                            case 1:
+                                name = methodDecl.name.toString();
+                                if (name.equals("equals") && parameterTypes.head.tsym == syms.objectType.tsym)
+                                    requireEquals = false;
+                                break;
+                        }
+                    }
+                }
+            }
+
+            make.at(tree.pos());
+            // Make a body comprising { throw new RuntimeException(""Internal error: This method must have been replaced by javac"); }
+            JCBlock body = make.Block(Flags.SYNTHETIC, List.of(make.Throw(
+                    make.NewClass(null,
+                            null,
+                            make.Ident(names.fromString("RuntimeException")),
+                            List.of(make.Literal(CLASS, "Internal error: This method must have been replaced by javac")),
+                            null))));
+
+            if (requireHashCode) {
+                // public int hashCode() { throw new RuntimeException(message); }
+                JCMethodDecl hashCode = make.
+                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
+                                names.hashCode,
+                                make.TypeIdent(TypeTag.INT),
+                                List.nil(),
+                                List.nil(),
+                                List.nil(), // thrown
+                                body,
+                                null);
+                memberEnter.memberEnter(hashCode, env);
+                tree.defs = tree.defs.append(hashCode);
+            }
+
+            if (requireEquals) {
+                // public boolean equals(Object o) { throw new RuntimeException(message); }
+                JCMethodDecl equals = make.
+                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
+                                names.equals,
+                                make.TypeIdent(TypeTag.BOOLEAN),
+                                List.nil(),
+                                List.of(make.VarDef(make.Modifiers(PARAMETER), names.fromString("o"), make.Ident(names.fromString("Object")), null )),
+                                List.nil(), // thrown
+                                body,
+                                null);
+                memberEnter.memberEnter(equals, env);
+                tree.defs = tree.defs.append(equals);
+            }
+
+            if (requireToString) {
+                // public String toString() { throw new RuntimeException(message); }
+                JCMethodDecl toString = make.
+                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
+                                names.toString,
+                                make.Ident(names.fromString("String")),
+                                List.nil(),
+                                List.nil(),
+                                List.nil(), // thrown
+                                body,
+                                null);
+                memberEnter.memberEnter(toString, env);
+                tree.defs = tree.defs.append(toString);
+            }
+
+            // emit placeholder for: public long longHashCode() { throw new RuntimeException(message); }
+            JCMethodDecl longHashCode = make.
+                    MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
+                            names.fromString("longHashCode"),
+                            make.TypeIdent(TypeTag.LONG),
+                            List.nil(),
+                            List.nil(),
+                            List.nil(), // thrown
+                            body,
+                            null);
+            memberEnter.memberEnter(longHashCode, env);
+            tree.defs = tree.defs.append(longHashCode);
+        }
     }
 
 /* ***************************************************************************

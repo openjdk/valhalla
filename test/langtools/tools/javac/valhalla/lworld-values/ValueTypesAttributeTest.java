@@ -68,12 +68,12 @@ public class ValueTypesAttributeTest {
         runCheck(params, new String [] {
 
          "ValueTypes:",
-         "#3;                                     // value class ValueTypesAttributeTest$X",
-         "#20;                                    // value class V2",
-         "#23;                                    // value class V3",
-         "#32;                                    // value class V4",
-         "#37;                                    // value class V5",
-         "#6;                                     // value class V1",
+         "#36;                                    // value class V4",
+         "#24;                                    // value class V2",
+         "#7;                                     // value class ValueTypesAttributeTest$X",
+         "#10;                                    // value class V1",
+         "#27;                                    // value class V3",
+         "#41;                                    // value class V5",
            
          }, new String [] {
          });
