@@ -71,9 +71,6 @@ public final class ValueBootstrapMethods {
     /**
      * Makes a bootstrap method for the named operation for the given Class.
      *
-     * @apiNote {@code c} parameter is temporary until javac generates code
-     * for value types
-     *
      * @param lookup    A lookup context
      * @param name      The name of the method to implement.
      * @param type      The expected signature of the {@code CallSite}
