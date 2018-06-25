@@ -22,6 +22,7 @@
  */
 
 // key: compiler.warn.suspicious.mix.of.null.with.value.based.class
+// options: -XDallowValueBasedClasses
 
 @ValueBased
 class I {
