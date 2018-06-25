@@ -1,0 +1,7 @@
+ValueOverGenericsTest.java:13:15: compiler.err.type.found.req: ValueOverGenericsTest, (compiler.misc.type.req.ref)
+ValueOverGenericsTest.java:14:24: compiler.err.type.found.req: ValueOverGenericsTest, (compiler.misc.type.req.ref)
+ValueOverGenericsTest.java:15:14: compiler.err.type.found.req: ValueOverGenericsTest, (compiler.misc.type.req.ref)
+ValueOverGenericsTest.java:16:15: compiler.err.type.found.req: ValueOverGenericsTest, (compiler.misc.type.req.ref)
+ValueOverGenericsTest.java:17:21: compiler.err.type.found.req: ValueOverGenericsTest, (compiler.misc.type.req.ref)
+ValueOverGenericsTest.java:17:59: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, ValueOverGenericsTest&java.io.Serializable)
+6 errors

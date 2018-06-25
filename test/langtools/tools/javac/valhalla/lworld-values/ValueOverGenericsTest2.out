@@ -1,0 +1,2 @@
+ValueOverGenericsTest.java:17:59: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, ValueOverGenericsTest&java.io.Serializable)
+1 error

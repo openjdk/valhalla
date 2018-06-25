@@ -94,6 +94,7 @@ public class Check {
     private final Profile profile;
     private final boolean warnOnAnyAccessToMembers;
     private final boolean rejectValueMembershipCycles;
+    private final boolean allowGenericsOverValues;
 
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
@@ -135,6 +136,7 @@ public class Check {
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
         rejectValueMembershipCycles = options.isSet("rejectValueMembershipCycles");
+        allowGenericsOverValues = options.isSet("allowGenericsOverValues");
 
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
@@ -772,7 +774,7 @@ public class Check {
     List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head);
+            l.head = checkRefType(tl.head.pos(), l.head, allowGenericsOverValues);
             tl = tl.tail;
         }
         return types;

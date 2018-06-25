@@ -23,10 +23,10 @@
 
 /**
  * @test
- * @summary Test that values code like a class - i.e are accepted in some places where only references used be
+ * @summary Test that values code like a class - i.e are accepted in some places where only references used be, when invoked with the experimental mode -XDallowGenericsOverValues
+   @compile  -XDallowGenericsOverValues ValuesAsRefs.java
  * @run main ValuesAsRefs
  */
-
 import java.util.ArrayList;
 
 public final __ByValue class ValuesAsRefs {
