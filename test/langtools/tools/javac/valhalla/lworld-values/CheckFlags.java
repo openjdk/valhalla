@@ -39,5 +39,15 @@ public class CheckFlags {
 
         if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
             throw new Exception("Value flag not set");
+
+        if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
+            throw new Exception("Final flag not set");
+
+        Field [] flds = cls.fields;
+
+        for (Field fld : flds) {
+            if (!fld.access_flags.is(AccessFlags.ACC_FINAL))
+                throw new Exception("Final flag not set");
+        }
     }
 }

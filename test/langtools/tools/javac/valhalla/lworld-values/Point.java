@@ -30,10 +30,10 @@
  * @compile Point.java
  */
 
-final __ByValue class Point {
+__ByValue class Point {
     static final __NotFlattened Point origin = makePoint(10, 20);
-    final int x;
-    final int y;
+    int x;
+    int y;
     Point () {
         x = 10;
         y = 20;
