@@ -1,0 +1,4 @@
+ValueBasedWarningsTest.java:13:18: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, ValueBasedWarningsTest.X)
+ValueBasedWarningsTest.java:14:22: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, ValueBasedWarningsTest.X)
+ValueBasedWarningsTest.java:15:17: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, ValueBasedWarningsTest.X)
+3 errors

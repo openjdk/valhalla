@@ -95,6 +95,7 @@ public class Check {
     private final boolean warnOnAnyAccessToMembers;
     private final boolean rejectValueMembershipCycles;
     private final boolean allowGenericsOverValues;
+    private final boolean allowValueBasedClasses;
 
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
@@ -137,7 +138,7 @@ public class Check {
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
         rejectValueMembershipCycles = options.isSet("rejectValueMembershipCycles");
         allowGenericsOverValues = options.isSet("allowGenericsOverValues");
-
+        allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
@@ -2915,7 +2916,7 @@ public class Check {
         if (a.annotationType.type.tsym == syms.valueBasedType.tsym) {
             if (s.isInterface() || s.isEnum()) {
                 log.error(a.pos(), Errors.BadValueBasedAnno);
-            } else {
+            } else if (allowValueBasedClasses) {
                 s.flags_field |= VALUEBASED;
             }
         }

@@ -28,6 +28,7 @@
  * @summary Check that casting to a value type involves a null check.
  *
  * @compile Point.java
+ * @compile -XDallowValueBasedClasses CastNullCheckTest.java
  * @run main CastNullCheckTest
  */
 

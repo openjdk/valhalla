@@ -125,6 +125,10 @@ public class ClassReader {
      */
     public boolean saveParameterNames;
 
+    /** Switch: Should javac recongnize and handle value based classes specially ?
+     */
+    private boolean allowValueBasedClasses;
+
     /**
      * The currently selected profile.
      */
@@ -284,6 +288,7 @@ public class ClassReader {
         allowModules     = Feature.MODULES.allowedInSource(source);
         allowValueTypes = Feature.VALUE_TYPES.allowedInSource(source);
         saveParameterNames = options.isSet(PARAMETERS);
+        allowValueBasedClasses = options.isSet("allowValueBasedClasses");
 
         profile = Profile.instance(context);
 
@@ -1667,6 +1672,8 @@ public class ClassReader {
                     target = proxy;
                 } else if (proxy.type.tsym == syms.repeatableType.tsym) {
                     repeatable = proxy;
+                } else if (allowValueBasedClasses && sym.kind == TYP && proxy.type.tsym == syms.valueBasedType.tsym) {
+                    sym.flags_field |= VALUEBASED;
                 } else if (proxy.type.tsym == syms.deprecatedType.tsym) {
                     sym.flags_field |= (DEPRECATED | DEPRECATED_ANNOTATION);
                     for (Pair<Name, Attribute> v : proxy.values) {
@@ -2952,7 +2959,7 @@ public class ClassReader {
         }
         if ((flags & ACC_VALUE) != 0) {
             flags &= ~ACC_VALUE;
-            flags |= allowValueTypes ? VALUE : VALUEBASED;
+            flags |= allowValueTypes ? VALUE : allowValueBasedClasses ? VALUEBASED : 0;
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }

@@ -92,6 +92,7 @@ public class Types {
     final boolean allowObjectToPrimitiveCast;
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
+    final boolean allowValueBasedClasses;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -122,6 +123,7 @@ public class Types {
         messages = JavacMessages.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         noWarnings = new Warner(null);
+        allowValueBasedClasses = Options.instance(context).isSet("allowValueBasedClasses");
     }
     // </editor-fold>
 
@@ -988,7 +990,7 @@ public class Types {
     }
 
     public boolean isValueBased(Type t) {
-        return t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUEBASED) != 0;
+        return allowValueBasedClasses && t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUEBASED) != 0;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">

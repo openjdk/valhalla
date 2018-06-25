@@ -1,7 +1,8 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check that javac emits warnings rather than errors for null violation with value based classes.
- * @compile/fail/ref=ValueBasedWarningsTest.out -Werror -XDrawDiagnostics -XDdev ValueBasedWarningsTest.java
+ * @compile/fail/ref=ValueBasedWarningsTest.out -Werror -XDallowValueBasedClasses -XDrawDiagnostics -XDdev ValueBasedWarningsTest.java
+ * @compile/fail/ref=ValueBasedWarningsTest2.out -Werror -XDrawDiagnostics -XDdev ValueBasedWarningsTest.java
  */
 
 public class ValueBasedWarningsTest {

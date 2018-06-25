@@ -27,7 +27,7 @@
  * @test
  * @summary Check default setting of ACC_FLATTENABLE
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile CheckDefaultFlattenable.java
+ * @compile -XDallowValueBasedClasses CheckDefaultFlattenable.java
  * @run main CheckDefaultFlattenable
  */
 

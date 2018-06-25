@@ -1,6 +1,6 @@
-ValueBasedWarningsTest.java:12:18: compiler.warn.suspicious.mix.of.null.with.value.based.class: ValueBasedWarningsTest.X
-ValueBasedWarningsTest.java:13:22: compiler.warn.suspicious.mix.of.null.with.value.based.class: ValueBasedWarningsTest.X
-ValueBasedWarningsTest.java:14:17: compiler.warn.suspicious.mix.of.null.with.value.based.class: ValueBasedWarningsTest.X
+ValueBasedWarningsTest.java:13:18: compiler.warn.suspicious.mix.of.null.with.value.based.class: ValueBasedWarningsTest.X
+ValueBasedWarningsTest.java:14:22: compiler.warn.suspicious.mix.of.null.with.value.based.class: ValueBasedWarningsTest.X
+ValueBasedWarningsTest.java:15:17: compiler.warn.suspicious.mix.of.null.with.value.based.class: ValueBasedWarningsTest.X
 - compiler.err.warnings.and.werror
 1 error
 3 warnings
