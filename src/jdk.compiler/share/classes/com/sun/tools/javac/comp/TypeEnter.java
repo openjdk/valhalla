@@ -849,9 +849,6 @@ public class TypeEnter implements Completer {
                 !env.toplevel.sourcefile.isNameCompatible(sym.name.toString(),JavaFileObject.Kind.SOURCE)) {
                 sym.flags_field |= AUXILIARY;
             }
-            if ((tree.mods.flags & Flags.VALUE) != 0 && (tree.mods.flags & Flags.FINAL) == 0) {
-                log.error(tree.pos(), Errors.ValueMustBeFinal);
-            }
         }
     }
 

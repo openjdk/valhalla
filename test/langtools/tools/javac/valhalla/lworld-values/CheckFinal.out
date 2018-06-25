@@ -1,4 +1,6 @@
-CheckFinal.java:8:11: compiler.err.value.must.be.final
-CheckFinal.java:9:9: compiler.err.value.field.must.be.final
-CheckFinal.java:13:17: compiler.err.value.field.must.be.final
-3 errors
+CheckFinal.java:14:13: compiler.err.cant.assign.val.to.final.var: fi
+CheckFinal.java:15:13: compiler.err.cant.assign.val.to.final.var: fe
+CheckFinal.java:17:13: compiler.err.cant.assign.val.to.final.var: xsf
+CheckFinal.java:19:25: compiler.err.garbled.value.reference.instantiation
+CheckFinal.java:19:29: compiler.err.cant.inherit.from.final: CheckFinal
+5 errors

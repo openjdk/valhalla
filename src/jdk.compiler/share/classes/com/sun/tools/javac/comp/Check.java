@@ -1159,8 +1159,12 @@ public class Check {
                 mask = LocalVarFlags;
             else if ((sym.owner.flags_field & INTERFACE) != 0)
                 mask = implicit = InterfaceVarFlags;
-            else
+            else {
                 mask = VarFlags;
+                if (types.isValue(sym.owner.type) && (flags & STATIC) == 0) {
+                    implicit = FINAL;
+                }
+            }
             break;
         case MTH:
             if (sym.name == names.init) {

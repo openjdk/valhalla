@@ -2924,6 +2924,11 @@ public class JavacParser implements Parser {
         if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
             pos = Position.NOPOS;
 
+        // Force value classes to be automatically final.
+        if ((flags & (Flags.VALUE | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.VALUE) {
+            flags |= Flags.FINAL;
+        }
+
         JCModifiers mods = F.at(pos).Modifiers(flags, annotations.toList());
         if (pos != Position.NOPOS)
             storeEnd(mods, S.prevToken().endPos);

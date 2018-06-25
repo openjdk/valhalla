@@ -1152,9 +1152,6 @@ public class Attr extends JCTree.Visitor {
                 annotate.queueScanTreeAndTypeAnnotate(tree.init, env, tree.sym, tree.pos());
                 annotate.flush();
             }
-            if (types.isValue(tree.sym.owner.type) && (tree.mods.flags & (Flags.FINAL | Flags.STATIC)) == 0) {
-                log.error(tree.pos(), Errors.ValueFieldMustBeFinal);
-            }
         }
 
         VarSymbol v = tree.sym;
