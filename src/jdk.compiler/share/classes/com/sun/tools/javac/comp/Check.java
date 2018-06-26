@@ -93,7 +93,6 @@ public class Check {
     private final Target target;
     private final Profile profile;
     private final boolean warnOnAnyAccessToMembers;
-    private final boolean rejectValueMembershipCycles;
     private final boolean allowGenericsOverValues;
     private final boolean allowValueBasedClasses;
 
@@ -136,7 +135,6 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
-        rejectValueMembershipCycles = options.isSet("rejectValueMembershipCycles");
         allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         Target target = Target.instance(context);
@@ -2228,11 +2226,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            if (symbol.isStatic())
-                return false;
-            if (rejectValueMembershipCycles && types.isValue(symbol.type))
-                return true;
-            return (symbol.flags() & FLATTENABLE) != 0;
+            return !symbol.isStatic() && types.isValue(symbol.type);
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {

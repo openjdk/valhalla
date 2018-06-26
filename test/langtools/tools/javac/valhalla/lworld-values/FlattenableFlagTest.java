@@ -41,9 +41,9 @@ public class FlattenableFlagTest {
         final int xx = 10;
     }
 
-    __Flattenable Value v1;
-    __NotFlattened Value v2;
-    __Flattenable Value v3;
+    Value v1;
+    static Value v2;
+    Value v3;
   
     public static void main(String[] args) {
         new OutputChecker().run();
@@ -59,7 +59,7 @@ public class FlattenableFlagTest {
                  "__Flattenable FlattenableFlagTest$Value v1;",
                  "flags: (0x0100) ACC_FLATTENABLE",
                  "FlattenableFlagTest$Value v2;",
-                 "flags: (0x0000)",
+                 "flags: (0x0008)",
                  "__Flattenable FlattenableFlagTest$Value v3;",
                  });
 

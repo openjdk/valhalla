@@ -44,12 +44,12 @@ public final class CheckDefaultFlattenable {
     }
 
     X x1;
-    __NotFlattened X x2;
-    __Flattenable X x3;
+    static X x2;
+    X x3;
 
     Y y1;
-    __NotFlattened Y y2;
-    __Flattenable Y y3;
+    static Y y2;
+    Y y3;
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckDefaultFlattenable.class.getResourceAsStream("CheckDefaultFlattenable.class"));
@@ -73,8 +73,8 @@ public final class CheckDefaultFlattenable {
             }
             if (field.getName(cls.constant_pool).equals("y1")) {
                 checks ++;
-                if ((field.access_flags.flags & AccessFlags.ACC_FLATTENABLE) != 0)
-                    throw new AssertionError("Unexpected flattenable flag found");
+                if ((field.access_flags.flags & AccessFlags.ACC_FLATTENABLE) == 0)
+                    throw new AssertionError("Expected flattenable flag missing");
             }
             if (field.getName(cls.constant_pool).equals("y2")) {
                 checks ++;

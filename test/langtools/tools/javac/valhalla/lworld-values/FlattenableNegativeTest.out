@@ -1,4 +1,4 @@
-FlattenableNegativeTest.java:13:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
+FlattenableNegativeTest.java:13:25: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
 FlattenableNegativeTest.java:17:38: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
 FlattenableNegativeTest.java:22:34: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)
 FlattenableNegativeTest.java:28:25: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlattenableNegativeTest.V)

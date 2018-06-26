@@ -1179,6 +1179,8 @@ public class ClassWriter extends ClassFile {
      */
     void writeField(VarSymbol v) {
         int flags = adjustFlags(v.flags());
+        if ((v.flags() & STATIC) == 0 && types.isValue(v.type))
+            flags |= ACC_FLATTENABLE;
         databuf.appendChar(flags);
         if (dumpFieldModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
@@ -1929,8 +1931,6 @@ public class ClassWriter extends ClassFile {
             result &= ~ABSTRACT;
         if ((flags & VALUE) != 0)
             result |= ACC_VALUE;
-        if ((flags & FLATTENABLE) != 0)
-            result |= ACC_FLATTENABLE;
         return result;
     }
 

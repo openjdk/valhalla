@@ -27,6 +27,6 @@ public class FlattenableFlagFromClass {
         final int x = 10;
     }
 
-    public __Flattenable V v;
+    public V v;
     public V[] va;
 }

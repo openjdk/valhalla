@@ -31,7 +31,7 @@
  */
 
 __ByValue class Point {
-    static final __NotFlattened Point origin = makePoint(10, 20);
+    static final Point origin = makePoint(10, 20);
     int x;
     int y;
     Point () {
