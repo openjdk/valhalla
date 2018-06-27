@@ -34,7 +34,7 @@ import static jdk.test.lib.Asserts.*;
  * @test ValueTypeArray
  * @summary Plain array test for Value Types
  * @library /test/lib
- * @compile -XDenableValueTypes ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray

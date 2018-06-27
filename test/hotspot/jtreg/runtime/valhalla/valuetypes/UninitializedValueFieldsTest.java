@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Uninitialized value fields test
  * @library /test/lib
- * @compile -XDenableValueTypes Point.java JumboValue.java
+ * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers Point.java JumboValue.java UninitializedValueFieldsTest.java
  * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */

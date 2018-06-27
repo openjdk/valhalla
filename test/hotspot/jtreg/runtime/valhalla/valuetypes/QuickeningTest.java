@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test QuickeningtTest
  * @summary Test quickening of getfield and putfield applied to value fields
  * @library /test/lib
- * @compile -XDenableValueTypes Point.java JumboValue.java QuickeningTest.java
+ * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers Point.java JumboValue.java QuickeningTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.QuickeningTest
  */
 
