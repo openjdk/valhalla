@@ -520,7 +520,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       res_cast->set_req(1, projs->resproj[0]);
       res_cast->set_type(cast_type->cast_to_ptr_type(TypePtr::NotNull));
       Node* ctl = kit.control(); // Control may get updated below
-      res = ValueTypePtrNode::make_from_oop(*igvn, ctl, kit.merged_memory(), igvn->transform(res_cast));
+      res = ValueTypePtrNode::make_from_oop(&kit, igvn->transform(res_cast));
 
       region->init_req(2, ctl);
       mem_phi->init_req(2, kit.reset_memory());
@@ -559,9 +559,11 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         Node* mem = projs->fallthrough_memproj;
         Node* ctl_hook = new Node(1);
         igvn->replace_in_uses(ctl, ctl_hook);
-        Node* vtptr = ValueTypePtrNode::make_from_oop(*phase, ctl, mem, in(1));
+        GraphKit kit(call->jvms(), igvn);
+        kit.set_control(ctl);
+        Node* vtptr = ValueTypePtrNode::make_from_oop(&kit, in(1));
         // Attach users to updated control
-        igvn->replace_node(ctl_hook, ctl);
+        igvn->replace_node(ctl_hook, kit.control());
         return vtptr;
       }
     }

@@ -72,7 +72,7 @@ public class TestLWorld extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestLWorld test = new TestLWorld();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, Test65Value.class);
     }
 
     // Helper methods
@@ -1794,5 +1794,92 @@ public class TestLWorld extends ValueTypeTest {
     public void test64_verifier(boolean warmup) {
         boolean result = test63(new Integer(42));
         Asserts.assertFalse(result);
+    }
+
+    // Value type with some non-flattened fields
+    __ByValue final class Test65Value {
+        final Object objectField1 = null;
+        final Object objectField2 = null;
+        final Object objectField3 = null;
+        final Object objectField4 = null;
+        final Object objectField5 = null;
+        final Object objectField6 = null;
+
+        final __Flattenable  MyValue1 valueField1;
+        final __Flattenable  MyValue1 valueField2;
+        final __NotFlattened MyValue1 valueField3;
+        final __Flattenable  MyValue1 valueField4;
+        final __NotFlattened MyValue1 valueField5;
+
+        private Test65Value() {
+            valueField1 = testValue1;
+            valueField2 = testValue1;
+            valueField3 = testValue1;
+            valueField4 = MyValue1.createDefaultDontInline();
+            valueField5 = MyValue1.createDefaultDontInline();
+        }
+
+        public Test65Value init() {
+            Test65Value vt = __WithField(this.valueField1, testValue1);
+            vt = __WithField(vt.valueField2, testValue1);
+            vt = __WithField(vt.valueField3, testValue1);
+            return vt;
+        }
+
+        @ForceInline
+        public long test(Test65Value holder, MyValue1 vt1, Object vt2) {
+            holder = __WithField(holder.objectField1, vt1);
+            holder = __WithField(holder.objectField2, (MyValue1)vt2);
+            holder = __WithField(holder.objectField3, testValue1);
+            holder = __WithField(holder.objectField4, MyValue1.createWithFieldsDontInline(rI, rL));
+            holder = __WithField(holder.objectField5, holder.valueField1);
+            holder = __WithField(holder.objectField6, holder.valueField3);
+            holder = __WithField(holder.valueField1, (MyValue1)holder.objectField1);
+            holder = __WithField(holder.valueField2, (MyValue1)vt2);
+            holder = __WithField(holder.valueField3, (MyValue1)vt2);
+
+            return ((MyValue1)holder.objectField1).hash() +
+                   ((MyValue1)holder.objectField2).hash() +
+                   ((MyValue1)holder.objectField3).hash() +
+                   ((MyValue1)holder.objectField4).hash() +
+                   ((MyValue1)holder.objectField5).hash() +
+                   ((MyValue1)holder.objectField6).hash() +
+                   holder.valueField1.hash() +
+                   holder.valueField2.hash() +
+                   holder.valueField3.hash() +
+                   holder.valueField4.hashPrimitive();
+        }
+    }
+
+    // Same as test2 but with field holder being a value type
+    @Test()
+    public long test65(Test65Value holder, MyValue1 vt1, Object vt2) {
+        return holder.test(holder, vt1, vt2);
+    }
+
+    @DontCompile
+    public void test65_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
+        MyValue1 def = MyValue1.createDefaultDontInline();
+        Test65Value holder = __MakeDefault Test65Value();
+        Asserts.assertEQ(testValue1.hash(), vt.hash());
+        holder = holder.init();
+        Asserts.assertEQ(holder.valueField1.hash(), vt.hash());
+        long result = test65(holder, vt, vt);
+        Asserts.assertEQ(result, 9*vt.hash() + def.hashPrimitive());
+    }
+
+    // Access non-flattened, uninitialized value type field with value type holder
+    @Test()
+    public void test66(Test65Value holder) {
+        if ((Object)holder.valueField5 != null) {
+            throw new RuntimeException("Should be null");
+        }
+    }
+
+    @DontCompile
+    public void test66_verifier(boolean warmup) {
+        Test65Value vt = __MakeDefault Test65Value();
+        test66(vt);
     }
 }

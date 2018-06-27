@@ -51,7 +51,7 @@ protected:
   int make_scalar_in_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt, Node* root, PhaseGVN* gvn);
 
   // Initialize the value type fields with the inputs or outputs of a MultiNode
-  void initialize(PhaseGVN* gvn, Node*& ctl, Node* mem, MultiNode* multi, ciValueKlass* vk, int base_offset = 0, int base_input = TypeFunc::Parms+1, bool in = false);
+  void initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset = 0, int base_input = TypeFunc::Parms+1, bool in = false);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, PhaseGVN& gvn) const;
 
@@ -74,6 +74,7 @@ public:
   int           field_offset(uint index) const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;
+  bool          field_is_flattenable(uint index) const;
 
   // Replace ValueTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
   void make_scalar_in_safepoints(Node* root, PhaseGVN* gvn);
@@ -83,7 +84,7 @@ public:
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, bool deoptimize_on_exception = false) const;
   // Initialize the value type by loading its field values from memory
-  void load(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
+  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
 
   // Allocates the value type (if not yet allocated)
   ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false);
@@ -120,12 +121,10 @@ public:
   static ValueTypeNode* make_default(PhaseGVN& gvn, ciValueKlass* vk);
   // Create and initialize by loading the field values from an oop
   static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool null_check = false, bool buffer_check = false);
-  static ValueTypeNode* make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop, ciValueKlass* vk, bool null_check = false, bool buffer_check = false);
   // Create and initialize by loading the field values from a flattened field or array
   static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
-  static ValueTypeNode* make_from_flattened(PhaseGVN& gvn, ciValueKlass* vk, Node*& ctl, Node* mem, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
-  static ValueTypeNode* make_from_multi(PhaseGVN& gvn, Node*& ctl, Node* mem, MultiNode* multi, ciValueKlass* vk, int base_input, bool in);
+  static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_input, bool in);
 
   // Load the default oop from the java mirror of the given ValueKlass
   static Node* load_default_oop(PhaseGVN& gvn, ciValueKlass* vk);
@@ -163,7 +162,7 @@ public:
   // Create and initialize with the result values of a call
   static ValueTypePtrNode* make_from_call(GraphKit* kit, ciValueKlass* vk, CallNode* call);
   // Create and initialize by loading the field values from an oop
-  static ValueTypePtrNode* make_from_oop(PhaseGVN& gvn, Node*& ctl, Node* mem, Node* oop);
+  static ValueTypePtrNode* make_from_oop(GraphKit* kit, Node* oop);
 
   virtual int Opcode() const;
 };

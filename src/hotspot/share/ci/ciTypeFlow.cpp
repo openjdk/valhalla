@@ -781,10 +781,10 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  assert(klass->is_valuetype(), "should be value type");
   if (!will_link) {
     trap(str, klass, str->get_klass_index());
   } else {
+    assert(klass->is_valuetype(), "should be value type");
     push_object(klass);
   }
 }

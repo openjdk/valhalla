@@ -611,19 +611,24 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   for (uint i = 0; i < (uint)arg_size_sig; i++) {
     Node* parm = map()->in(i);
     const Type* t = _gvn.type(parm);
-    if (t->is_valuetypeptr()) {
-      Node* null_ctl = top();
-      Node* not_null_obj = null_check_common(parm, T_VALUETYPE, false, &null_ctl, false);
-      if (null_ctl != top()) {
-        // TODO For now, we just deoptimize if value type is NULL
-        PreserveJVMState pjvms(this);
-        set_control(null_ctl);
-        replace_in_map(parm, null());
-        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+    if (!ValueTypePassFieldsAsArgs) {
+      if (t->is_valuetypeptr()) {
+        Node* null_ctl = top();
+        Node* not_null_obj = null_check_common(parm, T_VALUETYPE, false, &null_ctl, false);
+        if (null_ctl != top()) {
+          // TODO For now, we just deoptimize if value type is NULL
+          PreserveJVMState pjvms(this);
+          set_control(null_ctl);
+          replace_in_map(parm, null());
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+        }
+        // Create ValueTypeNode from the oop and replace the parameter
+        Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, t->value_klass(), /* null_check */ false, /* buffer_check */ true);
+        map()->replace_edge(parm, vt);
       }
-      // Create ValueTypeNode from the oop and replace the parameter
-      Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, t->value_klass(), /* null_check */ false, /* buffer_check */ true);
-      map()->replace_edge(parm, vt);
+    } else {
+      assert(false, "FIXME");
+      // TODO move the code from build_start_state and do_late_inline here
     }
   }
 
@@ -866,6 +871,9 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   for (uint i = 0; i < (uint)arg_size_sig; i++) {
     assert(j >= i, "less actual arguments than in the signature?");
     if (ValueTypePassFieldsAsArgs) {
+      assert(false, "FIXME");
+      // TODO move this into Parse::Parse because we might need to deopt
+      /*
       if (i < TypeFunc::Parms) {
         assert(i == j, "no change before the actual arguments");
         Node* parm = gvn.transform(new ParmNode(start, i));
@@ -880,9 +888,10 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
         const Type* t = tf->domain_sig()->field_at(i);
         if (t->is_valuetypeptr()) {
           ciValueKlass* vk = t->value_klass();
-          Node* ctl = map->control();
-          ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), start, vk, j, true);
-          map->set_control(ctl);
+          GraphKit kit(jvms, &gvn);
+          kit.set_control(map->control());
+          ValueTypeNode* vt = ValueTypeNode::make_from_multi(&kit, start, vk, j, true);
+          map->set_control(kit.control());
           map->init_req(i, vt);
           j += vk->value_arg_slots();
         } else {
@@ -893,6 +902,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
           j++;
         }
       }
+      */
     } else {
       Node* parm = gvn.transform(new ParmNode(start, i));
       map->init_req(i, parm);

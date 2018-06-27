@@ -106,12 +106,6 @@ public abstract class ValueTypeTest {
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",
         "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue1::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue2::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue2Inline::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue3Inline::*",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue4::*",
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*");
     private static final List<String> verifyFlags = Arrays.asList(
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",

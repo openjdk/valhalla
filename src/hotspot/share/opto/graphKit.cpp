@@ -54,6 +54,7 @@ GraphKit::GraphKit(JVMState* jvms, PhaseGVN* gvn)
     _gvn((gvn != NULL) ? *gvn : *C->initial_gvn()),
     _barrier_set(BarrierSet::barrier_set()->barrier_set_c2())
 {
+  assert(gvn == NULL || !gvn->is_IterGVN() || gvn->is_IterGVN()->delay_transform(), "delay transform should be enabled");
   _exceptions = jvms->map()->next_exception();
   if (_exceptions != NULL)  jvms->map()->set_next_exception(NULL);
   set_jvms(jvms);
@@ -1529,7 +1530,6 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
     ld = ValueTypeNode::make_from_oop(this, ld, t->make_oopptr()->value_klass(), true /* null check */);
   } else if (bt == T_VALUETYPEPTR) {
     // Loading non-flattenable value type from memory
-    inc_sp(1);
     Node* null_ctl = top();
     Node* not_null_obj = null_check_common(ld, T_VALUETYPE, false, &null_ctl, false);
     if (null_ctl != top()) {
@@ -1539,7 +1539,6 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
       replace_in_map(ld, null());
       uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
     }
-    dec_sp(1);
     ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_oopptr()->value_klass());
   } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
@@ -1863,9 +1862,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       const Type* t = range_sig->field_at(TypeFunc::Parms);
       assert(t->is_valuetypeptr(), "only value types for multiple return values");
       ciValueKlass* vk = t->value_klass();
-      Node* ctl = control();
-      ret = ValueTypeNode::make_from_multi(_gvn, ctl, merged_memory(), call, vk, TypeFunc::Parms+1, false);
-      set_control(ctl);
+      ret = ValueTypeNode::make_from_multi(this, call, vk, TypeFunc::Parms+1, false);
     }
   }
 

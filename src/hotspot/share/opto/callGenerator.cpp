@@ -440,24 +440,22 @@ void LateInlineCallGenerator::do_late_inline() {
     const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
     if (!ValueTypePassFieldsAsArgs) {
       Node* arg = call->in(TypeFunc::Parms + i1);
-      if (t->is_valuetypeptr()) {
-        Node* ctl = map->control();
-        arg = ValueTypeNode::make_from_oop(gvn, ctl, map->memory(), arg, t->value_klass());
-        map->set_control(ctl);
-      }
       map->set_argument(jvms, i1, arg);
     } else {
+      assert(false, "FIXME");
+      // TODO move this into Parse::Parse because we might need to deopt
+      /*
+      GraphKit arg_kit(jvms, &gvn);
       if (t->is_valuetypeptr()) {
         ciValueKlass* vk = t->value_klass();
-        Node* ctl = map->control();
-        ValueTypeNode* vt = ValueTypeNode::make_from_multi(gvn, ctl, map->memory(), call, vk, j, true);
-        map->set_control(ctl);
-        map->set_argument(jvms, i1, vt);
+        ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, vk, j, true);
+        arg_kit.set_argument(i1, vt);
         j += vk->value_arg_slots();
       } else {
-        map->set_argument(jvms, i1, call->in(j));
+        arg_kit.set_argument(i1, call->in(j));
         j++;
       }
+      */
     }
   }
 
@@ -522,9 +520,7 @@ void LateInlineCallGenerator::do_late_inline() {
     } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
       Node* cast = new CheckCastPPNode(NULL, result, vt_t);
       gvn.record_for_igvn(cast);
-      Node* ctl = kit.control();
-      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(gvn, ctl, kit.merged_memory(), gvn.transform(cast));
-      kit.set_control(ctl);
+      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(&kit, gvn.transform(cast));
       vtptr->replace_call_results(&kit, call, C);
       result = cast;
     } else {
@@ -911,21 +907,28 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-static void cast_argument(int arg_nb, ciType* t, GraphKit& kit) {
+static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   PhaseGVN& gvn = kit.gvn();
   Node* arg = kit.argument(arg_nb);
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
   if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
-    if (sig_type->is_valuetypeptr()) {
-      // Value type arguments cannot be NULL
-      sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
+    arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
+    kit.set_argument(arg_nb, arg);
+  }
+  if (sig_type->is_valuetypeptr()) {
+    Node* null_ctl = kit.top();
+    Node* not_null_obj = kit.null_check_common(arg, T_VALUETYPE, false, &null_ctl, false);
+    if (null_ctl != kit.top()) {
+      // TODO For now, we just deoptimize if value type is NULL
+      PreserveJVMState pjvms(&kit);
+      kit.set_control(null_ctl);
+      kit.replace_in_map(arg, kit.null());
+      kit.inc_sp(nargs); // restore arguments
+      kit.uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
     }
-    Node* cast_obj = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
-    if (sig_type->is_valuetypeptr()) {
-      cast_obj = ValueTypeNode::make_from_oop(&kit, cast_obj, t->as_value_klass());
-    }
-    kit.set_argument(arg_nb, cast_obj);
+    arg = ValueTypeNode::make_from_oop(&kit, not_null_obj, t->as_value_klass());
+    kit.set_argument(arg_nb, arg);
   }
 }
 
@@ -973,8 +976,9 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
   case vmIntrinsics::_linkToSpecial:
   case vmIntrinsics::_linkToInterface:
     {
+      int nargs = callee->arg_size();
       // Get MemberName argument:
-      Node* member_name = kit.argument(callee->arg_size() - 1);
+      Node* member_name = kit.argument(nargs - 1);
       if (member_name->Opcode() == Op_ConP) {
         input_not_const = false;
         const TypeOopPtr* oop_ptr = member_name->bottom_type()->is_oopptr();
@@ -994,13 +998,13 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         const int receiver_skip = target->is_static() ? 0 : 1;
         // Cast receiver to its type.
         if (!target->is_static()) {
-          cast_argument(0, signature->accessing_klass(), kit);
+          cast_argument(nargs, 0, signature->accessing_klass(), kit);
         }
         // Cast reference arguments to its type.
         for (int i = 0, j = 0; i < signature->count(); i++) {
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
-            cast_argument(receiver_skip + j, t, kit);
+            cast_argument(nargs, receiver_skip + j, t, kit);
           }
           j += t->size();  // long and double take two slots
         }

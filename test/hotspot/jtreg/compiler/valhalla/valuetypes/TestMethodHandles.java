@@ -143,6 +143,14 @@ public class TestMethodHandles extends ValueTypeTest {
             test11_mh = MethodHandles.guardWithTest(test11_mh_test,
                                                     MethodHandles.dropArguments(test11_mh1, 0, MethodHandle.class),
                                                     MethodHandles.invoker(myvalue2_mt));
+
+            MethodType test12_mt = MethodType.methodType(void.class, MyValue1.class);
+            test12_mh1 = lookup.findStatic(clazz, "test12_target1", test12_mt);
+            test12_mh2 = lookup.findStatic(clazz, "test12_target2", test12_mt);
+
+            MethodType test13_mt = MethodType.methodType(void.class, MyValue1.class);
+            test13_mh1 = lookup.findStatic(clazz, "test13_target1", test13_mt);
+            test13_mh2 = lookup.findStatic(clazz, "test13_target2", test13_mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -510,4 +518,63 @@ public class TestMethodHandles extends ValueTypeTest {
         boolean b = (test11_i % 100) == 0;
         Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+test11_i * (b ? 1 : -1), b).hash());
     }
+
+    static final MethodHandle test12_mh1;
+    static final MethodHandle test12_mh2;
+
+    __NotFlattened static MyValue1 nullValue;
+
+    @DontInline
+    static void test12_target1(MyValue1 vt) {
+        nullValue = vt;
+    }
+
+    @ForceInline
+    static void test12_target2(MyValue1 vt) {
+        nullValue = vt;
+    }
+
+    // Test passing null for a value type
+    @Test
+    public void test12() throws Throwable {
+        test12_mh1.invokeExact(nullValue);
+        test12_mh2.invokeExact(nullValue);
+    }
+
+    public void test12_verifier(boolean warmup) {
+        try {
+            test12();
+        } catch (Throwable t) {
+            throw new RuntimeException("test12 failed", t);
+        }
+    }
+
+    static MethodHandle test13_mh1;
+    static MethodHandle test13_mh2;
+
+    @DontInline
+    static void test13_target1(MyValue1 vt) {
+        nullValue = vt;
+    }
+
+    @ForceInline
+    static void test13_target2(MyValue1 vt) {
+        nullValue = vt;
+    }
+
+    // Same as test12 but with non-final mh
+    @Test
+    public void test13() throws Throwable {
+        test13_mh1.invokeExact(nullValue);
+        test13_mh2.invokeExact(nullValue);
+    }
+
+    public void test13_verifier(boolean warmup) {
+        try {
+            test13();
+        } catch (Throwable t) {
+            throw new RuntimeException("test13 failed", t);
+        }
+    }
+
 }

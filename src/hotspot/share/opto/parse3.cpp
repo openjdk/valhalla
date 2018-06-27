@@ -229,13 +229,20 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     ld = ValueTypeNode::make_from_flattened(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
   } else {
     if (bt == T_VALUETYPE && !flattenable) {
-      // Non-flattenable value type field can be null and we
+      // Non-flattenable value type fields can be null and we
       // should not return the default value type in that case.
       bt = T_VALUETYPEPTR;
+      if (is_field) {
+        // We need to deoptimize if the field is null
+        inc_sp(1);
+      }
     }
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
+    if (is_field && bt == T_VALUETYPEPTR) {
+      dec_sp(1);
+    }
   }
 
   // Adjust Java stack

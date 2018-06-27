@@ -103,7 +103,7 @@ __ByValue public final class MyValue1 implements MyInterface {
 
     @ForceInline
     public void print() {
-        System.out.print("s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + (o != null ? (Integer)o : "NULL") + ", oa=" + oa[0] + ", v1[");
+        System.out.print("s=" + s + ", sf=" + sf + ", x=" + x + ", y=" + y + ", z=" + z + ", o=" + (o != null ? (Integer)o : "NULL") + ", oa=" + (oa != null ? oa[0] : "NULL") + ", v1[");
         v1.print();
         System.out.print("], v2[");
         v2.print();
