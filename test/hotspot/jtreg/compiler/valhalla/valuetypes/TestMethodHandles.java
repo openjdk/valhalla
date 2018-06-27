@@ -39,7 +39,7 @@ import java.lang.reflect.Method;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  *          java.base/jdk.internal.misc:+open
- * @compile -XDenableValueTypes TestMethodHandles.java
+ * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestMethodHandles.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
