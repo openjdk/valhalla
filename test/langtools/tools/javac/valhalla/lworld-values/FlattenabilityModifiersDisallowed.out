@@ -1,0 +1,3 @@
+FlattenabilityModifiersDisallowed.java:9:5: compiler.err.flattenability.modifiers.disallowed
+FlattenabilityModifiersDisallowed.java:10:5: compiler.err.flattenability.modifiers.disallowed
+2 errors

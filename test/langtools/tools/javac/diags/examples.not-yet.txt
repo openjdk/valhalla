@@ -200,3 +200,4 @@ compiler.err.invalid.arguments.to.make.default
 compiler.err.make.default.with.nonvalue
 compiler.err.value.may.not.extend
 compiler.warn.potential.null.pollution
+compiler.err.flattenability.modifiers.disallowed

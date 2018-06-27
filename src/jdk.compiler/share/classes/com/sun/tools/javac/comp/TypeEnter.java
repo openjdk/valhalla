@@ -946,9 +946,6 @@ public class TypeEnter implements Completer {
                 typeAnnotations.organizeTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
                 typeAnnotations.validateTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
             }
-            if (types.isValue(tree.sym.type)) {
-                chk.checkNonCyclicMembership(tree);
-            }
         }
 
         /** Enter members for a class.

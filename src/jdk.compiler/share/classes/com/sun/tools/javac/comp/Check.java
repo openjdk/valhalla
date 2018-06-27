@@ -1163,7 +1163,11 @@ public class Check {
             else {
                 mask = VarFlags;
                 if (types.isValue(sym.owner.type) && (flags & STATIC) == 0) {
-                    implicit = FINAL;
+                    implicit |= FINAL;
+                }
+                if (types.isValue(sym.type) && !types.isValueBased(sym.type)) {
+                    if ((flags & (STATIC | NOT_FLATTENED)) == 0)
+                        implicit |= FLATTENABLE;
                 }
             }
             break;
@@ -2226,7 +2230,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return !symbol.isStatic() && types.isValue(symbol.type);
+            return (symbol.flags() & (FLATTENABLE | STATIC)) == FLATTENABLE && types.isValue(symbol.type);
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {
