@@ -26,7 +26,7 @@
  * @summary test that the right exceptions get thrown for bad value type
  *          class files.
  * @compile cfpTests.jcod
- * @run main BadValueTypes
+ * @run main/othervm -XX:+EnableValhalla BadValueTypes
  */
 
 public class BadValueTypes {

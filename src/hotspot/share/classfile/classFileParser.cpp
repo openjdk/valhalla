@@ -5002,6 +5002,16 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     return;
   }
 
+  if (is_value_type && !EnableValhalla) {
+    ResourceMark rm(THREAD);
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_ClassFormatError(),
+      "Class modifier ACC_VALUE in class %s requires option -XX:+EnableValhalla",
+      _class_name->as_C_string()
+    );
+  }
+
   if (!_need_verify) { return; }
 
   const bool is_interface  = (flags & JVM_ACC_INTERFACE)  != 0;

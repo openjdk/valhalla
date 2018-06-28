@@ -26,7 +26,7 @@
  * @test
  * @summary test reflection on value types
  * @compile Point.java
- * @run main/othervm Reflection
+ * @run main/othervm -XX:+EnableValhalla Reflection
  */
 
 import java.lang.reflect.*;

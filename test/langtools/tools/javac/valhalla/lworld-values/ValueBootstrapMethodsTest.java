@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test value bootstrap methods
- * @run main ValueBootstrapMethodsTest
+ * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethodsTest
  */
 
 import java.util.List;

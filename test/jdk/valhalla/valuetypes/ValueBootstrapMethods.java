@@ -26,7 +26,7 @@
  * @test
  * @summary test value bootstrap methods
  * @modules java.base/jdk.internal.org.objectweb.asm
- * @run main ValueBootstrapMethods
+ * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethods
  */
 
 import java.io.IOException;

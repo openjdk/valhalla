@@ -29,7 +29,7 @@
  *
  * @compile Point.java
  * @compile -XDallowValueBasedClasses CastNullCheckTest.java
- * @run main CastNullCheckTest
+ * @run main/othervm -XX:+EnableValhalla CastNullCheckTest
  */
 
 public class CastNullCheckTest {

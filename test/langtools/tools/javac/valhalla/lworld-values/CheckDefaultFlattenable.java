@@ -28,7 +28,7 @@
  * @summary Check default setting of ACC_FLATTENABLE
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDallowValueBasedClasses -XDallowFlattenabilityModifiers CheckDefaultFlattenable.java
- * @run main CheckDefaultFlattenable
+ * @run main/othervm -XX:+EnableValhalla CheckDefaultFlattenable
  */
 
 import com.sun.tools.classfile.*;

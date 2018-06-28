@@ -19,28 +19,33 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
-
-/**
+/*
  * @test
- * @summary Test withfield behavior at runtime.
- * @run main/othervm -XX:+EnableValhalla WithFieldRuntimeTest
+ * @summary test that if a class file has ACC_VALUE set then it must be run
+ *          with option -XX:+EnableValhalla.
+ * @compile cfpTests.jcod
+ * @run main/othervm -XX:-EnableValhalla BadACCValue
  */
 
-public final __ByValue class WithFieldRuntimeTest {
+public class BadACCValue {
 
-    final int x = 10;
-
-    static void foo(WithFieldRuntimeTest x) {
-        if (x.x != 0)
-            throw new AssertionError("Expected default value, found something else.");
-        x = __WithField(x.x, 20);
-        if (x.x != 20)
-            throw new AssertionError("Expected updated value, found something else.");
+    public static void runTest(String test_name, String message) throws Exception {
+        System.out.println("Testing: " + test_name);
+        try {
+            Class newClass = Class.forName(test_name);
+        } catch (java.lang.ClassFormatError e) {
+            if (!e.getMessage().contains(message)) {
+                throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
+            }
+        }
     }
 
-    public static void main(String [] args) {
-        WithFieldRuntimeTest x = __MakeDefault WithFieldRuntimeTest();
-        foo(x);
+    public static void main(String[] args) throws Exception {
+
+        // Test ACC_VALUE causes a CFE unless -XX:+EnableValhalla is specified.
+        runTest("ValueFieldNotFinal",
+                "Class modifier ACC_VALUE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
     }
 }

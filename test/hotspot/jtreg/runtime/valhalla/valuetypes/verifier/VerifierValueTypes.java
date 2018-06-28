@@ -26,7 +26,7 @@
  * @summary test that the right exceptions get thrown for bad value type
  *          class files.
  * @compile verifierTests.jcod
- * @run main/othervm -verify VerifierValueTypes
+ * @run main/othervm -verify -XX:+EnableValhalla VerifierValueTypes
  */
 
 public class VerifierValueTypes {
