@@ -336,6 +336,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
                                            Node* src,  Node* src_offset,
                                            Node* dest, Node* dest_offset,
                                            Node* copy_length,
+                                           Node* dest_length,
                                            bool disjoint_bases,
                                            bool length_never_negative,
                                            RegionNode* slow_region) {
@@ -431,7 +432,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // copy_length is 0.
     if (dest_uninitialized) {
       assert(!local_ctrl->is_top(), "no ctrl?");
-      Node* dest_length = alloc->in(AllocateNode::ALength);
       if (copy_length->eqv_uncast(dest_length)
           || _igvn.find_int_con(dest_length, 1) <= 0) {
         // There is no zeroing to do. No need for a secondary raw memory barrier.
@@ -469,7 +469,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // The copy destination is the slice dest[off..off+len].  The other slices
     // are dest_head = dest[0..off] and dest_tail = dest[off+len..dest.length].
     Node* dest_size   = alloc->in(AllocateNode::AllocSize);
-    Node* dest_length = alloc->in(AllocateNode::ALength);
     Node* dest_tail   = transform_later( new AddINode(dest_offset, copy_length));
 
     // If there is a head section that needs zeroing, do it now.
@@ -831,6 +830,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
   Node* mem = merge_mem->memory_at(alias_idx); // memory slice to operate on
 
   // scaling and rounding of indexes:
+  assert(basic_elem_type != T_VALUETYPE, "should have been converted to a basic type copy");
   int scale = exact_log2(type2aelembytes(basic_elem_type));
   int abase = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
   int clear_low = (-1 << scale) & (BytesPerInt  - 1);
@@ -1142,7 +1142,8 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
 }
 
 const TypePtr* PhaseMacroExpand::adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
-                                                          Node*& dest_offset, Node*& length, BasicType& dest_elem) {
+                                                          Node*& dest_offset, Node*& length, BasicType& dest_elem,
+                                                          Node*& dest_length) {
   assert(top_dest->klass()->is_value_array_klass(), "inconsistent");
   int elem_size = ((ciValueArrayKlass*)top_dest->klass())->element_byte_size();
   if (elem_size >= 8) {
@@ -1153,6 +1154,9 @@ const TypePtr* PhaseMacroExpand::adjust_parameters_for_vt(const TypeAryPtr* top_
       length = transform_later(new MulINode(length, intcon(factor)));
       src_offset = transform_later(new MulINode(src_offset, intcon(factor)));
       dest_offset = transform_later(new MulINode(dest_offset, intcon(factor)));
+      if (dest_length != NULL) {
+        dest_length = transform_later(new MulINode(dest_length, intcon(factor)));
+      }
       elem_size = 8;
     }
     dest_elem = T_LONG;
@@ -1213,11 +1217,12 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       assert(alloc != NULL, "expect alloc");
     }
     assert(dest_elem != T_VALUETYPE || alloc != NULL, "unsupported");
+    Node* dest_length = alloc != NULL ? alloc->in(AllocateNode::ALength) : NULL;
 
     const TypePtr* adr_type = NULL;
 
     if (dest_elem == T_VALUETYPE) {
-      adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem);
+      adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
     } else {
       adr_type = _igvn.type(dest)->is_oopptr()->add_offset(Type::OffsetBot);
       if (ac->_dest_type != TypeOopPtr::BOTTOM) {
@@ -1230,6 +1235,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     generate_arraycopy(ac, alloc, &ctrl, merge_mem, &io,
                        adr_type, dest_elem,
                        src, src_offset, dest, dest_offset, length,
+                       dest_length,
                        true, !ac->is_copyofrange());
 
     return;
@@ -1295,6 +1301,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     Node* mem = generate_arraycopy(ac, NULL, &ctrl, merge_mem, &io,
                                    TypeRawPtr::BOTTOM, T_CONFLICT,
                                    src, src_offset, dest, dest_offset, length,
+                                   NULL,
                                    // If a  negative length guard was generated for the ArrayCopyNode,
                                    // the length of the array can never be negative.
                                    false, ac->has_negative_length_guard(),
@@ -1305,12 +1312,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
   assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID), "validated but different basic types");
 
-  bool vt_with_oops_field = false;
-  if (dest_elem == T_VALUETYPE) {
-    const TypeValueType* vt = top_dest->elem()->is_valuetype();
-    vt_with_oops_field = vt->value_klass()->contains_oops();
-  }
-
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
@@ -1318,8 +1319,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // fields if we need to emit write barriers.
   //
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  if (src_elem != dest_elem || dest_elem == T_VOID ||
-      (vt_with_oops_field && (!can_try_zeroing_elimination(alloc, src, dest) || bs->array_copy_requires_gc_barriers(T_OBJECT)))) {
+  if (src_elem != dest_elem || dest_elem == T_VOID) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
     {
@@ -1411,8 +1411,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // This is where the memory effects are placed:
   const TypePtr* adr_type = NULL;
 
+  Node* dest_length = alloc != NULL ? alloc->in(AllocateNode::ALength) : NULL;
+
   if (dest_elem == T_VALUETYPE) {
-    adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem);
+    adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
   } else {
@@ -1422,6 +1424,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   generate_arraycopy(ac, alloc, &ctrl, merge_mem, &io,
                      adr_type, dest_elem,
                      src, src_offset, dest, dest_offset, length,
+                     dest_length,
                      // If a  negative length guard was generated for the ArrayCopyNode,
                      // the length of the array can never be negative.
                      false, ac->has_negative_length_guard(),

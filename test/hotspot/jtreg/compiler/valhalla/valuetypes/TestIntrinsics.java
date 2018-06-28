@@ -134,19 +134,20 @@ public class TestIntrinsics extends ValueTypeTest {
         MyValue1 v = MyValue1.createDefaultInline();
         test5(v);
     }
+*/
 
     // Test hashCode() method
-    @Test()
-    public int test6(MyValue1 v) {
-        return v.hashCode();
-    }
+    // @Test()
+    // public int test6(MyValue1 v) {
+    //     return v.hashCode();
+    // }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
-        MyValue1 v = MyValue1.createDefaultInline();
-        test6(v);
-    }
-*/
+    // @DontCompile
+    // public void test6_verifier(boolean warmup) {
+    //     MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+    //     int res = test6(v);
+    //     Asserts.assertEQ(res, v.hashCode());
+    // }
 
     // Test default value type array creation via reflection
     @Test()
@@ -189,6 +190,123 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertFalse(result);
     }
 
-    // TODO add tests for _identityHashCode,_clone,_copyOf,_copyOfRange,_arraycopy,_allocateUninitializedArray, ...
+    // Class.cast
+    @Test()
+    public Object test10(Class c, MyValue1 vt) {
+        return c.cast(vt);
+    }
 
+    @DontCompile
+    public void test10_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        Object result = test10(MyValue1.class, vt);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+    }
+
+    @Test()
+    public Object test11(Class c, MyValue1 vt) {
+        return c.cast(vt);
+    }
+
+    @DontCompile
+    public void test11_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        try {
+            test11(MyValue2.class, vt);
+            throw new RuntimeException("should have thrown");
+        } catch(ClassCastException cce) {
+        }
+    }
+
+    @Test()
+    public Object test12(MyValue1 vt) {
+        return MyValue1.class.cast(vt);
+    }
+
+    @DontCompile
+    public void test12_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        Object result = test12(vt);
+        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+    }
+
+    @Test()
+    public Object test13(MyValue1 vt) {
+        return MyValue2.class.cast(vt);
+    }
+
+    @DontCompile
+    public void test13_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        try {
+            test13(vt);
+            throw new RuntimeException("should have thrown");
+        } catch(ClassCastException cce) {
+        }
+    }
+
+    // value type array creation via reflection
+    @Test()
+    public void test14(int len, long hash) {
+        Object[] va = (Object[])Array.newInstance(MyValue1.class, len);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
+        }
+    }
+
+    @DontCompile
+    public void test14_verifier(boolean warmup) {
+        int len = Math.abs(rI) % 42;
+        long hash = MyValue1.createDefaultDontInline().hashPrimitive();
+        test14(len, hash);
+    }
+
+    // Test hashCode() method
+    // @Test()
+    // public int test15(Object v) {
+    //     return v.hashCode();
+    // }
+
+    // @DontCompile
+    // public void test15_verifier(boolean warmup) {
+    //     MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+    //     int res = test15(v);
+    //     Asserts.assertEQ(res, v.hashCode());
+    // }
+
+    @Test()
+    public int test16(Object v) {
+        return System.identityHashCode(v);
+    }
+
+    @DontCompile
+    public void test16_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test16(v);
+        Asserts.assertEQ(res, System.identityHashCode((Object)v));
+    }
+
+    @Test()
+    public int test17(Object v) {
+        return System.identityHashCode(v);
+    }
+
+    @DontCompile
+    public void test17_verifier(boolean warmup) {
+        Integer v = new Integer(rI);
+        int res = test17(v);
+        Asserts.assertEQ(res, System.identityHashCode(v));
+    }
+
+    @Test()
+    public int test18(Object v) {
+        return System.identityHashCode(v);
+    }
+
+    @DontCompile
+    public void test18_verifier(boolean warmup) {
+        Object v = null;
+        int res = test18(v);
+        Asserts.assertEQ(res, System.identityHashCode(v));
+    }
 }

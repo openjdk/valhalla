@@ -184,6 +184,7 @@ class LibraryCallKit : public GraphKit {
                                     int modifier_mask, int modifier_bits,
                                     RegionNode* region);
   Node* generate_interface_guard(Node* kls, RegionNode* region);
+  Node* generate_value_guard(Node* kls, RegionNode* region);
 
   enum ArrayKind {
     AnyArray,
@@ -3066,6 +3067,10 @@ Node* LibraryCallKit::generate_interface_guard(Node* kls, RegionNode* region) {
   return generate_access_flags_guard(kls, JVM_ACC_INTERFACE, 0, region);
 }
 
+Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
+  return generate_access_flags_guard(kls, JVM_ACC_VALUE, 0, region);
+}
+
 //-------------------------inline_native_Class_query-------------------
 bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   const Type* return_type = TypeInt::BOOL;
@@ -3250,18 +3255,28 @@ bool LibraryCallKit::inline_Class_cast() {
   if (obj == NULL || obj->is_top()) {
     return false;  // dead path
   }
-  const TypeOopPtr* tp = _gvn.type(obj)->isa_oopptr();
+
+  ciKlass* obj_klass = NULL;
+  if (obj->is_ValueType()) {
+    const TypeValueType* tvt = _gvn.type(obj)->is_valuetype();
+    obj_klass = tvt->value_klass();
+  } else {
+    const TypeOopPtr* tp = _gvn.type(obj)->isa_oopptr();
+    if (tp != NULL) {
+      obj_klass = tp->klass();
+    }
+  }
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
   ciType* tm = mirror_con->java_mirror_type();
   if (tm != NULL && tm->is_klass() &&
-      tp != NULL && tp->klass() != NULL) {
-    if (!tp->klass()->is_loaded()) {
+      obj_klass != NULL) {
+    if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-      int static_res = C->static_subtype_check(tm->as_klass(), tp->klass());
+      int static_res = C->static_subtype_check(tm->as_klass(), obj_klass);
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
         set_result(obj);
@@ -3492,7 +3507,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
 
 
 //-----------------------inline_native_newArray--------------------------
-// private static native Object java.lang.reflect.newArray(Class<?> componentType, int length);
+// private static native Object java.lang.reflect.Array.newArray(Class<?> componentType, int length);
 // private        native Object Unsafe.allocateUninitializedArray0(Class<?> cls, int size);
 bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
   Node* mirror;
@@ -3867,7 +3882,15 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_val = new PhiNode(result_reg, TypeInt::INT);
   PhiNode*    result_io  = new PhiNode(result_reg, Type::ABIO);
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
-  Node* obj = NULL;
+  Node* obj = argument(0);
+
+  if (obj->is_ValueType()) {
+    return false;
+  }
+
+  const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
+  assert(!obj_type->isa_valuetype() || !obj_type->is_valuetypeptr(), "no value type here");
+
   if (!is_static) {
     // Check for hashing null object
     obj = null_check_receiver();
@@ -3877,7 +3900,6 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   } else {
     // Do a null check, and return zero if null.
     // System.identityHashCode(null) == 0
-    obj = argument(0);
     Node* null_ctl = top();
     obj = null_check_oop(obj, &null_ctl);
     result_reg->init_req(_null_path, null_ctl);
@@ -3896,6 +3918,11 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   // paths which do not pass are accumulated in the slow_region.
   RegionNode* slow_region = new RegionNode(1);
   record_for_igvn(slow_region);
+
+  if (is_static && obj_type->can_be_value_type()) {
+    Node* obj_klass = load_object_klass(obj);
+    generate_value_guard(obj_klass, slow_region);
+  }
 
   // If this is a virtual call, we generate a funny guard.  We pull out
   // the vtable entry corresponding to hashCode() from the target object.

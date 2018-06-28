@@ -1431,8 +1431,6 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
-    // type system bug makes this one fail for now
-
     @ForceInline
     public Object[] test63_helper(int i, MyValue1[] va, Integer[] oa) {
         Object[] arr = null;

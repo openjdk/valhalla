@@ -142,6 +142,7 @@ private:
                            Node* src,  Node* src_offset,
                            Node* dest, Node* dest_offset,
                            Node* copy_length,
+                           Node* dest_length,
                            bool disjoint_bases = false,
                            bool length_never_negative = false,
                            RegionNode* slow_region = NULL);
@@ -184,7 +185,8 @@ private:
                                     Node* dest, Node* dest_offset,
                                     Node* copy_length, bool dest_uninitialized);
   const TypePtr* adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
-                                          Node*& dest_offset, Node*& length, BasicType& dest_elem);
+                                          Node*& dest_offset, Node*& length, BasicType& dest_elem,
+                                          Node*& dest_length);
   void expand_arraycopy_node(ArrayCopyNode *ac);
 
   int replace_input(Node *use, Node *oldref, Node *newref);

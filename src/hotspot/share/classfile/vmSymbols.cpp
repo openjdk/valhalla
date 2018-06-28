@@ -539,19 +539,6 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
     }
   }
 
-  // TODO remove this once the intrinsics are implemented
-  if (EnableValhalla) {
-    switch (id) {
-    case vmIntrinsics::_hashCode:
-    case vmIntrinsics::_identityHashCode:
-    case vmIntrinsics::_newArray:
-      return true;
-      break;
-    default:
-      break;
-    }
-  }
-
   switch (id) {
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_isAssignableFrom:

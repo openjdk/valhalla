@@ -1332,7 +1332,7 @@ void PhaseMacroExpand::expand_allocate_common(
   Node *slow_region = NULL;
   Node *toobig_false = ctrl;
 
-  if (!always_slow && alloc->initialization() != NULL && alloc->initialization()->is_unknown_value()) {
+  if (!always_slow && (alloc->initialization() == NULL || alloc->initialization()->is_unknown_value())) {
     const TypeOopPtr* ary_type = _igvn.type(klass_node)->is_klassptr()->as_instance_type();
     const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
