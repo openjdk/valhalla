@@ -167,4 +167,23 @@ public class TestOnStackReplacement extends ValueTypeTest {
     public void test4_verifier(boolean warmup) throws Throwable {
         test4();
     }
+
+    // OSR compilation with null value type local
+
+    __NotFlattened MyValue1 nullField;
+
+    @Test()
+    public void test5() throws Throwable {
+        MyValue1 vt = nullField;
+        for (int i = 0; i < 50_000; i++) {
+            if ((Object)vt != null) {
+                throw new RuntimeException("test5 failed: No NPE thrown");
+            }
+        }
+    }
+
+    @DontCompile
+    public void test5_verifier(boolean warmup) throws Throwable {
+        test5();
+    }
 }

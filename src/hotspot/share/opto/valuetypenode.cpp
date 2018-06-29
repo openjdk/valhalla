@@ -284,8 +284,9 @@ void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass
         }
       }
       if (ft->is_valuetype()) {
-        // Non-flattened value type field, check for null
-        parm = ValueTypeNode::make_from_oop(kit, parm, ft->as_value_klass(), /* null_check */ true);
+        // Non-flattened value type field
+        assert(!gvn.type(parm)->is_ptr()->maybe_null(), "should never be null");
+        parm = ValueTypeNode::make_from_oop(kit, parm, ft->as_value_klass());
       }
       set_field_value(i, parm);
       // Record all these guys for later GVN.
@@ -347,12 +348,11 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         if (ary_type != NULL) {
           decorators |= IN_HEAP_ARRAY;
         }
-        if (bt == T_VALUETYPE && !field_is_flattenable(i)) {
-          // Non-flattenable value type fields can be null and we
-          // should not return the default value type in that case.
-          bt = T_VALUETYPEPTR;
-        }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
+        if (bt == T_VALUETYPE) {
+          // Loading a non-flattened value type from memory
+          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, field_is_flattenable(i));
+        }
       }
     }
     set_field_value(i, value);
@@ -452,7 +452,7 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on
 bool ValueTypeBaseNode::is_allocated(PhaseGVN* phase) const {
   Node* oop = get_oop();
   const Type* oop_type = (phase != NULL) ? phase->type(oop) : oop->bottom_type();
-  return oop_type->meet(TypePtr::NULL_PTR) != oop_type;
+  return !oop_type->is_ptr()->maybe_null();
 }
 
 // When a call returns multiple values, it has several result
@@ -535,53 +535,60 @@ bool ValueTypeNode::is_default(PhaseGVN& gvn) const {
   return true;
 }
 
-ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool null_check, bool buffer_check) {
-  assert(!(null_check && buffer_check), "should not both require a null and a buffer check");
-
+ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool buffer_check, bool flattenable, int trap_bci) {
   PhaseGVN& gvn = kit->gvn();
-  if (gvn.type(oop)->remove_speculative() == TypePtr::NULL_PTR) {
-    assert(null_check, "unexpected null?");
-    return make_default(gvn, vk);
-  }
+  const TypePtr* oop_type = gvn.type(oop)->is_ptr();
+  bool null_check = oop_type->maybe_null();
+
   // Create and initialize a ValueTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
   ValueTypeNode* vt = new ValueTypeNode(TypeValueType::make(vk), oop);
 
-  if (null_check && !vt->is_allocated(&gvn)) {
-    // Add oop null check
-    Node* chk = gvn.transform(new CmpPNode(oop, gvn.zerocon(T_VALUETYPE)));
-    Node* tst = gvn.transform(new BoolNode(chk, BoolTest::ne));
-    IfNode* iff = gvn.transform(new IfNode(kit->control(), tst, PROB_MAX, COUNT_UNKNOWN))->as_If();
-    Node* not_null = gvn.transform(new IfTrueNode(iff));
-    Node* null = gvn.transform(new IfFalseNode(iff));
-    Node* region = new RegionNode(3);
+  if (null_check) {
+    // Add a null check because the oop may be null
+    Node* null_ctl = kit->top();
+    Node* not_null_oop = kit->null_check_oop(oop, &null_ctl);
+    if (kit->stopped()) {
+      // Constant null
+      if (flattenable) {
+        kit->set_control(null_ctl);
+        return make_default(gvn, vk);
+      } else {
+        kit->uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+        return NULL;
+      }
+    }
+    vt->set_oop(not_null_oop);
+    vt->load(kit, not_null_oop, not_null_oop, vk);
 
-    // Load value type from memory if oop is non-null
-    kit->set_control(not_null);
-    oop = new CastPPNode(oop, TypePtr::NOTNULL);
-    oop->set_req(0, kit->control());
-    oop = gvn.transform(oop);
-    vt->set_oop(oop);
-    vt->load(kit, oop, oop, vk);
-    region->init_req(1, kit->control());
+    if (flattenable && (null_ctl != kit->top())) {
+      // Value type is flattenable, return default value type if oop is null
+      ValueTypeNode* def = make_default(gvn, vk);
+      Node* region = new RegionNode(3);
+      region->init_req(1, kit->control());
+      region->init_req(2, null_ctl);
 
-    // Use default value type if oop is null
-    ValueTypeNode* def = make_default(gvn, vk);
-    region->init_req(2, null);
-
-    // Merge the two value types and update control
-    vt = vt->clone_with_phis(&gvn, region)->as_ValueType();
-    vt->merge_with(&gvn, def, 2, true);
-    kit->set_control(gvn.transform(region));
+      vt = vt->clone_with_phis(&gvn, region)->as_ValueType();
+      vt->merge_with(&gvn, def, 2, true);
+      kit->set_control(gvn.transform(region));
+    } else if (null_ctl != kit->top()) {
+      // Value type is not flattenable, deoptimize if oop is null
+      PreserveJVMState pjvms(kit);
+      kit->set_control(null_ctl);
+      int bci = kit->bci();
+      if (trap_bci != -1) {
+        // Put trap at different bytecode
+        kit->push(kit->null());
+        kit->set_bci(trap_bci);
+      }
+      kit->replace_in_map(oop, kit->null());
+      kit->uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+      kit->set_bci(bci);
+    }
   } else {
-    // Create and initialize a ValueTypeNode by loading all field
-    // values from a heap-allocated version and also save the oop.
-    vt = new ValueTypeNode(TypeValueType::make(vk), oop);
-
+    // Oop can never be null
     Node* init_ctl = kit->control();
     vt->load(kit, oop, oop, vk);
-    vt = gvn.transform(vt)->as_ValueType();
-    assert(vt->is_allocated(&gvn), "value type should be allocated");
     assert(init_ctl != kit->control() || oop->is_Con() || oop->is_CheckCastPP() || oop->Opcode() == Op_ValueTypePtr ||
            vt->is_loaded(&gvn) == oop, "value type should be loaded");
   }
@@ -607,11 +614,11 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
 
     gvn.hash_delete(vt);
     vt->set_oop(gvn.transform(new_oop));
-    vt = gvn.transform(vt)->as_ValueType();
     kit->set_control(gvn.transform(region));
   }
 
-  return vt;
+  assert(vt->is_allocated(&gvn), "value type should be allocated");
+  return gvn.transform(vt)->as_ValueType();
 }
 
 // GraphKit wrapper for the 'make_from_flattened' method

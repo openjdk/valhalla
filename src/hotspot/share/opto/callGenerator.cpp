@@ -917,17 +917,9 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
     kit.set_argument(arg_nb, arg);
   }
   if (sig_type->is_valuetypeptr()) {
-    Node* null_ctl = kit.top();
-    Node* not_null_obj = kit.null_check_common(arg, T_VALUETYPE, false, &null_ctl, false);
-    if (null_ctl != kit.top()) {
-      // TODO For now, we just deoptimize if value type is NULL
-      PreserveJVMState pjvms(&kit);
-      kit.set_control(null_ctl);
-      kit.replace_in_map(arg, kit.null());
-      kit.inc_sp(nargs); // restore arguments
-      kit.uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-    }
-    arg = ValueTypeNode::make_from_oop(&kit, not_null_obj, t->as_value_klass());
+    kit.inc_sp(nargs); // restore arguments
+    arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* buffer_check */ false, /* flattenable */ false);
+    kit.dec_sp(nargs);
     kit.set_argument(arg_nb, arg);
   }
 }

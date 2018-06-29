@@ -126,14 +126,9 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
   case T_VALUETYPE: {
     // Load oop and create a new ValueTypeNode
-    const TypeInstPtr* ptr_type = TypeInstPtr::make(TypePtr::NotNull, type->is_valuetype()->value_klass());
+    const TypeInstPtr* ptr_type = TypeInstPtr::make(TypePtr::BotPTR, type->is_valuetype()->value_klass());
     l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, ptr_type, MemNode::unordered));
-    // Value type oop may point to the TLVB
-    l = ValueTypeNode::make_from_oop(this, l, type->is_valuetype()->value_klass(), /* null_check */ false, /* buffer_check */ true);
-    break;
-  }
-  case T_VALUETYPEPTR: {
-    l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::NOTNULL, MemNode::unordered);
+    l = ValueTypeNode::make_from_oop(this, l, type->is_valuetype()->value_klass(), /* buffer_check */ true, /* flattenable */ false);
     break;
   }
   case T_LONG:
@@ -613,17 +608,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (!ValueTypePassFieldsAsArgs) {
       if (t->is_valuetypeptr()) {
-        Node* null_ctl = top();
-        Node* not_null_obj = null_check_common(parm, T_VALUETYPE, false, &null_ctl, false);
-        if (null_ctl != top()) {
-          // TODO For now, we just deoptimize if value type is NULL
-          PreserveJVMState pjvms(this);
-          set_control(null_ctl);
-          replace_in_map(parm, null());
-          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-        }
         // Create ValueTypeNode from the oop and replace the parameter
-        Node* vt = ValueTypeNode::make_from_oop(this, not_null_obj, t->value_klass(), /* null_check */ false, /* buffer_check */ true);
+        assert(depth() == 1 || !t->is_ptr()->maybe_null(), "inlined value type arguments should never be null");
+        Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true, /* flattenable */ false);
         map()->replace_edge(parm, vt);
       }
     } else {

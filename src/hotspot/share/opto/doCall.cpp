@@ -639,27 +639,14 @@ void Parse::do_call() {
     ciType* rtype = cg->method()->return_type();
     ciType* ctype = declared_signature->return_type();
 
-    // check for a null value and deoptimize: deoptimization needs to
-    // restart after the call
     if (rtype->basic_type() == T_VALUETYPE) {
       Node* retnode = peek();
       if (!retnode->is_ValueType()) {
         pop();
         assert(!cg->is_inline(), "should have ValueTypeNode result");
-        Node* null_ctl = top();
-        Node* not_null_obj = null_check_common(retnode, T_VALUETYPE, false, &null_ctl, false);
-        if (null_ctl != top()) {
-          // TODO For now, we just deoptimize if value type is NULL
-          PreserveJVMState pjvms(this);
-          push(null());
-          set_bci(iter().next_bci());
-          set_control(null_ctl);
-          replace_in_map(retnode, null());
-          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-          set_bci(iter().cur_bci());
-        }
         ciValueKlass* vk = _gvn.type(retnode)->value_klass();
-        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, not_null_obj, vk);
+        // We will deoptimize if the return value is null and then need to continue execution after the call
+        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* flattenable */ false, iter().next_bci());
         push_node(T_VALUETYPE, vt);
       }
     }
@@ -670,7 +657,7 @@ void Parse::do_call() {
         BasicType rt = rtype->basic_type();
         BasicType ct = ctype->basic_type();
         if (ct == T_VOID) {
-          // It's OK for a method  to return a value that is discarded.
+          // It's OK for a method to return a value that is discarded.
           // The discarding does not require any special action from the caller.
           // The Java code knows this, at VerifyType.isNullConversion.
           pop_node(rt);  // whatever it was, pop it
@@ -684,27 +671,12 @@ void Parse::do_call() {
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
             if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
-              if (ct == T_VALUETYPE) {
-                Node* null_ctl = top();
-                Node* not_null_obj = null_check_common(retnode, T_VALUETYPE, false, &null_ctl, false);
-                if (null_ctl != top()) {
-                  // TODO For now, we just deoptimize if value type is NULL
-                  PreserveJVMState pjvms(this);
-                  set_bci(iter().next_bci());
-                  set_control(null_ctl);
-                  push(null());
-                  uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-                  set_bci(iter().cur_bci());
-                }
-                retnode = not_null_obj;
-              }
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               if (ct == T_VALUETYPE) {
-                Node* vt = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* null_check */ false, /* buffer_check */ false);
-                push(vt);
-              } else {
-                push(cast_obj);
+                // We will deoptimize if the return value is null and then need to continue execution after the call
+                cast_obj = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* buffer_check */ false, /* flattenable */ false, iter().next_bci());
               }
+              push(cast_obj);
             }
           }
         } else if (rt == T_VALUETYPE) {

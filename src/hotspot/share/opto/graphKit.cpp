@@ -1524,23 +1524,8 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
     ld = LoadNode::make(_gvn, ctl, mem, adr, adr_type, t, bt, mo, control_dependency, unaligned, mismatched);
   }
   ld = _gvn.transform(ld);
-  if (bt == T_VALUETYPE) {
-    // Loading a non-flattened (but flattenable) value type from memory
-    // We need to return the default value type if the field is null
-    ld = ValueTypeNode::make_from_oop(this, ld, t->make_oopptr()->value_klass(), true /* null check */);
-  } else if (bt == T_VALUETYPEPTR) {
-    // Loading non-flattenable value type from memory
-    Node* null_ctl = top();
-    Node* not_null_obj = null_check_common(ld, T_VALUETYPE, false, &null_ctl, false);
-    if (null_ctl != top()) {
-      // TODO For now, we just deoptimize if value type is NULL
-      PreserveJVMState pjvms(this);
-      set_control(null_ctl);
-      replace_in_map(ld, null());
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-    }
-    ld = ValueTypeNode::make_from_oop(this, not_null_obj, t->make_oopptr()->value_klass());
-  } else if (((bt == T_OBJECT) && C->do_escape_analysis()) || C->eliminate_boxing()) {
+
+  if (((bt == T_OBJECT || bt == T_VALUETYPE || bt == T_VALUETYPEPTR) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
   }
@@ -2851,6 +2836,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
   Node* res = _gvn.transform(cast);
   if (recv_xtype->is_valuetypeptr()) {
+    assert(!gvn().type(res)->is_ptr()->maybe_null(), "should never be null");
     res = ValueTypeNode::make_from_oop(this, res, recv_xtype->value_klass());
   }
 
@@ -2862,7 +2848,6 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
 
 Node* GraphKit::type_check(Node* recv_klass, const TypeKlassPtr* tklass,
                            float prob) {
-  //const TypeKlassPtr* tklass = TypeKlassPtr::make(klass);
   Node* want_klass = makecon(tklass);
   Node* cmp = _gvn.transform( new CmpPNode(recv_klass, want_klass));
   Node* bol = _gvn.transform( new BoolNode(cmp, BoolTest::eq) );
@@ -3128,31 +3113,22 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
-  if (toop->is_valuetypeptr()) {
-    if (obj->is_ValueType()) {
-      const TypeValueType* tvt = _gvn.type(obj)->is_valuetype();
-      if (toop->klass() == tvt->value_klass()) {
+
+  // Handle value types
+  if (obj->is_ValueType()) {
+    ValueTypeNode* vt = obj->as_ValueType();
+    if (toop->is_valuetypeptr()) {
+      ciValueKlass* vk = vt->type()->is_valuetype()->value_klass();
+      if (toop->klass() == vk) {
         return obj;
       } else {
-        builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(tvt->value_klass())));
+        builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(vk)));
         return top();
       }
+    } else {
+      vt = vt->allocate(this, true)->as_ValueType();
+      obj = ValueTypePtrNode::make_from_value_type(_gvn, vt);
     }
-    Node* null_ctl = top();
-    Node* not_null_obj = null_check_common(obj, T_VALUETYPE, false, &null_ctl, false);
-    if (null_ctl != top()) {
-      // TODO For now, we just deoptimize if value type is NULL
-      PreserveJVMState pjvms(this);
-      set_control(null_ctl);
-      replace_in_map(obj, null());
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      null_ctl = top();    // NULL path is dead
-    }
-    replace_in_map(obj, not_null_obj);
-    obj = not_null_obj;
-  } else if (obj->is_ValueType()) {
-    ValueTypeBaseNode* vt = obj->as_ValueType()->allocate(this, true);
-    obj = ValueTypePtrNode::make_from_value_type(_gvn, vt->as_ValueType());
   }
 
   // Fast cutout:  Check the case that the cast is vacuously true.
@@ -3171,7 +3147,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
         // to the type system as a speculative type.
         obj = record_profiled_receiver_for_speculation(obj);
         if (toop->is_valuetypeptr()) {
-          obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
+          obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* buffer_check */ false, /* flattenable */ false);
         }
         return obj;
       case Compile::SSC_always_false:
@@ -3293,7 +3269,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
 
   res = record_profiled_receiver_for_speculation(res);
   if (toop->is_valuetypeptr()) {
-    res = ValueTypeNode::make_from_oop(this, res, toop->value_klass());
+    res = ValueTypeNode::make_from_oop(this, res, toop->value_klass(), /* buffer_check */ false, /* flattenable */ false);
   }
   return res;
 }

@@ -86,6 +86,12 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
                             IN_HEAP | IN_HEAP_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+  if (bt == T_VALUETYPE) {
+    // Loading a non-flattened (but flattenable) value type from an array
+    assert(!gvn().type(ld)->is_ptr()->maybe_null(), "value type array elements should never be null");
+    ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
+  }
+
   push_node(bt, ld);
 }
 
