@@ -3888,9 +3888,6 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
     return false;
   }
 
-  const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-  assert(!obj_type->isa_valuetype() || !obj_type->is_valuetypeptr(), "no value type here");
-
   if (!is_static) {
     // Check for hashing null object
     obj = null_check_receiver();
@@ -3919,6 +3916,8 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   RegionNode* slow_region = new RegionNode(1);
   record_for_igvn(slow_region);
 
+  const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
+  assert(!obj_type->isa_valuetype() || !obj_type->is_valuetypeptr(), "no value type here");
   if (is_static && obj_type->can_be_value_type()) {
     Node* obj_klass = load_object_klass(obj);
     generate_value_guard(obj_klass, slow_region);
