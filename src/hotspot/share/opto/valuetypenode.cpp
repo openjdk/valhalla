@@ -321,10 +321,11 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
       // Recursively load the flattened value type field
       value = ValueTypeNode::make_from_flattened(kit, ft->as_value_klass(), base, ptr, holder, offset);
     } else {
-      if (base->is_Con()) {
+      const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
+      bool is_array = (oop_ptr->isa_aryptr() != NULL);
+      if (base->is_Con() && !is_array) {
         // If the oop to the value type is constant (static final field), we can
         // also treat the fields as constants because the value type is immutable.
-        const TypeOopPtr* oop_ptr = base->bottom_type()->isa_oopptr();
         ciObject* constant_oop = oop_ptr->const_oop();
         ciField* field = holder->get_field_by_offset(offset, false);
         assert(field != NULL, "field not found");
@@ -343,9 +344,8 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         BasicType bt = type2field[ft->basic_type()];
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const Type* val_type = Type::get_const_type(ft);
-        const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
         DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
-        if (ary_type != NULL) {
+        if (is_array) {
           decorators |= IN_HEAP_ARRAY;
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
