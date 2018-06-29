@@ -74,7 +74,7 @@ void Parse::array_load(BasicType bt) {
     assert(elemptr->meet(TypePtr::NULL_PTR) != elemptr, "value type array elements should never be null");
   } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type()) {
     // Cannot statically determine if array is flattened, emit runtime check
-    gen_flattened_array_guard(ary, true, 2);
+    gen_flattened_array_guard(ary, 2);
   }
 
   if (elemtype == TypeInt::BOOL) {

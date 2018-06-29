@@ -918,7 +918,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   }
   if (sig_type->is_valuetypeptr()) {
     kit.inc_sp(nargs); // restore arguments
-    arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* buffer_check */ false, /* flattenable */ false);
+    arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* buffer_check */ false, /* null2default */ false);
     kit.dec_sp(nargs);
     kit.set_argument(arg_nb, arg);
   }

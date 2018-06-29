@@ -233,7 +233,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
     if (bt == T_VALUETYPE) {
       // Load a non-flattened value type from memory
-      ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* buffer_check */ false, flattenable, iter().next_bci());
+      ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* buffer_check */ false, /* null2default */ flattenable, iter().next_bci());
     }
   }
 

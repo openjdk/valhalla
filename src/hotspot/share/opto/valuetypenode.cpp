@@ -351,7 +351,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
         if (bt == T_VALUETYPE) {
           // Loading a non-flattened value type from memory
-          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, field_is_flattenable(i));
+          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, /* null2default */ field_is_flattenable(i));
         }
       }
     }
@@ -535,7 +535,7 @@ bool ValueTypeNode::is_default(PhaseGVN& gvn) const {
   return true;
 }
 
-ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool buffer_check, bool flattenable, int trap_bci) {
+ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool buffer_check, bool null2default, int trap_bci) {
   PhaseGVN& gvn = kit->gvn();
   const TypePtr* oop_type = gvn.type(oop)->is_ptr();
   bool null_check = oop_type->maybe_null();
@@ -550,7 +550,7 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
     Node* not_null_oop = kit->null_check_oop(oop, &null_ctl);
     if (kit->stopped()) {
       // Constant null
-      if (flattenable) {
+      if (null2default) {
         kit->set_control(null_ctl);
         return make_default(gvn, vk);
       } else {
@@ -561,8 +561,8 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
     vt->set_oop(not_null_oop);
     vt->load(kit, not_null_oop, not_null_oop, vk);
 
-    if (flattenable && (null_ctl != kit->top())) {
-      // Value type is flattenable, return default value type if oop is null
+    if (null2default && (null_ctl != kit->top())) {
+      // Return default value type if oop is null
       ValueTypeNode* def = make_default(gvn, vk);
       Node* region = new RegionNode(3);
       region->init_req(1, kit->control());
@@ -572,7 +572,7 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
       vt->merge_with(&gvn, def, 2, true);
       kit->set_control(gvn.transform(region));
     } else if (null_ctl != kit->top()) {
-      // Value type is not flattenable, deoptimize if oop is null
+      // Deoptimize if oop is null
       PreserveJVMState pjvms(kit);
       kit->set_control(null_ctl);
       int bci = kit->bci();

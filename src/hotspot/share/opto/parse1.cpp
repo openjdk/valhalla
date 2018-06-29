@@ -128,7 +128,7 @@ Node* Parse::fetch_interpreter_state(int index,
     // Load oop and create a new ValueTypeNode
     const TypeInstPtr* ptr_type = TypeInstPtr::make(TypePtr::BotPTR, type->is_valuetype()->value_klass());
     l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, ptr_type, MemNode::unordered));
-    l = ValueTypeNode::make_from_oop(this, l, type->is_valuetype()->value_klass(), /* buffer_check */ true, /* flattenable */ false);
+    l = ValueTypeNode::make_from_oop(this, l, type->is_valuetype()->value_klass(), /* buffer_check */ true, /* null2default */ false);
     break;
   }
   case T_LONG:
@@ -610,7 +610,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       if (t->is_valuetypeptr()) {
         // Create ValueTypeNode from the oop and replace the parameter
         assert(depth() == 1 || !t->is_ptr()->maybe_null(), "inlined value type arguments should never be null");
-        Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true, /* flattenable */ false);
+        Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true, /* null2default */ false);
         map()->replace_edge(parm, vt);
       }
     } else {

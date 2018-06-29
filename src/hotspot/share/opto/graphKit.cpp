@@ -3147,7 +3147,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
         // to the type system as a speculative type.
         obj = record_profiled_receiver_for_speculation(obj);
         if (toop->is_valuetypeptr()) {
-          obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* buffer_check */ false, /* flattenable */ false);
+          obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
         }
         return obj;
       case Compile::SSC_always_false:
@@ -3269,7 +3269,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
 
   res = record_profiled_receiver_for_speculation(res);
   if (toop->is_valuetypeptr()) {
-    res = ValueTypeNode::make_from_oop(this, res, toop->value_klass(), /* buffer_check */ false, /* flattenable */ false);
+    res = ValueTypeNode::make_from_oop(this, res, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
   }
   return res;
 }
@@ -3321,7 +3321,7 @@ void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass
 }
 
 // Deoptimize if 'ary' is a flattened value type array
-void GraphKit::gen_flattened_array_guard(Node* ary, bool crash, int nargs) {
+void GraphKit::gen_flattened_array_guard(Node* ary, int nargs) {
   assert(EnableValhalla, "should only be used if value types are enabled");
   if (ValueArrayFlatten) {
     // Cannot statically determine if array is flattened, emit runtime check
@@ -3334,16 +3334,9 @@ void GraphKit::gen_flattened_array_guard(Node* ary, bool crash, int nargs) {
 
     { BuildCutout unless(this, bol, PROB_MAX);
       // TODO just deoptimize for now if value type array is flattened
-      if (crash) {
-        Node *frame = _gvn.transform(new ParmNode(C->start(), TypeFunc::FramePtr));
-        Node *halt = _gvn.transform(new HaltNode(control(), frame));
-        C->root()->add_req(halt);
-        stop_and_kill_map();
-      } else {
-        inc_sp(nargs);
-        uncommon_trap(Deoptimization::Reason_array_check,
-                      Deoptimization::Action_none);
-      }
+      inc_sp(nargs);
+      uncommon_trap(Deoptimization::Reason_array_check,
+                    Deoptimization::Action_none);
     }
   }
 }

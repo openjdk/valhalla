@@ -646,7 +646,7 @@ void Parse::do_call() {
         assert(!cg->is_inline(), "should have ValueTypeNode result");
         ciValueKlass* vk = _gvn.type(retnode)->value_klass();
         // We will deoptimize if the return value is null and then need to continue execution after the call
-        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* flattenable */ false, iter().next_bci());
+        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* null2default */ false, iter().next_bci());
         push_node(T_VALUETYPE, vt);
       }
     }
@@ -674,7 +674,7 @@ void Parse::do_call() {
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               if (ct == T_VALUETYPE) {
                 // We will deoptimize if the return value is null and then need to continue execution after the call
-                cast_obj = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* buffer_check */ false, /* flattenable */ false, iter().next_bci());
+                cast_obj = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* buffer_check */ false, /* null2default */ false, iter().next_bci());
               }
               push(cast_obj);
             }
