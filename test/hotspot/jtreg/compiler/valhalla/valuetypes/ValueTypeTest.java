@@ -182,15 +182,21 @@ public abstract class ValueTypeTest {
         ArrayList<String> args = new ArrayList<String>(defaultFlags);
         String[] vmInputArgs = InputArguments.getVmInputArgs();
         if (VERIFY_IR) {
-            // Check if the JVM supports the default arguments from the test's run command
             for (String arg : vmInputArgs) {
-                if (arg.startsWith("-XX:+")) {
+                if (arg.startsWith("-XX:CompileThreshold")) {
+                    // Disable IR verification if
+                    VERIFY_IR = false;
+                }
+                // Check if the JVM supports value type specific default arguments from the test's run commands
+                if (arg.startsWith("-XX:+ValueTypePassFieldsAsArgs") ||
+                    arg.startsWith("-XX:+ValueTypeReturnedAsFields")) {
                     Boolean value = (Boolean)WHITE_BOX.getVMFlag(arg.substring(5));
                     if (!value) {
                         System.out.println("WARNING: could not enable " + arg.substring(5) + ". Skipping IR verification.");
                         VERIFY_IR = false;
                     }
-                } else if (arg.startsWith("-XX:-")) {
+                } else if (arg.startsWith("-XX:-ValueTypePassFieldsAsArgs") ||
+                           arg.startsWith("-XX:-ValueTypeReturnedAsFields")) {
                     Boolean value = (Boolean)WHITE_BOX.getVMFlag(arg.substring(5));
                     if (value) {
                         System.out.println("WARNING: could not disable " + arg.substring(5) + ". Skipping IR verification.");
