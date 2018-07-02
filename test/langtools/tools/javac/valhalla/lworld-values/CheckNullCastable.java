@@ -11,4 +11,5 @@ __ByValue final class CheckNullCastable {
         if (cnc != null) {};
         if (null != cnc) {};
     }
+    int x = 10;
 }

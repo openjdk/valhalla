@@ -15,4 +15,5 @@ __ByValue final class CheckSynchronized {
         synchronized(cs) {    // <<-- ERROR, no monitor associated with value instance.
         }
     }
+    int x = 10;
 }

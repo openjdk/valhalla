@@ -6,8 +6,8 @@
  */
 __ByValue final class Point {
 
-    __ByValue interface I {} // Error
-    __ByValue abstract class A {} // Error
+    __ByValue interface I { int x = 10; } // Error
+    __ByValue abstract class A { int x = 10; } // Error
     static final class Sinner {
         static Sinner make() {
             return __MakeDefault Sinner(); // NO: Sinner is not a value class.
@@ -17,7 +17,7 @@ __ByValue final class Point {
     __ByValue static final class SinnerValue {
         static SinnerValue make() {
             return __MakeDefault SinnerValue(); // OK.
-        }
+        } int x = 10;
     }
 
     final int x;

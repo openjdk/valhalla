@@ -13,4 +13,5 @@ final __ByValue class CheckNullAssign {
         if (null instanceof CheckNullAssign) {}
         return null;
     }
+    int x = 10;
 }

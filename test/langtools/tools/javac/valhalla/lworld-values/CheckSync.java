@@ -12,7 +12,7 @@
 public final __ByValue class CheckSync {
 
     final __ByValue class Val {
-
+        int x = 10;
         void foo() {
             // All calls below are bad.
             wait();
@@ -38,4 +38,5 @@ public final __ByValue class CheckSync {
         val.notify();
         val.notifyAll();
     }
+    int x = 10;
 }

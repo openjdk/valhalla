@@ -9,10 +9,11 @@ final __ByValue class CheckFinalize {
     @Override
     protected void finalize() {}
 
-    final __ByValue class CheckFinalizeInner {}
+    final __ByValue class CheckFinalizeInner { int x = 10; }
 
     void foo(CheckFinalizeInner cfi, CheckFinalize cf) {
         cfi.finalize();          // Error
         cf.finalize();           // Error.
     }
+    int x = 10;
 }

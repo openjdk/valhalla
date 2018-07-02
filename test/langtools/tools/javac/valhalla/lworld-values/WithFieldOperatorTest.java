@@ -8,7 +8,7 @@ public class WithFieldOperatorTest {
     static int xs;
     int ifld;
     class Y {}
-    public final __ByValue class V {}
+    public final __ByValue class V { int x = 10; }
 
     public final __ByValue class X {
 

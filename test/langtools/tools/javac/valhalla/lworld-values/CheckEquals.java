@@ -9,4 +9,5 @@ final __ByValue class CheckEquals {
     boolean foo(CheckEquals a, CheckEquals b) {
         return (a == b) || (a != b);
     }
+    int x = 10;
 }

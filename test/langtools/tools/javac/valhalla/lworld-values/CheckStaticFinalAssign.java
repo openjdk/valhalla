@@ -15,4 +15,5 @@ __ByValue final class CheckStaticFinalAssign {
        x.x = 100;
        return x;
     }
+    int ix = 10;
 }

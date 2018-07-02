@@ -23,4 +23,5 @@ final __ByValue class CheckIdentityHash01 {
         java.lang.System.identityHashCode(v);    // <- error
         java.lang.System.identityHashCode(this); // <- error
     }
+    int x = 10;
 }
