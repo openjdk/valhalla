@@ -965,7 +965,13 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_name(rh(), name());
   java_lang_reflect_Field::set_type(rh(), type());
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
-  java_lang_reflect_Field::set_modifiers(rh(), fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS);
+  int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
+  if (fd->is_flattened()) {
+    java_lang_reflect_Field::set_modifiers(rh(), modifiers | JVM_ACC_FIELD_FLATTENED);
+  } else {
+    java_lang_reflect_Field::set_modifiers(rh(), modifiers);
+  }
+
   java_lang_reflect_Field::set_override(rh(), false);
   if (java_lang_reflect_Field::has_signature_field() &&
       fd->has_generic_signature()) {

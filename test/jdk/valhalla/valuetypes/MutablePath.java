@@ -21,13 +21,9 @@
  * questions.
  */
 
-public final __ByValue class Line {
+public final class MutablePath {
     public Point p1;
     public Point p2;
-    Line () {
-        this.p1 = Point.makePoint(0, 0);
-        this.p2 = Point.makePoint(0, 0);
-    }
 
     public Point p1() {
         return p1;
@@ -36,10 +32,20 @@ public final __ByValue class Line {
     public Point p2() {
         return p2;
     }
-    public static Line makeLine(int x1, int y1, int x2, int y2) {
-        Line l = __MakeDefault Line();
-        l = __WithField(l.p1, Point.makePoint(x1, y1));
-        l = __WithField(l.p2, Point.makePoint(x2, y2));
-        return l;
+
+    public void set(int x1, int y1, int x2, int y2) {
+        this.p1 = Point.makePoint(x1, y1);
+        this.p2 = Point.makePoint(x2, y2);
+    }
+
+    @Override
+    public String toString() {
+        return "MutablePath" + p1 + ", " + p2;
+    }
+
+    public static MutablePath makePath(int x1, int y1, int x2, int y2) {
+        MutablePath path = new MutablePath();
+        path.set(x1, y1, x2, y2);
+        return path;
     }
 }

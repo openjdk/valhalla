@@ -118,4 +118,6 @@ public interface LangReflectAccess {
 
     /** Gets the root of the given AccessibleObject object; null if arg is the root */
     public <T extends AccessibleObject> T getRoot(T obj);
+
+    public boolean isFlattened(Field f);
 }

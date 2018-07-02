@@ -33,7 +33,8 @@ class UnsafeStaticObjectFieldAccessorImpl extends UnsafeStaticFieldAccessorImpl 
     }
 
     public Object get(Object obj) throws IllegalArgumentException {
-        return unsafe.getObject(base, fieldOffset);
+        return isFlattened ? unsafe.getValue(base, fieldOffset, field.getType())
+                           : unsafe.getObject(base, fieldOffset);
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {
@@ -78,8 +79,14 @@ class UnsafeStaticObjectFieldAccessorImpl extends UnsafeStaticFieldAccessorImpl 
             if (!field.getType().isAssignableFrom(value.getClass())) {
                 throwSetIllegalArgumentException(value);
             }
+        } else if (field.getType().isValue()) {
+            throw new NullPointerException("cannot set this field of type " + field.getType() + " to null");
         }
-        unsafe.putObject(base, fieldOffset, value);
+        if (isFlattened) {
+            unsafe.putValue(obj, fieldOffset, field.getType(), value);
+        } else {
+            unsafe.putObject(base, fieldOffset, value);
+        }
     }
 
     public void setBoolean(Object obj, boolean z)

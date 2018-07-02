@@ -82,14 +82,14 @@ class GenerateJLIClassesHelper {
             for (byte b = DirectMethodHandle.AF_GETFIELD; b < DirectMethodHandle.AF_LIMIT; b++) {
                 int ftype = DirectMethodHandle.ftypeKind(wrapper.primitiveType());
                 LambdaForm form = DirectMethodHandle
-                        .makePreparedFieldLambdaForm(b, /*isVolatile*/false, ftype);
+                        .makePreparedFieldLambdaForm(b, false, /*isVolatile*/false, ftype);
                 if (form.kind != LambdaForm.Kind.GENERIC) {
                     forms.add(form);
                     names.add(form.kind.defaultLambdaName);
                 }
                 // volatile
                 form = DirectMethodHandle
-                        .makePreparedFieldLambdaForm(b, /*isVolatile*/true, ftype);
+                        .makePreparedFieldLambdaForm(b, false, /*isVolatile*/true, ftype);
                 if (form.kind != LambdaForm.Kind.GENERIC) {
                     forms.add(form);
                     names.add(form.kind.defaultLambdaName);

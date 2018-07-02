@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test reflection on value types
- * @compile Point.java
+ * @compile Point.java Line.java
  * @run main/othervm -XX:+EnableValhalla Reflection
  */
 
@@ -33,31 +33,43 @@ import java.lang.reflect.*;
 
 public class Reflection {
     public static void main(String... args) throws Exception {
-        Reflection test = new Reflection("Point");
+        testPointClass();
+        testLineClass();
+    }
+
+    static void testPointClass() throws Exception  {
+        Point o = Point.makePoint(10, 20);
+        Reflection test = new Reflection("Point", o);
         test.newInstance();
         test.constructor();
-        test.accessField();
+        test.accessFieldX(o.x);
         test.setAccessible();
         test.trySetAccessible();
         test.staticField();
     }
 
+    static void testLineClass() throws Exception {
+        Line l = Line.makeLine(10, 20, 30, 40);
+        Reflection test = new Reflection("Line", l);
+        test.getDeclaredFields();
+    }
+
     private final Class<?> c;
     private final Constructor<?> ctor;
-    private final Field field;
-    Reflection(String cn) throws Exception {
+    private final Object o;
+    Reflection(String cn, Object o) throws Exception {
         this.c = Class.forName(cn);
         if (!c.isValue()) {
             throw new RuntimeException(cn + " is not a value class");
         }
 
-        this.ctor = Point.class.getDeclaredConstructor();
-        this.field = c.getField("x");
+        this.ctor = c.getDeclaredConstructor();
+        this.o = o;
     }
 
-    void accessField() throws Exception {
-        Point o = Point.makePoint(10, 20);
-        if (field.getInt(o) != o.x) {
+    void accessFieldX(int x) throws Exception {
+        Field field = c.getField("x");
+        if (field.getInt(o) != x) {
             throw new RuntimeException("Unexpected Point.x value: " +  field.getInt(o));
         }
 
@@ -86,6 +98,7 @@ public class Reflection {
             ctor.setAccessible(true);
             throw new RuntimeException("InaccessibleObjectException not thrown");
         } catch (InaccessibleObjectException e) { e.printStackTrace(); }
+        Field field = c.getField("x");
         try {
             field.setAccessible(true);
             throw new RuntimeException("InaccessibleObjectException not thrown");
@@ -96,13 +109,14 @@ public class Reflection {
         if (ctor.trySetAccessible()) {
             throw new RuntimeException("trySetAccessible should not succeed");
         }
+        Field field = c.getField("x");
         if (field.trySetAccessible()) {
             throw new RuntimeException("trySetAccessible should not succeed");
         }
     }
 
     void staticField() throws Exception {
-        Field f = Point.class.getDeclaredField("STATIC_FIELD");
+        Field f = c.getDeclaredField("STATIC_FIELD");
         if (f.trySetAccessible()) {
             throw new RuntimeException("trySetAccessible should not succeed");
         }
@@ -110,5 +124,11 @@ public class Reflection {
             f.setAccessible(true);
             throw new RuntimeException("IllegalAccessException not thrown");
         } catch (InaccessibleObjectException e) { }
+    }
+
+    void getDeclaredFields() throws Exception {
+        for (Field f : c.getDeclaredFields()) {
+            System.out.println(f.getName() + " = " + f.get(o));
+        }
     }
 }

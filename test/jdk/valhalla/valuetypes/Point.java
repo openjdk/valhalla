@@ -21,10 +21,10 @@
  * questions.
  */
 
-public final __ByValue class Point {
+public __ByValue class Point {
     static final Object STATIC_FIELD = new Object();
-    public final int x;
-    public final int y;
+    public int x;
+    public int y;
     Point () {
         x = 10;
         y = 20;

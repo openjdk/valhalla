@@ -452,6 +452,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     static final int SYNTHETIC  = 0x00001000;
     static final int ANNOTATION = 0x00002000;
     static final int ENUM       = 0x00004000;
+    static final int FLATTENED  = 0x00008000;
 
     /** Utility method to query the modifier flags of this member; returns false if the member is not a method. */
     public boolean isBridge() {
@@ -468,6 +469,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
 
     public boolean isValue() { return clazz.isValue(); }
 
+    public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
     static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
 

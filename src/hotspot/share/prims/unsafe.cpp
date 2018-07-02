@@ -35,6 +35,9 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valueArrayKlass.hpp"
+#include "oops/valueArrayOop.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
@@ -254,6 +257,28 @@ public:
   }
 };
 
+#ifdef ASSERT
+/*
+ * Get the field descriptor of the field of the given object at the given offset.
+ */
+static bool get_field_descriptor(oop p, jlong offset, fieldDescriptor* fd) {
+  bool found = false;
+  Klass* k = p->klass();
+  if (k->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    found = ik->find_field_from_offset((int)offset, false, fd);
+    if (!found && ik->is_mirror_instance_klass()) {
+      Klass* k2 = java_lang_Class::as_Klass(p);
+      if (k2->is_instance_klass()) {
+        ik = InstanceKlass::cast(k2);
+        found = ik->find_field_from_offset((int)offset, true, fd);
+      }
+    }
+  }
+  return found;
+}
+#endif // ASSERT
+
 // These functions allow a null base pointer with an arbitrary address.
 // But if the base pointer is non-null, the offset should make some sense.
 // That is, it should be in the range [0, MAX_OBJECT_SIZE].
@@ -269,6 +294,56 @@ UNSAFE_ENTRY(void, Unsafe_PutObject(JNIEnv *env, jobject unsafe, jobject obj, jl
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
+} UNSAFE_END
+
+UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass c)) {
+  oop p = JNIHandles::resolve(obj);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
+  ValueKlass* vk = ValueKlass::cast(k);
+
+#ifdef ASSERT
+  assert_field_offset_sane(p, offset);
+  fieldDescriptor fd;
+  bool found = get_field_descriptor(p, offset, &fd);
+  assert(found, "value field not found");
+  assert(fd.is_flattened(), "field not flat");
+#endif // ASSERT
+
+  if (log_is_enabled(Trace, valuetypes)) {
+    log_trace(valuetypes)("getValue: field type %s at offset " SIZE_FORMAT_HEX,
+                          vk->external_name(), offset);
+  }
+
+  Handle p_h(THREAD, p);
+  bool in_heap;
+  oop v = vk->allocate_buffered_or_heap_instance(&in_heap, CHECK_NULL); // allocate instance
+  vk->initialize(CHECK_NULL); // If field is a default value, value class might not be initialized yet
+  vk->value_store(((char*)(oopDesc*)p_h()) + offset,
+                  vk->data_for_oop(v),
+                  in_heap, true);                  
+  return JNIHandles::make_local(env, v);
+} UNSAFE_END
+
+UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass c, jobject value)) {
+  oop v = JNIHandles::resolve(value);
+  oop p = JNIHandles::resolve(obj);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
+  ValueKlass* vk = ValueKlass::cast(k);
+
+#ifdef ASSERT
+  assert_field_offset_sane(p, offset);
+  fieldDescriptor fd;
+  bool found = get_field_descriptor(p, offset, &fd);
+  assert(found, "value field not found");
+  assert(fd.is_flattened(), "field not flat");
+#endif  // ASSERT
+
+  if (log_is_enabled(Trace, valuetypes)) {
+    log_trace(valuetypes)("putValue: field type %s at offset " SIZE_FORMAT_HEX,
+                          vk->external_name(), offset);
+  }
+  vk->value_store(vk->data_for_oop(v),
+                 ((char*)(oopDesc*)p) + offset, true, true);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetObjectVolatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) {
@@ -1038,6 +1113,9 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "putObject",        CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutObject)},
     {CC "getObjectVolatile",CC "(" OBJ "J)" OBJ "",   FN_PTR(Unsafe_GetObjectVolatile)},
     {CC "putObjectVolatile",CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutObjectVolatile)},
+
+    {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ "", FN_PTR(Unsafe_GetValue)},
+    {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",   FN_PTR(Unsafe_PutValue)},
 
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 

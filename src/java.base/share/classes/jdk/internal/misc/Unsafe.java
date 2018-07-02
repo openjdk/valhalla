@@ -181,6 +181,8 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native Object getObject(Object o, long offset);
 
+    public native Object getValue(Object base, long offset, Class<?> valueType);
+
     /**
      * Stores a reference value into a given Java variable.
      * <p>
@@ -193,6 +195,8 @@ public final class Unsafe {
      */
     @HotSpotIntrinsicCandidate
     public native void putObject(Object o, long offset, Object x);
+
+    public native void putValue(Object base, long offset, Class<?> valueType, Object value);
 
     /** @see #getInt(Object, long) */
     @HotSpotIntrinsicCandidate
@@ -1963,12 +1967,26 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native Object getObjectVolatile(Object o, long offset);
 
+    // workaround until volatile is done properly for values
+    private static final Object valueLock = new Object();
+    public final Object getValueVolatile(Object base, long offset, Class<?> valueType) {
+        synchronized (valueLock) {
+            return getValue(base, offset, valueType);
+        }
+    }
+
     /**
      * Stores a reference value into a given Java variable, with
      * volatile store semantics. Otherwise identical to {@link #putObject(Object, long, Object)}
      */
     @HotSpotIntrinsicCandidate
     public native void    putObjectVolatile(Object o, long offset, Object x);
+
+    public final void putValueVolatile(Object o, long offset, Class<?> valueType, Object x) {
+        synchronized (valueLock) {
+            putValue(o, offset, valueType, x);
+        }
+    }
 
     /** Volatile version of {@link #getInt(Object, long)}  */
     @HotSpotIntrinsicCandidate
@@ -2042,6 +2060,10 @@ public final class Unsafe {
         return getObjectVolatile(o, offset);
     }
 
+    public final Object getValueAcquire(Object base, long offset, Class<?> valueType) {
+        return getValueVolatile(base, offset, valueType);
+    }
+
     /** Acquire version of {@link #getBooleanVolatile(Object, long)} */
     @HotSpotIntrinsicCandidate
     public final boolean getBooleanAcquire(Object o, long offset) {
@@ -2106,6 +2128,10 @@ public final class Unsafe {
         putObjectVolatile(o, offset, x);
     }
 
+    public final void putValueRelease(Object o, long offset, Class<?> valueType, Object x) {
+        putValueVolatile(o, offset, valueType, x);
+    }
+
     /** Release version of {@link #putBooleanVolatile(Object, long, boolean)} */
     @HotSpotIntrinsicCandidate
     public final void putBooleanRelease(Object o, long offset, boolean x) {
@@ -2162,6 +2188,10 @@ public final class Unsafe {
         return getObjectVolatile(o, offset);
     }
 
+    public final Object getValueOpaque(Object base, long offset, Class<?> valueType) {
+        return getValueVolatile(base, offset, valueType);
+    }
+
     /** Opaque version of {@link #getBooleanVolatile(Object, long)} */
     @HotSpotIntrinsicCandidate
     public final boolean getBooleanOpaque(Object o, long offset) {
@@ -2214,6 +2244,10 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public final void putObjectOpaque(Object o, long offset, Object x) {
         putObjectVolatile(o, offset, x);
+    }
+
+    public final void putValueOpaque(Object o, long offset, Class<?> valueType, Object x) {
+        putValueVolatile(o, offset, valueType, x);
     }
 
     /** Opaque version of {@link #putBooleanVolatile(Object, long, boolean)} */

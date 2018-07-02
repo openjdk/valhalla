@@ -24,9 +24,8 @@
 
 /*
  * @test
- * @ignore 8205549
- * @summary test hashCode/equals/toString on value types
- * @run testng ObjectMethods
+ * @summary test Object methods on value types
+ * @run testng/othervm -XX:+EnableValhalla ObjectMethods
  */
 
 
@@ -36,42 +35,42 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class ObjectMethods {
-    @DataProvider(name="dataForHashes")
-    Object[][] dataForHashes() {
+    @DataProvider(name="hashcodeTests")
+    Object[][] hashcodeTests() {
         return new Object[][] {
             { Point.makePoint(100, 200), hash(Point.class, 100, 200) },
-            { Line.makeLine(1, 2, 3, 4), hash(Line.class, 1, 2, 3, 4)}
+ //           { Line.makeLine(1, 2, 3, 4), hash(Line.class, 1, 2, 3, 4)}
         };
     }
 
-    @DataProvider(name="dataForEquals")
-    Object[][] dataForEquals() {
+    @DataProvider(name="equalsTests")
+    Object[][] equalsTests() {
         return new Object[][] {
             { Point.makePoint(100, 200), Point.makePoint(200, 200) },
-            { Line.makeLine(1, 2, 3, 4), Line.makeLine(2, 2, 4, 4)}
+ //           { Line.makeLine(1, 2, 3, 4), Line.makeLine(2, 2, 4, 4)}
         };
     }
 
-    @DataProvider(name="dataFortoString")
-    Object[][] dataFortoString() {
+    @DataProvider(name="toStringTests")
+    Object[][] toStringTests() {
         return new Object[][] {
             { Point.makePoint(100, 200), "[value class Point, 100, 200]" },
-            { Line.makeLine(1, 2, 3, 4), "[value class Line, 1, 2, 3, 4]"}
+//           { Line.makeLine(1, 2, 3, 4), "[value class Line, 1, 2, 3, 4]"}
         };
     }
 
-    @Test(dataProvider="dataForHashes")
+    @Test(dataProvider="hashcodeTests")
     public void testHashCode(Object o, int hash) {
         assertTrue(o.hashCode() == hash);
     }
 
-    @Test(dataProvider="dataForEquals")
+    @Test(dataProvider="equalsTests")
     public void testEquals(Object o1, Object o2) {
         assertTrue(o1.equals(o1));
         assertFalse(o1.equals(o2));
     }
 
-    @Test(dataProvider="dataFortoString")
+    @Test(dataProvider="toStringTests")
     public void testToString(Object o, String s) {
         assertTrue(o.toString().equals(s));
     }

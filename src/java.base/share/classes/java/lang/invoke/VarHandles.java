@@ -33,9 +33,15 @@ final class VarHandles {
         if (!f.isStatic()) {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             if (!type.isPrimitive()) {
-                return f.isFinal() && !isWriteAllowedOnFinalFields
-                       ? new VarHandleObjects.FieldInstanceReadOnly(refc, foffset, type)
-                       : new VarHandleObjects.FieldInstanceReadWrite(refc, foffset, type);
+                if (f.isFlattened()) {
+                    return f.isFinal() && !isWriteAllowedOnFinalFields
+                        ? new VarHandleObjects.ValueFieldInstanceReadOnly(refc, foffset, type)
+                        : new VarHandleObjects.ValueFieldInstanceReadWrite(refc, foffset, type);
+                } else {
+                    return f.isFinal() && !isWriteAllowedOnFinalFields
+                        ? new VarHandleObjects.FieldInstanceReadOnly(refc, foffset, type)
+                        : new VarHandleObjects.FieldInstanceReadWrite(refc, foffset, type);
+                }
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
@@ -94,9 +100,10 @@ final class VarHandles {
             Object base = MethodHandleNatives.staticFieldBase(f);
             long foffset = MethodHandleNatives.staticFieldOffset(f);
             if (!type.isPrimitive()) {
+                assert(!f.isFlattened());   // static field is not flattened
                 return f.isFinal() && !isWriteAllowedOnFinalFields
-                       ? new VarHandleObjects.FieldStaticReadOnly(base, foffset, type)
-                       : new VarHandleObjects.FieldStaticReadWrite(base, foffset, type);
+                        ? new VarHandleObjects.FieldStaticReadOnly(base, foffset, type)
+                        : new VarHandleObjects.FieldStaticReadWrite(base, foffset, type);
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields

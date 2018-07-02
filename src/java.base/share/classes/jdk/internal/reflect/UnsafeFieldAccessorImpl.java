@@ -42,6 +42,7 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     protected final Field   field;
     protected final long    fieldOffset;
     protected final boolean isFinal;
+    protected final boolean isFlattened;
 
     UnsafeFieldAccessorImpl(Field field) {
         this.field = field;
@@ -50,6 +51,7 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
         else
             fieldOffset = unsafe.objectFieldOffset(field);
         isFinal = Modifier.isFinal(field.getModifiers());
+        isFlattened = ReflectionFactory.langReflectAccess().isFlattened(field);
     }
 
     protected void ensureObj(Object o) {

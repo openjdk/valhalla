@@ -159,4 +159,8 @@ class ReflectAccess implements jdk.internal.reflect.LangReflectAccess {
     public <T extends AccessibleObject> T getRoot(T obj) {
         return (T) obj.getRoot();
     }
+
+    public boolean isFlattened(Field f) {
+        return (f.getModifiers() & Modifier.FLATTENED) == Modifier.FLATTENED;
+    }
 }

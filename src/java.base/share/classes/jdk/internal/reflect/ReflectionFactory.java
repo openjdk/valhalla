@@ -656,7 +656,7 @@ public class ReflectionFactory {
         initted = true;
     }
 
-    private static LangReflectAccess langReflectAccess() {
+    static LangReflectAccess langReflectAccess() {
         if (langReflectAccess == null) {
             // Call a static method to get class java.lang.reflect.Modifier
             // initialized. Its static initializer will cause
