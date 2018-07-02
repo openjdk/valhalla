@@ -30,6 +30,7 @@
 #include "jfr/jfrEvents.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "logging/log.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/objArrayOop.inline.hpp"
