@@ -1351,7 +1351,18 @@ public class Attr extends JCTree.Visitor {
                         (sym.flags() & STATIC) != 0 || !types.isValue(sym.owner.type)) {
                     log.error(tree.field.pos(), Errors.ValueInstanceFieldExpectedHere);
                 } else {
-                    capturedType = capture(sym.owner.type);
+                    Type ownType = sym.owner.type;
+                    switch(tree.field.getTag()) {
+                        case IDENT:
+                            JCIdent ident = (JCIdent) tree.field;
+                            ownType = ident.sym.owner.type;
+                            break;
+                        case SELECT:
+                            JCFieldAccess fieldAccess = (JCFieldAccess) tree.field;
+                            ownType = fieldAccess.selected.type;
+                            break;
+                    }
+                    capturedType = capture(ownType);
                 }
             }
             result = check(tree, capturedType, KindSelector.VAL, resultInfo);
