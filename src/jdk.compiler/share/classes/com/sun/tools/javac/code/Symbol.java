@@ -66,7 +66,6 @@ import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import com.sun.tools.javac.code.Scope.WriteableScope;
-import static com.sun.tools.javac.code.Symbol.OperatorSymbol.AccessCode.FIRSTASGOP;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
@@ -2030,7 +2029,7 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             return accessCode;
         }
 
-        /** Access codes for dereferencing, assignment,
+        /** Access codes for dereferencing, assignment, withfield
          *  and pre/post increment/decrement.
 
          *  All access codes for accesses to the current class are even.
@@ -2050,7 +2049,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             PREDEC(6, Tag.PREDEC),
             POSTINC(8, Tag.POSTINC),
             POSTDEC(10, Tag.POSTDEC),
-            FIRSTASGOP(12, Tag.NO_TAG);
+            WITHFIELD(12, Tag.WITHFIELD),
+            FIRSTASGOP(14, Tag.NO_TAG);
 
             public final int code;
             public final Tag tag;
@@ -2083,6 +2083,8 @@ public abstract class Symbol extends AnnoConstruct implements Element {
                         return AccessCode.POSTINC.code;
                     case POSTDEC:
                         return AccessCode.POSTDEC.code;
+                    case WITHFIELD:
+                        return AccessCode.WITHFIELD.code;
                 }
                 if (iadd <= opcode && opcode <= lxor) {
                     return (opcode - iadd) * 2 + FIRSTASGOP.code;

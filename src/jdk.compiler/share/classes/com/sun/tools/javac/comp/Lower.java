@@ -866,6 +866,9 @@ public class Lower extends TreeTranslator {
         else if (enclOp.hasTag(ASSIGN) &&
                  tree == TreeInfo.skipParens(((JCAssign) enclOp).lhs))
             return AccessCode.ASSIGN.code;
+        else if (enclOp.hasTag(WITHFIELD) &&
+                tree == TreeInfo.skipParens(((JCWithField) enclOp).field))
+            return AccessCode.WITHFIELD.code;
         else if ((enclOp.getTag().isIncOrDecUnaryOp() || enclOp.getTag().isAssignop()) &&
                 tree == TreeInfo.skipParens(((JCOperatorExpression) enclOp).getOperand(LEFT)))
             return (((JCOperatorExpression) enclOp).operator).getAccessCode(enclOp.getTag());
@@ -976,11 +979,11 @@ public class Lower extends TreeTranslator {
                     argtypes = List.of(syms.objectType);
                 else
                     argtypes = operator.type.getParameterTypes().tail;
-            } else if (acode == AccessCode.ASSIGN.code)
+            } else if (acode == AccessCode.ASSIGN.code || acode == AccessCode.WITHFIELD.code)
                 argtypes = List.of(vsym.erasure(types));
             else
                 argtypes = List.nil();
-            restype = vsym.erasure(types);
+            restype = acode == AccessCode.WITHFIELD.code ? vsym.owner.erasure(types) : vsym.erasure(types);
             thrown = List.nil();
             break;
         case MTH:
@@ -1337,12 +1340,15 @@ public class Lower extends TreeTranslator {
             case PREINC: case POSTINC: case PREDEC: case POSTDEC:
                 expr = makeUnary(aCode.tag, ref);
                 break;
+            case WITHFIELD:
+                expr = make.WithField(ref, args.head);
+                break;
             default:
                 expr = make.Assignop(
                     treeTag(binaryAccessOperator(acode1, JCTree.Tag.NO_TAG)), ref, args.head);
                 ((JCAssignOp) expr).operator = binaryAccessOperator(acode1, JCTree.Tag.NO_TAG);
             }
-            stat = make.Return(expr.setType(sym.type));
+            stat = make.Return(expr.setType(aCode == AccessCode.WITHFIELD ? sym.owner.type : sym.type));
         } else {
             stat = make.Call(make.App(ref, args));
         }
@@ -3317,9 +3323,20 @@ public class Lower extends TreeTranslator {
     }
 
     public void visitWithField(JCWithField tree) {
+        Type fieldType = tree.field.type;
         tree.field = translate(tree.field, tree);
-        tree.value = translate(tree.value, tree.field.type);
-        result = tree;
+        tree.value = translate(tree.value, fieldType); // important to use pre-translation type.
+
+        // If translated field is an Apply, we are
+        // seeing an access method invocation. In this case, append
+        // right hand side as last argument of the access method.
+        if (tree.field.hasTag(APPLY)) {
+            JCMethodInvocation app = (JCMethodInvocation) tree.field;
+            app.args = List.of(tree.value).prependList(app.args);
+            result = app;
+        } else {
+            result = tree;
+        }
     }
 
     public void visitForLoop(JCForLoop tree) {
