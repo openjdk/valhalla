@@ -1882,4 +1882,47 @@ public class TestLWorld extends ValueTypeTest {
         Test65Value vt = __MakeDefault Test65Value();
         test66(vt);
     }
+
+    // Merging value types of different types
+    @Test()
+    public Object test67(Object o, boolean b) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        return b ? vt : o;
+    }
+
+    @DontCompile
+    public void test67_verifier(boolean warmup) {
+        test67(new Object(), false);
+        MyValue1 result = (MyValue1)test67(new Object(), true);
+        Asserts.assertEQ(result.hash(), hash());
+    }
+
+    @Test()
+    public Object test68(boolean b) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        return b ? vt : testValue2;
+    }
+
+    @DontCompile
+    public void test68_verifier(boolean warmup) {
+        MyValue1 result1 = (MyValue1)test68(true);
+        Asserts.assertEQ(result1.hash(), hash());
+        MyValue2 result2 = (MyValue2)test68(false);
+        Asserts.assertEQ(result2.hash(), testValue2.hash());
+    }
+
+    @Test()
+    public Object test69(boolean b) {
+        MyValue1 vt1 = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue2 vt2 = MyValue2.createWithFieldsInline(rI, true);
+        return b ? vt1 : vt2;
+    }
+
+    @DontCompile
+    public void test69_verifier(boolean warmup) {
+        MyValue1 result1 = (MyValue1)test69(true);
+        Asserts.assertEQ(result1.hash(), hash());
+        MyValue2 result2 = (MyValue2)test69(false);
+        Asserts.assertEQ(result2.hash(), testValue2.hash());
+    }
 }

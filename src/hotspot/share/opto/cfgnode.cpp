@@ -1646,12 +1646,13 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return NULL;                // No change
 
-  // If all inputs are value types, push the value type node down through the
-  // phi because value type nodes should be merged through their input values.
+  // If all inputs are value types of the same type, push the value type node down
+  // through the phi because value type nodes should be merged through their input values.
   if (req() > 2 && in(1) != NULL && in(1)->is_ValueTypeBase() && (can_reshape || in(1)->is_ValueType())) {
     int opcode = in(1)->Opcode();
     uint i = 2;
-    for (; i < req() && in(i) && in(i)->is_ValueTypeBase(); i++) {
+    // Check if inputs are values of the same type
+    for (; i < req() && in(i) && in(i)->is_ValueTypeBase() && in(i)->cmp(*in(1)); i++) {
       assert(in(i)->Opcode() == opcode, "mixing pointers and values?");
     }
     if (i == req()) {

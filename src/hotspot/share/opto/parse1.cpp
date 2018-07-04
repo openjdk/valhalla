@@ -1881,7 +1881,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two value types?
-      assert(n->is_top() || m->is_ValueType() == n->is_ValueType(), "value types should only be merged with other value types");
       if (phi != NULL && n->isa_ValueType()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
