@@ -163,6 +163,7 @@ public class Attr extends JCTree.Visitor {
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
         allowGenericsOverValues = options.isSet("allowGenericsOverValues");
+        allowEmptyValues = options.isSet("allowEmptyValues");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
@@ -203,6 +204,11 @@ public class Attr extends JCTree.Visitor {
      * Switch: Allow value types to parameterize generic types?
      */
     boolean allowGenericsOverValues;
+
+    /**
+     * Switch: Allow value types with no instance state?
+     */
+    boolean allowEmptyValues;
 
     /**
      * Switch: allow strings in switch?
@@ -4809,7 +4815,7 @@ public class Attr extends JCTree.Visitor {
                     log.error(l.head.pos(), Errors.IclsCantHaveStaticDecl(c));
             }
         }
-        if (!hasInstanceFields && (c.flags() & VALUE) != 0) {
+        if (!allowEmptyValues && !hasInstanceFields && (c.flags() & VALUE) != 0) {
             log.error(tree.pos(), Errors.EmptyValueNotYet);
         }
 
