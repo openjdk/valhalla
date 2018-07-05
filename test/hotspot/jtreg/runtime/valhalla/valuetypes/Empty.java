@@ -44,7 +44,7 @@ class EmptyTest {
 /**
  * @test Empty
  * @summary Test empty value type
- * @compile -XDenableValueTypes Empty.java
+ * @compile -XDenableValueTypes -XDallowEmptyValues Empty.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
  */
