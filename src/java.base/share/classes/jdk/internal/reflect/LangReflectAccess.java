@@ -119,5 +119,15 @@ public interface LangReflectAccess {
     /** Gets the root of the given AccessibleObject object; null if arg is the root */
     public <T extends AccessibleObject> T getRoot(T obj);
 
-    public boolean isFlattened(Field f);
+    /**
+     * A field is flattenable if ACC_FLATTENABLE is set in its modifier
+     * and the field type is present in ValueType attribute.
+     */
+    public boolean isFlattenable(Field f);
+
+    /** A field is flattenable and is flattened. */
+    public boolean isFlatValue(Field f);
+
+    /** A field can be set to null */
+    public boolean canBeNull(Field f);
 }

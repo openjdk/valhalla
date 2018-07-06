@@ -302,6 +302,8 @@ class LambdaForm {
         PUT_REFERENCE_VOLATILE("putObjectVolatile"),
         GET_VALUE("getValue"),
         PUT_VALUE("putValue"),
+        GET_VALUE_VOLATILE("getValueVolatile"),
+        PUT_VALUE_VOLATILE("putValueVolatile"),
         GET_INT("getInt"),
         PUT_INT("putInt"),
         GET_INT_VOLATILE("getIntVolatile"),

@@ -324,7 +324,10 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
 oop MethodHandles::init_field_MemberName(Handle mname, fieldDescriptor& fd, bool is_setter) {
   int flags = (jushort)( fd.access_flags().as_short() & JVM_RECOGNIZED_FIELD_MODIFIERS );
   flags |= IS_FIELD | ((fd.is_static() ? JVM_REF_getStatic : JVM_REF_getField) << REFERENCE_KIND_SHIFT);
-  if (fd.is_flattened()) {
+  if (fd.is_flattenable()) {
+    flags |= JVM_ACC_FLATTENABLE;
+  }
+    if (fd.is_flattened()) {
     flags |= JVM_ACC_FIELD_FLATTENED;
   }
   if (is_setter)  flags += ((JVM_REF_putField - JVM_REF_getField) << REFERENCE_KIND_SHIFT);

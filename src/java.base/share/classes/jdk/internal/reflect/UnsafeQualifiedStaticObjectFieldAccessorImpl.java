@@ -35,8 +35,8 @@ class UnsafeQualifiedStaticObjectFieldAccessorImpl
     }
 
     public Object get(Object obj) throws IllegalArgumentException {
-        return isFlattened ? unsafe.getValue(obj, fieldOffset, field.getType())
-                           : unsafe.getObjectVolatile(base, fieldOffset);
+        return isFlatValue() ? unsafe.getValue(obj, fieldOffset, field.getType())
+                             : unsafe.getObjectVolatile(base, fieldOffset);
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {
@@ -77,15 +77,8 @@ class UnsafeQualifiedStaticObjectFieldAccessorImpl
         if (isReadOnly) {
             throwFinalFieldIllegalAccessException(value);
         }
-        if (value != null) {
-            if (!field.getType().isAssignableFrom(value.getClass())) {
-                throwSetIllegalArgumentException(value);
-            }
-        } else if (field.getType().isValue()) {
-            throw new NullPointerException("cannot set this field of type " + field.getType() + " to null");
-        }
-
-        if (isFlattened) {
+        checkValue(value);
+        if (isFlatValue()) {
             unsafe.putValue(base, fieldOffset, field.getType(), value);
         } else {
             unsafe.putObjectVolatile(base, fieldOffset, value);

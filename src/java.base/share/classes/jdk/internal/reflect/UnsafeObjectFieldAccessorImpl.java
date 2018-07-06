@@ -34,8 +34,8 @@ class UnsafeObjectFieldAccessorImpl extends UnsafeFieldAccessorImpl {
 
     public Object get(Object obj) throws IllegalArgumentException {
         ensureObj(obj);
-        return isFlattened ? unsafe.getValue(obj, fieldOffset, field.getType())
-                           : unsafe.getObject(obj, fieldOffset);
+        return isFlatValue() ? unsafe.getValue(obj, fieldOffset, field.getType())
+                             : unsafe.getObject(obj, fieldOffset);
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {
@@ -77,14 +77,8 @@ class UnsafeObjectFieldAccessorImpl extends UnsafeFieldAccessorImpl {
         if (isFinal) {
             throwFinalFieldIllegalAccessException(value);
         }
-        if (value != null) {
-            if (!field.getType().isAssignableFrom(value.getClass())) {
-                throwSetIllegalArgumentException(value);
-            }
-        } else if (field.getType().isValue()) {
-            throw new NullPointerException("cannot set this field of type " + field.getType() + " to null");
-        }
-        if (isFlattened) {
+        checkValue(value);
+        if (isFlatValue()) {
             unsafe.putValue(obj, fieldOffset, field.getType(), value);
         } else {
             unsafe.putObject(obj, fieldOffset, value);

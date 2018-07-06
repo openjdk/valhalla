@@ -426,6 +426,8 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     }
     /** Utility method to query the modifier flags of this member. */
     public boolean isFinal() {
+        // all fields declared in a value type are effectively final
+        assert(!clazz.isValue() || !isField() || Modifier.isFinal(flags));
         return Modifier.isFinal(flags);
     }
     /** Utility method to query whether this member or its defining class is final. */
@@ -447,12 +449,13 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     // let the rest (native, volatile, transient, etc.) be tested via Modifier.isFoo
 
     // unofficial modifier flags, used by HotSpot:
-    static final int BRIDGE     = 0x00000040;
-    static final int VARARGS    = 0x00000080;
-    static final int SYNTHETIC  = 0x00001000;
-    static final int ANNOTATION = 0x00002000;
-    static final int ENUM       = 0x00004000;
-    static final int FLATTENED  = 0x00008000;
+    static final int BRIDGE      = 0x00000040;
+    static final int VARARGS     = 0x00000080;
+    static final int SYNTHETIC   = 0x00001000;
+    static final int ANNOTATION  = 0x00002000;
+    static final int ENUM        = 0x00004000;
+    static final int FLATTENABLE = 0x00000100;
+    static final int FLATTENED   = 0x00008000;
 
     /** Utility method to query the modifier flags of this member; returns false if the member is not a method. */
     public boolean isBridge() {
@@ -467,9 +470,19 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         return testAllFlags(SYNTHETIC);
     }
 
-    public boolean isValue() { return clazz.isValue(); }
+    /*
+     * Query whether this member is a flattenable field.
+     *
+     * A flattenable field whose type must be of value class with ACC_FLATTENABLE flag set.
+     * A field of value type may or may not be flattenable.
+     */
+    public boolean isFlattenable() { return (flags & FLATTENABLE) == FLATTENABLE; }
 
-    public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
+    /** Query whether this member is a flat value field */
+    public boolean isFlatValue() { return (flags & FLATTENED) == FLATTENED; }
+
+    /** Query whether this member can be assigned to null. */
+    public boolean canBeNull()  { return !isFlattenable(); }
 
     static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
 

@@ -38,20 +38,28 @@ import jdk.internal.misc.Unsafe;
 
 abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     static final Unsafe unsafe = Unsafe.getUnsafe();
+    private static final int FLAT_VALUE = 0x01;
+    private static final int CAN_BE_NULL = 0x10;
 
     protected final Field   field;
     protected final long    fieldOffset;
     protected final boolean isFinal;
-    protected final boolean isFlattened;
+    protected final int     flags;
 
     UnsafeFieldAccessorImpl(Field field) {
         this.field = field;
         if (Modifier.isStatic(field.getModifiers()))
-            fieldOffset = unsafe.staticFieldOffset(field);
+            this.fieldOffset = unsafe.staticFieldOffset(field);
         else
-            fieldOffset = unsafe.objectFieldOffset(field);
-        isFinal = Modifier.isFinal(field.getModifiers());
-        isFlattened = ReflectionFactory.langReflectAccess().isFlattened(field);
+            this.fieldOffset = unsafe.objectFieldOffset(field);
+        this.isFinal = Modifier.isFinal(field.getModifiers());
+
+        int flags = 0;
+        if (ReflectionFactory.langReflectAccess().isFlatValue(field))
+            flags |= FLAT_VALUE;
+        if (ReflectionFactory.langReflectAccess().canBeNull(field))
+            flags |= CAN_BE_NULL;
+        this.flags = flags;
     }
 
     protected void ensureObj(Object o) {
@@ -59,6 +67,26 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
         if (!field.getDeclaringClass().isAssignableFrom(o.getClass())) {
             throwSetIllegalArgumentException(o);
         }
+    }
+
+    protected boolean isFlatValue() {
+        return (flags & FLAT_VALUE) == FLAT_VALUE;
+    }
+
+    protected boolean canBeNull() {
+        return (flags & CAN_BE_NULL) == CAN_BE_NULL;
+    }
+
+    protected Object checkValue(Object value) {
+        if (!canBeNull() && value == null)
+            throw new NullPointerException(field + " cannot be set to null");
+
+        if (value != null) {
+            if (!field.getType().isAssignableFrom(value.getClass())) {
+                throwSetIllegalArgumentException(value);
+            }
+        }
+        return value;
     }
 
     private String getQualifiedFieldName() {

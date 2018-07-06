@@ -2416,8 +2416,7 @@ return mh1;
                 }
                 refc = lookupClass();
             }
-            // don't allow writing on value type
-            boolean isWriteAllowedOnFinalFields = this.allowedModes == TRUSTED && !putField.isValue();
+            boolean isWriteAllowedOnFinalFields = this.allowedModes == TRUSTED;
             return VarHandles.makeFieldHandle(getField, refc, getField.getFieldType(), isWriteAllowedOnFinalFields);
         }
         /** Check access and get the requested constructor. */

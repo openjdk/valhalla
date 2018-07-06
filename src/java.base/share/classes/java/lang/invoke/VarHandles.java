@@ -33,14 +33,14 @@ final class VarHandles {
         if (!f.isStatic()) {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             if (!type.isPrimitive()) {
-                if (f.isFlattened()) {
+                if (f.isFlatValue()) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleObjects.ValueFieldInstanceReadOnly(refc, foffset, type)
-                        : new VarHandleObjects.ValueFieldInstanceReadWrite(refc, foffset, type);
+                        ? new VarHandleObjects.FlatValueFieldInstanceReadOnly(refc, foffset, type)
+                        : new VarHandleObjects.FlatValueFieldInstanceReadWrite(refc, foffset, type);
                 } else {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                         ? new VarHandleObjects.FieldInstanceReadOnly(refc, foffset, type)
-                        : new VarHandleObjects.FieldInstanceReadWrite(refc, foffset, type);
+                        : new VarHandleObjects.FieldInstanceReadWrite(refc, foffset, type, f.canBeNull());
                 }
             }
             else if (type == boolean.class) {
@@ -100,10 +100,10 @@ final class VarHandles {
             Object base = MethodHandleNatives.staticFieldBase(f);
             long foffset = MethodHandleNatives.staticFieldOffset(f);
             if (!type.isPrimitive()) {
-                assert(!f.isFlattened());   // static field is not flattened
+                assert(!f.isFlatValue());   // static field is not flattened
                 return f.isFinal() && !isWriteAllowedOnFinalFields
                         ? new VarHandleObjects.FieldStaticReadOnly(base, foffset, type)
-                        : new VarHandleObjects.FieldStaticReadWrite(base, foffset, type);
+                        : new VarHandleObjects.FieldStaticReadWrite(base, foffset, type, f.canBeNull());
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields

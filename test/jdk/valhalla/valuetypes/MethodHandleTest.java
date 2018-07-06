@@ -24,14 +24,17 @@
 
 /*
  * @test
- * @summary test MethodHandles on value types
+ * @summary test MethodHandle/VarHandle on value types
  * @build Point Line MutablePath
+ * @compile -XDallowFlattenabilityModifiers MethodHandleTest.java
  * @run testng/othervm -XX:+EnableValhalla MethodHandleTest
  */
 
 import java.lang.invoke.*;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -61,15 +64,42 @@ public class MethodHandleTest {
         test.run();
 
         // set the mutable fields
+        MutablePath path = MutablePath.makePath(1, 2, 3, 44);
         Point p = Point.makePoint(100, 200);
-        test.setFlattenedField(p);
+        test.setValueField("p1", path, p);
+        test.setValueField("p2", path, p);
+    }
+
+    @Test
+    public static void testValueFields() throws Throwable {
+        MutablePath path = MutablePath.makePath(1, 2, 3, 4);
+        // p1 and p2 are a non-final field of value type in a reference
+        MethodHandleTest test1 = new MethodHandleTest("Point", path.p1, "x", "y");
+        test1.run();
+
+        MethodHandleTest test2 = new MethodHandleTest("Point", path.p2, "x", "y");
+        test2.run();
     }
 
     @Test
     public static void testMixedValues() throws Throwable {
         MixedValues mv = new MixedValues(P, L, PATH, "mixed", "types");
-        MethodHandleTest test = new MethodHandleTest("MethodHandleTest$MixedValues", mv, "p", "l", "mutablePath", "list");
+        MethodHandleTest test =
+            new MethodHandleTest("MethodHandleTest$MixedValues", mv, "p", "l", "mutablePath", "list", "nfp");
         test.run();
+
+        Point p = Point.makePoint(100, 200);
+        Line l = Line.makeLine(100, 200, 300, 400);
+        test.setValueField("p", mv, p);
+        test.setValueField("nfp", mv, p);
+        test.setValueField("l", mv, l);
+        test.setValueField("l", mv, l);
+        test.setValueField("staticPoint", null, p);
+        test.setValueField("staticLine", null, l);
+        // remove the following cases when javac and jvm make
+        // static value fields be flattenable
+        test.setValueField("staticPoint", null, null);
+        test.setValueField("staticLine", null, null);
     }
 
     @Test
@@ -94,15 +124,14 @@ public class MethodHandleTest {
         }
 
         // set an array element to null
-        /*
         Class<?> elementType = c.getComponentType();
         try {
+            // value array element is flattenable
             Object v = (Object)setter.invoke(array, 0, null);
             assertFalse(elementType.isValue(), "should fail to set a value array element to null");
         } catch (NullPointerException e) {
             assertTrue(elementType.isValue(), "should only fail to set a value array element to null");
         }
-        */
     }
 
     private final Class<?> c;
@@ -120,7 +149,10 @@ public class MethodHandleTest {
             unreflectField(f);
             findGetter(f);
             varHandle(f);
-            // ensureNonNullable(f);
+            if (c.isValue())
+                ensureImmutable(f);
+            else
+                ensureNullable(f);
         }
     }
 
@@ -143,62 +175,152 @@ public class MethodHandleTest {
         Object value = mh.invoke(o);
     }
 
-    void setFlattenedField(Object value) throws Exception {
-        for (String name : names) {
-            Field f = c.getDeclaredField(name);
-            assertTrue(isFlattened(f));
-            f.set(o, value);
-            Object nv = f.get(o);
-            assertEquals(nv, value);
+    /*
+     * Test setting value field to a new value.
+     * The field must be flattenable but may or may not be flattened.
+     */
+    void setValueField(String name, Object obj, Object value) throws Throwable {
+        Field f = c.getDeclaredField(name);
+        boolean isStatic = Modifier.isStatic(f.getModifiers());
+        assertTrue(f.getType().isValue());
+        assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
+        Object v = f.get(obj);
+
+        // Field::set
+        try {
+            f.set(obj, value);
+            assertEquals(f.get(obj), value);
+        } finally {
+            f.set(obj, v);
+        }
+
+
+        if (isStatic) {
+            setStaticField(f, value);
+        } else {
+            setInstanceField(f, obj, value);
         }
     }
 
-    void ensureNonNullable(Field f) throws Throwable {
-        boolean nullable = !f.getType().isValue();
+    private void setInstanceField(Field f, Object obj, Object value) throws Throwable {
+        Object v = f.get(obj);
+        // MethodHandle::invoke
+        try {
+            MethodHandle mh = MethodHandles.lookup().findSetter(c, f.getName(), f.getType());
+            mh.invoke(obj, value);
+            assertEquals(f.get(obj), value);
+        } finally {
+            f.set(obj, v);
+        }
+        // VarHandle::set
+        try {
+            VarHandle vh = MethodHandles.lookup().findVarHandle(c, f.getName(), f.getType());
+            vh.set(obj, value);
+            assertEquals(f.get(obj), value);
+        } finally {
+            f.set(obj, v);
+        }
+    }
+
+    private void setStaticField(Field f, Object value) throws Throwable {
+        Object v = f.get(null);
+        // MethodHandle::invoke
+        try {
+            MethodHandle mh = MethodHandles.lookup().findStaticSetter(c, f.getName(), f.getType());
+            mh.invoke(f.getType().cast(value));
+            assertEquals(f.get(null), value);
+        } finally {
+            f.set(null, v);
+        }
+        // VarHandle::set
+        try {
+            VarHandle vh = MethodHandles.lookup().findStaticVarHandle(c, f.getName(), f.getType());
+            vh.set(f.getType().cast(value));
+            assertEquals(f.get(null), value);
+        } finally {
+            f.set(null, v);
+        }
+    }
+
+    /*
+     * Test setting the given field to null via reflection, method handle
+     * and var handle.
+     */
+    void ensureNullable(Field f) throws Throwable {
+        assertFalse(Modifier.isStatic(f.getModifiers()));
+        // flattenable implies non-nullable
+        boolean canBeNull = !isFlattenable(f);
+        // test reflection
         try {
             f.set(o, null);
-            assertTrue(nullable, f + " cannot be set to null");
+            assertTrue(canBeNull, f + " cannot be set to null");
         } catch (NullPointerException e) {
-            assertFalse(nullable, f + " should allow be set to null");
-        } catch (IllegalAccessException e) {
-            assertTrue(c.isValue());
+            assertFalse(canBeNull, f + " should allow be set to null");
         }
+        // test method handle, i.e. putfield bytecode behavior
         try {
             MethodHandle mh = MethodHandles.lookup().findSetter(c, f.getName(), f.getType());
             mh.invoke(o, null);
-            assertTrue(nullable, f + " cannot be set to null");
+            assertTrue(canBeNull, f + " cannot be set to null");
         } catch (NullPointerException e) {
-            assertFalse(nullable, f + " should allow be set to null");
-        } catch (IllegalAccessException e) {
-            assertTrue(c.isValue());
+            assertFalse(canBeNull, f + " should allow be set to null");
         }
+        // test var handle
         try {
             VarHandle vh = MethodHandles.lookup().findVarHandle(c, f.getName(), f.getType());
             vh.set(o, null);
-            assertTrue(nullable, f + " cannot be set to null");
+            assertTrue(canBeNull, f + " cannot be set to null");
         } catch (NullPointerException e) {
-            assertFalse(nullable, f + " should allow be set to null");
-        } catch (UnsupportedOperationException e) {  // TODO: this should be IAE
-            assertTrue(c.isValue());
+            assertFalse(canBeNull, f + " should allow be set to null");
         }
     }
 
+    void ensureImmutable(Field f) throws Throwable {
+        assertFalse(Modifier.isStatic(f.getModifiers()));
+        Object v = f.get(o);
+        // test reflection
+        try {
+            f.set(o, v);
+            throw new RuntimeException(f + " should be immutable");
+        } catch (IllegalAccessException e) {}
+
+        // test method handle, i.e. putfield bytecode behavior
+        try {
+            MethodHandle mh = MethodHandles.lookup().findSetter(c, f.getName(), f.getType());
+            mh.invoke(o, v);
+            throw new RuntimeException(f + " should be immutable");
+        } catch (IllegalAccessException e) { }
+        // test var handle
+        try {
+            VarHandle vh = MethodHandles.lookup().findVarHandle(c, f.getName(), f.getType());
+            vh.set(o, v);
+            throw new RuntimeException(f + " should be immutable");
+        } catch (UnsupportedOperationException e) {}
+    }
 
     boolean isFlattened(Field f) {
         return (f.getModifiers() & 0x00008000) == 0x00008000;
     }
 
+    boolean isFlattenable(Field f) {
+        return (f.getModifiers() & 0x00000100) == 0x00000100;
+    }
+
     static class MixedValues {
+        static Point staticPoint = Point.makePoint(10, 10);
+        static Line staticLine;   // LW1 allows null static value field
         Point p;
         Line l;
         MutablePath mutablePath;
         List<String> list;
+        __NotFlattened Point nfp;
 
         public MixedValues(Point p, Line l, MutablePath path, String... names) {
             this.p = p;
             this.l = l;
             this.mutablePath = path;
             this.list = List.of(names);
+            this.nfp = p;
         }
     }
 

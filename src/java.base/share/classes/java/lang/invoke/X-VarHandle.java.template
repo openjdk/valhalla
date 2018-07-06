@@ -89,37 +89,51 @@ final class VarHandle$Type$s {
     }
 
     static final class FieldInstanceReadWrite extends FieldInstanceReadOnly {
-
-        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType}) {
+#if[Object]
+        final boolean needsNullCheck;
+#end[Object]
+        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean canBeNull}) {
             super(receiverType, fieldOffset{#if[Object]?, fieldType}, FieldInstanceReadWrite.FORM);
+#if[Object]
+            this.needsNullCheck = !canBeNull;
+#end[Object]
         }
+
+#if[Object]
+        @ForceInline
+        static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
+            if (handle.needsNullCheck)
+                Objects.requireNonNull(value);
+            return handle.fieldType.cast(value);
+        }
+#end[Object]
 
         @ForceInline
         static void set(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             UNSAFE.put$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                              handle.fieldOffset,
-                             {#if[Object]?handle.fieldType.cast(value):value});
+                             {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static void setVolatile(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             UNSAFE.put$Type$Volatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                      handle.fieldOffset,
-                                     {#if[Object]?handle.fieldType.cast(value):value});
+                                     {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static void setOpaque(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             UNSAFE.put$Type$Opaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                    handle.fieldOffset,
-                                   {#if[Object]?handle.fieldType.cast(value):value});
+                                   {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static void setRelease(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             UNSAFE.put$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                     handle.fieldOffset,
-                                    {#if[Object]?handle.fieldType.cast(value):value});
+                                    {#if[Object]?checkCast(handle, value):value});
         }
 #if[CAS]
 
@@ -128,7 +142,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -136,7 +150,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -144,7 +158,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -152,7 +166,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -160,7 +174,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Plain(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -168,7 +182,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -176,7 +190,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -184,28 +198,28 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static $type$ getAndSet(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             return UNSAFE.getAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+                                          {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static $type$ getAndSetAcquire(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             return UNSAFE.getAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+                                          {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static $type$ getAndSetRelease(FieldInstanceReadWrite handle, Object holder, $type$ value) {
             return UNSAFE.getAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+                                          {#if[Object]?checkCast(handle, value):value});
         }
 #end[CAS]
 #if[AtomicAdd]
@@ -356,37 +370,50 @@ final class VarHandle$Type$s {
     }
 
     static final class FieldStaticReadWrite extends FieldStaticReadOnly {
-
-        FieldStaticReadWrite(Object base, long fieldOffset{#if[Object]?, Class<?> fieldType}) {
+#if[Object]
+        final boolean needsNullCheck;
+#end[Object]
+        FieldStaticReadWrite(Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean canBeNull}) {
             super(base, fieldOffset{#if[Object]?, fieldType}, FieldStaticReadWrite.FORM);
+#if[Object]
+            this.needsNullCheck = !canBeNull;
+#end[Object]
         }
+
+#if[Object]
+        static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
+            if (handle.needsNullCheck)
+                Objects.requireNonNull(value);
+            return handle.fieldType.cast(value);
+        }
+#end[Object]
 
         @ForceInline
         static void set(FieldStaticReadWrite handle, $type$ value) {
             UNSAFE.put$Type$(handle.base,
                              handle.fieldOffset,
-                             {#if[Object]?handle.fieldType.cast(value):value});
+                             {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static void setVolatile(FieldStaticReadWrite handle, $type$ value) {
             UNSAFE.put$Type$Volatile(handle.base,
                                      handle.fieldOffset,
-                                     {#if[Object]?handle.fieldType.cast(value):value});
+                                     {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static void setOpaque(FieldStaticReadWrite handle, $type$ value) {
             UNSAFE.put$Type$Opaque(handle.base,
                                    handle.fieldOffset,
-                                   {#if[Object]?handle.fieldType.cast(value):value});
+                                   {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static void setRelease(FieldStaticReadWrite handle, $type$ value) {
             UNSAFE.put$Type$Release(handle.base,
                                     handle.fieldOffset,
-                                    {#if[Object]?handle.fieldType.cast(value):value});
+                                    {#if[Object]?checkCast(handle, value):value});
         }
 #if[CAS]
 
@@ -395,7 +422,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndSet$Type$(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
 
@@ -404,7 +431,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -412,7 +439,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$Acquire(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -420,7 +447,7 @@ final class VarHandle$Type$s {
             return UNSAFE.compareAndExchange$Type$Release(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -428,7 +455,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Plain(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -436,7 +463,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -444,7 +471,7 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Acquire(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
@@ -452,28 +479,28 @@ final class VarHandle$Type$s {
             return UNSAFE.weakCompareAndSet$Type$Release(handle.base,
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+                                               {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static $type$ getAndSet(FieldStaticReadWrite handle, $type$ value) {
             return UNSAFE.getAndSet$Type$(handle.base,
                                           handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+                                          {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static $type$ getAndSetAcquire(FieldStaticReadWrite handle, $type$ value) {
             return UNSAFE.getAndSet$Type$Acquire(handle.base,
                                           handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+                                          {#if[Object]?checkCast(handle, value):value});
         }
 
         @ForceInline
         static $type$ getAndSetRelease(FieldStaticReadWrite handle, $type$ value) {
             return UNSAFE.getAndSet$Type$Release(handle.base,
                                           handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+                                          {#if[Object]?checkCast(handle, value):value});
         }
 #end[CAS]
 #if[AtomicAdd]
@@ -569,16 +596,16 @@ final class VarHandle$Type$s {
     }
 
 #if[Object]
-    static class ValueFieldInstanceReadOnly extends VarHandle {
+    static class FlatValueFieldInstanceReadOnly extends VarHandle {
         final long fieldOffset;
         final Class<?> receiverType;
         final Class<?> fieldType;
 
-        ValueFieldInstanceReadOnly(Class<?> receiverType, long fieldOffset, Class<?> fieldType) {
-            this(receiverType, fieldOffset, fieldType, ValueFieldInstanceReadOnly.FORM);
+        FlatValueFieldInstanceReadOnly(Class<?> receiverType, long fieldOffset, Class<?> fieldType) {
+            this(receiverType, fieldOffset, fieldType, FlatValueFieldInstanceReadOnly.FORM);
         }
 
-        protected ValueFieldInstanceReadOnly(Class<?> receiverType, long fieldOffset, Class<?> fieldType,
+        protected FlatValueFieldInstanceReadOnly(Class<?> receiverType, long fieldOffset, Class<?> fieldType,
                                              VarForm form) {
             super(form);
             this.fieldOffset = fieldOffset;
@@ -592,61 +619,61 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static Object get(ValueFieldInstanceReadOnly handle, Object holder) {
+        static Object get(FlatValueFieldInstanceReadOnly handle, Object holder) {
             return UNSAFE.getValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                   handle.fieldOffset, handle.fieldType);
         }
 
         @ForceInline
-        static Object getVolatile(ValueFieldInstanceReadOnly handle, Object holder) {
+        static Object getVolatile(FlatValueFieldInstanceReadOnly handle, Object holder) {
             return UNSAFE.getValueVolatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                            handle.fieldOffset, handle.fieldType);
         }
 
         @ForceInline
-        static Object getOpaque(ValueFieldInstanceReadOnly handle, Object holder) {
+        static Object getOpaque(FlatValueFieldInstanceReadOnly handle, Object holder) {
             return UNSAFE.getValueOpaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                          handle.fieldOffset, handle.fieldType);
         }
 
         @ForceInline
-        static Object getAcquire(ValueFieldInstanceReadOnly handle, Object holder) {
+        static Object getAcquire(FlatValueFieldInstanceReadOnly handle, Object holder) {
             return UNSAFE.getValueAcquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset, handle.fieldType);
         }
 
-        static final VarForm FORM = new VarForm(ValueFieldInstanceReadOnly.class, Object.class, Object.class);
+        static final VarForm FORM = new VarForm(FlatValueFieldInstanceReadOnly.class, Object.class, Object.class);
     }
 
-    static final class ValueFieldInstanceReadWrite extends ValueFieldInstanceReadOnly {
+    static final class FlatValueFieldInstanceReadWrite extends FlatValueFieldInstanceReadOnly {
 
-        ValueFieldInstanceReadWrite(Class<?> receiverType, long fieldOffset, Class<?> fieldType) {
-            super(receiverType, fieldOffset, fieldType, ValueFieldInstanceReadWrite.FORM);
+        FlatValueFieldInstanceReadWrite(Class<?> receiverType, long fieldOffset, Class<?> fieldType) {
+            super(receiverType, fieldOffset, fieldType, FlatValueFieldInstanceReadWrite.FORM);
         }
 
         @ForceInline
-        static void set(ValueFieldInstanceReadWrite handle, Object holder, Object value) {
+        static void set(FlatValueFieldInstanceReadWrite handle, Object holder, Object value) {
             UNSAFE.putValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
                             handle.fieldOffset, handle.fieldType,
                             handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
-        static void setVolatile(ValueFieldInstanceReadWrite handle, Object holder, Object value) {
+        static void setVolatile(FlatValueFieldInstanceReadWrite handle, Object holder, Object value) {
             UNSAFE.putValueVolatile(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                     handle.fieldOffset, handle.fieldType,
                                     handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
-        static void setOpaque(ValueFieldInstanceReadWrite handle, Object holder, Object value) {
+        static void setOpaque(FlatValueFieldInstanceReadWrite handle, Object holder, Object value) {
             UNSAFE.putValueOpaque(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                   handle.fieldOffset, handle.fieldType,
                                   handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
-        static void setRelease(ValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
+        static void setRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
             UNSAFE.putValueRelease(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                    handle.fieldOffset, handle.fieldType,
                                    handle.fieldType.cast(Objects.requireNonNull(value)));
@@ -654,7 +681,7 @@ final class VarHandle$Type$s {
 #if[CAS]
 
         @ForceInline
-        static boolean compareAndSet(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static boolean compareAndSet(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.compareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -662,7 +689,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static $type$ compareAndExchange(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static $type$ compareAndExchange(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.compareAndExchange$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -670,7 +697,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static $type$ compareAndExchangeAcquire(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static $type$ compareAndExchangeAcquire(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.compareAndExchange$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -678,7 +705,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static $type$ compareAndExchangeRelease(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static $type$ compareAndExchangeRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.compareAndExchange$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -686,7 +713,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static boolean weakCompareAndSetPlain(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static boolean weakCompareAndSetPlain(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.weakCompareAndSet$Type$Plain(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -694,7 +721,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static boolean weakCompareAndSet(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static boolean weakCompareAndSet(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.weakCompareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -702,7 +729,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static boolean weakCompareAndSetAcquire(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static boolean weakCompareAndSetAcquire(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.weakCompareAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -710,7 +737,7 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static boolean weakCompareAndSetRelease(ValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
+        static boolean weakCompareAndSetRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
             return UNSAFE.weakCompareAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                                handle.fieldOffset,
                                                {#if[Object]?handle.fieldType.cast(expected):expected},
@@ -718,27 +745,27 @@ final class VarHandle$Type$s {
         }
 
         @ForceInline
-        static $type$ getAndSet(ValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
+        static $type$ getAndSet(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
             return UNSAFE.getAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset,
                                           {#if[Object]?handle.fieldType.cast(value):value});
         }
 
         @ForceInline
-        static $type$ getAndSetAcquire(ValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
+        static $type$ getAndSetAcquire(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
             return UNSAFE.getAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset,
                                           {#if[Object]?handle.fieldType.cast(value):value});
         }
 
         @ForceInline
-        static $type$ getAndSetRelease(ValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
+        static $type$ getAndSetRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
             return UNSAFE.getAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
                                           handle.fieldOffset,
                                           {#if[Object]?handle.fieldType.cast(value):value});
         }
 #end[CAS]
-        static final VarForm FORM = new VarForm(ValueFieldInstanceReadWrite.class, Object.class, Object.class);
+        static final VarForm FORM = new VarForm(FlatValueFieldInstanceReadWrite.class, Object.class, Object.class);
     }
 #end[Object]
 
