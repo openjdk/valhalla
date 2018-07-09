@@ -31,7 +31,7 @@
 
 inline void Klass::set_prototype_header(markOop header) {
   assert(!is_value() || header->is_always_locked(), "Unexpected prototype");
-    _prototype_header = header;
+  _prototype_header = header;
 }
 
 inline bool Klass::is_null(Klass* obj)  { return obj == NULL; }

@@ -121,7 +121,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertTrue(test4(), "test4 failed");
     }
 
-    // TODO re-enable once Object method support is implemented
+// Disabled until 8206274 is fixed
 /*
     // Test toString() method
     @Test(failOn = ALLOC + STORE + LOAD)
@@ -137,17 +137,17 @@ public class TestIntrinsics extends ValueTypeTest {
 */
 
     // Test hashCode() method
-    // @Test()
-    // public int test6(MyValue1 v) {
-    //     return v.hashCode();
-    // }
+    @Test()
+    public int test6(MyValue1 v) {
+        return v.hashCode();
+    }
 
-    // @DontCompile
-    // public void test6_verifier(boolean warmup) {
-    //     MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-    //     int res = test6(v);
-    //     Asserts.assertEQ(res, v.hashCode());
-    // }
+    @DontCompile
+    public void test6_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test6(v);
+        Asserts.assertEQ(res, v.hashCode());
+    }
 
     // Test default value type array creation via reflection
     @Test()
@@ -262,17 +262,17 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Test hashCode() method
-    // @Test()
-    // public int test15(Object v) {
-    //     return v.hashCode();
-    // }
+    @Test()
+    public int test15(Object v) {
+        return v.hashCode();
+    }
 
-    // @DontCompile
-    // public void test15_verifier(boolean warmup) {
-    //     MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-    //     int res = test15(v);
-    //     Asserts.assertEQ(res, v.hashCode());
-    // }
+    @DontCompile
+    public void test15_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test15(v);
+        Asserts.assertEQ(res, v.hashCode());
+    }
 
     @Test()
     public int test16(Object v) {
@@ -308,5 +308,36 @@ public class TestIntrinsics extends ValueTypeTest {
         Object v = null;
         int res = test18(v);
         Asserts.assertEQ(res, System.identityHashCode(v));
+    }
+
+    // hashCode() and toString() with different value types
+    @Test()
+    public int test19(MyValue1 vt1, MyValue1 vt2, boolean b) {
+        MyValue1 res = b ? vt1 : vt2;
+        return res.hashCode();
+    }
+
+    @DontCompile
+    public void test19_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test19(vt, vt, true);
+        Asserts.assertEQ(res, vt.hashCode());
+        res = test19(vt, vt, false);
+        Asserts.assertEQ(res, vt.hashCode());
+    }
+
+    @Test()
+    public String test20(MyValue1 vt1, MyValue1 vt2, boolean b) {
+        MyValue1 res = b ? vt1 : vt2;
+        return res.toString();
+    }
+
+    @DontCompile
+    public void test20_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        String res = test20(vt, vt, true);
+        Asserts.assertEQ(res, vt.toString());
+        res = test20(vt, vt, false);
+        Asserts.assertEQ(res, vt.toString());
     }
 }

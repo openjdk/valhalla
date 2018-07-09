@@ -101,7 +101,7 @@ public abstract class ValueTypeTest {
     // Pre-defined settings
     private static final List<String> defaultFlags = Arrays.asList(
         "-XX:-BackgroundCompilation", "-XX:CICompilerCount=1",
-        "-XX:+PrintCompilation", "-XX:+PrintInlining", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly",
+        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly",
         "-XX:CompileCommand=quiet",
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",

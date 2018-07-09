@@ -1804,16 +1804,15 @@ void PhaseMacroExpand::expand_allocate_common(
 
 // Helper for PhaseMacroExpand::expand_allocate_common.
 // Initializes the newly-allocated storage.
-Node*
-PhaseMacroExpand::initialize_object(AllocateNode* alloc,
-                                    Node* control, Node* rawmem, Node* object,
-                                    Node* klass_node, Node* length,
-                                    Node* size_in_bytes) {
+Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
+                                          Node* control, Node* rawmem, Node* object,
+                                          Node* klass_node, Node* length,
+                                          Node* size_in_bytes) {
   InitializeNode* init = alloc->initialization();
   // Store the klass & mark bits
   Node* mark_node = NULL;
   // For now only enable fast locking for non-array types
-  if (UseBiasedLocking && (length == NULL)) {
+  if ((EnableValhalla || UseBiasedLocking) && length == NULL) {
     mark_node = make_load(control, rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
   } else {
     mark_node = makecon(TypeRawPtr::make((address)markOopDesc::prototype()));
@@ -2729,13 +2728,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(slowpath_false);
   Node* rawmem = new StorePNode(slowpath_false, mem, top_adr, TypeRawPtr::BOTTOM, new_top, MemNode::unordered);
   transform_later(rawmem);
-  Node* mark_node = NULL;
-  // For now only enable fast locking for non-array types
-  if (UseBiasedLocking) {
-    mark_node = make_load(slowpath_false, rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-  } else {
-    mark_node = makecon(TypeRawPtr::make((address)markOopDesc::prototype()));
-  }
+  Node* mark_node = mark_node = makecon(TypeRawPtr::make((address)markOopDesc::always_locked_prototype()));
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   if (UseCompressedClassPointers) {

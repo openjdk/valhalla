@@ -1397,6 +1397,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
+  assert(!obj->is_ValueType(), "should not cast value type");
   const Type *t = _gvn.type(obj);
   const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
   // Object is already not-null?
@@ -1772,13 +1773,21 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
         arg = vt->allocate(this)->get_oop();
       }
     } else if (t->is_valuetypeptr()) {
-      // Constant null passed for a value type argument
-      assert(arg->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
       ciMethod* declared_method = method()->get_method_at_bci(bci());
-      int arg_size = declared_method->signature()->arg_size_for_bc(java_bc());
-      inc_sp(arg_size); // restore arguments
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      return;
+      if (arg->is_ValueTypePtr()) {
+        // We are calling an Object method with a value type receiver
+        ValueTypePtrNode* vt = arg->isa_ValueTypePtr();
+        assert(i == TypeFunc::Parms && !declared_method->is_static(), "argument must be receiver");
+        assert(vt->is_allocated(&gvn()), "argument must be allocated");
+        arg = vt->get_oop();
+      } else {
+        // Constant null passed for a value type argument
+        assert(arg->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+        int arg_size = declared_method->signature()->arg_size_for_bc(java_bc());
+        inc_sp(arg_size); // restore arguments
+        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+        return;
+      }
     }
     call->init_req(idx, arg);
     idx++;
@@ -3274,13 +3283,34 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   return res;
 }
 
+// Deoptimize if 'obj' is a value type
+void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
+  assert(EnableValhalla, "should only be used if value types are enabled");
+  Node* bol = NULL;
+  if (obj->is_ValueTypeBase()) {
+    bol = intcon(0);
+  } else {
+    Node* kls = load_object_klass(obj);
+    Node* flags_addr = basic_plus_adr(kls, in_bytes(Klass::access_flags_offset()));
+    Node* flags = make_load(NULL, flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
+    Node* is_value = _gvn.transform(new AndINode(flags, intcon(JVM_ACC_VALUE)));
+    Node* cmp  = _gvn.transform(new CmpINode(is_value, intcon(0)));
+    bol  = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+  }
+  { BuildCutout unless(this, bol, PROB_MAX);
+    inc_sp(nargs);
+    uncommon_trap(Deoptimization::Reason_class_check,
+                  Deoptimization::Action_none);
+  }
+}
+
 // Deoptimize if 'ary' is flattened or if 'obj' is null and 'ary' is a value type array
 void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass) {
   assert(EnableValhalla, "should only be used if value types are enabled");
   if (elem_klass == NULL) {
     // Load array element klass
     Node* kls = load_object_klass(ary);
-    Node* k_adr = basic_plus_adr(kls, kls, in_bytes(ArrayKlass::element_klass_offset()));
+    Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
     elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
   }
   // Check if element is a value type
@@ -3326,7 +3356,7 @@ void GraphKit::gen_flattened_array_guard(Node* ary, int nargs) {
   if (ValueArrayFlatten) {
     // Cannot statically determine if array is flattened, emit runtime check
     Node* kls = load_object_klass(ary);
-    Node* lhp = basic_plus_adr(kls, kls, in_bytes(Klass::layout_helper_offset()));
+    Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
     Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
     layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
     Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(Klass::_lh_array_tag_vt_value)));
@@ -3406,6 +3436,13 @@ FastLockNode* GraphKit::shared_lock(Node* obj) {
 
   if( !GenerateSynchronizationCode )
     return NULL;                // Not locking things?
+
+  // We cannot lock on a value type
+  const TypeOopPtr* objptr = _gvn.type(obj)->make_oopptr();
+  if (objptr->can_be_value_type()) {
+    gen_value_type_guard(obj, 1);
+  }
+
   if (stopped())                // Dead monitor?
     return NULL;
 
@@ -3478,6 +3515,7 @@ void GraphKit::shared_unlock(Node* box, Node* obj) {
     map()->pop_monitor();        // Kill monitor from debug info
     return;
   }
+  assert(!obj->is_ValueTypeBase(), "should not unlock on value type");
 
   // Memory barrier to avoid floating things down past the locked region
   insert_mem_bar(Op_MemBarReleaseLock);

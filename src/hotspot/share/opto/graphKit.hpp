@@ -823,6 +823,7 @@ class GraphKit : public Phase {
   Node* gen_checkcast( Node *subobj, Node* superkls,
                        Node* *failure_control = NULL );
 
+  void gen_value_type_guard(Node* obj, int nargs = 0);
   void gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass = NULL);
   void gen_flattened_array_guard(Node* ary, int nargs = 0);
 

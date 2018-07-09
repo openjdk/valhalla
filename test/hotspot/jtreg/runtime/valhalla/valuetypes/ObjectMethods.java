@@ -36,6 +36,9 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
  * @run main/othervm -Xint -XX:+EnableValhalla -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
+ * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
+ * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
+ * @run main/othervm -Xcomp -XX:+EnableValhalla -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {
@@ -138,8 +141,7 @@ public class ObjectMethods {
         } catch (Throwable t) {
             if (t instanceof IllegalMonitorStateException) {
                 sawImse = true;
-            }
-            else {
+            } else {
                 throw new RuntimeException(t);
             }
         }

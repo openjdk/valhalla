@@ -849,6 +849,7 @@ bool CallNode::has_non_debug_use(Node *n) {
 }
 
 bool CallNode::has_debug_use(Node *n) {
+  assert(jvms() != NULL, "jvms should not be null");
   for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
     Node *arg = in(i);
     if (arg == n) {

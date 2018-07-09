@@ -46,17 +46,17 @@ import jdk.test.lib.Asserts;
  *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
  *                   compiler.valhalla.valuetypes.TestLWorld
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-UseCompressedOops
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-UseCompressedOops -XX:-UseOptoBiasInlining
  *                   -XX:+EnableValhalla -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueArrayElemMaxFlatOops=-1
  *                   compiler.valhalla.valuetypes.TestLWorld
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-UseCompressedOops
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:-UseCompressedOops -XX:-UseBiasedLocking
  *                   -XX:+EnableValhalla -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:-ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
  *                   -DVerifyIR=false compiler.valhalla.valuetypes.TestLWorld
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+AlwaysIncrementalInline -XX:-UseBiasedLocking
  *                   -XX:+EnableValhalla -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:+ValueArrayFlatten
  *                   -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0 -XX:ValueArrayElemMaxFlatOops=0
  *                   -XX:-MonomorphicArrayCheck
@@ -860,7 +860,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test26_verifier(boolean warmup) {
-        interfaceField1 = valueField1;
+        objectField1 = valueField1;
         MyInterface result = null;
         result = test26(0);
         Asserts.assertEQ(((MyObject)result).x, rI);
@@ -1924,5 +1924,169 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(result1.hash(), hash());
         MyValue2 result2 = (MyValue2)test69(false);
         Asserts.assertEQ(result2.hash(), testValue2.hash());
+    }
+
+    // Test synchronization on value types
+    @Test()
+    public void test70(Object vt) {
+        synchronized (vt) {
+            throw new RuntimeException("test70 failed: synchronization on value type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test70_verifier(boolean warmup) {
+        try {
+            test70(testValue1);
+            throw new RuntimeException("test70 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    @ForceInline
+    public void test71_inline(Object vt) {
+        synchronized (vt) {
+            throw new RuntimeException("test71 failed: synchronization on value type should not succeed");
+        }
+    }
+
+    @Test()
+    public void test71(MyValue1 vt) {
+        test71_inline(vt);
+    }
+
+    @DontCompile
+    public void test71_verifier(boolean warmup) {
+        try {
+            test71(testValue1);
+            throw new RuntimeException("test71 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    @ForceInline
+    public void test72_inline(Object vt) {
+        synchronized (vt) {
+            throw new RuntimeException("test72 failed: synchronization on value type should not succeed");
+        }
+    }
+
+    @Test()
+    public void test72() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test72_inline(vt);
+    }
+
+    @DontCompile
+    public void test72_verifier(boolean warmup) {
+        try {
+            test72();
+            throw new RuntimeException("test72 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public void test73(Object o, boolean b) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        Object sync = b ? vt : o;
+        synchronized (sync) {
+            if (b) {
+                throw new RuntimeException("test73 failed: synchronization on value type should not succeed");
+            }
+        }
+    }
+
+    @DontCompile
+    public void test73_verifier(boolean warmup) {
+        test73(new Object(), false);
+        try {
+            test73(new Object(), true);
+            throw new RuntimeException("test73 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public void test74(boolean b) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        Object sync = b ? vt : testValue2;
+        synchronized (sync) {
+            throw new RuntimeException("test74 failed: synchronization on value type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test74_verifier(boolean warmup) {
+        try {
+            test74(false);
+            throw new RuntimeException("test74 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+        try {
+            test74(true);
+            throw new RuntimeException("test74 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Test catching the IllegalMonitorStateException in compiled code
+    @Test()
+    public void test75(Object vt) {
+        boolean thrown = false;
+        try {
+            synchronized (vt) {
+                throw new RuntimeException("test75 failed: no exception thrown");
+            }
+        } catch (IllegalMonitorStateException ex) {
+            thrown = true;
+        }
+        if (!thrown) {
+            throw new RuntimeException("test75 failed: no exception thrown");
+        }
+    }
+
+    @DontCompile
+    public void test75_verifier(boolean warmup) {
+        test75(testValue1);
+    }
+
+    @Test()
+    public void test76(Object o) {
+        try {
+            synchronized (o) { }
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+            return;
+        }
+        throw new RuntimeException("test76 failed: no exception thrown");
+    }
+
+    @DontCompile
+    public void test76_verifier(boolean warmup) {
+        test76(testValue1);
+    }
+
+    // Test synchronization without any instructions in the synchronized block
+    @Test()
+    public void test77(Object o) {
+        synchronized (o) { }
+    }
+
+    @DontCompile
+    public void test77_verifier(boolean warmup) {
+        try {
+            test77(testValue1);
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+            return;
+        }
+        throw new RuntimeException("test77 failed: no exception thrown");
     }
 }
