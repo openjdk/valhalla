@@ -25,11 +25,14 @@ package compiler.valhalla.valuetypes;
 
 import java.lang.reflect.Array;
 import jdk.test.lib.Asserts;
+import jdk.internal.misc.Unsafe;
+import java.lang.reflect.Field;
 
 /*
  * @test
  * @summary Test intrinsic support for value types
  * @library /testlibrary /test/lib /compiler/whitebox /
+ * @modules java.base/jdk.internal.misc
  * @requires os.simpleArch == "x64"
  * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
@@ -339,5 +342,64 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(res, vt.toString());
         res = test20(vt, vt, false);
         Asserts.assertEQ(res, vt.toString());
+    }
+
+    private static final Unsafe U = Unsafe.getUnsafe();
+    private static final long X_OFFSET;
+    static {
+        try {
+            Field xField = MyValue1.class.getDeclaredField("x");
+            X_OFFSET = U.objectFieldOffset(xField);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test()
+    public int test21(MyValue1 v) {
+        return U.getInt(v, X_OFFSET);
+    }
+
+    @DontCompile
+    public void test21_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test21(v);
+        Asserts.assertEQ(res, v.x);
+    }
+
+    @Test()
+    public void test22(MyValue1 v) {
+        U.putInt(v, X_OFFSET, 0);
+    }
+
+    @DontCompile
+    public void test22_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        test22(v);
+    }
+
+    @Test()
+    public int test23(MyValue1 v, long offset) {
+        return U.getInt(v, offset);
+    }
+
+    @DontCompile
+    public void test23_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test23(v, X_OFFSET);
+        Asserts.assertEQ(res, v.x);
+    }
+
+    __Flattenable MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
+
+    @Test()
+    public int test24(long offset) {
+        return U.getInt(test24_vt, offset);
+    }
+
+    @DontCompile
+    public void test24_verifier(boolean warmup) {
+        int res = test24(X_OFFSET);
+        Asserts.assertEQ(res, test24_vt.x);
     }
 }

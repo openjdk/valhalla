@@ -51,6 +51,7 @@
 #include "opto/runtime.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
+#include "opto/valuetypenode.hpp"
 #include "prims/nativeLookup.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/objectMonitor.hpp"
@@ -2351,6 +2352,37 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   // by oopDesc::field_addr.
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
+
+  if (base->is_ValueType()) {
+    if (is_store) {
+      return false;
+    }
+
+    ValueTypeNode* vt = base->as_ValueType();
+    if (offset->is_Con()) {
+      long off = find_long_con(offset, 0);
+      ciValueKlass* vk = _gvn.type(vt)->is_valuetype()->value_klass();
+      if ((long)(int)off != off || !vk->contains_field_offset(off)) {
+        return false;
+      }
+
+      receiver = null_check(receiver);
+      if (stopped()) {
+        return true;
+      }
+
+      set_result(vt->field_value_by_offset((int)off, true));
+      return true;
+    } else {
+      receiver = null_check(receiver);
+      if (stopped()) {
+        return true;
+      }
+      vt = vt->allocate(this)->as_ValueType();
+      base = vt->get_oop();
+    }
+  }
+
   // 32-bit machines ignore the high half!
   offset = ConvL2X(offset);
   adr = make_unsafe_address(base, offset, type, kind == Relaxed);
