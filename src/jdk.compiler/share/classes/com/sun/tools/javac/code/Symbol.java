@@ -394,6 +394,10 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         return (flags_field & Flags.AccessFlags) == PRIVATE;
     }
 
+    public boolean isValue() {
+        return (flags() & VALUE) != 0;
+    }
+
     public boolean isEnum() {
         return (flags() & ENUM) != 0;
     }

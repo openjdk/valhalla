@@ -2319,8 +2319,7 @@ public class JavacParser implements Parser {
             JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
-        JCNewClass newClass = toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
-        newClass.creationMode = creationMode;
+        JCNewClass newClass = toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body, creationMode));
         return newClass;
     }
 

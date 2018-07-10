@@ -1711,7 +1711,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
                            List<JCExpression> typeargs,
                            JCExpression clazz,
                            List<JCExpression> args,
-                           JCClassDecl def)
+                           JCClassDecl def,
+                           CreationMode creationMode)
         {
             this.encl = encl;
             this.typeargs = (typeargs == null) ? List.nil()
@@ -1719,7 +1720,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             this.clazz = clazz;
             this.args = args;
             this.def = def;
-            this.creationMode = CreationMode.NEW;    // <- temporary
+            this.creationMode = creationMode;
         }
         @Override
         public void accept(Visitor v) { v.visitNewClass(this); }
