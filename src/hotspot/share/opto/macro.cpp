@@ -1371,7 +1371,10 @@ void PhaseMacroExpand::expand_allocate_common(
       transform_later(fast_region);
       ctrl = fast_region;
     }
-    alloc->initialization()->clear_unknown_value();
+    InitializeNode* init = alloc->initialization();
+    if (init != NULL) {
+      init->clear_unknown_value();
+    }
   }
 
   assert (initial_slow_test == NULL || !always_slow, "arguments must be consistent");
