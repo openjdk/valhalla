@@ -325,7 +325,7 @@ public class ValueOops {
                         .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
                         .pop()
                         .areturn();
-                    });
+                    }, vtClass);
             Person person = (Person) moveValueThroughStackAndLvt.invokeExact(createDefaultPerson());
             validateDefaultPerson(person);
             doGc();
@@ -604,7 +604,7 @@ public class ValueOops {
                             .aastore()
                             .pop()
                             .return_();
-                        }).invoke(oopMaps);
+                        }, FooValue.class).invoke(oopMaps);
             } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithDefault", t); }
         }
 
@@ -627,7 +627,7 @@ public class ValueOops {
                             .aastore()
                             .pop()
                             .return_();
-                        }).invoke(fa, oopMaps);
+					     }, FooValue.class).invoke(fa, oopMaps);
             } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithRefs", t); }
         }
     }

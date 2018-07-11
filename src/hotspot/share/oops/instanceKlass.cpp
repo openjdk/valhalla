@@ -629,25 +629,36 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
   // are not pre-loaded. Their loading is triggered by either anewarray
   // or multianewarray bytecodes.
 
-  {
+  if (has_value_types_attribute()) {
     ResourceMark rm(THREAD);
     for (int i = 0; i < methods()->length(); i++) {
       Method* m = methods()->at(i);
       for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
         Symbol* sig = ss.as_symbol(THREAD);
-        if (is_declared_value_type(sig)) {
-          // Get current loader and protection domain first.
-          oop loader = class_loader();
-          oop protection_domain = this->protection_domain();
-
-          Klass* klass = SystemDictionary::resolve_or_fail(sig,
-                                                           Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                           CHECK_false);
-          if (klass == NULL) {
-            THROW_(vmSymbols::java_lang_LinkageError(), false);
+        if (ss.is_object()) {
+          Symbol* symb = sig;
+          if (ss.is_array()) {
+            int i=0;
+            while (sig->byte_at(i) == '[') i++;
+            if (i == sig->utf8_length() - 1 ) continue; // primitive array
+            symb = SymbolTable::lookup(sig->as_C_string() + i + 1,
+                                       sig->utf8_length() - 3, CHECK_false);
           }
-          if (!klass->is_value()) {
-            THROW_(vmSymbols::java_lang_IncompatibleClassChangeError(), false);
+          if (is_declared_value_type(symb)) {
+            oop loader = class_loader();
+            oop protection_domain = this->protection_domain();
+            Klass* klass = SystemDictionary::resolve_or_fail(symb,
+                                                             Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+                                                             CHECK_false);
+            if (symb != sig) {
+              symb->decrement_refcount();
+            }
+            if (klass == NULL) {
+              THROW_(vmSymbols::java_lang_LinkageError(), false);
+            }
+            if (!klass->is_value()) {
+              THROW_(vmSymbols::java_lang_IncompatibleClassChangeError(), false);
+            }
           }
         }
       }
@@ -3259,6 +3270,61 @@ bool InstanceKlass::is_declared_value_type(ConstantPool* constants, Array<ValueT
     }
   }
   return false;
+}
+
+void InstanceKlass::check_signature_for_value_types_consistency(Symbol* signature,
+                                                             InstanceKlass* k1,
+                                                             InstanceKlass* k2, TRAPS) {
+  if (signature->utf8_length() == 1) return;  // Primitive signature
+  if (!(k1->has_value_types_attribute() || k2->has_value_types_attribute())) return;
+  ResourceMark rm(THREAD);
+  for (SignatureStream sstream(signature); !sstream.is_done(); sstream.next()) {
+    if (sstream.is_object()) {
+      Symbol* sym = sstream.as_symbol(THREAD);
+      Symbol* name = sym;
+      if (sstream.is_array()) {
+        int i=0;
+        while (sym->byte_at(i) == '[') i++;
+        if (i == sym->utf8_length() - 1 ) continue; // primitive array
+        assert(sym->byte_at(i) == 'L', "Must be a L-type");
+        name = SymbolTable::lookup(sym->as_C_string() + i + 1,
+                                           sym->utf8_length() - 2 - i, CHECK);
+      }
+      bool opinion1 = k1->is_declared_value_type(name);
+      bool opinion2 = k2->is_declared_value_type(name);
+      if (sym != name) name->decrement_refcount();
+      if (opinion1 != opinion2) {
+        THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+      }
+    }
+  }
+}
+
+void InstanceKlass::check_symbol_for_value_types_consistency(Symbol* sym,
+                                                             InstanceKlass* k1,
+                                                             InstanceKlass* k2, TRAPS) {
+  if (sym->utf8_length() == 1) return;  // Primitive signature
+  if (!(k1->has_value_types_attribute() || k2->has_value_types_attribute())) return;
+  assert(sym->byte_at(0) == 'L' || sym->byte_at(0) == '[', "Sanity check");
+  ResourceMark rm(THREAD);
+  Symbol* name;
+  if (sym->byte_at(0) == 'L') {
+    name = SymbolTable::lookup(sym->as_C_string() + 1,
+                               sym->utf8_length() - 2, CHECK);
+  } else {
+    int i=0;
+    while (sym->byte_at(i) == '[') i++;
+    if (i == sym->utf8_length() - 1 ) return; // primitive array
+    assert(sym->byte_at(i) == 'L', "Must be a L-type");
+    name = SymbolTable::lookup(sym->as_C_string() + i + 1,
+                               sym->utf8_length() - 2 - i, CHECK);
+  }
+  bool opinion1 = k1->is_declared_value_type(name);
+  bool opinion2 = k2->is_declared_value_type(name);
+  name->decrement_refcount();
+  if (opinion1 != opinion2) {
+    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+  }
 }
 
 void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,

@@ -674,6 +674,15 @@ void LinkResolver::check_method_loader_constraints(const LinkInfo& link_info,
   }
 }
 
+void LinkResolver::check_method_value_types_consistency(const LinkInfo& link_info,
+                                                        const methodHandle& resolved_method,
+                                                        TRAPS) {
+  InstanceKlass::check_signature_for_value_types_consistency(resolved_method->signature(),
+                                                             InstanceKlass::cast(link_info.current_klass()),
+                                                             resolved_method->method_holder() ,
+                                                             CHECK);
+}
+
 void LinkResolver::check_field_loader_constraints(Symbol* field, Symbol* sig,
                                                   Klass* current_klass,
                                                   Klass* sel_klass, TRAPS) {
@@ -703,6 +712,15 @@ void LinkResolver::check_field_loader_constraints(Symbol* field, Symbol* sig,
                      failed_type_name);
     THROW_MSG(vmSymbols::java_lang_LinkageError(), buf);
   }
+}
+
+void LinkResolver::check_field_value_types_consistency(Symbol* sig,
+                                                  Klass* current_klass,
+                                                  Klass* sel_klass, TRAPS) {
+  InstanceKlass::check_symbol_for_value_types_consistency(sig,
+                                                             InstanceKlass::cast(current_klass),
+                                                             InstanceKlass::cast(sel_klass),
+                                                             CHECK);
 }
 
 methodHandle LinkResolver::resolve_method(const LinkInfo& link_info,
@@ -769,6 +787,9 @@ methodHandle LinkResolver::resolve_method(const LinkInfo& link_info,
 
     // check loader constraints
     check_method_loader_constraints(link_info, resolved_method, "method", CHECK_NULL);
+
+    // check ValueTypes attribute consistency
+    check_method_value_types_consistency(link_info, resolved_method, CHECK_NULL);
   }
 
   return resolved_method;
@@ -861,6 +882,10 @@ methodHandle LinkResolver::resolve_interface_method(const LinkInfo& link_info, B
                                CHECK_NULL);
 
     check_method_loader_constraints(link_info, resolved_method, "interface method", CHECK_NULL);
+
+
+    // check ValueTypes attribute consistency
+    check_method_value_types_consistency(link_info, resolved_method, CHECK_NULL);
   }
 
   if (code != Bytecodes::_invokestatic && resolved_method->is_static()) {
@@ -1021,6 +1046,7 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
 
   if (sel_klass != current_klass) {
     check_field_loader_constraints(field, sig, current_klass, sel_klass, CHECK);
+    check_field_value_types_consistency(sig, current_klass, sel_klass, CHECK);
   }
 
   // return information. note that the klass is set to the actual klass containing the
@@ -1216,6 +1242,8 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
       // check loader constraints if found a different method
       } else if (sel_method() != resolved_method()) {
         check_method_loader_constraints(link_info, sel_method, "method", CHECK);
+        // check ValueTypes attribute consistency
+        check_method_value_types_consistency(link_info, resolved_method, CHECK);
       }
     }
 

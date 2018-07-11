@@ -34,12 +34,12 @@ import jdk.test.lib.Asserts;
  */
 public class UninitializedValueFieldsTest {
     static __NotFlattened Point nonFlattenableStaticPoint;
-    static Point staticPoint;
+    static __Flattenable Point staticPoint;
 
     Point instancePoint;
 
     static __NotFlattened JumboValue sj1;
-    static JumboValue sj2;
+    static __Flattenable JumboValue sj2;
 
     __NotFlattened JumboValue j1;
     JumboValue j2;

@@ -129,7 +129,7 @@ public class ValueTypesTest {
                     .label("end")
                     .iconst_0()
                     .return_(TypeTag.Z);
-                });
+                }, valueClass);
         boolean result = (boolean) fromExecStackToLocalVar.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");
@@ -198,7 +198,7 @@ public class ValueTypesTest {
                     .label("failed")
                     .iconst_0()
                     .return_(TypeTag.Z);
-                });
+                }, valueClass);
         boolean result = (boolean) fromExecStackToFields.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");
@@ -272,7 +272,7 @@ public class ValueTypesTest {
                     .label("failed")
                     .iconst_0()
                     .return_(TypeTag.Z);
-                });
+                }, valueClass);
         boolean result = (boolean) fromExecStackToValueArray.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");

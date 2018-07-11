@@ -315,8 +315,8 @@ public class TestLWorld extends ValueTypeTest {
             aconst_null().
             invokevirtual(TestLWorld.class, "test7", "(Lcompiler/valhalla/valuetypes/MyValue1;)J", false).
             return_();
-        }
-        );
+        },
+        MyValue1.class);
 
     @DontCompile
     public void test7_verifier(boolean warmup) throws Throwable {
@@ -435,8 +435,8 @@ public class TestLWorld extends ValueTypeTest {
             CODE.
             aconst_null().
             areturn();
-        }
-        );
+        },
+        MyValue1.class);
 
     @Test
     public void test13() throws Throwable {
@@ -464,8 +464,8 @@ public class TestLWorld extends ValueTypeTest {
             aconst_null().
             putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
             return_();
-        }
-        );
+        },
+        MyValue1.class);
 
     @Test
     public void test14() throws Throwable {
@@ -524,8 +524,8 @@ public class TestLWorld extends ValueTypeTest {
             swap().
             putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
             return_();
-        }
-        );
+        },
+        MyValue1.class);
 
     @Test
     public void test16(boolean flag) throws Throwable {
@@ -597,8 +597,8 @@ public class TestLWorld extends ValueTypeTest {
             swap().
             putfield(TestLWorld.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
             return_();
-        }
-        );
+        },
+        MyValue1.class);
 
     @Test
     public void test19(boolean flag) throws Throwable {
@@ -1367,8 +1367,8 @@ public class TestLWorld extends ValueTypeTest {
             aconst_null().
             aastore().
             return_();
-        }
-        );
+        },
+        MyValue1.class);
 
     @Test()
     public void test49(MyValue1[] va, int index) throws Throwable {
@@ -1691,8 +1691,8 @@ public class TestLWorld extends ValueTypeTest {
             aload_3().
             aastore().
             return_();
-        }
-        );
+        },
+	MyValue1.class, MyValue2.class);
 
     @Test()
     public void test58(MyValue1[] va, int index, MyValue2 v) throws Throwable {

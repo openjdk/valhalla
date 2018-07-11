@@ -439,6 +439,14 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
   }
 }
 
+void check_value_types_consistency(const constantPoolHandle& this_cp, Klass* resolved_klass, TRAPS) {
+  bool opinion0 = resolved_klass->is_value();
+  bool opinion1 = this_cp->pool_holder()->is_declared_value_type(resolved_klass->name());
+  if (opinion0 != opinion1) {
+    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+  }
+}
+
 Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
                                    bool save_resolution_error, TRAPS) {
   assert(THREAD->is_Java_thread(), "must be a Java thread");
@@ -480,6 +488,10 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     mirror_handle = Handle(THREAD, k->java_mirror());
     // Do access check for klasses
     verify_constant_pool_resolve(this_cp, k, THREAD);
+  }
+
+  if (!HAS_PENDING_EXCEPTION) {
+    check_value_types_consistency(this_cp, k, THREAD);
   }
 
   // Failed to resolve class. We must record the errors so that subsequent attempts
