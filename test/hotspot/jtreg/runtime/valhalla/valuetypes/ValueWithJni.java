@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -21,11 +20,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package runtime.valhalla.valuetypes;
 
 /* @test
  * @summary test JNI functions with values
  * @run main/othervm/native -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
+ * @run main/othervm/native -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  */
 public __ByValue final class ValueWithJni {
 
