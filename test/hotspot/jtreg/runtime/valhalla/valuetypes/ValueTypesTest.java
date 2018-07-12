@@ -51,15 +51,15 @@ import javax.tools.*;
  *          java.base/jdk.experimental.value
  * @library /test/lib
  * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestValue1.java TestValue2.java TestValue3.java TestValue4.java ValueTypesTest.java
- * @run main/othervm -noverify -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
+ * @run main/othervm -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.valuetypes.ValueTypesTest
- * @run main/othervm -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
+ * @run main/othervm -Xcomp -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=true
+ *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.valuetypes.ValueTypesTest
  */
 public class ValueTypesTest {
@@ -277,6 +277,4 @@ public class ValueTypesTest {
         System.out.println(result);
         assertTrue(result, "Invariant");
     }
-
-
 }

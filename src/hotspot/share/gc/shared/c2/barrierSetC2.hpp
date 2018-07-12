@@ -118,7 +118,7 @@ public:
   Node* base() const              { return _base; }
   C2AccessValuePtr& addr() const  { return _addr; }
   BasicType type() const          { return _type; }
-  bool is_oop() const             { return _type == T_OBJECT || _type == T_ARRAY; }
+  bool is_oop() const             { return _type == T_OBJECT || _type == T_VALUETYPE || _type == T_ARRAY; }
   bool is_raw() const             { return (_decorators & AS_RAW) != 0; }
   Node* raw_access() const        { return _raw_access; }
 

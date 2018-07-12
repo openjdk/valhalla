@@ -204,7 +204,7 @@ void G1BarrierSetC2::pre_barrier(GraphKit* kit,
     if (pre_val->bottom_type() == TypePtr::NULL_PTR) return;
     assert(pre_val->bottom_type()->basic_type() == T_OBJECT, "or we shouldn't be here");
   }
-  assert(bt == T_OBJECT, "or we shouldn't be here");
+  assert(bt == T_OBJECT || bt == T_VALUETYPE, "or we shouldn't be here");
 
   IdealKit ideal(kit, true);
 
