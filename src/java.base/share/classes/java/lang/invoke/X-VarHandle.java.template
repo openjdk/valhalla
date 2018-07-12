@@ -682,87 +682,87 @@ final class VarHandle$Type$s {
 
         @ForceInline
         static boolean compareAndSet(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.compareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.compareAndSetValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static $type$ compareAndExchange(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.compareAndExchange$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.compareAndExchangeValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static $type$ compareAndExchangeAcquire(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.compareAndExchange$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.compareAndExchangeValueAcquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static $type$ compareAndExchangeRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.compareAndExchange$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.compareAndExchangeValueRelease(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static boolean weakCompareAndSetPlain(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.weakCompareAndSet$Type$Plain(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.weakCompareAndSetValuePlain(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static boolean weakCompareAndSet(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.weakCompareAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.weakCompareAndSetValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static boolean weakCompareAndSetAcquire(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.weakCompareAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.weakCompareAndSetValueAcquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static boolean weakCompareAndSetRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ expected, $type$ value) {
-            return UNSAFE.weakCompareAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                               handle.fieldOffset,
-                                               {#if[Object]?handle.fieldType.cast(expected):expected},
-                                               {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.weakCompareAndSetValueRelease(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                               handle.fieldOffset, handle.fieldType,
+                                               handle.fieldType.cast(Objects.requireNonNull(expected)),
+                                               handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static $type$ getAndSet(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
-            return UNSAFE.getAndSet$Type$(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.getAndSetValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                          handle.fieldOffset, handle.fieldType,
+                                          handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static $type$ getAndSetAcquire(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
-            return UNSAFE.getAndSet$Type$Acquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.getAndSetValueAcquire(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                          handle.fieldOffset, handle.fieldType,
+                                          handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 
         @ForceInline
         static $type$ getAndSetRelease(FlatValueFieldInstanceReadWrite handle, Object holder, $type$ value) {
-            return UNSAFE.getAndSet$Type$Release(Objects.requireNonNull(handle.receiverType.cast(holder)),
-                                          handle.fieldOffset,
-                                          {#if[Object]?handle.fieldType.cast(value):value});
+            return UNSAFE.getAndSetValueRelease(Objects.requireNonNull(handle.receiverType.cast(holder)),
+                                          handle.fieldOffset, handle.fieldType,
+                                          handle.fieldType.cast(Objects.requireNonNull(value)));
         }
 #end[CAS]
         static final VarForm FORM = new VarForm(FlatValueFieldInstanceReadWrite.class, Object.class, Object.class);
