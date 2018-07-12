@@ -75,6 +75,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
+    private final TransValues transValues;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -116,6 +117,7 @@ public class Gen extends JCTree.Visitor {
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
         lower = Lower.instance(context);
+        transValues = TransValues.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -919,6 +921,9 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
+                    } else if (env.enclMethod.sym.isValueFactory()) {
+                        items.makeLocalItem(env.enclMethod.factoryProduct).load();
+                        code.emitop0(areturn);
                     } else {
                         // sometime dead code seems alive (4415991);
                         // generate a small loop instead
@@ -2300,6 +2305,7 @@ public class Gen extends JCTree.Visitor {
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
+            cdef = transValues.translateTopLevelClass(cdef, make);
             generateReferencesToPrunedTree(c, pool);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

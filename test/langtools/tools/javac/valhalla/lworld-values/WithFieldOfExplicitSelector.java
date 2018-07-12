@@ -63,12 +63,12 @@ public class WithFieldOfExplicitSelector {
 
          "0: aload_0",
          "1: iload_1",
-         "2: withfield     #3                  // Field i:I",
+         "2: withfield     #2                  // Field i:I",
          "5: astore_3",
          "6: aload_3",
          "7: aload_2",
-        "8: invokevirtual #4                  // Method java/lang/Integer.intValue:()I",
-        "11: withfield     #3                  // Field i:I",
+        "8: invokevirtual #3                  // Method java/lang/Integer.intValue:()I",
+        "11: withfield     #2                  // Field i:I",
         "14: astore_3",
         "15: aload_3",
         "16: areturn"

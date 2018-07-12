@@ -70,7 +70,7 @@ public class ValueTypesAttributeTest {
          "ValueTypes:",
          "#36;                                    // value class V4",
          "#24;                                    // value class V2",
-         "#7;                                     // value class ValueTypesAttributeTest$X",
+         "#6;                                     // value class ValueTypesAttributeTest$X",
          "#10;                                    // value class V1",
          "#27;                                    // value class V3",
          "#41;                                    // value class V5",

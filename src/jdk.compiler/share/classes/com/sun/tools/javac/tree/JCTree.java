@@ -842,6 +842,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public JCExpression defaultValue;
         /** method symbol */
         public MethodSymbol sym;
+        /** nascent value that evolves into the return value for a value factory */
+        public VarSymbol factoryProduct;
+
         protected JCMethodDecl(JCModifiers mods,
                             Name name,
                             JCExpression restype,

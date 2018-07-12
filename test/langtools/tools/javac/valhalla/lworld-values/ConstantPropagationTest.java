@@ -56,15 +56,7 @@ public class ConstantPropagationTest {
         runCheck(params, new String [] {
 
          "ConstantValue: int 8888",
-         "0: getstatic     #3                  // Field java/lang/System.out:Ljava/io/PrintStream;",
          "3: sipush        8888",
-         "6: invokevirtual #5                  // Method java/io/PrintStream.println:(I)V",
-         "9: getstatic     #3                  // Field java/lang/System.out:Ljava/io/PrintStream;",
-         "12: aload_0",
-         "13: getfield      #2                  // Field ifif:I",
-        "16: invokevirtual #5                  // Method java/io/PrintStream.println:(I)V",
-        "19: return",
-           
          }, new String [] {
          "ConstantValue: int 9999"
          });

@@ -164,6 +164,7 @@ public class Attr extends JCTree.Visitor {
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
         allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowEmptyValues = options.isSet("allowEmptyValues");
+        allowValueConstructors = options.isUnset("disallowValueConstructors");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
@@ -210,6 +211,10 @@ public class Attr extends JCTree.Visitor {
      */
     boolean allowEmptyValues;
 
+    /**
+     * Switch: Allow value types instantiation via new and classic constructor notation ?
+     */
+    boolean allowValueConstructors;
     /**
      * Switch: allow strings in switch?
      */
@@ -2297,7 +2302,8 @@ public class Attr extends JCTree.Visitor {
                 log.error(tree.pos(), Errors.EnumCantBeInstantiated);
 
             if (tree.creationMode == CreationMode.NEW && types.isValue(clazztype)) {
-                log.error(tree.pos(), Errors.GarbledValueReferenceInstantiation);
+                if (!allowValueConstructors)
+                    log.error(tree.pos(), Errors.GarbledValueReferenceInstantiation);
             }
 
             boolean isSpeculativeDiamondInferenceRound = TreeInfo.isDiamond(tree) &&

@@ -426,6 +426,12 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         return name == name.table.names.init;
     }
 
+    /** Is this symbol a value factory?
+     */
+    public boolean isValueFactory() {
+        return name == name.table.names.makeValue;
+    }
+
     /** The fully qualified name of this symbol.
      *  This is the same as the symbol's name except for class symbols,
      *  which are handled separately.
