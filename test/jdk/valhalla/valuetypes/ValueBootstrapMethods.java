@@ -37,11 +37,17 @@ import java.lang.reflect.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
+import jdk.internal.org.objectweb.asm.Attribute;
+import jdk.internal.org.objectweb.asm.ByteVector;
+import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.Handle;
+import jdk.internal.org.objectweb.asm.Label;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.Type;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
@@ -208,10 +214,54 @@ public class ValueBootstrapMethods {
         mv.visitMaxs(-1, -1);
         mv.visitEnd();
 
+        cw.visitAttribute(new ValueTypesAttribute(Set.of(Type.getInternalName(c))));
+
         cw.visitEnd();
 
         byte[] classBytes = cw.toByteArray();
         System.out.println("writing " + path);
         Files.write(path, classBytes);
+    }
+
+    static class ValueTypesAttribute extends Attribute {
+        public static final String VALUE_TYPES = "ValueTypes";
+        private final Set<String> valueTypes;
+        public ValueTypesAttribute(Set<String> valueTypes) {
+            super(VALUE_TYPES);
+            this.valueTypes = valueTypes;
+        }
+        public ValueTypesAttribute() {
+            this(null);
+        }
+
+        @Override
+        protected Attribute read(ClassReader cr,
+                                 int off,
+                                 int len,
+                                 char[] buf,
+                                 int codeOff,
+                                 Label[] labels)
+        {
+
+            int count = cr.readUnsignedShort(off);
+            off += 2;
+
+            Set<String> valueTypes = new HashSet<>();
+            for (int i=0; i<count; i++) {
+                String cn = cr.readClass(off, buf);
+                off += 2;
+            }
+            return new ValueTypesAttribute(valueTypes);
+        }
+
+        @Override
+        protected ByteVector write(ClassWriter cw, byte[] code, int len, int maxStack, int maxLocals) {
+            assert valueTypes != null;
+            ByteVector attr = new ByteVector();
+            attr.putShort(valueTypes.size());
+            valueTypes.stream().map(cn -> cn.replace('.', '/'))
+                      .forEach(cn -> attr.putShort(cw.newClass(cn)));
+            return attr;
+        }
     }
 }
