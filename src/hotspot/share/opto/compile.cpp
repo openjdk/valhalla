@@ -4624,6 +4624,61 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
   }
 }
 
+Node* Compile::load_is_value_bit(PhaseGVN* phase, Node* oop) {
+  // Load the klass pointer and check if it's odd, i.e., if it defines a value type
+  // is_value = (klass & oop_metadata_valuetype_mask) >> LogKlassAlignmentInBytes
+  Node* k_adr = phase->transform(new AddPNode(oop, oop, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
+  Node* klass = NULL;
+  if (UseCompressedClassPointers) {
+    klass = phase->transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
+  } else {
+    klass = phase->transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
+  }
+  const int mask = Universe::oop_metadata_valuetype_mask();
+  Node* is_value = phase->transform(new CastP2XNode(NULL, klass));
+  is_value = phase->transform(new AndXNode(is_value, phase->MakeConX(mask)));
+  // Check if a shift is required for perturbation to affect aligned bits of oop
+  if (mask == KlassPtrValueTypeMask && ObjectAlignmentInBytes <= KlassAlignmentInBytes) {
+    assert((mask >> LogKlassAlignmentInBytes) == 1, "invalid shift");
+    is_value = phase->transform(new URShiftXNode(is_value, phase->intcon(LogKlassAlignmentInBytes)));
+  } else {
+    assert(mask < ObjectAlignmentInBytes, "invalid mask");
+  }
+  return is_value;
+}
+
+Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
+  if (a->is_ValueType() || b->is_ValueType()) {
+    // Return constant false because one operand is a non-null value type
+    return phase->intcon(1);
+  }
+  const TypeInstPtr* ta = phase->type(a)->isa_instptr();
+  const TypeInstPtr* tb = phase->type(b)->isa_instptr();
+  if (!EnableValhalla || phase->type(a)->is_zero_type() || phase->type(b)->is_zero_type()) {
+    // Use old acmp if new acmp is disabled or degraded to a null check
+    return new CmpPNode(a, b);
+  } else if ((ta != NULL && ta->is_valuetypeptr()) || (tb != NULL && tb->is_valuetypeptr())) {
+    // We statically know that one operand is a value. Therefore,
+    // new acmp will only return true if both operands are NULL.
+    if ((ta != NULL && !TypePtr::NULL_PTR->higher_equal(ta)) ||
+        (tb != NULL && !TypePtr::NULL_PTR->higher_equal(tb))) {
+      // One operand is never NULL, fold to constant false
+      return phase->intcon(1);
+    } else {
+      // Check if both operands are null by or'ing the oops
+      a = phase->transform(new CastP2XNode(NULL, a));
+      b = phase->transform(new CastP2XNode(NULL, b));
+      a = phase->transform(new OrXNode(a, b));
+      return new CmpXNode(a, phase->MakeConX(0));
+    }
+  } else if (ta == NULL || !ta->can_be_value_type() || tb == NULL || !tb->can_be_value_type()) {
+    // Use old acmp
+    return new CmpPNode(a, b);
+  }
+  // Use new acmp
+  return NULL;
+}
+
 // Auxiliary method to support randomized stressing/fuzzing.
 //
 // This method can be called the arbitrary number of times, with current count

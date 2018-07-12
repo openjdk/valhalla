@@ -711,6 +711,9 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
           DEBUG_ONLY(disq_node = use;)
         }
         can_eliminate = false;
+      } else {
+        assert(use->Opcode() == Op_CastP2X, "should be");
+        assert(!use->has_out_with(Op_OrL), "should have been removed because oop is never null");
       }
     }
   }

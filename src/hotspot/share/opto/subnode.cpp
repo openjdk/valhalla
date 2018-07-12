@@ -715,6 +715,23 @@ Node *CmpINode::Ideal( PhaseGVN *phase, bool can_reshape ) {
   return NULL;                  // No change
 }
 
+//------------------------------Ideal------------------------------------------
+Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  if (in(1)->Opcode() == Op_OrL && in(1)->in(1)->Opcode() == Op_CastP2X && in(1)->in(2)->Opcode() == Op_CastP2X) {
+    Node* a = in(1)->in(1)->in(1);
+    Node* b = in(1)->in(2)->in(1);
+    const Type* ta = phase->type(a);
+    const Type* tb = phase->type(b);
+    if (ta->is_zero_type() || tb->is_zero_type()) {
+      return new CmpPNode(a, b);
+    } else if (!TypePtr::NULL_PTR->higher_equal(ta) || !TypePtr::NULL_PTR->higher_equal(tb)) {
+      // One operand is never NULL, emit constant false
+      return new CmpLNode(phase->longcon(0), phase->longcon(1));
+    }
+  }
+  return NULL;
+}
+
 
 //=============================================================================
 // Simplify a CmpL (compare 2 longs ) node, based on local information.
@@ -931,7 +948,35 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // super-type array vs a known klass with no subtypes.  This amounts to
 // checking to see an unknown klass subtypes a known klass with no subtypes;
 // this only happens on an exact match.  We can shorten this test by 1 load.
-Node *CmpPNode::Ideal( PhaseGVN *phase, bool can_reshape ) {
+Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  Node* pert = has_perturbed_operand();
+  if (pert != NULL) {
+    // Optimize new acmp
+    Node* a = pert->in(AddPNode::Base); // unperturbed a
+    Node* b = in(2);
+    Node* cmp = phase->C->optimize_acmp(phase, a, b);
+    if (cmp != NULL) {
+      return cmp;
+    }
+    if ( TypePtr::NULL_PTR->higher_equal(phase->type(a)) &&
+        !TypePtr::NULL_PTR->higher_equal(phase->type(b))) {
+      // Operand 'b' is never null, swap operands to avoid null check
+      Node* is_value = phase->C->load_is_value_bit(phase, b);
+      set_req(1, phase->transform(new AddPNode(b, b, is_value)));
+      set_req(2, a);
+      return this;
+    }
+  } else {
+    // Optimize old acmp with value type operands
+    const TypeInstPtr* ta = phase->type(in(1))->isa_instptr();
+    const TypeInstPtr* tb = phase->type(in(2))->isa_instptr();
+    if (((ta != NULL && ta->is_loaded() && ta->is_valuetypeptr()) || (tb != NULL && tb->is_loaded() && tb->is_valuetypeptr())) &&
+        (!TypePtr::NULL_PTR->higher_equal(phase->type(in(1))) || !TypePtr::NULL_PTR->higher_equal(phase->type(in(2))))) {
+      // One operand is a value type and one operand is never null, fold to constant false
+      return new CmpINode(phase->intcon(0), phase->intcon(1));
+    }
+  }
+
   // Normalize comparisons between Java mirrors into comparisons of the low-
   // level klass, where a dependent load could be shortened.
   //
@@ -1030,6 +1075,22 @@ Node *CmpPNode::Ideal( PhaseGVN *phase, bool can_reshape ) {
   this->set_req(1,ldk2);
 
   return this;
+}
+
+// Checks if one operand is perturbed and returns it
+Node* CmpPNode::has_perturbed_operand() const {
+  // We always perturbe the first operand
+  AddPNode* addP = in(1)->isa_AddP();
+  if (addP != NULL) {
+    Node* base = addP->in(AddPNode::Base);
+    if (base->is_top()) {
+      // RawPtr comparison
+      return NULL;
+    }
+    assert(EnableValhalla, "unexpected perturbed oop");
+    return in(1);
+  }
+  return NULL;
 }
 
 //=============================================================================

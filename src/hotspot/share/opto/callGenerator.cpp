@@ -535,6 +535,8 @@ void LateInlineCallGenerator::do_late_inline() {
         }
       }
     }
+  } else if (result->is_ValueType()) {
+    result = result->isa_ValueType()->allocate(&kit)->get_oop();
   }
 
   kit.replace_call(call, result, true);

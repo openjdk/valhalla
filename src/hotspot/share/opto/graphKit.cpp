@@ -38,6 +38,7 @@
 #include "opto/intrinsicnode.hpp"
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
+#include "opto/narrowptrnode.hpp"
 #include "opto/opaquenode.hpp"
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
@@ -4331,4 +4332,54 @@ Node* GraphKit::cast_array_to_stable(Node* ary, const TypeAryPtr* ary_type) {
   // Reify the property as a CastPP node in Ideal graph to comply with monotonicity
   // assumption of CCP analysis.
   return _gvn.transform(new CastPPNode(ary, ary_type->cast_to_stable(true)));
+}
+
+Node* GraphKit::acmp(Node* a, Node* b) {
+  // In the case were both operands might be value types, we need to
+  // use the new acmp implementation. Otherwise, i.e. if one operand
+  // is not a value type, we can use the old acmp implementation.
+  Node* cmp = C->optimize_acmp(&_gvn, a, b);
+  if (cmp != NULL) {
+    return cmp; // Use optimized/old acmp
+  }
+
+  Node* region = new RegionNode(2);
+  Node* is_value = new PhiNode(region, TypeX_X);
+
+  // Null check operand before loading the is_value bit
+  bool speculate = false;
+  if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(b))) {
+    // Operand 'b' is never null, swap operands to avoid null check
+    swap(a, b);
+  } else if (!too_many_traps(Deoptimization::Reason_speculate_null_check)) {
+    // Speculate on non-nullness of one operand
+    if (!_gvn.type(a)->speculative_maybe_null()) {
+      speculate = true;
+    } else if (!_gvn.type(b)->speculative_maybe_null()) {
+      speculate = true;
+      swap(a, b);
+    }
+  }
+
+  inc_sp(2);
+  Node* null_ctl = top();
+  Node* not_null_a = null_check_oop(a, &null_ctl, speculate, speculate, speculate);
+  assert(!stopped(), "operand is always null");
+  dec_sp(2);
+  if (null_ctl != top()) {
+    assert(!speculate, "should never be null");
+    region->add_req(null_ctl);
+    is_value->add_req(_gvn.MakeConX(0));
+  }
+
+  Node* value_bit = C->load_is_value_bit(&_gvn, not_null_a);
+  region->init_req(1, control());
+  is_value->set_req(1, value_bit);
+
+  set_control(_gvn.transform(region));
+  is_value = _gvn.transform(is_value);
+
+  // Perturbe oop if operand is a value type to make comparison fail
+  Node* pert = _gvn.transform(new AddPNode(a, a, is_value));
+  return new CmpPNode(pert, b);
 }

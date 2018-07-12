@@ -164,7 +164,8 @@ bool ConnectionGraph::compute_escape() {
       // scalar replaceable objects in split_unique_types().
       _mergemem_worklist.append(n->as_MergeMem());
     } else if (OptimizePtrCompare && n->is_Cmp() &&
-               (n->Opcode() == Op_CmpP || n->Opcode() == Op_CmpN)) {
+               ((n->Opcode() == Op_CmpP && !(((CmpPNode*)n)->has_perturbed_operand() != NULL)) ||
+                 n->Opcode() == Op_CmpN)) {
       // Collect compare pointers nodes.
       ptr_cmp_worklist.append(n);
     } else if (n->is_MemBarStoreStore()) {
