@@ -2563,6 +2563,9 @@ public class Attr extends JCTree.Visitor {
         // optimization: new Outer() can never be null; skip null check
         if (arg.getTag() == NEWCLASS)
             return arg;
+        // Likewise arg can't be null if it is a value.
+        if (types.isValue(arg.type))
+            return arg;
         // optimization: X.this is never null; skip null check
         Name name = TreeInfo.name(arg);
         if (name == names._this || name == names._super) return arg;
