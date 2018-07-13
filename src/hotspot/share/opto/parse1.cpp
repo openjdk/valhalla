@@ -1739,6 +1739,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
         uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
         assert(stopped(), "should be a dead path now");
+        set_parse_bci(old_bci);
         return;
       }
     }
