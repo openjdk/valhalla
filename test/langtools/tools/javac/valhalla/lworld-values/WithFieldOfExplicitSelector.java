@@ -61,17 +61,21 @@ public class WithFieldOfExplicitSelector {
                                                 "WithFieldOfExplicitSelector$X.class").toString() };
         runCheck(params, new String [] {
 
-         "0: aload_0",
-         "1: iload_1",
-         "2: withfield     #2                  // Field i:I",
-         "5: astore_3",
-         "6: aload_3",
-         "7: aload_2",
-        "8: invokevirtual #3                  // Method java/lang/Integer.intValue:()I",
-        "11: withfield     #2                  // Field i:I",
-        "14: astore_3",
-        "15: aload_3",
-        "16: areturn"
+         "0: iload_1",
+         "1: aload_0",
+         "2: dup_x1",
+         "3: pop",
+         "4: withfield     #2                  // Field i:I",
+         "7: astore_3",
+         "8: aload_2",
+         "9: invokevirtual #3                  // Method java/lang/Integer.intValue:()I",
+        "12: aload_3",
+        "13: dup_x1",
+        "14: pop",
+        "15: withfield     #2                  // Field i:I",
+        "18: astore_3",
+        "19: aload_3",
+        "20: areturn"
          });
      }
 
