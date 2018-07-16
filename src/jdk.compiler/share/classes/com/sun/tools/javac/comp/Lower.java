@@ -1442,8 +1442,11 @@ public class Lower extends TreeTranslator {
             do {
                 proxyName = proxyName(v.name, index++);
             } while (!proxyNames.add(proxyName));
+            final Type type = v.erasure(types);
+            if (types.isValue(type) && (flags & PARAMETER) == 0)
+                flags |= ACC_FLATTENABLE;
             VarSymbol proxy = new VarSymbol(
-                flags, proxyName, v.erasure(types), owner);
+                flags, proxyName, type, owner);
             proxies.put(v, proxy);
             JCVariableDecl vd = make.at(pos).VarDef(proxy, null);
             vd.vartype = access(vd.vartype);
@@ -1506,7 +1509,11 @@ public class Lower extends TreeTranslator {
      *  @param owner      The class in which the definition goes.
      */
     JCVariableDecl outerThisDef(int pos, ClassSymbol owner) {
-        VarSymbol outerThis = makeOuterThisVarSymbol(owner, FINAL | SYNTHETIC);
+        Type target = types.erasure(owner.enclClass().type.getEnclosingType());
+        long flags = FINAL | SYNTHETIC;
+        if (types.isValue(target))
+            flags |= ACC_FLATTENABLE;
+        VarSymbol outerThis = makeOuterThisVarSymbol(owner, flags);
         return makeOuterThisVarDecl(pos, outerThis);
     }
 
