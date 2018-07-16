@@ -86,6 +86,11 @@ public class TransValues extends TreeTranslator {
     private Types types;
     private Names names;
 
+    /* Is an assignment undergoing translation just an assignment statement ?
+       Or is also a value ??
+    */
+    private boolean requireRVal;
+
     // class currently undergoing translation.
     private JCClassDecl currentClass;
 
@@ -111,6 +116,29 @@ public class TransValues extends TreeTranslator {
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         names = Names.instance(context);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends JCTree> T translate(T tree, boolean requireRVal) {
+        boolean priorRequireRVal = this.requireRVal;
+        try {
+            this.requireRVal = requireRVal;
+            if (tree == null) {
+                return null;
+            } else {
+                tree.accept(this);
+                JCTree tmpResult = this.result;
+                this.result = null;
+                return (T)tmpResult; // XXX cast
+            }
+        } finally {
+             this.requireRVal = priorRequireRVal;
+        }
+    }
+
+    @Override
+    public <T extends JCTree> T translate(T tree) {
+        return translate(tree, true);
     }
 
     public JCClassDecl translateTopLevelClass(JCClassDecl classDecl, TreeMaker make) {
@@ -271,10 +299,23 @@ public class TransValues extends TreeTranslator {
             if (isInstanceFieldAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                 result = make.Assign(facHandle, make.WithField(make.Select(facHandle, symbol), translate(tree.rhs)).setType(currentClass.type)).setType(currentClass.type);
+                if (requireRVal) {
+                    result = make.Select(make.Parens((JCExpression) result).setType(currentClass.type), symbol);
+                }
                 return;
             }
         }
         super.visitAssign(tree);
+    }
+
+    @Override
+    public void visitExec(JCExpressionStatement tree) {
+        if (constructingValue()) {
+            tree.expr = translate(tree.expr, false);
+            result = tree;
+        } else {
+            super.visitExec(tree);
+        }
     }
 
     @Override
