@@ -1692,7 +1692,7 @@ public class TestLWorld extends ValueTypeTest {
             aastore().
             return_();
         },
-	MyValue1.class, MyValue2.class);
+        MyValue1.class, MyValue2.class);
 
     @Test()
     public void test58(MyValue1[] va, int index, MyValue2 v) throws Throwable {
@@ -2088,5 +2088,70 @@ public class TestLWorld extends ValueTypeTest {
             return;
         }
         throw new RuntimeException("test77 failed: no exception thrown");
+    }
+
+    // type system test with interface and value type
+    @ForceInline
+    public MyInterface test78_helper(MyValue1 vt) {
+        return vt;
+    }
+
+    @Test()
+    public MyInterface test78(MyValue1 vt) {
+        return test78_helper(vt);
+    }
+
+    @DontCompile
+    public void test78_verifier(boolean warmup) {
+        test78(testValue1);
+    }
+
+    // Array store tests
+    @Test()
+    public void test79(Object[] array, MyValue1 vt) {
+        array[0] = vt;
+    }
+
+    @DontCompile
+    public void test79_verifier(boolean warmup) {
+        Object[] array = new Object[1];
+        test79(array, testValue1);
+        Asserts.assertEQ(((MyValue1)array[0]).hash(), testValue1.hash());
+    }
+
+    @Test()
+    public void test80(Object[] array, MyValue1 vt) {
+        array[0] = vt;
+    }
+
+    @DontCompile
+    public void test80_verifier(boolean warmup) {
+        MyValue1[] array = new MyValue1[1];
+        test80(array, testValue1);
+        Asserts.assertEQ(array[0].hash(), testValue1.hash());
+    }
+
+    @Test()
+    public void test81(Object[] array, Object vt) {
+        array[0] = vt;
+    }
+
+    @DontCompile
+    public void test81_verifier(boolean warmup) {
+        MyValue1[] array = new MyValue1[1];
+        test81(array, testValue1);
+        Asserts.assertEQ(array[0].hash(), testValue1.hash());
+    }
+
+    @Test()
+    public void test82(Object[] array, Integer o) {
+        array[0] = o;
+    }
+
+    @DontCompile
+    public void test82_verifier(boolean warmup) {
+        Integer[] array = new Integer[1];
+        test82(array, 1);
+        Asserts.assertEQ(array[0], Integer.valueOf(1));
     }
 }

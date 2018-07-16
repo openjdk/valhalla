@@ -4173,15 +4173,18 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
   case ValueType: {
     const TypeValueType *tv = t->is_valuetype();
 
-    // All value types inherit from Object
     if (above_centerline(ptr())) {
       if (tv->value_klass()->is_subtype_of(_klass)) {
         return t;
       } else {
-        return TypeInstPtr::make(NotNull, ciEnv::current()->Object_klass());
+        return TypeInstPtr::make(NotNull, _klass);
       }
     } else {
-      return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+      if (tv->value_klass()->is_subtype_of(_klass)) {
+        return TypeInstPtr::make(ptr(), _klass);
+      } else {
+        return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+      }
     }
   }
 

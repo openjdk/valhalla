@@ -182,8 +182,16 @@ void FastLockNode::create_rtm_lock_counter(JVMState* state) {
 void Parse::do_monitor_enter() {
   kill_dead_locals();
 
+  Node* obj = peek();
+
+  if (obj->is_ValueType()) {
+    uncommon_trap(Deoptimization::Reason_class_check,
+                  Deoptimization::Action_none);
+    return;
+  }
+
   // Null check; get casted pointer.
-  Node* obj = null_check(peek());
+  obj = null_check(obj);
   // Check for locking null object
   if (stopped()) return;
 

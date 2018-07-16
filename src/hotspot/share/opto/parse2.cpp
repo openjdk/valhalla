@@ -36,6 +36,7 @@
 #include "opto/convertnode.hpp"
 #include "opto/divnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
+#include "opto/idealKit.hpp"
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
 #include "opto/mulnode.hpp"
@@ -110,25 +111,41 @@ void Parse::array_store(BasicType bt) {
   Node* idx = pop();        // Index in the array
   Node* ary = pop();        // The array itself
 
-  // Handle value type arrays
   if (bt == T_OBJECT) {
-    const TypeValueType* vt = _gvn.type(cast_val)->isa_valuetype();
-    if (vt != NULL && vt->value_klass()->flatten_array()) {
+    const TypeOopPtr* elemptr = elemtype->make_oopptr();
+    if (elemtype->isa_valuetype() != NULL) {
       // Store to flattened value type array
-      if (elemtype->isa_valuetype() == NULL) {
+      cast_val->as_ValueType()->store_flattened(this, ary, adr);
+      return;
+    } else if (elemptr->is_valuetypeptr()) {
+      // Store to non-flattened value type array
+    } else if (ValueArrayFlatten && elemptr->can_be_value_type() && val->is_ValueType()) {
+      IdealKit ideal(this);
+      Node* kls = load_object_klass(ary);
+      Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
+      Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
+      layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+      ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value)); {
+        // non flattened
+        sync_kit(ideal);
+        const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+        elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
+        access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IN_HEAP_ARRAY);
+        ideal.sync_kit(this);
+      } ideal.else_(); {
+        // flattened
+        sync_kit(ideal);
         // Object/interface array must be flattened, cast it
-        assert(elemtype->make_oopptr()->can_be_value_type(), "must be object or interface array");
+        const TypeValueType* vt = _gvn.type(val)->is_valuetype();
         ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
         adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
-      }
-      cast_val->as_ValueType()->store_flattened(this, ary, adr);
+        val->as_ValueType()->store_flattened(this, ary, adr);
+        ideal.sync_kit(this);
+      } ideal.end_if();
+      sync_kit(ideal);
       return;
-    } else if (vt != NULL) {
-      // Store to non-flattened value type array
-      bt = T_VALUETYPE;
-      val = cast_val;
     }
   }
 

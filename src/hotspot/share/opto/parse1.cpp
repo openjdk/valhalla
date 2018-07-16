@@ -1719,28 +1719,33 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
   map()->set_jvms(tmp_jvms);
   // Execution needs to restart a the next bytecode (entry of next
   // block)
-  set_parse_bci(target->start());
-  for (uint j = TypeFunc::Parms; j < map()->req(); j++) {
-    Node* n = map()->in(j);                 // Incoming change to target state.
-    const Type* t = NULL;
-    if (tmp_jvms->is_loc(j)) {
-      t = target->local_type_at(j - tmp_jvms->locoff());
-    } else if (tmp_jvms->is_stk(j) && j < (uint)sp() + tmp_jvms->stkoff()) {
-      t = target->stack_type_at(j - tmp_jvms->stkoff());
-    }
-    if (t != NULL && t != Type::BOTTOM) {
-      if (n->is_ValueType() && !t->isa_valuetype()) {
-        // Allocate value type in src block to be able to merge it with oop in target block
-        ValueTypeBaseNode* vt = n->as_ValueType()->allocate(this, true);
-        map()->set_req(j, ValueTypePtrNode::make_from_value_type(_gvn, vt->as_ValueType()));
+  if (target->is_merged() ||
+      pnum > PhiNode::Input ||
+      target->is_handler() ||
+      target->is_loop_head()) {
+    set_parse_bci(target->start());
+    for (uint j = TypeFunc::Parms; j < map()->req(); j++) {
+      Node* n = map()->in(j);                 // Incoming change to target state.
+      const Type* t = NULL;
+      if (tmp_jvms->is_loc(j)) {
+        t = target->local_type_at(j - tmp_jvms->locoff());
+      } else if (tmp_jvms->is_stk(j) && j < (uint)sp() + tmp_jvms->stkoff()) {
+        t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
-      if (t->isa_valuetype() && !n->is_ValueType()) {
-        // check for a null constant
-        assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-        assert(stopped(), "should be a dead path now");
-        set_parse_bci(old_bci);
-        return;
+      if (t != NULL && t != Type::BOTTOM) {
+        if (n->is_ValueType() && !t->isa_valuetype()) {
+          // Allocate value type in src block to be able to merge it with oop in target block
+          ValueTypeBaseNode* vt = n->as_ValueType()->allocate(this, true);
+          map()->set_req(j, ValueTypePtrNode::make_from_value_type(_gvn, vt->as_ValueType()));
+        }
+        if (t->isa_valuetype() && !n->is_ValueType()) {
+          // check for a null constant
+          assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+          assert(stopped(), "should be a dead path now");
+          set_parse_bci(old_bci);
+          return;
+        }
       }
     }
   }

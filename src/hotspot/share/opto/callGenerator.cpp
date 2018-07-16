@@ -918,7 +918,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
     kit.set_argument(arg_nb, arg);
   }
-  if (sig_type->is_valuetypeptr()) {
+  if (sig_type->is_valuetypeptr() && !arg->is_ValueType()) {
     kit.inc_sp(nargs); // restore arguments
     arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* buffer_check */ false, /* null2default */ false);
     kit.dec_sp(nargs);

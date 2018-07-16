@@ -3124,22 +3124,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
 
-  // Handle value types
-  if (obj->is_ValueType()) {
-    ValueTypeNode* vt = obj->as_ValueType();
-    if (toop->is_valuetypeptr()) {
-      ciValueKlass* vk = vt->type()->is_valuetype()->value_klass();
-      if (toop->klass() == vk) {
-        return obj;
-      } else {
-        builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(vk)));
-        return top();
-      }
-    } else {
-      vt = vt->allocate(this, true)->as_ValueType();
-      obj = ValueTypePtrNode::make_from_value_type(_gvn, vt);
-    }
-  }
+  bool is_value = obj->is_ValueType();
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit
@@ -3148,22 +3133,37 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   // want a residual null check left around.  (Causes a slowdown,
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (tk->singleton()) {
-    const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-    if (objtp != NULL && objtp->klass() != NULL) {
-      switch (C->static_subtype_check(tk->klass(), objtp->klass())) {
+    ciKlass* klass = NULL;
+    if (is_value) {
+      klass = _gvn.type(obj)->is_valuetype()->value_klass();
+    } else {
+      const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
+      if (objtp != NULL) {
+        klass = objtp->klass();
+      }
+    }
+    if (klass != NULL) {
+      switch (C->static_subtype_check(tk->klass(), klass)) {
       case Compile::SSC_always_true:
         // If we know the type check always succeed then we don't use
         // the profiling data at this bytecode. Don't lose it, feed it
         // to the type system as a speculative type.
-        obj = record_profiled_receiver_for_speculation(obj);
-        if (toop->is_valuetypeptr()) {
-          obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
+        if (!is_value) {
+          obj = record_profiled_receiver_for_speculation(obj);
+          if (toop->is_valuetypeptr()) {
+            obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
+          }
         }
         return obj;
       case Compile::SSC_always_false:
         // It needs a null check because a null will *pass* the cast check.
         // A non-null value will always produce an exception.
-        return null_assert(obj);
+        if (is_value) {
+          builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(klass)));
+          return top();
+        } else {
+          return null_assert(obj);
+        }
       }
     }
   }
@@ -3191,7 +3191,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
-  Node* not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
+  Node* not_null_obj = is_value ? obj : null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
 
   // If not_null_obj is dead, only null-path is taken
   if (stopped()) {              // Doing instance-of on a NULL?
@@ -3209,7 +3209,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   }
 
   Node* cast_obj = NULL;
-  if (tk->klass_is_exact()) {
+  if (!is_value && tk->klass_is_exact()) {
     // The following optimization tries to statically cast the speculative type of the object
     // (for example obtained during profiling) to the type of the superklass and then do a
     // dynamic check that the type of the object is what we expect. To work correctly
@@ -3238,10 +3238,21 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
 
   if (cast_obj == NULL) {
     // Load the object's klass
-    Node* obj_klass = load_object_klass(not_null_obj);
+    Node* obj_klass = NULL;
+    if (is_value) {
+      obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->is_valuetype()->value_klass()));
+    } else {
+      obj_klass = load_object_klass(not_null_obj);
+    }
 
     // Generate the subtype check
     Node* not_subtype_ctrl = gen_subtype_check( obj_klass, superklass );
+
+    if (is_value) {
+      ValueTypeNode* vt = not_null_obj->as_ValueType();
+      vt = vt->allocate(this, true)->as_ValueType();
+      not_null_obj = ValueTypePtrNode::make_from_value_type(_gvn, vt);
+    }
 
     // Plug in success path into the merge
     cast_obj = _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
@@ -3277,9 +3288,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   set_control( _gvn.transform(region) );
   record_for_igvn(region);
 
-  res = record_profiled_receiver_for_speculation(res);
-  if (toop->is_valuetypeptr()) {
-    res = ValueTypeNode::make_from_oop(this, res, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
+  if (!is_value) {
+    res = record_profiled_receiver_for_speculation(res);
+    if (toop->is_valuetypeptr()) {
+      res = ValueTypeNode::make_from_oop(this, res, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
+    }
   }
   return res;
 }

@@ -252,7 +252,7 @@ Node* Parse::array_store_check() {
     ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() :
                                                    elemptr->value_klass();
     a_e_klass = makecon(TypeKlassPtr::make(vk));
-  } else if (can_be_value_array && !obj->is_ValueType()) {
+  } else if (can_be_value_array && !obj->is_ValueType() && _gvn.type(obj)->is_oopptr()->can_be_value_type()) {
     // We cannot statically determine if the array is a value type array
     // and we also don't know if 'obj' is a value type. Emit runtime checks.
     gen_value_type_array_guard(ary, obj, a_e_klass);
