@@ -443,7 +443,11 @@ void check_value_types_consistency(const constantPoolHandle& this_cp, Klass* res
   bool opinion0 = resolved_klass->is_value();
   bool opinion1 = this_cp->pool_holder()->is_declared_value_type(resolved_klass->name());
   if (opinion0 != opinion1) {
-    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+    ResourceMark rm;
+    stringStream ss;
+    ss.print("constant pool %s inconsistent value type: %s",
+            this_cp->pool_holder()->external_name(), resolved_klass->external_name());
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
   }
 }
 

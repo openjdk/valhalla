@@ -54,6 +54,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.PropertyPermission;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
@@ -2157,6 +2158,11 @@ public final class System {
             public byte[] getBytesUTF8NoRepl(String s) {
                 return StringCoding.getBytesUTF8NoRepl(s);
             }
+
+            public Set<String> getDeclaredValueTypeNames(Class<?> current) {
+                return current.getDeclaredValueTypeNames();
+            }
+
         });
     }
 }

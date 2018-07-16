@@ -102,6 +102,7 @@ JVM_GetFieldIxModifiers
 JVM_GetFieldTypeAnnotations
 JVM_GetInheritedAccessControlContext
 JVM_GetInterfaceVersion
+JVM_GetLocalValueTypes
 JVM_GetManagement
 JVM_GetMethodIxArgsSize
 JVM_GetMethodIxByteCode

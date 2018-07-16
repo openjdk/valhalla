@@ -35,6 +35,7 @@ import java.security.ProtectionDomain;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -273,4 +274,10 @@ public interface JavaLangAccess {
      * @throws IllegalArgumentException for malformed surrogates
      */
     byte[] getBytesUTF8NoRepl(String s);
+
+    /**
+     * Returns the names listed in {@code "ValueTypes"} attribute
+     * of the current class.
+     */
+    Set<String> getDeclaredValueTypeNames(Class<?> current);
 }

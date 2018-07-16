@@ -25,6 +25,8 @@
 
 package java.lang.invoke;
 
+import jdk.internal.misc.JavaLangAccess;
+import jdk.internal.misc.SharedSecrets;
 import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
 import jdk.internal.misc.Unsafe;
@@ -35,6 +37,7 @@ import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.PropertyPermission;
@@ -50,6 +53,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
  */
 /* package */ final class InnerClassLambdaMetafactory extends AbstractValidatingLambdaMetafactory {
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
     private static final int CLASSFILE_VERSION = 52;
     private static final String METHOD_DESCRIPTOR_VOID = Type.getMethodDescriptor(Type.VOID_TYPE);
@@ -150,8 +154,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                                        MethodType[] additionalBridges)
             throws LambdaConversionException {
         super(caller, invokedType, samMethodName, samMethodType,
-              implMethod, instantiatedMethodType,
-              isSerializable, markerInterfaces, additionalBridges);
+            implMethod, instantiatedMethodType,
+            isSerializable, markerInterfaces, additionalBridges);
         implMethodClassName = implClass.getName().replace('.', '/');
         implMethodName = implInfo.getName();
         implMethodDesc = implInfo.getMethodType().toMethodDescriptorString();
@@ -297,6 +301,18 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         else if (accidentallySerializable)
             generateSerializationHostileMethods();
 
+        // add ValueTypes attribute
+        Set<String> valueTypeNames = JLA.getDeclaredValueTypeNames(targetClass);
+        if (!valueTypeNames.isEmpty()) {
+            ValueTypesAttributeBuilder builder = new ValueTypesAttributeBuilder(valueTypeNames);
+            builder.add(invokedType)
+                   .add(samMethodType)
+                   .add(implMethodType)
+                   .add(instantiatedMethodType)
+                   .add(additionalBridges);
+            if (!builder.isEmpty())
+                cw.visitAttribute(builder.build());
+        }
         cw.visitEnd();
 
         // Define the generated class in this VM.
@@ -542,6 +558,68 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             return 0;
         } else {
             return 4;
+        }
+    }
+
+    /*
+     * Build ValueTypes attribute
+     */
+    static class ValueTypesAttributeBuilder {
+        private final Set<String> declaredValueTypes;
+        private final Set<String> valueTypes;
+        ValueTypesAttributeBuilder(Set<String> valueTypeNames) {
+            this.declaredValueTypes = valueTypeNames;
+            this.valueTypes = new HashSet<>();
+        }
+
+        /*
+         * Add the value types referenced in the given MethodType.
+         */
+        ValueTypesAttributeBuilder add(MethodType mt) {
+            // parameter types
+            for (Class<?> paramType : mt.ptypes()) {
+                if (isDeclaredValueType(paramType))
+                    valueTypes.add(paramType.getName());
+            }
+            // return type
+            if (isDeclaredValueType(mt.returnType()))
+                valueTypes.add(mt.returnType().getName());
+            return this;
+        }
+
+        ValueTypesAttributeBuilder add(MethodType... mtypes) {
+            for (MethodType mt : mtypes) {
+                add(mt);
+            }
+            return this;
+        }
+
+        private boolean isDeclaredValueType(Class<?> c) {
+            while (c.isArray())
+                c = c.getComponentType();
+            return declaredValueTypes.contains(c.getName());
+        }
+
+        boolean isEmpty() {
+            return valueTypes.isEmpty();
+        }
+
+        Attribute build() {
+            return new Attribute("ValueTypes") {
+                @Override
+                protected ByteVector write(ClassWriter cw,
+                                           byte[] code,
+                                           int len,
+                                           int maxStack,
+                                           int maxLocals) {
+                    ByteVector attr = new ByteVector();
+                    attr.putShort(valueTypes.size());
+                    for (String cn : valueTypes) {
+                        attr.putShort(cw.newClass(cn.replace('.', '/')));
+                    }
+                    return attr;
+                }
+            };
         }
     }
 

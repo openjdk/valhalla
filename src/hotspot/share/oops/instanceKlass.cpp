@@ -3294,7 +3294,10 @@ void InstanceKlass::check_signature_for_value_types_consistency(Symbol* signatur
       bool opinion2 = k2->is_declared_value_type(name);
       if (sym != name) name->decrement_refcount();
       if (opinion1 != opinion2) {
-        THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+        stringStream ss;
+        ss.print("signature %s inconsistent value type: %s %s",
+            signature->as_C_string(), k1->external_name(), k2->external_name());
+        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
       }
     }
   }
@@ -3323,7 +3326,10 @@ void InstanceKlass::check_symbol_for_value_types_consistency(Symbol* sym,
   bool opinion2 = k2->is_declared_value_type(name);
   name->decrement_refcount();
   if (opinion1 != opinion2) {
-    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+    stringStream ss;
+    ss.print("symbol %s inconsistent value type: %s %s",
+            sym->as_C_string(), k1->external_name(), k2->external_name());
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
   }
 }
 

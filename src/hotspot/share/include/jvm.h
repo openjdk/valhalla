@@ -522,6 +522,9 @@ JVM_GetClassDeclaredConstructors(JNIEnv *env, jclass ofClass, jboolean publicOnl
 JNIEXPORT jint JNICALL
 JVM_GetClassAccessFlags(JNIEnv *env, jclass cls);
 
+JNIEXPORT jobjectArray JNICALL
+JVM_GetLocalValueTypes(JNIEnv *env, jclass cls);
+
 /* The following two reflection routines are still needed due to startup time issues */
 /*
  * java.lang.reflect.Method
