@@ -500,6 +500,7 @@ class InstanceKlass: public Klass {
   bool has_value_types_attribute() const { return _value_types != NULL; }
   bool is_declared_value_type(int index);
   bool is_declared_value_type(Symbol* symbol);
+  Symbol* get_declared_value_type_name(int index);
   static bool is_declared_value_type(Array<ValueTypes>* value_types, int index);
   static bool is_declared_value_type(ConstantPool* constants, Array<ValueTypes>* value_types, Symbol* symbol);
   static void check_signature_for_value_types_consistency(Symbol* sig, InstanceKlass* k1, InstanceKlass* k2, TRAPS);

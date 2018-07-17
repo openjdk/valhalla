@@ -1907,7 +1907,7 @@ JVM_ENTRY(jobjectArray, JVM_GetLocalValueTypes(JNIEnv* env, jclass cls))
     objArrayOop r = oopFactory::new_objArray(SystemDictionary::String_klass(), length, CHECK_NULL);
     objArrayHandle result(THREAD, r);
     for (int i=0; i < length; i++) {
-      Symbol* vt = value_types->at(i)._class_name;
+      Symbol* vt = ik->get_declared_value_type_name(i);
       Handle s = java_lang_String::create_from_symbol(vt, CHECK_0);
       result->obj_at_put(i, s());
     }

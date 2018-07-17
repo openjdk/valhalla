@@ -3272,6 +3272,18 @@ bool InstanceKlass::is_declared_value_type(ConstantPool* constants, Array<ValueT
   return false;
 }
 
+Symbol* InstanceKlass::get_declared_value_type_name(int i) {
+  Array<ValueTypes>* vtypes = value_types();
+  assert(i < vtypes->length(), "index out of bound");
+  Symbol* sym = vtypes->at(i)._class_name;
+  if (sym == NULL) {
+    sym = constants()->klass_at_noresolve((int)vtypes->at(i)._class_info_index);
+    vtypes->adr_at(i)->_class_name = sym;
+    sym->increment_refcount();
+  }
+  return sym;
+}
+
 void InstanceKlass::check_signature_for_value_types_consistency(Symbol* signature,
                                                              InstanceKlass* k1,
                                                              InstanceKlass* k2, TRAPS) {
