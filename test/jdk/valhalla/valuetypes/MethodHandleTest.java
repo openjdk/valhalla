@@ -25,8 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on value types
- * @build Point Line MutablePath
- * @compile -XDallowFlattenabilityModifiers MethodHandleTest.java
+ * @compile -XDallowFlattenabilityModifiers Point.java Line.java MutablePath.java MixedValues.java
  * @run testng/othervm -XX:+EnableValhalla MethodHandleTest
  */
 
@@ -34,7 +33,6 @@ import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
-import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -85,7 +83,7 @@ public class MethodHandleTest {
     public static void testMixedValues() throws Throwable {
         MixedValues mv = new MixedValues(P, L, PATH, "mixed", "types");
         MethodHandleTest test =
-            new MethodHandleTest("MethodHandleTest$MixedValues", mv, "p", "l", "mutablePath", "list", "nfp");
+            new MethodHandleTest("MixedValues", mv, "p", "l", "mutablePath", "list", "nfp");
         test.run();
 
         Point p = Point.makePoint(100, 200);
@@ -304,24 +302,6 @@ public class MethodHandleTest {
 
     boolean isFlattenable(Field f) {
         return (f.getModifiers() & 0x00000100) == 0x00000100;
-    }
-
-    static class MixedValues {
-        static Point staticPoint = Point.makePoint(10, 10);
-        static Line staticLine;   // LW1 allows null static value field
-        Point p;
-        Line l;
-        MutablePath mutablePath;
-        List<String> list;
-        __NotFlattened Point nfp;
-
-        public MixedValues(Point p, Line l, MutablePath path, String... names) {
-            this.p = p;
-            this.l = l;
-            this.mutablePath = path;
-            this.list = List.of(names);
-            this.nfp = p;
-        }
     }
 
 }

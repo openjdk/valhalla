@@ -174,6 +174,8 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
+    public native boolean isFlattenedArray(Class<?> arrayClass);
+
     /**
      * Fetches a reference value from a given Java variable.
      * @see #getInt(Object, long)

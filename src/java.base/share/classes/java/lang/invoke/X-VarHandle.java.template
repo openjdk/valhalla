@@ -1147,4 +1147,220 @@ final class VarHandle$Type$s {
 
         static final VarForm FORM = new VarForm(Array.class, {#if[Object]?Object[].class:$type$[].class}, {#if[Object]?Object.class:$type$.class}, int.class);
     }
+
+#if[Object]
+    static final class ValueArray extends VarHandle {
+        final int abase;
+        final int ashift;
+        final Class<?> arrayType;
+        final Class<?> componentType;
+
+        ValueArray(int abase, int ashift, Class<?> arrayType) {
+            super(ValueArray.FORM);
+            this.abase = abase;
+            this.ashift = ashift;
+            this.arrayType = arrayType;
+            this.componentType = arrayType.getComponentType();
+        }
+
+        @Override
+        final MethodType accessModeTypeUncached(AccessMode accessMode) {
+            return accessMode.at.accessModeType(arrayType, arrayType.getComponentType(), int.class);
+        }
+
+        @ForceInline
+        static Object runtimeTypeCheck(ValueArray handle, Object[] oarray, Object value) {
+            if (handle.arrayType == oarray.getClass()) {
+                // Fast path: static array type same as argument array type
+                return handle.componentType.cast(Objects.requireNonNull(value));
+            } else {
+                // Slow path: check value against argument array component type
+                return reflectiveTypeCheck(oarray, value);
+            }
+        }
+
+        @ForceInline
+        static Object reflectiveTypeCheck(Object[] oarray, Object value) {
+            try {
+                return oarray.getClass().getComponentType().cast(Objects.requireNonNull(value));
+            } catch (ClassCastException e) {
+                throw new ArrayStoreException();
+            }
+        }
+
+        @ForceInline
+        static $type$ get(ValueArray handle, Object oarray, int index) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return array[index];
+        }
+
+        @ForceInline
+        static void set(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            array[index] = handle.componentType.cast(Objects.requireNonNull(value));
+        }
+
+        @ForceInline
+        static $type$ getVolatile(ValueArray handle, Object oarray, int index) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.getValueVolatile(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType);
+        }
+
+        @ForceInline
+        static void setVolatile(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            UNSAFE.putValueVolatile(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ getOpaque(ValueArray handle, Object oarray, int index) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.getValueOpaque(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType);
+        }
+
+        @ForceInline
+        static void setOpaque(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            UNSAFE.putValueOpaque(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ getAcquire(ValueArray handle, Object oarray, int index) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.getValueAcquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType);
+        }
+
+        @ForceInline
+        static void setRelease(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            UNSAFE.putValueRelease(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    runtimeTypeCheck(handle, array, value));
+        }
+#if[CAS]
+
+        @ForceInline
+        static boolean compareAndSet(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.compareAndSetValue(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ compareAndExchange(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.compareAndExchangeValue(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ compareAndExchangeAcquire(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.compareAndExchangeValueAcquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ compareAndExchangeRelease(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.compareAndExchangeValueRelease(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static boolean weakCompareAndSetPlain(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.weakCompareAndSetValuePlain(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static boolean weakCompareAndSet(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.weakCompareAndSetValue(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static boolean weakCompareAndSetAcquire(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.weakCompareAndSetValueAcquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static boolean weakCompareAndSetRelease(ValueArray handle, Object oarray, int index, $type$ expected, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.weakCompareAndSetValueRelease(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    handle.componentType.cast(Objects.requireNonNull(expected)),
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ getAndSet(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.getAndSetValue(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ getAndSetAcquire(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.getAndSetValueAcquire(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    runtimeTypeCheck(handle, array, value));
+        }
+
+        @ForceInline
+        static $type$ getAndSetRelease(ValueArray handle, Object oarray, int index, $type$ value) {
+            Object[] array = (Object[]) handle.arrayType.cast(oarray);
+            return UNSAFE.getAndSetValueRelease(array,
+                    (((long) Preconditions.checkIndex(index, array.length, AIOOBE_SUPPLIER)) << handle.ashift) + handle.abase,
+                    handle.componentType,
+                    runtimeTypeCheck(handle, array, value));
+        }
+#end[CAS]
+
+        static final VarForm FORM = new VarForm(ValueArray.class, Object[].class, Object.class, int.class);
+    }
+#end[Object]
 }

@@ -280,6 +280,40 @@ static bool get_field_descriptor(oop p, jlong offset, fieldDescriptor* fd) {
 }
 #endif // ASSERT
 
+static void assert_and_log_unsafe_value_type_access(oop p, jlong offset, ValueKlass* vk) {
+  Klass* k = p->klass();
+
+#ifdef ASSERT
+  if (k->is_instance_klass()) {
+    assert_field_offset_sane(p, offset);
+    fieldDescriptor fd;
+    bool found = get_field_descriptor(p, offset, &fd);
+    assert(found, "value field not found");
+    assert(fd.is_flattened(), "field not flat");
+  } else if (k->is_valueArray_klass()) {
+    ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+    int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
+    address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
+    assert(dest == ((address)p) + offset, "invalid offset");
+  } else {
+    ShouldNotReachHere();
+  }
+#endif // ASSERT
+
+  if (log_is_enabled(Trace, valuetypes)) {
+    if (k->is_valueArray_klass()) {
+      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+      int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
+      address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
+      log_trace(valuetypes)("array type %s index %d element size %d offset " SIZE_FORMAT_HEX " at " INTPTR_FORMAT,
+                            vak->external_name(), index, vak->element_byte_size(), offset, p2i(dest));
+    } else {
+      log_trace(valuetypes)("field type %s at offset " SIZE_FORMAT_HEX,
+                            vk->external_name(), offset);
+    }
+  }
+}
+
 // These functions allow a null base pointer with an arbitrary address.
 // But if the base pointer is non-null, the offset should make some sense.
 // That is, it should be in the range [0, MAX_OBJECT_SIZE].
@@ -297,24 +331,16 @@ UNSAFE_ENTRY(void, Unsafe_PutObject(JNIEnv *env, jobject unsafe, jobject obj, jl
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
+UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
+  return k->is_valueArray_klass();
+} UNSAFE_END
+
 UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass c)) {
   oop p = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   ValueKlass* vk = ValueKlass::cast(k);
-
-#ifdef ASSERT
-  assert_field_offset_sane(p, offset);
-  fieldDescriptor fd;
-  bool found = get_field_descriptor(p, offset, &fd);
-  assert(found, "value field not found");
-  assert(fd.is_flattened(), "field not flat");
-#endif // ASSERT
-
-  if (log_is_enabled(Trace, valuetypes)) {
-    log_trace(valuetypes)("getValue: field type %s at offset " SIZE_FORMAT_HEX,
-                          vk->external_name(), offset);
-  }
-
+  assert_and_log_unsafe_value_type_access(p, offset, vk);
   Handle p_h(THREAD, p);
   bool in_heap;
   oop v = vk->allocate_buffered_or_heap_instance(&in_heap, CHECK_NULL); // allocate instance
@@ -330,19 +356,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   oop p = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   ValueKlass* vk = ValueKlass::cast(k);
-
-#ifdef ASSERT
-  assert_field_offset_sane(p, offset);
-  fieldDescriptor fd;
-  bool found = get_field_descriptor(p, offset, &fd);
-  assert(found, "value field not found");
-  assert(fd.is_flattened(), "field not flat");
-#endif  // ASSERT
-
-  if (log_is_enabled(Trace, valuetypes)) {
-    log_trace(valuetypes)("putValue: field type %s at offset " SIZE_FORMAT_HEX,
-                          vk->external_name(), offset);
-  }
+  assert_and_log_unsafe_value_type_access(p, offset, vk);
   vk->value_store(vk->data_for_oop(v),
                  ((char*)(oopDesc*)p) + offset, true, true);
 } UNSAFE_END
@@ -648,6 +662,11 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
     base  = tak->array_header_in_bytes();
     assert(base == arrayOopDesc::base_offset_in_bytes(tak->element_type()), "array_header_size semantics ok");
     scale = (1 << tak->log2_element_size());
+  } else if (k->is_valueArray_klass()) {
+    ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+    ValueKlass* vklass = vak->element_klass();
+    base = vak->array_header_in_bytes();
+    scale = vak->element_byte_size();
   } else {
     ShouldNotReachHere();
   }
@@ -1115,6 +1134,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getObjectVolatile",CC "(" OBJ "J)" OBJ "",   FN_PTR(Unsafe_GetObjectVolatile)},
     {CC "putObjectVolatile",CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutObjectVolatile)},
 
+    {CC "isFlattenedArray", CC "(" CLS ")Z",               FN_PTR(Unsafe_IsFlattenedArray)},
     {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ "", FN_PTR(Unsafe_GetValue)},
     {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",   FN_PTR(Unsafe_PutValue)},
 

@@ -162,7 +162,12 @@ final class VarHandles {
         int ashift = 31 - Integer.numberOfLeadingZeros(ascale);
 
         if (!componentType.isPrimitive()) {
-            return new VarHandleObjects.Array(aoffset, ashift, arrayClass);
+            // the redundant componentType.isValue() check is there to
+            // minimize the performance impact to non-value array.
+            // It should be removed when Unsafe::isFlattenedArray is intrinsified.
+            return componentType.isValue() && UNSAFE.isFlattenedArray(arrayClass)
+                ? new VarHandleObjects.ValueArray(aoffset, ashift, arrayClass)
+                : new VarHandleObjects.Array(aoffset, ashift, arrayClass);
         }
         else if (componentType == boolean.class) {
             return new VarHandleBooleans.Array(aoffset, ashift);
