@@ -1,0 +1,15 @@
+CheckThisLeak.java:17:25: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:18:17: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:19:18: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:21:36: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:22:37: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:24:23: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:25:22: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:33:25: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:34:17: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:35:18: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:37:36: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:38:37: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:40:21: compiler.err.this.exposed.prematurely
+CheckThisLeak.java:41:22: compiler.err.this.exposed.prematurely
+14 errors

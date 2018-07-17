@@ -202,3 +202,5 @@ compiler.err.value.may.not.extend
 compiler.warn.potential.null.pollution
 compiler.err.flattenability.modifiers.disallowed
 compiler.err.empty.value.not.yet
+compiler.err.this.exposed.prematurely
+compiler.warn.this.exposed.prematurely

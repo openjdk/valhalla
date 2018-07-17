@@ -49,6 +49,9 @@ import static com.sun.tools.javac.code.Flags.BLOCK;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.BOOLEAN;
 import static com.sun.tools.javac.code.TypeTag.VOID;
+import static com.sun.tools.javac.comp.Flow.ThisExposability.ALLOWED;
+import static com.sun.tools.javac.comp.Flow.ThisExposability.BANNED;
+import static com.sun.tools.javac.comp.Flow.ThisExposability.DISCOURAGED;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 /** This pass implements dataflow analysis for Java programs though
@@ -1442,6 +1445,15 @@ public class Flow {
         }
     }
 
+    /** Enum to model whether constructors allowed to "leak" this reference before
+        all instance fields are DA.
+     */
+    enum ThisExposability {
+        ALLOWED,     // Normal Object classes - NOP
+        BANNED,      // Value types           - Error
+        DISCOURAGED  // Value based types     - Warning
+    }
+
     /**
      * This pass implements (i) definite assignment analysis, which ensures that
      * each variable is assigned when used and (ii) definite unassignment analysis,
@@ -1529,6 +1541,9 @@ public class Flow {
                 uninits.andSet(exit_uninits);
             }
         }
+
+        // Are constructors allowed to leak this reference ?
+        ThisExposability thisExposability = ALLOWED;
 
         public AssignAnalyzer() {
             this.inits = new Bits();
@@ -1651,6 +1666,30 @@ public class Flow {
                 Symbol sym = TreeInfo.symbol(tree);
                 if (sym.kind == VAR) {
                     letInit(tree.pos(), (VarSymbol)sym);
+                }
+            }
+        }
+
+        void checkEmbryonicThisExposure(JCTree node) {
+            if (this.thisExposability == ALLOWED || classDef == null)
+                return;
+
+            // Note: for non-initial constructors, firstadr is post all instance fields.
+            for (int i = firstadr; i < nextadr; i++) {
+                VarSymbol sym = vardecls[i].sym;
+                if (sym.owner != classDef.sym)
+                    continue;
+                if ((sym.flags() & (FINAL | HASINIT | STATIC | PARAMETER)) != FINAL)
+                    continue;
+                if (sym.pos < startPos || sym.adr < firstadr)
+                    continue;
+                if (!inits.isMember(sym.adr)) {
+                    if (this.thisExposability == BANNED) {
+                        log.error(node, Errors.ThisExposedPrematurely);
+                    } else {
+                        log.warning(node, Warnings.ThisExposedPrematurely);
+                    }
+                    return; // don't flog a dead horse.
                 }
             }
         }
@@ -1848,6 +1887,7 @@ public class Flow {
 
             Lint lintPrev = lint;
             lint = lint.augment(tree.sym);
+            ThisExposability priorThisExposability = this.thisExposability;
             try {
                 if (tree.body == null) {
                     return;
@@ -1871,6 +1911,14 @@ public class Flow {
 
                     if (!isInitialConstructor) {
                         firstadr = nextadr;
+                        this.thisExposability = ALLOWED;
+                    } else {
+                        if (types.isValueBased(tree.sym.owner.type))
+                            this.thisExposability = DISCOURAGED;
+                        else if (types.isValue(tree.sym.owner.type))
+                            this.thisExposability = BANNED;
+                        else
+                            this.thisExposability = ALLOWED;
                     }
                     for (List<JCVariableDecl> l = tree.params; l.nonEmpty(); l = l.tail) {
                         JCVariableDecl def = l.head;
@@ -1926,6 +1974,7 @@ public class Flow {
                 }
             } finally {
                 lint = lintPrev;
+                this.thisExposability = priorThisExposability;
             }
         }
 
@@ -2332,12 +2381,23 @@ public class Flow {
         public void visitApply(JCMethodInvocation tree) {
             scanExpr(tree.meth);
             scanExprs(tree.args);
+            if (tree.meth.hasTag(IDENT)) {
+                JCIdent ident = (JCIdent) tree.meth;
+                if (ident.name != names._super && !ident.sym.isStatic())
+                    checkEmbryonicThisExposure(tree);
+            }
         }
 
         public void visitNewClass(JCNewClass tree) {
             scanExpr(tree.encl);
             scanExprs(tree.args);
             scan(tree.def);
+            if (classDef != null && tree.encl == null && tree.clazz.hasTag(IDENT)) {
+                JCIdent clazz = (JCIdent) tree.clazz;
+                if (!clazz.sym.isStatic() && clazz.type.getEnclosingType().tsym == classDef.sym) {
+                    checkEmbryonicThisExposure(tree);
+                }
+            }
         }
 
         @Override
@@ -2411,13 +2471,23 @@ public class Flow {
         // check fields accessed through this.<field> are definitely
         // assigned before reading their value
         public void visitSelect(JCFieldAccess tree) {
-            super.visitSelect(tree);
-            JCTree sel = TreeInfo.skipParens(tree.selected);
-            if (enforceThisDotInit &&
-                    sel.hasTag(IDENT) &&
-                    ((JCIdent)sel).name == names._this &&
-                    tree.sym.kind == VAR) {
-                checkInit(tree.pos(), (VarSymbol)tree.sym);
+            ThisExposability priorThisExposability = this.thisExposability;
+            try {
+                if (tree.name == names._this && classDef != null && tree.sym.owner == classDef.sym) {
+                    checkEmbryonicThisExposure(tree);
+                } else if (tree.sym.kind == VAR || tree.sym.isStatic()) {
+                    this.thisExposability = ALLOWED;
+                }
+                super.visitSelect(tree);
+                JCTree sel = TreeInfo.skipParens(tree.selected);
+                if (enforceThisDotInit &&
+                        sel.hasTag(IDENT) &&
+                        ((JCIdent)sel).name == names._this &&
+                        tree.sym.kind == VAR) {
+                    checkInit(tree.pos(), (VarSymbol)tree.sym);
+                }
+            } finally {
+                 this.thisExposability = priorThisExposability;
             }
         }
 
@@ -2480,6 +2550,9 @@ public class Flow {
             if (tree.sym.kind == VAR) {
                 checkInit(tree.pos(), (VarSymbol)tree.sym);
                 referenced(tree.sym);
+            }
+            if (tree.name == names._this) {
+                checkEmbryonicThisExposure(tree);
             }
         }
 

@@ -1,0 +1,17 @@
+CheckThisLeakVBC.java:18:25: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:19:17: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:20:18: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:22:36: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:23:37: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:25:23: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:26:22: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:34:25: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:35:17: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:36:18: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:38:36: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:39:37: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:41:21: compiler.warn.this.exposed.prematurely
+CheckThisLeakVBC.java:42:22: compiler.warn.this.exposed.prematurely
+- compiler.err.warnings.and.werror
+1 error
+14 warnings

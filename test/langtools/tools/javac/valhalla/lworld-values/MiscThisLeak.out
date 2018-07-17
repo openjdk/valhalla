@@ -1,0 +1,4 @@
+MiscThisLeak.java:16:19: compiler.err.this.exposed.prematurely
+MiscThisLeak.java:18:13: compiler.err.this.exposed.prematurely
+MiscThisLeak.java:19:13: compiler.err.this.exposed.prematurely
+3 errors
