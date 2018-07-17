@@ -72,16 +72,14 @@ public class ValueCreationTest {
          "3: astore_2",
          "4: iload_0",
          "5: aload_2",
-         "6: dup_x1",
-         "7: pop",
-         "8: withfield     #3                  // Field x:I",
-        "11: astore_2",
-        "12: iload_1",
-        "13: aload_2",
-        "14: dup_x1",
-        "15: pop",
-        "16: withfield     #4                  // Field y:I",
-        "19: areturn"
+         "6: swap",
+         "7: withfield     #3                  // Field x:I",
+        "10: astore_2",
+        "11: iload_1",
+        "12: aload_2",
+        "13: swap",
+        "14: withfield     #4                  // Field y:I",
+        "17: areturn"
            
          });
 

@@ -1148,8 +1148,12 @@ public class Gen extends JCTree.Visitor {
                 // JDK-8207332: To maintain the order of side effects, must compute value ahead of field
                 genExpr(tree.value, tree.field.type).load();
                 genExpr(fieldAccess.selected, fieldAccess.selected.type).load();
-                code.emitop0(Code.width(tree.field.type) == 2 ?  dup_x2 : dup_x1);
-                code.emitop0(pop);
+                if (Code.width(tree.field.type) == 2) {
+                    code.emitop0(dup_x2);
+                    code.emitop0(pop);
+                } else {
+                    code.emitop0(swap);
+                }
                 sym = binaryQualifier(sym, fieldAccess.selected.type);
                 code.emitop2(withfield, pool.put(sym));
                 result = items.makeStackItem(tree.type);
