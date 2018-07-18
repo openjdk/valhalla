@@ -2373,10 +2373,9 @@ void Parse::return_current(Node* value) {
         value = _gvn.transform(new CheckCastPPNode(0, value, tr));
       }
     } else if (tr && tr->isa_instptr() && value->is_ValueType()) {
-      // Handle exact value type to Object return
+      // Value type to Object return
       assert(tr->isa_instptr()->klass()->is_java_lang_Object(), "must be java.lang.Object");
-      ValueTypeNode* vt = value->as_ValueType()->allocate(this)->as_ValueType();
-      value = ValueTypePtrNode::make_from_value_type(_gvn, vt);
+      assert(_caller->has_method(), "value type should be returned as oop");
     } else if (phi->bottom_type()->isa_valuetype() && !value->is_ValueType()) {
       assert(value->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
       inc_sp(1);

@@ -2154,4 +2154,48 @@ public class TestLWorld extends ValueTypeTest {
         test82(array, 1);
         Asserts.assertEQ(array[0], Integer.valueOf(1));
     }
+
+    // Test convertion between a value type and java.lang.Object without an allocation
+    @ForceInline
+    public Object test83_sum(Object a, Object b) {
+        int sum = ((MyValue1)a).x + ((MyValue1)b).x;
+        return MyValue1.setX(((MyValue1)a), sum);
+    }
+
+    @Test(failOn = ALLOC + STORE)
+    public int test83(Object[] array) {
+        MyValue1 result = MyValue1.createDefaultInline();
+        for (int i = 0; i < array.length; ++i) {
+            result = (MyValue1)test83_sum(result, (MyValue1)array[i]);
+        }
+        return result.x;
+    }
+
+    @DontCompile
+    public void test83_verifier(boolean warmup) {
+        int result = test83(testValue1Array);
+        Asserts.assertEQ(result, rI * testValue1Array.length);
+    }
+
+    // Same as test84 but with an Interface
+    @ForceInline
+    public MyInterface test84_sum(MyInterface a, MyInterface b) {
+        int sum = ((MyValue1)a).x + ((MyValue1)b).x;
+        return MyValue1.setX(((MyValue1)a), sum);
+    }
+
+    @Test(failOn = ALLOC + STORE)
+    public int test84(MyInterface[] array) {
+        MyValue1 result = MyValue1.createDefaultInline();
+        for (int i = 0; i < array.length; ++i) {
+            result = (MyValue1)test84_sum(result, (MyValue1)array[i]);
+        }
+        return result.x;
+    }
+
+    @DontCompile
+    public void test84_verifier(boolean warmup) {
+        int result = test84(testValue1Array);
+        Asserts.assertEQ(result, rI * testValue1Array.length);
+    }
 }
