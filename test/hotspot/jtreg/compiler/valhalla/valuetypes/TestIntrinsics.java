@@ -24,9 +24,10 @@
 package compiler.valhalla.valuetypes;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.util.Arrays;
 import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
-import java.lang.reflect.Field;
 
 /*
  * @test
@@ -401,5 +402,28 @@ public class TestIntrinsics extends ValueTypeTest {
     public void test24_verifier(boolean warmup) {
         int res = test24(X_OFFSET);
         Asserts.assertEQ(res, test24_vt.x);
+    }
+
+    // Test copyOf intrinsic with allocated value type in it's debug information
+    __ByValue final class Test25Value {
+        final int x;
+        public Test25Value() {
+            this.x = 42;
+        }
+    }
+
+    final Test25Value[] test25Array = new Test25Value[10];
+
+    @Test
+    public Test25Value[] test25(Test25Value element) {
+        Test25Value[] newArray = Arrays.copyOf(test25Array, test25Array.length + 1);
+        newArray[test25Array.length] = element;
+        return newArray;
+    }
+
+    @DontCompile
+    public void test25_verifier(boolean warmup) {
+        Test25Value vt = new Test25Value();
+        test25(vt);
     }
 }

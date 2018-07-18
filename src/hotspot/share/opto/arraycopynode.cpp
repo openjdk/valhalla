@@ -539,7 +539,11 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
 
 
 Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (remove_dead_region(phase, can_reshape))  return this;
+  // Perform any generic optimizations first
+  Node* result = SafePointNode::Ideal(phase, can_reshape);
+  if (result != NULL) {
+    return result;
+  }
 
   if (StressArrayCopyMacroNode && !can_reshape) {
     phase->record_for_igvn(this);
