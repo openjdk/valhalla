@@ -349,6 +349,17 @@ void Parse::do_defaultvalue() {
   bool will_link;
   ciValueKlass* vk = iter().get_klass(will_link)->as_value_klass();
   assert(will_link, "defaultvalue: typeflow responsibility");
+
+  // Should initialize, or throw an InstantiationError?
+  if (!vk->is_initialized() && !vk->is_being_initialized()) {
+    uncommon_trap(Deoptimization::Reason_uninitialized,
+                  Deoptimization::Action_reinterpret,
+                  vk);
+    return;
+  } else if (vk->is_being_initialized()) {
+    emit_guard_for_new(vk);
+  }
+
   // Create and push a new default ValueTypeNode
   push(ValueTypeNode::make_default(_gvn, vk));
 }

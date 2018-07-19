@@ -2221,4 +2221,28 @@ public class TestLWorld extends ValueTypeTest {
         MyValue1 vt = test85();
         Asserts.assertEquals(vt.hash(), hash());
     }
+
+    // Test calling a method on an uninitialized value type
+    __ByValue final class Test86Value {
+        final int x = 42;
+        public int get() {
+            return x;
+        }
+    }
+
+    // Make sure Test86Value is loaded but not initialized
+    public void unused(Test86Value vt) { }
+
+    @Test
+    @Warmup(0)
+    public int test86() {
+        Test86Value vt = __MakeDefault Test86Value();
+        return vt.get();
+    }
+
+    @DontCompile
+    public void test86_verifier(boolean warmup) {
+        int result = test86();
+        Asserts.assertEquals(result, 0);
+    }
 }
