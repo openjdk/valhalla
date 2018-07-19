@@ -46,8 +46,8 @@ Java_java_lang_reflect_Array_getLength(JNIEnv *env, jclass ignore, jobject arr)
  *
  */
 JNIEXPORT jobject JNICALL
-Java_java_lang_reflect_Array_get(JNIEnv *env, jclass ignore, jobject arr,
-                                 jint index)
+Java_java_lang_reflect_Array_getReferenceOrPrimitive(JNIEnv *env, jclass ignore, jobject arr,
+                                                     jint index)
 {
     return JVM_GetArrayElement(env, arr, index);
 }
@@ -112,8 +112,8 @@ Java_java_lang_reflect_Array_getDouble(JNIEnv *env, jclass ignore, jobject arr,
  *
  */
 JNIEXPORT void JNICALL
-Java_java_lang_reflect_Array_set(JNIEnv *env, jclass ignore, jobject arr,
-                                 jint index, jobject val)
+Java_java_lang_reflect_Array_setReferenceOrPrimitive(JNIEnv *env, jclass ignore, jobject arr,
+                                                     jint index, jobject val)
 {
     JVM_SetArrayElement(env, arr, index, val);
 }

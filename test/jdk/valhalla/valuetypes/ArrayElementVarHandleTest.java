@@ -25,14 +25,14 @@
 /*
  * @test
  * @summary test VarHandle on value array
- * @compile -XDallowFlattenabilityModifiers Point.java Line.java MutablePath.java MixedValues.java
+ * @build Point Line MutablePath
+ * @compile -XDallowFlattenabilityModifiers MixedValues.java NonFlattenValue.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+ValueArrayFlatten ArrayElementVarHandleTest
  * @run testng/othervm -XX:+EnableValhalla -XX:-ValueArrayFlatten ArrayElementVarHandleTest
  */
 
 import java.lang.invoke.*;
 
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -49,6 +49,9 @@ public class ArrayElementVarHandleTest {
                            new Point[] { Point.makePoint(1, 2),
                                          Point.makePoint(10, 20),
                                          Point.makePoint(100, 200)}},
+            new Object[] { Point[][].class,
+                           new Point[][] { new Point[] { Point.makePoint(1, 2),
+                                                         Point.makePoint(10, 20)}}},
             new Object[] { Line[].class,
                            new Line[] { Line.makeLine(1, 2, 3, 4),
                                         Line.makeLine(10, 20, 30, 40),
@@ -61,6 +64,10 @@ public class ArrayElementVarHandleTest {
                                                MutablePath.makePath(20, 30, 40, 50)}},
             new Object[] { MixedValues[].class,
                            new MixedValues[] { new MixedValues(P, L, PATH, "mixed", "values")}},
+            new Object[] { NonFlattenValue[].class,
+                           new NonFlattenValue[] { NonFlattenValue.make(1, 2),
+                                                   NonFlattenValue.make(10, 20),
+                                                   NonFlattenValue.make(100, 200)}},
         };
     }
 
