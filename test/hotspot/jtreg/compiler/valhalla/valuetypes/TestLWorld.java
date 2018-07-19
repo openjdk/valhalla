@@ -2198,4 +2198,27 @@ public class TestLWorld extends ValueTypeTest {
         int result = test84(testValue1Array);
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
+
+    // Test that allocated value type is not used in non-dominated path
+    public MyValue1 test85_inline(Object obj) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        try {
+            vt = (MyValue1)obj;
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        return vt;
+    }
+
+    @Test
+    public MyValue1 test85() {
+        return test85_inline(null);
+    }
+
+    @DontCompile
+    public void test85_verifier(boolean warmup) {
+        MyValue1 vt = test85();
+        Asserts.assertEquals(vt.hash(), hash());
+    }
 }

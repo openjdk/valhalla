@@ -396,40 +396,36 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
 }
 
 ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on_exception) {
-  Node* in_oop = get_oop();
-  Node* null_ctl = kit->top();
   // Check if value type is already allocated
-  Node* not_null_oop = kit->null_check_oop(in_oop, &null_ctl);
+  Node* null_ctl = kit->top();
+  Node* not_null_oop = kit->null_check_oop(get_oop(), &null_ctl);
   if (null_ctl->is_top()) {
     // Value type is allocated
     return this;
   }
-  // Not able to prove that value type is allocated.
-  // Emit runtime check that may be folded later.
   assert(!is_allocated(&kit->gvn()), "should not be allocated");
   RegionNode* region = new RegionNode(3);
-  PhiNode* oop = new PhiNode(region, value_ptr());
-  PhiNode* io  = new PhiNode(region, Type::ABIO);
-  PhiNode* mem = new PhiNode(region, Type::MEMORY, TypePtr::BOTTOM);
 
   // Oop is non-NULL, use it
   region->init_req(1, kit->control());
-  oop   ->init_req(1, not_null_oop);
-  io    ->init_req(1, kit->i_o());
-  mem   ->init_req(1, kit->merged_memory());
+  PhiNode* oop = PhiNode::make(region, not_null_oop, value_ptr());
+  PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
+  PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
-  // Oop is NULL, allocate value type
-  kit->set_control(null_ctl);
-  kit->kill_dead_locals();
-  ciValueKlass* vk = value_klass();
-  Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-  Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, deoptimize_on_exception, this);
-  // Write field values to memory
-  store(kit, alloc_oop, alloc_oop, vk, 0, deoptimize_on_exception);
-  region->init_req(2, kit->control());
-  oop   ->init_req(2, alloc_oop);
-  io    ->init_req(2, kit->i_o());
-  mem   ->init_req(2, kit->merged_memory());
+  {
+    // Oop is NULL, allocate and initialize buffer
+    PreserveJVMState pjvms(kit);
+    kit->set_control(null_ctl);
+    kit->kill_dead_locals();
+    ciValueKlass* vk = value_klass();
+    Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
+    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, deoptimize_on_exception, this);
+    store(kit, alloc_oop, alloc_oop, vk, 0, deoptimize_on_exception);
+    region->init_req(2, kit->control());
+    oop   ->init_req(2, alloc_oop);
+    io    ->init_req(2, kit->i_o());
+    mem   ->init_req(2, kit->merged_memory());
+  }
 
   // Update GraphKit
   kit->set_control(kit->gvn().transform(region));
@@ -799,7 +795,7 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
           // Found an allocation of the default value type.
           // If the code in StoreNode::Identity() that removes useless stores was not yet
           // executed or ReduceFieldZeroing is disabled, there can still be initializing
-          // stores (only zero-type stores, because value types are immutable).
+          // stores (only zero-type or default value stores, because value types are immutable).
           Node* res = alloc->result_cast();
           for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
             AddPNode* addp = res->fast_out(j)->isa_AddP();
@@ -810,7 +806,9 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
                   // Remove the useless store
                   Node* mem = store->in(MemNode::Memory);
                   Node* val = store->in(MemNode::ValueIn);
-                  assert(igvn->type(val)->is_zero_type(), "must be zero-type store");
+                  const Type* val_type = igvn->type(val);
+                  assert(val_type->is_zero_type() || (val->is_Load() && val_type->make_ptr()->is_valuetypeptr()),
+                         "must be zero-type or default value store");
                   igvn->replace_in_uses(store, mem);
                 }
               }
