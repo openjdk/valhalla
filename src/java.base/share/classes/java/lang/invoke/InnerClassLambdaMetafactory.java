@@ -578,12 +578,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         ValueTypesAttributeBuilder add(MethodType mt) {
             // parameter types
             for (Class<?> paramType : mt.ptypes()) {
-                if (isDeclaredValueType(paramType))
-                    valueTypes.add(paramType.getName());
+                addIfDeclaredValueType(paramType);
             }
             // return type
-            if (isDeclaredValueType(mt.returnType()))
-                valueTypes.add(mt.returnType().getName());
+            addIfDeclaredValueType(mt.returnType());
             return this;
         }
 
@@ -594,10 +592,14 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             return this;
         }
 
-        private boolean isDeclaredValueType(Class<?> c) {
+        private boolean addIfDeclaredValueType(Class<?> c) {
             while (c.isArray())
                 c = c.getComponentType();
-            return declaredValueTypes.contains(c.getName());
+            if (declaredValueTypes.contains(c.getName())) {
+                valueTypes.add(c.getName());
+                return true;
+            }
+            return false;
         }
 
         boolean isEmpty() {

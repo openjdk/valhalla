@@ -36,10 +36,16 @@ public final __ByValue class Line {
     public Point p2() {
         return p2;
     }
+
     public static Line makeLine(int x1, int y1, int x2, int y2) {
+        return makeLine(Point.makePoint(x1, y1), Point.makePoint(x2, y2));
+    }
+
+    public static Line makeLine(Point p1, Point p2) {
         Line l = __MakeDefault Line();
-        l = __WithField(l.p1, Point.makePoint(x1, y1));
-        l = __WithField(l.p2, Point.makePoint(x2, y2));
+
+        l = __WithField(l.p1, p1);
+        l = __WithField(l.p2, p2);
         return l;
     }
 }

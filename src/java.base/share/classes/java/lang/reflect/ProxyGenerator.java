@@ -30,16 +30,19 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
+
+import jdk.internal.misc.JavaLangAccess;
+import jdk.internal.misc.SharedSecrets;
 import sun.security.action.GetBooleanAction;
 
 /**
@@ -315,6 +318,8 @@ class ProxyGenerator {
             new GetBooleanAction(
                 "jdk.proxy.ProxyGenerator.saveGeneratedFiles")).booleanValue();
 
+    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
+
     /**
      * Generate a public proxy class given a name and a list of proxy interfaces.
      */
@@ -441,15 +446,24 @@ class ProxyGenerator {
         addProxyMethod(equalsMethod, Object.class);
         addProxyMethod(toStringMethod, Object.class);
 
+        // identify declared value types
+        Set<String> valueTypesAttribute = new HashSet<>();
+
         /*
          * Now record all of the methods from the proxy interfaces, giving
          * earlier interfaces precedence over later ones with duplicate
          * methods.
          */
         for (Class<?> intf : interfaces) {
+            boolean hasDeclaredValueTypes = hasDeclaredValueType(intf);
             for (Method m : intf.getMethods()) {
                 if (!Modifier.isStatic(m.getModifiers())) {
-                    addProxyMethod(m, intf);
+                    ProxyMethod pm = addProxyMethod(m, intf);
+                    if (hasDeclaredValueTypes) {
+                        for(Class<?> c : ValueTypesFinder.find(pm)) {
+                            valueTypesAttribute.add(dotToSlash(c.getName()));
+                        }
+                    }
                 }
             }
         }
@@ -509,6 +523,14 @@ class ProxyGenerator {
             cp.getClass(dotToSlash(intf.getName()));
         }
 
+        int valueTypesAttrIdx = 0;
+        if (!valueTypesAttribute.isEmpty()) {
+            valueTypesAttrIdx = cp.getUtf8("ValueTypes");
+            for (String cn : valueTypesAttribute) {
+                cp.getClass(cn);
+            }
+        }
+
         /*
          * Disallow new constant pool additions beyond this point, since
          * we are about to write the final constant pool table.
@@ -561,8 +583,20 @@ class ProxyGenerator {
                 m.write(dout);
             }
 
-                                         // u2 attributes_count;
-            dout.writeShort(0); // (no ClassFile attributes for proxy classes)
+            if (valueTypesAttribute.isEmpty()) {
+                                        // u2 attributes_count;
+                dout.writeShort(0); // (no ClassFile attributes for proxy classes)
+            } else {
+                dout.writeShort(1);
+                // write ValueTypes attribute
+                int attrLen = 2 + 2 * valueTypesAttribute.size();
+                dout.writeShort(valueTypesAttrIdx);
+                dout.writeInt(attrLen);
+                dout.writeShort((short) valueTypesAttribute.size());
+                for (String cn : valueTypesAttribute) {
+                    dout.writeShort(cp.getClass(cn));
+                }
+            }
 
         } catch (IOException e) {
             throw new InternalError("unexpected I/O Exception", e);
@@ -584,7 +618,7 @@ class ProxyGenerator {
      * passed to the invocation handler's "invoke" method for a given
      * set of duplicate methods.
      */
-    private void addProxyMethod(Method m, Class<?> fromClass) {
+    private ProxyMethod addProxyMethod(Method m, Class<?> fromClass) {
         String name = m.getName();
         Class<?>[] parameterTypes = m.getParameterTypes();
         Class<?> returnType = m.getReturnType();
@@ -609,15 +643,17 @@ class ProxyGenerator {
                     pm.exceptionTypes = new Class<?>[legalExceptions.size()];
                     pm.exceptionTypes =
                         legalExceptions.toArray(pm.exceptionTypes);
-                    return;
+                    return pm;
                 }
             }
         } else {
             sigmethods = new ArrayList<>(3);
             proxyMethods.put(sig, sigmethods);
         }
-        sigmethods.add(new ProxyMethod(name, parameterTypes, returnType,
-                                       exceptionTypes, fromClass));
+        ProxyMethod pm = new ProxyMethod(name, parameterTypes, returnType,
+                                         exceptionTypes, fromClass);
+        sigmethods.add(pm);
+        return pm;
     }
 
     /**
@@ -2027,6 +2063,45 @@ class ProxyGenerator {
                 }
                 return false;
             }
+        }
+    }
+
+    private static boolean hasDeclaredValueType(Class<?> intf) {
+        return !JLA.getDeclaredValueTypeNames(intf).isEmpty();
+    }
+
+    static class ValueTypesFinder {
+        static Set<Class<?>> find(ProxyMethod pm) {
+            return new ValueTypesFinder(pm).valueTypes();
+        }
+
+        private final Set<String> declaredValueTypes;
+        private final Set<Class<?>> valueTypes;
+        private ValueTypesFinder(ProxyMethod pm) {
+            this.declaredValueTypes = JLA.getDeclaredValueTypeNames(pm.fromClass);
+            if (declaredValueTypes.isEmpty()) {
+                // no declared value types
+                this.valueTypes = Set.of();
+            } else {
+                this.valueTypes = new HashSet<>();
+                addIfDeclaredValueType(pm.fromClass);
+                addIfDeclaredValueType(pm.returnType);
+                for (Class<?> paramType : pm.parameterTypes) {
+                    addIfDeclaredValueType(paramType);
+                }
+            }
+        }
+
+        private void addIfDeclaredValueType(Class<?> c) {
+            while (c.isArray()) c = c.getComponentType();
+
+            if (declaredValueTypes.contains(c.getName())) {
+                valueTypes.add(c);
+            }
+        }
+
+        private Set<Class<?>> valueTypes() {
+            return valueTypes;
         }
     }
 }
