@@ -4648,32 +4648,21 @@ Node* Compile::load_is_value_bit(PhaseGVN* phase, Node* oop) {
 }
 
 Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
-  if (a->is_ValueType() || b->is_ValueType()) {
-    // Return constant false because one operand is a non-null value type
-    return phase->intcon(1);
-  }
   const TypeInstPtr* ta = phase->type(a)->isa_instptr();
   const TypeInstPtr* tb = phase->type(b)->isa_instptr();
-  if (!EnableValhalla || phase->type(a)->is_zero_type() || phase->type(b)->is_zero_type()) {
-    // Use old acmp if new acmp is disabled or degraded to a null check
+  if (!EnableValhalla || ta == NULL || tb == NULL ||
+      ta->is_zero_type() || tb->is_zero_type() ||
+      !ta->can_be_value_type() || !tb->can_be_value_type()) {
+    // Use old acmp if one operand is null or not a value type
     return new CmpPNode(a, b);
-  } else if ((ta != NULL && ta->is_valuetypeptr()) || (tb != NULL && tb->is_valuetypeptr())) {
-    // We statically know that one operand is a value. Therefore,
+  } else if (ta->is_valuetypeptr() || tb->is_valuetypeptr()) {
+    // We know that one operand is a value type. Therefore,
     // new acmp will only return true if both operands are NULL.
-    if ((ta != NULL && !TypePtr::NULL_PTR->higher_equal(ta)) ||
-        (tb != NULL && !TypePtr::NULL_PTR->higher_equal(tb))) {
-      // One operand is never NULL, fold to constant false
-      return phase->intcon(1);
-    } else {
-      // Check if both operands are null by or'ing the oops
-      a = phase->transform(new CastP2XNode(NULL, a));
-      b = phase->transform(new CastP2XNode(NULL, b));
-      a = phase->transform(new OrXNode(a, b));
-      return new CmpXNode(a, phase->MakeConX(0));
-    }
-  } else if (ta == NULL || !ta->can_be_value_type() || tb == NULL || !tb->can_be_value_type()) {
-    // Use old acmp
-    return new CmpPNode(a, b);
+    // Check if both operands are null by or'ing the oops.
+    a = phase->transform(new CastP2XNode(NULL, a));
+    b = phase->transform(new CastP2XNode(NULL, b));
+    a = phase->transform(new OrXNode(a, b));
+    return new CmpXNode(a, phase->MakeConX(0));
   }
   // Use new acmp
   return NULL;

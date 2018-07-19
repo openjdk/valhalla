@@ -717,21 +717,39 @@ Node *CmpINode::Ideal( PhaseGVN *phase, bool can_reshape ) {
 
 //------------------------------Ideal------------------------------------------
 Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  if (in(1)->Opcode() == Op_OrL && in(1)->in(1)->Opcode() == Op_CastP2X && in(1)->in(2)->Opcode() == Op_CastP2X) {
-    Node* a = in(1)->in(1)->in(1);
-    Node* b = in(1)->in(2)->in(1);
-    const Type* ta = phase->type(a);
-    const Type* tb = phase->type(b);
-    if (ta->is_zero_type() || tb->is_zero_type()) {
-      return new CmpPNode(a, b);
-    } else if (!TypePtr::NULL_PTR->higher_equal(ta) || !TypePtr::NULL_PTR->higher_equal(tb)) {
-      // One operand is never NULL, emit constant false
-      return new CmpLNode(phase->longcon(0), phase->longcon(1));
-    }
+  Node* a = NULL;
+  Node* b = NULL;
+  if (is_double_null_check(phase, a, b) && (phase->type(a)->is_zero_type() || phase->type(b)->is_zero_type())) {
+    // Degraded to a simple null check, use old acmp
+    return new CmpPNode(a, b);
   }
   return NULL;
 }
 
+// Match double null check emitted by Compile::optimize_acmp()
+bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
+  if (in(1)->Opcode() == Op_OrL &&
+      in(1)->in(1)->Opcode() == Op_CastP2X &&
+      in(1)->in(2)->Opcode() == Op_CastP2X &&
+      in(2)->bottom_type()->is_zero_type()) {
+    assert(EnableValhalla, "unexpected double null check");
+    a = in(1)->in(1)->in(1);
+    b = in(1)->in(2)->in(1);
+    return true;
+  }
+  return false;
+}
+
+//------------------------------Value------------------------------------------
+const Type* CmpLNode::Value(PhaseGVN* phase) const {
+  Node* a = NULL;
+  Node* b = NULL;
+  if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(a)->maybe_null())) {
+    // One operand is never NULL, emit constant false
+    return TypeInt::CC_GT;
+  }
+  return SubNode::Value(phase);
+}
 
 //=============================================================================
 // Simplify a CmpL (compare 2 longs ) node, based on local information.
@@ -814,6 +832,13 @@ const Type* CmpULNode::sub(const Type* t1, const Type* t2) const {
 // Simplify an CmpP (compare 2 pointers) node, based on local information.
 // If both inputs are constants, compare them.
 const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
+  if (t1->isa_valuetype() || t2->isa_valuetype() ||
+      ((t1->is_valuetypeptr() || t2->is_valuetypeptr()) &&
+      (!t1->is_ptr()->maybe_null() || !t2->is_ptr()->maybe_null()))) {
+    // One operand is a value type and one operand is never null, fold to constant false
+    return TypeInt::CC_GT;
+  }
+
   const TypePtr *r0 = t1->is_ptr(); // Handy access
   const TypePtr *r1 = t2->is_ptr();
 
@@ -965,15 +990,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       set_req(1, phase->transform(new AddPNode(b, b, is_value)));
       set_req(2, a);
       return this;
-    }
-  } else {
-    // Optimize old acmp with value type operands
-    const TypeInstPtr* ta = phase->type(in(1))->isa_instptr();
-    const TypeInstPtr* tb = phase->type(in(2))->isa_instptr();
-    if (((ta != NULL && ta->is_loaded() && ta->is_valuetypeptr()) || (tb != NULL && tb->is_loaded() && tb->is_valuetypeptr())) &&
-        (!TypePtr::NULL_PTR->higher_equal(phase->type(in(1))) || !TypePtr::NULL_PTR->higher_equal(phase->type(in(2))))) {
-      // One operand is a value type and one operand is never null, fold to constant false
-      return new CmpINode(phase->intcon(0), phase->intcon(1));
     }
   }
 

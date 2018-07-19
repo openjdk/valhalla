@@ -2758,7 +2758,7 @@ void Parse::do_one_bytecode() {
     b = pop();
     if (b->is_ValueType()) {
       // Return constant false because 'b' is always non-null
-      c = _gvn.intcon(1);
+      c = _gvn.makecon(TypeInt::CC_GT);
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
