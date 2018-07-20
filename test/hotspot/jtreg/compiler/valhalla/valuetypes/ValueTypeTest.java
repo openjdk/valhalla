@@ -93,6 +93,7 @@ public abstract class ValueTypeTest {
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true"));
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
+    private static final String SCENARIOS = System.getProperty("Scenarios", "");
     private static final String TESTLIST = System.getProperty("Testlist", "");
     private static final String EXCLUDELIST = System.getProperty("Exclude", "");
     private static final int WARMUP = Integer.parseInt(System.getProperty("Warmup", "251"));
@@ -147,6 +148,120 @@ public abstract class ValueTypeTest {
     protected static final String STOREVALUETYPEFIELDS = START + "CallStaticJava" + MID + "store_value_type_fields" + END;
     protected static final String SCOBJ = "(.*# ScObj.*" + END;
 
+    public static String[] concat(String prefix[], String... extra) {
+        ArrayList<String> list = new ArrayList<String>();
+        if (prefix != null) {
+            for (String s : prefix) {
+                list.add(s);
+            }
+        }
+        if (extra != null) {
+            for (String s : extra) {
+                list.add(s);
+            }
+        }
+
+        return list.toArray(new String[list.size()]);
+    }
+
+    /**
+     * Override getNumScenarios and getVMParameters if you want to run with more than
+     * the 5 built-in scenarios
+     */
+    public int getNumScenarios() {
+        return 5;
+    }
+
+    /**
+     * VM paramaters for the 5 built-in test scenarios. If your test needs to append
+     * extra parameters for (some of) these scenarios, override getExtraVMParameters().
+     */
+    public String[] getVMParameters(int scenario) {
+        switch (scenario) {
+        case 0: return new String[] {
+                "-XX:+AlwaysIncrementalInline",
+                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatSize=-1",
+                "-XX:+ValueArrayFlatten",
+                "-XX:ValueFieldMaxFlatSize=-1",
+                "-XX:+ValueTypePassFieldsAsArgs",
+                "-XX:+ValueTypeReturnedAsFields"};
+        case 1: return new String[] {
+                "-XX:-UseCompressedOops",
+                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatSize=-1",
+                "-XX:+ValueArrayFlatten",
+                "-XX:ValueFieldMaxFlatSize=-1",
+                "-XX:-ValueTypePassFieldsAsArgs",
+                "-XX:-ValueTypeReturnedAsFields"};
+        case 2: return new String[] {
+                "-DVerifyIR=false",
+                "-XX:-UseCompressedOops",
+                "-XX:ValueArrayElemMaxFlatOops=0",
+                "-XX:ValueArrayElemMaxFlatSize=0",
+                "-XX:-ValueArrayFlatten",
+                "-XX:ValueFieldMaxFlatSize=0",
+                "-XX:+ValueTypePassFieldsAsArgs",
+                "-XX:+ValueTypeReturnedAsFields"};
+        case 3: return new String[] {
+                "-DVerifyIR=false",
+                "-XX:+AlwaysIncrementalInline",
+                "-XX:ValueArrayElemMaxFlatOops=0",
+                "-XX:ValueArrayElemMaxFlatSize=0",
+                "-XX:ValueFieldMaxFlatSize=0",
+                "-XX:-ValueTypePassFieldsAsArgs",
+                "-XX:-ValueTypeReturnedAsFields"};
+        case 4: return new String[] {
+                "-DVerifyIR=false",
+                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatSize=-1",
+                "-XX:+ValueArrayFlatten",
+                "-XX:ValueFieldMaxFlatSize=0",
+                "-XX:+ValueTypePassFieldsAsArgs",
+                "-XX:-ValueTypeReturnedAsFields"};
+        }
+
+        return null;
+    }
+
+    /**
+     * Override this method to provide extra parameters for selected scenarios
+     */
+    public String[] getExtraVMParameters(int scenario) {
+        return null;
+    }
+
+    public static void main(String[] args) throws Throwable {
+        if (args.length != 1) {
+            throw new RuntimeException("Usage: @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea" +
+                                       " -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions" +
+                                       " -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla" +
+                                       " compiler.valhalla.valuetypes.ValueTypeTest <YourTestMainClass>");
+        }
+        String testMainClassName = args[0];
+        Class testMainClass = Class.forName(testMainClassName);
+        ValueTypeTest test = (ValueTypeTest)testMainClass.newInstance();
+        List<String> scenarios = null;
+        if (!SCENARIOS.isEmpty()) {
+           scenarios = Arrays.asList(SCENARIOS.split(","));
+        }
+        for (int i=0; i<test.getNumScenarios(); i++) {
+            if (scenarios == null || scenarios.contains(Integer.toString(i))) {
+                System.out.println("Scenario #" + i + " -------- ");
+                String[] cmds = InputArguments.getVmInputArgs();
+                cmds = concat(cmds, test.getVMParameters(i));
+                cmds = concat(cmds, test.getExtraVMParameters(i));
+                cmds = concat(cmds, testMainClassName);
+
+                OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
+                String output = oa.getOutput();
+                oa.shouldHaveExitValue(0);
+                System.out.println(output);
+            } else {
+                System.out.println("Scenario #" + i + " is skipped due to -Dscenarios=" + SCENARIOS);
+            }
+        }
+    }
 
     protected ValueTypeTest() {
         List<String> list = null;
