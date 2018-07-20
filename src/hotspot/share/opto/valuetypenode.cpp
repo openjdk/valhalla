@@ -310,7 +310,7 @@ const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInsta
   return adr_type;
 }
 
-void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
+void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, int trap_bci) {
   // Initialize the value type by loading its field values from
   // memory and adding the values as input edges to the node.
   for (uint i = 0; i < field_count(); ++i) {
@@ -351,7 +351,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
         if (bt == T_VALUETYPE) {
           // Loading a non-flattened value type from memory
-          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, /* null2default */ field_is_flattenable(i));
+          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, /* null2default */ field_is_flattenable(i), trap_bci);
         }
       }
     }
@@ -550,12 +550,20 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
         kit->set_control(null_ctl);
         return make_default(gvn, vk);
       } else {
+        int bci = kit->bci();
+        if (trap_bci != -1) {
+          // Put trap at different bytecode
+          kit->push(kit->null());
+          kit->set_bci(trap_bci);
+        }
+        kit->replace_in_map(oop, kit->null());
         kit->uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+        kit->set_bci(bci);
         return NULL;
       }
     }
     vt->set_oop(not_null_oop);
-    vt->load(kit, not_null_oop, not_null_oop, vk);
+    vt->load(kit, not_null_oop, not_null_oop, vk, /* holder_offset */ 0, trap_bci);
 
     if (null2default && (null_ctl != kit->top())) {
       // Return default value type if oop is null
@@ -584,7 +592,7 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
   } else {
     // Oop can never be null
     Node* init_ctl = kit->control();
-    vt->load(kit, oop, oop, vk);
+    vt->load(kit, oop, oop, vk, /* holder_offset */ 0, trap_bci);
     assert(init_ctl != kit->control() || oop->is_Con() || oop->is_CheckCastPP() || oop->Opcode() == Op_ValueTypePtr ||
            vt->is_loaded(&gvn) == oop, "value type should be loaded");
   }

@@ -84,7 +84,7 @@ public:
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, bool deoptimize_on_exception = false) const;
   // Initialize the value type by loading its field values from memory
-  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
+  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, int trap_bci = -1);
 
   // Allocates the value type (if not yet allocated)
   ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false);
