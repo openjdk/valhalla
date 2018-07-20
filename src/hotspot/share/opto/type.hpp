@@ -1087,7 +1087,7 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
-  bool can_be_value_type() const { return EnableValhalla && (_klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact())); }
+  virtual bool can_be_value_type() const { return EnableValhalla && (_klass == NULL || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact())); }
 
   virtual intptr_t get_con() const;
 
@@ -1295,6 +1295,8 @@ public:
   const Offset field_offset() const { return _field_offset; }
   const TypeAryPtr* with_field_offset(int offset) const;
   const TypePtr* add_field_offset_and_offset(intptr_t offset) const;
+
+  virtual bool can_be_value_type() const { return false; }
 
   // Convenience common pre-built types.
   static const TypeAryPtr *RANGE;
