@@ -1,28 +1,28 @@
 
-*** Project Valhalla "Minimal Value Types" Early Access ***
+*** Project Valhalla "L-World Value Types" Early Access ***
+
+Prototype Version: LW1
 
 This is an "early access" build, from "Project Valhalla" [1], aimed at testing a
-"Value Types" implementation within the JVM without the introduction of language
-features. Otherwise known as "Minimal Value Types" (MVT) [2].
+"Value Types" implementation within the JVM, where-by value types may
+interoperate with existing type descriptors. Otherwise known as "L-World Value
+Types" (L-World) [2].
 
-This build is intend for a number of expert users with active interest in the
+Intended for a number of expert users with active interest in the
 Valhalla project, and is provided as a convenience to users needing to build
-from source code (branch "mvt") [3].
+from source code (branch "lworld") [3].
 
-Warning, not only is this build based on an incomplete version of "JDK 10",
+Warning, not only is this build based on an incomplete version of "JDK 11",
 there has been less than comprehensive testing carried out.
 
 * System Limitations
 
-- platforms: x64 Linux, x64 Mac OS X
-- no VarHandles (work-in-progress for an update)
+- platforms: x64 Linux, x64 Mac OS X, Windows
 - no support for atomic fields containing value types (work-in-progress for an
   update)
-- no JNI, unsafe, jvmti, redefineclasses, reflection
+- no AOT, CDS, redefineclasses
 - -Xint and C2 only, no C1, no tiered-compilation
 - interpreter is not optimized, focus is on JIT optimization
-- Need additional USE CASES for optimizations
-- Working on additional test cases
 
 * EA disclaimer
 
@@ -46,6 +46,6 @@ Send email to valhalla-dev@openjdk.java.net
 Current known issues [4]
 
 [1] https://wiki.openjdk.java.net/display/valhalla/Main
-[2] https://wiki.openjdk.java.net/display/valhalla/Minimal+Value+Types
+[2] https://wiki.openjdk.java.net/display/valhalla/L-World+Value+Types
 [3] http://hg.openjdk.java.net/valhalla/valhalla/
-[4] https://bugs.openjdk.java.net/issues/?filter=31435
+[4] https://bugs.openjdk.java.net/issues/?filter=34576
