@@ -31,24 +31,27 @@
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 0
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222 -XX:+AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 0
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 1
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222 -XX:+AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 1
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222 -XX:+AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
  */
