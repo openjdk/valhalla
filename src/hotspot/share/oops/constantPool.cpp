@@ -46,6 +46,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valueArrayKlass.hpp"
 #include "runtime/fieldType.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -495,7 +496,22 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   }
 
   if (!HAS_PENDING_EXCEPTION) {
-    check_value_types_consistency(this_cp, k, THREAD);
+    if (k->is_instance_klass()) {
+      check_value_types_consistency(this_cp, k, THREAD);
+    } else {
+      Klass* bottom_klass = NULL;
+      if (k->is_objArray_klass()) {
+        bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
+        assert(bottom_klass != NULL, "Should be set");
+        assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
+      } else if (k->is_valueArray_klass()) {
+        bottom_klass = ValueArrayKlass::cast(k)->element_klass();
+        assert(bottom_klass != NULL, "Should be set");
+      }
+      if (bottom_klass != NULL && bottom_klass->is_instance_klass()) {
+        check_value_types_consistency(this_cp, bottom_klass, THREAD);
+      }
+    }
   }
 
   // Failed to resolve class. We must record the errors so that subsequent attempts
