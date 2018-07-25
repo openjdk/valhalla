@@ -130,12 +130,13 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
+  } else if (element_klass->is_valueArray_klass()) {
+    bk = ValueArrayKlass::cast(element_klass)->element_klass();
   } else {
     bk = element_klass;
   }
   assert(bk != NULL && (bk->is_instance_klass()
-      || bk->is_typeArray_klass()
-      || bk->is_valueArray_klass()), "invalid bottom klass");
+      || bk->is_typeArray_klass()), "invalid bottom klass");
   this->set_bottom_klass(bk);
   this->set_class_loader_data(bk->class_loader_data());
 
