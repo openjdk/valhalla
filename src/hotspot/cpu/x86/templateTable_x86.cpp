@@ -2776,7 +2776,19 @@ void TemplateTable::_return(TosState state) {
     __ bind(no_safepoint);
   }
 
-  if (state == atos) {
+  if (EnableValhalla && state == atos) {
+    Label not_returning_null_vt;
+    const Register method = rbx, tmp = rdx;
+
+    __ testl(rax, rax);
+    __ jcc(Assembler::notZero, not_returning_null_vt);
+    __ get_method(method);
+    __ load_unsigned_short(tmp, Address(rbx, Method::flags_offset()));
+    __ testl(tmp, Method::is_returning_vt_mask());
+    __ jcc(Assembler::zero, not_returning_null_vt);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::deoptimize_caller_frame_for_vt), method);
+    __ bind(not_returning_null_vt);
+
     if (ValueTypesBufferMaxMemory > 0) {
       Label notBuffered;
 

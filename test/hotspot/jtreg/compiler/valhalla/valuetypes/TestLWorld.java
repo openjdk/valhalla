@@ -38,6 +38,7 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
+ * @build TestLWorld_mismatched
  * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
@@ -60,7 +61,8 @@ public class TestLWorld extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestLWorld test = new TestLWorld();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, Test65Value.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class,
+                 MyValue3Inline.class, Test65Value.class, TestLWorld_mismatched.class);
     }
 
     // Helper methods
@@ -2232,5 +2234,40 @@ public class TestLWorld extends ValueTypeTest {
     public void test86_verifier(boolean warmup) {
         int result = test86();
         Asserts.assertEquals(result, 0);
+    }
+
+    @DontInline
+    MyValue1 get_nullField() {
+        return nullField;
+    }
+
+    // A callees that returns a VT performs null check (and deoptimizes caller) before returning.
+    @Test(match = {"CallStaticJava.*TestLWorld::get_nullField compiler/valhalla/valuetypes/MyValue1:NotNull"}, matchCount = {2})
+    public void test87() {
+        try {
+            valueField1 = get_nullField();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+
+        nullField = get_nullField(); // should not throw
+    }
+
+    @DontCompile
+    public void test87_verifier(boolean warmup) {
+        test87();
+    }
+
+    // A callee that's not aware of VT may return a null to the caller. An
+    // explicit null check is needed in compiled code.
+    @Test(failOn = "CallStaticJava.*TestLWorld_mismatched::test88_callee compiler/valhalla/valuetypes/MyValue1:NotNull")
+    public void test88() {
+        TestLWorld_mismatched.test88();
+    }
+
+    @DontCompile
+    public void test88_verifier(boolean warmup) {
+        test88();
     }
 }

@@ -1837,6 +1837,15 @@ IRT_ENTRY(void, InterpreterRuntime::prepare_native_call(JavaThread* thread, Meth
   // preparing the same method will be sure to see non-null entry & mirror.
 IRT_END
 
+IRT_ENTRY(void, InterpreterRuntime::deoptimize_caller_frame_for_vt(JavaThread* thread, Method* callee))
+  // Called from within the owner thread, so no need for safepoint
+  assert(callee->is_returning_vt(), "must be");
+  RegisterMap reg_map(thread);
+  frame last_frame = thread->last_frame();
+  frame caller_frame = last_frame.sender(&reg_map);
+  Deoptimization::deoptimize_frame(thread, caller_frame.id());
+IRT_END
+
 #if defined(IA32) || defined(AMD64) || defined(ARM)
 IRT_LEAF(void, InterpreterRuntime::popframe_move_outgoing_args(JavaThread* thread, void* src_address, void* dest_address))
   if (src_address == dest_address) {

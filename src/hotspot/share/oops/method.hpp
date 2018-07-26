@@ -90,7 +90,8 @@ class Method : public Metadata {
     _has_injected_profile  = 1 << 4,
     _running_emcp          = 1 << 5,
     _intrinsic_candidate   = 1 << 6,
-    _reserved_stack_access = 1 << 7
+    _reserved_stack_access = 1 << 7,
+    _is_returning_vt       = 1 << 8
   };
   mutable u2 _flags;
 
@@ -581,7 +582,6 @@ class Method : public Metadata {
   Symbol* klass_name() const;                    // returns the name of the method holder
   BasicType result_type() const;                 // type of the method result
   bool may_return_oop() const                    { BasicType r = result_type(); return (r == T_OBJECT || r == T_ARRAY ||  r == T_VALUETYPE); }
-  bool is_returning_vt() const                   { BasicType r = result_type(); return r == T_VALUETYPE; }
 #ifdef ASSERT
   ValueKlass* returned_value_type(Thread* thread) const;
 #endif
@@ -695,6 +695,7 @@ class Method : public Metadata {
   static ByteSize access_flags_offset()          { return byte_offset_of(Method, _access_flags      ); }
   static ByteSize from_compiled_offset()         { return byte_offset_of(Method, _from_compiled_entry); }
   static ByteSize code_offset()                  { return byte_offset_of(Method, _code); }
+  static ByteSize flags_offset()                 { return byte_offset_of(Method, _flags); }
   static ByteSize method_data_offset()           {
     return byte_offset_of(Method, _method_data);
   }
@@ -894,6 +895,18 @@ class Method : public Metadata {
 
   void set_has_reserved_stack_access(bool x) {
     _flags = x ? (_flags | _reserved_stack_access) : (_flags & ~_reserved_stack_access);
+  }
+
+  static int is_returning_vt_mask() {
+    return _is_returning_vt;
+  }
+
+  bool is_returning_vt() const {
+    return (_flags & _is_returning_vt) != 0;
+  }
+
+  void set_is_returning_vt() {
+    _flags |= _is_returning_vt;
   }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)

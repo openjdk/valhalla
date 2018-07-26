@@ -189,6 +189,8 @@ class InterpreterRuntime: AllStatic {
   static void    verify_mdp(Method* method, address bcp, address mdp);
 #endif // ASSERT
   static MethodCounters* build_method_counters(JavaThread* thread, Method* m);
+
+  static void deoptimize_caller_frame_for_vt(JavaThread* thread, Method* callee);
 };
 
 

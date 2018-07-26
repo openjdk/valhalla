@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -669,6 +669,12 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
+            if (ct == T_VALUETYPE && cg->method()->get_Method()->is_returning_vt()) {
+              // A NULL ValueType cannot be returned to compiled code. The 'areturn' bytecode
+              // handler will deoptimize its caller if it is about to return a NULL ValueType.
+              // (See comments inside TypeTuple::make_range).
+              sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
+            }
             if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
