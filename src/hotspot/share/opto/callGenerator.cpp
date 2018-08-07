@@ -840,6 +840,30 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     return kit.transfer_exceptions_into_jvms();
   }
 
+  // Allocate value types if they are merged with objects (similar to Parse::merge_common())
+  uint tos = kit.jvms()->stkoff() + kit.sp();
+  uint limit = slow_map->req();
+  for (uint i = TypeFunc::Parms; i < limit; i++) {
+    Node* m = kit.map()->in(i);
+    Node* n = slow_map->in(i);
+    const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
+    if (m->is_ValueType() && !t->isa_valuetype()) {
+      // Allocate value type in fast path
+      ValueTypeBaseNode* vt = m->as_ValueType()->allocate(&kit);
+      m = ValueTypePtrNode::make_from_value_type(kit.gvn(), vt->as_ValueType());
+      kit.map()->set_req(i, m);
+    }
+    if (n->is_ValueType() && !t->isa_valuetype()) {
+      // Allocate value type in slow path
+      PreserveJVMState pjvms(&kit);
+      kit.set_map(slow_map);
+      ValueTypeBaseNode* vt = n->as_ValueType()->allocate(&kit);
+      n = ValueTypePtrNode::make_from_value_type(kit.gvn(), vt->as_ValueType());
+      kit.map()->set_req(i, n);
+      slow_map = kit.stop();
+    }
+  }
+
   // There are 2 branches and the replaced nodes are only valid on
   // one: restore the replaced nodes to what they were before the
   // branch.
@@ -863,8 +887,6 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
       mms.set_memory(gvn.transform(phi));
     }
   }
-  uint tos = kit.jvms()->stkoff() + kit.sp();
-  uint limit = slow_map->req();
   for (uint i = TypeFunc::Parms; i < limit; i++) {
     // Skip unused stack slots; fast forward to monoff();
     if (i == tos) {

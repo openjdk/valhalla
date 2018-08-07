@@ -1227,13 +1227,13 @@ public class TestLWorld extends ValueTypeTest {
     // Test value store to (flattened) value type array disguised as interface array
 
     @ForceInline
-    public void test43_inline(MyInterface[] ia, MyInterface i, int index) {
+    public void test44_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
     }
 
     @Test()
     public void test44(MyInterface[] ia, MyInterface i, int index) {
-        test43_inline(ia, i, index);
+        test44_inline(ia, i, index);
     }
 
     @DontCompile
