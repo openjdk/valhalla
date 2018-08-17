@@ -1547,7 +1547,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
     } else {                    // Path is live.
       // Update method data
       profile_taken_branch(target_bci);
-      adjust_map_after_if(btest, c, prob, branch_block, next_block);
+      adjust_map_after_if(btest, c, prob, branch_block);
       if (!stopped()) {
         merge(target_bci);
       }
@@ -1567,8 +1567,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
   } else  {                     // Path is live.
     // Update method data
     profile_not_taken_branch();
-    adjust_map_after_if(BoolTest(btest).negate(), c, 1.0-prob,
-                        next_block, branch_block);
+    adjust_map_after_if(BoolTest(btest).negate(), c, 1.0-prob, next_block);
   }
 }
 
@@ -1669,7 +1668,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
     } else {
       // Update method data
       profile_taken_branch(target_bci);
-      adjust_map_after_if(taken_btest, c, prob, branch_block, next_block);
+      adjust_map_after_if(taken_btest, c, prob, branch_block);
       if (!stopped()) {
         merge(target_bci);
       }
@@ -1688,9 +1687,62 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
   } else {
     // Update method data
     profile_not_taken_branch();
-    adjust_map_after_if(untaken_btest, c, untaken_prob,
-                        next_block, branch_block);
+    adjust_map_after_if(untaken_btest, c, untaken_prob, next_block);
   }
+}
+
+void Parse::do_acmp(BoolTest::mask& btest, Node* a, Node* b) {
+  // In the case were both operands might be value types, we need to
+  // use the new acmp implementation. Otherwise, i.e. if one operand
+  // is not a value type, we can use the old acmp implementation.
+  Node* cmp = C->optimize_acmp(&_gvn, a, b);
+  if (cmp != NULL) {
+    // Use optimized/old acmp
+    cmp = optimize_cmp_with_klass(_gvn.transform(cmp));
+    do_if(btest, cmp);
+    return;
+  }
+
+  bool speculate = false;
+  if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(b))) {
+    // Operand 'b' is never null, swap operands to avoid null check
+    swap(a, b);
+  } else if (!too_many_traps(Deoptimization::Reason_speculate_null_check)) {
+    // Speculate on non-nullness of one operand
+    if (!_gvn.type(a)->speculative_maybe_null()) {
+      speculate = true;
+    } else if (!_gvn.type(b)->speculative_maybe_null()) {
+      speculate = true;
+      swap(a, b);
+    }
+  }
+
+  // Null check operand before loading the is_value bit
+  Node* region = new RegionNode(2);
+  Node* is_value = new PhiNode(region, TypeX_X);
+  Node* null_ctl = top();
+  inc_sp(2);
+  Node* not_null_a = null_check_oop(a, &null_ctl, speculate, true, speculate);
+  assert(!stopped(), "operand is always null");
+  dec_sp(2);
+  if (null_ctl != top()) {
+    assert(!speculate, "should never be null");
+    region->add_req(null_ctl);
+    is_value->add_req(_gvn.MakeConX(0));
+  }
+
+  Node* value_bit = C->load_is_value_bit(&_gvn, not_null_a);
+  region->init_req(1, control());
+  is_value->set_req(1, value_bit);
+
+  set_control(_gvn.transform(region));
+  is_value = _gvn.transform(is_value);
+
+  // Perturbe oop if operand is a value type to make comparison fail
+  Node* pert = _gvn.transform(new AddPNode(a, a, is_value));
+  cmp = _gvn.transform(new CmpPNode(pert, b));
+  cmp = optimize_cmp_with_klass(cmp);
+  do_if(btest, cmp);
 }
 
 bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
@@ -1707,8 +1759,7 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
 // branch, seeing how it constrains a tested value, and then
 // deciding if it's worth our while to encode this constraint
 // as graph nodes in the current abstract interpretation map.
-void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
-                                Block* path, Block* other_path) {
+void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path) {
   if (stopped() || !c->is_Cmp() || btest == BoolTest::illegal)
     return;                             // nothing to do
 
@@ -2785,9 +2836,7 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();
-    c = _gvn.transform(acmp(a, b));
-    c = optimize_cmp_with_klass(c);
-    do_if(btest, c);
+    do_acmp(btest, a, b);
     break;
 
   case Bytecodes::_ifeq: btest = BoolTest::eq; goto handle_ifxx;
