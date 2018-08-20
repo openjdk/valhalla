@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.classfile;
 
 import java.io.DataInputStream;
@@ -47,7 +49,7 @@ public class Classfile {
     private final List<ClassfileBytecode> codeAttributes;
 
     private static final int MAJOR_VERSION_JAVA_MIN = 51; // JDK7
-    private static final int MAJOR_VERSION_JAVA_MAX = 55; // JDK11
+    private static final int MAJOR_VERSION_JAVA_MAX = 56; // JDK12
     private static final int MAGIC = 0xCAFEBABE;
 
     /**

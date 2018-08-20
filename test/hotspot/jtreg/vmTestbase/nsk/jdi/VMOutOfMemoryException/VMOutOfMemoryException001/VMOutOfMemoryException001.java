@@ -34,6 +34,7 @@
  *     in debuggee VM through 'ArrayType.newInstance()' till VMOutOfMemoryException. Any other exception
  *     thrown by 'ArrayType.newInstance()' is treated as product bug.
  *
+ * @requires !vm.graal.enabled
  * @library /vmTestbase
  *          /test/lib
  * @run driver jdk.test.lib.FileInstaller . .
@@ -46,7 +47,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdi.VMOutOfMemoryException.VMOutOfMemoryException001;

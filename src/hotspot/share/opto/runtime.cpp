@@ -399,9 +399,9 @@ JRT_ENTRY(void, OptoRuntime::multianewarrayN_C(Klass* elem_type, arrayOopDesc* d
   ResourceMark rm;
   jint len = dims->length();
   assert(len > 0, "Dimensions array should contain data");
-  jint *j_dims = typeArrayOop(dims)->int_at_addr(0);
   jint *c_dims = NEW_RESOURCE_ARRAY(jint, len);
-  Copy::conjoint_jints_atomic(j_dims, c_dims, len);
+  ArrayAccess<>::arraycopy_to_native<>(dims, typeArrayOopDesc::element_offset<jint>(0),
+                                       c_dims, len);
 
   Handle holder(THREAD, elem_type->klass_holder()); // keep the klass alive
   oop obj = ArrayKlass::cast(elem_type)->multi_allocate(len, c_dims, THREAD);
@@ -1129,6 +1129,27 @@ const TypeFunc* OptoRuntime::ghash_processBlocks_Type() {
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
     return TypeFunc::make(domain, range);
 }
+// Base64 encode function
+const TypeFunc* OptoRuntime::base64_encodeBlock_Type() {
+  int argcnt = 6;
+
+  const Type** fields = TypeTuple::fields(argcnt);
+  int argp = TypeFunc::Parms;
+  fields[argp++] = TypePtr::NOTNULL;    // src array
+  fields[argp++] = TypeInt::INT;        // offset
+  fields[argp++] = TypeInt::INT;        // length
+  fields[argp++] = TypePtr::NOTNULL;    // dest array
+  fields[argp++] = TypeInt::INT;       // dp
+  fields[argp++] = TypeInt::BOOL;       // isURL
+  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+  // result type needed
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = NULL; // void
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  return TypeFunc::make(domain, range);
+}
 
 //------------- Interpreter state access for on stack replacement
 const TypeFunc* OptoRuntime::osr_end_Type() {
@@ -1593,7 +1614,12 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
     }
     int bci = jvms->bci();
     if (bci < 0) bci = 0;
-    st.print("%s.%s@%d", m->holder()->name()->as_utf8(), m->name()->as_utf8(), bci);
+    if (m != NULL) {
+      st.print("%s.%s", m->holder()->name()->as_utf8(), m->name()->as_utf8());
+    } else {
+      st.print("no method");
+    }
+    st.print("@%d", bci);
     // To print linenumbers instead of bci use: m->line_number_from_bci(bci)
   }
   NamedCounter* c;

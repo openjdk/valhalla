@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.jdk;
 
 import java.util.AbstractList;
@@ -67,6 +69,7 @@ public class UnsafeAllocateInstance01 extends JTTTest {
         runTest("testInstance");
     }
 
+    @Ignore("https://bugs.openjdk.java.net/browse/JDK-8153540")
     @Test
     public void run1() throws Throwable {
         runTest("testClassForException", UnsafeAllocateInstance01[].class);

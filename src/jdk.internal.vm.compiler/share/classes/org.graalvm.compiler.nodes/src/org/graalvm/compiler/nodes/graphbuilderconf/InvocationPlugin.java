@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.graphbuilderconf;
 
 import java.lang.invoke.MethodHandle;
@@ -81,6 +83,15 @@ public interface InvocationPlugin extends GraphBuilderPlugin {
      */
     default boolean inlineOnly() {
         return isSignaturePolymorphic();
+    }
+
+    /**
+     * Determines if this plugin only decorates the method is it associated with. That is, it
+     * inserts nodes prior to the invocation (e.g. some kind of marker nodes) but still expects the
+     * parser to process the invocation further.
+     */
+    default boolean isDecorator() {
+        return false;
     }
 
     /**
@@ -167,7 +178,8 @@ public interface InvocationPlugin extends GraphBuilderPlugin {
      * @return {@code true} if this plugin handled the invocation of {@code targetMethod}
      *         {@code false} if the graph builder should process the invoke further (e.g., by
      *         inlining it or creating an {@link Invoke} node). A plugin that does not handle an
-     *         invocation must not modify the graph being constructed.
+     *         invocation must not modify the graph being constructed unless it is a
+     *         {@linkplain InvocationPlugin#isDecorator() decorator}.
      */
     default boolean execute(GraphBuilderContext b, ResolvedJavaMethod targetMethod, InvocationPlugin.Receiver receiver, ValueNode[] argsIncludingReceiver) {
         if (isSignaturePolymorphic()) {

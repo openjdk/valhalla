@@ -116,6 +116,7 @@ SystemProperty *Arguments::_java_library_path = NULL;
 SystemProperty *Arguments::_java_home = NULL;
 SystemProperty *Arguments::_java_class_path = NULL;
 SystemProperty *Arguments::_jdk_boot_class_path_append = NULL;
+SystemProperty *Arguments::_vm_info = NULL;
 
 GrowableArray<ModulePatchPath*> *Arguments::_patch_mod_prefix = NULL;
 PathString *Arguments::_system_boot_class_path = NULL;
@@ -395,8 +396,10 @@ void Arguments::init_system_properties() {
                                                            "Java Virtual Machine Specification",  false));
   PropertyList_add(&_system_properties, new SystemProperty("java.vm.version", VM_Version::vm_release(),  false));
   PropertyList_add(&_system_properties, new SystemProperty("java.vm.name", VM_Version::vm_name(),  false));
-  PropertyList_add(&_system_properties, new SystemProperty("java.vm.info", VM_Version::vm_info_string(),  true));
   PropertyList_add(&_system_properties, new SystemProperty("jdk.debug", VM_Version::jdk_debug_level(),  false));
+
+  // Initialize the vm.info now, but it will need updating after argument parsing.
+  _vm_info = new SystemProperty("java.vm.info", VM_Version::vm_info_string(), true);
 
   // Following are JVMTI agent writable properties.
   // Properties values are set to NULL and they are
@@ -417,6 +420,7 @@ void Arguments::init_system_properties() {
   PropertyList_add(&_system_properties, _java_home);
   PropertyList_add(&_system_properties, _java_class_path);
   PropertyList_add(&_system_properties, _jdk_boot_class_path_append);
+  PropertyList_add(&_system_properties, _vm_info);
 
   // Set OS specific system properties values
   os::init_system_properties_values();
@@ -484,7 +488,7 @@ void Arguments::init_version_specific_system_properties() {
  *
  * Recommended approach for removing options:
  *
- * To remove options commonly used by customers (e.g. product, commercial -XX options), use
+ * To remove options commonly used by customers (e.g. product -XX options), use
  * the 3-step model adding major release numbers to the deprecate, obsolete and expire columns.
  *
  * To remove internal options (e.g. diagnostic, experimental, develop options), use
@@ -531,11 +535,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "IgnoreUnverifiableClassesDuringDump", JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "CompilerThreadHintNoPreempt",  JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "VMThreadHintNoPreempt",        JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
-  { "PrintSafepointStatistics",     JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
-  { "PrintSafepointStatisticsTimeout", JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
-  { "PrintSafepointStatisticsCount",JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "AggressiveOpts",               JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
-  { "AllowNonVirtualCalls",         JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -553,6 +553,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "CheckEndorsedAndExtDirs",       JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "DeferThrSuspendLoopCount",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "DeferPollingPageLoopCount",     JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "TraceScavenge",                 JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "PermSize",                      JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "MaxPermSize",                   JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "SharedReadWriteSize",           JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
@@ -560,10 +561,17 @@ static SpecialFlag const special_jvm_flags[] = {
   { "SharedMiscDataSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscCodeSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "UseUTCFileTimestamp",           JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "UseAppCDS",                     JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "InlineNotify",                  JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "EnableTracing",                 JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "UseLockedTracing",              JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "NativeMonitorTimeout",          JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "NativeMonitorSpinLimit",        JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "NativeMonitorFlags",            JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "UnlinkSymbolsALot",             JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "AllowNonVirtualCalls",          JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "PrintSafepointStatistics",      JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "PrintSafepointStatisticsTimeout",JDK_Version::jdk(11),    JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "PrintSafepointStatisticsCount", JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   { "dep > obs",                    JDK_Version::jdk(9), JDK_Version::jdk(8), JDK_Version::undefined() },
@@ -1583,101 +1591,6 @@ static void no_shared_spaces(const char* message) {
   }
 }
 
-// Returns threshold scaled with the value of scale.
-// If scale < 0.0, threshold is returned without scaling.
-intx Arguments::scaled_compile_threshold(intx threshold, double scale) {
-  if (scale == 1.0 || scale < 0.0) {
-    return threshold;
-  } else {
-    return (intx)(threshold * scale);
-  }
-}
-
-// Returns freq_log scaled with the value of scale.
-// Returned values are in the range of [0, InvocationCounter::number_of_count_bits + 1].
-// If scale < 0.0, freq_log is returned without scaling.
-intx Arguments::scaled_freq_log(intx freq_log, double scale) {
-  // Check if scaling is necessary or if negative value was specified.
-  if (scale == 1.0 || scale < 0.0) {
-    return freq_log;
-  }
-  // Check values to avoid calculating log2 of 0.
-  if (scale == 0.0 || freq_log == 0) {
-    return 0;
-  }
-  // Determine the maximum notification frequency value currently supported.
-  // The largest mask value that the interpreter/C1 can handle is
-  // of length InvocationCounter::number_of_count_bits. Mask values are always
-  // one bit shorter then the value of the notification frequency. Set
-  // max_freq_bits accordingly.
-  intx max_freq_bits = InvocationCounter::number_of_count_bits + 1;
-  intx scaled_freq = scaled_compile_threshold((intx)1 << freq_log, scale);
-  if (scaled_freq == 0) {
-    // Return 0 right away to avoid calculating log2 of 0.
-    return 0;
-  } else if (scaled_freq > nth_bit(max_freq_bits)) {
-    return max_freq_bits;
-  } else {
-    return log2_intptr(scaled_freq);
-  }
-}
-
-void Arguments::set_tiered_flags() {
-  // With tiered, set default policy to SimpleThresholdPolicy, which is 2.
-  if (FLAG_IS_DEFAULT(CompilationPolicyChoice)) {
-    FLAG_SET_DEFAULT(CompilationPolicyChoice, 2);
-  }
-  if (CompilationPolicyChoice < 2) {
-    vm_exit_during_initialization(
-      "Incompatible compilation policy selected", NULL);
-  }
-  // Increase the code cache size - tiered compiles a lot more.
-  if (FLAG_IS_DEFAULT(ReservedCodeCacheSize)) {
-    FLAG_SET_ERGO(uintx, ReservedCodeCacheSize,
-                  MIN2(CODE_CACHE_DEFAULT_LIMIT, ReservedCodeCacheSize * 5));
-  }
-  // Enable SegmentedCodeCache if TieredCompilation is enabled and ReservedCodeCacheSize >= 240M
-  if (FLAG_IS_DEFAULT(SegmentedCodeCache) && ReservedCodeCacheSize >= 240*M) {
-    FLAG_SET_ERGO(bool, SegmentedCodeCache, true);
-  }
-  if (!UseInterpreter) { // -Xcomp
-    Tier3InvokeNotifyFreqLog = 0;
-    Tier4InvocationThreshold = 0;
-  }
-
-  if (CompileThresholdScaling < 0) {
-    vm_exit_during_initialization("Negative value specified for CompileThresholdScaling", NULL);
-  }
-
-  // Scale tiered compilation thresholds.
-  // CompileThresholdScaling == 0.0 is equivalent to -Xint and leaves compilation thresholds unchanged.
-  if (!FLAG_IS_DEFAULT(CompileThresholdScaling) && CompileThresholdScaling > 0.0) {
-    FLAG_SET_ERGO(intx, Tier0InvokeNotifyFreqLog, scaled_freq_log(Tier0InvokeNotifyFreqLog));
-    FLAG_SET_ERGO(intx, Tier0BackedgeNotifyFreqLog, scaled_freq_log(Tier0BackedgeNotifyFreqLog));
-
-    FLAG_SET_ERGO(intx, Tier3InvocationThreshold, scaled_compile_threshold(Tier3InvocationThreshold));
-    FLAG_SET_ERGO(intx, Tier3MinInvocationThreshold, scaled_compile_threshold(Tier3MinInvocationThreshold));
-    FLAG_SET_ERGO(intx, Tier3CompileThreshold, scaled_compile_threshold(Tier3CompileThreshold));
-    FLAG_SET_ERGO(intx, Tier3BackEdgeThreshold, scaled_compile_threshold(Tier3BackEdgeThreshold));
-
-    // Tier2{Invocation,MinInvocation,Compile,Backedge}Threshold should be scaled here
-    // once these thresholds become supported.
-
-    FLAG_SET_ERGO(intx, Tier2InvokeNotifyFreqLog, scaled_freq_log(Tier2InvokeNotifyFreqLog));
-    FLAG_SET_ERGO(intx, Tier2BackedgeNotifyFreqLog, scaled_freq_log(Tier2BackedgeNotifyFreqLog));
-
-    FLAG_SET_ERGO(intx, Tier3InvokeNotifyFreqLog, scaled_freq_log(Tier3InvokeNotifyFreqLog));
-    FLAG_SET_ERGO(intx, Tier3BackedgeNotifyFreqLog, scaled_freq_log(Tier3BackedgeNotifyFreqLog));
-
-    FLAG_SET_ERGO(intx, Tier23InlineeNotifyFreqLog, scaled_freq_log(Tier23InlineeNotifyFreqLog));
-
-    FLAG_SET_ERGO(intx, Tier4InvocationThreshold, scaled_compile_threshold(Tier4InvocationThreshold));
-    FLAG_SET_ERGO(intx, Tier4MinInvocationThreshold, scaled_compile_threshold(Tier4MinInvocationThreshold));
-    FLAG_SET_ERGO(intx, Tier4CompileThreshold, scaled_compile_threshold(Tier4CompileThreshold));
-    FLAG_SET_ERGO(intx, Tier4BackEdgeThreshold, scaled_compile_threshold(Tier4BackEdgeThreshold));
-  }
-}
-
 void set_object_alignment() {
   // Object alignment.
   assert(is_power_of_2(ObjectAlignmentInBytes), "ObjectAlignmentInBytes must be power of 2");
@@ -1778,73 +1691,8 @@ void Arguments::set_conservative_max_heap_alignment() {
                                           CollectorPolicy::compute_heap_alignment());
 }
 
-#ifdef TIERED
-bool Arguments::compilation_mode_selected() {
- return !FLAG_IS_DEFAULT(TieredCompilation) || !FLAG_IS_DEFAULT(TieredStopAtLevel) ||
-        !FLAG_IS_DEFAULT(UseAOT) JVMCI_ONLY(|| !FLAG_IS_DEFAULT(EnableJVMCI) || !FLAG_IS_DEFAULT(UseJVMCICompiler));
-
-}
-
-void Arguments::select_compilation_mode_ergonomically() {
-#if defined(_WINDOWS) && !defined(_LP64)
-  if (FLAG_IS_DEFAULT(NeverActAsServerClassMachine)) {
-    FLAG_SET_ERGO(bool, NeverActAsServerClassMachine, true);
-  }
-#endif
-  if (NeverActAsServerClassMachine) {
-    set_client_compilation_mode();
-  }
-}
-#endif //TIERED
-
-#if INCLUDE_JVMCI
-void Arguments::set_jvmci_specific_flags() {
-  if (UseJVMCICompiler) {
-    if (FLAG_IS_DEFAULT(TypeProfileWidth)) {
-      FLAG_SET_DEFAULT(TypeProfileWidth, 8);
-    }
-    if (FLAG_IS_DEFAULT(OnStackReplacePercentage)) {
-      FLAG_SET_DEFAULT(OnStackReplacePercentage, 933);
-    }
-    if (FLAG_IS_DEFAULT(ReservedCodeCacheSize)) {
-      FLAG_SET_DEFAULT(ReservedCodeCacheSize, 64*M);
-    }
-    if (FLAG_IS_DEFAULT(InitialCodeCacheSize)) {
-      FLAG_SET_DEFAULT(InitialCodeCacheSize, 16*M);
-    }
-    if (FLAG_IS_DEFAULT(MetaspaceSize)) {
-      FLAG_SET_DEFAULT(MetaspaceSize, 12*M);
-    }
-    if (FLAG_IS_DEFAULT(NewSizeThreadIncrease)) {
-      FLAG_SET_DEFAULT(NewSizeThreadIncrease, 4*K);
-    }
-    if (TieredStopAtLevel != CompLevel_full_optimization) {
-      // Currently JVMCI compiler can only work at the full optimization level
-      warning("forcing TieredStopAtLevel to full optimization because JVMCI is enabled");
-      TieredStopAtLevel = CompLevel_full_optimization;
-    }
-    if (FLAG_IS_DEFAULT(TypeProfileLevel)) {
-      FLAG_SET_DEFAULT(TypeProfileLevel, 0);
-    }
-  }
-}
-#endif
-
 jint Arguments::set_ergonomics_flags() {
-#ifdef TIERED
-  if (!compilation_mode_selected()) {
-    select_compilation_mode_ergonomically();
-  }
-#endif
-
   GCConfig::initialize();
-
-#if defined(IA32)
-  // Only server compiler can optimize safepoints well enough.
-  if (!is_server_compilation_mode_vm()) {
-    FLAG_SET_ERGO_IF_DEFAULT(bool, ThreadLocalHandshakes, false);
-  }
-#endif
 
   set_conservative_max_heap_alignment();
 
@@ -2176,12 +2024,11 @@ bool Arguments::sun_java_launcher_is_altjvm() {
 //===========================================================================================================
 // Parsing of main arguments
 
-#if INCLUDE_JVMCI
-// Check consistency of jvmci vm argument settings.
-bool Arguments::check_jvmci_args_consistency() {
-   return JVMCIGlobals::check_jvmci_flags_are_consistent();
-}
-#endif //INCLUDE_JVMCI
+unsigned int addreads_count = 0;
+unsigned int addexports_count = 0;
+unsigned int addopens_count = 0;
+unsigned int addmods_count = 0;
+unsigned int patch_mod_count = 0;
 
 // Check the consistency of vm_init_args
 bool Arguments::check_vm_args_consistency() {
@@ -2210,49 +2057,14 @@ bool Arguments::check_vm_args_consistency() {
 #endif
   }
 
+  status = CompilerConfig::check_args_consistency(status);
 #if INCLUDE_JVMCI
-  status = status && check_jvmci_args_consistency();
-
-  if (EnableJVMCI) {
+  if (status && EnableJVMCI) {
     PropertyList_unique_add(&_system_properties, "jdk.internal.vm.ci.enabled", "true",
         AddProperty, UnwriteableProperty, InternalProperty);
-
-    if (!ScavengeRootsInCode) {
-      warning("forcing ScavengeRootsInCode non-zero because JVMCI is enabled");
-      ScavengeRootsInCode = 1;
+    if (!create_numbered_property("jdk.module.addmods", "jdk.internal.vm.ci", addmods_count++)) {
+      return false;
     }
-  }
-#endif
-
-  // Check lower bounds of the code cache
-  // Template Interpreter code is approximately 3X larger in debug builds.
-  uint min_code_cache_size = CodeCacheMinimumUseSpace DEBUG_ONLY(* 3);
-  if (ReservedCodeCacheSize < InitialCodeCacheSize) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Invalid ReservedCodeCacheSize: %dK. Must be at least InitialCodeCacheSize=%dK.\n",
-                ReservedCodeCacheSize/K, InitialCodeCacheSize/K);
-    status = false;
-  } else if (ReservedCodeCacheSize < min_code_cache_size) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Invalid ReservedCodeCacheSize=%dK. Must be at least %uK.\n", ReservedCodeCacheSize/K,
-                min_code_cache_size/K);
-    status = false;
-  } else if (ReservedCodeCacheSize > CODE_CACHE_SIZE_LIMIT) {
-    // Code cache size larger than CODE_CACHE_SIZE_LIMIT is not supported.
-    jio_fprintf(defaultStream::error_stream(),
-                "Invalid ReservedCodeCacheSize=%dM. Must be at most %uM.\n", ReservedCodeCacheSize/M,
-                CODE_CACHE_SIZE_LIMIT/M);
-    status = false;
-  } else if (NonNMethodCodeHeapSize < min_code_cache_size) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Invalid NonNMethodCodeHeapSize=%dK. Must be at least %uK.\n", NonNMethodCodeHeapSize/K,
-                min_code_cache_size/K);
-    status = false;
-  }
-
-#ifdef _LP64
-  if (!FLAG_IS_DEFAULT(CICompilerCount) && !FLAG_IS_DEFAULT(CICompilerCountPerCPU) && CICompilerCountPerCPU) {
-    warning("The VM option CICompilerCountPerCPU overrides CICompilerCount.");
   }
 #endif
 
@@ -2263,37 +2075,6 @@ bool Arguments::check_vm_args_consistency() {
   }
 #endif
 
-  if (BackgroundCompilation && (CompileTheWorld || ReplayCompiles)) {
-    if (!FLAG_IS_DEFAULT(BackgroundCompilation)) {
-      warning("BackgroundCompilation disabled due to CompileTheWorld or ReplayCompiles options.");
-    }
-    FLAG_SET_CMDLINE(bool, BackgroundCompilation, false);
-  }
-  if (UseCompiler && is_interpreter_only()) {
-    if (!FLAG_IS_DEFAULT(UseCompiler)) {
-      warning("UseCompiler disabled due to -Xint.");
-    }
-    FLAG_SET_CMDLINE(bool, UseCompiler, false);
-  }
-#ifdef COMPILER2
-  if (PostLoopMultiversioning && !RangeCheckElimination) {
-    if (!FLAG_IS_DEFAULT(PostLoopMultiversioning)) {
-      warning("PostLoopMultiversioning disabled because RangeCheckElimination is disabled.");
-    }
-    FLAG_SET_CMDLINE(bool, PostLoopMultiversioning, false);
-  }
-  if (UseCountedLoopSafepoints && LoopStripMiningIter == 0) {
-    if (!FLAG_IS_DEFAULT(UseCountedLoopSafepoints) || !FLAG_IS_DEFAULT(LoopStripMiningIter)) {
-      warning("When counted loop safepoints are enabled, LoopStripMiningIter must be at least 1 (a safepoint every 1 iteration): setting it to 1");
-    }
-    LoopStripMiningIter = 1;
-  } else if (!UseCountedLoopSafepoints && LoopStripMiningIter > 0) {
-    if (!FLAG_IS_DEFAULT(UseCountedLoopSafepoints) || !FLAG_IS_DEFAULT(LoopStripMiningIter)) {
-      warning("Disabling counted safepoints implies no loop strip mining: setting LoopStripMiningIter to 0");
-    }
-    LoopStripMiningIter = 0;
-  }
-#endif
   if (!FLAG_IS_DEFAULT(AllocateHeapAt)) {
     if ((UseNUMAInterleaving && !FLAG_IS_DEFAULT(UseNUMAInterleaving)) || (UseNUMA && !FLAG_IS_DEFAULT(UseNUMA))) {
       log_warning(arguments) ("NUMA support for Heap depends on the file system when AllocateHeapAt option is used.\n");
@@ -2380,12 +2161,6 @@ bool Arguments::parse_uintx(const char* value,
   }
   return false;
 }
-
-unsigned int addreads_count = 0;
-unsigned int addexports_count = 0;
-unsigned int addopens_count = 0;
-unsigned int addmods_count = 0;
-unsigned int patch_mod_count = 0;
 
 bool Arguments::create_property(const char* prop_name, const char* prop_value, PropertyInternal internal) {
   size_t prop_len = strlen(prop_name) + strlen(prop_value) + 2;
@@ -3381,13 +3156,6 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     FLAG_SET_DEFAULT(UseLargePages, false);
   }
 
-#elif defined(COMPILER2)
-  if (!FLAG_IS_DEFAULT(OptoLoopAlignment) && FLAG_IS_DEFAULT(MaxLoopPad)) {
-    FLAG_SET_DEFAULT(MaxLoopPad, OptoLoopAlignment-1);
-  }
-#endif
-
-#if !COMPILER2_OR_JVMCI
   UNSUPPORTED_OPTION(ProfileInterpreter);
   NOT_PRODUCT(UNSUPPORTED_OPTION(TraceProfileInterpreter));
 #endif
@@ -3400,19 +3168,6 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
   if (!check_vm_args_consistency()) {
     return JNI_ERR;
   }
-
-#if INCLUDE_JVMCI
-  if (EnableJVMCI &&
-      !create_numbered_property("jdk.module.addmods", "jdk.internal.vm.ci", addmods_count++)) {
-    return JNI_ENOMEM;
-  }
-#endif
-
-#if INCLUDE_JVMCI
-  if (UseJVMCICompiler) {
-    Compilation_mode = CompMode_server;
-  }
-#endif
 
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
@@ -4172,48 +3927,19 @@ jint Arguments::apply_ergo() {
   jint result = set_ergonomics_flags();
   if (result != JNI_OK) return result;
 
-#if INCLUDE_JVMCI
-  set_jvmci_specific_flags();
-#endif
-
-  set_shared_spaces_flags();
-
-  if (TieredCompilation) {
-    set_tiered_flags();
-  } else {
-    int max_compilation_policy_choice = 1;
-#ifdef COMPILER2
-    if (is_server_compilation_mode_vm()) {
-      max_compilation_policy_choice = 2;
-    }
-#endif
-    // Check if the policy is valid.
-    if (CompilationPolicyChoice >= max_compilation_policy_choice) {
-      vm_exit_during_initialization(
-        "Incompatible compilation policy selected", NULL);
-    }
-    // Scale CompileThreshold
-    // CompileThresholdScaling == 0.0 is equivalent to -Xint and leaves CompileThreshold unchanged.
-    if (!FLAG_IS_DEFAULT(CompileThresholdScaling) && CompileThresholdScaling > 0.0) {
-      FLAG_SET_ERGO(intx, CompileThreshold, scaled_compile_threshold(CompileThreshold));
-    }
-  }
-
-#ifdef COMPILER2
-#ifndef PRODUCT
-  if (PrintIdealGraphLevel > 0) {
-    FLAG_SET_ERGO(bool, PrintIdealGraph, true);
-  }
-#endif
-#endif
-
   // Set heap size based on available physical memory
   set_heap_size();
 
   GCConfig::arguments()->initialize();
 
+  set_shared_spaces_flags();
+
   // Initialize Metaspace flags and alignments
   Metaspace::ergo_initialize();
+
+  // Set compiler flags after GC is selected and GC specific
+  // flags (LoopStripMiningIter) are set.
+  CompilerConfig::ergo_initialize();
 
   // Set bytecode rewriting flags
   set_bytecode_flags();
@@ -4252,28 +3978,6 @@ jint Arguments::apply_ergo() {
   LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedClassPointers, false));
 #endif // CC_INTERP
 
-#ifdef COMPILER2
-  if (!EliminateLocks) {
-    EliminateNestedLocks = false;
-  }
-  if (!Inline) {
-    IncrementalInline = false;
-  }
-#ifndef PRODUCT
-  if (!IncrementalInline) {
-    AlwaysIncrementalInline = false;
-  }
-#endif
-  if (!UseTypeSpeculation && FLAG_IS_DEFAULT(TypeProfileLevel)) {
-    // nothing to use the profiling, turn if off
-    FLAG_SET_DEFAULT(TypeProfileLevel, 0);
-  }
-  if (FLAG_IS_DEFAULT(LoopStripMiningIterShortLoop)) {
-    // blind guess
-    LoopStripMiningIterShortLoop = LoopStripMiningIter / 10;
-  }
-#endif
-
   if (PrintAssembly && FLAG_IS_DEFAULT(DebugNonSafepoints)) {
     warning("PrintAssembly is enabled; turning on DebugNonSafepoints to gain additional output");
     DebugNonSafepoints = true;
@@ -4283,17 +3987,12 @@ jint Arguments::apply_ergo() {
     warning("Setting CompressedClassSpaceSize has no effect when compressed class pointers are not used");
   }
 
-  if (UseOnStackReplacement && !UseLoopCounter) {
-    warning("On-stack-replacement requires loop counters; enabling loop counters");
-    FLAG_SET_DEFAULT(UseLoopCounter, true);
   }
 
   if (!EnableValhalla || is_interpreter_only()) {
     // Disable calling convention optimizations if value types are not supported
     ValueTypePassFieldsAsArgs = false;
     ValueTypeReturnedAsFields = false;
-  }
-
 #ifndef PRODUCT
   if (!LogVMOutput && FLAG_IS_DEFAULT(LogVMOutput)) {
     if (use_vm_log()) {
@@ -4316,6 +4015,13 @@ jint Arguments::apply_ergo() {
 #ifdef COMPILER2
   if (!UseBiasedLocking || EmitSync != 0) {
     UseOptoBiasInlining = false;
+  }
+#endif
+
+#if defined(IA32)
+  // Only server compiler can optimize safepoints well enough.
+  if (!is_server_compilation_mode_vm()) {
+    FLAG_SET_ERGO_IF_DEFAULT(bool, ThreadLocalHandshakes, false);
   }
 #endif
 

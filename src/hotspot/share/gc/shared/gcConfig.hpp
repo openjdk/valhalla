@@ -35,6 +35,7 @@ private:
   static GCArguments* _arguments;
   static bool         _gc_selected_ergonomically;
 
+  static void fail_if_unsupported_gc_is_selected();
   static bool is_no_gc_selected();
   static bool is_exactly_one_gc_selected();
 
@@ -49,6 +50,7 @@ public:
   static bool is_gc_selected_ergonomically();
 
   static const char* hs_err_name();
+  static const char* hs_err_name(CollectedHeap::Name name);
 
   static GCArguments* arguments();
 };

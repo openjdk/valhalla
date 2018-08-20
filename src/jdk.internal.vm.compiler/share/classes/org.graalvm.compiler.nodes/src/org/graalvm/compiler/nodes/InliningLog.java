@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import jdk.vm.ci.meta.MetaUtil;
@@ -225,9 +227,11 @@ public class InliningLog {
         while (replacementEntries.advance()) {
             Invokable replacementInvoke = replacementEntries.getKey();
             Callsite replacementSite = replacementEntries.getValue();
-            Invokable invoke = (Invokable) replacements.get((Node) replacementInvoke);
-            Callsite site = mapping.get(replacementSite);
-            leaves.put(invoke, site);
+            if (replacementInvoke.isAlive()) {
+                Invokable invoke = (Invokable) replacements.get((Node) replacementInvoke);
+                Callsite site = mapping.get(replacementSite);
+                leaves.put(invoke, site);
+            }
         }
     }
 
@@ -382,7 +386,7 @@ public class InliningLog {
         }
     }
 
-    public final class PlaceholderInvokable implements Invokable {
+    public static final class PlaceholderInvokable implements Invokable {
         private int bci;
         private ResolvedJavaMethod method;
 

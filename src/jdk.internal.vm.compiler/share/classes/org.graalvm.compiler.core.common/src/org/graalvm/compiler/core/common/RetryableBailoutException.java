@@ -20,11 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common;
 
-import jdk.vm.ci.code.BailoutException;
-
-public class RetryableBailoutException extends BailoutException {
+public class RetryableBailoutException extends GraalBailoutException {
 
     private static final long serialVersionUID = -7145365025679144525L;
 

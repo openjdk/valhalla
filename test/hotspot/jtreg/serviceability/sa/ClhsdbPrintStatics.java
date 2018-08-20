@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,11 @@ import java.util.Map;
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.Platform;
 
-/*
+/**
  * @test
  * @bug 8190198
  * @summary Test clhsdb printstatics command
+ * @requires vm.hasSA
  * @library /test/lib
  * @run main/othervm ClhsdbPrintStatics
  */
@@ -56,7 +57,7 @@ public class ClhsdbPrintStatics {
             expStrMap.put("printstatics", List.of(
                     "All known static fields",
                     "Abstract_VM_Version::_vm_major_version",
-                    "ClassLoaderDataGraph::_head", "SymbolTable::_the_table",
+                    "ClassLoaderDataGraph::_head",
                     "JNIHandles::_weak_global_handles", "PerfMemory::_top",
                     "ObjectSynchronizer::gBlockList",
                     "java_lang_Class::_oop_size_offset",

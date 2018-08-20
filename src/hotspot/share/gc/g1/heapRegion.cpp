@@ -37,13 +37,13 @@
 #include "gc/shared/space.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
-#include "memory/iterator.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/growableArray.hpp"
 
 int    HeapRegion::LogOfHRGrainBytes = 0;
@@ -230,16 +230,19 @@ HeapRegion::HeapRegion(uint hrm_index,
                        G1BlockOffsetTable* bot,
                        MemRegion mr) :
     G1ContiguousSpace(bot),
+    _rem_set(NULL),
     _hrm_index(hrm_index),
+    _type(),
     _humongous_start_region(NULL),
     _evacuation_failed(false),
-    _prev_marked_bytes(0), _next_marked_bytes(0), _gc_efficiency(0.0),
     _next(NULL), _prev(NULL),
 #ifdef ASSERT
     _containing_set(NULL),
-#endif // ASSERT
-     _young_index_in_cset(-1), _surv_rate_group(NULL), _age_index(-1),
-    _rem_set(NULL), _recorded_rs_length(0), _predicted_elapsed_time_ms(0)
+#endif
+    _prev_marked_bytes(0), _next_marked_bytes(0), _gc_efficiency(0.0),
+    _young_index_in_cset(-1), _surv_rate_group(NULL), _age_index(-1),
+    _prev_top_at_mark_start(NULL), _next_top_at_mark_start(NULL),
+    _recorded_rs_length(0), _predicted_elapsed_time_ms(0)
 {
   _rem_set = new HeapRegionRemSet(bot, this);
 
@@ -450,7 +453,7 @@ void HeapRegion::print_on(outputStream* st) const {
                p2i(prev_top_at_mark_start()), p2i(next_top_at_mark_start()), rem_set()->get_state_str());
 }
 
-class G1VerificationClosure : public ExtendedOopClosure {
+class G1VerificationClosure : public BasicOopIterateClosure {
 protected:
   G1CollectedHeap* _g1h;
   G1CardTable *_ct;
@@ -608,7 +611,7 @@ public:
 };
 
 // Closure that applies the given two closures in sequence.
-class G1Mux2Closure : public ExtendedOopClosure {
+class G1Mux2Closure : public BasicOopIterateClosure {
   OopClosure* _c1;
   OopClosure* _c2;
 public:

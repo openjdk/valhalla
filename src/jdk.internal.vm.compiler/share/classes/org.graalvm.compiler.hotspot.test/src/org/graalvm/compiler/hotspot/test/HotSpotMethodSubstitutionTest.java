@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.test;
 
 import java.lang.invoke.ConstantCallSite;
@@ -229,7 +231,7 @@ public class HotSpotMethodSubstitutionTest extends MethodSubstitutionTest {
      */
     @Test
     public void testCast() {
-        test("testCastSnippet", 1, new Integer(1));
+        test("testCastSnippet", 1, Integer.valueOf(1));
     }
 
     /**

@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "asm/macroAssembler.hpp"
+#include "compiler/disassembler.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
@@ -35,7 +36,7 @@
 #include "runtime/frame.inline.hpp"
 #include "utilities/preserveException.hpp"
 
-#define __ _masm->
+#define __ Disassembler::hook<MacroAssembler>(__FILE__, __LINE__, _masm)->
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -175,7 +176,9 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
   __ verify_oop(method_temp);
   __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes())), temp2);
   __ verify_oop(method_temp);
-  __ movptr(method_temp, Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())));
+  __ access_load_at(T_ADDRESS, IN_HEAP, method_temp,
+                    Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())),
+                    noreg, noreg);
 
   if (VerifyMethodHandles && !for_compiler_entry) {
     // make sure recv is already on stack
@@ -390,7 +393,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
         verify_ref_kind(_masm, JVM_REF_invokeSpecial, member_reg, temp3);
       }
       __ load_heap_oop(rbx_method, member_vmtarget);
-      __ movptr(rbx_method, vmtarget_method);
+      __ access_load_at(T_ADDRESS, IN_HEAP, rbx_method, vmtarget_method, noreg, noreg);
       break;
 
     case vmIntrinsics::_linkToStatic:
@@ -398,7 +401,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
         verify_ref_kind(_masm, JVM_REF_invokeStatic, member_reg, temp3);
       }
       __ load_heap_oop(rbx_method, member_vmtarget);
-      __ movptr(rbx_method, vmtarget_method);
+      __ access_load_at(T_ADDRESS, IN_HEAP, rbx_method, vmtarget_method, noreg, noreg);
       break;
 
     case vmIntrinsics::_linkToVirtual:
@@ -412,7 +415,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
 
       // pick out the vtable index from the MemberName, and then we can discard it:
       Register temp2_index = temp2;
-      __ movptr(temp2_index, member_vmindex);
+      __ access_load_at(T_ADDRESS, IN_HEAP, temp2_index, member_vmindex, noreg, noreg);
 
       if (VerifyMethodHandles) {
         Label L_index_ok;
@@ -438,15 +441,13 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
         verify_ref_kind(_masm, JVM_REF_invokeInterface, member_reg, temp3);
       }
 
-      BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-
       Register temp3_intf = temp3;
       __ load_heap_oop(temp3_intf, member_clazz);
       load_klass_from_Class(_masm, temp3_intf);
       __ verify_klass_ptr(temp3_intf);
 
       Register rbx_index = rbx_method;
-      __ movptr(rbx_index, member_vmindex);
+      __ access_load_at(T_ADDRESS, IN_HEAP, rbx_index, member_vmindex, noreg, noreg);
       if (VerifyMethodHandles) {
         Label L;
         __ cmpl(rbx_index, 0);

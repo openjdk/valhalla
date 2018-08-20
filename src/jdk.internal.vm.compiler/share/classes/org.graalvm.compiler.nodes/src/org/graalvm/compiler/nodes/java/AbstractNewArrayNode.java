@@ -20,8 +20,11 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.java;
 
+import jdk.vm.ci.meta.ConstantReflectionProvider;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
@@ -38,8 +41,12 @@ public abstract class AbstractNewArrayNode extends AbstractNewObjectNode impleme
     public static final NodeClass<AbstractNewArrayNode> TYPE = NodeClass.create(AbstractNewArrayNode.class);
     @Input protected ValueNode length;
 
-    @Override
     public ValueNode length() {
+        return length;
+    }
+
+    @Override
+    public ValueNode findLength(FindLengthMode mode, ConstantReflectionProvider constantReflection) {
         return length;
     }
 

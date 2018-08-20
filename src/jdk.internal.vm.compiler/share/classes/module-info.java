@@ -32,13 +32,14 @@ module jdk.internal.vm.compiler {
 
     uses org.graalvm.compiler.code.DisassemblerProvider;
     uses org.graalvm.compiler.core.match.MatchStatementSet;
+    uses org.graalvm.compiler.debug.DebugHandlersFactory;
     uses org.graalvm.compiler.debug.TTYStreamProvider;
     uses org.graalvm.compiler.hotspot.CompilerConfigurationFactory;
     uses org.graalvm.compiler.hotspot.HotSpotBackendFactory;
     uses org.graalvm.compiler.hotspot.HotSpotCodeCacheListener;
     uses org.graalvm.compiler.hotspot.HotSpotGraalManagementRegistration;
     uses org.graalvm.compiler.nodes.graphbuilderconf.NodeIntrinsicPluginFactory;
-    uses org.graalvm.compiler.serviceprovider.GraalServices.JMXService;
+    uses org.graalvm.compiler.serviceprovider.JMXService;
 
     exports jdk.internal.vm.compiler.collections        to jdk.internal.vm.compiler.management;
     exports org.graalvm.compiler.api.directives         to jdk.aot;

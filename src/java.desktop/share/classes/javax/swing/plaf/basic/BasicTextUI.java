@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@ import javax.swing.plaf.UIResource;
 import javax.swing.plaf.synth.SynthUI;
 import sun.swing.DefaultLookup;
 import sun.awt.AppContext;
+import sun.swing.SwingUtilities2;
+
 import javax.swing.plaf.basic.DragRecognitionSupport.BeforeDrag;
 
 /**
@@ -511,6 +513,10 @@ public abstract class BasicTextUI extends TextUI implements ViewFactory {
                 km.clear();
                 if (accelerator != '\0') {
                     km.put(KeyStroke.getKeyStroke(accelerator, BasicLookAndFeel.getFocusAcceleratorKeyMask()), "requestFocus");
+                    km.put(KeyStroke.getKeyStroke(accelerator,
+                            SwingUtilities2.setAltGraphMask(
+                            BasicLookAndFeel.getFocusAcceleratorKeyMask())),
+                            "requestFocus");
                 }
             }
         }
@@ -882,7 +888,7 @@ public abstract class BasicTextUI extends TextUI implements ViewFactory {
      * To prevent this from happening twice, this method is
      * reimplemented to simply paint.
      * <p>
-     * <em>NOTE:</em> NOTE: Superclass is also not thread-safe in its
+     * <em>NOTE:</em> Superclass is also not thread-safe in its
      * rendering of the background, although that is not an issue with the
      * default rendering.
      */
@@ -1283,8 +1289,8 @@ public abstract class BasicTextUI extends TextUI implements ViewFactory {
      * text component (i.e. the root of the hierarchy) that
      * can be traversed to determine how the model is being
      * represented spatially.
-     * <p style="color:red;">
-     * <b>NOTE:</b>The View hierarchy can
+     * <p>
+     * <strong>Warning:</strong> The View hierarchy can
      * be traversed from the root view, and other things
      * can be done as well.  Things done in this way cannot
      * be protected like simple method calls through the TextUI.

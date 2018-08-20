@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.except;
 
 import org.graalvm.compiler.jtt.JTTTest;
@@ -149,8 +151,8 @@ public class UntrustedInterfaces extends JTTTest {
 
     // Checkstyle: stop
     @BeforeClass
-    public static void setUp() throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-        poisonPill = (Pill) new PoisonLoader().findClass(PoisonLoader.POISON_IMPL_NAME).newInstance();
+    public static void setUp() throws Exception {
+        poisonPill = (Pill) new PoisonLoader().findClass(PoisonLoader.POISON_IMPL_NAME).getDeclaredConstructor().newInstance();
     }
 
     // Checkstyle: resume

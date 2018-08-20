@@ -57,7 +57,7 @@ static bool should_commit_large_pages_when_reserving(size_t bytes) {
 
 // byte_size is the size of the associated virtualspace.
 VirtualSpaceNode::VirtualSpaceNode(bool is_class, size_t bytes) :
-    _is_class(is_class), _top(NULL), _next(NULL), _rs(), _container_count(0), _occupancy_map(NULL) {
+    _next(NULL), _is_class(is_class), _rs(), _top(NULL), _container_count(0), _occupancy_map(NULL) {
   assert_is_aligned(bytes, Metaspace::reserve_alignment());
   bool large_pages = should_commit_large_pages_when_reserving(bytes);
   _rs = ReservedSpace(bytes, Metaspace::reserve_alignment(), large_pages);
@@ -428,7 +428,7 @@ Metachunk* VirtualSpaceNode::take_from_committed(size_t chunk_word_size) {
       "The committed memory doesn't match the expanded memory.");
 
   if (!is_available(chunk_word_size)) {
-    LogTarget(Debug, gc, metaspace, freelist) lt;
+    LogTarget(Trace, gc, metaspace, freelist) lt;
     if (lt.is_enabled()) {
       LogStream ls(lt);
       ls.print("VirtualSpaceNode::take_from_committed() not available " SIZE_FORMAT " words ", chunk_word_size);

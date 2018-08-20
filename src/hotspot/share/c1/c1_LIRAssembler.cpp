@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/assembler.inline.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
@@ -98,9 +99,9 @@ PatchingStub::PatchID LIR_Assembler::patching_id(CodeEmitInfo* info) {
 
 
 LIR_Assembler::LIR_Assembler(Compilation* c):
-   _compilation(c)
- , _masm(c->masm())
+   _masm(c->masm())
  , _bs(BarrierSet::barrier_set())
+ , _compilation(c)
  , _frame_map(c->frame_map())
  , _current_block(NULL)
  , _pending_non_safepoint(NULL)

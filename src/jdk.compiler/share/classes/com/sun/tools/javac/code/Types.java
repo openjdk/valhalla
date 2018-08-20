@@ -89,7 +89,6 @@ public class Types {
     final Symtab syms;
     final JavacMessages messages;
     final Names names;
-    final boolean allowObjectToPrimitiveCast;
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
@@ -114,7 +113,6 @@ public class Types {
         syms = Symtab.instance(context);
         names = Names.instance(context);
         Source source = Source.instance(context);
-        allowObjectToPrimitiveCast = Feature.OBJECT_TO_PRIMITIVE_CAST.allowedInSource(source);
         allowDefaultMethods = Feature.DEFAULT_METHODS.allowedInSource(source);
         mapCapturesToBounds = Feature.MAP_CAPTURES_TO_BOUNDS.allowedInSource(source);
         chk = Check.instance(context);
@@ -678,10 +676,21 @@ public class Types {
 
             public Type getType(Type site) {
                 site = removeWildcards(site);
-                if (!chk.checkValidGenericType(site)) {
-                    //if the inferred functional interface type is not well-formed,
-                    //or if it's not a subtype of the original target, issue an error
-                    throw failure(diags.fragment(Fragments.NoSuitableFunctionalIntfInst(site)));
+                if (site.isIntersection()) {
+                    IntersectionClassType ict = (IntersectionClassType)site;
+                    for (Type component : ict.getExplicitComponents()) {
+                        if (!chk.checkValidGenericType(component)) {
+                            //if the inferred functional interface type is not well-formed,
+                            //or if it's not a subtype of the original target, issue an error
+                            throw failure(diags.fragment(Fragments.NoSuitableFunctionalIntfInst(site)));
+                        }
+                    }
+                } else {
+                    if (!chk.checkValidGenericType(site)) {
+                        //if the inferred functional interface type is not well-formed,
+                        //or if it's not a subtype of the original target, issue an error
+                        throw failure(diags.fragment(Fragments.NoSuitableFunctionalIntfInst(site)));
+                    }
                 }
                 return memberType(site, descSym);
             }
@@ -1638,8 +1647,7 @@ public class Types {
         if (t.isPrimitive() != s.isPrimitive()) {
             t = skipTypeVars(t, false);
             return (isConvertible(t, s, warn)
-                    || (allowObjectToPrimitiveCast &&
-                        s.isPrimitive() &&
+                    || (s.isPrimitive() &&
                         isSubtype(boxedClass(s).type, t)));
         }
         if (warn != warnStack.head) {
@@ -1658,7 +1666,7 @@ public class Types {
         private TypeRelation isCastable = new TypeRelation() {
 
             public Boolean visitType(Type t, Type s) {
-                if (s.hasTag(ERROR))
+                if (s.hasTag(ERROR) || t.hasTag(NONE))
                     return true;
 
                 switch (t.getTag()) {

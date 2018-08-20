@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -46,7 +48,7 @@ public class HashMapGetTest extends GraalCompilerTest {
             map.put(i, i);
             mapGet(map, i);
         }
-        test(get, null, map, new Integer(0));
+        test(get, null, map, 0);
         for (IfNode ifNode : lastCompiledGraph.getNodes(IfNode.TYPE)) {
             LogicNode condition = ifNode.condition();
             if (ifNode.getTrueSuccessorProbability() < 0.4 && condition instanceof ObjectEqualsNode) {

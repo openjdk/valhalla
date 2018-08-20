@@ -40,10 +40,12 @@
 #include "jfr/support/jfrTraceIdExtension.hpp"
 #endif
 
-#define UNNAMED_MODULE "Unnamed Module"
+#define UNNAMED_MODULE "unnamed module"
+#define UNNAMED_MODULE_LEN 14
 #define JAVAPKG "java"
 #define JAVAPKG_LEN 4
 #define JAVA_BASE_NAME "java.base"
+#define JAVA_BASE_NAME_LEN 9
 
 class ModuleClosure;
 
@@ -117,7 +119,7 @@ public:
 
   Symbol*          location() const                    { return _location; }
   void             set_location(Symbol* location);
-  bool             is_non_jdk_module();
+  bool             should_show_version();
 
   bool             can_read(ModuleEntry* m) const;
   bool             has_reads_list() const;

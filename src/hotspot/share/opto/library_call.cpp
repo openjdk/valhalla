@@ -29,8 +29,9 @@
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
-#include "memory/resourceArea.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
+#include "memory/resourceArea.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -314,6 +315,7 @@ class LibraryCallKit : public GraphKit {
   Node* get_key_start_from_aescrypt_object(Node* aescrypt_object);
   Node* get_original_key_start_from_aescrypt_object(Node* aescrypt_object);
   bool inline_ghash_processBlocks();
+  bool inline_base64_encodeBlock();
   bool inline_sha_implCompress(vmIntrinsics::ID id);
   bool inline_digestBase_implCompressMB(int predicate);
   bool inline_sha_implCompressMB(Node* digestBaseObj, ciInstanceKlass* instklass_SHA,
@@ -849,6 +851,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_ghash_processBlocks:
     return inline_ghash_processBlocks();
+  case vmIntrinsics::_base64_encodeBlock:
+    return inline_base64_encodeBlock();
 
   case vmIntrinsics::_encodeISOArray:
   case vmIntrinsics::_encodeByteISOArray:
@@ -1828,7 +1832,7 @@ bool LibraryCallKit::inline_math_native(vmIntrinsics::ID id) {
       set_result(_gvn.transform(new MulDNode(base, base)));
       return true;
     }
-    return StubRoutines::dexp() != NULL ?
+    return StubRoutines::dpow() != NULL ?
       runtime_math(OptoRuntime::Math_DD_D_Type(), StubRoutines::dpow(),  "dpow") :
       runtime_math(OptoRuntime::Math_DD_D_Type(), FN_PTR(SharedRuntime::dpow),  "POW");
   }
@@ -6240,6 +6244,35 @@ bool LibraryCallKit::inline_ghash_processBlocks() {
                                   OptoRuntime::ghash_processBlocks_Type(),
                                   stubAddr, stubName, TypePtr::BOTTOM,
                                   state_start, subkeyH_start, data_start, len);
+  return true;
+}
+
+bool LibraryCallKit::inline_base64_encodeBlock() {
+  address stubAddr;
+  const char *stubName;
+  assert(UseBASE64Intrinsics, "need Base64 intrinsics support");
+  assert(callee()->signature()->size() == 6, "base64_encodeBlock has 6 parameters");
+  stubAddr = StubRoutines::base64_encodeBlock();
+  stubName = "encodeBlock";
+
+  if (!stubAddr) return false;
+  Node* base64obj = argument(0);
+  Node* src = argument(1);
+  Node* offset = argument(2);
+  Node* len = argument(3);
+  Node* dest = argument(4);
+  Node* dp = argument(5);
+  Node* isURL = argument(6);
+
+  Node* src_start = array_element_address(src, intcon(0), T_BYTE);
+  assert(src_start, "source array is NULL");
+  Node* dest_start = array_element_address(dest, intcon(0), T_BYTE);
+  assert(dest_start, "destination array is NULL");
+
+  Node* base64 = make_runtime_call(RC_LEAF,
+                                   OptoRuntime::base64_encodeBlock_Type(),
+                                   stubAddr, stubName, TypePtr::BOTTOM,
+                                   src_start, offset, len, dest_start, dp, isURL);
   return true;
 }
 

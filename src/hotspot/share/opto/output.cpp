@@ -1432,7 +1432,7 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
       // See if this instruction has a delay slot
       if (valid_bundle_info(n) && node_bundling(n)->use_unconditional_delay()) {
-        assert(delay_slot != NULL, "expecting delay slot node");
+        guarantee(delay_slot != NULL, "expecting delay slot node");
 
         // Back up 1 instruction
         cb->set_insts_end(cb->insts_end() - Pipeline::instr_unit_size());
@@ -1680,14 +1680,14 @@ Scheduling::Scheduling(Arena *arena, Compile &compile)
   : _arena(arena),
     _cfg(compile.cfg()),
     _regalloc(compile.regalloc()),
-    _reg_node(arena),
-    _bundle_instr_count(0),
-    _bundle_cycle_number(0),
     _scheduled(arena),
     _available(arena),
+    _reg_node(arena),
+    _pinch_free_list(arena),
     _next_node(NULL),
-    _bundle_use(0, 0, resource_count, &_bundle_use_elements[0]),
-    _pinch_free_list(arena)
+    _bundle_instr_count(0),
+    _bundle_cycle_number(0),
+    _bundle_use(0, 0, resource_count, &_bundle_use_elements[0])
 #ifndef PRODUCT
   , _branches(0)
   , _unconditional_delays(0)

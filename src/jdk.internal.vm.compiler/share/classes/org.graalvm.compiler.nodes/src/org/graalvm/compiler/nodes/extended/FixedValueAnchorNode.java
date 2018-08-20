@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.extended;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_0;
@@ -64,7 +66,7 @@ public class FixedValueAnchorNode extends FixedWithNextNode implements LIRLowera
     @Override
     public boolean inferStamp() {
         if (predefinedStamp == null) {
-            return updateStamp(object.stamp(NodeView.DEFAULT));
+            return updateStamp(stamp.join(object.stamp(NodeView.DEFAULT)));
         } else {
             return false;
         }

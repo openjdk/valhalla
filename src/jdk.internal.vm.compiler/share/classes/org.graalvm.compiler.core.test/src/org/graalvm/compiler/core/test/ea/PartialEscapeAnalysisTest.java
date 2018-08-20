@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test.ea;
 
 import java.lang.ref.SoftReference;
@@ -116,6 +118,7 @@ public class PartialEscapeAnalysisTest extends EATestBase {
         testPartialEscapeAnalysis("test3Snippet", 0.5, 1, StoreFieldNode.class, LoadFieldNode.class);
     }
 
+    @SuppressWarnings("deprecation")
     public static Object test3Snippet(int a) {
         if (a < 0) {
             TestObject obj = new TestObject(1, 2);

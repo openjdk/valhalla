@@ -34,9 +34,9 @@
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
   : CallNode(arraycopy_type(), NULL, TypeRawPtr::BOTTOM),
+    _kind(None),
     _alloc_tightly_coupled(alloc_tightly_coupled),
     _has_negative_length_guard(has_negative_length_guard),
-    _kind(None),
     _arguments_validated(false),
     _src_type(TypeOopPtr::BOTTOM),
     _dest_type(TypeOopPtr::BOTTOM) {
@@ -436,6 +436,9 @@ void ArrayCopyNode::array_copy_forward(GraphKit& kit,
                                        int count) {
   if (!kit.stopped()) {
     // copy forward
+    uint alias_idx_src = phase->C->get_alias_index(atp_src);
+    uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
+    bool same_alias = (alias_idx_src == alias_idx_dest);
     if (count > 0) {
       for (int i = 0; i < count; i++) {
         copy(kit, atp_src, atp_dest, i, base_src, base_dest, adr_src, adr_dest, copy_type, value_type);
@@ -463,6 +466,9 @@ void ArrayCopyNode::array_copy_backward(GraphKit& kit,
   if (!kit.stopped()) {
     // copy backward
     PhaseGVN& gvn = kit.gvn();
+    uint alias_idx_src = phase->C->get_alias_index(atp_src);
+    uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
+    bool same_alias = (alias_idx_src == alias_idx_dest);
 
     if (count > 0) {
       for (int i = count-1; i >= 0; i--) {
@@ -734,7 +740,8 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr *t_oop, MemBarNode* mb, PhaseTra
   c = bs->step_over_gc_barrier(c);
 
   CallNode* call = NULL;
-  if (c != NULL && c->is_Region()) {
+  guarantee(c != NULL, "step_over_gc_barrier failed, there must be something to step to.");
+  if (c->is_Region()) {
     for (uint i = 1; i < c->req(); i++) {
       if (c->in(i) != NULL) {
         Node* n = c->in(i)->in(0);

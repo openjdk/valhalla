@@ -22,6 +22,8 @@
  */
 /*
  */
+
+
 package org.graalvm.compiler.jtt.reflect;
 
 import org.junit.Test;
@@ -33,6 +35,7 @@ public class Class_newInstance03 extends JTTTest {
     public abstract static class AbstractClass {
     }
 
+    @SuppressWarnings("deprecation")
     public static boolean test(int i) throws IllegalAccessException, InstantiationException {
         if (i == 0) {
             return AbstractClass.class.newInstance() != null;

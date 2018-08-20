@@ -25,6 +25,9 @@
 
 package jdk.internal.net.http;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Base64;
@@ -87,7 +90,8 @@ class Http2ClientImpl {
      * 3. completes normally with null: no connection in cache for h2c or h2 failed previously
      * 4. completes normally with connection: h2 or h2c connection in cache. Use it.
      */
-    CompletableFuture<Http2Connection> getConnectionFor(HttpRequestImpl req) {
+    CompletableFuture<Http2Connection> getConnectionFor(HttpRequestImpl req,
+                                                        Exchange<?> exchange) {
         URI uri = req.uri();
         InetSocketAddress proxy = req.proxy();
         String key = Http2Connection.keyFor(uri, proxy);
@@ -95,15 +99,20 @@ class Http2ClientImpl {
         synchronized (this) {
             Http2Connection connection = connections.get(key);
             if (connection != null) {
-                if (connection.closed || !connection.reserveStream(true)) {
-                    if (debug.on())
-                        debug.log("removing found closed or closing connection: %s", connection);
-                    deleteConnection(connection);
-                } else {
-                    // fast path if connection already exists
-                    if (debug.on())
-                        debug.log("found connection in the pool: %s", connection);
-                    return MinimalFuture.completedFuture(connection);
+                try {
+                    if (connection.closed || !connection.reserveStream(true)) {
+                        if (debug.on())
+                            debug.log("removing found closed or closing connection: %s", connection);
+                        deleteConnection(connection);
+                    } else {
+                        // fast path if connection already exists
+                        if (debug.on())
+                            debug.log("found connection in the pool: %s", connection);
+                        return MinimalFuture.completedFuture(connection);
+                    }
+                } catch (IOException e) {
+                    // thrown by connection.reserveStream()
+                    return MinimalFuture.failedFuture(e);
                 }
             }
 
@@ -115,10 +124,15 @@ class Http2ClientImpl {
             }
         }
         return Http2Connection
-                .createAsync(req, this)
+                .createAsync(req, this, exchange)
                 .whenComplete((conn, t) -> {
                     synchronized (Http2ClientImpl.this) {
                         if (conn != null) {
+                            try {
+                                conn.reserveStream(true);
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e); // shouldn't happen
+                            }
                             offerConnection(conn);
                         } else {
                             Throwable cause = Utils.getCompletionCause(t);

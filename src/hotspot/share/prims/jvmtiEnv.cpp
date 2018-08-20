@@ -64,6 +64,7 @@
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/threadHeapSampler.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vframe.inline.hpp"
@@ -537,10 +538,17 @@ JvmtiEnv::SetEventNotificationMode(jvmtiEventMode mode, jvmtiEvent event_type, j
     if (event_type == JVMTI_EVENT_CLASS_FILE_LOAD_HOOK && enabled) {
       record_class_file_load_hook_enabled();
     }
+
+    if (event_type == JVMTI_EVENT_SAMPLED_OBJECT_ALLOC) {
+      if (enabled) {
+        ThreadHeapSampler::enable();
+      } else {
+        ThreadHeapSampler::disable();
+      }
+    }
     JvmtiEventController::set_user_enabled(this, (JavaThread*) NULL, event_type, enabled);
   } else {
     // We have a specified event_thread.
-
     JavaThread* java_thread = NULL;
     ThreadsListHandle tlh;
     jvmtiError err = JvmtiExport::cv_external_thread_to_JavaThread(tlh.list(), event_thread, &java_thread, NULL);
@@ -649,7 +657,11 @@ JvmtiEnv::AddToBootstrapClassLoaderSearch(const char* segment) {
 
     // add the jar file to the bootclasspath
     log_info(class, load)("opened: %s", zip_entry->name());
+#if INCLUDE_CDS
     ClassLoaderExt::append_boot_classpath(zip_entry);
+#else
+    ClassLoader::add_to_boot_append_entries(zip_entry);
+#endif
     return JVMTI_ERROR_NONE;
   } else {
     return JVMTI_ERROR_WRONG_PHASE;
@@ -2618,11 +2630,11 @@ JvmtiEnv::GetImplementedInterfaces(oop k_mirror, jint* interface_count_ptr, jcla
       return JVMTI_ERROR_NONE;
     }
 
-    Array<Klass*>* interface_list = InstanceKlass::cast(k)->local_interfaces();
+    Array<InstanceKlass*>* interface_list = InstanceKlass::cast(k)->local_interfaces();
     const int result_length = (interface_list == NULL ? 0 : interface_list->length());
     jclass* result_list = (jclass*) jvmtiMalloc(result_length * sizeof(jclass));
     for (int i_index = 0; i_index < result_length; i_index += 1) {
-      Klass* klass_at = interface_list->at(i_index);
+      InstanceKlass* klass_at = interface_list->at(i_index);
       assert(klass_at->is_klass(), "interfaces must be Klass*s");
       assert(klass_at->is_interface(), "interfaces must be interfaces");
       oop mirror_at = klass_at->java_mirror();
@@ -3313,7 +3325,7 @@ JvmtiEnv::RawMonitorEnter(JvmtiRawMonitor * rmonitor) {
 #endif /* PROPER_TRANSITIONS */
       assert(r == ObjectMonitor::OM_OK, "raw_enter should have worked");
     } else {
-      if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+      if (thread->is_Named_thread()) {
         r = rmonitor->raw_enter(thread);
       } else {
         ShouldNotReachHere();
@@ -3351,7 +3363,7 @@ JvmtiEnv::RawMonitorExit(JvmtiRawMonitor * rmonitor) {
 #endif /* PROPER_TRANSITIONS */
       r = rmonitor->raw_exit(current_thread);
     } else {
-      if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+      if (thread->is_Named_thread()) {
         r = rmonitor->raw_exit(thread);
       } else {
         ShouldNotReachHere();
@@ -3408,7 +3420,7 @@ JvmtiEnv::RawMonitorWait(JvmtiRawMonitor * rmonitor, jlong millis) {
 
 #endif /* PROPER_TRANSITIONS */
   } else {
-    if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+    if (thread->is_Named_thread()) {
       r = rmonitor->raw_wait(millis, true, thread);
     } else {
       ShouldNotReachHere();
@@ -3442,7 +3454,7 @@ JvmtiEnv::RawMonitorNotify(JvmtiRawMonitor * rmonitor) {
     ThreadInVMfromUnknown __tiv;
     r = rmonitor->raw_notify(current_thread);
   } else {
-    if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+    if (thread->is_Named_thread()) {
       r = rmonitor->raw_notify(thread);
     } else {
       ShouldNotReachHere();
@@ -3472,7 +3484,7 @@ JvmtiEnv::RawMonitorNotifyAll(JvmtiRawMonitor * rmonitor) {
     ThreadInVMfromUnknown __tiv;
     r = rmonitor->raw_notifyAll(current_thread);
   } else {
-    if (thread->is_VM_thread() || thread->is_ConcurrentGC_thread()) {
+    if (thread->is_Named_thread()) {
       r = rmonitor->raw_notifyAll(thread);
     } else {
       ShouldNotReachHere();
@@ -3630,6 +3642,15 @@ JvmtiEnv::GetAvailableProcessors(jint* processor_count_ptr) {
   *processor_count_ptr = os::active_processor_count();
   return JVMTI_ERROR_NONE;
 } /* end GetAvailableProcessors */
+
+jvmtiError
+JvmtiEnv::SetHeapSamplingInterval(jint sampling_interval) {
+  if (sampling_interval < 0) {
+    return JVMTI_ERROR_ILLEGAL_ARGUMENT;
+  }
+  ThreadHeapSampler::set_sampling_interval(sampling_interval);
+  return JVMTI_ERROR_NONE;
+} /* end SetHeapSamplingInterval */
 
   //
   // System Properties functions

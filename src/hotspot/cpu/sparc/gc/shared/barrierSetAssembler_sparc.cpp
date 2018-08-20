@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "runtime/jniHandles.hpp"
@@ -31,14 +32,14 @@
 
 void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                    Register val, Address dst, Register tmp) {
-  bool on_heap = (decorators & IN_HEAP) != 0;
-  bool on_root = (decorators & IN_ROOT) != 0;
-  bool oop_not_null = (decorators & OOP_NOT_NULL) != 0;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
+  bool is_not_null = (decorators & IS_NOT_NULL) != 0;
 
   switch (type) {
   case T_ARRAY:
   case T_OBJECT: {
-    if (on_heap) {
+    if (in_heap) {
       if (dst.has_disp() && !Assembler::is_simm13(dst.disp())) {
         assert(!dst.has_index(), "not supported yet");
         __ set(dst.disp(), tmp);
@@ -46,7 +47,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
       }
       if (UseCompressedOops) {
         assert(dst.base() != val, "not enough registers");
-        if (oop_not_null) {
+        if (is_not_null) {
           __ encode_heap_oop_not_null(val);
         } else {
           __ encode_heap_oop(val);
@@ -56,7 +57,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
         __ st_ptr(val, dst);
       }
     } else {
-      assert(on_root, "why else?");
+      assert(in_native, "why else?");
       __ st_ptr(val, dst);
     }
     break;
@@ -67,14 +68,14 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
 
 void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Address src, Register dst, Register tmp) {
-  bool on_heap = (decorators & IN_HEAP) != 0;
-  bool on_root = (decorators & IN_ROOT) != 0;
-  bool oop_not_null = (decorators & OOP_NOT_NULL) != 0;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
+  bool is_not_null = (decorators & IS_NOT_NULL) != 0;
 
   switch (type) {
   case T_ARRAY:
   case T_OBJECT: {
-    if (on_heap) {
+    if (in_heap) {
       if (src.has_disp() && !Assembler::is_simm13(src.disp())) {
         assert(!src.has_index(), "not supported yet");
         __ set(src.disp(), tmp);
@@ -82,7 +83,7 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
       }
       if (UseCompressedOops) {
         __ lduw(src, dst);
-        if (oop_not_null) {
+        if (is_not_null) {
           __ decode_heap_oop_not_null(dst);
         } else {
           __ decode_heap_oop(dst);
@@ -91,7 +92,7 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
         __ ld_ptr(src, dst);
       }
     } else {
-      assert(on_root, "why else?");
+      assert(in_native, "why else?");
       __ ld_ptr(src, dst);
     }
     break;

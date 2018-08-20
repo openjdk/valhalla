@@ -49,7 +49,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -78,7 +78,6 @@
 # include <link.h>
 # include <poll.h>
 # include <pthread.h>
-# include <schedctl.h>
 # include <setjmp.h>
 # include <signal.h>
 # include <stdio.h>
@@ -580,7 +579,9 @@ void os::init_system_properties_values() {
       }
     }
     Arguments::set_java_home(buf);
-    set_boot_path('/', ':');
+    if (!set_boot_path('/', ':')) {
+      vm_exit_during_initialization("Failed setting boot class path.", NULL);
+    }
   }
 
   // Where to look for native libraries.
@@ -740,7 +741,6 @@ extern "C" void* thread_native_entry(void* thread_addr) {
   OSThread* osthr = thread->osthread();
 
   osthr->set_lwp_id(_lwp_self());  // Store lwp in case we are bound
-  thread->_schedctl = (void *) schedctl_init();
 
   log_info(os, thread)("Thread is alive (tid: " UINTX_FORMAT ").",
     os::current_thread_id());
@@ -810,7 +810,6 @@ static OSThread* create_os_thread(Thread* thread, thread_t thread_id) {
   // Store info on the Solaris thread into the OSThread
   osthread->set_thread_id(thread_id);
   osthread->set_lwp_id(_lwp_self());
-  thread->_schedctl = (void *) schedctl_init();
 
   if (UseNUMA) {
     int lgrp_id = os::numa_get_group_id();
@@ -1667,16 +1666,6 @@ void* os::get_default_process_handle() {
   return (void*)::dlopen(NULL, RTLD_LAZY);
 }
 
-int os::stat(const char *path, struct stat *sbuf) {
-  char pathbuf[MAX_PATH];
-  if (strlen(path) > MAX_PATH - 1) {
-    errno = ENAMETOOLONG;
-    return -1;
-  }
-  os::native_path(strcpy(pathbuf, path));
-  return ::stat(pathbuf, sbuf);
-}
-
 static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
@@ -2019,23 +2008,6 @@ void os::print_jni_name_prefix_on(outputStream* st, int args_size) {
 void os::print_jni_name_suffix_on(outputStream* st, int args_size) {
   // no suffix required
 }
-
-// This method is a copy of JDK's sysGetLastErrorString
-// from src/solaris/hpi/src/system_md.c
-
-size_t os::lasterror(char *buf, size_t len) {
-  if (errno == 0)  return 0;
-
-  const char *s = os::strerror(errno);
-  size_t n = ::strlen(s);
-  if (n >= len) {
-    n = len - 1;
-  }
-  ::strncpy(buf, s, n);
-  buf[n] = '\0';
-  return n;
-}
-
 
 // sun.misc.Signal
 
@@ -3432,13 +3404,6 @@ OSReturn os::get_native_priority(const Thread* const thread,
   return OS_OK;
 }
 
-
-// Hint to the underlying OS that a task switch would not be good.
-// Void return because it's a hint and can fail.
-void os::hint_no_preempt() {
-  schedctl_start(schedctl_init());
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // suspend/resume support
 
@@ -4333,9 +4298,7 @@ bool os::dir_is_empty(const char* path) {
 
   // Scan the directory
   bool result = true;
-  char buf[sizeof(struct dirent) + MAX_PATH];
-  struct dirent *dbuf = (struct dirent *) buf;
-  while (result && (ptr = readdir(dir, dbuf)) != NULL) {
+  while (result && (ptr = readdir(dir)) != NULL) {
     if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
       result = false;
     }
@@ -4472,10 +4435,6 @@ jlong os::seek_to_file_offset(int fd, jlong offset) {
 
 jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
-}
-
-char * os::native_path(char *path) {
-  return path;
 }
 
 int os::ftruncate(int fd, jlong length) {

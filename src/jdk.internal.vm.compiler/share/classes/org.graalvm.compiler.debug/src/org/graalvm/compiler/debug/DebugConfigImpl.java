@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import static org.graalvm.compiler.debug.DebugContext.BASIC_LEVEL;
@@ -239,8 +241,11 @@ final class DebugConfigImpl implements DebugConfig {
 
     @Override
     public RuntimeException interceptException(DebugContext debug, Throwable e) {
-        if (e instanceof BailoutException && !DebugOptions.InterceptBailout.getValue(options)) {
-            return null;
+        if (e instanceof BailoutException) {
+            final boolean causedByCompilerAssert = e instanceof CausableByCompilerAssert && ((CausableByCompilerAssert) e).isCausedByCompilerAssert();
+            if (!DebugOptions.InterceptBailout.getValue(options) && !causedByCompilerAssert) {
+                return null;
+            }
         }
 
         OptionValues interceptOptions = new OptionValues(options,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,25 @@
  */
 
 /* @test
- * @bug 4313887 6838333 6917021 7006126 6950237 8006645
+ * @bug 4313887 6838333 6917021 7006126 6950237 8006645 8201407
  * @summary Unit test for java.nio.file.Files copy and move methods (use -Dseed=X to set PRNG seed)
  * @library .. /test/lib
- * @build jdk.test.lib.RandomFactory
+ * @build jdk.test.lib.Platform jdk.test.lib.RandomFactory
  *        CopyAndMove PassThroughFileSystem
  * @run main/othervm CopyAndMove
  * @key randomness
  */
 
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.*;
 import static java.nio.file.Files.*;
 import static java.nio.file.StandardCopyOption.*;
 import static java.nio.file.LinkOption.*;
 import java.nio.file.attribute.*;
-import java.io.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import jdk.test.lib.Platform;
 import jdk.test.lib.RandomFactory;
 
 public class CopyAndMove {
@@ -52,7 +53,9 @@ public class CopyAndMove {
         try {
 
             // Same directory
-            testPosixAttributes = getFileStore(dir1).supportsFileAttributeView("posix");
+            FileStore fileStore1 = getFileStore(dir1);
+            printDirInfo("dir1", dir1, fileStore1);
+            testPosixAttributes = fileStore1.supportsFileAttributeView("posix");
             testCopyFileToFile(dir1, dir1, TestUtil.supportsLinks(dir1));
             testMove(dir1, dir1, TestUtil.supportsLinks(dir1));
 
@@ -63,8 +66,10 @@ public class CopyAndMove {
             try {
                 boolean testSymbolicLinks =
                     TestUtil.supportsLinks(dir1) && TestUtil.supportsLinks(dir2);
-                testPosixAttributes = getFileStore(dir1).supportsFileAttributeView("posix") &&
-                                      getFileStore(dir2).supportsFileAttributeView("posix");
+                FileStore fileStore2 = getFileStore(dir2);
+                printDirInfo("dir2", dir2, fileStore2);
+                testPosixAttributes = fileStore1.supportsFileAttributeView("posix") &&
+                                      fileStore2.supportsFileAttributeView("posix");
                 testCopyFileToFile(dir1, dir2, testSymbolicLinks);
                 testMove(dir1, dir2, testSymbolicLinks);
             } finally {
@@ -73,8 +78,10 @@ public class CopyAndMove {
 
             // Target is location associated with custom provider
             Path dir3 = PassThroughFileSystem.create().getPath(dir1.toString());
-            testPosixAttributes = getFileStore(dir1).supportsFileAttributeView("posix") &&
-                                  getFileStore(dir3).supportsFileAttributeView("posix");
+            FileStore fileStore3 = getFileStore(dir3);
+            printDirInfo("dir3", dir3, fileStore3);
+            testPosixAttributes = fileStore1.supportsFileAttributeView("posix") &&
+                                  fileStore3.supportsFileAttributeView("posix");
             testCopyFileToFile(dir1, dir3, false);
             testMove(dir1, dir3, false);
 
@@ -85,6 +92,11 @@ public class CopyAndMove {
         } finally {
             TestUtil.removeAll(dir1);
         }
+    }
+
+    static void printDirInfo(String name, Path dir, FileStore store)
+        throws IOException {
+        System.err.format("%s: %s (%s)%n", name, dir, store.type());
     }
 
     static void checkBasicAttributes(BasicFileAttributes attrs1,
@@ -116,17 +128,25 @@ public class CopyAndMove {
     static void checkPosixAttributes(PosixFileAttributes attrs1,
                                      PosixFileAttributes attrs2)
     {
-        assertTrue(attrs1.permissions().equals(attrs2.permissions()));
-        assertTrue(attrs1.owner().equals(attrs2.owner()));
-        assertTrue(attrs1.group().equals(attrs2.group()));
+        assertTrue(attrs1.permissions().equals(attrs2.permissions()),
+            "permissions%n1 (%d): %s%n2 (%d): %s%n%n",
+             attrs1.permissions().size(), attrs1.permissions(),
+             attrs2.permissions().size(), attrs2.permissions());
+        assertTrue(attrs1.owner().equals(attrs2.owner()),
+             "owner%n1: %s%n2: %s%n%n", attrs1.owner(), attrs2.owner());
+        assertTrue(attrs1.group().equals(attrs2.group()),
+             "group%n1: %s%n2: %s%n%n", attrs1.group(), attrs2.group());
     }
 
     static void checkDosAttributes(DosFileAttributes attrs1,
                                    DosFileAttributes attrs2)
     {
-        assertTrue(attrs1.isReadOnly() == attrs2.isReadOnly());
-        assertTrue(attrs1.isHidden() == attrs2.isHidden());
-        assertTrue(attrs1.isSystem() == attrs2.isSystem());
+        assertTrue(attrs1.isReadOnly() == attrs2.isReadOnly(),
+            "isReadOnly%n1: %s%n2: %s%n%n", attrs1.isReadOnly(), attrs2.isReadOnly());
+        assertTrue(attrs1.isHidden() == attrs2.isHidden(),
+            "isHidden%n1: %s%n2: %s%n%n", attrs1.isHidden(), attrs2.isHidden());
+        assertTrue(attrs1.isSystem() == attrs2.isSystem(),
+            "isSystem%n1: %s%n2: %s%n%n", attrs1.isSystem(), attrs2.isSystem());
     }
 
     static void checkUserDefinedFileAttributes(Map<String,ByteBuffer> attrs1,
@@ -169,8 +189,7 @@ public class CopyAndMove {
         Map<String,ByteBuffer> namedAttributes = null;
 
         // get file attributes of source file
-        String os = System.getProperty("os.name");
-        if (os.startsWith("Windows")) {
+        if (Platform.isWindows()) {
             dosAttributes = readAttributes(source, DosFileAttributes.class, NOFOLLOW_LINKS);
             basicAttributes = dosAttributes;
         } else {
@@ -448,6 +467,10 @@ public class CopyAndMove {
                 moveAndVerify(source, target);
                 throw new RuntimeException("IOException expected");
             } catch (IOException x) {
+                if (!(x instanceof DirectoryNotEmptyException)) {
+                    throw new RuntimeException
+                        ("DirectoryNotEmptyException expected", x);
+                }
             }
             delete(source.resolve("foo"));
             delete(source);
@@ -653,17 +676,14 @@ public class CopyAndMove {
             if (source.getFileSystem().provider() == target.getFileSystem().provider()) {
 
                 // check POSIX attributes are copied
-                String os = System.getProperty("os.name");
-                if ((os.equals("SunOS") || os.equals("Linux")) &&
-                    testPosixAttributes)
-                {
+                if (!Platform.isWindows() && testPosixAttributes) {
                     checkPosixAttributes(
                         readAttributes(source, PosixFileAttributes.class, linkOptions),
                         readAttributes(target, PosixFileAttributes.class, linkOptions));
                 }
 
                 // check DOS attributes are copied
-                if (os.startsWith("Windows")) {
+                if (Platform.isWindows()) {
                     checkDosAttributes(
                         readAttributes(source, DosFileAttributes.class, linkOptions),
                         readAttributes(target, DosFileAttributes.class, linkOptions));
@@ -921,9 +941,7 @@ public class CopyAndMove {
         /**
          * Test: Copy link to UNC (Windows only)
          */
-        if (supportsLinks &&
-            System.getProperty("os.name").startsWith("Windows"))
-        {
+        if (supportsLinks && Platform.isWindows()) {
             Path unc = Paths.get("\\\\rialto\\share\\file");
             link = dir1.resolve("link");
             createSymbolicLink(link, unc);
@@ -1114,6 +1132,13 @@ public class CopyAndMove {
             throw new RuntimeException("Assertion failed");
     }
 
+    static void assertTrue(boolean value, String format, Object... args) {
+        if (!value) {
+            System.err.format(format, args);
+            throw new RuntimeException("Assertion failed");
+        }
+    }
+
     // computes simple hash of the given file
     static int computeHash(Path file) throws IOException {
         int h = 0;
@@ -1156,12 +1181,14 @@ public class CopyAndMove {
 
     // "randomize" the file attributes of the given file.
     static void randomizeAttributes(Path file) throws IOException {
-        String os = System.getProperty("os.name");
-        boolean isWindows = os.startsWith("Windows");
-        boolean isUnix = os.equals("SunOS") || os.equals("Linux");
         boolean isDirectory = isDirectory(file, NOFOLLOW_LINKS);
 
-        if (isUnix) {
+        if (Platform.isWindows()) {
+            DosFileAttributeView view =
+                getFileAttributeView(file, DosFileAttributeView.class, NOFOLLOW_LINKS);
+            // only set or unset the hidden attribute
+            view.setHidden(heads());
+        } else {
             Set<PosixFilePermission> perms =
                 getPosixFilePermissions(file, NOFOLLOW_LINKS);
             PosixFilePermission[] toChange = {
@@ -1182,18 +1209,12 @@ public class CopyAndMove {
             setPosixFilePermissions(file, perms);
         }
 
-        if (isWindows) {
-            DosFileAttributeView view =
-                getFileAttributeView(file, DosFileAttributeView.class, NOFOLLOW_LINKS);
-            // only set or unset the hidden attribute
-            view.setHidden(heads());
-        }
-
         boolean addUserDefinedFileAttributes = heads() &&
             getFileStore(file).supportsFileAttributeView("xattr");
 
         // remove this when copying a direcory copies its named streams
-        if (isWindows && isDirectory) addUserDefinedFileAttributes = false;
+        if (Platform.isWindows() && isDirectory)
+            addUserDefinedFileAttributes = false;
 
         if (addUserDefinedFileAttributes) {
             UserDefinedFileAttributeView view =

@@ -77,6 +77,7 @@ BOOT_MODULES += \
 # should carefully be considered if it should be upgradeable or not.
 UPGRADEABLE_MODULES += \
     java.compiler \
+    jdk.aot \
     jdk.internal.vm.compiler \
     jdk.internal.vm.compiler.management \
     #
@@ -204,7 +205,14 @@ ifeq ($(INCLUDE_SA), false)
 endif
 
 ################################################################################
-# Filter out Graal specific modules if Graal build is disabled
+# Filter out jvmci specific modules if jvmci is disabled
+
+ifeq ($(INCLUDE_JVMCI), false)
+  MODULES_FILTER += jdk.internal.vm.ci
+endif
+
+################################################################################
+# Filter out Graal specific modules if Graal is disabled
 
 ifeq ($(INCLUDE_GRAAL), false)
   MODULES_FILTER += jdk.internal.vm.compiler

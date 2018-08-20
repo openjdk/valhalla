@@ -183,7 +183,8 @@ public class MockServer extends Thread implements Closeable {
             } catch (IOException |InterruptedException e1) {
                 cleanup();
             } catch (Throwable t) {
-                System.out.println("X: " + t);
+                System.out.println("Exception: " + t);
+                t.printStackTrace();
                 cleanup();
             }
         }
@@ -283,7 +284,7 @@ public class MockServer extends Thread implements Closeable {
             }
             try {
                 socket.close();
-            } catch (IOException e) {}
+            } catch (Throwable e) {}
             synchronized (removals) {
                 removals.add(this);
             }
@@ -338,7 +339,7 @@ public class MockServer extends Thread implements Closeable {
         closed = true;
         try {
             ss.close();
-        } catch (IOException e) {
+        } catch (Throwable e) {
             e.printStackTrace();
         }
         for (Connection c : sockets) {

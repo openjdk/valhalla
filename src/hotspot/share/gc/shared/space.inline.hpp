@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
 #define SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
 
+#include "gc/shared/blockOffsetTable.inline.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/space.hpp"
@@ -87,7 +88,7 @@ class DeadSpacer : StackObj {
   CompactibleSpace* _space;
 
 public:
-  DeadSpacer(CompactibleSpace* space) : _space(space), _allowed_deadspace_words(0) {
+  DeadSpacer(CompactibleSpace* space) : _allowed_deadspace_words(0), _space(space) {
     size_t ratio = _space->allowed_dead_ratio();
     _active = ratio > 0;
 

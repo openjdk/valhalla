@@ -20,12 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.aarch64;
 
-import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.REG;
 import static jdk.vm.ci.aarch64.AArch64.sp;
 import static jdk.vm.ci.code.ValueUtil.asRegister;
 import static jdk.vm.ci.hotspot.aarch64.AArch64HotSpotRegisterConfig.fp;
+import static org.graalvm.compiler.lir.LIRInstruction.OperandFlag.REG;
 
 import org.graalvm.compiler.asm.Label;
 import org.graalvm.compiler.asm.aarch64.AArch64Address;
@@ -67,7 +69,7 @@ public class AArch64HotSpotJumpToExceptionHandlerInCallerOp extends AArch64HotSp
 
     @Override
     public void emitCode(CompilationResultBuilder crb, AArch64MacroAssembler masm) {
-        leaveFrame(crb, masm, /* emitSafepoint */false);
+        leaveFrame(crb, masm, /* emitSafepoint */false, false);
 
         if (GraalServices.JAVA_SPECIFICATION_VERSION < 8) {
             // Restore sp from fp if the exception PC is a method handle call site.

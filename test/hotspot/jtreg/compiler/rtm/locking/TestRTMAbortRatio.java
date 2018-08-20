@@ -130,13 +130,13 @@ public class TestRTMAbortRatio {
 
         @Override
         public String[] getMethodsToCompileNames() {
-            return new String[] { getMethodWithLockName() };
+            return new String[] { getMethodWithLockName(), "*.pageSize" };
         }
 
         public void lock(boolean abort) {
             synchronized(monitor) {
                 if (abort) {
-                    Test.UNSAFE.addressSize();
+                    Test.UNSAFE.pageSize();
                 }
             }
         }

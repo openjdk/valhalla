@@ -126,7 +126,7 @@ class CompiledICInfo : public StackObj {
   }
 
   CompiledICInfo(): _entry(NULL), _cached_value(NULL), _is_icholder(false),
-                    _to_interpreter(false), _to_aot(false), _is_optimized(false), _release_icholder(false) {
+                    _is_optimized(false), _to_interpreter(false), _to_aot(false), _release_icholder(false) {
   }
   ~CompiledICInfo() {
     // In rare cases the info is computed but not used, so release any
@@ -358,7 +358,7 @@ public:
   virtual address destination() const = 0;
 
   // Clean static call (will force resolving on next use)
-  void set_to_clean();
+  void set_to_clean(bool in_use = true);
 
   // Set state. The entry must be the same, as computed by compute_entry.
   // Computation and setting is split up, since the actions are separate during

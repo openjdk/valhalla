@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,20 @@
  * questions.
  */
 
+/**
+ * @test
+ * @summary Test deadlock detection
+ * @requires vm.hasSAandCanAttach
+ * @requires os.family != "mac"
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ * @modules java.management
+ * @run main DeadlockDetectionTest
+ */
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
 
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.apps.LingeredAppWithDeadlock;
@@ -35,14 +45,7 @@ import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-/*
- * @test
- * @summary Test deadlock detection
- * @library /test/lib
- * @modules java.base/jdk.internal.misc
- * @modules java.management
- * @run main DeadlockDetectionTest
- */
+import jtreg.SkippedException;
 
 public class DeadlockDetectionTest {
 
@@ -69,21 +72,6 @@ public class DeadlockDetectionTest {
     public static void main(String[] args) throws Exception {
         System.out.println("Starting DeadlockDetectionTest");
 
-        if (!Platform.shouldSAAttach()) {
-            // Silently skip the test if we don't have enough permissions to attach
-            // Not all conditions checked by function is relevant to SA but it's worth
-            // to check
-            System.err.println("Error! Insufficient permissions to attach.");
-            return;
-        }
-
-        if (Platform.isOSX()) {
-            // Coredump stackwalking is not implemented for Darwin
-            System.out.println("This test is not expected to work on OS X. Skipping");
-            return;
-        }
-
-
         if (!LingeredApp.isLastModifiedWorking()) {
             // Exact behaviour of the test depends on operating system and the test nature,
             // so just print the warning and continue
@@ -101,9 +89,8 @@ public class DeadlockDetectionTest {
             System.out.println(output.getOutput());
 
             if (output.getExitValue() == 3) {
-                System.out.println("Test can't run for some reason. Skipping");
-            }
-            else {
+                throw new SkippedException("Test can't run for some reason");
+            } else {
                 output.shouldHaveExitValue(0);
                 output.shouldContain("Found a total of 1 deadlock.");
             }

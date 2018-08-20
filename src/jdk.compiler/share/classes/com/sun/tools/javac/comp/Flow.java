@@ -203,10 +203,7 @@ public class Flow {
     private final JCDiagnostic.Factory diags;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
-    private final boolean allowImprovedRethrowAnalysis;
-    private final boolean allowImprovedCatchAnalysis;
     private final boolean allowEffectivelyFinalInInnerClasses;
-    private final boolean enforceThisDotInit;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -297,10 +294,7 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
-        allowImprovedRethrowAnalysis = Feature.IMPROVED_RETHROW_ANALYSIS.allowedInSource(source);
-        allowImprovedCatchAnalysis = Feature.IMPROVED_CATCH_ANALYSIS.allowedInSource(source);
         allowEffectivelyFinalInInnerClasses = Feature.EFFECTIVELY_FINAL_IN_INNER_CLASSES.allowedInSource(source);
-        enforceThisDotInit = Feature.ENFORCE_THIS_DOT_INIT.allowedInSource(source);
     }
 
     /**
@@ -1109,9 +1103,7 @@ public class Flow {
                 }
             }
             scan(tree.body);
-            List<Type> thrownInTry = allowImprovedCatchAnalysis ?
-                chk.union(thrown, List.of(syms.runtimeExceptionType, syms.errorType)) :
-                thrown;
+            List<Type> thrownInTry = chk.union(thrown, List.of(syms.runtimeExceptionType, syms.errorType));
             thrown = thrownPrev;
             caught = caughtPrev;
 
@@ -1180,7 +1172,7 @@ public class Flow {
                     !isExceptionOrThrowable(exc) &&
                     !chk.intersects(exc, thrownInTry)) {
                 log.error(pos, Errors.ExceptNeverThrownInTry(exc));
-            } else if (allowImprovedCatchAnalysis) {
+            } else {
                 List<Type> catchableThrownTypes = chk.intersect(List.of(exc), thrownInTry);
                 // 'catchableThrownTypes' cannnot possibly be empty - if 'exc' was an
                 // unchecked exception, the result list would not be empty, as the augmented
@@ -1220,8 +1212,7 @@ public class Flow {
             if (sym != null &&
                 sym.kind == VAR &&
                 (sym.flags() & (FINAL | EFFECTIVELY_FINAL)) != 0 &&
-                preciseRethrowTypes.get(sym) != null &&
-                allowImprovedRethrowAnalysis) {
+                preciseRethrowTypes.get(sym) != null) {
                 for (Type t : preciseRethrowTypes.get(sym)) {
                     markThrown(tree, t);
                 }
@@ -2451,21 +2442,10 @@ public class Flow {
         }
 
         public void visitAssign(JCAssign tree) {
-            JCTree lhs = TreeInfo.skipParens(tree.lhs);
-            if (!isIdentOrThisDotIdent(lhs))
-                scanExpr(lhs);
+            if (!TreeInfo.isIdentOrThisDotIdent(tree.lhs))
+                scanExpr(tree.lhs);
             scanExpr(tree.rhs);
-            letInit(lhs);
-        }
-        private boolean isIdentOrThisDotIdent(JCTree lhs) {
-            if (lhs.hasTag(IDENT))
-                return true;
-            if (!lhs.hasTag(SELECT))
-                return false;
-
-            JCFieldAccess fa = (JCFieldAccess)lhs;
-            return fa.selected.hasTag(IDENT) &&
-                   ((JCIdent)fa.selected).name == names._this;
+            letInit(tree.lhs);
         }
 
         // check fields accessed through this.<field> are definitely
@@ -2479,11 +2459,8 @@ public class Flow {
                     this.thisExposability = ALLOWED;
                 }
                 super.visitSelect(tree);
-                JCTree sel = TreeInfo.skipParens(tree.selected);
-                if (enforceThisDotInit &&
-                        sel.hasTag(IDENT) &&
-                        ((JCIdent)sel).name == names._this &&
-                        tree.sym.kind == VAR) {
+            if (TreeInfo.isThisQualifier(tree.selected) &&
+                tree.sym.kind == VAR) {
                     checkInit(tree.pos(), (VarSymbol)tree.sym);
                 }
             } finally {

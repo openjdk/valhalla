@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.InputType.Condition;
@@ -31,6 +33,7 @@ import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.graph.IterableNodeType;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
+import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.graph.spi.Canonicalizable;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
@@ -40,7 +43,7 @@ import org.graalvm.compiler.nodes.extended.GuardingNode;
 
 import jdk.vm.ci.meta.DeoptimizationAction;
 import jdk.vm.ci.meta.DeoptimizationReason;
-import jdk.vm.ci.meta.JavaConstant;
+import jdk.vm.ci.meta.SpeculationLog.Speculation;
 
 /**
  * A guard is a node that deoptimizes based on a conditional expression. Guards are not attached to
@@ -61,21 +64,24 @@ public class GuardNode extends FloatingAnchoredNode implements Canonicalizable, 
     @Input(Condition) protected LogicNode condition;
     protected DeoptimizationReason reason;
     protected DeoptimizationAction action;
-    protected JavaConstant speculation;
+    protected Speculation speculation;
     protected boolean negated;
+    protected NodeSourcePosition noDeoptSuccessorPosition;
 
-    public GuardNode(LogicNode condition, AnchoringNode anchor, DeoptimizationReason reason, DeoptimizationAction action, boolean negated, JavaConstant speculation) {
-        this(TYPE, condition, anchor, reason, action, negated, speculation);
+    public GuardNode(LogicNode condition, AnchoringNode anchor, DeoptimizationReason reason, DeoptimizationAction action, boolean negated, Speculation speculation,
+                    NodeSourcePosition noDeoptSuccessorPosition) {
+        this(TYPE, condition, anchor, reason, action, negated, speculation, noDeoptSuccessorPosition);
     }
 
     protected GuardNode(NodeClass<? extends GuardNode> c, LogicNode condition, AnchoringNode anchor, DeoptimizationReason reason, DeoptimizationAction action, boolean negated,
-                    JavaConstant speculation) {
+                    Speculation speculation, NodeSourcePosition noDeoptSuccessorPosition) {
         super(c, StampFactory.forVoid(), anchor);
         this.condition = condition;
         this.reason = reason;
         this.action = action;
         this.negated = negated;
         this.speculation = speculation;
+        this.noDeoptSuccessorPosition = noDeoptSuccessorPosition;
     }
 
     /**
@@ -109,11 +115,11 @@ public class GuardNode extends FloatingAnchoredNode implements Canonicalizable, 
     }
 
     @Override
-    public JavaConstant getSpeculation() {
+    public Speculation getSpeculation() {
         return speculation;
     }
 
-    public void setSpeculation(JavaConstant speculation) {
+    public void setSpeculation(Speculation speculation) {
         this.speculation = speculation;
     }
 
@@ -130,7 +136,7 @@ public class GuardNode extends FloatingAnchoredNode implements Canonicalizable, 
     public Node canonical(CanonicalizerTool tool) {
         if (getCondition() instanceof LogicNegationNode) {
             LogicNegationNode negation = (LogicNegationNode) getCondition();
-            return new GuardNode(negation.getValue(), getAnchor(), reason, action, !negated, speculation);
+            return new GuardNode(negation.getValue(), getAnchor(), reason, action, !negated, speculation, noDeoptSuccessorPosition);
         }
         if (getCondition() instanceof LogicConstantNode) {
             LogicConstantNode c = (LogicConstantNode) getCondition();
@@ -157,5 +163,15 @@ public class GuardNode extends FloatingAnchoredNode implements Canonicalizable, 
     @Override
     public void setReason(DeoptimizationReason reason) {
         this.reason = reason;
+    }
+
+    @Override
+    public NodeSourcePosition getNoDeoptSuccessorPosition() {
+        return noDeoptSuccessorPosition;
+    }
+
+    @Override
+    public void setNoDeoptSuccessorPosition(NodeSourcePosition noDeoptSuccessorPosition) {
+        this.noDeoptSuccessorPosition = noDeoptSuccessorPosition;
     }
 }

@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Flow;
 import java.util.regex.Pattern;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /*
  * THE CONTENTS OF THIS FILE HAVE TO BE IN SYNC WITH THE EXAMPLES USED IN THE
@@ -63,6 +64,7 @@ public class JavadocExamples {
         HttpClient client = HttpClient.newBuilder()
                 .version(Version.HTTP_1_1)
                 .followRedirects(Redirect.NORMAL)
+                .connectTimeout(Duration.ofSeconds(20))
                 .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
                 .authenticator(Authenticator.getDefault())
                 .build();
@@ -73,7 +75,7 @@ public class JavadocExamples {
         //Asynchronous Example
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://foo.com/"))
-                .timeout(Duration.ofMinutes(1))
+                .timeout(Duration.ofMinutes(2))
                 .header("Content-Type", "application/json")
                 .POST(BodyPublishers.ofFile(Paths.get("file.json")))
                 .build();
@@ -155,6 +157,25 @@ public class JavadocExamples {
         // Discards the response body
         HttpResponse<Void> respons4 = client
                 .send(request, BodyHandlers.discarding());
+
+
+        // HttpResponse.BodySubscribers class-level description
+        // Streams the response body to a File
+        HttpResponse<byte[]> response5 = client
+                .send(request, responseInfo -> BodySubscribers.ofByteArray());
+
+        // Accumulates the response body and returns it as a byte[]
+        HttpResponse<byte[]> response6 = client
+                .send(request, responseInfo -> BodySubscribers.ofByteArray());
+
+        // Discards the response body
+        HttpResponse<Void> response7 = client
+                .send(request, responseInfo -> BodySubscribers.discarding());
+
+        // Accumulates the response body as a String then maps it to its bytes
+        HttpResponse<byte[]> response8 = client
+                .send(request, responseInfo ->
+                        BodySubscribers.mapping(BodySubscribers.ofString(UTF_8), String::getBytes));
 
     }
 

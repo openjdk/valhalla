@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package jdk.internal.vm.compiler.collections.test;
 
 import java.util.ArrayList;
@@ -142,7 +142,12 @@ public class EconomicSetTest {
         }
         Assert.assertEquals(initialList, removalList);
         Assert.assertEquals(1, finalList.size());
-        Assert.assertEquals(new Integer(9), finalList.get(0));
+        Assert.assertEquals(newInteger(9), finalList.get(0));
+    }
+
+    @SuppressWarnings("deprecation")
+    private static Integer newInteger(int value) {
+        return new Integer(value);
     }
 
 }

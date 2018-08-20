@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.graph;
 
 import static org.graalvm.compiler.core.common.GraalOptions.TrackNodeInsertion;
@@ -1199,7 +1201,7 @@ public class Graph {
         return true;
     }
 
-    public boolean verifySourcePositions() {
+    public boolean verifySourcePositions(boolean performConsistencyCheck) {
         if (trackNodeSourcePosition()) {
             ResolvedJavaMethod root = null;
             for (Node node : getNodes()) {
@@ -1210,6 +1212,12 @@ public class Graph {
                     } else {
                         assert pos.verifyRootMethod(root) : node;
                     }
+                }
+
+                // More strict node-type-specific check
+                if (performConsistencyCheck) {
+                    // Disabled due to GR-10445.
+                    // node.verifySourcePosition();
                 }
             }
         }

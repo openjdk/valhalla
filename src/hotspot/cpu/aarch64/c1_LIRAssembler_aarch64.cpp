@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "asm/assembler.hpp"
 #include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_Compilation.hpp"
@@ -1343,12 +1344,11 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       __ mov_metadata(mdo, md->constant_encoding());
       Address data_addr
         = __ form_address(rscratch2, mdo,
-                          md->byte_offset_of_slot(data, DataLayout::DataLayout::header_offset()),
-                          LogBytesPerWord);
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ ldr(rscratch1, data_addr);
-      __ orr(rscratch1, rscratch1, header_bits);
-      __ str(rscratch1, data_addr);
+                          md->byte_offset_of_slot(data, DataLayout::flags_offset()),
+                          0);
+      __ ldrb(rscratch1, data_addr);
+      __ orr(rscratch1, rscratch1, BitData::null_seen_byte_constant());
+      __ strb(rscratch1, data_addr);
       __ b(*obj_is_null);
       __ bind(not_null);
     } else {
@@ -1421,7 +1421,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     Address counter_addr
       = __ form_address(rscratch2, mdo,
                         md->byte_offset_of_slot(data, CounterData::count_offset()),
-                        LogBytesPerWord);
+                        0);
     __ ldr(rscratch1, counter_addr);
     __ sub(rscratch1, rscratch1, DataLayout::counter_increment);
     __ str(rscratch1, counter_addr);
@@ -1470,12 +1470,11 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ mov_metadata(mdo, md->constant_encoding());
       Address data_addr
         = __ form_address(rscratch2, mdo,
-                          md->byte_offset_of_slot(data, DataLayout::header_offset()),
-                          LogBytesPerInt);
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ ldrw(rscratch1, data_addr);
-      __ orrw(rscratch1, rscratch1, header_bits);
-      __ strw(rscratch1, data_addr);
+                          md->byte_offset_of_slot(data, DataLayout::flags_offset()),
+                          0);
+      __ ldrb(rscratch1, data_addr);
+      __ orr(rscratch1, rscratch1, BitData::null_seen_byte_constant());
+      __ strb(rscratch1, data_addr);
       __ b(done);
       __ bind(not_null);
     } else {
@@ -1879,7 +1878,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       // cpu register - cpu register
       Register reg2 = opr2->as_register();
       if (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY) {
-        __ cmp(reg1, reg2);
+        __ cmpoop(reg1, reg2);
       } else {
         assert(opr2->type() != T_OBJECT && opr2->type() != T_ARRAY, "cmp int, oop?");
         __ cmpw(reg1, reg2);
@@ -1910,8 +1909,9 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
         break;
       case T_OBJECT:
       case T_ARRAY:
-        imm = jlong(opr2->as_constant_ptr()->as_jobject());
-        break;
+        jobject2reg(opr2->as_constant_ptr()->as_jobject(), rscratch1);
+        __ cmpoop(reg1, rscratch1);
+        return;
       default:
         ShouldNotReachHere();
         imm = 0;  // unreachable
@@ -1922,7 +1922,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
         if (is_32bit)
           __ cmpw(reg1, imm);
         else
-          __ cmp(reg1, imm);
+          __ subs(zr, reg1, imm);
         return;
       } else {
         __ mov(rscratch1, imm);
@@ -2705,7 +2705,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 
         if (TypeEntries::is_type_none(current_klass)) {
           __ cbz(rscratch2, none);
-          __ cmp(rscratch2, TypeEntries::null_seen);
+          __ cmp(rscratch2, (u1)TypeEntries::null_seen);
           __ br(Assembler::EQ, none);
           // There is a chance that the checks above (re-reading profiling
           // data from memory) fail if another thread has just set the
@@ -2750,7 +2750,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
           Label ok;
           __ ldr(rscratch1, mdo_addr);
           __ cbz(rscratch1, ok);
-          __ cmp(rscratch1, TypeEntries::null_seen);
+          __ cmp(rscratch1, (u1)TypeEntries::null_seen);
           __ br(Assembler::EQ, ok);
           // may have been set by another thread
           __ dmb(Assembler::ISHLD);

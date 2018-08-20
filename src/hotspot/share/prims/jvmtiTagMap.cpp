@@ -59,6 +59,9 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/zGlobals.hpp"
+#endif
 
 // JvmtiTagHashmapEntry
 //
@@ -87,11 +90,11 @@ class JvmtiTagHashmapEntry : public CHeapObj<mtInternal> {
 
   // accessor methods
   inline oop* object_addr() { return &_object; }
-  inline oop object()       { return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(object_addr()); }
+  inline oop object()       { return NativeAccess<ON_PHANTOM_OOP_REF>::oop_load(object_addr()); }
   // Peek at the object without keeping it alive. The returned object must be
   // kept alive using a normal access if it leaks out of a thread transition from VM.
   inline oop object_peek()  {
-    return RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(object_addr());
+    return NativeAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(object_addr());
   }
   inline jlong tag() const  { return _tag; }
 
@@ -178,6 +181,8 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
 
   // hash a given key (oop) with the specified size
   static unsigned int hash(oop key, int size) {
+    ZGC_ONLY(assert(ZAddressMetadataShift >= sizeof(unsigned int) * BitsPerByte, "cast removes the metadata bits");)
+
     // shift right to get better distribution (as these bits will be zero
     // with aligned addresses)
     unsigned int addr = (unsigned int)(cast_from_oop<intptr_t>(key));
@@ -774,7 +779,7 @@ class ClassFieldDescriptor: public CHeapObj<mtInternal> {
   char _field_type;
  public:
   ClassFieldDescriptor(int index, char type, int offset) :
-    _field_index(index), _field_type(type), _field_offset(offset) {
+    _field_index(index), _field_offset(offset), _field_type(type) {
   }
   int field_index()  const  { return _field_index; }
   char field_type()  const  { return _field_type; }
@@ -2833,7 +2838,7 @@ inline bool VM_HeapWalkOperation::iterate_over_class(oop java_class) {
     oop mirror = klass->java_mirror();
 
     // super (only if something more interesting than java.lang.Object)
-    Klass* java_super = ik->java_super();
+    InstanceKlass* java_super = ik->java_super();
     if (java_super != NULL && java_super != SystemDictionary::Object_klass()) {
       oop super = java_super->java_mirror();
       if (!CallbackInvoker::report_superclass_reference(mirror, super)) {
@@ -2889,9 +2894,9 @@ inline bool VM_HeapWalkOperation::iterate_over_class(oop java_class) {
     // interfaces
     // (These will already have been reported as references from the constant pool
     //  but are specified by IterateOverReachableObjects and must be reported).
-    Array<Klass*>* interfaces = ik->local_interfaces();
+    Array<InstanceKlass*>* interfaces = ik->local_interfaces();
     for (i = 0; i < interfaces->length(); i++) {
-      oop interf = ((Klass*)interfaces->at(i))->java_mirror();
+      oop interf = interfaces->at(i)->java_mirror();
       if (interf == NULL) {
         continue;
       }

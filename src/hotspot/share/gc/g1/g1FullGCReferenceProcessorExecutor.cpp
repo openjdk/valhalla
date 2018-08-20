@@ -30,6 +30,7 @@
 #include "gc/g1/g1FullGCReferenceProcessorExecutor.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "memory/iterator.inline.hpp"
 
 G1FullGCReferenceProcessingExecutor::G1FullGCReferenceProcessingExecutor(G1FullCollector* collector) :
     _collector(collector),
@@ -67,9 +68,13 @@ void G1FullGCReferenceProcessingExecutor::run_task(AbstractGangTask* task) {
   G1CollectedHeap::heap()->workers()->run_task(task, _collector->workers());
 }
 
-void G1FullGCReferenceProcessingExecutor::execute(ProcessTask& proc_task) {
+void G1FullGCReferenceProcessingExecutor::run_task(AbstractGangTask* task, uint workers) {
+  G1CollectedHeap::heap()->workers()->run_task(task, workers);
+}
+
+void G1FullGCReferenceProcessingExecutor::execute(ProcessTask& proc_task, uint ergo_workers) {
   G1RefProcTaskProxy proc_task_proxy(proc_task, _collector);
-  run_task(&proc_task_proxy);
+  run_task(&proc_task_proxy, ergo_workers);
 }
 
 void G1FullGCReferenceProcessingExecutor::execute(STWGCTimer* timer, G1FullGCTracer* tracer) {
@@ -78,7 +83,7 @@ void G1FullGCReferenceProcessingExecutor::execute(STWGCTimer* timer, G1FullGCTra
   G1FullGCMarker* marker = _collector->marker(0);
   G1IsAliveClosure is_alive(_collector->mark_bitmap());
   G1FullKeepAliveClosure keep_alive(marker);
-  ReferenceProcessorPhaseTimes pt(timer, _reference_processor->num_queues());
+  ReferenceProcessorPhaseTimes pt(timer, _reference_processor->max_num_queues());
   AbstractRefProcTaskExecutor* executor = _reference_processor->processing_is_mt() ? this : NULL;
 
   // Process discovered references, use this executor if multi-threaded

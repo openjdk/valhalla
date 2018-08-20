@@ -15,7 +15,7 @@
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/safepoint.hpp"
 
@@ -149,9 +149,9 @@ void VirtualSpaceList::retire_current_virtual_space() {
 }
 
 VirtualSpaceList::VirtualSpaceList(size_t word_size) :
-                                   _is_class(false),
                                    _virtual_space_list(NULL),
                                    _current_virtual_space(NULL),
+                                   _is_class(false),
                                    _reserved_words(0),
                                    _committed_words(0),
                                    _virtual_space_count(0) {
@@ -161,9 +161,9 @@ VirtualSpaceList::VirtualSpaceList(size_t word_size) :
 }
 
 VirtualSpaceList::VirtualSpaceList(ReservedSpace rs) :
-                                   _is_class(true),
                                    _virtual_space_list(NULL),
                                    _current_virtual_space(NULL),
+                                   _is_class(true),
                                    _reserved_words(0),
                                    _committed_words(0),
                                    _virtual_space_count(0) {

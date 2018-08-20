@@ -22,6 +22,7 @@
 #
 
 JVM_ActiveProcessorCount
+JVM_AreNestMates
 JVM_ArrayCopy
 JVM_AssertionStatusDirectives
 JVM_BeforeHalt
@@ -119,6 +120,8 @@ JVM_GetMethodIxSignatureUTF
 JVM_GetMethodParameters
 JVM_GetMethodTypeAnnotations
 JVM_GetNanoTimeAdjustment
+JVM_GetNestHost
+JVM_GetNestMembers
 JVM_GetPrimitiveArrayElement
 JVM_GetProtectionDomain
 JVM_GetSimpleBinaryName
@@ -134,6 +137,7 @@ JVM_IHashCode
 JVM_InitProperties
 JVM_InitStackTraceElement
 JVM_InitStackTraceElementArray
+JVM_InitializeFromArchive
 JVM_InternString
 JVM_Interrupt
 JVM_InvokeMethod

@@ -153,6 +153,9 @@ define_pd_global(bool, ValueTypeReturnedAsFields, LP64_ONLY(false) NOT_LP64(fals
   product(bool, UseUnalignedLoadStores, false,                              \
           "Use SSE2 MOVDQU instruction for Arraycopy")                      \
                                                                             \
+  product(bool, UseXMMForObjInit, false,                                    \
+          "Use XMM/YMM MOVDQU instruction for Object Initialization")       \
+                                                                            \
   product(bool, UseFastStosb, false,                                        \
           "Use fast-string operation for zeroing: rep stosb")               \
                                                                             \

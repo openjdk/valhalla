@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.hotpath;
 
 import org.junit.Test;
@@ -30,6 +32,7 @@ import org.graalvm.compiler.jtt.JTTTest;
  */
 public class HP_allocate02 extends JTTTest {
 
+    @SuppressWarnings("deprecation")
     public static int test(int count) {
         int sum = 0;
         for (int i = 0; i < count; i++) {

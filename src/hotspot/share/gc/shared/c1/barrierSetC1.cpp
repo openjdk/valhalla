@@ -40,7 +40,7 @@
 
 LIR_Opr BarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
   DecoratorSet decorators = access.decorators();
-  bool on_array = (decorators & IN_HEAP_ARRAY) != 0;
+  bool is_array = (decorators & IS_ARRAY) != 0;
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
 
   LIRItem& base = access.base().item();
@@ -48,7 +48,7 @@ LIR_Opr BarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_registe
   LIRGenerator *gen = access.gen();
 
   LIR_Opr addr_opr;
-  if (on_array) {
+  if (is_array) {
     addr_opr = LIR_OprFact::address(gen->emit_array_address(base.result(), offset, access.type()));
   } else if (needs_patching) {
     // we need to patch the offset in the instruction so don't allow
@@ -87,6 +87,13 @@ void BarrierSetC1::load_at(LIRAccess& access, LIR_Opr result) {
 
   LIR_Opr resolved = resolve_address(access, false);
   access.set_resolved_addr(resolved);
+  load_at_resolved(access, result);
+}
+
+void BarrierSetC1::load(LIRAccess& access, LIR_Opr result) {
+  DecoratorSet decorators = access.decorators();
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  assert(!in_heap, "consider using load_at");
   load_at_resolved(access, result);
 }
 
@@ -159,13 +166,16 @@ void BarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
   bool is_volatile = (((decorators & MO_SEQ_CST) != 0) || AlwaysAtomicAccesses) && os::is_MP();
   bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
   bool mask_boolean = (decorators & C1_MASK_BOOLEAN) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
 
   if (support_IRIW_for_not_multiple_copy_atomic_cpu && is_volatile) {
     __ membar();
   }
 
   LIR_PatchCode patch_code = needs_patching ? lir_patch_normal : lir_patch_none;
-  if (is_volatile && !needs_patching) {
+  if (in_native) {
+    __ move_wide(access.resolved_addr()->as_address_ptr(), result);
+  } else if (is_volatile && !needs_patching) {
     gen->volatile_field_load(access.resolved_addr()->as_address_ptr(), result, access.access_emit_info());
   } else {
     __ load(access.resolved_addr()->as_address_ptr(), result, access.access_emit_info(), patch_code);

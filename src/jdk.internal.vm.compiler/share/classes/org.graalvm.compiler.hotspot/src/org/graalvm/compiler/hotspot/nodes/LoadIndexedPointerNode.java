@@ -20,12 +20,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.nodes;
 
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.ValueNode;
+import org.graalvm.compiler.nodes.extended.GuardingNode;
 import org.graalvm.compiler.nodes.java.LoadIndexedNode;
 
 import jdk.vm.ci.meta.JavaKind;
@@ -35,8 +38,8 @@ public final class LoadIndexedPointerNode extends LoadIndexedNode {
 
     public static final NodeClass<LoadIndexedPointerNode> TYPE = NodeClass.create(LoadIndexedPointerNode.class);
 
-    public LoadIndexedPointerNode(Stamp stamp, ValueNode array, ValueNode index) {
-        super(TYPE, stamp, array, index, JavaKind.Illegal);
+    public LoadIndexedPointerNode(Stamp stamp, ValueNode array, ValueNode index, GuardingNode boundsCheck) {
+        super(TYPE, stamp, array, index, boundsCheck, JavaKind.Illegal);
     }
 
     @Override

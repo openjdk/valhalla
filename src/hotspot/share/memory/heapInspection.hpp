@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,6 +86,8 @@
         "Number of bytes used by the InstanceKlass::fields() array") \
     f(inner_classes_bytes, IK_inner_classes, \
         "Number of bytes used by the InstanceKlass::inner_classes() array") \
+    f(nest_members_bytes, IK_nest_members, \
+        "Number of bytes used by the InstanceKlass::nest_members() array") \
     f(signers_bytes, IK_signers, \
         "Number of bytes used by the InstanceKlass::singers() array") \
     f(class_annotations_bytes, class_annotations, \
@@ -190,7 +192,7 @@ class KlassInfoEntry: public CHeapObj<mtInternal> {
 
  public:
   KlassInfoEntry(Klass* k, KlassInfoEntry* next) :
-    _klass(k), _instance_count(0), _instance_words(0), _next(next), _index(-1),
+    _next(next), _klass(k), _instance_count(0), _instance_words(0), _index(-1),
     _do_print(false), _subclasses(NULL)
   {}
   ~KlassInfoEntry();

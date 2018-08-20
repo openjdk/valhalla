@@ -47,6 +47,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
@@ -153,7 +154,15 @@ public abstract class PKCS11Test {
 
     public abstract void main(Provider p) throws Exception;
 
+    protected boolean skipTest(Provider p) {
+        return false;
+    }
+
     private void premain(Provider p) throws Exception {
+        if (skipTest(p)) {
+            return;
+        }
+
         // set a security manager and policy before a test case runs,
         // and disable them after the test case finished
         try {
@@ -326,9 +335,10 @@ public abstract class PKCS11Test {
     }
 
     static boolean isBadNSSVersion(Provider p) {
-        if (isNSS(p) && badNSSVersion) {
+        double nssVersion = getNSSVersion();
+        if (isNSS(p) && nssVersion >= 3.11 && nssVersion < 3.12) {
             System.out.println("NSS 3.11 has a DER issue that recent " +
-                    "version do not.");
+                    "version do not, skipping");
             return true;
         }
         return false;
@@ -408,7 +418,11 @@ public abstract class PKCS11Test {
             return nss3_version;
 
         try {
-            libfile = getNSSLibDir() + System.mapLibraryName(library);
+            String libdir = getNSSLibDir();
+            if (libdir == null) {
+                return 0.0;
+            }
+            libfile = libdir + System.mapLibraryName(library);
             try (FileInputStream is = new FileInputStream(libfile)) {
                 byte[] data = new byte[1000];
                 int read = 0;
@@ -576,21 +590,8 @@ public abstract class PKCS11Test {
             }
 
             curve = kcProp.substring(begin, end);
-            ECParameterSpec e = getECParameterSpec(p, curve);
-            System.out.print("\t "+ curve + ": ");
-            try {
-                KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", p);
-                kpg.initialize(e);
-                kpg.generateKeyPair();
-                results.add(e);
-                System.out.println("Supported");
-            } catch (ProviderException ex) {
-                System.out.println("Unsupported: PKCS11: " +
-                        ex.getCause().getMessage());
-            } catch (InvalidAlgorithmParameterException ex) {
-                System.out.println("Unsupported: Key Length: " +
-                        ex.getMessage());
-            }
+            getSupportedECParameterSpec(curve, p)
+                .ifPresent(spec -> results.add(spec));
         }
 
         if (results.size() == 0) {
@@ -598,6 +599,27 @@ public abstract class PKCS11Test {
         }
 
         return results;
+    }
+
+    static Optional<ECParameterSpec> getSupportedECParameterSpec(String curve,
+            Provider p) throws Exception {
+        ECParameterSpec e = getECParameterSpec(p, curve);
+        System.out.print("\t "+ curve + ": ");
+        try {
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", p);
+            kpg.initialize(e);
+            kpg.generateKeyPair();
+            System.out.println("Supported");
+            return Optional.of(e);
+        } catch (ProviderException ex) {
+            System.out.println("Unsupported: PKCS11: " +
+                    ex.getCause().getMessage());
+            return Optional.empty();
+        } catch (InvalidAlgorithmParameterException ex) {
+            System.out.println("Unsupported: Key Length: " +
+                    ex.getMessage());
+            return Optional.empty();
+        }
     }
 
     private static ECParameterSpec getECParameterSpec(Provider p, String name)
@@ -649,13 +671,10 @@ public abstract class PKCS11Test {
             "/usr/lib/arm-linux-gnueabi/nss/",
             "/usr/lib/arm-linux-gnueabihf/nss/"});
         osMap.put("Linux-aarch64-64", new String[]{
-            "/usr/lib/aarch64-linux-gnu/nss/"});
+            "/usr/lib/aarch64-linux-gnu/", "/usr/lib/aarch64-linux-gnu/nss/"});
     }
 
     private final static char[] hexDigits = "0123456789abcdef".toCharArray();
-
-    static final boolean badNSSVersion =
-            getNSSVersion() >= 3.11 && getNSSVersion() < 3.12;
 
     private static final String distro = distro();
 

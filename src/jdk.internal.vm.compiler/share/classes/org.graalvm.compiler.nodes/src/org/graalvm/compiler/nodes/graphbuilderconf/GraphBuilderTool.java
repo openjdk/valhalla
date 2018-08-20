@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.graphbuilderconf;
 
 import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
@@ -76,4 +78,10 @@ public interface GraphBuilderTool {
      * by an intrinsic.
      */
     boolean parsingIntrinsic();
+
+    @SuppressWarnings("unused")
+    default boolean canDeferPlugin(GeneratedInvocationPlugin plugin) {
+        // By default generated plugins must be completely processed during parsing.
+        return false;
+    }
 }

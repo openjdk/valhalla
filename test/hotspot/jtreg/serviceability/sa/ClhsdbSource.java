@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,11 @@ import java.util.Map;
 
 import jdk.test.lib.apps.LingeredApp;
 
-/*
+/**
  * @test
  * @bug 8192823
  * @summary Test clhsdb source command
+ * @requires vm.hasSA
  * @library /test/lib
  * @run main/othervm ClhsdbSource
  */
@@ -65,8 +66,7 @@ public class ClhsdbSource {
                     "Available commands:",
                     "attach pid | exec core",
                     "intConstant [ name [ value ] ]",
-                    "type [ type [ name super isOop isInteger isUnsigned size ] ]",
-                    "symboltable name"));
+                    "type [ type [ name super isOop isInteger isUnsigned size ] ]"));
 
             Map<String, List<String>> unExpStrMap = new HashMap<>();
             unExpStrMap.put("source clhsdb_cmd_file", List.of(

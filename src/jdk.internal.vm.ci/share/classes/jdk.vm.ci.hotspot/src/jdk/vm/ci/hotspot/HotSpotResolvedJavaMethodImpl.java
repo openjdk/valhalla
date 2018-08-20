@@ -22,24 +22,6 @@
  */
 package jdk.vm.ci.hotspot;
 
-import static jdk.vm.ci.hotspot.CompilerToVM.compilerToVM;
-import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.runtime;
-import static jdk.vm.ci.hotspot.HotSpotModifiers.BRIDGE;
-import static jdk.vm.ci.hotspot.HotSpotModifiers.SYNTHETIC;
-import static jdk.vm.ci.hotspot.HotSpotModifiers.VARARGS;
-import static jdk.vm.ci.hotspot.HotSpotModifiers.jvmMethodModifiers;
-import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
-import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Executable;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
 import jdk.vm.ci.common.JVMCIError;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.Option;
 import jdk.vm.ci.meta.Constant;
@@ -58,6 +40,24 @@ import jdk.vm.ci.meta.Signature;
 import jdk.vm.ci.meta.SpeculationLog;
 import jdk.vm.ci.meta.TriState;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+import static jdk.vm.ci.hotspot.CompilerToVM.compilerToVM;
+import static jdk.vm.ci.hotspot.HotSpotJVMCIRuntime.runtime;
+import static jdk.vm.ci.hotspot.HotSpotModifiers.BRIDGE;
+import static jdk.vm.ci.hotspot.HotSpotModifiers.SYNTHETIC;
+import static jdk.vm.ci.hotspot.HotSpotModifiers.VARARGS;
+import static jdk.vm.ci.hotspot.HotSpotModifiers.jvmMethodModifiers;
+import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
+import static jdk.vm.ci.hotspot.UnsafeAccess.UNSAFE;
+
 /**
  * Implementation of {@link JavaMethod} for resolved HotSpot methods.
  */
@@ -73,7 +73,13 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
     private final HotSpotSignature signature;
     private HotSpotMethodData methodData;
     private byte[] code;
-    private Executable toJavaCache;
+
+    /**
+     * Cache for {@link #toJava()}. Set to {@link #signature} when resolving reflection object fails
+     * due to reflection filtering (see {@code Reflection.fieldFilterMap} and
+     * {@code Reflection.methodFilterMap}).
+     */
+    private Object toJavaCache;
 
     /**
      * Only 30% of {@link HotSpotResolvedJavaMethodImpl}s have their name accessed so compute it
@@ -203,6 +209,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return HotSpotMetaspaceConstantImpl.forMetaspaceObject(this, false);
     }
 
+    @Override
     public long getMetaspacePointer() {
         return metaspaceMethod;
     }
@@ -295,6 +302,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      *
      * @return true if CallerSensitive annotation present, false otherwise
      */
+    @Override
     public boolean isCallerSensitive() {
         return (getFlags() & config().methodFlagsCallerSensitive) != 0;
     }
@@ -304,6 +312,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      *
      * @return true if ForceInline annotation present, false otherwise
      */
+    @Override
     public boolean isForceInline() {
         return (getFlags() & config().methodFlagsForceInline) != 0;
     }
@@ -313,13 +322,16 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      *
      * @return true if ReservedStackAccess annotation present, false otherwise
      */
+    @Override
     public boolean hasReservedStackAccess() {
         return (getFlags() & config().methodFlagsReservedStackAccess) != 0;
     }
 
     /**
-     * Sets flags on {@code method} indicating that it should never be inlined or compiled by the VM.
+     * Sets flags on {@code method} indicating that it should never be inlined or compiled by the
+     * VM.
      */
+    @Override
     public void setNotInlinableOrCompilable() {
         compilerToVM().setNotInlinableOrCompilable(this);
     }
@@ -330,6 +342,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      *
      * @return true if special method ignored by security stack walks, false otherwise
      */
+    @Override
     public boolean ignoredBySecurityStackWalk() {
         return compilerToVM().methodIsIgnoredBySecurityStackWalk(this);
     }
@@ -384,6 +397,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return compilerToVM().getStackTraceElement(this, bci);
     }
 
+    @Override
     public ResolvedJavaMethod uniqueConcreteMethod(HotSpotResolvedObjectType receiver) {
         if (receiver.isInterface()) {
             // Cannot trust interfaces. Because of:
@@ -423,6 +437,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      *
      * @return true if this method has compiled code, false otherwise
      */
+    @Override
     public boolean hasCompiledCode() {
         return getCompiledCode() != 0L;
     }
@@ -431,6 +446,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      * @param level
      * @return true if the currently installed code was generated at {@code level}.
      */
+    @Override
     public boolean hasCompiledCodeAtLevel(int level) {
         long compiledCode = getCompiledCode();
         if (compiledCode != 0) {
@@ -521,6 +537,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return javaMethod == null ? null : javaMethod.getAnnotation(annotationClass);
     }
 
+    @Override
     public boolean isBridge() {
         return (BRIDGE & getModifiers()) != 0;
     }
@@ -530,10 +547,12 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return (SYNTHETIC & getModifiers()) != 0;
     }
 
+    @Override
     public boolean isVarArgs() {
         return (VARARGS & getModifiers()) != 0;
     }
 
+    @Override
     public boolean isDefault() {
         // Copied from java.lang.Method.isDefault()
         int mask = Modifier.ABSTRACT | Modifier.PUBLIC | Modifier.STATIC;
@@ -569,25 +588,33 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
 
     private Executable toJava() {
         if (toJavaCache != null) {
-            return toJavaCache;
-        }
-        try {
-            Class<?>[] parameterTypes = signatureToTypes();
-            Class<?> returnType = ((HotSpotResolvedJavaType) getSignature().getReturnType(holder).resolve(holder)).mirror();
-
-            Executable result;
-            if (isConstructor()) {
-                result = holder.mirror().getDeclaredConstructor(parameterTypes);
-            } else {
-                // Do not use Method.getDeclaredMethod() as it can return a bridge method
-                // when this.isBridge() is false and vice versa.
-                result = searchMethods(holder.mirror().getDeclaredMethods(), getName(), returnType, parameterTypes);
+            if (toJavaCache == signature) {
+                return null;
             }
-            toJavaCache = result;
-            return result;
-        } catch (NoSuchMethodException | NoClassDefFoundError e) {
-            return null;
+            return (Executable) toJavaCache;
         }
+        Class<?>[] parameterTypes = signatureToTypes();
+        Class<?> returnType = ((HotSpotResolvedJavaType) getSignature().getReturnType(holder).resolve(holder)).mirror();
+
+        Executable result;
+        if (isConstructor()) {
+            try {
+                result = holder.mirror().getDeclaredConstructor(parameterTypes);
+            } catch (NoSuchMethodException e) {
+                toJavaCache = signature;
+                return null;
+            }
+        } else {
+            // Do not use Method.getDeclaredMethod() as it can return a bridge method
+            // when this.isBridge() is false and vice versa.
+            result = searchMethods(holder.mirror().getDeclaredMethods(), getName(), returnType, parameterTypes);
+            if (result == null) {
+                toJavaCache = signature;
+                return null;
+            }
+        }
+        toJavaCache = result;
+        return result;
     }
 
     @Override
@@ -673,6 +700,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      *
      * @return the offset of this method into the v-table
      */
+    @Override
     public int vtableEntryOffset(ResolvedJavaType resolved) {
         if (!isInVirtualMethodTable(resolved)) {
             throw new JVMCIError("%s does not have a vtable entry in type %s", this, resolved);
@@ -733,13 +761,14 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      * read the JVM_ACC_IS_OBSOLETE bit (or anything else) via the raw pointer as obsoleted methods
      * are subject to clean up and deletion (see InstanceKlass::purge_previous_versions_internal).
      */
-    private static final ClassValue<Map<Long, SpeculationLog>> SpeculationLogs = new ClassValue<Map<Long, SpeculationLog>>() {
+    private static final ClassValue<Map<Long, SpeculationLog>> SpeculationLogs = new ClassValue<>() {
         @Override
         protected Map<Long, SpeculationLog> computeValue(java.lang.Class<?> type) {
             return new HashMap<>(4);
         }
     };
 
+    @Override
     public SpeculationLog getSpeculationLog() {
         Map<Long, SpeculationLog> map = SpeculationLogs.get(holder.mirror());
         synchronized (map) {
@@ -752,11 +781,13 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         }
     }
 
+    @Override
     public int intrinsicId() {
         HotSpotVMConfig config = config();
         return UNSAFE.getChar(metaspaceMethod + config.methodIntrinsicIdOffset);
     }
 
+    @Override
     public boolean isIntrinsicCandidate() {
         return (getFlags() & config().methodFlagsIntrinsicCandidate) != 0;
     }
@@ -767,10 +798,12 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
      * @param entryBCI entry bci
      * @return compile id
      */
+    @Override
     public int allocateCompileId(int entryBCI) {
         return compilerToVM().allocateCompileId(this, entryBCI);
     }
 
+    @Override
     public boolean hasCodeAtLevel(int entryBCI, int level) {
         if (entryBCI == config().invocationEntryBci) {
             return hasCompiledCodeAtLevel(level);
@@ -778,6 +811,7 @@ final class HotSpotResolvedJavaMethodImpl extends HotSpotMethod implements HotSp
         return compilerToVM().hasCompiledCodeForOSR(this, entryBCI, level);
     }
 
+    @Override
     public int methodIdnum() {
         return UNSAFE.getChar(getConstMethod() + config().constMethodMethodIdnumOffset);
     }

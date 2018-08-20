@@ -30,7 +30,6 @@
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "code/vmreg.hpp"
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constMethod.hpp"
@@ -157,8 +156,11 @@ class InstanceKlass: public Klass {
   friend class ClassFileParser;
   friend class CompileReplay;
 
+ public:
+  static const KlassID ID = InstanceKlassID;
+
  protected:
-  InstanceKlass(const ClassFileParser& parser, unsigned kind);
+  InstanceKlass(const ClassFileParser& parser, unsigned kind, KlassID id = ID);
 
  public:
   InstanceKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
@@ -201,6 +203,19 @@ class InstanceKlass: public Klass {
   // and EnclosingMethod attributes the _inner_classes array length is
   // number_of_inner_classes * 4 + enclosing_method_attribute_size.
   Array<jushort>* _inner_classes;
+
+  // The NestMembers attribute. An array of shorts, where each is a
+  // class info index for the class that is a nest member. This data
+  // has not been validated.
+  Array<jushort>* _nest_members;
+
+  // The NestHost attribute. The class info index for the class
+  // that is the nest-host of this class. This data has not been validated.
+  jushort _nest_host_index;
+
+  // Resolved nest-host klass: either true nest-host or self if we are not nested.
+  // By always being set it makes nest-member access checks simpler.
+  InstanceKlass* _nest_host;
 
   Array<ValueTypes>* _value_types;
 
@@ -314,10 +329,10 @@ class InstanceKlass: public Klass {
   Array<Method*>* _methods;
   // Default Method Array, concrete methods inherited from interfaces
   Array<Method*>* _default_methods;
-  // Interface (Klass*s) this class declares locally to implement.
-  Array<Klass*>* _local_interfaces;
-  // Interface (Klass*s) this class implements transitively.
-  Array<Klass*>* _transitive_interfaces;
+  // Interfaces (InstanceKlass*s) this class declares locally to implement.
+  Array<InstanceKlass*>* _local_interfaces;
+  // Interfaces (InstanceKlass*s) this class implements transitively.
+  Array<InstanceKlass*>* _transitive_interfaces;
   // Int array containing the original order of method in the class file (for JVMTI).
   Array<int>*     _method_ordering;
   // Int array containing the vtable_indices for default_methods
@@ -459,13 +474,13 @@ class InstanceKlass: public Klass {
   Array<int>* create_new_default_vtable_indices(int len, TRAPS);
 
   // interfaces
-  Array<Klass*>* local_interfaces() const          { return _local_interfaces; }
-  void set_local_interfaces(Array<Klass*>* a)      {
+  Array<InstanceKlass*>* local_interfaces() const          { return _local_interfaces; }
+  void set_local_interfaces(Array<InstanceKlass*>* a)      {
     guarantee(_local_interfaces == NULL || a == NULL, "Just checking");
     _local_interfaces = a; }
 
-  Array<Klass*>* transitive_interfaces() const     { return _transitive_interfaces; }
-  void set_transitive_interfaces(Array<Klass*>* a) {
+  Array<InstanceKlass*>* transitive_interfaces() const     { return _transitive_interfaces; }
+  void set_transitive_interfaces(Array<InstanceKlass*>* a) {
     guarantee(_transitive_interfaces == NULL || a == NULL, "Just checking");
     _transitive_interfaces = a;
   }
@@ -494,6 +509,24 @@ class InstanceKlass: public Klass {
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
   void set_inner_classes(Array<u2>* f)   { _inner_classes = f; }
+
+  // nest members
+  Array<u2>* nest_members() const     { return _nest_members; }
+  void set_nest_members(Array<u2>* m) { _nest_members = m; }
+
+  // nest-host index
+  jushort nest_host_index() const { return _nest_host_index; }
+  void set_nest_host_index(u2 i)  { _nest_host_index = i; }
+
+private:
+  // Called to verify that k is a member of this nest - does not look at k's nest-host
+  bool has_nest_member(InstanceKlass* k, TRAPS) const;
+public:
+  // Returns nest-host class, resolving and validating it if needed
+  // Returns NULL if an exception occurs during loading, or validation fails
+  InstanceKlass* nest_host(Symbol* validationException, TRAPS);
+  // Check if this klass is a nestmate of k - resolves this nest-host and k's
+  bool has_nestmate_access_to(InstanceKlass* k, TRAPS);
 
   Array<ValueTypes>* value_types() const       { return _value_types; }
   void set_value_types(Array<ValueTypes>* f)   { _value_types = f; }
@@ -542,7 +575,7 @@ class InstanceKlass: public Klass {
  private:
   // Check prohibited package ("java/" only loadable by boot or platform loaders)
   static void check_prohibited_package(Symbol* class_name,
-                                       Handle class_loader,
+                                       ClassLoaderData* loader_data,
                                        TRAPS);
  public:
   // tell if two classes have the same enclosing class (at package level)
@@ -627,10 +660,12 @@ class InstanceKlass: public Klass {
                              const Symbol* signature);
 
   // find a local method, but skip static methods
-  Method* find_instance_method(const Symbol* name, const Symbol* signature) const;
+  Method* find_instance_method(const Symbol* name, const Symbol* signature,
+                               PrivateLookupMode private_mode = find_private) const;
   static Method* find_instance_method(const Array<Method*>* methods,
                                       const Symbol* name,
-                                      const Symbol* signature);
+                                      const Symbol* signature,
+                                      PrivateLookupMode private_mode = find_private);
 
   // find a local method (returns NULL if not found)
   Method* find_local_method(const Symbol* name,
@@ -658,7 +693,8 @@ class InstanceKlass: public Klass {
   // lookup operation (returns NULL if not found)
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
-                                 OverpassLookupMode overpass_mode) const;
+                                 OverpassLookupMode overpass_mode,
+                                 PrivateLookupMode private_mode = find_private) const;
 
   // lookup a method in all the interfaces that this class implements
   // (returns NULL if not found)
@@ -725,11 +761,6 @@ class InstanceKlass: public Klass {
   oop klass_holder() const {
     return is_anonymous() ? java_mirror() : class_loader();
   }
-
-  // Load the klass's holder as a phantom. This is useful when a weak Klass
-  // pointer has been "peeked" and then must be kept alive before it may
-  // be used safely.
-  oop holder_phantom() const;
 
   bool is_contended() const                {
     return (_misc_flags & _misc_is_contended) != 0;
@@ -890,6 +921,7 @@ public:
   }
 
   static bool has_previous_versions_and_reset();
+  static bool has_previous_versions() { return _has_previous_versions; }
 
   // JVMTI: Support for caching a class file before it is modified by an agent that can do retransformation
   void set_cached_class_file(JvmtiCachedClassFileData *data) {
@@ -1064,36 +1096,9 @@ public:
 #endif
 
   // Access to the implementor of an interface.
-  Klass* implementor() const
-  {
-    Klass** k = adr_implementor();
-    if (k == NULL) {
-      return NULL;
-    } else {
-      return *k;
-    }
-  }
-
-  void set_implementor(Klass* k) {
-    assert(is_interface(), "not interface");
-    Klass** addr = adr_implementor();
-    assert(addr != NULL, "null addr");
-    if (addr != NULL) {
-      *addr = k;
-    }
-  }
-
-  int  nof_implementors() const       {
-    Klass* k = implementor();
-    if (k == NULL) {
-      return 0;
-    } else if (k != this) {
-      return 1;
-    } else {
-      return 2;
-    }
-  }
-
+  Klass* implementor() const;
+  void set_implementor(Klass* k);
+  int  nof_implementors() const;
   void add_implementor(Klass* k);  // k is a new class that implements this interface
   void init_implementor();           // initialize
 
@@ -1103,7 +1108,7 @@ public:
   // virtual operations from Klass
   bool is_leaf_class() const               { return _subklass == NULL; }
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<Klass*>* transitive_interfaces);
+                                                  Array<InstanceKlass*>* transitive_interfaces);
   bool compute_is_subtype_of(Klass* k);
   bool can_be_primary_super_slow() const;
   int oop_size(oop obj)  const             { return size_helper(); }
@@ -1131,7 +1136,7 @@ public:
     return static_cast<const InstanceKlass*>(k);
   }
 
-  InstanceKlass* java_super() const {
+  virtual InstanceKlass* java_super() const {
     return (super() == NULL) ? NULL : cast(super());
   }
 
@@ -1304,8 +1309,8 @@ public:
                                  Array<Method*>* methods);
   void static deallocate_interfaces(ClassLoaderData* loader_data,
                                     const Klass* super_klass,
-                                    Array<Klass*>* local_interfaces,
-                                    Array<Klass*>* transitive_interfaces);
+                                    Array<InstanceKlass*>* local_interfaces,
+                                    Array<InstanceKlass*>* transitive_interfaces);
 
   // The constant pool is on stack if any of the methods are executing or
   // referenced by handles.
@@ -1330,89 +1335,56 @@ public:
 #endif
 
   // Oop fields (and metadata) iterators
-  //  [nv = true]  Use non-virtual calls to do_oop_nv.
-  //  [nv = false] Use virtual calls to do_oop.
   //
   // The InstanceKlass iterators also visits the Object's klass.
 
   // Forward iteration
  public:
   // Iterate over all oop fields in the oop maps.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_oop_maps(oop obj, OopClosureType* closure);
 
- protected:
   // Iterate over all oop fields and metadata.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline int oop_oop_iterate(oop obj, OopClosureType* closure);
 
- private:
-  // Iterate over all oop fields in the oop maps.
-  // Specialized for [T = oop] or [T = narrowOop].
-  template <bool nv, typename T, class OopClosureType>
-  inline void oop_oop_iterate_oop_maps_specialized(oop obj, OopClosureType* closure);
-
   // Iterate over all oop fields in one oop map.
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_oop_map(OopMapBlock* map, oop obj, OopClosureType* closure);
 
 
   // Reverse iteration
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
- public:
-  // Iterate over all oop fields in the oop maps.
-  template <bool nv, class OopClosureType>
-  inline void oop_oop_iterate_oop_maps_reverse(oop obj, OopClosureType* closure);
-
- protected:
   // Iterate over all oop fields and metadata.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline int oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
 
  private:
   // Iterate over all oop fields in the oop maps.
-  // Specialized for [T = oop] or [T = narrowOop].
-  template <bool nv, typename T, class OopClosureType>
-  inline void oop_oop_iterate_oop_maps_specialized_reverse(oop obj, OopClosureType* closure);
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_oop_maps_reverse(oop obj, OopClosureType* closure);
 
   // Iterate over all oop fields in one oop map.
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_oop_map_reverse(OopMapBlock* map, oop obj, OopClosureType* closure);
-#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 
 
   // Bounded range iteration
  public:
   // Iterate over all oop fields in the oop maps.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_oop_maps_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
- protected:
   // Iterate over all oop fields and metadata.
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline int oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
  private:
-  // Iterate over all oop fields in the oop maps.
-  // Specialized for [T = oop] or [T = narrowOop].
-  template <bool nv, typename T, class OopClosureType>
-  inline void oop_oop_iterate_oop_maps_specialized_bounded(oop obj, OopClosureType* closure, MemRegion mr);
-
   // Iterate over all oop fields in one oop map.
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_oop_map_bounded(OopMapBlock* map, oop obj, OopClosureType* closure, MemRegion mr);
 
 
  public:
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL)
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_BACKWARDS)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_BACKWARDS)
-#endif
-
   u2 idnum_allocated_count() const      { return _idnum_allocated_count; }
 
 public:
@@ -1517,6 +1489,7 @@ public:
 
   void print_dependent_nmethods(bool verbose = false);
   bool is_dependent_nmethod(nmethod* nm);
+  bool verify_itable_index(int index);
 #endif
 
   const char* internal_name() const;

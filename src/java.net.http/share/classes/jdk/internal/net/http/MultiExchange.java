@@ -26,8 +26,8 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
-import java.time.Duration;
+import java.net.ConnectException;
+import java.net.http.HttpConnectTimeoutException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.security.AccessControlContext;
@@ -69,7 +69,7 @@ class MultiExchange<T> {
     final AccessControlContext acc;
     final HttpClientImpl client;
     final HttpResponse.BodyHandler<T> responseHandler;
-    final Executor executor;
+    final HttpClientImpl.DelegatingExecutor executor;
     final AtomicInteger attempts = new AtomicInteger();
     HttpRequestImpl currentreq; // used for retries & redirect
     HttpRequestImpl previousreq; // used for retries & redirect
@@ -88,7 +88,7 @@ class MultiExchange<T> {
     );
 
     private final LinkedList<HeaderFilter> filters;
-    TimedEvent timedEvent;
+    ResponseTimerEvent responseTimerEvent;
     volatile boolean cancelled;
     final PushGroup<T> pushGroup;
 
@@ -124,8 +124,8 @@ class MultiExchange<T> {
 
         if (pushPromiseHandler != null) {
             Executor executor = acc == null
-                    ? this.executor
-                    : new PrivilegedExecutor(this.executor, acc);
+                    ? this.executor.delegate()
+                    : new PrivilegedExecutor(this.executor.delegate(), acc);
             this.pushGroup = new PushGroup<>(pushPromiseHandler, request, executor);
         } else {
             pushGroup = null;
@@ -134,7 +134,7 @@ class MultiExchange<T> {
         this.exchange = new Exchange<>(request, this);
     }
 
-    private synchronized Exchange<T> getExchange() {
+    synchronized Exchange<T> getExchange() {
         return exchange;
     }
 
@@ -157,8 +157,8 @@ class MultiExchange<T> {
     }
 
     private void cancelTimer() {
-        if (timedEvent != null) {
-            client.cancelTimer(timedEvent);
+        if (responseTimerEvent != null) {
+            client.cancelTimer(responseTimerEvent);
         }
     }
 
@@ -193,7 +193,7 @@ class MultiExchange<T> {
         getExchange().cancel(cause);
     }
 
-    public CompletableFuture<HttpResponse<T>> responseAsync() {
+    public CompletableFuture<HttpResponse<T>> responseAsync(Executor executor) {
         CompletableFuture<Void> start = new MinimalFuture<>();
         CompletableFuture<HttpResponse<T>> cf = responseAsync0(start);
         start.completeAsync( () -> null, executor); // trigger execution
@@ -220,8 +220,8 @@ class MultiExchange<T> {
             cf = failedFuture(new IOException("Too many retries", retryCause));
         } else {
             if (currentreq.timeout().isPresent()) {
-                timedEvent = new TimedEvent(currentreq.timeout().get());
-                client.registerTimer(timedEvent);
+                responseTimerEvent = ResponseTimerEvent.of(this);
+                client.registerTimer(responseTimerEvent);
             }
             try {
                 // 1. apply request filters
@@ -285,13 +285,22 @@ class MultiExchange<T> {
 
     private static boolean retryPostValue() {
         String s = Utils.getNetProperty("jdk.httpclient.enableAllMethodRetry");
-        if (s == "" || "true".equals(s))
-            return true;
-        return false;
+        if (s == null)
+            return false;
+        return s.isEmpty() ? true : Boolean.parseBoolean(s);
+    }
+
+    private static boolean retryConnect() {
+        String s = Utils.getNetProperty("jdk.httpclient.disableRetryConnect");
+        if (s == null)
+            return false;
+        return s.isEmpty() ? true : Boolean.parseBoolean(s);
     }
 
     /** True if ALL ( even non-idempotent ) requests can be automatic retried. */
     private static final boolean RETRY_ALWAYS = retryPostValue();
+    /** True if ConnectException should cause a retry. Enabled by default */
+    private static final boolean RETRY_CONNECT = retryConnect();
 
     /** Returns true is given request has an idempotent method. */
     private static boolean isIdempotentRequest(HttpRequest request) {
@@ -307,11 +316,21 @@ class MultiExchange<T> {
 
     /** Returns true if the given request can be automatically retried. */
     private static boolean canRetryRequest(HttpRequest request) {
-        if (isIdempotentRequest(request))
-            return true;
         if (RETRY_ALWAYS)
             return true;
+        if (isIdempotentRequest(request))
+            return true;
         return false;
+    }
+
+    private boolean retryOnFailure(Throwable t) {
+        return t instanceof ConnectionExpiredException
+                || (RETRY_CONNECT && (t instanceof ConnectException));
+    }
+
+    private Throwable retryCause(Throwable t) {
+        Throwable cause = t instanceof ConnectionExpiredException ? t.getCause() : t;
+        return cause == null ? t : cause;
     }
 
     /**
@@ -325,22 +344,23 @@ class MultiExchange<T> {
             }
         }
         if (cancelled && t instanceof IOException) {
-            t = new HttpTimeoutException("request timed out");
-        } else if (t instanceof ConnectionExpiredException) {
-            Throwable cause = t;
-            if (t.getCause() != null) {
-                cause = t.getCause(); // unwrap the ConnectionExpiredException
+            if (!(t instanceof HttpTimeoutException)) {
+                t = toTimeoutException((IOException)t);
             }
+        } else if (retryOnFailure(t)) {
+            Throwable cause = retryCause(t);
 
-            if (!canRetryRequest(currentreq)) {
-                return failedFuture(cause); // fails with original cause
+            if (!(t instanceof ConnectException)) {
+                if (!canRetryRequest(currentreq)) {
+                    return failedFuture(cause); // fails with original cause
+                }
             }
 
             // allow the retry mechanism to do its work
             retryCause = cause;
             if (!expiredOnce) {
                 if (debug.on())
-                    debug.log("ConnectionExpiredException (async): retrying...", t);
+                    debug.log(t.getClass().getSimpleName() + " (async): retrying...", t);
                 expiredOnce = true;
                 // The connection was abruptly closed.
                 // We return null to retry the same request a second time.
@@ -350,24 +370,34 @@ class MultiExchange<T> {
                 previousreq = currentreq;
                 return null;
             } else {
-                if (debug.on())
-                    debug.log("ConnectionExpiredException (async): already retried once.", t);
-                if (t.getCause() != null) t = t.getCause();
+                if (debug.on()) {
+                    debug.log(t.getClass().getSimpleName()
+                            + " (async): already retried once.", t);
+                }
+                t = cause;
             }
         }
         return failedFuture(t);
     }
 
-    class TimedEvent extends TimeoutEvent {
-        TimedEvent(Duration duration) {
-            super(duration);
+    private HttpTimeoutException toTimeoutException(IOException ioe) {
+        HttpTimeoutException t = null;
+
+        // more specific, "request timed out", when connected
+        Exchange<?> exchange = getExchange();
+        if (exchange != null) {
+            ExchangeImpl<?> exchangeImpl = exchange.exchImpl;
+            if (exchangeImpl != null) {
+                if (exchangeImpl.connection().connected()) {
+                    t = new HttpTimeoutException("request timed out");
+                    t.initCause(ioe);
+                }
+            }
         }
-        @Override
-        public void handle() {
-            if (debug.on())
-                debug.log("Cancelling MultiExchange due to timeout for request %s",
-                          request);
-            cancel(new HttpTimeoutException("request timed out"));
+        if (t == null) {
+            t = new HttpConnectTimeoutException("HTTP connect timed out");
+            t.initCause(new ConnectException("HTTP connect timed out"));
         }
+        return t;
     }
 }

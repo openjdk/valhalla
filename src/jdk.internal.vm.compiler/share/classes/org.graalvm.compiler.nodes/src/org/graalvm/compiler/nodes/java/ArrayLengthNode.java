@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.java;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_2;
@@ -33,17 +35,15 @@ import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.FixedWithNextNode;
 import org.graalvm.compiler.nodes.ValueNode;
-import org.graalvm.compiler.nodes.ValueProxyNode;
+import org.graalvm.compiler.nodes.spi.ArrayLengthProvider;
 import org.graalvm.compiler.nodes.spi.Lowerable;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
-import org.graalvm.compiler.nodes.spi.ValueProxy;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualArrayNode;
 
 import jdk.vm.ci.meta.ConstantReflectionProvider;
-import jdk.vm.ci.meta.JavaConstant;
 
 /**
  * The {@code ArrayLength} instruction gets the length of an array.
@@ -74,7 +74,7 @@ public final class ArrayLengthNode extends FixedWithNextNode implements Canonica
             return newArray.length();
         }
 
-        ValueNode length = readArrayLengthConstant(forValue, constantReflection);
+        ValueNode length = readArrayLength(forValue, constantReflection);
         if (length != null) {
             return length;
         }
@@ -91,54 +91,12 @@ public final class ArrayLengthNode extends FixedWithNextNode implements Canonica
     }
 
     /**
-     * Replicate the {@link ValueProxyNode}s from {@code originalValue} onto {@code value}.
-     *
-     * @param originalValue a possibly proxied value
-     * @param value a value needing proxies
-     * @return proxies wrapping {@code value}
-     */
-    private static ValueNode reproxyValue(ValueNode originalValue, ValueNode value) {
-        if (value.isConstant()) {
-            // No proxy needed
-            return value;
-        }
-        if (originalValue instanceof ValueProxyNode) {
-            ValueProxyNode proxy = (ValueProxyNode) originalValue;
-            return new ValueProxyNode(reproxyValue(proxy.getOriginalNode(), value), proxy.proxyPoint());
-        } else if (originalValue instanceof ValueProxy) {
-            ValueProxy proxy = (ValueProxy) originalValue;
-            return reproxyValue(proxy.getOriginalNode(), value);
-        } else {
-            return value;
-        }
-    }
-
-    /**
      * Gets the length of an array if possible.
      *
      * @return a node representing the length of {@code array} or null if it is not available
      */
     public static ValueNode readArrayLength(ValueNode originalArray, ConstantReflectionProvider constantReflection) {
-        ValueNode length = GraphUtil.arrayLength(originalArray);
-        if (length != null) {
-            // Ensure that any proxies on the original value end up on the length value
-            return reproxyValue(originalArray, length);
-        }
-        return readArrayLengthConstant(originalArray, constantReflection);
-    }
-
-    private static ValueNode readArrayLengthConstant(ValueNode originalArray, ConstantReflectionProvider constantReflection) {
-        ValueNode array = GraphUtil.unproxify(originalArray);
-        if (constantReflection != null && array.isConstant() && !array.isNullConstant()) {
-            JavaConstant constantValue = array.asJavaConstant();
-            if (constantValue != null && constantValue.isNonNull()) {
-                Integer constantLength = constantReflection.readArrayLength(constantValue);
-                if (constantLength != null) {
-                    return ConstantNode.forInt(constantLength);
-                }
-            }
-        }
-        return null;
+        return GraphUtil.arrayLength(originalArray, ArrayLengthProvider.FindLengthMode.CANONICALIZE_READ, constantReflection);
     }
 
     @Override

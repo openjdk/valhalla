@@ -88,6 +88,18 @@ protected:
   inline void* base(BasicType type) const;
   inline void* base_raw(BasicType type) const; // GC barrier invariant
 
+  template <typename T>
+  static T* obj_offset_to_raw(arrayOop obj, size_t offset_in_bytes, T* raw) {
+    if (obj != NULL) {
+      assert(raw == NULL, "either raw or in-heap");
+      char* base = reinterpret_cast<char*>((void*) obj);
+      raw = reinterpret_cast<T*>(base + offset_in_bytes);
+    } else {
+      assert(raw != NULL, "either raw or in-heap");
+    }
+    return raw;
+  }
+
   // Tells whether index is within bounds.
   bool is_within_bounds(int index) const        { return 0 <= index && index < length(); }
 
@@ -97,7 +109,10 @@ protected:
     return *(int*)(((intptr_t)this) + length_offset_in_bytes());
   }
   void set_length(int length) {
-    *(int*)(((intptr_t)this) + length_offset_in_bytes()) = length;
+    set_length((HeapWord*)this, length);
+  }
+  static void set_length(HeapWord* mem, int length) {
+    *(int*)(((char*)mem) + length_offset_in_bytes()) = length;
   }
 
   // Should only be called with constants as argument

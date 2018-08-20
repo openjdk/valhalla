@@ -32,12 +32,19 @@
  * @modules java.base/jdk.internal.misc
  * @modules java.management
  *          jdk.jartool/sun.tools.jar
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
  * @build HelloString
- * @run main IncompatibleOptions
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions
+ * @run main/othervm -XX:+UseStringDeduplication -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions
+ * @run main/othervm -XX:-CompactStrings -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. IncompatibleOptions
  */
 
 import jdk.test.lib.Asserts;
+import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
+
+import sun.hotspot.code.Compiler;
 
 public class IncompatibleOptions {
     static final String COOPS_DUMP_WARNING =
@@ -58,11 +65,16 @@ public class IncompatibleOptions {
 
         // Uncompressed OOPs
         testDump(1, "-XX:+UseG1GC", "-XX:-UseCompressedOops", COOPS_DUMP_WARNING, true);
+        if (Platform.isLinux() && Platform.isX64()) {
+            testDump(1, "-XX:+UnlockExperimentalVMOptions", "-XX:+UseZGC", COOPS_DUMP_WARNING, true);
+        }
 
         // incompatible GCs
         testDump(2, "-XX:+UseParallelGC", "", GC_WARNING, false);
         testDump(3, "-XX:+UseSerialGC", "", GC_WARNING, false);
-        testDump(4, "-XX:+UseConcMarkSweepGC", "", GC_WARNING, false);
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            testDump(4, "-XX:+UseConcMarkSweepGC", "", GC_WARNING, false);
+        }
 
         // ======= archive with compressed oops, run w/o
         testDump(5, "-XX:+UseG1GC", "-XX:+UseCompressedOops", null, false);
@@ -73,7 +85,9 @@ public class IncompatibleOptions {
         // Still run, to ensure no crash or exception
         testExec(6, "-XX:+UseParallelGC", "", "", false);
         testExec(7, "-XX:+UseSerialGC", "", "", false);
-        testExec(8, "-XX:+UseConcMarkSweepGC", "", "", false);
+        if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
+            testExec(8, "-XX:+UseConcMarkSweepGC", "", "", false);
+        }
 
         // Test various oops encodings, by varying ObjectAlignmentInBytes and heap sizes
         testDump(9, "-XX:+UseG1GC", "-XX:ObjectAlignmentInBytes=8", null, false);
@@ -105,6 +119,7 @@ public class IncompatibleOptions {
             "-XX:+UseCompressedOops",
             collectorOption,
             "-XX:SharedArchiveConfigFile=" + TestCommon.getSourceFile("SharedStringsBasic.txt"),
+            "-Xlog:cds,cds+hashtables",
             extraOption);
 
         if (expectedWarning != null)

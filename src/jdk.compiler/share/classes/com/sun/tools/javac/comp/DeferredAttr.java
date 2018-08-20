@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,12 @@ package com.sun.tools.javac.comp;
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.source.tree.NewClassTree;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Type.ErrorType;
+import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.StructuralTypeMapping;
 import com.sun.tools.javac.code.Types.TypeMapping;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
+import com.sun.tools.javac.comp.Infer.GraphSolver.InferenceGraph;
 import com.sun.tools.javac.comp.Resolve.ResolveError;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.tree.*;
@@ -58,6 +61,7 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 
 import com.sun.source.tree.MemberReferenceTree;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree.JCMemberReference.OverloadKind;
 
 import static com.sun.tools.javac.code.TypeTag.*;
@@ -164,10 +168,17 @@ public class DeferredAttr extends JCTree.Visitor {
                     JCMemberReference result = new JCMemberReference(t.mode, t.name, expr, typeargs) {
                         @Override
                         public void setOverloadKind(OverloadKind overloadKind) {
-                            super.setOverloadKind(overloadKind);
-                            if (t.getOverloadKind() == null) {
+                            OverloadKind previous = t.getOverloadKind();
+                            if (previous == null) {
                                 t.setOverloadKind(overloadKind);
+                            } else {
+                                Assert.check(previous == overloadKind);
                             }
+                        }
+
+                        @Override
+                        public OverloadKind getOverloadKind() {
+                            return t.getOverloadKind();
                         }
                     };
                     result.pos = t.pos;
@@ -656,28 +667,57 @@ public class DeferredAttr extends JCTree.Visitor {
         }
 
         /**
-         * Pick the deferred node to be unstuck. The chosen node is the first strongly connected
-         * component containing exactly one node found in the dependency graph induced by deferred nodes.
-         * If no such component is found, the first deferred node is returned.
+         * Pick the deferred node to be unstuck. First, deferred nodes are organized into a graph
+         * (see {@code DeferredAttrContext.buildStuckGraph()}, where a node N1 depends on another node N2
+         * if its input variable depends (as per the inference graph) on the output variables of N2
+         * (see {@code DeferredAttrContext.canInfluence()}.
+         *
+         * Then, the chosen deferred node is the first strongly connected component containing exactly
+         * one node found in such a graph. If no such component is found, the first deferred node is chosen.
          */
         DeferredAttrNode pickDeferredNode() {
+            List<StuckNode> stuckGraph = buildStuckGraph();
+            //compute tarjan on the stuck graph
+            List<? extends StuckNode> csn = GraphUtils.tarjan(stuckGraph).get(0);
+            return csn.length() == 1 ? csn.get(0).data : deferredAttrNodes.get(0);
+        }
+
+        List<StuckNode> buildStuckGraph() {
+            //first, build inference graph
+            infer.doIncorporation(inferenceContext, warn);
+            InferenceGraph graph = infer.new GraphSolver(inferenceContext, types.noWarnings)
+                    .new InferenceGraph();
+            //then, build stuck graph
             List<StuckNode> nodes = deferredAttrNodes.stream()
                     .map(StuckNode::new)
                     .collect(List.collector());
             //init stuck expression graph; a deferred node A depends on a deferred node B iff
-            //the intersection between A's input variable and B's output variable is non-empty.
+            //B's output variables can influence A's input variables.
             for (StuckNode sn1 : nodes) {
-                for (Type t : sn1.data.deferredStuckPolicy.stuckVars()) {
-                    for (StuckNode sn2 : nodes) {
-                        if (sn1 != sn2 && sn2.data.deferredStuckPolicy.depVars().contains(t)) {
-                            sn1.deps.add(sn2);
-                        }
+                for (StuckNode sn2 : nodes) {
+                    if (sn1 != sn2 && canInfluence(graph, sn2, sn1)) {
+                        sn1.deps.add(sn2);
                     }
                 }
             }
-            //compute tarjan on the stuck graph
-            List<? extends StuckNode> csn = GraphUtils.tarjan(nodes).get(0);
-            return csn.length() == 1 ? csn.get(0).data : deferredAttrNodes.get(0);
+            return nodes;
+        }
+
+        boolean canInfluence(InferenceGraph graph, StuckNode sn1, StuckNode sn2) {
+            Set<Type> outputVars = sn1.data.deferredStuckPolicy.depVars();
+            for (Type inputVar : sn2.data.deferredStuckPolicy.stuckVars()) {
+                InferenceGraph.Node inputNode = graph.findNode(inputVar);
+                //already solved stuck vars do not appear in the graph
+                if (inputNode != null) {
+                    Set<InferenceGraph.Node> inputClosure = inputNode.closure();
+                    if (outputVars.stream()
+                            .map(graph::findNode)
+                            .anyMatch(inputClosure::contains)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         class StuckNode extends GraphUtils.TarjanNode<DeferredAttrNode, StuckNode> {
@@ -965,7 +1005,7 @@ public class DeferredAttr extends JCTree.Visitor {
      * where T is computed by retrieving the type that has already been
      * computed for D during a previous deferred attribution round of the given kind.
      */
-    class DeferredTypeMap extends StructuralTypeMapping<Void> {
+    class DeferredTypeMap<T> extends StructuralTypeMapping<T> {
         DeferredAttrContext deferredAttrContext;
 
         protected DeferredTypeMap(AttrMode mode, Symbol msym, MethodResolutionPhase phase) {
@@ -974,16 +1014,16 @@ public class DeferredAttr extends JCTree.Visitor {
         }
 
         @Override
-        public Type visitType(Type t, Void _unused) {
+        public Type visitType(Type t, T p) {
             if (!t.hasTag(DEFERRED)) {
-                return super.visitType(t, null);
+                return super.visitType(t, p);
             } else {
                 DeferredType dt = (DeferredType)t;
-                return typeOf(dt);
+                return typeOf(dt, p);
             }
         }
 
-        protected Type typeOf(DeferredType dt) {
+        protected Type typeOf(DeferredType dt, T p) {
             switch (deferredAttrContext.mode) {
                 case CHECK:
                     return dt.tree.type == null ? Type.noType : dt.tree.type;
@@ -1002,17 +1042,35 @@ public class DeferredAttr extends JCTree.Visitor {
      * attribution round (as before), or (ii) by synthesizing a new type R for D
      * (the latter step is useful in a recovery scenario).
      */
-    public class RecoveryDeferredTypeMap extends DeferredTypeMap {
+    public class RecoveryDeferredTypeMap extends DeferredTypeMap<Type> {
 
         public RecoveryDeferredTypeMap(AttrMode mode, Symbol msym, MethodResolutionPhase phase) {
             super(mode, msym, phase != null ? phase : MethodResolutionPhase.BOX);
         }
 
         @Override
-        protected Type typeOf(DeferredType dt) {
-            Type owntype = super.typeOf(dt);
+        protected Type typeOf(DeferredType dt, Type pt) {
+            Type owntype = super.typeOf(dt, pt);
             return owntype == Type.noType ?
-                        recover(dt) : owntype;
+                        recover(dt, pt) : owntype;
+        }
+
+        @Override
+        public Type visitMethodType(Type.MethodType t, Type pt) {
+            if (t.hasTag(METHOD) && deferredAttrContext.mode == AttrMode.CHECK) {
+                Type mtype = deferredAttrContext.msym.type;
+                mtype = mtype.hasTag(ERROR) ? ((ErrorType)mtype).getOriginalType() : null;
+                if (mtype != null && mtype.hasTag(METHOD)) {
+                    List<Type> argtypes1 = map(t.getParameterTypes(), mtype.getParameterTypes());
+                    Type restype1 = visit(t.getReturnType(), mtype.getReturnType());
+                    List<Type> thrown1 = map(t.getThrownTypes(), mtype.getThrownTypes());
+                    if (argtypes1 == t.getParameterTypes() &&
+                        restype1 == t.getReturnType() &&
+                        thrown1 == t.getThrownTypes()) return t;
+                    else return new MethodType(argtypes1, restype1, thrown1, t.tsym);
+                }
+            }
+            return super.visitMethodType(t, pt);
         }
 
         /**
@@ -1022,14 +1080,24 @@ public class DeferredAttr extends JCTree.Visitor {
          * representation. Remaining deferred types are attributed using
          * a default expected type (j.l.Object).
          */
-        private Type recover(DeferredType dt) {
-            dt.check(attr.new RecoveryInfo(deferredAttrContext) {
+        private Type recover(DeferredType dt, Type pt) {
+            dt.check(attr.new RecoveryInfo(deferredAttrContext, pt != null ? pt : Type.recoveryType) {
                 @Override
                 protected Type check(DiagnosticPosition pos, Type found) {
                     return chk.checkNonVoid(pos, super.check(pos, found));
                 }
             });
             return super.visit(dt);
+        }
+
+        private List<Type> map(List<Type> ts, List<Type> pts) {
+            if (ts.nonEmpty()) {
+                List<Type> tail1 = map(ts.tail, pts != null ? pts.tail : null);
+                Type t = visit(ts.head, pts != null && pts.nonEmpty() ? pts.head : null);
+                if (tail1 != ts.tail || t != ts.head)
+                    return tail1.prepend(t);
+            }
+            return ts;
         }
     }
 

@@ -28,7 +28,7 @@ package sun.font;
 /* remember that the API requires a Font use a
  * consistent glyph id. for a code point, and this is a
  * problem if a particular strike uses native scaler sometimes
- * and T2K others. That needs to be dealt with somewhere, but
+ * and the JDK scaler others. That needs to be dealt with somewhere, but
  * here we can just always get the same glyph code without
  * needing a strike.
  *
@@ -214,7 +214,8 @@ public class CompositeGlyphMapper extends CharToGlyphMapper {
             if (code < FontUtilities.MIN_LAYOUT_CHARCODE) {
                 continue;
             }
-            else if (FontUtilities.isComplexCharCode(code)) {
+            else if (FontUtilities.isComplexCharCode(code) ||
+                     CharToGlyphMapper.isVariationSelector(code)) {
                 return true;
             }
             else if (code >= 0x10000) {

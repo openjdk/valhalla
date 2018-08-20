@@ -309,7 +309,7 @@ public class SSLTube implements FlowTube {
             synchronized (this) {
                 previous = pendingDelegate.getAndSet(delegateWrapper);
                 subscription = readSubscription;
-                handleNow = this.errorRef.get() != null || finished;
+                handleNow = this.errorRef.get() != null || onCompleteReceived;
             }
             if (previous != null) {
                 previous.dropSubscription();
@@ -406,6 +406,21 @@ public class SSLTube implements FlowTube {
             }
         }
 
+        private void complete(DelegateWrapper subscriberImpl, Throwable t) {
+            try {
+                if (t == null) subscriberImpl.onComplete();
+                else subscriberImpl.onError(t);
+                if (debug.on()) {
+                    debug.log("subscriber completed %s"
+                            + ((t == null) ? "normally" : ("with error: " + t)));
+                }
+            } finally {
+                // Error or EOF while reading:
+                // cancel write side after completing read side
+                writeSubscription.cancel();
+            }
+        }
+
         private void onNewSubscription(DelegateWrapper subscriberImpl,
                                        Flow.Subscription subscription) {
             assert subscriberImpl != null;
@@ -424,13 +439,21 @@ public class SSLTube implements FlowTube {
             // if onError is invoked concurrently with setDelegate.
             synchronized (this) {
                 failed = this.errorRef.get();
-                completed = finished;
+                completed = onCompleteReceived;
                 subscribed = subscriberImpl;
             }
+
             if (failed != null) {
-                subscriberImpl.onError(failed);
+                if (debug.on())
+                    debug.log("onNewSubscription: subscriberImpl:%s, invoking onError:%s",
+                              subscriberImpl, failed);
+                complete(subscriberImpl, failed);
             } else if (completed) {
-                subscriberImpl.onComplete();
+                if (debug.on())
+                    debug.log("onNewSubscription: subscriberImpl:%s, invoking onCompleted",
+                              subscriberImpl);
+                finished = true;
+                complete(subscriberImpl, null);
             }
         }
 
@@ -455,7 +478,7 @@ public class SSLTube implements FlowTube {
                 subscriberImpl = subscribed;
             }
             if (subscriberImpl != null) {
-                subscriberImpl.onError(failed);
+                complete(subscriberImpl, failed);
             } else {
                 if (debug.on())
                     debug.log("%s: delegate null, stored %s", this, failed);
@@ -477,36 +500,46 @@ public class SSLTube implements FlowTube {
             return !(hs == NOT_HANDSHAKING || hs == FINISHED);
         }
 
-        private boolean handshakeFailed() {
+        private String handshakeFailed() {
             // sslDelegate can be null if we reach here
             // during the initial handshake, as that happens
             // within the SSLFlowDelegate constructor.
             // In that case we will want to raise an exception.
-            return handshaking()
+            if (handshaking()
                     && (sslDelegate == null
-                    || !sslDelegate.closeNotifyReceived());
+                    || !sslDelegate.closeNotifyReceived())) {
+                return "Remote host terminated the handshake";
+            }
+            // The initial handshake may not have been started yet.
+            // In which case - if we are completed before the initial handshake
+            // is started, we consider this a handshake failure as well.
+            if ("SSL_NULL_WITH_NULL_NULL".equals(engine.getSession().getCipherSuite()))
+                return "Remote host closed the channel";
+            return null;
         }
 
         @Override
         public void onComplete() {
             assert !finished && !onCompleteReceived;
-            onCompleteReceived = true;
             DelegateWrapper subscriberImpl;
             synchronized(this) {
                 subscriberImpl = subscribed;
             }
 
-            if (handshakeFailed()) {
+            String handshakeFailed = handshakeFailed();
+            if (handshakeFailed != null) {
                 if (debug.on())
-                    debug.log("handshake: %s, inbound done: %s outbound done: %s",
+                    debug.log("handshake: %s, inbound done: %s, outbound done: %s: %s",
                               engine.getHandshakeStatus(),
                               engine.isInboundDone(),
-                              engine.isOutboundDone());
-                onErrorImpl(new SSLHandshakeException(
-                        "Remote host terminated the handshake"));
+                              engine.isOutboundDone(),
+                              handshakeFailed);
+                onErrorImpl(new SSLHandshakeException(handshakeFailed));
             } else if (subscriberImpl != null) {
-                finished = true;
-                subscriberImpl.onComplete();
+                onCompleteReceived = finished = true;
+                complete(subscriberImpl, null);
+            } else {
+                onCompleteReceived = true;
             }
             // now if we have any pending subscriber, we should complete
             // them immediately as the read scheduler will already be stopped.
@@ -528,12 +561,17 @@ public class SSLTube implements FlowTube {
     final class SSLSubscriptionWrapper implements Flow.Subscription {
 
         volatile Flow.Subscription delegate;
+        private volatile boolean cancelled;
 
         void setSubscription(Flow.Subscription sub) {
             long demand = writeDemand.get(); // FIXME: isn't it a racy way of passing the demand?
             delegate = sub;
-            if (debug.on()) debug.log("setSubscription: demand=%d", demand);
-            if (demand > 0)
+            if (debug.on())
+                debug.log("setSubscription: demand=%d, cancelled:%s", demand, cancelled);
+
+            if (cancelled)
+                delegate.cancel();
+            else if (demand > 0)
                 sub.request(demand);
         }
 
@@ -549,7 +587,9 @@ public class SSLTube implements FlowTube {
 
         @Override
         public void cancel() {
-            // TODO:  no-op or error?
+            cancelled = true;
+            if (delegate != null)
+                delegate.cancel();
         }
     }
 

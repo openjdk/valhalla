@@ -27,20 +27,20 @@
  *
  * @summary converted from VM Testbase nsk/jdb/exclude/exclude001.
  * VM Testbase keywords: [jpda, jdb, quarantine]
- * VM Testbase comments: JDK-8191037
+ * VM Testbase comments: 8191037
  * VM Testbase readme:
  * DECSRIPTION
  * A positive test for the 'exclude' command.
  * The debuggee program (exclude001a.java) starts three
  * addional threads of MyThread class. The 'run' method of these
  * threads invokes java.lang.System.currentTimeMillis() and
- * com.sun.jdi.Bootstrap.virtualMachineManager() methods.
+ * sun.util.calendar.Gregorian() methods.
  * There are three test cases:
  *  - block all exclude filter;
  *  - modified exclude filter allowing tracing events for java.* methods,
  *    which is set with 'exclude javax.*,sun.*,com.sun.*,jdk.*' command;
- *  - modified exclude filter allowing tracing events for com.sun.* methods,
- *    which is set with 'exclude java.*,javax.*,sun.*,jdk.*' command.
+ *  - modified exclude filter allowing tracing events for sun.* methods,
+ *    which is set with 'exclude java.*,javax.*,com.sun.*,jdk.*' command.
  *  - non-modified, predefined exclude filter;
  *  - modified exclude filter allowing tracing events for java.* methods,
  *    which is set with 'exclude javax.*,sun.*,com.sun.*' command;
@@ -61,9 +61,9 @@
  * @run driver jdk.test.lib.FileInstaller . .
  * @build nsk.jdb.exclude.exclude001.exclude001
  *        nsk.jdb.exclude.exclude001.exclude001a
- * @run main/othervm PropertyResolvingWrapper nsk.jdb.exclude.exclude001.exclude001
+ * @run main/othervm/timeout=420 PropertyResolvingWrapper nsk.jdb.exclude.exclude001.exclude001
  *      -arch=${os.family}-${os.simpleArch}
- *      -waittime=5
+ *      -waittime=7
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
  *      -jdb=${test.jdk}/bin/jdb
@@ -102,7 +102,7 @@ public class exclude001 extends JdbTest {
     static final String DEBUGGEE_THREAD = PACKAGE_NAME + "." + MYTHREAD;
 
     static final String JAVA_CORE_METHOD = "java.lang.System.currentTimeMillis";
-    static final String COM_SUN_METHOD   = "com.sun.jdi.Bootstrap.virtualMachineManager";
+    static final String SUN_METHOD   = "sun.util.calendar.Gregorian";
 
     protected void runCases() {
         String[] reply;
@@ -152,8 +152,8 @@ public class exclude001 extends JdbTest {
                         case 1: // allow java.*
                                 reply = jdb.receiveReplyFor(JdbCommand.exclude + "javax.*,sun.*,com.sun.*,jdk.*");
                                 break;
-                        case 2: // allow com.sun.*
-                                reply = jdb.receiveReplyFor(JdbCommand.exclude + "java.*,javax.*,sun.*,jdk.");
+                        case 2: // allow sun.*
+                                reply = jdb.receiveReplyFor(JdbCommand.exclude + "java.*,javax.*,com.sun.*,jdk.");
                                 break;
                         }
 
@@ -172,12 +172,12 @@ public class exclude001 extends JdbTest {
                                 }
                             }
 
-                            count = grep.find(COM_SUN_METHOD);
+                            count = grep.find(SUN_METHOD);
                             if (count > 0) {
                                 if (testCase == 2) {
                                     comTraced = true;
                                 } else {
-                                    log.complain("Trace message for excluded method: " + COM_SUN_METHOD);
+                                    log.complain("Trace message for excluded method: " + SUN_METHOD);
                                 }
                             }
 
@@ -202,7 +202,7 @@ public class exclude001 extends JdbTest {
             success = false;
         }
         if (!comTraced) {
-            log.complain("There were no tracing events for " + COM_SUN_METHOD + "() method while turned off filter");
+            log.complain("There were no tracing events for " + SUN_METHOD + "() method while turned off filter");
             success = false;
         }
         if (!nskTraced) {

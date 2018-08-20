@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
@@ -35,7 +37,7 @@ import org.graalvm.compiler.api.replacements.MethodSubstitution;
 import org.graalvm.compiler.hotspot.word.KlassPointer;
 
 /**
- * Substitutions for {@link sun.reflect.Reflection} methods.
+ * Substitutions for {@code sun.reflect.Reflection} methods.
  */
 @ClassSubstitution(className = {"jdk.internal.reflect.Reflection", "sun.reflect.Reflection"}, optional = true)
 public class ReflectionSubstitutions {

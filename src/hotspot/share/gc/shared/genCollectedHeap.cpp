@@ -44,6 +44,7 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/generationSpec.hpp"
+#include "gc/shared/oopStorageParState.inline.hpp"
 #include "gc/shared/space.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/vmGCOperations.hpp"
@@ -72,7 +73,6 @@ GenCollectedHeap::GenCollectedHeap(GenCollectorPolicy *policy,
                                    Generation::Name old,
                                    const char* policy_counters_name) :
   CollectedHeap(),
-  _rem_set(NULL),
   _young_gen_spec(new GenerationSpec(young,
                                      policy->initial_young_size(),
                                      policy->max_young_size(),
@@ -81,11 +81,12 @@ GenCollectedHeap::GenCollectedHeap(GenCollectorPolicy *policy,
                                    policy->initial_old_size(),
                                    policy->max_old_size(),
                                    policy->gen_alignment())),
+  _rem_set(NULL),
   _gen_policy(policy),
   _soft_ref_gen_policy(),
   _gc_policy_counters(new GCPolicyCounters(policy_counters_name, 2, 2)),
-  _process_strong_tasks(new SubTasksDone(GCH_PS_NumElements)),
-  _full_collections_completed(0) {
+  _full_collections_completed(0),
+  _process_strong_tasks(new SubTasksDone(GCH_PS_NumElements)) {
 }
 
 jint GenCollectedHeap::initialize() {
@@ -274,9 +275,6 @@ HeapWord* GenCollectedHeap::expand_heap_and_allocate(size_t size, bool   is_tlab
 HeapWord* GenCollectedHeap::mem_allocate_work(size_t size,
                                               bool is_tlab,
                                               bool* gc_overhead_limit_was_exceeded) {
-  debug_only(check_for_valid_allocation_state());
-  assert(no_gc_in_progress(), "Allocation during gc not allowed");
-
   // In general gc_overhead_limit_was_exceeded should be false so
   // set it so here and reset it to true only if the gc time
   // limit is being exceeded as checked below.
@@ -851,12 +849,17 @@ void GenCollectedHeap::process_roots(StrongRootsScope* scope,
 }
 
 void GenCollectedHeap::process_string_table_roots(StrongRootsScope* scope,
-                                                  OopClosure* root_closure) {
+                                                  OopClosure* root_closure,
+                                                  OopStorage::ParState<false, false>* par_state_string) {
   assert(root_closure != NULL, "Must be set");
   // All threads execute the following. A specific chunk of buckets
   // from the StringTable are the individual tasks.
+
+  // Either we should be single threaded or have a ParState
+  assert((scope->n_threads() <= 1) || par_state_string != NULL, "Parallel but no ParState");
+
   if (scope->n_threads() > 1) {
-    StringTable::possibly_parallel_oops_do(root_closure);
+    StringTable::possibly_parallel_oops_do(par_state_string, root_closure);
   } else {
     StringTable::oops_do(root_closure);
   }
@@ -865,12 +868,13 @@ void GenCollectedHeap::process_string_table_roots(StrongRootsScope* scope,
 void GenCollectedHeap::young_process_roots(StrongRootsScope* scope,
                                            OopsInGenClosure* root_closure,
                                            OopsInGenClosure* old_gen_closure,
-                                           CLDClosure* cld_closure) {
+                                           CLDClosure* cld_closure,
+                                           OopStorage::ParState<false, false>* par_state_string) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, CodeBlobToOopClosure::FixRelocations);
 
   process_roots(scope, SO_ScavengeCodeCache, root_closure,
                 cld_closure, cld_closure, &mark_code_closure);
-  process_string_table_roots(scope, root_closure);
+  process_string_table_roots(scope, root_closure, par_state_string);
 
   if (!_process_strong_tasks->is_task_claimed(GCH_PS_younger_gens)) {
     root_closure->reset_generation();
@@ -890,7 +894,8 @@ void GenCollectedHeap::full_process_roots(StrongRootsScope* scope,
                                           ScanningOption so,
                                           bool only_strong_roots,
                                           OopsInGenClosure* root_closure,
-                                          CLDClosure* cld_closure) {
+                                          CLDClosure* cld_closure,
+                                          OopStorage::ParState<false, false>* par_state_string) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase);
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
 
@@ -899,7 +904,7 @@ void GenCollectedHeap::full_process_roots(StrongRootsScope* scope,
     // We never treat the string table as roots during marking
     // for the full gc, so we only need to process it during
     // the adjust phase.
-    process_string_table_roots(scope, root_closure);
+    process_string_table_roots(scope, root_closure, par_state_string);
   }
 
   _process_strong_tasks->all_tasks_completed(scope->n_threads());
@@ -1034,12 +1039,7 @@ bool GenCollectedHeap::is_in_partial_collection(const void* p) {
 }
 #endif
 
-void GenCollectedHeap::oop_iterate_no_header(OopClosure* cl) {
-  NoHeaderExtendedOopClosure no_header_cl(cl);
-  oop_iterate(&no_header_cl);
-}
-
-void GenCollectedHeap::oop_iterate(ExtendedOopClosure* cl) {
+void GenCollectedHeap::oop_iterate(OopIterateClosure* cl) {
   _young_gen->oop_iterate(cl);
   _old_gen->oop_iterate(cl);
 }

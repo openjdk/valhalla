@@ -77,8 +77,8 @@ private:
   NamedCounter(const char *n, CounterTag tag = NoTag):
     _name(n == NULL ? NULL : os::strdup(n)),
     _count(0),
-    _next(NULL),
-    _tag(tag) {}
+    _tag(tag),
+    _next(NULL) {}
 
   ~NamedCounter() {
     if (_name != NULL) {
@@ -291,6 +291,7 @@ private:
   static const TypeFunc* vectorizedMismatch_Type();
 
   static const TypeFunc* ghash_processBlocks_Type();
+  static const TypeFunc* base64_encodeBlock_Type();
 
   static const TypeFunc* updateBytesCRC32_Type();
   static const TypeFunc* updateBytesCRC32C_Type();

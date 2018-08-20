@@ -30,12 +30,14 @@
 #include "gc/cms/concurrentMarkSweepThread.hpp"
 #include "gc/shared/blockOffsetTable.inline.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/space.inline.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/binaryTreeDictionary.inline.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
@@ -45,7 +47,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -318,7 +320,12 @@ void CompactibleFreeListSpace::set_cms_values() {
 
 // Constructor
 CompactibleFreeListSpace::CompactibleFreeListSpace(BlockOffsetSharedArray* bs, MemRegion mr) :
+  _rescan_task_size(CardTable::card_size_in_words * BitsPerWord *
+                    CMSRescanMultiple),
+  _marking_task_size(CardTable::card_size_in_words * BitsPerWord *
+                    CMSConcMarkMultiple),
   _bt(bs, mr),
+  _collector(NULL),
   // free list locks are in the range of values taken by _lockRank
   // This range currently is [_leaf+2, _leaf+3]
   // Note: this requires that CFLspace c'tors
@@ -326,15 +333,10 @@ CompactibleFreeListSpace::CompactibleFreeListSpace(BlockOffsetSharedArray* bs, M
   // are acquired in the program text. This is true today.
   _freelistLock(_lockRank--, "CompactibleFreeListSpace._lock", true,
                 Monitor::_safepoint_check_sometimes),
+  _preconsumptionDirtyCardClosure(NULL),
   _parDictionaryAllocLock(Mutex::leaf - 1,  // == rank(ExpandHeap_lock) - 1
                           "CompactibleFreeListSpace._dict_par_lock", true,
-                          Monitor::_safepoint_check_never),
-  _rescan_task_size(CardTable::card_size_in_words * BitsPerWord *
-                    CMSRescanMultiple),
-  _marking_task_size(CardTable::card_size_in_words * BitsPerWord *
-                    CMSConcMarkMultiple),
-  _collector(NULL),
-  _preconsumptionDirtyCardClosure(NULL)
+                          Monitor::_safepoint_check_never)
 {
   assert(sizeof(FreeChunk) / BytesPerWord <= MinChunkSize,
          "FreeChunk is larger than expected");
@@ -843,13 +845,13 @@ protected:
     void walk_mem_region_with_cl_nopar(MemRegion mr,                    \
                                        HeapWord* bottom, HeapWord* top, \
                                        ClosureType* cl)
-  walk_mem_region_with_cl_DECL(ExtendedOopClosure);
+  walk_mem_region_with_cl_DECL(OopIterateClosure);
   walk_mem_region_with_cl_DECL(FilteringClosure);
 
 public:
   FreeListSpaceDCTOC(CompactibleFreeListSpace* sp,
                      CMSCollector* collector,
-                     ExtendedOopClosure* cl,
+                     OopIterateClosure* cl,
                      CardTable::PrecisionStyle precision,
                      HeapWord* boundary,
                      bool parallel) :
@@ -929,11 +931,11 @@ void FreeListSpaceDCTOC::walk_mem_region_with_cl_nopar(MemRegion mr,            
 // (There are only two of these, rather than N, because the split is due
 // only to the introduction of the FilteringClosure, a local part of the
 // impl of this abstraction.)
-FreeListSpaceDCTOC__walk_mem_region_with_cl_DEFN(ExtendedOopClosure)
+FreeListSpaceDCTOC__walk_mem_region_with_cl_DEFN(OopIterateClosure)
 FreeListSpaceDCTOC__walk_mem_region_with_cl_DEFN(FilteringClosure)
 
 DirtyCardToOopClosure*
-CompactibleFreeListSpace::new_dcto_cl(ExtendedOopClosure* cl,
+CompactibleFreeListSpace::new_dcto_cl(OopIterateClosure* cl,
                                       CardTable::PrecisionStyle precision,
                                       HeapWord* boundary,
                                       bool parallel) {
@@ -965,7 +967,7 @@ void CompactibleFreeListSpace::blk_iterate(BlkClosure* cl) {
 }
 
 // Apply the given closure to each oop in the space.
-void CompactibleFreeListSpace::oop_iterate(ExtendedOopClosure* cl) {
+void CompactibleFreeListSpace::oop_iterate(OopIterateClosure* cl) {
   assert_lock_strong(freelistLock());
   HeapWord *cur, *limit;
   size_t curSize;
@@ -2404,7 +2406,7 @@ class VerifyAllBlksClosure: public BlkClosure {
       res = _sp->adjustObjectSize(p->size());
       if (_sp->obj_is_alive(addr)) {
         was_live = true;
-        p->verify();
+        oopDesc::verify(p);
       }
     } else {
       FreeChunk* fc = (FreeChunk*)addr;
@@ -2433,7 +2435,7 @@ class VerifyAllBlksClosure: public BlkClosure {
   }
 };
 
-class VerifyAllOopsClosure: public OopClosure {
+class VerifyAllOopsClosure: public BasicOopIterateClosure {
  private:
   const CMSCollector*             _collector;
   const CompactibleFreeListSpace* _sp;
@@ -2453,7 +2455,7 @@ class VerifyAllOopsClosure: public OopClosure {
                   _sp->block_is_obj((HeapWord*)obj),
                   "Should be an object");
         guarantee(oopDesc::is_oop(obj), "Should be an oop");
-        obj->verify();
+        oopDesc::verify(obj);
         if (_past_remark) {
           // Remark has been completed, the object should be marked
           _bit_map->isMarked((HeapWord*)obj);
@@ -2470,7 +2472,7 @@ class VerifyAllOopsClosure: public OopClosure {
     } else if (_sp->is_in_reserved(p)) {
       // the reference is from FLS, and points out of FLS
       guarantee(oopDesc::is_oop(obj), "Should be an oop");
-      obj->verify();
+      oopDesc::verify(obj);
     }
   }
 
@@ -2522,9 +2524,8 @@ void CompactibleFreeListSpace::verify() const {
     VerifyAllOopsClosure cl(_collector, this, span, past_remark,
       _collector->markBitMap());
 
-    // Iterate over all oops in the heap. Uses the _no_header version
-    // since we are not interested in following the klass pointers.
-    CMSHeap::heap()->oop_iterate_no_header(&cl);
+    // Iterate over all oops in the heap.
+    CMSHeap::heap()->oop_iterate(&cl);
   }
 
   if (VerifyObjectStartArray) {

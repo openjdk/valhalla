@@ -760,7 +760,7 @@ public class JavacParser implements Parser {
     public JCExpression unannotatedType(boolean allowVar) {
         JCExpression result = term(TYPE);
 
-        if (!allowVar && isRestrictedLocalVarTypeName(result)) {
+        if (!allowVar && isRestrictedLocalVarTypeName(result, true)) {
             syntaxError(result.pos, Errors.VarNotAllowedHere);
         }
 
@@ -1545,6 +1545,7 @@ public class JavacParser implements Parser {
     ParensResult analyzeParens() {
         int depth = 0;
         boolean type = false;
+        ParensResult defaultResult = ParensResult.PARENS;
         outer: for (int lookahead = 0 ; ; lookahead++) {
             TokenKind tk = S.token(lookahead).kind;
             switch (tk) {
@@ -1597,7 +1598,7 @@ public class JavacParser implements Parser {
                         case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
                             return ParensResult.CAST;
                         default:
-                            return ParensResult.PARENS;
+                            return defaultResult;
                     }
                 case UNDERSCORE:
                 case ASSERT:
@@ -1609,6 +1610,8 @@ public class JavacParser implements Parser {
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
                         // Identifier, ')' '->' -> implicit lambda
                         return ParensResult.IMPLICIT_LAMBDA;
+                    } else if (depth == 0 && peekToken(lookahead, COMMA)) {
+                        defaultResult = ParensResult.IMPLICIT_LAMBDA;
                     }
                     type = false;
                     break;
@@ -1694,7 +1697,7 @@ public class JavacParser implements Parser {
                     break;
                 default:
                     //this includes EOF
-                    return ParensResult.PARENS;
+                    return defaultResult;
             }
         }
     }
@@ -1717,7 +1720,7 @@ public class JavacParser implements Parser {
             LambdaClassifier lambdaClassifier = new LambdaClassifier();
             for (JCVariableDecl param: params) {
                 if (param.vartype != null &&
-                        isRestrictedLocalVarTypeName(param.vartype) &&
+                        isRestrictedLocalVarTypeName(param.vartype, false) &&
                         param.vartype.hasTag(TYPEARRAY)) {
                     log.error(DiagnosticFlag.SYNTAX, param.pos, Errors.VarNotAllowedArray);
                 }
@@ -1730,7 +1733,8 @@ public class JavacParser implements Parser {
                 log.error(DiagnosticFlag.SYNTAX, pos, Errors.InvalidLambdaParameterDeclaration(lambdaClassifier.diagFragment));
             }
             for (JCVariableDecl param: params) {
-                if (param.vartype != null && isRestrictedLocalVarTypeName(param.vartype)) {
+                if (param.vartype != null && isRestrictedLocalVarTypeName(param.vartype, true)) {
+                    param.startPos = TreeInfo.getStartPos(param.vartype);
                     param.vartype = null;
                 }
             }
@@ -1766,7 +1770,7 @@ public class JavacParser implements Parser {
 
         void addParameter(JCVariableDecl param) {
             if (param.vartype != null && param.name != names.empty) {
-                if (isRestrictedLocalVarTypeName(param.vartype)) {
+                if (isRestrictedLocalVarTypeName(param.vartype, false)) {
                     reduce(LambdaParameterKind.VAR);
                 } else {
                     reduce(LambdaParameterKind.EXPLICIT);
@@ -2594,7 +2598,6 @@ public class JavacParser implements Parser {
             nextToken();
             List<JCTree> resources = List.nil();
             if (token.kind == LPAREN) {
-                checkSourceLevel(Feature.TRY_WITH_RESOURCES);
                 nextToken();
                 resources = resources();
                 accept(RPAREN);
@@ -2610,11 +2613,7 @@ public class JavacParser implements Parser {
                 }
             } else {
                 if (resources.isEmpty()) {
-                    if (Feature.TRY_WITH_RESOURCES.allowedInSource(source)) {
-                        log.error(DiagnosticFlag.SYNTAX, pos, Errors.TryWithoutCatchFinallyOrResourceDecls);
-                    } else {
-                        log.error(DiagnosticFlag.SYNTAX, pos, Errors.TryWithoutCatchOrFinally);
-                    }
+                    log.error(DiagnosticFlag.SYNTAX, pos, Errors.TryWithoutCatchFinallyOrResourceDecls);
                 }
             }
             return F.at(pos).Try(resources, body, catchers.toList(), finalizer);
@@ -2727,7 +2726,6 @@ public class JavacParser implements Parser {
         ListBuffer<JCExpression> catchTypes = new ListBuffer<>();
         catchTypes.add(parseType());
         while (token.kind == BAR) {
-            checkSourceLevel(Feature.MULTICATCH);
             nextToken();
             // Instead of qualident this is now parseType.
             // But would that allow too much, e.g. arrays or generics?
@@ -2815,7 +2813,7 @@ public class JavacParser implements Parser {
                 return variableDeclarators(modifiersOpt(), t, stats, true).toList();
             } else if ((lastmode & TYPE) != 0 && token.kind == COLON) {
                 log.error(DiagnosticFlag.SYNTAX, pos, Errors.BadInitializer("for-loop"));
-                return List.of((JCStatement)F.at(pos).VarDef(null, null, t, null));
+                return List.of((JCStatement)F.at(pos).VarDef(modifiersOpt(), names.error, t, null));
             } else {
                 return moreStatementExpressions(pos, t, stats).toList();
             }
@@ -3066,13 +3064,9 @@ public class JavacParser implements Parser {
                                                                      T vdefs,
                                                                      boolean localDecl)
     {
-        JCVariableDecl head = variableDeclaratorRest(pos, mods, type, name, reqInit, dc, localDecl);
-        boolean implicit = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source) && head.vartype == null;
+        JCVariableDecl head = variableDeclaratorRest(pos, mods, type, name, reqInit, dc, localDecl, false);
         vdefs.append(head);
         while (token.kind == COMMA) {
-            if (implicit) {
-                reportSyntaxError(pos, Errors.VarNotAllowedCompound);
-            }
             // All but last of multiple declarators subsume a comma
             storeEnd((JCTree)vdefs.last(), token.endPos);
             nextToken();
@@ -3085,7 +3079,7 @@ public class JavacParser implements Parser {
      *  ConstantDeclarator = Ident ConstantDeclaratorRest
      */
     JCVariableDecl variableDeclarator(JCModifiers mods, JCExpression type, boolean reqInit, Comment dc, boolean localDecl) {
-        return variableDeclaratorRest(token.pos, mods, type, ident(), reqInit, dc, localDecl);
+        return variableDeclaratorRest(token.pos, mods, type, ident(), reqInit, dc, localDecl, true);
     }
 
     /** VariableDeclaratorRest = BracketsOpt ["=" VariableInitializer]
@@ -3095,7 +3089,7 @@ public class JavacParser implements Parser {
      *  @param dc       The documentation comment for the variable declarations, or null.
      */
     JCVariableDecl variableDeclaratorRest(int pos, JCModifiers mods, JCExpression type, Name name,
-                                  boolean reqInit, Comment dc, boolean localDecl) {
+                                  boolean reqInit, Comment dc, boolean localDecl, boolean compound) {
         type = bracketsOpt(type);
         JCExpression init = null;
         if (token.kind == EQ) {
@@ -3105,10 +3099,13 @@ public class JavacParser implements Parser {
         else if (reqInit) syntaxError(token.pos, Errors.Expected(EQ));
         JCTree elemType = TreeInfo.innermostType(type, true);
         int startPos = Position.NOPOS;
-        if (Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source) && elemType.hasTag(IDENT)) {
+        if (elemType.hasTag(IDENT)) {
             Name typeName = ((JCIdent)elemType).name;
-            if (isRestrictedLocalVarTypeName(typeName)) {
-                if (type.hasTag(TYPEARRAY)) {
+            if (isRestrictedLocalVarTypeName(typeName, pos, !compound && localDecl)) {
+                if (compound) {
+                    //error - 'var' in compound local var decl
+                   reportSyntaxError(pos, Errors.VarNotAllowedCompound);
+                } else if (type.hasTag(TYPEARRAY)) {
                     //error - 'var' and arrays
                     reportSyntaxError(pos, Errors.VarNotAllowedArray);
                 } else {
@@ -3127,19 +3124,26 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    boolean isRestrictedLocalVarTypeName(JCExpression e) {
+    boolean isRestrictedLocalVarTypeName(JCExpression e, boolean shouldWarn) {
         switch (e.getTag()) {
             case IDENT:
-                return isRestrictedLocalVarTypeName(((JCIdent)e).name);
+                return isRestrictedLocalVarTypeName(((JCIdent)e).name, e.pos, shouldWarn);
             case TYPEARRAY:
-                return isRestrictedLocalVarTypeName(((JCArrayTypeTree)e).elemtype);
+                return isRestrictedLocalVarTypeName(((JCArrayTypeTree)e).elemtype, shouldWarn);
             default:
                 return false;
         }
     }
 
-    boolean isRestrictedLocalVarTypeName(Name name) {
-        return Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source) && name == names.var;
+    boolean isRestrictedLocalVarTypeName(Name name, int pos, boolean shouldWarn) {
+        if (name == names.var) {
+            if (Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source)) {
+                return true;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.VarNotAllowed);
+            }
+        }
+        return false;
     }
 
     /** VariableDeclaratorId = Ident BracketsOpt
@@ -3171,6 +3175,9 @@ public class JavacParser implements Parser {
                         }
                         if (token.kind == LBRACKET) {
                             log.error(token.pos, Errors.ArrayAndReceiver);
+                        }
+                        if (pn.hasTag(Tag.SELECT) && ((JCFieldAccess)pn).name != names._this) {
+                            log.error(token.pos, Errors.WrongReceiver);
                         }
                     }
                     return toP(F.at(pos).ReceiverVarDef(mods, pn, type));
@@ -3221,12 +3228,12 @@ public class JavacParser implements Parser {
         if (token.kind == FINAL || token.kind == MONKEYS_AT) {
             JCModifiers mods = optFinal(Flags.FINAL);
             JCExpression t = parseType(true);
-            return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true);
+            return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
         }
         JCExpression t = term(EXPR | TYPE);
         if ((lastmode & TYPE) != 0 && LAX_IDENTIFIER.accepts(token.kind)) {
             JCModifiers mods = toP(F.at(startPos).Modifiers(Flags.FINAL));
-            return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true);
+            return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
         } else {
             checkSourceLevel(Feature.EFFECTIVELY_FINAL_VARIABLES_IN_TRY_WITH_RESOURCES);
             if (!t.hasTag(IDENT) && !t.hasTag(SELECT)) {
@@ -3527,12 +3534,8 @@ public class JavacParser implements Parser {
     Name typeName() {
         int pos = token.pos;
         Name name = ident();
-        if (name == names.var) {
-            if (Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source)) {
-                reportSyntaxError(pos, Errors.VarNotAllowed(name));
-            } else {
-                log.warning(pos, Warnings.VarNotAllowed);
-            }
+        if (isRestrictedLocalVarTypeName(name, pos, true)) {
+            reportSyntaxError(pos, Errors.VarNotAllowed);
         }
         return name;
     }
@@ -3793,10 +3796,16 @@ public class JavacParser implements Parser {
                         return defs;
                     } else {
                         pos = token.pos;
-                        List<JCTree> err = isVoid
-                            ? List.of(toP(F.at(pos).MethodDef(mods, name, type, typarams,
-                                List.nil(), List.nil(), null, null)))
-                            : null;
+                        List<JCTree> err;
+                        if (isVoid || typarams.nonEmpty()) {
+                            JCMethodDecl m =
+                                    toP(F.at(pos).MethodDef(mods, name, type, typarams,
+                                                            List.nil(), List.nil(), null, null));
+                            attach(m, dc);
+                            err = List.of(m);
+                        } else {
+                            err = List.nil();
+                        }
                         return List.of(syntaxError(token.pos, err, Errors.Expected(LPAREN)));
                     }
                 }

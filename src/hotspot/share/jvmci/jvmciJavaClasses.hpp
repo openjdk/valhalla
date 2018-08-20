@@ -25,10 +25,9 @@
 #define SHARE_VM_JVMCI_JVMCIJAVACLASSES_HPP
 
 #include "classfile/systemDictionary.hpp"
-#include "oops/access.inline.hpp"
+#include "oops/access.hpp"
 #include "oops/instanceMirrorKlass.hpp"
-#include "oops/oop.inline.hpp"
-#include "runtime/jniHandles.inline.hpp"
+#include "oops/oop.hpp"
 
 class JVMCIJavaClasses : AllStatic {
  public:
@@ -148,8 +147,8 @@ class JVMCIJavaClasses : AllStatic {
     oop_field(Assumptions_ConcreteMethod, impl, "Ljdk/vm/ci/meta/ResolvedJavaMethod;")                                                                         \
   end_class                                                                                                                                                    \
   start_class(Assumptions_CallSiteTargetValue)                                                                                                                 \
-    oop_field(Assumptions_CallSiteTargetValue, callSite, "Ljava/lang/invoke/CallSite;")                                                                        \
-    oop_field(Assumptions_CallSiteTargetValue, methodHandle, "Ljava/lang/invoke/MethodHandle;")                                                                \
+    oop_field(Assumptions_CallSiteTargetValue, callSite, "Ljdk/vm/ci/meta/JavaConstant;")                                                                      \
+    oop_field(Assumptions_CallSiteTargetValue, methodHandle, "Ljdk/vm/ci/meta/JavaConstant;")                                                                  \
   end_class                                                                                                                                                    \
   start_class(site_Site)                                                                                                                                       \
     int_field(site_Site, pcOffset)                                                                                                                             \
@@ -211,7 +210,12 @@ class JVMCIJavaClasses : AllStatic {
     int_field(BytecodeFrame, numLocks)                                                                                                                         \
     boolean_field(BytecodeFrame, rethrowException)                                                                                                             \
     boolean_field(BytecodeFrame, duringCall)                                                                                                                   \
+    static_int_field(BytecodeFrame, UNKNOWN_BCI)                                                                                                               \
+    static_int_field(BytecodeFrame, UNWIND_BCI)                                                                                                                \
     static_int_field(BytecodeFrame, BEFORE_BCI)                                                                                                                \
+    static_int_field(BytecodeFrame, AFTER_BCI)                                                                                                                 \
+    static_int_field(BytecodeFrame, AFTER_EXCEPTION_BCI)                                                                                                       \
+    static_int_field(BytecodeFrame, INVALID_FRAMESTATE_BCI)                                                                                                    \
   end_class                                                                                                                                                    \
   start_class(BytecodePosition)                                                                                                                                \
     oop_field(BytecodePosition, caller, "Ljdk/vm/ci/code/BytecodePosition;")                                                                                   \
@@ -243,19 +247,19 @@ class JVMCIJavaClasses : AllStatic {
   end_class                                                                                                                                                    \
   start_class(JavaKind)                                                                                                                                        \
     char_field(JavaKind, typeChar)                                                                                                                             \
-    static_oop_field(JavaKind, Boolean, "Ljdk/vm/ci/meta/JavaKind;");                                                                                          \
-    static_oop_field(JavaKind, Byte, "Ljdk/vm/ci/meta/JavaKind;");                                                                                             \
-    static_oop_field(JavaKind, Char, "Ljdk/vm/ci/meta/JavaKind;");                                                                                             \
-    static_oop_field(JavaKind, Short, "Ljdk/vm/ci/meta/JavaKind;");                                                                                            \
-    static_oop_field(JavaKind, Int, "Ljdk/vm/ci/meta/JavaKind;");                                                                                              \
-    static_oop_field(JavaKind, Long, "Ljdk/vm/ci/meta/JavaKind;");                                                                                             \
+    static_oop_field(JavaKind, Boolean, "Ljdk/vm/ci/meta/JavaKind;")                                                                                           \
+    static_oop_field(JavaKind, Byte, "Ljdk/vm/ci/meta/JavaKind;")                                                                                              \
+    static_oop_field(JavaKind, Char, "Ljdk/vm/ci/meta/JavaKind;")                                                                                              \
+    static_oop_field(JavaKind, Short, "Ljdk/vm/ci/meta/JavaKind;")                                                                                             \
+    static_oop_field(JavaKind, Int, "Ljdk/vm/ci/meta/JavaKind;")                                                                                               \
+    static_oop_field(JavaKind, Long, "Ljdk/vm/ci/meta/JavaKind;")                                                                                              \
   end_class                                                                                                                                                    \
   start_class(ValueKind)                                                                                                                                       \
     oop_field(ValueKind, platformKind, "Ljdk/vm/ci/meta/PlatformKind;")                                                                                        \
   end_class                                                                                                                                                    \
   start_class(Value)                                                                                                                                           \
     oop_field(Value, valueKind, "Ljdk/vm/ci/meta/ValueKind;")                                                                                                  \
-    static_oop_field(Value, ILLEGAL, "Ljdk/vm/ci/meta/AllocatableValue;");                                                                                     \
+    static_oop_field(Value, ILLEGAL, "Ljdk/vm/ci/meta/AllocatableValue;")                                                                                      \
   end_class                                                                                                                                                    \
   start_class(RegisterValue)                                                                                                                                   \
     oop_field(RegisterValue, reg, "Ljdk/vm/ci/code/Register;")                                                                                                 \
@@ -284,7 +288,7 @@ class JVMCIJavaClasses : AllStatic {
     boolean_field(StackLockValue, eliminated)                                                                                                                  \
   end_class                                                                                                                                                    \
   start_class(HotSpotSpeculationLog)                                                                                                                           \
-    oop_field(HotSpotSpeculationLog, lastFailed, "Ljava/lang/Object;")                                                                                         \
+    long_field(HotSpotSpeculationLog, lastFailed)                                                                                                              \
   end_class                                                                                                                                                    \
   start_class(HotSpotStackFrameReference)                                                                                                                      \
     oop_field(HotSpotStackFrameReference, compilerToVM, "Ljdk/vm/ci/hotspot/CompilerToVM;")                                                                    \
@@ -308,7 +312,6 @@ class JVMCIJavaClasses : AllStatic {
     long_field(HotSpotConstantPool, metaspaceConstantPool)                                                                                                     \
   end_class                                                                                                                                                    \
   start_class(HotSpotJVMCIRuntime)                                                                                                                             \
-    objArrayOop_field(HotSpotJVMCIRuntime, trivialPrefixes, "[Ljava/lang/String;")                                                                             \
     int_field(HotSpotJVMCIRuntime, compilationLevelAdjustment)                                                                                                 \
   end_class                                                                                                                                                    \
   /* end*/
@@ -317,11 +320,7 @@ class JVMCIJavaClasses : AllStatic {
 class name : AllStatic {                                                                                                                                       \
   private:                                                                                                                                                     \
     friend class JVMCICompiler;                                                                                                                                \
-    static void check(oop obj, const char* field_name, int offset) {                                                                                           \
-        assert(obj != NULL, "NULL field access of %s.%s", #name, field_name);                                                                                  \
-        assert(obj->is_a(SystemDictionary::name##_klass()), "wrong class, " #name " expected, found %s", obj->klass()->external_name());                       \
-        assert(offset != 0, "must be valid offset");                                                                                                           \
-    }                                                                                                                                                          \
+    static void check(oop obj, const char* field_name, int offset);                                                                                            \
     static void compute_offsets(TRAPS);                                                                                                                        \
   public:                                                                                                                                                      \
     static InstanceKlass* klass() { return SystemDictionary::name##_klass(); }
@@ -330,12 +329,12 @@ class name : AllStatic {                                                        
 
 #define FIELD(name, type, accessor, cast)                                                                                                                         \
     static int _##name##_offset;                                                                                                                                  \
-    static type name(oop obj)                   { check(obj, #name, _##name##_offset); return cast obj->accessor(_##name##_offset); }                                               \
-    static type name(Handle obj)                { check(obj(), #name, _##name##_offset); return cast obj->accessor(_##name##_offset); }                                             \
-    static type name(jobject obj)               { check(JNIHandles::resolve(obj), #name, _##name##_offset); return cast JNIHandles::resolve(obj)->accessor(_##name##_offset); }     \
-    static void set_##name(oop obj, type x)     { check(obj, #name, _##name##_offset); obj->accessor##_put(_##name##_offset, x); }                                                  \
-    static void set_##name(Handle obj, type x)  { check(obj(), #name, _##name##_offset); obj->accessor##_put(_##name##_offset, x); }                                                \
-    static void set_##name(jobject obj, type x) { check(JNIHandles::resolve(obj), #name, _##name##_offset); JNIHandles::resolve(obj)->accessor##_put(_##name##_offset, x); }
+    static type name(oop obj)                   { check(obj, #name, _##name##_offset); return cast obj->accessor(_##name##_offset); }                             \
+    static type name(Handle obj)                { check(obj(), #name, _##name##_offset); return cast obj->accessor(_##name##_offset); }                           \
+    static type name(jobject obj);                                                                                                                                \
+    static void set_##name(oop obj, type x)     { check(obj, #name, _##name##_offset); obj->accessor##_put(_##name##_offset, x); }                                \
+    static void set_##name(Handle obj, type x)  { check(obj(), #name, _##name##_offset); obj->accessor##_put(_##name##_offset, x); }                              \
+    static void set_##name(jobject obj, type x);                                                                                                                  \
 
 #define EMPTY_CAST
 #define CHAR_FIELD(klass, name) FIELD(name, jchar, char_field, EMPTY_CAST)
@@ -350,34 +349,12 @@ class name : AllStatic {                                                        
 #define STATIC_OBJARRAYOOP_FIELD(klassName, name, signature) STATIC_OOPISH_FIELD(klassName, name, objArrayOop, signature)
 #define STATIC_OOPISH_FIELD(klassName, name, type, signature)                                                  \
     static int _##name##_offset;                                                                               \
-    static type name() {                                                                                       \
-      assert(klassName::klass() != NULL && klassName::klass()->is_linked(), "Class not yet linked: " #klassName); \
-      InstanceKlass* ik = klassName::klass();                                                                  \
-      oop base = ik->static_field_base_raw();                                                                  \
-      oop result = HeapAccess<>::oop_load_at(base, _##name##_offset);                                          \
-      return type(result);                                                                                     \
-    }                                                                                                          \
-    static void set_##name(type x) {                                                                           \
-      assert(klassName::klass() != NULL && klassName::klass()->is_linked(), "Class not yet linked: " #klassName); \
-      assert(klassName::klass() != NULL, "Class not yet loaded: " #klassName);                                 \
-      InstanceKlass* ik = klassName::klass();                                                                  \
-      oop base = ik->static_field_base_raw();                                                                  \
-      HeapAccess<>::oop_store_at(base, _##name##_offset, x);                                                   \
-    }
+    static type name();                                                                                        \
+    static void set_##name(type x);
 #define STATIC_PRIMITIVE_FIELD(klassName, name, jtypename)                                                     \
     static int _##name##_offset;                                                                               \
-    static jtypename name() {                                                                                  \
-      assert(klassName::klass() != NULL && klassName::klass()->is_linked(), "Class not yet linked: " #klassName); \
-      InstanceKlass* ik = klassName::klass();                                                                  \
-      oop base = ik->static_field_base_raw();                                                                  \
-      return HeapAccess<>::load_at(base, _##name##_offset);                                                    \
-    }                                                                                                          \
-    static void set_##name(jtypename x) {                                                                      \
-      assert(klassName::klass() != NULL && klassName::klass()->is_linked(), "Class not yet linked: " #klassName); \
-      InstanceKlass* ik = klassName::klass();                                                                  \
-      oop base = ik->static_field_base_raw();                                                                  \
-      HeapAccess<>::store_at(base, _##name##_offset, x);                                                       \
-    }
+    static jtypename name();                                                                                   \
+    static void set_##name(jtypename x);
 
 #define STATIC_INT_FIELD(klassName, name) STATIC_PRIMITIVE_FIELD(klassName, name, jint)
 #define STATIC_BOOLEAN_FIELD(klassName, name) STATIC_PRIMITIVE_FIELD(klassName, name, jboolean)
@@ -399,6 +376,7 @@ COMPILER_CLASSES_DO(START_CLASS, END_CLASS, CHAR_FIELD, INT_FIELD, BOOLEAN_FIELD
 #undef STATIC_OBJARRAYOOP_FIELD
 #undef STATIC_INT_FIELD
 #undef STATIC_BOOLEAN_FIELD
+#undef STATIC_PRIMITIVE_FIELD
 #undef EMPTY_CAST
 
 void compute_offset(int &dest_offset, Klass* klass, const char* name, const char* signature, bool static_field, TRAPS);

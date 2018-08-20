@@ -43,8 +43,8 @@
 #include "utilities/events.hpp"
 
 Generation::Generation(ReservedSpace rs, size_t initial_size) :
-  _ref_processor(NULL),
-  _gc_manager(NULL) {
+  _gc_manager(NULL),
+  _ref_processor(NULL) {
   if (!_virtual_space.initialize(rs, initial_size)) {
     vm_exit_during_initialization("Could not reserve enough space for "
                     "object heap");
@@ -253,15 +253,15 @@ bool Generation::block_is_obj(const HeapWord* p) const {
 
 class GenerationOopIterateClosure : public SpaceClosure {
  public:
-  ExtendedOopClosure* _cl;
+  OopIterateClosure* _cl;
   virtual void do_space(Space* s) {
     s->oop_iterate(_cl);
   }
-  GenerationOopIterateClosure(ExtendedOopClosure* cl) :
+  GenerationOopIterateClosure(OopIterateClosure* cl) :
     _cl(cl) {}
 };
 
-void Generation::oop_iterate(ExtendedOopClosure* cl) {
+void Generation::oop_iterate(OopIterateClosure* cl) {
   GenerationOopIterateClosure blk(cl);
   space_iterate(&blk);
 }

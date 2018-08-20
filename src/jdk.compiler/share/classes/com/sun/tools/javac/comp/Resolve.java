@@ -69,8 +69,6 @@ import java.util.stream.Stream;
 
 import javax.lang.model.element.ElementVisitor;
 
-import com.sun.tools.javac.comp.Infer.InferenceException;
-
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
 import static com.sun.tools.javac.code.Flags.STATIC;
@@ -102,7 +100,6 @@ public class Resolve {
     ModuleFinder moduleFinder;
     Types types;
     JCDiagnostic.Factory diags;
-    public final boolean allowMethodHandles;
     public final boolean allowFunctionalInterfaceMostSpecific;
     public final boolean allowModules;
     public final boolean checkVarargsAccessAfterResolution;
@@ -137,7 +134,6 @@ public class Resolve {
                 options.isUnset(Option.XDIAGS) && options.isUnset("rawDiagnostics");
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
         Target target = Target.instance(context);
-        allowMethodHandles = target.hasMethodHandles();
         allowFunctionalInterfaceMostSpecific = Feature.FUNCTIONAL_INTERFACE_MOST_SPECIFIC.allowedInSource(source);
         allowLocalVariableTypeInference = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source);
         checkVarargsAccessAfterResolution =
@@ -818,8 +814,28 @@ public class Resolve {
             String key = inferDiag ? diag.inferKey : diag.basicKey;
             throw inferDiag ?
                 infer.error(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args)) :
-                new InapplicableMethodException(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
+                methodCheckFailure.setMessage(diags.create(DiagnosticType.FRAGMENT, log.currentSource(), pos, key, args));
         }
+
+        /**
+         * To eliminate the overhead associated with allocating an exception object in such an
+         * hot execution path, we use flyweight pattern - and share the same exception instance
+         * across multiple method check failures.
+         */
+        class SharedInapplicableMethodException extends InapplicableMethodException {
+            private static final long serialVersionUID = 0;
+
+            SharedInapplicableMethodException() {
+                super(null);
+            }
+
+            SharedInapplicableMethodException setMessage(JCDiagnostic details) {
+                this.diagnostic = details;
+                return this;
+            }
+        }
+
+        SharedInapplicableMethodException methodCheckFailure = new SharedInapplicableMethodException();
 
         public MethodCheck mostSpecificCheck(List<Type> actuals) {
             return nilMethodCheck;
@@ -1978,7 +1994,7 @@ public class Resolve {
             ClassSymbol c = finder.loadClass(env.toplevel.modle, name);
             return isAccessible(env, c) ? c : new AccessError(env, null, c);
         } catch (ClassFinder.BadClassFile err) {
-            throw err;
+            return new BadClassFileError(err);
         } catch (CompletionFailure ex) {
             Symbol candidate = recoveryLoadClass.loadClass(env, name);
 
@@ -2012,7 +2028,7 @@ public class Resolve {
                     }
                 }
                 return null;
-            }, sym -> sym.kind == Kind.TYP, false, typeNotFound);
+            }, sym -> sym.kind == Kind.TYP, typeNotFound);
         }
     };
 
@@ -2049,18 +2065,11 @@ public class Resolve {
         PackageSymbol pack = syms.lookupPackage(env.toplevel.modle, name);
 
         if (allowModules && isImportOnDemand(env, name)) {
-            pack.complete();
-            if (!pack.exists()) {
-                Name nameAndDot = name.append('.', names.empty);
-                boolean prefixOfKnown =
-                        env.toplevel.modle.visiblePackages.values()
-                                                          .stream()
-                                                          .anyMatch(p -> p.fullname.startsWith(nameAndDot));
-
+            if (pack.members().isEmpty()) {
                 return lookupInvisibleSymbol(env, name, syms::getPackagesForName, syms::enterPackage, sym -> {
                     sym.complete();
-                    return sym.exists();
-                }, prefixOfKnown, pack);
+                    return !sym.members().isEmpty();
+                }, pack);
             }
         }
 
@@ -2087,7 +2096,6 @@ public class Resolve {
                                                             Function<Name, Iterable<S>> get,
                                                             BiFunction<ModuleSymbol, Name, S> load,
                                                             Predicate<S> validate,
-                                                            boolean suppressError,
                                                             Symbol defaultResult) {
         //even if a class/package cannot be found in the current module and among packages in modules
         //it depends on that are exported for any or this module, the class/package may exist internally
@@ -2097,7 +2105,7 @@ public class Resolve {
 
         for (S sym : candidates) {
             if (validate.test(sym))
-                return createInvisibleSymbolError(env, suppressError, sym);
+                return createInvisibleSymbolError(env, sym);
         }
 
         Set<ModuleSymbol> recoverableModules = new HashSet<>(syms.getAllModules());
@@ -2117,7 +2125,7 @@ public class Resolve {
                     S sym = load.apply(ms, name);
 
                     if (sym != null && validate.test(sym)) {
-                        return createInvisibleSymbolError(env, suppressError, sym);
+                        return createInvisibleSymbolError(env, sym);
                     }
                 }
             }
@@ -2126,11 +2134,11 @@ public class Resolve {
         return defaultResult;
     }
 
-    private Symbol createInvisibleSymbolError(Env<AttrContext> env, boolean suppressError, Symbol sym) {
+    private Symbol createInvisibleSymbolError(Env<AttrContext> env, Symbol sym) {
         if (symbolPackageVisible(env, sym)) {
             return new AccessError(env, null, sym);
         } else {
-            return new InvisibleSymbolError(env, suppressError, sym);
+            return new InvisibleSymbolError(env, false, sym);
         }
     }
 
@@ -2550,8 +2558,8 @@ public class Resolve {
         }
 
         @Override
-        protected Type typeOf(DeferredType dt) {
-            Type res = super.typeOf(dt);
+        protected Type typeOf(DeferredType dt, Type pt) {
+            Type res = super.typeOf(dt, pt);
             if (!res.isErroneous()) {
                 switch (TreeInfo.skipParens(dt.tree).getTag()) {
                     case LAMBDA:
@@ -2649,7 +2657,7 @@ public class Resolve {
             Symbol access(Env<AttrContext> env, DiagnosticPosition pos, Symbol location, Symbol sym) {
                 if (sym.kind.isResolutionError()) {
                     sym = super.access(env, pos, location, sym);
-                } else if (allowMethodHandles) {
+                } else {
                     MethodSymbol msym = (MethodSymbol)sym;
                     if ((msym.flags() & SIGNATURE_POLYMORPHIC) != 0) {
                         env.info.pendingResolutionPhase = BASIC;
@@ -3832,7 +3840,7 @@ public class Resolve {
 
         @Override
         JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
-            return diags.create(dkind, log.currentSource(), pos, "illegal.ref.to.var.type", name);
+            return diags.create(dkind, log.currentSource(), pos, "illegal.ref.to.var.type");
         }
     }
 
@@ -3982,7 +3990,12 @@ public class Resolve {
 
         @Override
         public Symbol access(Name name, TypeSymbol location) {
-            return types.createErrorType(name, location, syms.errSymbol.type).tsym;
+            Symbol sym = bestCandidate();
+            return types.createErrorType(name, location, sym != null ? sym.type : syms.errSymbol.type).tsym;
+        }
+
+        protected Symbol bestCandidate() {
+            return errCandidate().fst;
         }
 
         protected Pair<Symbol, JCDiagnostic> errCandidate() {
@@ -4113,6 +4126,16 @@ public class Resolve {
                 //conform to source order
                 return details;
             }
+
+        @Override
+        protected Symbol bestCandidate() {
+            Map<Symbol, JCDiagnostic> candidatesMap = mapCandidates();
+            Map<Symbol, JCDiagnostic> filteredCandidates = filterCandidates(candidatesMap);
+            if (filteredCandidates.size() == 1) {
+                return filteredCandidates.keySet().iterator().next();
+            }
+            return null;
+        }
     }
 
     /**
@@ -4497,6 +4520,27 @@ public class Resolve {
            return diags.create(dkind, log.currentSource(), pos,
                 "cant.access.inner.cls.constr", site.tsym.name, argtypes, site.getEnclosingType());
         }
+    }
+
+    class BadClassFileError extends InvalidSymbolError {
+
+        private final CompletionFailure ex;
+
+        public BadClassFileError(CompletionFailure ex) {
+            super(HIDDEN, ex.sym, "BadClassFileError");
+            this.name = sym.name;
+            this.ex = ex;
+        }
+
+        @Override
+        JCDiagnostic getDiagnostic(DiagnosticType dkind, DiagnosticPosition pos, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+            JCDiagnostic d = diags.create(dkind, log.currentSource(), pos,
+                "cant.access", ex.sym, ex.getDetailValue());
+
+            d.setFlag(DiagnosticFlag.NON_DEFERRABLE);
+            return d;
+        }
+
     }
 
     /**

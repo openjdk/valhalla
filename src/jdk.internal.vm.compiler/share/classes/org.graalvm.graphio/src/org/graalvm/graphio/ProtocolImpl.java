@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.graphio;
 
 import java.io.File;
@@ -78,7 +80,11 @@ final class ProtocolImpl<Graph, Node, NodeClass, Port, Block, ResolvedJavaMethod
 
     @Override
     protected NodeClass findClassForNode(Node obj) {
-        return structure.classForNode(obj);
+        NodeClass clazz = structure.classForNode(obj);
+        if (clazz != null && (findNodeClass(clazz) == null || findNode(clazz) != null)) {
+            throw new IllegalStateException("classForNode method shall return node class representation rather than node: " + clazz);
+        }
+        return clazz;
     }
 
     @Override

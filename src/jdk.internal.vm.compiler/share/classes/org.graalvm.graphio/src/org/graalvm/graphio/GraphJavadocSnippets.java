@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package org.graalvm.graphio;
 
 import java.io.File;
@@ -149,8 +151,8 @@ final class GraphJavadocSnippets {
     static GraphOutput<AcmeGraph, ?> buildOutput(WritableByteChannel channel)
     throws IOException {
         return GraphOutput.newBuilder(acmeGraphStructure()).
-            // use the latest version; currently 5.0
-            protocolVersion(5, 0).
+            // use the latest version; currently 6.0
+            protocolVersion(6, 0).
             build(channel);
     }
     // END: org.graalvm.graphio.GraphJavadocSnippets#buildOutput
@@ -164,7 +166,7 @@ final class GraphJavadocSnippets {
         GraphTypes graphTypes = acmeTypes();
 
         return GraphOutput.newBuilder(acmeGraphStructure()).
-            protocolVersion(5, 0).
+            protocolVersion(6, 0).
             blocks(graphBlocks).
             elements(graphElements).
             types(graphTypes).

@@ -31,8 +31,8 @@
 
 #if !INCLUDE_NMT
 
-#define CURRENT_PC   NativeCallStack::EMPTY_STACK
-#define CALLER_PC    NativeCallStack::EMPTY_STACK
+#define CURRENT_PC   NativeCallStack::empty_stack()
+#define CALLER_PC    NativeCallStack::empty_stack()
 
 class Tracker : public StackObj {
  public:
@@ -86,9 +86,9 @@ class MemTracker : AllStatic {
 extern volatile bool NMT_stack_walkable;
 
 #define CURRENT_PC ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ? \
-                    NativeCallStack(0, true) : NativeCallStack::EMPTY_STACK)
+                    NativeCallStack(0, true) : NativeCallStack::empty_stack())
 #define CALLER_PC  ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ?  \
-                    NativeCallStack(1, true) : NativeCallStack::EMPTY_STACK)
+                    NativeCallStack(1, true) : NativeCallStack::empty_stack())
 
 class MemBaseline;
 class Mutex;
@@ -241,6 +241,11 @@ class MemTracker : AllStatic {
     }
   }
 
+#ifdef _AIX
+  // See JDK-8202772 - temporarily disable thread stack tracking on AIX.
+  static inline void record_thread_stack(void* addr, size_t size) {}
+  static inline void release_thread_stack(void* addr, size_t size) {}
+#else
   static inline void record_thread_stack(void* addr, size_t size) {
     if (tracking_level() < NMT_summary) return;
     if (addr != NULL) {
@@ -260,6 +265,7 @@ class MemTracker : AllStatic {
       VirtualMemoryTracker::remove_released_region((address)addr, size);
     }
   }
+#endif
 
   // Query lock is used to synchronize the access to tracking data.
   // So far, it is only used by JCmd query, but it may be used by

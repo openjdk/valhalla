@@ -46,6 +46,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/globals.hpp"
+#include "utilities/growableArray.hpp"
 
 static bool is_disabled_on_command_line() {
   static const size_t length = strlen("FlightRecorder");
@@ -85,13 +86,30 @@ bool JfrRecorder::on_vm_init() {
   return JfrTime::initialize();
 }
 
-static JfrStartFlightRecordingDCmd* _startup_recording = NULL;
+static GrowableArray<JfrStartFlightRecordingDCmd*>* dcmd_recordings_array = NULL;
+
+static void release_recordings() {
+  if (dcmd_recordings_array != NULL) {
+    const int length = dcmd_recordings_array->length();
+    for (int i = 0; i < length; ++i) {
+      delete dcmd_recordings_array->at(i);
+    }
+    delete dcmd_recordings_array;
+    dcmd_recordings_array = NULL;
+  }
+}
+
+static void teardown_startup_support() {
+  release_recordings();
+  JfrOptionSet::release_startup_recording_options();
+}
 
 // Parsing options here to detect errors as soon as possible
-static bool parse_startup_recording(TRAPS) {
-  assert(StartFlightRecording != NULL, "invariant");
-  CmdLine cmdline(StartFlightRecording, strlen(StartFlightRecording), true);
-  _startup_recording->parse(&cmdline, ',', THREAD);
+static bool parse_recording_options(const char* options, JfrStartFlightRecordingDCmd* dcmd_recording, TRAPS) {
+  assert(options != NULL, "invariant");
+  assert(dcmd_recording != NULL, "invariant");
+  CmdLine cmdline(options, strlen(options), true);
+  dcmd_recording->parse(&cmdline, ',', THREAD);
   if (HAS_PENDING_EXCEPTION) {
     java_lang_Throwable::print(PENDING_EXCEPTION, tty);
     CLEAR_PENDING_EXCEPTION;
@@ -100,29 +118,54 @@ static bool parse_startup_recording(TRAPS) {
   return true;
 }
 
-static bool initialize_startup_recording(TRAPS) {
-  if (StartFlightRecording != NULL) {
-    _startup_recording = new (ResourceObj::C_HEAP, mtTracing) JfrStartFlightRecordingDCmd(tty, true);
-    return _startup_recording != NULL && parse_startup_recording(THREAD);
+static bool validate_recording_options(TRAPS) {
+  const GrowableArray<const char*>* options = JfrOptionSet::startup_recording_options();
+  if (options == NULL) {
+    return true;
+  }
+  const int length = options->length();
+  assert(length >= 1, "invariant");
+  assert(dcmd_recordings_array == NULL, "invariant");
+  dcmd_recordings_array = new (ResourceObj::C_HEAP, mtTracing)GrowableArray<JfrStartFlightRecordingDCmd*>(length, true, mtTracing);
+  assert(dcmd_recordings_array != NULL, "invariant");
+  for (int i = 0; i < length; ++i) {
+    JfrStartFlightRecordingDCmd* const dcmd_recording = new(ResourceObj::C_HEAP, mtTracing) JfrStartFlightRecordingDCmd(tty, true);
+    assert(dcmd_recording != NULL, "invariant");
+    dcmd_recordings_array->append(dcmd_recording);
+    if (!parse_recording_options(options->at(i), dcmd_recording, THREAD)) {
+      return false;
+    }
   }
   return true;
 }
 
-static bool startup_recording(TRAPS) {
-  if (_startup_recording == NULL) {
-    return true;
-  }
-  log_trace(jfr, system)("Starting up Jfr startup recording");
-  _startup_recording->execute(DCmd_Source_Internal, Thread::current());
-  delete _startup_recording;
-  _startup_recording = NULL;
+static bool launch_recording(JfrStartFlightRecordingDCmd* dcmd_recording, TRAPS) {
+  assert(dcmd_recording != NULL, "invariant");
+  log_trace(jfr, system)("Starting a recording");
+  dcmd_recording->execute(DCmd_Source_Internal, THREAD);
   if (HAS_PENDING_EXCEPTION) {
-    log_debug(jfr, system)("Exception while starting Jfr startup recording");
+    log_debug(jfr, system)("Exception while starting a recording");
     CLEAR_PENDING_EXCEPTION;
     return false;
   }
-  log_trace(jfr, system)("Finished starting Jfr startup recording");
+  log_trace(jfr, system)("Finished starting a recording");
   return true;
+}
+
+static bool launch_recordings(TRAPS) {
+  bool result = true;
+  if (dcmd_recordings_array != NULL) {
+    const int length = dcmd_recordings_array->length();
+    assert(length >= 1, "invariant");
+    for (int i = 0; i < length; ++i) {
+      if (!launch_recording(dcmd_recordings_array->at(i), THREAD)) {
+        result = false;
+        break;
+      }
+    }
+  }
+  teardown_startup_support();
+  return result;
 }
 
 static void log_jdk_jfr_module_resolution_error(TRAPS) {
@@ -132,8 +175,20 @@ static void log_jdk_jfr_module_resolution_error(TRAPS) {
   JfrJavaSupport::is_jdk_jfr_module_available(&stream, THREAD);
 }
 
+static bool is_cds_dump_requested() {
+  // we will not be able to launch recordings if a cds dump is being requested
+  if (DumpSharedSpaces && (JfrOptionSet::startup_recording_options() != NULL)) {
+    warning("JFR will be disabled during CDS dumping");
+    teardown_startup_support();
+    return true;
+  }
+  return false;
+}
+
 bool JfrRecorder::on_vm_start() {
-  const bool in_graph = JfrJavaSupport::is_jdk_jfr_module_available();
+  if (is_cds_dump_requested()) {
+    return true;
+  }
   Thread* const thread = Thread::current();
   if (!JfrOptionSet::initialize(thread)) {
     return false;
@@ -141,10 +196,13 @@ bool JfrRecorder::on_vm_start() {
   if (!register_jfr_dcmds()) {
     return false;
   }
-  if (!initialize_startup_recording(thread)) {
-    return false;
-  }
+
+  const bool in_graph = JfrJavaSupport::is_jdk_jfr_module_available();
+
   if (in_graph) {
+    if (!validate_recording_options(thread)) {
+      return false;
+    }
     if (!JfrJavaEventWriter::initialize()) {
       return false;
     }
@@ -152,14 +210,17 @@ bool JfrRecorder::on_vm_start() {
       return false;
     }
   }
+
   if (!is_enabled()) {
     return true;
   }
+
   if (!in_graph) {
     log_jdk_jfr_module_resolution_error(thread);
     return false;
   }
-  return startup_recording(thread);
+
+  return launch_recordings(thread);
 }
 
 static bool _created = false;

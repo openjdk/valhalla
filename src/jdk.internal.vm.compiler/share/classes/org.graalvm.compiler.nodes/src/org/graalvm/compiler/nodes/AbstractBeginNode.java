@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import java.util.Iterator;
@@ -110,7 +112,7 @@ public abstract class AbstractBeginNode extends FixedWithNextNode implements LIR
         };
     }
 
-    private class BlockNodeIterator implements Iterator<FixedNode> {
+    private static class BlockNodeIterator implements Iterator<FixedNode> {
 
         private FixedNode current;
 

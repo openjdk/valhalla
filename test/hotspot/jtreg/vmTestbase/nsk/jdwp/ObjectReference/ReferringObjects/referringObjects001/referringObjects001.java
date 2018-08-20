@@ -66,6 +66,7 @@
  *     Finally, debugger sends debuggee signal to quit, waits for it exits
  *     and exits too with the proper exit code.
  *
+ * @requires !vm.graal.enabled
  * @library /vmTestbase /test/hotspot/jtreg/vmTestbase
  *          /test/lib
  * @run driver jdk.test.lib.FileInstaller . .
@@ -77,7 +78,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      -debugee.vmkeys="-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      -debugee.vmkeys="-Xmx256M ${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdwp.ObjectReference.ReferringObjects.referringObjects001;

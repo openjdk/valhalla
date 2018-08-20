@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package org.graalvm.compiler.core.sparc;
 
 import static jdk.vm.ci.sparc.SPARCKind.BYTE;
@@ -169,7 +171,7 @@ public class SPARCNodeMatchRules extends NodeMatchRules {
                 SPARCAddressValue address = (SPARCAddressValue) operand(cas.getAddress());
                 Condition condition = successIsTrue ? Condition.EQ : Condition.NE;
 
-                Value result = getLIRGeneratorTool().emitValueCompareAndSwap(address, expectedValue, newValue);
+                Value result = getLIRGeneratorTool().emitValueCompareAndSwap(kind, address, expectedValue, newValue);
                 getLIRGeneratorTool().emitCompareBranch(kind.getPlatformKind(), result, expectedValue, condition, false, trueLabel, falseLabel, trueLabelProbability);
                 return null;
             };

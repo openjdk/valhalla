@@ -86,7 +86,7 @@ void Parse::array_load(BasicType bt) {
 
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
-                            IN_HEAP | IN_HEAP_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+                            IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened (but flattenable) value type from an array
     assert(!gvn().type(ld)->is_ptr()->maybe_null(), "value type array elements should never be null");
@@ -156,7 +156,8 @@ void Parse::array_store(BasicType bt) {
   }
 
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-  access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IN_HEAP_ARRAY);
+
+  access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }
 
 
@@ -1753,6 +1754,18 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
   return (seems_never_taken(prob) && seems_stable_comparison());
 }
 
+void Parse::maybe_add_predicate_after_if(Block* path) {
+  if (path->is_SEL_head() && path->preds_parsed() == 0) {
+    // Add predicates at bci of if dominating the loop so traps can be
+    // recorded on the if's profile data
+    int bc_depth = repush_if_args();
+    add_predicate();
+    dec_sp(bc_depth);
+    path->set_has_predicates();
+  }
+}
+
+
 //----------------------------adjust_map_after_if------------------------------
 // Adjust the JVM state to reflect the result of taking this path.
 // Basically, it means inspecting the CmpNode controlling this
@@ -1760,8 +1773,14 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
 // deciding if it's worth our while to encode this constraint
 // as graph nodes in the current abstract interpretation map.
 void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path) {
-  if (stopped() || !c->is_Cmp() || btest == BoolTest::illegal)
+  if (!c->is_Cmp()) {
+    maybe_add_predicate_after_if(path);
+    return;
+  }
+
+  if (stopped() || btest == BoolTest::illegal) {
     return;                             // nothing to do
+  }
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
 
@@ -1793,10 +1812,13 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block
       have_con = false;
     }
   }
-  if (!have_con)                        // remaining adjustments need a con
+  if (!have_con) {                        // remaining adjustments need a con
+    maybe_add_predicate_after_if(path);
     return;
+  }
 
   sharpen_type_after_if(btest, con, tcon, val, tval);
+  maybe_add_predicate_after_if(path);
 }
 
 

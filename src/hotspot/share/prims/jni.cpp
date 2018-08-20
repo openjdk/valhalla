@@ -73,7 +73,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -2471,7 +2471,8 @@ JNI_QUICK_ENTRY(const jchar*, jni_GetStringChars(
     if (buf != NULL) {
       if (s_len > 0) {
         if (!is_latin1) {
-          memcpy(buf, s_value->char_at_addr(0), sizeof(jchar)*s_len);
+          ArrayAccess<>::arraycopy_to_native(s_value, (size_t) typeArrayOopDesc::element_offset<jchar>(0),
+                                             buf, s_len);
         } else {
           for (int i = 0; i < s_len; i++) {
             buf[i] = ((jchar) s_value->byte_at(i)) & 0xff;
@@ -2634,7 +2635,17 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
     if (v == NULL || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
       a->obj_at_put(index, v);
     } else {
-      THROW(vmSymbols::java_lang_ArrayStoreException());
+      ResourceMark rm(THREAD);
+      stringStream ss;
+      Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
+      ss.print("type mismatch: can not store %s to %s[%d]",
+               v->klass()->external_name(),
+               bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
+               index);
+      for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
+        ss.print("[]");
+      }
+      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
     }
   } else {
     char buf[jintAsStringSize];
@@ -2727,7 +2738,8 @@ JNI_QUICK_ENTRY(ElementType*, \
     result = NEW_C_HEAP_ARRAY_RETURN_NULL(ElementType, len, mtInternal); \
     if (result != NULL) {                                                \
       /* copy the array to the c chunk */                                \
-      memcpy(result, a->Tag##_at_addr(0), sizeof(ElementType)*len);      \
+      ArrayAccess<>::arraycopy_to_native(a, typeArrayOopDesc::element_offset<ElementType>(0), \
+                                         result, len);                   \
       if (isCopy) {                                                      \
         *isCopy = JNI_TRUE;                                              \
       }                                                                  \
@@ -2776,7 +2788,7 @@ JNI_QUICK_ENTRY(void, \
   int len = a->length(); \
   if (len != 0) {   /* Empty array:  nothing to free or copy. */  \
     if ((mode == 0) || (mode == JNI_COMMIT)) { \
-      memcpy(a->Tag##_at_addr(0), buf, sizeof(ElementType)*len); \
+      ArrayAccess<>::arraycopy_from_native(buf, a, typeArrayOopDesc::element_offset<ElementType>(0), len); \
     } \
     if ((mode == 0) || (mode == JNI_ABORT)) { \
       FreeHeap(buf); \
@@ -2827,10 +2839,7 @@ jni_Get##Result##ArrayRegion(JNIEnv *env, ElementType##Array array, jsize start,
     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException()); \
   } else { \
     if (len > 0) { \
-      int sc = TypeArrayKlass::cast(src->klass())->log2_element_size(); \
-      memcpy((u_char*) buf, \
-             (u_char*) src->Tag##_at_addr(start), \
-             len << sc);                          \
+      ArrayAccess<>::arraycopy_to_native(src, typeArrayOopDesc::element_offset<ElementType>(start), buf, len); \
     } \
   } \
 JNI_END
@@ -2877,10 +2886,7 @@ jni_Set##Result##ArrayRegion(JNIEnv *env, ElementType##Array array, jsize start,
     THROW(vmSymbols::java_lang_ArrayIndexOutOfBoundsException()); \
   } else { \
     if (len > 0) { \
-      int sc = TypeArrayKlass::cast(dst->klass())->log2_element_size(); \
-      memcpy((u_char*) dst->Tag##_at_addr(start), \
-             (u_char*) buf, \
-             len << sc);    \
+      ArrayAccess<>::arraycopy_from_native(buf, dst, typeArrayOopDesc::element_offset<ElementType>(start), len); \
     } \
   } \
 JNI_END
@@ -3116,7 +3122,8 @@ JNI_ENTRY(void, jni_GetStringRegion(JNIEnv *env, jstring string, jsize start, js
       typeArrayOop s_value = java_lang_String::value(s);
       bool is_latin1 = java_lang_String::is_latin1(s);
       if (!is_latin1) {
-        memcpy(buf, s_value->char_at_addr(start), sizeof(jchar)*len);
+        ArrayAccess<>::arraycopy_to_native(s_value, typeArrayOopDesc::element_offset<jchar>(start),
+                                           buf, len);
       } else {
         for (int i = 0; i < len; i++) {
           buf[i] = ((jchar) s_value->byte_at(i + start)) & 0xff;

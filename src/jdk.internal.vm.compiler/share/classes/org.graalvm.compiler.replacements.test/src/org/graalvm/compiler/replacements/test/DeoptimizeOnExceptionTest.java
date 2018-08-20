@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.test;
 
 import java.util.Random;
@@ -81,7 +83,7 @@ public class DeoptimizeOnExceptionTest extends GraalCompilerTest {
             ClassLoader testCl = new MyClassLoader();
             @SuppressWarnings("unchecked")
             Class<Runnable> c = (Class<Runnable>) testCl.loadClass(name);
-            Runnable r = c.newInstance();
+            Runnable r = c.getDeclaredConstructor().newInstance();
             ct = Long.MAX_VALUE;
             // warmup
             for (int i = 0; i < 100; i++) {

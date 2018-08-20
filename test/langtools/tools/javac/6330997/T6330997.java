@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug     6330997 7025789 8000961 8188870
+ * @bug     6330997 7025789 8000961 8188870 8193290
  * @summary javac should accept class files with major version of the next release
  * @author  Wei Tao
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -32,8 +32,8 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.util
  * @clean T1 T2
- * @compile -source 10 -target 11 T1.java
- * @compile -source 10 -target 11 T2.java
+ * @compile -source 11 -target 12 T1.java
+ * @compile -source 11 -target 12 T2.java
  * @run main/othervm T6330997
  */
 
@@ -44,7 +44,7 @@ import java.nio.channels.*;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.code.ClassFinder.BadClassFile;
 import com.sun.tools.javac.code.Symtab;
-import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.util.Names;
 import javax.tools.ToolProvider;
 
 public class T6330997 {
@@ -53,17 +53,17 @@ public class T6330997 {
         increaseMajor("T2.class", 2);
         javax.tools.JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         JavacTaskImpl task = (JavacTaskImpl)tool.getTask(null, null, null, null, null, null);
-        JavaCompiler compiler = JavaCompiler.instance(task.getContext());
         Symtab syms = Symtab.instance(task.getContext());
+        Names names = Names.instance(task.getContext());
         task.ensureEntered();
         try {
-            compiler.resolveIdent(syms.unnamedModule, "T1").complete();
+            syms.enterClass(syms.unnamedModule, names.fromString("T1")).complete();
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("Failed: unexpected exception while reading class T1");
         }
         try {
-            compiler.resolveIdent(syms.unnamedModule, "T2").complete();
+            syms.enterClass(syms.unnamedModule, names.fromString("T2")).complete();
         } catch (BadClassFile e) {
             System.err.println("Passed: expected completion failure " + e.getClass().getName());
             return;

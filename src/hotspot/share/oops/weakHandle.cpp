@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/stringTable.hpp"
 #include "gc/shared/oopStorage.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.hpp"
@@ -35,6 +36,10 @@ template <> OopStorage* WeakHandle<vm_class_loader_data>::get_storage() {
   return SystemDictionary::vm_weak_oop_storage();
 }
 
+template <> OopStorage* WeakHandle<vm_string_table_data>::get_storage() {
+  return StringTable::weak_storage();
+}
+
 template <WeakHandleType T>
 WeakHandle<T> WeakHandle<T>::create(Handle obj) {
   assert(obj() != NULL, "no need to create weak null oop");
@@ -43,7 +48,7 @@ WeakHandle<T> WeakHandle<T>::create(Handle obj) {
     vm_exit_out_of_memory(sizeof(oop*), OOM_MALLOC_ERROR, "Unable to create new weak oop handle in OopStorage");
   }
   // Create WeakHandle with address returned and store oop into it.
-  RootAccess<ON_PHANTOM_OOP_REF>::oop_store(oop_addr, obj());
+  NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(oop_addr, obj());
   return WeakHandle(oop_addr);
 }
 
@@ -53,7 +58,7 @@ void WeakHandle<T>::release() const {
   if (_obj != NULL) {
     // Clear the WeakHandle.  For race in creating ClassLoaderData, we can release this
     // WeakHandle before it is cleared by GC.
-    RootAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, (oop)NULL);
+    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(_obj, (oop)NULL);
     get_storage()->release(_obj);
   }
 }
@@ -68,4 +73,5 @@ void WeakHandle<T>::print_on(outputStream* st) const {
 
 // Provide instantiation.
 template class WeakHandle<vm_class_loader_data>;
+template class WeakHandle<vm_string_table_data>;
 

@@ -43,7 +43,7 @@
 #include "oops/oopHandle.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -142,7 +142,10 @@ void Klass::check_valid_for_instantiation(bool throwError, TRAPS) {
 
 
 void Klass::copy_array(arrayOop s, int src_pos, arrayOop d, int dst_pos, int length, TRAPS) {
-  THROW(vmSymbols::java_lang_ArrayStoreException());
+  ResourceMark rm(THREAD);
+  assert(s != NULL, "Throw NPE!");
+  THROW_MSG(vmSymbols::java_lang_ArrayStoreException(),
+            err_msg("arraycopy: source type %s is not an array", s->klass()->external_name()));
 }
 
 
@@ -165,7 +168,9 @@ Klass* Klass::find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const {
   return NULL;
 }
 
-Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signature, OverpassLookupMode overpass_mode) const {
+Method* Klass::uncached_lookup_method(const Symbol* name, const Symbol* signature,
+                                      OverpassLookupMode overpass_mode,
+                                      PrivateLookupMode private_mode) const {
 #ifdef ASSERT
   tty->print_cr("Error: uncached_lookup_method called on a klass oop."
                 " Likely error: reflection method does not correctly"
@@ -194,9 +199,10 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
 // which doesn't zero out the memory before calling the constructor.
 // Need to set the _java_mirror field explicitly to not hit an assert that the field
 // should be NULL before setting it.
-Klass::Klass() : _prototype_header(markOopDesc::prototype()),
-                 _shared_class_path_index(-1),
-                 _java_mirror(NULL) {
+Klass::Klass(KlassID id) : _id(id),
+                           _java_mirror(NULL),
+                           _prototype_header(markOopDesc::prototype()),
+                           _shared_class_path_index(-1) {
   CDS_ONLY(_shared_class_flags = 0;)
   CDS_JAVA_HEAP_ONLY(_archived_mirror = 0;)
   _primary_supers[0] = this;
@@ -232,7 +238,7 @@ bool Klass::can_be_primary_super_slow() const {
     return true;
 }
 
-void Klass::initialize_supers(Klass* k, Array<Klass*>* transitive_interfaces, TRAPS) {
+void Klass::initialize_supers(Klass* k, Array<InstanceKlass*>* transitive_interfaces, TRAPS) {
   if (FastSuperclassLimit == 0) {
     // None of the other machinery matters.
     set_super(k);
@@ -351,7 +357,7 @@ void Klass::initialize_supers(Klass* k, Array<Klass*>* transitive_interfaces, TR
 }
 
 GrowableArray<Klass*>* Klass::compute_secondary_supers(int num_extra_slots,
-                                                       Array<Klass*>* transitive_interfaces) {
+                                                       Array<InstanceKlass*>* transitive_interfaces) {
   assert(num_extra_slots == 0, "override for complex klasses");
   assert(transitive_interfaces == NULL, "sanity");
   set_secondary_supers(Universe::the_empty_klass_array());
@@ -390,6 +396,10 @@ void Klass::append_to_sibling_list() {
   // make ourselves the superklass' first subklass
   super->set_subklass(this);
   debug_only(verify();)
+}
+
+oop Klass::holder_phantom() const {
+  return class_loader_data()->holder_phantom();
 }
 
 void Klass::clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses) {
@@ -538,20 +548,19 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
   Handle module_handle(THREAD, ((module_entry != NULL) ? module_entry->module() : (oop)NULL));
 
   if (this->has_raw_archived_mirror()) {
+    ResourceMark rm;
     log_debug(cds, mirror)("%s has raw archived mirror", external_name());
     if (MetaspaceShared::open_archive_heap_region_mapped()) {
-      oop m = archived_java_mirror();
-      log_debug(cds, mirror)("Archived mirror is: " PTR_FORMAT, p2i(m));
-      if (m != NULL) {
-        // mirror is archived, restore
-        assert(MetaspaceShared::is_archive_object(m), "must be archived mirror object");
-        Handle m_h(THREAD, m);
-        java_lang_Class::restore_archived_mirror(this, m_h, loader, module_handle, protection_domain, CHECK);
+      bool present = java_lang_Class::restore_archived_mirror(this, loader, module_handle,
+                                                              protection_domain,
+                                                              CHECK);
+      if (present) {
         return;
       }
     }
 
     // No archived mirror data
+    log_debug(cds, mirror)("No archived mirror data for %s", external_name());
     _java_mirror = NULL;
     this->clear_has_raw_archived_mirror();
   }
@@ -567,16 +576,8 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
 #if INCLUDE_CDS_JAVA_HEAP
 // Used at CDS dump time to access the archived mirror. No GC barrier.
 oop Klass::archived_java_mirror_raw() {
-  assert(DumpSharedSpaces, "called only during runtime");
   assert(has_raw_archived_mirror(), "must have raw archived mirror");
   return CompressedOops::decode(_archived_mirror);
-}
-
-// Used at CDS runtime to get the archived mirror from shared class. Uses GC barrier.
-oop Klass::archived_java_mirror() {
-  assert(UseSharedSpaces, "UseSharedSpaces expected.");
-  assert(has_raw_archived_mirror(), "must have raw archived mirror");
-  return RootAccess<IN_ARCHIVE_ROOT>::oop_load(&_archived_mirror);
 }
 
 // No GC barrier
@@ -773,89 +774,126 @@ bool Klass::verify_vtable_index(int i) {
   return true;
 }
 
-bool Klass::verify_itable_index(int i) {
-  assert(is_instance_klass(), "");
-  int method_count = klassItable::method_count_for_interface(this);
-  assert(i >= 0 && i < method_count, "index out of bounds");
-  return true;
-}
-
 #endif // PRODUCT
 
-// The caller of class_loader_and_module_name() (or one of its callers)
-// must use a ResourceMark in order to correctly free the result.
-const char* Klass::class_loader_and_module_name() const {
-  const char* delim = "/";
-  size_t delim_len = strlen(delim);
+// Caller needs ResourceMark
+// joint_in_module_of_loader provides an optimization if 2 classes are in
+// the same module to succinctly print out relevant information about their
+// module name and class loader's name_and_id for error messages.
+// Format:
+//   <fully-qualified-external-class-name1> and <fully-qualified-external-class-name2>
+//                      are in module <module-name>[@<version>]
+//                      of loader <loader-name_and_id>[, parent loader <parent-loader-name_and_id>]
+const char* Klass::joint_in_module_of_loader(const Klass* class2, bool include_parent_loader) const {
+  assert(module() == class2->module(), "classes do not have the same module");
+  const char* class1_name = external_name();
+  size_t len = strlen(class1_name) + 1;
 
-  const char* fqn = external_name();
-  // Length of message to return; always include FQN
-  size_t msglen = strlen(fqn) + 1;
+  const char* class2_description = class2->class_in_module_of_loader(true, include_parent_loader);
+  len += strlen(class2_description);
 
-  bool has_cl_name = false;
-  bool has_mod_name = false;
-  bool has_version = false;
+  len += strlen(" and ");
 
-  // Use class loader name, if exists and not builtin
-  const char* class_loader_name = "";
-  ClassLoaderData* cld = class_loader_data();
-  assert(cld != NULL, "class_loader_data should not be NULL");
-  if (!cld->is_builtin_class_loader_data()) {
-    // If not builtin, look for name
-    oop loader = class_loader();
-    if (loader != NULL) {
-      oop class_loader_name_oop = java_lang_ClassLoader::name(loader);
-      if (class_loader_name_oop != NULL) {
-        class_loader_name = java_lang_String::as_utf8_string(class_loader_name_oop);
-        if (class_loader_name != NULL && class_loader_name[0] != '\0') {
-          has_cl_name = true;
-          msglen += strlen(class_loader_name) + delim_len;
-        }
-      }
-    }
+  char* joint_description = NEW_RESOURCE_ARRAY_RETURN_NULL(char, len);
+
+  // Just return the FQN if error when allocating string
+  if (joint_description == NULL) {
+    return class1_name;
   }
 
+  jio_snprintf(joint_description, len, "%s and %s",
+               class1_name,
+               class2_description);
+
+  return joint_description;
+}
+
+// Caller needs ResourceMark
+// class_in_module_of_loader provides a standard way to include
+// relevant information about a class, such as its module name as
+// well as its class loader's name_and_id, in error messages and logging.
+// Format:
+//   <fully-qualified-external-class-name> is in module <module-name>[@<version>]
+//                                         of loader <loader-name_and_id>[, parent loader <parent-loader-name_and_id>]
+const char* Klass::class_in_module_of_loader(bool use_are, bool include_parent_loader) const {
+  // 1. fully qualified external name of class
+  const char* klass_name = external_name();
+  size_t len = strlen(klass_name) + 1;
+
+  // 2. module name + @version
   const char* module_name = "";
   const char* version = "";
+  bool has_version = false;
+  bool module_is_named = false;
+  const char* module_name_phrase = "";
   const Klass* bottom_klass = is_objArray_klass() ?
-    ObjArrayKlass::cast(this)->bottom_klass() : this;
+                                ObjArrayKlass::cast(this)->bottom_klass() : this;
   if (bottom_klass->is_instance_klass()) {
     ModuleEntry* module = InstanceKlass::cast(bottom_klass)->module();
-    // Use module name, if exists
     if (module->is_named()) {
-      has_mod_name = true;
+      module_is_named = true;
+      module_name_phrase = "module ";
       module_name = module->name()->as_C_string();
-      msglen += strlen(module_name);
+      len += strlen(module_name);
       // Use version if exists and is not a jdk module
-      if (module->is_non_jdk_module() && module->version() != NULL) {
+      if (module->should_show_version()) {
         has_version = true;
         version = module->version()->as_C_string();
-        msglen += strlen("@") + strlen(version);
+        // Include stlen(version) + 1 for the "@"
+        len += strlen(version) + 1;
       }
+    } else {
+      module_name = UNNAMED_MODULE;
+      len += UNNAMED_MODULE_LEN;
     }
   } else {
-    // klass is an array of primitives, so its module is java.base
+    // klass is an array of primitives, module is java.base
+    module_is_named = true;
+    module_name_phrase = "module ";
     module_name = JAVA_BASE_NAME;
+    len += JAVA_BASE_NAME_LEN;
   }
 
-  if (has_cl_name || has_mod_name) {
-    msglen += delim_len;
+  // 3. class loader's name_and_id
+  ClassLoaderData* cld = class_loader_data();
+  assert(cld != NULL, "class_loader_data should not be null");
+  const char* loader_name_and_id = cld->loader_name_and_id();
+  len += strlen(loader_name_and_id);
+
+  // 4. include parent loader information
+  const char* parent_loader_phrase = "";
+  const char* parent_loader_name_and_id = "";
+  if (include_parent_loader &&
+      !cld->is_builtin_class_loader_data()) {
+    oop parent_loader = java_lang_ClassLoader::parent(class_loader());
+    ClassLoaderData *parent_cld = ClassLoaderData::class_loader_data(parent_loader);
+    assert(parent_cld != NULL, "parent's class loader data should not be null");
+    parent_loader_name_and_id = parent_cld->loader_name_and_id();
+    parent_loader_phrase = ", parent loader ";
+    len += strlen(parent_loader_phrase) + strlen(parent_loader_name_and_id);
   }
 
-  char* message = NEW_RESOURCE_ARRAY_RETURN_NULL(char, msglen);
+  // Start to construct final full class description string
+  len += ((use_are) ? strlen(" are in ") : strlen(" is in "));
+  len += strlen(module_name_phrase) + strlen(" of loader ");
 
-  // Just return the FQN if error in allocating string
-  if (message == NULL) {
-    return fqn;
+  char* class_description = NEW_RESOURCE_ARRAY_RETURN_NULL(char, len);
+
+  // Just return the FQN if error when allocating string
+  if (class_description == NULL) {
+    return klass_name;
   }
 
-  jio_snprintf(message, msglen, "%s%s%s%s%s%s%s",
-               class_loader_name,
-               (has_cl_name) ? delim : "",
-               (has_mod_name) ? module_name : "",
+  jio_snprintf(class_description, len, "%s %s in %s%s%s%s of loader %s%s%s",
+               klass_name,
+               (use_are) ? "are" : "is",
+               module_name_phrase,
+               module_name,
                (has_version) ? "@" : "",
                (has_version) ? version : "",
-               (has_cl_name || has_mod_name) ? delim : "",
-               fqn);
-  return message;
+               loader_name_and_id,
+               parent_loader_phrase,
+               parent_loader_name_and_id);
+
+  return class_description;
 }

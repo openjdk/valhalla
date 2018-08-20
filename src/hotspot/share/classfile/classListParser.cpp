@@ -48,14 +48,13 @@ ClassListParser::ClassListParser(const char* file) {
   _instance = this;
   _classlist_file = file;
   _file = fopen(file, "r");
-  _line_no = 0;
-  _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, true);
-
   if (_file == NULL) {
     char errmsg[JVM_MAXPATHLEN];
     os::lasterror(errmsg, JVM_MAXPATHLEN);
     vm_exit_during_initialization("Loading classlist failed", errmsg);
   }
+  _line_no = 0;
+  _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, true);
 }
 
 ClassListParser::~ClassListParser() {
@@ -274,8 +273,8 @@ void ClassListParser::error(const char *msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(AIX)))
-  // The only supported platforms are: (1) Linux/64-bit; (2) Solaris/64-bit; (3) AIX/64-bit
+#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS)))
+  // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit
   //
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
   // method in test/lib/jdk/test/lib/Platform.java.

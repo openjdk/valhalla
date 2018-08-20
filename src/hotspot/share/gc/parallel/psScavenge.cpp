@@ -43,6 +43,7 @@
 #include "gc/shared/isGCActiveMark.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "memory/resourceArea.hpp"
@@ -96,7 +97,7 @@ public:
   }
 
   template <class T> void do_oop_work(T* p) {
-    assert (oopDesc::is_oop(RawAccess<OOP_NOT_NULL>::oop_load(p)),
+    assert (oopDesc::is_oop(RawAccess<IS_NOT_NULL>::oop_load(p)),
             "expected an oop while scanning weak refs");
 
     // Weak refs may be visited more than once.
@@ -149,20 +150,26 @@ void PSRefProcTaskProxy::do_it(GCTaskManager* manager, uint which)
 }
 
 class PSRefProcTaskExecutor: public AbstractRefProcTaskExecutor {
-  virtual void execute(ProcessTask& task);
+  virtual void execute(ProcessTask& task, uint ergo_workers);
 };
 
-void PSRefProcTaskExecutor::execute(ProcessTask& task)
+void PSRefProcTaskExecutor::execute(ProcessTask& task, uint ergo_workers)
 {
   GCTaskQueue* q = GCTaskQueue::create();
   GCTaskManager* manager = ParallelScavengeHeap::gc_task_manager();
-  for(uint i=0; i < manager->active_workers(); i++) {
+  uint active_workers = manager->active_workers();
+
+  assert(active_workers == ergo_workers,
+         "Ergonomically chosen workers (%u) must be equal to active workers (%u)",
+         ergo_workers, active_workers);
+
+  for(uint i=0; i < active_workers; i++) {
     q->enqueue(new PSRefProcTaskProxy(task, i));
   }
-  ParallelTaskTerminator terminator(manager->active_workers(),
-                 (TaskQueueSetSuper*) PSPromotionManager::stack_array_depth());
-  if (task.marks_oops_alive() && manager->active_workers() > 1) {
-    for (uint j = 0; j < manager->active_workers(); j++) {
+  ParallelTaskTerminator terminator(active_workers,
+                                    (TaskQueueSetSuper*) PSPromotionManager::stack_array_depth());
+  if (task.marks_oops_alive() && active_workers > 1) {
+    for (uint j = 0; j < active_workers; j++) {
       q->enqueue(new StealTask(&terminator));
     }
   }
@@ -399,7 +406,7 @@ bool PSScavenge::invoke_no_policy() {
       PSKeepAliveClosure keep_alive(promotion_manager);
       PSEvacuateFollowersClosure evac_followers(promotion_manager);
       ReferenceProcessorStats stats;
-      ReferenceProcessorPhaseTimes pt(&_gc_timer, reference_processor()->num_queues());
+      ReferenceProcessorPhaseTimes pt(&_gc_timer, reference_processor()->max_num_queues());
       if (reference_processor()->processing_is_mt()) {
         PSRefProcTaskExecutor task_executor;
         stats = reference_processor()->process_discovered_references(
@@ -747,7 +754,8 @@ void PSScavenge::initialize() {
                            true,                       // mt discovery
                            ParallelGCThreads,          // mt discovery degree
                            true,                       // atomic_discovery
-                           NULL);                      // header provides liveness info
+                           NULL,                       // header provides liveness info
+                           false);
 
   // Cache the cardtable
   _card_table = heap->card_table();

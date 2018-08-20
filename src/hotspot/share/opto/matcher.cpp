@@ -41,6 +41,9 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/zBarrierSetRuntime.hpp"
+#endif // INCLUDE_ZGC
 
 OptoReg::Name OptoReg::c_frame_pointer;
 
@@ -54,25 +57,25 @@ const uint Matcher::_end_rematerialize   = _END_REMATERIALIZE;
 //---------------------------Matcher-------------------------------------------
 Matcher::Matcher()
 : PhaseTransform( Phase::Ins_Select ),
-#ifdef ASSERT
-  _old2new_map(C->comp_arena()),
-  _new2old_map(C->comp_arena()),
-#endif
-  _shared_nodes(C->comp_arena()),
+  _states_arena(Chunk::medium_size, mtCompiler),
+  _visited(&_states_arena),
+  _shared(&_states_arena),
+  _dontcare(&_states_arena),
   _reduceOp(reduceOp), _leftOp(leftOp), _rightOp(rightOp),
   _swallowed(swallowed),
   _begin_inst_chain_rule(_BEGIN_INST_CHAIN_RULE),
   _end_inst_chain_rule(_END_INST_CHAIN_RULE),
   _must_clone(must_clone),
+  _shared_nodes(C->comp_arena()),
+#ifdef ASSERT
+  _old2new_map(C->comp_arena()),
+  _new2old_map(C->comp_arena()),
+#endif
+  _allocation_started(false),
+  _ruleName(ruleName),
   _register_save_policy(register_save_policy),
   _c_reg_save_policy(c_reg_save_policy),
-  _register_save_type(register_save_type),
-  _ruleName(ruleName),
-  _allocation_started(false),
-  _states_arena(Chunk::medium_size, mtCompiler),
-  _visited(&_states_arena),
-  _shared(&_states_arena),
-  _dontcare(&_states_arena) {
+  _register_save_type(register_save_type) {
   C->set_matcher(this);
 
   idealreg2spillmask  [Op_RegI] = NULL;
@@ -2105,6 +2108,7 @@ void Matcher::find_shared( Node *n ) {
       mstack.set_state(Post_Visit);
       set_visited(n);   // Flag as visited now
       bool mem_op = false;
+      int mem_addr_idx = MemNode::Address;
 
       switch( nop ) {  // Handle some opcodes special
       case Op_Phi:             // Treat Phis as shared roots
@@ -2193,6 +2197,17 @@ void Matcher::find_shared( Node *n ) {
       case Op_SafePoint:
         mem_op = true;
         break;
+#if INCLUDE_ZGC
+      case Op_CallLeaf:
+        if (UseZGC) {
+          if (n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr() ||
+              n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr()) {
+            mem_op = true;
+            mem_addr_idx = TypeFunc::Parms+1;
+          }
+          break;
+        }
+#endif
       default:
         if( n->is_Store() ) {
           // Do match stores, despite no ideal reg
@@ -2242,7 +2257,7 @@ void Matcher::find_shared( Node *n ) {
 #endif
 
         // Clone addressing expressions as they are "free" in memory access instructions
-        if (mem_op && i == MemNode::Address && mop == Op_AddP &&
+        if (mem_op && i == mem_addr_idx && mop == Op_AddP &&
             // When there are other uses besides address expressions
             // put it on stack and mark as shared.
             !is_visited(m)) {

@@ -18,7 +18,7 @@ keys=2d dnd headful i18n intermittent printer randomness jfr
 
 # Tests that must run in othervm mode
 othervm.dirs=java/awt java/beans javax/accessibility javax/imageio javax/sound javax/swing javax/print \
-sun/applet com/apple/laf com/sun/java/accessibility com/sun/java/swing sanity/client demo/jfc \
+com/apple/laf com/sun/java/accessibility com/sun/java/swing sanity/client demo/jfc \
 javax/management com/sun/awt sun/awt sun/java2d javax/xml/jaxp/testng/validation java/lang/ProcessHandle
 
 # Tests that cannot run concurrently
@@ -31,14 +31,22 @@ groups=TEST.groups
 # Source files for classes that will be used at the beginning of each test suite run,
 # to determine additional characteristics of the system for use with the @requires tag.
 # Note: compiled bootlibs code will be located in the folder 'bootClasses'
-requires.extraPropDefns = ../../test/jtreg-ext/requires/VMProps.java [../../closed/test/jtreg-ext/requires/VMPropsExt.java]
-requires.extraPropDefns.bootlibs = ../../test/lib/sun ../../test/lib/jdk/test/lib/Platform.java
+requires.extraPropDefns = ../jtreg-ext/requires/VMProps.java
+requires.extraPropDefns.bootlibs = ../lib/sun ../lib/jdk/test/lib/Platform.java
 requires.extraPropDefns.vmOpts = -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:bootClasses
 requires.properties= \
     sun.arch.data.model \
     java.runtime.name \
+    vm.gc.Z \
     vm.graal.enabled \
-    vm.cds
+    vm.compiler1.enabled \
+    vm.compiler2.enabled \
+    vm.cds \
+    vm.hasSA \
+    vm.hasSAandCanAttach \
+    vm.hasJFR \
+    docker.support \
+    release.implementor
 
 # Minimum jtreg version
 requiredVersion=4.2 b12

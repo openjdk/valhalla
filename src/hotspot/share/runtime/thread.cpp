@@ -81,7 +81,7 @@
 #include "runtime/memprofiler.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepoint.hpp"
@@ -94,6 +94,7 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadCritical.hpp"
 #include "runtime/threadSMR.inline.hpp"
+#include "runtime/threadStatisticalInfo.hpp"
 #include "runtime/timer.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vframe.inline.hpp"
@@ -282,7 +283,6 @@ Thread::Thread() {
   _hashStateW = 273326509;
 
   _OnTrap   = 0;
-  _schedctl = NULL;
   _Stalled  = 0;
   _TypeTag  = 0x2BAD;
 
@@ -872,13 +872,29 @@ void Thread::metadata_handles_do(void f(Metadata*)) {
   }
 }
 
-void Thread::print_on(outputStream* st) const {
+void Thread::print_on(outputStream* st, bool print_extended_info) const {
   // get_priority assumes osthread initialized
   if (osthread() != NULL) {
     int os_prio;
     if (os::get_native_priority(this, &os_prio) == OS_OK) {
       st->print("os_prio=%d ", os_prio);
     }
+
+    st->print("cpu=%.2fms ",
+              os::thread_cpu_time(const_cast<Thread*>(this), true) / 1000000.0
+              );
+    st->print("elapsed=%.2fs ",
+              _statistical_info.getElapsedTime() / 1000.0
+              );
+    if (is_Java_thread() && (PrintExtendedThreadInfo || print_extended_info)) {
+      size_t allocated_bytes = (size_t) const_cast<Thread*>(this)->cooked_allocated_bytes();
+      st->print("allocated=" SIZE_FORMAT "%s ",
+                byte_size_in_proper_unit(allocated_bytes),
+                proper_unit_for_byte_size(allocated_bytes)
+                );
+      st->print("defined_classes=" INT64_FORMAT " ", _statistical_info.getDefineClassCount());
+    }
+
     st->print("tid=" INTPTR_FORMAT " ", p2i(this));
     osthread()->print_on(st);
   }
@@ -960,7 +976,7 @@ bool Thread::owns_locks_but_compiled_lock() const {
 
 // The flag: potential_vm_operation notifies if this particular safepoint state could potentially
 // invoke the vm-thread (e.g., an oop allocation). In that case, we also have to make sure that
-// no threads which allow_vm_block's are held
+// no locks which allow_vm_block's are held
 void Thread::check_for_valid_safepoint_state(bool potential_vm_operation) {
   // Check if current thread is allowed to block at a safepoint
   if (!(_allow_safepoint_count == 0)) {
@@ -1140,32 +1156,6 @@ static void call_postVMInitHook(TRAPS) {
                            CHECK);
   }
 }
-
-static void reset_vm_info_property(TRAPS) {
-  // the vm info string
-  ResourceMark rm(THREAD);
-  const char *vm_info = VM_Version::vm_info_string();
-
-  // java.lang.System class
-  Klass* klass =  SystemDictionary::resolve_or_fail(vmSymbols::java_lang_System(), true, CHECK);
-
-  // setProperty arguments
-  Handle key_str    = java_lang_String::create_from_str("java.vm.info", CHECK);
-  Handle value_str  = java_lang_String::create_from_str(vm_info, CHECK);
-
-  // return value
-  JavaValue r(T_OBJECT);
-
-  // public static String setProperty(String key, String value);
-  JavaCalls::call_static(&r,
-                         klass,
-                         vmSymbols::setProperty_name(),
-                         vmSymbols::string_string_string_signature(),
-                         key_str,
-                         value_str,
-                         CHECK);
-}
-
 
 void JavaThread::allocate_threadObj(Handle thread_group, const char* thread_name,
                                     bool daemon, TRAPS) {
@@ -1525,7 +1515,7 @@ void JavaThread::initialize() {
 #if INCLUDE_JVMCI
   _pending_monitorenter = false;
   _pending_deoptimization = -1;
-  _pending_failed_speculation = NULL;
+  _pending_failed_speculation = 0;
   _pending_transfer_to_interpreter = false;
   _adjusting_comp_level = false;
   _jvmci._alternate_call_target = NULL;
@@ -2823,8 +2813,6 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   // Traverse the GCHandles
   Thread::oops_do(f, cf);
 
-  JVMCI_ONLY(f->do_oop((oop*)&_pending_failed_speculation);)
-
   assert((!has_last_Java_frame() && java_call_counter() == 0) ||
          (has_last_Java_frame() && java_call_counter() > 0), "wrong java_sp info!");
 
@@ -2952,7 +2940,7 @@ void JavaThread::print_thread_state() const {
 #endif // PRODUCT
 
 // Called by Threads::print() for VM_PrintThreads operation
-void JavaThread::print_on(outputStream *st) const {
+void JavaThread::print_on(outputStream *st, bool print_extended_info) const {
   st->print_raw("\"");
   st->print_raw(get_thread_name());
   st->print_raw("\" ");
@@ -2962,7 +2950,7 @@ void JavaThread::print_on(outputStream *st) const {
     if (java_lang_Thread::is_daemon(thread_oop))  st->print("daemon ");
     st->print("prio=%d ", java_lang_Thread::priority(thread_oop));
   }
-  Thread::print_on(st);
+  Thread::print_on(st, print_extended_info);
   // print guess for valid stack memory region (assume 4K pages); helps lock debugging
   st->print_cr("[" INTPTR_FORMAT "]", (intptr_t)last_Java_sp() & ~right_n_bits(12));
   if (thread_oop != NULL) {
@@ -3364,6 +3352,11 @@ CompilerThread::CompilerThread(CompileQueue* queue,
 }
 
 CompilerThread::~CompilerThread() {
+  // Free buffer blob, if allocated
+  if (get_buffer_blob() != NULL) {
+    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    CodeCache::free(get_buffer_blob());
+  }
   // Delete objects which were allocated on heap.
   delete _counters;
 }
@@ -3823,6 +3816,14 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     VMThread::execute(&verify_op);
   }
 
+  // We need this to update the java.vm.info property in case any flags used
+  // to initially define it have been changed. This is needed for both CDS and
+  // AOT, since UseSharedSpaces and UseAOT may be changed after java.vm.info
+  // is initially computed. See Abstract_VM_Version::vm_info_string().
+  // This update must happen before we initialize the java classes, but
+  // after any initialization logic that might modify the flags.
+  Arguments::update_vm_info_property(VM_Version::vm_info_string());
+
   Thread* THREAD = Thread::current();
 
   // Always call even when there are not JVMTI environments yet, since environments
@@ -3833,11 +3834,6 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   JvmtiExport::post_early_vm_start();
 
   initialize_java_lang_classes(main_thread, CHECK_JNI_ERR);
-
-  // We need this for ClassDataSharing - the initial vm.info property is set
-  // with the default value of CDS "sharing" which may be reset through
-  // command line options.
-  reset_vm_info_property(CHECK_JNI_ERR);
 
   quicken_jni_functions();
 
@@ -4297,6 +4293,9 @@ bool Threads::destroy_vm() {
   before_exit(thread);
 
   thread->exit(true);
+  // thread will never call smr_delete, instead of implicit cancel
+  // in wait_for_vm_thread_exit we do it explicit.
+  thread->cancel_handshake();
 
   // Stop VM thread.
   {
@@ -4606,7 +4605,8 @@ JavaThread *Threads::owning_thread_from_monitor_owner(ThreadsList * t_list,
 
 // Threads::print_on() is called at safepoint by VM_PrintThreads operation.
 void Threads::print_on(outputStream* st, bool print_stacks,
-                       bool internal_format, bool print_concurrent_locks) {
+                       bool internal_format, bool print_concurrent_locks,
+                       bool print_extended_info) {
   char buf[32];
   st->print_raw_cr(os::local_time_string(buf, sizeof(buf)));
 
@@ -4629,7 +4629,7 @@ void Threads::print_on(outputStream* st, bool print_stacks,
 
   ALL_JAVA_THREADS(p) {
     ResourceMark rm;
-    p->print_on(st);
+    p->print_on(st, print_extended_info);
     if (print_stacks) {
       if (internal_format) {
         p->trace_stack();
@@ -4856,7 +4856,6 @@ void Thread::SpinRelease(volatile int * adr) {
 //    (List, LOCKBIT:1).  We could also add a SUCCBIT or an explicit _succ variable
 //    to provide the usual futile-wakeup optimization.
 //    See RTStt for details.
-// *  Consider schedctl.sc_nopreempt to cover the critical section.
 //
 
 

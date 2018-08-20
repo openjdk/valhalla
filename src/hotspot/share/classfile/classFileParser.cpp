@@ -118,6 +118,8 @@
 
 #define JAVA_11_VERSION                   55
 
+#define JAVA_12_VERSION                   56
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == 19 || bad_constant == 20) && _major_version >= JAVA_9_VERSION,
          "Unexpected bad constant pool entry");
@@ -925,10 +927,10 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
   assert(has_nonstatic_concrete_methods != NULL, "invariant");
 
   if (itfs_len == 0) {
-    _local_interfaces = Universe::the_empty_klass_array();
+    _local_interfaces = Universe::the_empty_instance_klass_array();
   } else {
     assert(itfs_len > 0, "only called for len>0");
-    _local_interfaces = MetadataFactory::new_array<Klass*>(_loader_data, itfs_len, NULL, CHECK);
+    _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
 
     int index;
     for (index = 0; index < itfs_len; index++) {
@@ -960,13 +962,16 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
 
       if (!interf->is_interface()) {
         THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                   "Implementing class");
+                  err_msg("class %s can not implement %s, because it is not an interface (%s)",
+                          _class_name->as_klass_external_name(),
+                          interf->external_name(),
+                          interf->class_in_module_of_loader()));
       }
 
       if (InstanceKlass::cast(interf)->has_nonstatic_concrete_methods()) {
         *has_nonstatic_concrete_methods = true;
       }
-      _local_interfaces->at_put(index, interf);
+      _local_interfaces->at_put(index, InstanceKlass::cast(interf));
     }
 
     if (!_need_verify || itfs_len <= 1) {
@@ -984,8 +989,8 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
     {
       debug_only(NoSafepointVerifier nsv;)
       for (index = 0; index < itfs_len; index++) {
-        const Klass* const k = _local_interfaces->at(index);
-        name = InstanceKlass::cast(k)->name();
+        const InstanceKlass* const k = _local_interfaces->at(index);
+        name = k->name();
         // If no duplicates, add (name, NULL) in hashtable interface_names.
         if (!put_after_lookup(name, NULL, interface_names)) {
           dup = true;
@@ -3235,7 +3240,6 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
   _inner_classes = inner_classes;
 
   int index = 0;
-  const int cp_size = _cp->length();
   cfs->guarantee_more(8 * length, CHECK_0);  // 4-tuples of u2
   for (int n = 0; n < length; n++) {
     // Inner class index
@@ -3306,6 +3310,38 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
   if (parsed_enclosingmethod_attribute) {
     inner_classes->at_put(index++, enclosing_method_class_index);
     inner_classes->at_put(index++, enclosing_method_method_index);
+  }
+  assert(index == size, "wrong size");
+
+  // Restore buffer's current position.
+  cfs->set_current(current_mark);
+
+  return length;
+}
+
+u2 ClassFileParser::parse_classfile_nest_members_attribute(const ClassFileStream* const cfs,
+                                                           const u1* const nest_members_attribute_start,
+                                                           TRAPS) {
+  const u1* const current_mark = cfs->current();
+  u2 length = 0;
+  if (nest_members_attribute_start != NULL) {
+    cfs->set_current(nest_members_attribute_start);
+    cfs->guarantee_more(2, CHECK_0);  // length
+    length = cfs->get_u2_fast();
+  }
+  const int size = length;
+  Array<u2>* const nest_members = MetadataFactory::new_array<u2>(_loader_data, size, CHECK_0);
+  _nest_members = nest_members;
+
+  int index = 0;
+  cfs->guarantee_more(2 * length, CHECK_0);
+  for (int n = 0; n < length; n++) {
+    const u2 class_info_index = cfs->get_u2_fast();
+    check_property(
+      valid_klass_reference_at(class_info_index),
+      "Nest member class_info_index %u has bad constant type in class file %s",
+      class_info_index, CHECK_0);
+    nest_members->at_put(index++, class_info_index);
   }
   assert(index == size, "wrong size");
 
@@ -3422,10 +3458,14 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
 
   // Set inner classes attribute to default sentinel
   _inner_classes = Universe::the_empty_short_array();
+  // Set nest members attribute to default sentinel
+  _nest_members = Universe::the_empty_short_array();
   cfs->guarantee_more(2, CHECK);  // attributes_count
   u2 attributes_count = cfs->get_u2_fast();
   bool parsed_sourcefile_attribute = false;
   bool parsed_innerclasses_attribute = false;
+  bool parsed_nest_members_attribute = false;
+  bool parsed_nest_host_attribute = false;
   bool parsed_value_types_attribute = false;
   bool parsed_enclosingmethod_attribute = false;
   bool parsed_bootstrap_methods_attribute = false;
@@ -3446,6 +3486,9 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   u4 value_types_attribute_length = 0;
   u2  enclosing_method_class_index = 0;
   u2  enclosing_method_method_index = 0;
+  const u1* nest_members_attribute_start = NULL;
+  u4  nest_members_attribute_length = 0;
+
   // Iterate over attributes
   while (attributes_count--) {
     cfs->guarantee_more(6, CHECK);  // attribute_name_index, attribute_length
@@ -3604,6 +3647,43 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           assert(runtime_invisible_type_annotations != NULL, "null invisible type annotations");
         }
         cfs->skip_u1(attribute_length, CHECK);
+      } else if (_major_version >= JAVA_11_VERSION) {
+        if (tag == vmSymbols::tag_nest_members()) {
+          // Check for NestMembers tag
+          if (parsed_nest_members_attribute) {
+            classfile_parse_error("Multiple NestMembers attributes in class file %s", CHECK);
+          } else {
+            parsed_nest_members_attribute = true;
+          }
+          if (parsed_nest_host_attribute) {
+            classfile_parse_error("Conflicting NestHost and NestMembers attributes in class file %s", CHECK);
+          }
+          nest_members_attribute_start = cfs->current();
+          nest_members_attribute_length = attribute_length;
+          cfs->skip_u1(nest_members_attribute_length, CHECK);
+        } else if (tag == vmSymbols::tag_nest_host()) {
+          if (parsed_nest_host_attribute) {
+            classfile_parse_error("Multiple NestHost attributes in class file %s", CHECK);
+          } else {
+            parsed_nest_host_attribute = true;
+          }
+          if (parsed_nest_members_attribute) {
+            classfile_parse_error("Conflicting NestMembers and NestHost attributes in class file %s", CHECK);
+          }
+          if (_need_verify) {
+            guarantee_property(attribute_length == 2, "Wrong NestHost attribute length in class file %s", CHECK);
+          }
+          cfs->guarantee_more(2, CHECK);
+          u2 class_info_index = cfs->get_u2_fast();
+          check_property(
+                         valid_klass_reference_at(class_info_index),
+                         "Nest-host class_info_index %u has bad constant type in class file %s",
+                         class_info_index, CHECK);
+          _nest_host = class_info_index;
+        } else {
+          // Unknown attribute
+          cfs->skip_u1(attribute_length, CHECK);
+        }
       } else {
         // Unknown attribute
         cfs->skip_u1(attribute_length, CHECK);
@@ -3632,10 +3712,22 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
                             enclosing_method_class_index,
                             enclosing_method_method_index,
                             CHECK);
-    if (parsed_innerclasses_attribute &&_need_verify && _major_version >= JAVA_1_5_VERSION) {
+    if (parsed_innerclasses_attribute && _need_verify && _major_version >= JAVA_1_5_VERSION) {
       guarantee_property(
         inner_classes_attribute_length == sizeof(num_of_classes) + 4 * sizeof(u2) * num_of_classes,
         "Wrong InnerClasses attribute length in class file %s", CHECK);
+    }
+  }
+
+  if (parsed_nest_members_attribute) {
+    const u2 num_of_classes = parse_classfile_nest_members_attribute(
+                            cfs,
+                            nest_members_attribute_start,
+                            CHECK);
+    if (_need_verify) {
+      guarantee_property(
+        nest_members_attribute_length == sizeof(num_of_classes) + sizeof(u2) * num_of_classes,
+        "Wrong NestMembers attribute length in class file %s", CHECK);
     }
   }
 
@@ -3705,6 +3797,8 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_fields(_fields, java_fields_count);
   this_klass->set_methods(_methods);
   this_klass->set_inner_classes(_inner_classes);
+  this_klass->set_nest_members(_nest_members);
+  this_klass->set_nest_host_index(_nest_host);
   this_klass->set_value_types(_value_types);
   this_klass->set_local_interfaces(_local_interfaces);
   this_klass->set_annotations(_combined_annotations);
@@ -4721,7 +4815,7 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
     }
 
     // add super interface dependencies
-    const Array<Klass*>* const local_interfaces = defined_klass->local_interfaces();
+    const Array<InstanceKlass*>* const local_interfaces = defined_klass->local_interfaces();
     if (local_interfaces != NULL) {
       const int length = local_interfaces->length();
       for (int i = 0; i < length; i++) {
@@ -4740,21 +4834,21 @@ static void record_defined_class_dependencies(const InstanceKlass* defined_klass
 
 // utility methods for appending an array with check for duplicates
 
-static void append_interfaces(GrowableArray<Klass*>* result,
-                              const Array<Klass*>* const ifs) {
+static void append_interfaces(GrowableArray<InstanceKlass*>* result,
+                              const Array<InstanceKlass*>* const ifs) {
   // iterate over new interfaces
   for (int i = 0; i < ifs->length(); i++) {
-    Klass* const e = ifs->at(i);
-    assert(e->is_klass() && InstanceKlass::cast(e)->is_interface(), "just checking");
+    InstanceKlass* const e = ifs->at(i);
+    assert(e->is_klass() && e->is_interface(), "just checking");
     // add new interface
     result->append_if_missing(e);
   }
 }
 
-static Array<Klass*>* compute_transitive_interfaces(const InstanceKlass* super,
-                                                    Array<Klass*>* local_ifs,
-                                                    ClassLoaderData* loader_data,
-                                                    TRAPS) {
+static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass* super,
+                                                            Array<InstanceKlass*>* local_ifs,
+                                                            ClassLoaderData* loader_data,
+                                                            TRAPS) {
   assert(local_ifs != NULL, "invariant");
   assert(loader_data != NULL, "invariant");
 
@@ -4769,15 +4863,15 @@ static Array<Klass*>* compute_transitive_interfaces(const InstanceKlass* super,
   // Add local interfaces' super interfaces
   const int local_size = local_ifs->length();
   for (int i = 0; i < local_size; i++) {
-    Klass* const l = local_ifs->at(i);
-    max_transitive_size += InstanceKlass::cast(l)->transitive_interfaces()->length();
+    InstanceKlass* const l = local_ifs->at(i);
+    max_transitive_size += l->transitive_interfaces()->length();
   }
   // Finally add local interfaces
   max_transitive_size += local_size;
   // Construct array
   if (max_transitive_size == 0) {
     // no interfaces, use canonicalized array
-    return Universe::the_empty_klass_array();
+    return Universe::the_empty_instance_klass_array();
   } else if (max_transitive_size == super_size) {
     // no new local interfaces added, share superklass' transitive interface array
     return super->transitive_interfaces();
@@ -4786,7 +4880,7 @@ static Array<Klass*>* compute_transitive_interfaces(const InstanceKlass* super,
     return local_ifs;
   } else {
     ResourceMark rm;
-    GrowableArray<Klass*>* const result = new GrowableArray<Klass*>(max_transitive_size);
+    GrowableArray<InstanceKlass*>* const result = new GrowableArray<InstanceKlass*>(max_transitive_size);
 
     // Copy down from superclass
     if (super != NULL) {
@@ -4795,8 +4889,8 @@ static Array<Klass*>* compute_transitive_interfaces(const InstanceKlass* super,
 
     // Copy down from local interfaces' superinterfaces
     for (int i = 0; i < local_size; i++) {
-      Klass* const l = local_ifs->at(i);
-      append_interfaces(result, InstanceKlass::cast(l)->transitive_interfaces());
+      InstanceKlass* const l = local_ifs->at(i);
+      append_interfaces(result, l->transitive_interfaces());
     }
     // Finally add local interfaces
     append_interfaces(result, local_ifs);
@@ -4804,10 +4898,10 @@ static Array<Klass*>* compute_transitive_interfaces(const InstanceKlass* super,
     // length will be less than the max_transitive_size if duplicates were removed
     const int length = result->length();
     assert(length <= max_transitive_size, "just checking");
-    Array<Klass*>* const new_result =
-      MetadataFactory::new_array<Klass*>(loader_data, length, CHECK_NULL);
+    Array<InstanceKlass*>* const new_result =
+      MetadataFactory::new_array<InstanceKlass*>(loader_data, length, CHECK_NULL);
     for (int i = 0; i < length; i++) {
-      Klass* const e = result->at(i);
+      InstanceKlass* const e = result->at(i);
       assert(e != NULL, "just checking");
       new_result->at_put(i, e);
     }
@@ -4835,7 +4929,7 @@ static void check_super_class_access(const InstanceKlass* this_klass, TRAPS) {
           vmSymbols::java_lang_IllegalAccessError(),
           "class %s loaded by %s cannot access jdk/internal/reflect superclass %s",
           this_klass->external_name(),
-          this_klass->class_loader_data()->loader_name(),
+          this_klass->class_loader_data()->loader_name_and_id(),
           super->external_name());
         return;
       }
@@ -4849,12 +4943,17 @@ static void check_super_class_access(const InstanceKlass* this_klass, TRAPS) {
                                                       InstanceKlass::cast(super),
                                                       vca_result);
       if (msg == NULL) {
+        bool same_module = (this_klass->module() == super->module());
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IllegalAccessError(),
-          "class %s cannot access its superclass %s",
+          "class %s cannot access its %ssuperclass %s (%s%s%s)",
           this_klass->external_name(),
-          super->external_name());
+          super->is_abstract() ? "abstract " : "",
+          super->external_name(),
+          (same_module) ? this_klass->joint_in_module_of_loader(super) : this_klass->class_in_module_of_loader(),
+          (same_module) ? "" : "; ",
+          (same_module) ? "" : super->class_in_module_of_loader());
       } else {
         // Add additional message content.
         Exceptions::fthrow(
@@ -4870,25 +4969,29 @@ static void check_super_class_access(const InstanceKlass* this_klass, TRAPS) {
 
 static void check_super_interface_access(const InstanceKlass* this_klass, TRAPS) {
   assert(this_klass != NULL, "invariant");
-  const Array<Klass*>* const local_interfaces = this_klass->local_interfaces();
+  const Array<InstanceKlass*>* const local_interfaces = this_klass->local_interfaces();
   const int lng = local_interfaces->length();
   for (int i = lng - 1; i >= 0; i--) {
-    Klass* const k = local_interfaces->at(i);
+    InstanceKlass* const k = local_interfaces->at(i);
     assert (k != NULL && k->is_interface(), "invalid interface");
     Reflection::VerifyClassAccessResults vca_result =
-      Reflection::verify_class_access(this_klass, InstanceKlass::cast(k), false);
+      Reflection::verify_class_access(this_klass, k, false);
     if (vca_result != Reflection::ACCESS_OK) {
       ResourceMark rm(THREAD);
       char* msg = Reflection::verify_class_access_msg(this_klass,
-                                                      InstanceKlass::cast(k),
+                                                      k,
                                                       vca_result);
       if (msg == NULL) {
+        bool same_module = (this_klass->module() == k->module());
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IllegalAccessError(),
-          "class %s cannot access its superinterface %s",
+          "class %s cannot access its superinterface %s (%s%s%s)",
           this_klass->external_name(),
-          k->external_name());
+          k->external_name(),
+          (same_module) ? this_klass->joint_in_module_of_loader(k) : this_klass->class_in_module_of_loader(),
+          (same_module) ? "" : "; ",
+          (same_module) ? "" : k->class_in_module_of_loader());
       } else {
         // Add additional message content.
         Exceptions::fthrow(
@@ -4929,24 +5032,26 @@ static void check_final_method_override(const InstanceKlass* this_klass, TRAPS) 
           }
 
           if (super_m->is_final() && !super_m->is_static() &&
-              // matching method in super is final, and not static
-              (Reflection::verify_field_access(this_klass,
-                                               super_m->method_holder(),
-                                               super_m->method_holder(),
-                                               super_m->access_flags(), false))
-            // this class can access super final method and therefore override
-            ) {
-            ResourceMark rm(THREAD);
-            Exceptions::fthrow(
-              THREAD_AND_LOCATION,
-              vmSymbols::java_lang_VerifyError(),
-              "class %s overrides final method %s.%s%s",
-              this_klass->external_name(),
-              super_m->method_holder()->external_name(),
-              name->as_C_string(),
-              signature->as_C_string()
-            );
-            return;
+              !super_m->access_flags().is_private()) {
+            // matching method in super is final, and not static or private
+            bool can_access = Reflection::verify_member_access(this_klass,
+                                                               super_m->method_holder(),
+                                                               super_m->method_holder(),
+                                                               super_m->access_flags(),
+                                                              false, false, CHECK);
+            if (can_access) {
+              // this class can access super final method and therefore override
+              ResourceMark rm(THREAD);
+              Exceptions::fthrow(THREAD_AND_LOCATION,
+                                 vmSymbols::java_lang_VerifyError(),
+                                 "class %s overrides final method %s.%s%s",
+                                 this_klass->external_name(),
+                                 super_m->method_holder()->external_name(),
+                                 name->as_C_string(),
+                                 signature->as_C_string()
+                                 );
+              return;
+            }
           }
 
           // continue to look from super_m's holder's super.
@@ -5824,6 +5929,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   assert(NULL == _fields, "invariant");
   assert(NULL == _methods, "invariant");
   assert(NULL == _inner_classes, "invariant");
+  assert(NULL == _nest_members, "invariant");
   assert(NULL == _local_interfaces, "invariant");
   assert(NULL == _combined_annotations, "invariant");
 
@@ -6007,11 +6113,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
                    ik->java_super()->external_name());
       }
       // print out each of the interface classes referred to by this class.
-      const Array<Klass*>* const local_interfaces = ik->local_interfaces();
+      const Array<InstanceKlass*>* const local_interfaces = ik->local_interfaces();
       if (local_interfaces != NULL) {
         const int length = local_interfaces->length();
         for (int i = 0; i < length; i++) {
-          const Klass* const k = local_interfaces->at(i);
+          const InstanceKlass* const k = local_interfaces->at(i);
           const char * to = k->external_name();
           log_debug(class, resolve)("%s %s (interface)", from, to);
         }
@@ -6115,6 +6221,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _fields(NULL),
   _methods(NULL),
   _inner_classes(NULL),
+  _nest_members(NULL),
+  _nest_host(0),
   _value_types(NULL),
   _local_interfaces(NULL),
   _transitive_interfaces(NULL),
@@ -6221,6 +6329,7 @@ void ClassFileParser::clear_class_metadata() {
   _fields = NULL;
   _methods = NULL;
   _inner_classes = NULL;
+  _nest_members = NULL;
   _local_interfaces = NULL;
   _combined_annotations = NULL;
   _annotations = _type_annotations = NULL;
@@ -6244,6 +6353,10 @@ ClassFileParser::~ClassFileParser() {
   // beware of the Universe::empty_blah_array!!
   if (_inner_classes != NULL && _inner_classes != Universe::the_empty_short_array()) {
     MetadataFactory::free_array<u2>(_loader_data, _inner_classes);
+  }
+
+  if (_nest_members != NULL && _nest_members != Universe::the_empty_short_array()) {
+    MetadataFactory::free_array<u2>(_loader_data, _nest_members);
   }
 
   // Free interfaces
@@ -6545,7 +6658,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_loader_data != NULL, "invariant");
 
   if (_class_name == vmSymbols::java_lang_Object()) {
-    check_property(_local_interfaces == Universe::the_empty_klass_array(),
+    check_property(_local_interfaces == Universe::the_empty_instance_klass_array(),
                    "java.lang.Object cannot implement an interface in class file %s",
                    CHECK);
   }

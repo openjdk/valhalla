@@ -181,9 +181,6 @@ private:
   // Start a new incremental collection set for the next pause.
   void start_new_collection_set();
 
-  // The number of regions we could create by expansion.
-  uint _expansion_regions;
-
   // The block offset table for the G1 heap.
   G1BlockOffsetTable* _bot;
 
@@ -698,6 +695,8 @@ public:
   // rather than fill_archive_regions at JVM init time if the archive file
   // mapping failed, with the same non-overlapping and sorted MemRegion array.
   void dealloc_archive_regions(MemRegion* range, size_t count);
+
+  oop materialize_archived_object(oop obj);
 
 private:
 
@@ -1325,9 +1324,8 @@ public:
   // Partial cleaning used when class unloading is disabled.
   // Let the caller choose what structures to clean out:
   // - StringTable
-  // - SymbolTable
   // - StringDeduplication structures
-  void partial_cleaning(BoolObjectClosure* is_alive, bool unlink_strings, bool unlink_symbols, bool unlink_string_dedup);
+  void partial_cleaning(BoolObjectClosure* is_alive, bool unlink_strings, bool unlink_string_dedup);
 
   // Complete cleaning used when class unloading is enabled.
   // Cleans out all structures handled by partial_cleaning and also the CodeCache.
@@ -1432,9 +1430,9 @@ public:
                                 G1ParScanThreadState* par_scan_state,
                                 RefToScanQueueSet* queues,
                                 ParallelTaskTerminator* terminator)
-    : _g1h(g1h), _par_scan_state(par_scan_state),
-      _queues(queues), _terminator(terminator),
-      _start_term(0.0), _term_time(0.0), _term_attempts(0) {}
+    : _start_term(0.0), _term_time(0.0), _term_attempts(0),
+      _g1h(g1h), _par_scan_state(par_scan_state),
+      _queues(queues), _terminator(terminator) {}
 
   void do_void();
 

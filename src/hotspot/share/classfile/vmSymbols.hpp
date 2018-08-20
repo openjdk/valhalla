@@ -142,6 +142,8 @@
   /* class file format tags */                                                                    \
   template(tag_source_file,                           "SourceFile")                               \
   template(tag_inner_classes,                         "InnerClasses")                             \
+  template(tag_nest_members,                          "NestMembers")                              \
+  template(tag_nest_host,                             "NestHost")                                 \
   template(tag_value_types,                           "ValueTypes")                               \
   template(tag_constant_value,                        "ConstantValue")                            \
   template(tag_code,                                  "Code")                                     \
@@ -376,7 +378,6 @@
   template(fillInStackTrace_name,                     "fillInStackTrace")                         \
   template(getCause_name,                             "getCause")                                 \
   template(initCause_name,                            "initCause")                                \
-  template(setProperty_name,                          "setProperty")                              \
   template(getProperty_name,                          "getProperty")                              \
   template(context_name,                              "context")                                  \
   template(contextClassLoader_name,                   "contextClassLoader")                       \
@@ -438,6 +439,7 @@
   template(fileToEncodedURL_signature,                "(Ljava/io/File;)Ljava/net/URL;")           \
   template(getProtectionDomain_name,                  "getProtectionDomain")                      \
   template(getProtectionDomain_signature,             "(Ljava/security/CodeSource;)Ljava/security/ProtectionDomain;") \
+  template(java_lang_Integer_array_signature,         "[Ljava/lang/Integer;")                     \
   template(url_code_signer_array_void_signature,      "(Ljava/net/URL;[Ljava/security/CodeSigner;)V") \
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
@@ -650,10 +652,9 @@
                                                                                                                   \
   /* cds */                                                                                                       \
   template(jdk_internal_loader_ClassLoaders,       "jdk/internal/loader/ClassLoaders")                            \
-  template(jdk_vm_cds_SharedClassInfo,             "jdk/vm/cds/SharedClassInfo")                                  \
-  template(url_void_signature,                     "(Ljava/net/URL;)V")                                           \
   template(toFileURL_name,                         "toFileURL")                                                   \
   template(toFileURL_signature,                    "(Ljava/lang/String;)Ljava/net/URL;")                          \
+  template(url_void_signature,                     "(Ljava/net/URL;)V")                                           \
                                                                                                                   \
   /*end*/
 
@@ -1018,6 +1019,12 @@
   do_intrinsic(_digestBase_implCompressMB, sun_security_provider_digestbase, implCompressMB_name, implCompressMB_signature, F_R)   \
    do_name(     implCompressMB_name,                               "implCompressMultiBlock0")                           \
    do_signature(implCompressMB_signature,                          "([BII)I")                                           \
+                                                                                                                        \
+   /* support for java.util.Base64.Encoder*/                                                                            \
+  do_class(java_util_Base64_Encoder, "java/util/Base64$Encoder")                                                        \
+  do_intrinsic(_base64_encodeBlock, java_util_Base64_Encoder, encodeBlock_name, encodeBlock_signature, F_R)             \
+  do_name(encodeBlock_name, "encodeBlock")                                                                              \
+  do_signature(encodeBlock_signature, "([BII[BIZ)V")                                                                    \
                                                                                                                         \
   /* support for com.sun.crypto.provider.GHASH */                                                                       \
   do_class(com_sun_crypto_provider_ghash, "com/sun/crypto/provider/GHASH")                                              \
