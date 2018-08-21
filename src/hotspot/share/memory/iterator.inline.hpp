@@ -272,6 +272,7 @@ private:
       set_init_function<InstanceClassLoaderKlass>();
       set_init_function<ObjArrayKlass>();
       set_init_function<TypeArrayKlass>();
+      set_init_function<ValueArrayKlass>();
     }
   };
 
@@ -332,6 +333,7 @@ private:
       set_init_function<InstanceClassLoaderKlass>();
       set_init_function<ObjArrayKlass>();
       set_init_function<TypeArrayKlass>();
+      set_init_function<ValueArrayKlass>();
     }
   };
 
@@ -392,6 +394,7 @@ private:
       set_init_function<InstanceClassLoaderKlass>();
       set_init_function<ObjArrayKlass>();
       set_init_function<TypeArrayKlass>();
+      set_init_function<ValueArrayKlass>();
     }
   };
 

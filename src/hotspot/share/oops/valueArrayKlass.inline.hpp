@@ -25,7 +25,7 @@
 #define SHARE_VM_OOPS_VALUEARRAYKLASS_INLINE_HPP
 
 #include "memory/memRegion.hpp"
-#include "memory/iterator.inline.hpp"
+#include "memory/iterator.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
@@ -40,7 +40,7 @@
  * Warning incomplete: requires embedded oops, not yet enabled, so consider this a "sketch-up" of oop iterators
  */
 
-template <bool nv, typename T, class OopClosureType>
+template <typename T, class OopClosureType>
 void ValueArrayKlass::oop_oop_iterate_elements_specialized(valueArrayOop a,
                                                            OopClosureType* closure) {
   assert(contains_oops(), "Nothing to iterate");
@@ -52,12 +52,12 @@ void ValueArrayKlass::oop_oop_iterate_elements_specialized(valueArrayOop a,
   const int oop_offset = element_klass()->first_field_offset();
 
   while (elem_addr < stop_addr) {
-    element_klass()->oop_iterate_specialized<nv, T>((address)(elem_addr - oop_offset), closure);
+    element_klass()->oop_iterate_specialized<T>((address)(elem_addr - oop_offset), closure);
     elem_addr += addr_incr;
   }
 }
 
-template <bool nv, typename T, class OopClosureType>
+template <typename T, class OopClosureType>
 void ValueArrayKlass::oop_oop_iterate_elements_specialized_bounded(valueArrayOop a,
                                                                    OopClosureType* closure,
                                                                    void* lo, void* hi) {
@@ -80,61 +80,53 @@ void ValueArrayKlass::oop_oop_iterate_elements_specialized_bounded(valueArrayOop
 
   const uintptr_t end = stop_addr;
   while (elem_addr < end) {
-    element_klass()->oop_iterate_specialized_bounded<nv, T>((address)(elem_addr - oop_offset), closure, lo, hi);
+    element_klass()->oop_iterate_specialized_bounded<T>((address)(elem_addr - oop_offset), closure, lo, hi);
     elem_addr += addr_incr;
   }
 }
 
-template <bool nv, class OopClosureType>
+template <typename T, class OopClosureType>
 void ValueArrayKlass::oop_oop_iterate_elements(valueArrayOop a, OopClosureType* closure) {
   if (contains_oops()) {
-    if (UseCompressedOops) {
-      oop_oop_iterate_elements_specialized<nv, narrowOop>(a, closure);
-    } else {
-      oop_oop_iterate_elements_specialized<nv, oop>(a, closure);
-    }
+    oop_oop_iterate_elements_specialized<T>(a, closure);
   }
 }
 
-template <bool nv, typename OopClosureType>
+template <typename T, typename OopClosureType>
 void ValueArrayKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
   assert(obj->is_valueArray(),"must be a value array");
+  valueArrayOop a = valueArrayOop(obj);
 
-  if (Devirtualizer<nv>::do_metadata(closure)) {
-    Devirtualizer<nv>::do_klass(closure, obj->klass());
-    Devirtualizer<nv>::do_klass(closure, ValueArrayKlass::cast(obj->klass())->element_klass());
+  if (Devirtualizer::do_metadata(closure)) {
+    Devirtualizer::do_klass(closure, obj->klass());
+    Devirtualizer::do_klass(closure, ValueArrayKlass::cast(obj->klass())->element_klass());
   }
 
-  oop_oop_iterate_elements<nv>(valueArrayOop(obj), closure);
+  oop_oop_iterate_elements<T>(a, closure);
 }
 
-template <bool nv, class OopClosureType>
+template <typename T, typename OopClosureType>
+void ValueArrayKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
+  // TODO
+  oop_oop_iterate<T>(obj, closure);
+}
+
+template <typename T, class OopClosureType>
 void ValueArrayKlass::oop_oop_iterate_elements_bounded(valueArrayOop a, OopClosureType* closure, MemRegion mr) {
   if (contains_oops()) {
-    if (UseCompressedOops) {
-      oop_oop_iterate_elements_specialized_bounded<nv, narrowOop>(a, closure, mr.start(), mr.end());
-    } else {
-      oop_oop_iterate_elements_specialized_bounded<nv, oop>(a, closure, mr.start(), mr.end());
-    }
+    oop_oop_iterate_elements_specialized_bounded<T>(a, closure, mr.start(), mr.end());
   }
 }
 
 
-template <bool nv, typename OopClosureType>
+template <typename T, typename OopClosureType>
 void ValueArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
   valueArrayOop a = valueArrayOop(obj);
-  if (Devirtualizer<nv>::do_metadata(closure)) {
-    Devirtualizer<nv>::do_klass(closure, a->klass());
-    Devirtualizer<nv>::do_klass(closure, ValueArrayKlass::cast(obj->klass())->element_klass());
+  if (Devirtualizer::do_metadata(closure)) {
+    Devirtualizer::do_klass(closure, a->klass());
+    Devirtualizer::do_klass(closure, ValueArrayKlass::cast(obj->klass())->element_klass());
   }
-  oop_oop_iterate_elements_bounded<nv>(a, closure, mr);
+  oop_oop_iterate_elements_bounded<T>(a, closure, mr);
 }
-
-
-#define ALL_VALUE_ARRAY_KLASS_OOP_OOP_ITERATE_DEFN(OopClosureType, nv_suffix)    \
-  OOP_OOP_ITERATE_DEFN(             ValueArrayKlass, OopClosureType, nv_suffix)  \
-  OOP_OOP_ITERATE_DEFN_BOUNDED(     ValueArrayKlass, OopClosureType, nv_suffix)  \
-  OOP_OOP_ITERATE_DEFN_NO_BACKWARDS(ValueArrayKlass, OopClosureType, nv_suffix)
-
 
 #endif // SHARE_VM_OOPS_VALUEARRAYKLASS_INLINE_HPP

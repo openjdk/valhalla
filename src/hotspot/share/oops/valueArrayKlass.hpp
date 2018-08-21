@@ -35,12 +35,16 @@
  */
 class ValueArrayKlass : public ArrayKlass {
   friend class VMStructs;
+
+ public:
+  static const KlassID ID = ValueArrayKlassID;
+
  private:
   // Constructor
   ValueArrayKlass(Klass* element_klass, Symbol* name);
 
   static ValueArrayKlass* allocate_klass(Klass* element_klass, Symbol* name, TRAPS);
-protected:
+ protected:
   // Returns the ArrayKlass for n'th dimension.
   Klass* array_klass_impl(bool or_null, int n, TRAPS);
 
@@ -70,7 +74,7 @@ protected:
 
   bool can_be_primary_super_slow() const;
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                  Array<Klass*>* transitive_interfaces);
+                                                  Array<InstanceKlass*>* transitive_interfaces);
   bool compute_is_subtype_of(Klass* k);
 
   int element_byte_size() const { return 1 << layout_helper_log2_element_size(_layout_helper); }
@@ -98,7 +102,7 @@ protected:
   int oop_size(oop obj) const;
 
   // Oop Allocation
-  oop allocate(int length, bool do_zero, TRAPS);
+  valueArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Naming
@@ -120,34 +124,27 @@ protected:
   void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
 #endif
 
- private:
-  template <bool nv, typename OopClosureType>
+  template <typename T, typename OopClosureType>
   inline void oop_oop_iterate(oop obj, OopClosureType* closure);
-  template <bool nv, typename OopClosureType>
+
+  template <typename T, typename OopClosureType>
+  inline void oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
+
+  template <typename T, typename OopClosureType>
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
-  template <bool nv, typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_specialized(valueArrayOop a, OopClosureType* closure);
-
-  template <bool nv, class OopClosureType>
-  inline void oop_oop_iterate_elements_bounded(valueArrayOop a, OopClosureType* closure, MemRegion mr);
-
-  template <bool nv, typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_specialized_bounded(valueArrayOop a, OopClosureType* closure, void* low, void* high);
-
- public:
-  template <bool nv, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_oop_iterate_elements(valueArrayOop a, OopClosureType* closure);
 
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_RANGE)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_RANGE)
+private:
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_elements_specialized(valueArrayOop a, OopClosureType* closure);
 
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-#endif // INCLUDE_ALL_GCS
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_elements_bounded(valueArrayOop a, OopClosureType* closure, MemRegion mr);
+
+  template <typename T, class OopClosureType>
+  inline void oop_oop_iterate_elements_specialized_bounded(valueArrayOop a, OopClosureType* closure, void* low, void* high);
 
  public:
   // Printing

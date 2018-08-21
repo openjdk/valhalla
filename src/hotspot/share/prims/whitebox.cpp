@@ -1698,7 +1698,7 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
   return (jobjectArray)JNIHandles::make_local(env, result_array);
 WB_END
 
-class CollectOops : public OopClosure {
+class CollectOops : public BasicOopIterateClosure {
  public:
   GrowableArray<Handle>* array;
 
@@ -1718,8 +1718,7 @@ class CollectOops : public OopClosure {
   void add_oop(oop o) {
     // Value might be oop, but JLS can't see as Object, just iterate through it...
     if (o != NULL && o->is_value()) {
-      NoHeaderExtendedOopClosure wrapClosure(this);
-      o->oop_iterate(&wrapClosure);
+      o->oop_iterate(this);
     } else {
       array->append(Handle(Thread::current(), o));
     }
@@ -1736,8 +1735,7 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaOopIterator(JNIEnv* env, jobject wb, jobj
   CollectOops collectOops;
   collectOops.array = array;
 
-  NoHeaderExtendedOopClosure wrapClosure(&collectOops);
-  JNIHandles::resolve(thing)->oop_iterate(&wrapClosure);
+  JNIHandles::resolve(thing)->oop_iterate(&collectOops);
 
   return collectOops.create_jni_result(env, THREAD);
 WB_END

@@ -532,8 +532,8 @@ Node* IdealKit::make_leaf_call(const TypeFunc *slow_call_type,
   assert(C->alias_type(call->adr_type()) == C->alias_type(adr_type),
          "call node must be constructed correctly");
   Node* res = NULL;
-  if (slow_call_type->range()->cnt() > TypeFunc::Parms) {
-    assert(slow_call_type->range()->cnt() == TypeFunc::Parms+1, "only one return value");
+  if (slow_call_type->range_sig()->cnt() > TypeFunc::Parms) {
+    assert(slow_call_type->range_sig()->cnt() == TypeFunc::Parms+1, "only one return value");
     res = transform(new ProjNode(call, TypeFunc::Parms));
   }
   return res;

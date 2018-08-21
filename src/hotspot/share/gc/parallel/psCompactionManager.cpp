@@ -243,9 +243,14 @@ void TypeArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
 void ValueArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
   assert(obj->is_valueArray(),"must be a value array");
   cm->follow_klass(this);
-  if (contains_oops()) { // CMH: parallel version (like objArrayTask) missing, treat as single obj for now
+
+  if (contains_oops()) {
     ParCompactionManager::MarkAndPushClosure cl(cm);
-    ValueArrayKlass::oop_oop_iterate_elements<true>(valueArrayOop(obj), &cl);
+    if (UseCompressedOops) { // CMH: treat as single object for now
+      oop_oop_iterate_elements<narrowOop>(valueArrayOop(obj), &cl);
+    } else {
+      oop_oop_iterate_elements<oop>(valueArrayOop(obj), &cl);
+    }
   }
 }
 

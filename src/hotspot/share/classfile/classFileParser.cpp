@@ -6262,11 +6262,11 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_nonstatic_concrete_methods(false),
   _declares_nonstatic_concrete_methods(false),
   _has_final_method(false),
+  _has_flattenable_fields(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
-  _max_bootstrap_specifier_index(-1),
-  _has_flattenable_fields(false) {
+  _max_bootstrap_specifier_index(-1) {
 
   _class_name = name != NULL ? name : vmSymbols::unknown_class_name();
 

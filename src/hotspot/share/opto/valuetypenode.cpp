@@ -346,7 +346,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         const Type* val_type = Type::get_const_type(ft);
         DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
         if (is_array) {
-          decorators |= IN_HEAP_ARRAY;
+          decorators |= IS_ARRAY;
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
         if (bt == T_VALUETYPE) {
@@ -388,7 +388,7 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
       const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
       DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
       if (ary_type != NULL) {
-        decorators |= IN_HEAP_ARRAY;
+        decorators |= IS_ARRAY;
       }
       kit->access_store_at(kit->control(), base, adr, adr_type, value, val_type, bt, decorators, deoptimize_on_exception);
     }

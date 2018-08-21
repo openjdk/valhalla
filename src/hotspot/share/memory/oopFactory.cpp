@@ -100,7 +100,7 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
          "Expect an array class here");
 
   if (array_klass->is_valueArray_klass()) {
-    return (arrayOop) ValueArrayKlass::cast(array_klass)->allocate(length, true, THREAD);
+    return (arrayOop) ValueArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
 
   ValueKlass* vklass = ValueKlass::cast(klass);

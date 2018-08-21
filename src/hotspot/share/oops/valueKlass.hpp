@@ -40,7 +40,7 @@ class ValueKlass: public InstanceKlass {
 
   // Constructor
   ValueKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type) {
+    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type, InstanceKlass::ID) {
     _adr_valueklass_fixed_block = valueklass_static_bloc();
     // Addresses used for value type calling convention
     *((Array<SigEntry>**)adr_extended_sig()) = NULL;
@@ -209,10 +209,10 @@ class ValueKlass: public InstanceKlass {
   void iterate_over_inside_oops(OopClosure* f, oop value);
 
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
 
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi);
 
   // calling convention support

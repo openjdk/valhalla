@@ -3145,7 +3145,11 @@ void ValueArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) 
   assert(obj->is_valueArray(),"must be a value array");
   if (contains_oops()) {
     PSParallelCompact::AdjustPointerClosure closure(cm);
-    oop_oop_iterate_elements<true>(valueArrayOop(obj), &closure);
+    if (UseCompressedOops) {
+      oop_oop_iterate_elements<narrowOop>(valueArrayOop(obj), &closure);
+    } else {
+      oop_oop_iterate_elements<oop>(valueArrayOop(obj), &closure);
+    }
   }
 }
 

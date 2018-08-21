@@ -45,10 +45,11 @@ enum KlassID {
   InstanceMirrorKlassID,
   InstanceClassLoaderKlassID,
   TypeArrayKlassID,
+  ValueArrayKlassID,
   ObjArrayKlassID
 };
 
-const uint KLASS_ID_COUNT = 6;
+const uint KLASS_ID_COUNT = 7;
 
 //
 // A Klass provides:
@@ -645,6 +646,10 @@ protected:
   // prototype markOop. If biased locking is enabled it may further be
   // biasable and have an epoch.
   markOop prototype_header() const      { return _prototype_header; }
+  static inline markOop default_prototype_header(Klass* k) {
+    return (k == NULL) ? markOopDesc::prototype() : k->prototype_header();
+  }
+
   // NOTE: once instances of this klass are floating around in the
   // system, this header must only be updated at a safepoint.
   // NOTE 2: currently we only ever set the prototype header to the

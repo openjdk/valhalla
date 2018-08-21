@@ -99,7 +99,7 @@ int ValueKlass::raw_value_byte_size() const {
 instanceOop ValueKlass::allocate_instance(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
-  instanceOop oop = (instanceOop)CollectedHeap::obj_allocate(this, size, CHECK_NULL);
+  instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
   assert(oop->mark()->is_always_locked(), "Unlocked value type");
   return oop;
 }
@@ -582,7 +582,7 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
 #ifdef ASSERT
   // Oop is not tagged, must be a valid oop
   if (VerifyOops) {
-    oop((HeapWord*)ptr)->verify();
+    oopDesc::verify(oop((HeapWord*)ptr));
   }
 #endif
   return NULL;

@@ -436,9 +436,6 @@ void ArrayCopyNode::array_copy_forward(GraphKit& kit,
                                        int count) {
   if (!kit.stopped()) {
     // copy forward
-    uint alias_idx_src = phase->C->get_alias_index(atp_src);
-    uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
-    bool same_alias = (alias_idx_src == alias_idx_dest);
     if (count > 0) {
       for (int i = 0; i < count; i++) {
         copy(kit, atp_src, atp_dest, i, base_src, base_dest, adr_src, adr_dest, copy_type, value_type);
@@ -466,9 +463,6 @@ void ArrayCopyNode::array_copy_backward(GraphKit& kit,
   if (!kit.stopped()) {
     // copy backward
     PhaseGVN& gvn = kit.gvn();
-    uint alias_idx_src = phase->C->get_alias_index(atp_src);
-    uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
-    bool same_alias = (alias_idx_src == alias_idx_dest);
 
     if (count > 0) {
       for (int i = count-1; i >= 0; i--) {

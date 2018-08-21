@@ -827,7 +827,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, GrowableArra
     } else if (k->is_valueArray_klass()) {
       ValueArrayKlass* ak = ValueArrayKlass::cast(k);
       // Value type array must be zeroed because not all memory is reassigned
-      obj = ak->allocate(sv->field_size(), true, THREAD);
+      obj = ak->allocate(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");

@@ -497,7 +497,11 @@ void ValueArrayKlass::oop_ps_push_contents(oop obj, PSPromotionManager* pm) {
   assert(obj->is_valueArray(),"must be a value array");
   if (contains_oops()) {
     PushContentsClosure cl(pm);
-    oop_oop_iterate_elements<true>(valueArrayOop(obj), &cl);
+    if (UseCompressedOops) {
+      oop_oop_iterate_elements<narrowOop>(valueArrayOop(obj), &cl);
+    } else {
+      oop_oop_iterate_elements<oop>(valueArrayOop(obj), &cl);
+    }
   }
 }
 

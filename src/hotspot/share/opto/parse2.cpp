@@ -130,7 +130,7 @@ void Parse::array_store(BasicType bt) {
         sync_kit(ideal);
         const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
         elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
-        access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IN_HEAP_ARRAY);
+        access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         ideal.sync_kit(this);
       } ideal.else_(); {
         // flattened
