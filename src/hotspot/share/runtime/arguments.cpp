@@ -3987,12 +3987,12 @@ jint Arguments::apply_ergo() {
     warning("Setting CompressedClassSpaceSize has no effect when compressed class pointers are not used");
   }
 
-  }
-
   if (!EnableValhalla || is_interpreter_only()) {
     // Disable calling convention optimizations if value types are not supported
     ValueTypePassFieldsAsArgs = false;
     ValueTypeReturnedAsFields = false;
+  }
+
 #ifndef PRODUCT
   if (!LogVMOutput && FLAG_IS_DEFAULT(LogVMOutput)) {
     if (use_vm_log()) {
