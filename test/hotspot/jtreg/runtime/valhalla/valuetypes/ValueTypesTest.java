@@ -38,6 +38,7 @@ import static jdk.test.lib.Asserts.*;
 import jdk.experimental.bytecode.MacroCodeBuilder;
 import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
 import jdk.experimental.bytecode.TypeTag;
+import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 
 import jdk.experimental.value.MethodHandleBuilder;
@@ -136,7 +137,7 @@ public class ValueTypesTest {
     }
 
     static void testExecutionStackToFields(Class<?> valueClass, Class<?> containerClass) throws Throwable {
-        final int ITERATIONS = 512;
+        final int ITERATIONS = Platform.isDebugBuild() ? 3 : 512;
         String sig = "()L" + valueClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
         final String fieldSignature = "L" + valueClass.getName().replace('.', '/') + ";";
@@ -205,7 +206,7 @@ public class ValueTypesTest {
     }
 
     static void testExecutionStackToValueArray(Class<?> valueClass, Class<?> containerClass) throws Throwable {
-        final int ITERATIONS = 100;
+        final int ITERATIONS = Platform.isDebugBuild() ? 3 : 100;
         String sig = "()L" + valueClass.getName() + ";";
         final String signature = sig.replace('.', '/');
         final String arraySignature = "[L" + valueClass.getName().replace('.', '/') + ";";
