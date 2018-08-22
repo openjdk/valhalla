@@ -1982,6 +1982,10 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
         inc_sp(2);
         obj = maybe_cast_profiled_obj(obj, k);
         dec_sp(2);
+        if (obj->is_ValueType()) {
+          assert(obj->as_ValueType()->is_allocated(&_gvn), "must be allocated");
+          obj = obj->as_ValueType()->get_oop();
+        }
         // Make the CmpP use the casted obj
         addp = basic_plus_adr(obj, addp->in(AddPNode::Offset));
         load_klass = load_klass->clone();
