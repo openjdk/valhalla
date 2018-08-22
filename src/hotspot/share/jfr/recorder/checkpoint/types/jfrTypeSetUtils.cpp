@@ -28,7 +28,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 
-JfrSymbolId::JfrSymbolId() : _symbol_id_counter(0), _sym_table(new SymbolTable(this)), _cstring_table(new CStringTable(this)) {
+JfrSymbolId::JfrSymbolId() : _sym_table(new SymbolTable(this)), _cstring_table(new CStringTable(this)), _symbol_id_counter(0) {
   assert(_sym_table != NULL, "invariant");
   assert(_cstring_table != NULL, "invariant");
   initialize();
@@ -208,7 +208,7 @@ void JfrArtifactSet::initialize(bool class_unload) {
   assert(_symbol_id != NULL, "invariant");
   _symbol_id->initialize();
   assert(!_symbol_id->has_entries(), "invariant");
-  _symbol_id->mark(boot_class_loader_name, 0); // pre-load "boot"
+  _symbol_id->mark(BOOTSTRAP_LOADER_NAME, 0); // pre-load "bootstrap"
   _class_unload = class_unload;
   // resource allocation
   _klass_list = new GrowableArray<const Klass*>(initial_class_list_size, false, mtTracing);

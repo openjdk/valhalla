@@ -71,6 +71,9 @@ import static java.lang.invoke.MethodType.methodType;
  * <li>Combinator methods, which combine or transform pre-existing method handles into new ones.
  * <li>Other factory methods to create method handles that emulate other common JVM operations or control flow patterns.
  * </ul>
+ * A lookup, combinator, or factory method will fail and throw an
+ * {@code IllegalArgumentException} if the created method handle's type
+ * would have <a href="MethodHandle.html#maxarity">too many parameters</a>.
  *
  * @author John Rose, JSR 292 EG
  * @since 1.7
@@ -386,8 +389,9 @@ public class MethodHandles {
      * constant is not subject to security manager checks.
      * <li>If the looked-up method has a
      * <a href="MethodHandle.html#maxarity">very large arity</a>,
-     * the method handle creation may fail, due to the method handle
-     * type having too many parameters.
+     * the method handle creation may fail with an
+     * {@code IllegalArgumentException}, due to the method handle type having
+     * <a href="MethodHandle.html#maxarity">too many parameters.</a>
      * </ul>
      *
      * <h1><a id="access"></a>Access checking</h1>
@@ -2452,9 +2456,15 @@ return mh1;
                 checkSymbolicClass(defc);
                 return mh;
             }
-            // Treat MethodHandle.invoke and invokeExact specially.
             if (defc == MethodHandle.class && refKind == REF_invokeVirtual) {
+                // Treat MethodHandle.invoke and invokeExact specially.
                 mh = findVirtualForMH(member.getName(), member.getMethodType());
+                if (mh != null) {
+                    return mh;
+                }
+            } else if (defc == VarHandle.class && refKind == REF_invokeVirtual) {
+                // Treat signature-polymorphic methods on VarHandle specially.
+                mh = findVirtualForVH(member.getName(), member.getMethodType());
                 if (mh != null) {
                     return mh;
                 }
@@ -3483,6 +3493,11 @@ assert((int)twice.invokeExact(21) == 42);
      * @return a method handle which inserts an additional argument,
      *         before calling the original method handle
      * @throws NullPointerException if the target or the {@code values} array is null
+     * @throws IllegalArgumentException if (@code pos) is less than {@code 0} or greater than
+     *         {@code N - L} where {@code N} is the arity of the target method handle and {@code L}
+     *         is the length of the values array.
+     * @throws ClassCastException if an argument does not match the corresponding bound parameter
+     *         type.
      * @see MethodHandle#bindTo
      */
     public static

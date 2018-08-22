@@ -25,6 +25,8 @@
 package java.lang.invoke;
 
 import java.io.Serializable;
+import java.io.InvalidObjectException;
+import java.io.ObjectStreamException;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -52,6 +54,12 @@ import java.util.Objects;
  * implementing {@code $deserializeLambda$} are responsible for validating
  * that the properties of the {@code SerializedLambda} are consistent with a
  * lambda actually captured by that class.
+ *
+ * <p>The identity of a function object produced by deserializing the serialized
+ * form is unpredictable, and therefore identity-sensitive operations (such as
+ * reference equality, object locking, and {@code System.identityHashCode()} may
+ * produce different results in different implementations, or even upon
+ * different deserializations in the same implementation.
  *
  * @see LambdaMetafactory
  * @since 1.8
@@ -217,7 +225,7 @@ public final class SerializedLambda implements Serializable {
         return capturedArgs[i];
     }
 
-    private Object readResolve() throws ReflectiveOperationException {
+    private Object readResolve() throws ObjectStreamException {
         try {
             Method deserialize = AccessController.doPrivileged(new PrivilegedExceptionAction<>() {
                 @Override
@@ -229,12 +237,13 @@ public final class SerializedLambda implements Serializable {
             });
 
             return deserialize.invoke(null, this);
-        }
-        catch (PrivilegedActionException e) {
+        } catch (ReflectiveOperationException roe) {
+            ObjectStreamException ose = new InvalidObjectException("ReflectiveOperationException during deserialization");
+            ose.initCause(roe);
+            throw ose;
+        } catch (PrivilegedActionException e) {
             Exception cause = e.getException();
-            if (cause instanceof ReflectiveOperationException)
-                throw (ReflectiveOperationException) cause;
-            else if (cause instanceof RuntimeException)
+            if (cause instanceof RuntimeException)
                 throw (RuntimeException) cause;
             else
                 throw new RuntimeException("Exception in SerializedLambda.readResolve", e);

@@ -22,10 +22,10 @@
  *
  */
 
-/*
+/**
  * @test
  * @summary Make sure CDS and JFR work together.
- * @requires vm.cds
+ * @requires vm.hasJFR & vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds /test/hotspot/jtreg/runtime/appcds/test-classes test-classes
  * @modules jdk.jfr
  * @build Hello GetFlightRecorder
@@ -74,5 +74,10 @@ public class CDSandJFR {
         TestCommon.checkExec(TestCommon.exec(appJar,
                                              "-XX:FlightRecorderOptions=retransform=false",
                                              "GetFlightRecorder"));
+
+        // Test dumping with flight recorder enabled.
+        output = TestCommon.testDump(appJar, TestCommon.list(classes),
+                                     "-XX:StartFlightRecording=dumponexit=true");
+        TestCommon.checkDump(output, "warning: JFR will be disabled during CDS dumping");
     }
 }

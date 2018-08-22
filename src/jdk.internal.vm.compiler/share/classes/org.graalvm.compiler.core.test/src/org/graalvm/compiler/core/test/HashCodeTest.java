@@ -20,9 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
 import java.util.HashMap;
+import java.util.List;
 
 import org.graalvm.compiler.core.phases.HighTier;
 import org.graalvm.compiler.core.phases.MidTier;
@@ -34,7 +37,9 @@ import org.graalvm.compiler.nodes.extended.LoadMethodNode;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.OptimisticOptimizations;
 import org.graalvm.compiler.phases.tiers.MidTierContext;
+import org.graalvm.compiler.test.SubprocessUtil;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 public class HashCodeTest extends GraalCompilerTest {
@@ -139,6 +144,11 @@ public class HashCodeTest extends GraalCompilerTest {
 
     @Test
     public void test08() {
+        // This test requires profiling information which does not work reliable across platforms
+        // when running with -Xcomp
+        List<String> commandLine = SubprocessUtil.getVMCommandLine();
+        Assume.assumeTrue(commandLine != null);
+        Assume.assumeFalse(commandLine.contains("-Xcomp"));
         initialize(Appendable.class);
         checkForGuardedIntrinsicPattern("hashCodeInterface");
 

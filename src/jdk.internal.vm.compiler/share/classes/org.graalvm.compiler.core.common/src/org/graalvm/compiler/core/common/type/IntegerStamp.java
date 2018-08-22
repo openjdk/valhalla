@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common.type;
 
 import static org.graalvm.compiler.core.common.calc.FloatConvert.I2D;
@@ -1545,6 +1547,9 @@ public final class IntegerStamp extends PrimitiveStamp {
 
                         @Override
                         public Stamp invertStamp(int inputBits, int resultBits, Stamp outStamp) {
+                            if (outStamp.isEmpty()) {
+                                return StampFactory.forInteger(inputBits).empty();
+                            }
                             IntegerStamp stamp = (IntegerStamp) outStamp;
                             long mask = CodeUtil.mask(inputBits);
                             return StampFactory.forIntegerWithMask(inputBits, stamp.lowerBound(), stamp.upperBound(), stamp.downMask() & mask, stamp.upMask() & mask);

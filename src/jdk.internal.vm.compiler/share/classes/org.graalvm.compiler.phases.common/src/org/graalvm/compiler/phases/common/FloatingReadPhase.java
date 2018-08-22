@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
 import static org.graalvm.compiler.graph.Graph.NodeEvent.NODE_ADDED;
@@ -306,7 +308,7 @@ public class FloatingReadPhase extends Phase {
                 processAccess((MemoryAccess) node, state);
             }
 
-            if (createFloatingReads & node instanceof FloatableAccessNode) {
+            if (createFloatingReads && node instanceof FloatableAccessNode) {
                 processFloatable((FloatableAccessNode) node, state);
             } else if (node instanceof MemoryCheckpoint.Single) {
                 processCheckpoint((MemoryCheckpoint.Single) node, state);

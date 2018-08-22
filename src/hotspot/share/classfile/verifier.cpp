@@ -47,7 +47,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.hpp"
@@ -719,7 +719,8 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         ResourceMark rm(THREAD);
         LogStream ls(lt);
         current_frame.print_on(&ls);
-        lt.print("offset = %d,  opcode = %s", bci, Bytecodes::name(opcode));
+        lt.print("offset = %d,  opcode = %s", bci,
+                 opcode == Bytecodes::_illegal ? "illegal" : Bytecodes::name(opcode));
       }
 
       // Make sure wide instruction is in correct format
@@ -2677,10 +2678,10 @@ bool ClassVerifier::is_same_or_direct_interface(
     VerificationType klass_type,
     VerificationType ref_class_type) {
   if (ref_class_type.equals(klass_type)) return true;
-  Array<Klass*>* local_interfaces = klass->local_interfaces();
+  Array<InstanceKlass*>* local_interfaces = klass->local_interfaces();
   if (local_interfaces != NULL) {
     for (int x = 0; x < local_interfaces->length(); x++) {
-      Klass* k = local_interfaces->at(x);
+      InstanceKlass* k = local_interfaces->at(x);
       assert (k != NULL && k->is_interface(), "invalid interface");
       if (ref_class_type.equals(VerificationType::reference_type(k->name()))) {
         return true;

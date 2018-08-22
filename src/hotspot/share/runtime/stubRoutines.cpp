@@ -128,6 +128,7 @@ address StubRoutines::_cipherBlockChaining_encryptAESCrypt = NULL;
 address StubRoutines::_cipherBlockChaining_decryptAESCrypt = NULL;
 address StubRoutines::_counterMode_AESCrypt                = NULL;
 address StubRoutines::_ghash_processBlocks                 = NULL;
+address StubRoutines::_base64_encodeBlock                  = NULL;
 
 address StubRoutines::_sha1_implCompress     = NULL;
 address StubRoutines::_sha1_implCompressMB   = NULL;
@@ -410,7 +411,7 @@ JRT_LEAF(void, StubRoutines::oop_copy(oop* src, oop* dest, size_t count))
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<>::oop_arraycopy(NULL, NULL, (HeapWord*)src, (HeapWord*)dest, count);
+  ArrayAccess<>::oop_arraycopy_raw((HeapWord*)src, (HeapWord*)dest, count);
 JRT_END
 
 JRT_LEAF(void, StubRoutines::oop_copy_uninit(oop* src, oop* dest, size_t count))
@@ -418,7 +419,7 @@ JRT_LEAF(void, StubRoutines::oop_copy_uninit(oop* src, oop* dest, size_t count))
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<AS_DEST_NOT_INITIALIZED>::oop_arraycopy(NULL, NULL, (HeapWord*)src, (HeapWord*)dest, count);
+  ArrayAccess<IS_DEST_UNINITIALIZED>::oop_arraycopy_raw((HeapWord*)src, (HeapWord*)dest, count);
 JRT_END
 
 JRT_LEAF(void, StubRoutines::arrayof_jbyte_copy(HeapWord* src, HeapWord* dest, size_t count))
@@ -454,7 +455,7 @@ JRT_LEAF(void, StubRoutines::arrayof_oop_copy(HeapWord* src, HeapWord* dest, siz
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<ARRAYCOPY_ARRAYOF>::oop_arraycopy(NULL, NULL, src, dest, count);
+  ArrayAccess<ARRAYCOPY_ARRAYOF>::oop_arraycopy_raw(src, dest, count);
 JRT_END
 
 JRT_LEAF(void, StubRoutines::arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count))
@@ -462,7 +463,7 @@ JRT_LEAF(void, StubRoutines::arrayof_oop_copy_uninit(HeapWord* src, HeapWord* de
   SharedRuntime::_oop_array_copy_ctr++;        // Slow-path oop array copy
 #endif // !PRODUCT
   assert(count != 0, "count should be non-zero");
-  HeapAccess<ARRAYCOPY_ARRAYOF | AS_DEST_NOT_INITIALIZED>::oop_arraycopy(NULL, NULL, src, dest, count);
+  ArrayAccess<ARRAYCOPY_ARRAYOF | IS_DEST_UNINITIALIZED>::oop_arraycopy_raw(src, dest, count);
 JRT_END
 
 address StubRoutines::select_fill_function(BasicType t, bool aligned, const char* &name) {

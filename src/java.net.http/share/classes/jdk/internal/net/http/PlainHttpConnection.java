@@ -26,16 +26,16 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import jdk.internal.net.http.common.FlowTube;
 import jdk.internal.net.http.common.Log;
@@ -55,8 +55,51 @@ class PlainHttpConnection extends HttpConnection {
     private final PlainHttpPublisher writePublisher = new PlainHttpPublisher(reading);
     private volatile boolean connected;
     private boolean closed;
+    private volatile ConnectTimerEvent connectTimerEvent;  // may be null
 
     // should be volatile to provide proper synchronization(visibility) action
+
+    /**
+     * Returns a ConnectTimerEvent iff there is a connect timeout duration,
+     * otherwise null.
+     */
+    private ConnectTimerEvent newConnectTimer(Exchange<?> exchange,
+                                              CompletableFuture<Void> cf) {
+        Duration duration = client().connectTimeout().orElse(null);
+        if (duration != null) {
+            ConnectTimerEvent cte = new ConnectTimerEvent(duration, exchange, cf);
+            return cte;
+        }
+        return null;
+    }
+
+    final class ConnectTimerEvent extends TimeoutEvent {
+        private final CompletableFuture<Void> cf;
+        private final Exchange<?> exchange;
+
+        ConnectTimerEvent(Duration duration,
+                          Exchange<?> exchange,
+                          CompletableFuture<Void> cf) {
+            super(duration);
+            this.exchange = exchange;
+            this.cf = cf;
+        }
+
+        @Override
+        public void handle() {
+            if (debug.on()) {
+                debug.log("HTTP connect timed out");
+            }
+            ConnectException ce = new ConnectException("HTTP connect timed out");
+            exchange.multi.cancel(ce);
+            client().theExecutor().execute(() -> cf.completeExceptionally(ce));
+        }
+
+        @Override
+        public String toString() {
+            return "ConnectTimerEvent, " + super.toString();
+        }
+    }
 
     final class ConnectEvent extends AsyncEvent {
         private final CompletableFuture<Void> cf;
@@ -87,47 +130,71 @@ class PlainHttpConnection extends HttpConnection {
                 if (debug.on())
                     debug.log("ConnectEvent: connect finished: %s Local addr: %s",
                               finished, chan.getLocalAddress());
-                connected = true;
                 // complete async since the event runs on the SelectorManager thread
                 cf.completeAsync(() -> null, client().theExecutor());
             } catch (Throwable e) {
-                client().theExecutor().execute( () -> cf.completeExceptionally(e));
+                Throwable t = Utils.toConnectException(e);
+                client().theExecutor().execute( () -> cf.completeExceptionally(t));
+                close();
             }
         }
 
         @Override
         public void abort(IOException ioe) {
-            close();
             client().theExecutor().execute( () -> cf.completeExceptionally(ioe));
+            close();
         }
     }
 
     @Override
-    public CompletableFuture<Void> connectAsync() {
+    public CompletableFuture<Void> connectAsync(Exchange<?> exchange) {
         CompletableFuture<Void> cf = new MinimalFuture<>();
         try {
             assert !connected : "Already connected";
             assert !chan.isBlocking() : "Unexpected blocking channel";
-            boolean finished = false;
+            boolean finished;
+
+            connectTimerEvent = newConnectTimer(exchange, cf);
+            if (connectTimerEvent != null) {
+                if (debug.on())
+                    debug.log("registering connect timer: " + connectTimerEvent);
+                client().registerTimer(connectTimerEvent);
+            }
+
             PrivilegedExceptionAction<Boolean> pa =
                     () -> chan.connect(Utils.resolveAddress(address));
             try {
                  finished = AccessController.doPrivileged(pa);
             } catch (PrivilegedActionException e) {
-                cf.completeExceptionally(e.getCause());
+               throw e.getCause();
             }
             if (finished) {
                 if (debug.on()) debug.log("connect finished without blocking");
-                connected = true;
                 cf.complete(null);
             } else {
                 if (debug.on()) debug.log("registering connect event");
                 client().registerEvent(new ConnectEvent(cf));
             }
         } catch (Throwable throwable) {
-            cf.completeExceptionally(throwable);
+            cf.completeExceptionally(Utils.toConnectException(throwable));
+            try {
+                close();
+            } catch (Exception x) {
+                if (debug.on())
+                    debug.log("Failed to close channel after unsuccessful connect");
+            }
         }
         return cf;
+    }
+
+    @Override
+    public CompletableFuture<Void> finishConnect() {
+        assert connected == false;
+        if (debug.on()) debug.log("finishConnect, setting connected=true");
+        connected = true;
+        if (connectTimerEvent != null)
+            client().cancelTimer(connectTimerEvent);
+        return MinimalFuture.completedFuture(null);
     }
 
     @Override
@@ -204,6 +271,8 @@ class PlainHttpConnection extends HttpConnection {
             Log.logTrace("Closing: " + toString());
             if (debug.on())
                 debug.log("Closing channel: " + client().debugInterestOps(chan));
+            if (connectTimerEvent != null)
+                client().cancelTimer(connectTimerEvent);
             chan.close();
             tube.signalClosed();
         } catch (IOException e) {

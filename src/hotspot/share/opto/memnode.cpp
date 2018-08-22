@@ -44,7 +44,11 @@
 #include "opto/regmask.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 // Portions of code courtesy of Clifford Click
 
@@ -366,10 +370,10 @@ Node *MemNode::Ideal_common(PhaseGVN *phase, bool can_reshape) {
 
   if (mem != old_mem) {
     set_req(MemNode::Memory, mem);
-    if (can_reshape && old_mem->outcnt() == 0) {
-        igvn->_worklist.push(old_mem);
+    if (can_reshape && old_mem->outcnt() == 0 && igvn != NULL) {
+      igvn->_worklist.push(old_mem);
     }
-    if (phase->type( mem ) == Type::TOP) return NodeSentinel;
+    if (phase->type(mem) == Type::TOP) return NodeSentinel;
     return this;
   }
 
@@ -514,8 +518,7 @@ Node* LoadNode::find_previous_arraycopy(PhaseTransform* phase, Node* ld_alloc, N
       if (ac->is_clonebasic()) {
         intptr_t offset;
         AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest), phase, offset);
-        assert(alloc != NULL && (!ReduceBulkZeroing || alloc->initialization()->is_complete_with_arraycopy()), "broken allocation");
-        if (alloc == ld_alloc) {
+        if (alloc != NULL && alloc == ld_alloc) {
           return ac;
         }
       }
@@ -822,7 +825,7 @@ Node *LoadNode::make(PhaseGVN& gvn, Node *ctl, Node *mem, Node *adr, const TypeP
     }
     break;
   default:
-    // ShouldNotReachHere(); ???
+    ShouldNotReachHere();
     break;
   }
   assert(load != NULL, "LoadNode should have been created");
@@ -891,6 +894,14 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (bottom_type()->make_oopptr() != NULL) {
+      return NULL;
+    }
+  }
+#endif
+
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   AllocateNode* ld_alloc = AllocateNode::Ideal_allocation(ld_adr, phase, ld_off);
@@ -1574,7 +1585,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Is there a dominating load that loads the same value?  Leave
   // anything that is not a load of a field/array element (like
   // barriers etc.) alone
-  if (in(0) != NULL && adr_type() != TypeRawPtr::BOTTOM && can_reshape) {
+  if (in(0) != NULL && !adr_type()->isa_rawptr() && can_reshape) {
     for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
       Node *use = mem->fast_out(i);
       if (use != this &&
@@ -2968,6 +2979,16 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return NULL;
   }
 
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
+      Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
+      set_req(MemBarNode::Precedent, load_node);
+      return this;
+    }
+  }
+#endif
+
   bool progress = false;
   // Eliminate volatile MemBars for scalar replaced objects.
   if (can_reshape && req() == (Precedent+1)) {
@@ -3137,8 +3158,8 @@ Node *MemBarNode::match( const ProjNode *proj, const Matcher *m ) {
 
 //---------------------------InitializeNode------------------------------------
 InitializeNode::InitializeNode(Compile* C, int adr_type, Node* rawoop)
-  : _is_complete(Incomplete), _does_not_escape(false),
-    MemBarNode(C, adr_type, rawoop)
+  : MemBarNode(C, adr_type, rawoop),
+    _is_complete(Incomplete), _does_not_escape(false)
 {
   init_class_id(Class_Initialize);
 

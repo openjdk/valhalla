@@ -37,6 +37,9 @@
 #include "jfr/support/jfrTraceIdExtension.hpp"
 #endif
 
+// external name (synthetic) for the primordial "bootstrap" class loader instance
+#define BOOTSTRAP_LOADER_NAME "bootstrap"
+#define BOOTSTRAP_LOADER_NAME_LEN 9
 
 //
 // A class loader represents a linkset. Conceptually, a linkset identifies
@@ -76,6 +79,12 @@ class ClassLoaderDataGraph : public AllStatic {
   static ClassLoaderData* _saved_head;
   static ClassLoaderData* _saved_unloading;
   static bool _should_purge;
+
+  // Set if there's anything to purge in the deallocate lists or previous versions
+  // during a safepoint after class unloading in a full GC.
+  static bool _should_clean_deallocate_lists;
+  static bool _safepoint_cleanup_needed;
+
   // OOM has been seen in metaspace allocation. Used to prevent some
   // allocations until class unloading
   static bool _metaspace_oom;
@@ -85,8 +94,10 @@ class ClassLoaderDataGraph : public AllStatic {
 
   static ClassLoaderData* add_to_graph(Handle class_loader, bool anonymous);
   static ClassLoaderData* add(Handle class_loader, bool anonymous);
+
  public:
   static ClassLoaderData* find_or_create(Handle class_loader);
+  static void clean_module_and_package_info();
   static void purge();
   static void clear_claimed_marks();
   // oops do
@@ -113,7 +124,13 @@ class ClassLoaderDataGraph : public AllStatic {
   static void packages_unloading_do(void f(PackageEntry*));
   static void loaded_classes_do(KlassClosure* klass_closure);
   static void classes_unloading_do(void f(Klass* const));
-  static bool do_unloading(bool clean_previous_versions);
+  static bool do_unloading(bool do_cleaning);
+
+  // Expose state to avoid logging overhead in safepoint cleanup tasks.
+  static inline bool should_clean_metaspaces_and_reset();
+  static void set_should_clean_deallocate_lists() { _should_clean_deallocate_lists = true; }
+  static void clean_deallocate_lists(bool purge_previous_versions);
+  static void walk_metadata_and_clean_metaspaces();
 
   // dictionary do
   // Iterate over all klasses in dictionary, but
@@ -182,7 +199,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
       volatile juint _size;
       Chunk* _next;
 
-      Chunk(Chunk* c) : _next(c), _size(0) { }
+      Chunk(Chunk* c) : _size(0), _next(c) { }
     };
 
     Chunk* volatile _head;
@@ -207,7 +224,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   friend class ClassLoaderDataGraphKlassIteratorAtomic;
   friend class ClassLoaderDataGraphKlassIteratorStatic;
   friend class ClassLoaderDataGraphMetaspaceIterator;
-  friend class InstanceKlass;
+  friend class Klass;
   friend class MetaDataFactory;
   friend class Method;
 
@@ -258,9 +275,9 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   // Support for walking class loader data objects
   ClassLoaderData* _next; /// Next loader_datas created
 
-  // JFR support
   Klass*  _class_loader_klass;
-  Symbol* _class_loader_name;
+  Symbol* _name;
+  Symbol* _name_and_id;
   JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
 
   void set_next(ClassLoaderData* next) { _next = next; }
@@ -294,15 +311,15 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void packages_do(void f(PackageEntry*));
 
   // Deallocate free list during class unloading.
-  void free_deallocate_list();      // for the classes that are not unloaded
-  void unload_deallocate_list();    // for the classes that are unloaded
+  void free_deallocate_list();                      // for the classes that are not unloaded
+  void free_deallocate_list_C_heap_structures();    // for the classes that are unloaded
 
   // Allocate out of this class loader data
   MetaWord* allocate(size_t size);
 
   Dictionary* create_dictionary();
 
-  void initialize_name_and_klass(Handle class_loader);
+  void initialize_name(Handle class_loader);
  public:
   // GC interface.
   void clear_claimed() { _claimed = 0; }
@@ -362,8 +379,6 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   void initialize_holder(Handle holder);
 
-  inline unsigned int identity_hash() const { return (unsigned int)(((intptr_t)this) >> 3); }
-
   void oops_do(OopClosure* f, bool must_claim, bool clear_modified_oops = false);
 
   void classes_do(KlassClosure* klass_closure);
@@ -377,7 +392,6 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void print_value()                               { print_value_on(tty); }
   void print_value_on(outputStream* out) const;
   void verify();
-  const char* loader_name() const;
 
   OopHandle add_handle(Handle h);
   void remove_handle(OopHandle h);
@@ -400,15 +414,20 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   static ClassLoaderData* class_loader_data_or_null(oop loader);
   static ClassLoaderData* anonymous_class_loader_data(Handle loader);
 
-  // Returns Klass* of associated class loader, or NULL if associated loader is <bootstrap>.
+  // Returns Klass* of associated class loader, or NULL if associated loader is 'bootstrap'.
   // Also works if unloading.
   Klass* class_loader_klass() const { return _class_loader_klass; }
 
-  // Returns Name of associated class loader.
-  // Returns NULL if associated class loader is <bootstrap> or if no name has been set for
-  //   this loader.
-  // Also works if unloading.
-  Symbol* class_loader_name() const { return _class_loader_name; }
+  // Returns the class loader's explict name as specified during
+  // construction or the class loader's qualified class name.
+  // Works during unloading.
+  const char* loader_name() const;
+  // Returns the explicitly specified class loader name or NULL.
+  Symbol* name() const { return _name; }
+
+  // Obtain the class loader's _name_and_id, works during unloading.
+  const char* loader_name_and_id() const;
+  Symbol* name_and_id() const { return _name_and_id; }
 
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 };

@@ -759,6 +759,7 @@ bool CallNode::may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) {
         }
       }
     }
+    guarantee(dest != NULL, "Call had only one ptr in, broken IR!");
     if (!dest->is_top() && may_modify_arraycopy_helper(phase->type(dest)->is_oopptr(), t_oop, phase)) {
       return true;
     }
@@ -1149,6 +1150,11 @@ Node* SafePointNode::Identity(PhaseGVN* phase) {
       assert( n0->is_Call(), "expect a call here" );
     }
     if( n0->is_Call() && n0->as_Call()->guaranteed_safepoint() ) {
+      // Don't remove a safepoint belonging to an OuterStripMinedLoopEndNode.
+      // If the loop dies, they will be removed together.
+      if (has_out_with(Op_OuterStripMinedLoopEnd)) {
+        return this;
+      }
       // Useless Safepoint, so remove it
       return in(TypeFunc::Control);
     }
@@ -1272,11 +1278,11 @@ SafePointScalarObjectNode::SafePointScalarObjectNode(const TypeOopPtr* tp,
                                                      uint first_index,
                                                      uint n_fields) :
   TypeNode(tp, 1), // 1 control input -- seems required.  Get from root.
-#ifdef ASSERT
-  _alloc(alloc),
-#endif
   _first_index(first_index),
   _n_fields(n_fields)
+#ifdef ASSERT
+  , _alloc(alloc)
+#endif
 {
   init_class_id(Class_SafePointScalarObject);
 }

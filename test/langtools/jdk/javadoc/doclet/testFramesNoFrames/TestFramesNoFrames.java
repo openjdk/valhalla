@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8162353 8164747 8173707 8196202
+ * @bug 8162353 8164747 8173707 8196202 8204303
  * @summary javadoc should provide a way to disable use of frames
  * @library /tools/lib ../lib
  * @modules
@@ -269,6 +269,9 @@ public class TestFramesNoFrames extends JavadocTester {
                     break;
             }
 
+            out.println("Checker: " + fKind + " " + oKind + " " + hKind
+                + ": frames:" + frames + " overview:" + overview);
+
             checkAllClassesFiles();
             checkFrameFiles();
             checkOverviewSummary();
@@ -284,24 +287,19 @@ public class TestFramesNoFrames extends JavadocTester {
         private void checkAllClassesFiles() {
             // these files are only generated in frames mode
             checkFiles(frames,
-                    "allclasses-frame.html",
-                    "allclasses-noframe.html");
+                    "allclasses-frame.html");
 
-            // this file is only generated when not in frames mode
-            checkFiles(!frames,
+            checkFiles(false,
                     "allclasses.html");
+
+            checkFiles(false,
+                    "allclasses-noframe.html");
 
             if (frames) {
                 checkOutput("allclasses-frame.html", true,
                         classes.stream()
                             .map(c -> "title=\"class in " + packagePart(c) + "\" target=\"classFrame\">" + classPart(c) + "</a>")
                             .toArray(String[]::new));
-                checkOutput("allclasses-noframe.html", false,
-                            "target=\"classFrame\">");
-            } else {
-                checkOutput("allclasses.html", false,
-                            "target=\"classFrame\">");
-
             }
         }
 
@@ -380,10 +378,19 @@ public class TestFramesNoFrames extends JavadocTester {
         }
 
         private void checkOverviewSummary() {
-            // the overview-summary.html file only appears if
-            // in frames mode and (overview requested or multiple packages)
-            checkFiles(frames && overview,
+            // To accommodate the historical behavior of generating
+            // overview-summary.html in frames mode, the file
+            // will still be generated in no-frames mode,
+            // but will be a redirect to index.html
+            checkFiles(overview,
                     "overview-summary.html");
+            if (overview) {
+                checkOutput("overview-summary.html",  !frames,
+                        "<link rel=\"canonical\" href=\"index.html\">",
+                        "<script type=\"text/javascript\">window.location.replace('index.html')</script>",
+                        "<meta http-equiv=\"Refresh\" content=\"0;index.html\">",
+                        "<p><a href=\"index.html\">index.html</a></p>");
+            }
         }
 
         private void checkWarning() {

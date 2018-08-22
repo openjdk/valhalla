@@ -793,6 +793,11 @@ public final class DateTimeFormatterBuilder {
         final LocaleStore store = new LocaleStore(map);
         DateTimeTextProvider provider = new DateTimeTextProvider() {
             @Override
+            public String getText(Chronology chrono, TemporalField field,
+                                  long value, TextStyle style, Locale locale) {
+                return store.getText(value, style);
+            }
+            @Override
             public String getText(TemporalField field, long value, TextStyle style, Locale locale) {
                 return store.getText(value, style);
             }
@@ -3049,7 +3054,7 @@ public final class DateTimeFormatterBuilder {
      * Prints and parses a numeric date-time field with optional padding.
      */
     static final class FractionPrinterParser extends NumberPrinterParser {
-       private final boolean decimalPoint;
+        private final boolean decimalPoint;
 
         /**
          * Constructor.

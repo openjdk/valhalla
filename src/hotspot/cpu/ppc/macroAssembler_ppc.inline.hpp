@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -32,6 +32,7 @@
 #include "code/codeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "oops/accessDecorators.hpp"
 #include "runtime/safepointMechanism.hpp"
 
 inline bool MacroAssembler::is_ld_largeoffset(address a) {
@@ -328,10 +329,11 @@ inline void MacroAssembler::null_check(Register a, int offset, Label *Lis_null) 
 inline void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
                                             Register base, RegisterOrConstant ind_or_offs, Register val,
                                             Register tmp1, Register tmp2, Register tmp3, bool needs_frame) {
-  assert((decorators & ~(AS_RAW | IN_HEAP | IN_HEAP_ARRAY | IN_ROOT | OOP_NOT_NULL |
+  assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
                          ON_UNKNOWN_OOP_REF)) == 0, "unsupported decorator");
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bool as_raw = (decorators & AS_RAW) != 0;
+  decorators = AccessInternal::decorator_fixup(decorators);
   if (as_raw) {
     bs->BarrierSetAssembler::store_at(this, decorators, type,
                                       base, ind_or_offs, val,
@@ -346,9 +348,10 @@ inline void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorat
 inline void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
                                            Register base, RegisterOrConstant ind_or_offs, Register dst,
                                            Register tmp1, Register tmp2, bool needs_frame, Label *L_handle_null) {
-  assert((decorators & ~(AS_RAW | IN_HEAP | IN_HEAP_ARRAY | IN_ROOT | OOP_NOT_NULL |
+  assert((decorators & ~(AS_RAW | IN_HEAP | IN_NATIVE | IS_ARRAY | IS_NOT_NULL |
                          ON_PHANTOM_OOP_REF | ON_WEAK_OOP_REF)) == 0, "unsupported decorator");
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
     bs->BarrierSetAssembler::load_at(this, decorators, type,

@@ -21,20 +21,21 @@
  * questions.
  */
 
+/**
+ * @test
+ * @bug 8175312
+ * @summary Test clhsdb 'g1regiondetails' and 'scanoops' commands for G1GC
+ * @requires vm.hasSA & (vm.bits == "64" & os.maxMemory > 8g)
+ * @library /test/lib
+ * @run main/othervm/timeout=2400 ClhsdbRegionDetailsScanOopsForG1
+ */
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import jdk.test.lib.apps.LingeredApp;
-
-/*
- * @test
- * @bug 8175312
- * @summary Test clhsdb 'g1regiondetails' and 'scanoops' commands for G1GC
- * @library /test/lib
- * @requires (vm.bits == "64" & os.maxMemory > 8g)
- * @run main/othervm/timeout=2400 ClhsdbRegionDetailsScanOopsForG1
- */
+import jtreg.SkippedException;
 
 public class ClhsdbRegionDetailsScanOopsForG1 {
 
@@ -70,10 +71,8 @@ public class ClhsdbRegionDetailsScanOopsForG1 {
             String regionDetailsOutput = test.run(theApp.getPid(), cmds,
                                                   expStrMap, unExpStrMap);
             if (regionDetailsOutput == null) {
-                // Output could be null due to attach permission issues
-                // and if we are skipping this.
                 LingeredApp.stopApp(theApp);
-                return;
+                throw new SkippedException("attach permission issues");
             }
 
             // Test the output of 'scanoops' -- get the start and end addresses
@@ -87,6 +86,8 @@ public class ClhsdbRegionDetailsScanOopsForG1 {
             expStrMap = new HashMap<>();
             expStrMap.put(cmd, List.of("[Ljava/lang/String"));
             test.run(theApp.getPid(), List.of(cmd), expStrMap, null);
+        } catch (SkippedException e) {
+            throw e;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.graphio;
 
 import java.io.Closeable;
@@ -606,7 +608,7 @@ abstract class GraphProtocol<Graph, Node, NodeClass, Edges, Block, ResolvedJavaM
                             throw new IOException(ex);
                         }
                         if (uri == null) {
-                            throw new IOException("No URI for " + loc);
+                            continue;
                         }
                         String l = findLocationLanguage(loc);
                         if (l == null) {

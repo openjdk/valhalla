@@ -1285,9 +1285,10 @@ void LIRGenerator::do_getClass(Intrinsic* x) {
   // FIXME T_ADDRESS should actually be T_METADATA but it can't because the
   // meaning of these two is mixed up (see JDK-8026837).
   __ move(new LIR_Address(rcvr.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), temp, info);
-  __ move_wide(new LIR_Address(temp, in_bytes(Klass::java_mirror_offset()), T_ADDRESS), result);
+  __ move_wide(new LIR_Address(temp, in_bytes(Klass::java_mirror_offset()), T_ADDRESS), temp);
   // mirror = ((OopHandle)mirror)->resolve();
-  __ move_wide(new LIR_Address(result, T_OBJECT), result);
+  access_load(IN_NATIVE, T_OBJECT,
+              LIR_OprFact::address(new LIR_Address(temp, T_OBJECT)), result);
 }
 
 // java.lang.Class::isPrimitive()
@@ -1602,7 +1603,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
-  DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
   if (x->check_boolean()) {
     decorators |= C1_MASK_BOOLEAN;
   }
@@ -1620,6 +1621,18 @@ void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
     _barrier_set->BarrierSetC1::load_at(access, result);
   } else {
     _barrier_set->load_at(access, result);
+  }
+}
+
+void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
+                               LIR_Opr addr, LIR_Opr result) {
+  decorators |= C1_READ_ACCESS;
+  LIRAccess access(this, decorators, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, type);
+  access.set_resolved_addr(addr);
+  if (access.is_raw()) {
+    _barrier_set->BarrierSetC1::load(access, result);
+  } else {
+    _barrier_set->load(access, result);
   }
 }
 
@@ -1847,7 +1860,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
 
   LIR_Opr result = rlock_result(x, x->elt_type());
   access_load_at(decorators, x->elt_type(),
@@ -2311,7 +2324,9 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
   if (compilation()->env()->comp_level() == CompLevel_full_profile && UseSwitchProfiling) {
     ciMethod* method = x->state()->scope()->method();
     ciMethodData* md = method->method_data_or_null();
+    assert(md != NULL, "Sanity");
     ciProfileData* data = md->bci_to_data(x->state()->bci());
+    assert(data != NULL, "must have profiling data");
     assert(data->is_MultiBranchData(), "bad profile data?");
     int default_count_offset = md->byte_offset_of_slot(data, MultiBranchData::default_count_offset());
     LIR_Opr md_reg = new_register(T_METADATA);
@@ -2367,7 +2382,9 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
   if (compilation()->env()->comp_level() == CompLevel_full_profile && UseSwitchProfiling) {
     ciMethod* method = x->state()->scope()->method();
     ciMethodData* md = method->method_data_or_null();
+    assert(md != NULL, "Sanity");
     ciProfileData* data = md->bci_to_data(x->state()->bci());
+    assert(data != NULL, "must have profiling data");
     assert(data->is_MultiBranchData(), "bad profile data?");
     int default_count_offset = md->byte_offset_of_slot(data, MultiBranchData::default_count_offset());
     LIR_Opr md_reg = new_register(T_METADATA);
@@ -3076,6 +3093,7 @@ void LIRGenerator::profile_arguments(ProfileCall* x) {
   if (compilation()->profile_arguments()) {
     int bci = x->bci_of_invoke();
     ciMethodData* md = x->method()->method_data_or_null();
+    assert(md != NULL, "Sanity");
     ciProfileData* data = md->bci_to_data(bci);
     if (data != NULL) {
       if ((data->is_CallTypeData() && data->as_CallTypeData()->has_arguments()) ||
@@ -3212,6 +3230,7 @@ void LIRGenerator::do_ProfileCall(ProfileCall* x) {
 void LIRGenerator::do_ProfileReturnType(ProfileReturnType* x) {
   int bci = x->bci_of_invoke();
   ciMethodData* md = x->method()->method_data_or_null();
+  assert(md != NULL, "Sanity");
   ciProfileData* data = md->bci_to_data(bci);
   if (data != NULL) {
     assert(data->is_CallTypeData() || data->is_VirtualCallTypeData(), "wrong profile data type");
@@ -3245,7 +3264,7 @@ void LIRGenerator::do_ProfileInvoke(ProfileInvoke* x) {
     int freq_log = Tier23InlineeNotifyFreqLog;
     double scale;
     if (_method->has_option_value("CompileThresholdScaling", scale)) {
-      freq_log = Arguments::scaled_freq_log(freq_log, scale);
+      freq_log = CompilerConfig::scaled_freq_log(freq_log, scale);
     }
     increment_event_counter_impl(info, x->inlinee(), LIR_OprFact::intConst(InvocationCounter::count_increment), right_n_bits(freq_log), InvocationEntryBci, false, true);
   }
@@ -3279,7 +3298,7 @@ void LIRGenerator::increment_event_counter(CodeEmitInfo* info, LIR_Opr step, int
   // Increment the appropriate invocation/backedge counter and notify the runtime.
   double scale;
   if (_method->has_option_value("CompileThresholdScaling", scale)) {
-    freq_log = Arguments::scaled_freq_log(freq_log, scale);
+    freq_log = CompilerConfig::scaled_freq_log(freq_log, scale);
   }
   increment_event_counter_impl(info, info->scope()->method(), step, right_n_bits(freq_log), bci, backedge, true);
 }

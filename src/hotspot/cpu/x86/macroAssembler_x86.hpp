@@ -319,6 +319,10 @@ class MacroAssembler: public Assembler {
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                        Register tmp1, Register tmp2);
 
+  // Resolves obj access. Result is placed in the same register.
+  // All other registers are preserved.
+  void resolve(DecoratorSet decorators, Register obj);
+
   void load_heap_oop(Register dst, Address src, Register tmp1 = noreg,
                      Register thread_tmp = noreg, DecoratorSet decorators = 0);
   void load_heap_oop_not_null(Register dst, Address src, Register tmp1 = noreg,
@@ -504,6 +508,7 @@ class MacroAssembler: public Assembler {
 
   // allocation
   void eden_allocate(
+    Register thread,                   // Current thread
     Register obj,                      // result: pointer to object after successful allocation
     Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
     int      con_size_in_bytes,        // object size in bytes if   known at compile time
@@ -511,6 +516,7 @@ class MacroAssembler: public Assembler {
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   void tlab_allocate(
+    Register thread,                   // Current thread
     Register obj,                      // result: pointer to object after successful allocation
     Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
     int      con_size_in_bytes,        // object size in bytes if   known at compile time
@@ -519,10 +525,6 @@ class MacroAssembler: public Assembler {
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
-
-  void incr_allocated_bytes(Register thread,
-                            Register var_size_in_bytes, int con_size_in_bytes,
-                            Register t1 = noreg);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -741,11 +743,13 @@ class MacroAssembler: public Assembler {
   void cmpklass(Address dst, Metadata* obj);
   void cmpklass(Register dst, Metadata* obj);
   void cmpoop(Address dst, jobject obj);
+  void cmpoop_raw(Address dst, jobject obj);
 #endif // _LP64
 
   void cmpoop(Register src1, Register src2);
   void cmpoop(Register src1, Address src2);
   void cmpoop(Register dst, jobject obj);
+  void cmpoop_raw(Register dst, jobject obj);
 
   // NOTE src2 must be the lval. This is NOT an mem-mem compare
   void cmpptr(Address src1, AddressLiteral src2);
@@ -1095,6 +1099,10 @@ public:
   void vmovdqu(XMMRegister dst, Address src);
   void vmovdqu(XMMRegister dst, XMMRegister src);
   void vmovdqu(XMMRegister dst, AddressLiteral src);
+  void evmovdquq(XMMRegister dst, Address src, int vector_len) { Assembler::evmovdquq(dst, src, vector_len); }
+  void evmovdquq(XMMRegister dst, XMMRegister src, int vector_len) { Assembler::evmovdquq(dst, src, vector_len); }
+  void evmovdquq(Address dst, XMMRegister src, int vector_len) { Assembler::evmovdquq(dst, src, vector_len); }
+  void evmovdquq(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch);
 
   // Move Aligned Double Quadword
   void movdqa(XMMRegister dst, Address src)       { Assembler::movdqa(dst, src); }
@@ -1208,6 +1216,8 @@ public:
   void vpcmpeqw(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   void vpmovzxbw(XMMRegister dst, Address src, int vector_len);
+  void vpmovzxbw(XMMRegister dst, XMMRegister src, int vector_len) { Assembler::vpmovzxbw(dst, src, vector_len); }
+
   void vpmovmskb(Register dst, XMMRegister src);
 
   void vpmullw(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
@@ -1578,7 +1588,10 @@ public:
 
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop
-  void clear_mem(Register base, Register cnt, Register rtmp, bool is_large);
+  void clear_mem(Register base, Register cnt, Register rtmp, XMMRegister xtmp, bool is_large);
+
+  // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers
+  void xmm_clear_mem(Register base, Register cnt, XMMRegister xtmp);
 
 #ifdef COMPILER2
   void string_indexof_char(Register str1, Register cnt1, Register ch, Register result,

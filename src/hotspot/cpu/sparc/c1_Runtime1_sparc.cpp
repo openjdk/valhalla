@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "c1/c1_Defs.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
@@ -406,8 +407,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ set_info("fast new_instance init check", dont_gc_arguments);
         }
 
+        // If TLAB is disabled, see if there is support for inlining contiguous
+        // allocations.
+        // Otherwise, just go to the slow path.
         if ((id == fast_new_instance_id || id == fast_new_instance_init_check_id) &&
-            UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
+            !UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
           Label slow_path;
           Register G1_obj_size = G1;
           Register G3_t1 = G3;

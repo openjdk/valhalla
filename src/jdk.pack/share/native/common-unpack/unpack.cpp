@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1799,6 +1799,7 @@ unpacker::attr_definitions::parseLayout(const char* lp, band** &res,
     case 'B': case 'H': case 'I': case 'V': // unsigned_int
     case 'S': // signed_int
       --lp; // reparse
+      /* fall through */
     case 'F':
       lp = parseIntLayout(lp, b, EK_INT);
       break;
@@ -2680,6 +2681,9 @@ void unpacker::attr_definitions::readBandData(int idx) {
     PRINTCR((1, "counted %d [redefined = %d predefined = %d] attributes of type %s.%s",
             count, isRedefined(idx), isPredefined(idx),
             ATTR_CONTEXT_NAME[attrc], lo->name));
+  } else {
+    abort("layout_definition pointer must not be NULL");
+    return;
   }
   bool hasCallables = lo->hasCallables();
   band** bands = lo->bands();
@@ -3709,7 +3713,7 @@ const char* entry::string() {
   case CONSTANT_Signature:
     if (value.b.ptr == null)
       return ref(0)->string();
-    // else fall through:
+    /* fall through */
   case CONSTANT_Utf8:
     buf = value.b;
     break;
@@ -4216,6 +4220,7 @@ void unpacker::write_bc_ops() {
         case _invokeinit_self_option:   classRef = thisClass;  break;
         case _invokeinit_super_option:  classRef = superClass; break;
         default: assert(bc == _invokeinit_op+_invokeinit_new_option);
+        /* fall through */
         case _invokeinit_new_option:    classRef = newClass;   break;
         }
         wp[-1] = origBC;  // overwrite with origBC

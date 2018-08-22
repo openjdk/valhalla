@@ -298,7 +298,7 @@ class LateInlineCallGenerator : public DirectCallGenerator {
 
  public:
   LateInlineCallGenerator(ciMethod* method, CallGenerator* inline_cg) :
-    DirectCallGenerator(method, true), _inline_cg(inline_cg), _unique_id(0) {}
+    DirectCallGenerator(method, true), _unique_id(0), _inline_cg(inline_cg) {}
 
   virtual bool is_late_inline() const { return true; }
 
@@ -932,7 +932,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           speculative_receiver_type = (receiver_type != NULL) ? receiver_type->speculative_type() : NULL;
         }
         CallGenerator* cg = C->call_generator(target, vtable_index, call_does_dispatch, jvms,
-                                              true /* allow_inline */,
+                                              !StressMethodHandleLinkerInlining /* allow_inline */,
                                               PROB_ALWAYS,
                                               speculative_receiver_type);
         return cg;

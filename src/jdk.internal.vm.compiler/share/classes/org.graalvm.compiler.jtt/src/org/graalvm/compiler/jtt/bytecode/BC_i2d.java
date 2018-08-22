@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.bytecode;
 
 import org.junit.Test;
@@ -66,7 +68,7 @@ public class BC_i2d extends JTTTest {
 
     @Test
     public void run6() throws Throwable {
-        runTest("test", new Integer(Short.MAX_VALUE));
+        runTest("test", Integer.valueOf(Short.MAX_VALUE));
     }
 
 }

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.jtt.hotspot;
 
 //@formatter:off
@@ -197,6 +199,7 @@ public class Test6823354 {
         loadandrunclass(classname);
     }
 
+    @SuppressWarnings("deprecation")
     static void loadandrunclass(String classname) throws Exception {
         Class<?> cl = Class.forName(classname);
         URLClassLoader apploader = (URLClassLoader) cl.getClassLoader();

@@ -29,7 +29,7 @@
 #include "runtime/vm_operations.hpp"
 #include "utilities/concurrentHashTable.inline.hpp"
 #include "utilities/concurrentHashTableTasks.inline.hpp"
-#include "utilitiesHelper.inline.hpp"
+#include "threadHelper.inline.hpp"
 #include "unittest.hpp"
 
 // NOTE: On win32 gtest asserts are not mt-safe.
@@ -85,7 +85,7 @@ struct ValVerify {
   uintptr_t _val;
   bool called_get;
   bool called_insert;
-  ValVerify(uintptr_t val) : called_get(false), called_insert(false), _val(val) {}
+  ValVerify(uintptr_t val) : _val(val), called_get(false), called_insert(false) {}
   void operator()(bool inserted, uintptr_t* val) {
     EXPECT_EQ(_val, *val) << "The value inserted is not correct.";
     if (inserted) {
@@ -211,9 +211,9 @@ static void cht_getinsert_bulkdelete_task(Thread* thr) {
   // Removes all odd values.
   SimpleTestTable::BulkDeleteTask bdt(cht);
   if (bdt.prepare(thr)) {
-    while(bdt.doTask(thr, getinsert_bulkdelete_eval, getinsert_bulkdelete_del)) {
+    while(bdt.do_task(thr, getinsert_bulkdelete_eval, getinsert_bulkdelete_del)) {
       bdt.pause(thr);
-      EXPECT_TRUE(bdt.cont(thr)) << "Uncontended continue should work.";
+      bdt.cont(thr);
     }
     bdt.done(thr);
   }
@@ -263,6 +263,40 @@ static void cht_scan(Thread* thr) {
   EXPECT_TRUE(cht->remove(thr, stl)) << "Removing a pre-existing value failed.";
   EXPECT_FALSE(cht->get_copy(thr, stl) == val) << "Got a removed value.";
   delete cht;
+}
+
+struct ChtCountScan {
+  size_t _count;
+  ChtCountScan() : _count(0) {}
+  bool operator()(uintptr_t* val) {
+    _count++;
+    return true; /* continue scan */
+  }
+};
+
+static void cht_move_to(Thread* thr) {
+  uintptr_t val1 = 0x2;
+  uintptr_t val2 = 0xe0000002;
+  uintptr_t val3 = 0x3;
+  SimpleTestLookup stl1(val1), stl2(val2), stl3(val3);
+  SimpleTestTable* from_cht = new SimpleTestTable();
+  EXPECT_TRUE(from_cht->insert(thr, stl1, val1)) << "Insert unique value failed.";
+  EXPECT_TRUE(from_cht->insert(thr, stl2, val2)) << "Insert unique value failed.";
+  EXPECT_TRUE(from_cht->insert(thr, stl3, val3)) << "Insert unique value failed.";
+
+  SimpleTestTable* to_cht = new SimpleTestTable();
+  EXPECT_TRUE(from_cht->try_move_nodes_to(thr, to_cht)) << "Moving nodes to new table failed";
+
+  ChtCountScan scan_old;
+  EXPECT_TRUE(from_cht->try_scan(thr, scan_old)) << "Scanning table should work.";
+  EXPECT_EQ(scan_old._count, (size_t)0) << "All items should be moved";
+
+  ChtCountScan scan_new;
+  EXPECT_TRUE(to_cht->try_scan(thr, scan_new)) << "Scanning table should work.";
+  EXPECT_EQ(scan_new._count, (size_t)3) << "All items should be moved";
+  EXPECT_TRUE(to_cht->get_copy(thr, stl1) == val1) << "Getting an inserted value should work.";
+  EXPECT_TRUE(to_cht->get_copy(thr, stl2) == val2) << "Getting an inserted value should work.";
+  EXPECT_TRUE(to_cht->get_copy(thr, stl3) == val3) << "Getting an inserted value should work.";
 }
 
 static void cht_grow(Thread* thr) {
@@ -328,7 +362,7 @@ static void cht_task_grow(Thread* thr) {
 
   SimpleTestTable::GrowTask gt(cht);
   EXPECT_TRUE(gt.prepare(thr)) << "Growing uncontended should not fail.";
-  while(gt.doTask(thr)) { /* grow */  }
+  while(gt.do_task(thr)) { /* grow */  }
   gt.done(thr);
 
   EXPECT_TRUE(cht->get_copy(thr, stl) == val) << "Getting an item after grow failed.";
@@ -369,6 +403,10 @@ TEST_VM(ConcurrentHashTable, basic_get_insert_bulk_delete_task) {
 
 TEST_VM(ConcurrentHashTable, basic_scan) {
   nomt_test_doer(cht_scan);
+}
+
+TEST_VM(ConcurrentHashTable, basic_move_to) {
+  nomt_test_doer(cht_move_to);
 }
 
 TEST_VM(ConcurrentHashTable, basic_grow) {
@@ -914,4 +952,74 @@ public:
 TEST_VM(ConcurrentHashTable, concurrent_get_insert_bulk_delete) {
   GI_BD_InserterThread::_shrink = false;
   mt_test_doer<RunnerGI_BD_InserterThread>();
+}
+
+//#############################################################################################
+
+class MT_BD_Thread : public JavaTestThread {
+  TestTable::BulkDeleteTask* _bd;
+  public:
+  MT_BD_Thread(Semaphore* post, TestTable::BulkDeleteTask* bd)
+    : JavaTestThread(post), _bd(bd){}
+  virtual ~MT_BD_Thread() {}
+  void main_run() {
+    MyDel del;
+    while(_bd->do_task(this, *this, del));
+  }
+
+  bool operator()(uintptr_t* val) {
+    return true;
+  }
+
+  struct MyDel {
+    void operator()(uintptr_t* val) {
+    }
+  };
+};
+
+class Driver_BD_Thread : public JavaTestThread {
+public:
+  Semaphore _done;
+  Driver_BD_Thread(Semaphore* post) : JavaTestThread(post) {
+  };
+  virtual ~Driver_BD_Thread(){}
+
+  void main_run() {
+    Semaphore done(0);
+    TestTable* cht = new TestTable(16, 16, 2);
+    for (uintptr_t v = 1; v < 99999; v++ ) {
+      TestLookup tl(v);
+      EXPECT_TRUE(cht->insert(this, tl, v)) << "Inserting an unique value should work.";
+    }
+    TestTable::BulkDeleteTask bdt(cht, true /* mt */ );
+    EXPECT_TRUE(bdt.prepare(this)) << "Uncontended prepare must work.";
+
+    MT_BD_Thread* tt[4];
+    for (int i = 0; i < 4; i++) {
+      tt[i] = new MT_BD_Thread(&done, &bdt);
+      tt[i]->doit();
+    }
+
+    for (uintptr_t v = 1; v < 99999; v++ ) {
+      TestLookup tl(v);
+      cht->get_copy(this, tl);
+    }
+
+    for (int i = 0; i < 4; i++) {
+      done.wait();
+    }
+
+    bdt.done(this);
+
+    cht->do_scan(this, *this);
+  }
+
+  bool operator()(uintptr_t* val) {
+    EXPECT_TRUE(false) << "No items should left";
+    return true;
+  }
+};
+
+TEST_VM(ConcurrentHashTable, concurrent_mt_bulk_delete) {
+  mt_test_doer<Driver_BD_Thread>();
 }

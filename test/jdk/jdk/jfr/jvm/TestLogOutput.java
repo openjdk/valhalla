@@ -31,10 +31,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
+/**
  * @test TestLogOutput
  * @key jfr
  * @summary Sanity test jfr logging output
+ * @requires vm.hasJFR
  * @library /test/lib
  * @run main/othervm -Xlog:disable -Xlog:jfr*=trace:file=jfr_trace.txt -XX:StartFlightRecording=duration=1s,filename=recording.jfr jdk.jfr.jvm.TestLogOutput
  */
@@ -42,7 +43,7 @@ public class TestLogOutput {
     public static void main(String[] args) throws Exception {
         final String fileName = "jfr_trace.txt";
         final List<String>findWhat = new ArrayList<>();
-        findWhat.add("Starting up Jfr startup recording");
+        findWhat.add("Starting a recording");
         findWhat.add("Flight Recorder initialized");
         boolean passed = false;
         List<String> matches = new ArrayList<String>(findWhat);

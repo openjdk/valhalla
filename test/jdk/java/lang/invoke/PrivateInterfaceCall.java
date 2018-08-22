@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8010319
+ * @bug 8046171
  * @summary Test direct and MethodHandle access to private interface methods using invokeinterface semantics
  *          to ensure all receiver typechecks occur as required.
  * @comment This complements SpecialInterfaceCall which tests invokespecial semantics.

@@ -904,9 +904,6 @@ class Method : public Metadata {
     return method_holder()->lookup_osr_nmethod(this, bci, level, match_level);
   }
 
-  // Inline cache support
-  void cleanup_inline_caches();
-
   // Find if klass for method is loaded
   bool is_klass_loaded_by_klass_index(int klass_index) const;
   bool is_klass_loaded(int refinfo_index, bool must_be_resolved = false) const;
@@ -987,7 +984,7 @@ class Method : public Metadata {
 
   // Check for valid method pointer
   static bool has_method_vptr(const void* ptr);
-  bool is_valid_method() const;
+  static bool is_valid_method(const Method* m);
 
   // Verify
   void verify() { verify_on(tty); }

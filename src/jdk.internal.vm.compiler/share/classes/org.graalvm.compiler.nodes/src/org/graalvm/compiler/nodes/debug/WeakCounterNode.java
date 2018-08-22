@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.debug;
 
 import org.graalvm.compiler.graph.NodeClass;
@@ -69,7 +71,7 @@ public final class WeakCounterNode extends DynamicCounterNode implements Simplif
 
     public static void addCounterBefore(String group, String name, long increment, boolean addContext, ValueNode checkedValue, FixedNode position) {
         StructuredGraph graph = position.graph();
-        WeakCounterNode counter = graph.add(new WeakCounterNode(name, group, ConstantNode.forLong(increment, graph), addContext, checkedValue));
+        WeakCounterNode counter = graph.add(new WeakCounterNode(group, name, ConstantNode.forLong(increment, graph), addContext, checkedValue));
         graph.addBeforeFixed(position, counter);
     }
 }

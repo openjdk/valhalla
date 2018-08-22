@@ -40,12 +40,13 @@
 #include "gc/shared/generationSpec.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/referencePolicy.hpp"
+#include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/space.inline.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "logging/log.hpp"
-#include "memory/iterator.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -111,23 +112,17 @@ ScanClosure::ScanClosure(DefNewGeneration* g, bool gc_barrier) :
   _boundary = _g->reserved().end();
 }
 
-void ScanClosure::do_oop(oop* p)       { ScanClosure::do_oop_work(p); }
-void ScanClosure::do_oop(narrowOop* p) { ScanClosure::do_oop_work(p); }
-
 FastScanClosure::FastScanClosure(DefNewGeneration* g, bool gc_barrier) :
     OopsInClassLoaderDataOrGenClosure(g), _g(g), _gc_barrier(gc_barrier)
 {
   _boundary = _g->reserved().end();
 }
 
-void FastScanClosure::do_oop(oop* p)       { FastScanClosure::do_oop_work(p); }
-void FastScanClosure::do_oop(narrowOop* p) { FastScanClosure::do_oop_work(p); }
-
 void CLDScanClosure::do_cld(ClassLoaderData* cld) {
   NOT_PRODUCT(ResourceMark rm);
   log_develop_trace(gc, scavenge)("CLDScanClosure::do_cld " PTR_FORMAT ", %s, dirty: %s",
                                   p2i(cld),
-                                  cld->loader_name(),
+                                  cld->loader_name_and_id(),
                                   cld->has_modified_oops() ? "true" : "false");
 
   // If the cld has not been dirtied we know that there's
@@ -153,9 +148,6 @@ ScanWeakRefClosure::ScanWeakRefClosure(DefNewGeneration* g) :
 {
   _boundary = _g->reserved().end();
 }
-
-void ScanWeakRefClosure::do_oop(oop* p)       { ScanWeakRefClosure::do_oop_work(p); }
-void ScanWeakRefClosure::do_oop(narrowOop* p) { ScanWeakRefClosure::do_oop_work(p); }
 
 DefNewGeneration::DefNewGeneration(ReservedSpace rs,
                                    size_t initial_size,
@@ -629,7 +621,7 @@ void DefNewGeneration::collect(bool   full,
   FastKeepAliveClosure keep_alive(this, &scan_weak_ref);
   ReferenceProcessor* rp = ref_processor();
   rp->setup_policy(clear_all_soft_refs);
-  ReferenceProcessorPhaseTimes pt(_gc_timer, rp->num_queues());
+  ReferenceProcessorPhaseTimes pt(_gc_timer, rp->max_num_queues());
   const ReferenceProcessorStats& stats =
   rp->process_discovered_references(&is_alive, &keep_alive, &evacuate_followers,
                                     NULL, &pt);

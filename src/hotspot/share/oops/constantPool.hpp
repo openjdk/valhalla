@@ -719,6 +719,9 @@ class ConstantPool : public Metadata {
   enum { _no_index_sentinel = -1, _possible_index_sentinel = -2 };
  public:
 
+  // Get the tag for a constant, which may involve a constant dynamic
+  constantTag constant_tag_at(int which);
+  // Get the basic type for a constant, which may involve a constant dynamic
   BasicType basic_type_for_constant_at(int which);
 
   // Resolve late bound constants.
@@ -963,7 +966,7 @@ class SymbolHashMapEntry : public CHeapObj<mtSymbol> {
   void       set_value(u2 value)          { _value = value; }
 
   SymbolHashMapEntry(unsigned int hash, Symbol* symbol, u2 value)
-    : _hash(hash), _symbol(symbol), _value(value), _next(NULL) {}
+    : _hash(hash), _next(NULL), _symbol(symbol), _value(value) {}
 
 }; // End SymbolHashMapEntry class
 

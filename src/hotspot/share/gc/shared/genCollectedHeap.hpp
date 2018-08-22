@@ -28,6 +28,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/generation.hpp"
+#include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/softRefGenPolicy.hpp"
 
 class AdaptiveSizePolicy;
@@ -257,8 +258,7 @@ public:
   virtual void verify_nmethod(nmethod* nmethod);
 
   // Iteration functions.
-  void oop_iterate_no_header(OopClosure* cl);
-  void oop_iterate(ExtendedOopClosure* cl);
+  void oop_iterate(OopIterateClosure* cl);
   void object_iterate(ObjectClosure* cl);
   void safe_object_iterate(ObjectClosure* cl);
   Space* space_containing(const void* addr) const;
@@ -401,7 +401,8 @@ public:
                      CodeBlobToOopClosure* code_roots);
 
   void process_string_table_roots(StrongRootsScope* scope,
-                                  OopClosure* root_closure);
+                                  OopClosure* root_closure,
+                                  OopStorage::ParState<false, false>* par_state_string);
 
   // Accessor for memory state verification support
   NOT_PRODUCT(
@@ -415,14 +416,16 @@ public:
   void young_process_roots(StrongRootsScope* scope,
                            OopsInGenClosure* root_closure,
                            OopsInGenClosure* old_gen_closure,
-                           CLDClosure* cld_closure);
+                           CLDClosure* cld_closure,
+                           OopStorage::ParState<false, false>* par_state_string = NULL);
 
   void full_process_roots(StrongRootsScope* scope,
                           bool is_adjust_phase,
                           ScanningOption so,
                           bool only_strong_roots,
                           OopsInGenClosure* root_closure,
-                          CLDClosure* cld_closure);
+                          CLDClosure* cld_closure,
+                          OopStorage::ParState<false, false>* par_state_string = NULL);
 
   // Apply "root_closure" to all the weak roots of the system.
   // These include JNI weak roots, string table,

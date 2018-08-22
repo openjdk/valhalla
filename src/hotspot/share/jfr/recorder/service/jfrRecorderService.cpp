@@ -46,7 +46,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
@@ -239,8 +239,8 @@ JfrRecorderService::JfrRecorderService() :
   _checkpoint_manager(JfrCheckpointManager::instance()),
   _chunkwriter(JfrRepository::chunkwriter()),
   _repository(JfrRepository::instance()),
-  _storage(JfrStorage::instance()),
   _stack_trace_repository(JfrStackTraceRepository::instance()),
+  _storage(JfrStorage::instance()),
   _string_pool(JfrStringPool::instance()) {}
 
 void JfrRecorderService::start() {

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir;
 
 import java.util.Arrays;
@@ -439,7 +441,7 @@ public abstract class SwitchStrategy {
             }
             double probabilityStart = probabilitySums[left];
             double probabilityMiddle = (probabilityStart + probabilitySums[right + 1]) / 2;
-            assert probabilityStart >= probabilityStart;
+            assert probabilityMiddle >= probabilityStart;
             int middle = left;
             while (getSliceEnd(closure, middle + 1) < right && probabilitySums[getSliceEnd(closure, middle + 1)] < probabilityMiddle) {
                 middle = getSliceEnd(closure, middle + 1);

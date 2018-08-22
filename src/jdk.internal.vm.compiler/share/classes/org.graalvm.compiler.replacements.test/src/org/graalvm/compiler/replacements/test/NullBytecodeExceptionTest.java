@@ -20,10 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.test;
 
 import org.junit.Test;
-
+import org.graalvm.compiler.nodes.extended.BytecodeExceptionNode.BytecodeExceptionKind;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugin;
 import org.graalvm.compiler.nodes.graphbuilderconf.InvocationPlugins;
@@ -46,7 +48,7 @@ public class NullBytecodeExceptionTest extends BytecodeExceptionTest {
         invocationPlugins.register(new InvocationPlugin() {
             @Override
             public boolean apply(GraphBuilderContext b, ResolvedJavaMethod targetMethod, Receiver receiver) {
-                return throwBytecodeException(b, NullPointerException.class);
+                return throwBytecodeException(b, BytecodeExceptionKind.NULL_POINTER);
             }
         }, Exceptions.class, "throwNull");
         super.registerInvocationPlugins(invocationPlugins);

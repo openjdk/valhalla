@@ -152,11 +152,11 @@ size_t SpaceManager::calc_chunk_size(size_t word_size) {
          " chunk_word_size " SIZE_FORMAT,
          word_size, chunk_word_size);
   Log(gc, metaspace, alloc) log;
-  if (log.is_debug() && SpaceManager::is_humongous(word_size)) {
-    log.debug("Metadata humongous allocation:");
-    log.debug("  word_size " PTR_FORMAT, word_size);
-    log.debug("  chunk_word_size " PTR_FORMAT, chunk_word_size);
-    log.debug("    chunk overhead " PTR_FORMAT, Metachunk::overhead());
+  if (log.is_trace() && SpaceManager::is_humongous(word_size)) {
+    log.trace("Metadata humongous allocation:");
+    log.trace("  word_size " PTR_FORMAT, word_size);
+    log.trace("  chunk_word_size " PTR_FORMAT, chunk_word_size);
+    log.trace("    chunk overhead " PTR_FORMAT, Metachunk::overhead());
   }
   return chunk_word_size;
 }
@@ -228,16 +228,15 @@ void SpaceManager::print_on(outputStream* st) const {
 SpaceManager::SpaceManager(Metaspace::MetadataType mdtype,
                            Metaspace::MetaspaceType space_type,//
                            Mutex* lock) :
+  _lock(lock),
   _mdtype(mdtype),
   _space_type(space_type),
+  _chunk_list(NULL),
+  _current_chunk(NULL),
+  _overhead_words(0),
   _capacity_words(0),
   _used_words(0),
-  _overhead_words(0),
-  _block_freelists(NULL),
-  _lock(lock),
-  _chunk_list(NULL),
-  _current_chunk(NULL)
-{
+  _block_freelists(NULL) {
   Metadebug::init_allocation_fail_alot_count();
   memset(_num_chunks_by_type, 0, sizeof(_num_chunks_by_type));
   log_trace(gc, metaspace, freelist)("SpaceManager(): " PTR_FORMAT, p2i(this));
@@ -390,9 +389,9 @@ Metachunk* SpaceManager::get_new_chunk(size_t chunk_word_size) {
   }
 
   Log(gc, metaspace, alloc) log;
-  if (log.is_debug() && next != NULL &&
+  if (log.is_trace() && next != NULL &&
       SpaceManager::is_humongous(next->word_size())) {
-    log.debug("  new humongous chunk word size " PTR_FORMAT, next->word_size());
+    log.trace("  new humongous chunk word size " PTR_FORMAT, next->word_size());
   }
 
   return next;

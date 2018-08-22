@@ -26,10 +26,10 @@
 #include "jfr/jfr.hpp"
 #include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/periodic/sampling/jfrThreadSampler.hpp"
-#include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/repository/jfrEmergencyDump.hpp"
+#include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
 #include "runtime/java.hpp"
 
@@ -64,9 +64,7 @@ void Jfr::on_unloading_classes() {
 }
 
 void Jfr::on_thread_exit(JavaThread* thread) {
-  if (JfrRecorder::is_recording()) {
-    JfrThreadLocal::on_exit(thread);
-  }
+  JfrThreadLocal::on_exit(thread);
 }
 
 void Jfr::on_thread_destruct(Thread* thread) {
@@ -85,12 +83,12 @@ void Jfr::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
   LeakProfiler::oops_do(is_alive, f);
 }
 
-bool Jfr::on_start_flight_recording_option(const JavaVMOption** option, char* tail) {
-  return JfrOptionSet::parse_start_flight_recording_option(option, tail);
+bool Jfr::on_flight_recorder_option(const JavaVMOption** option, char* delimiter) {
+  return JfrOptionSet::parse_flight_recorder_option(option, delimiter);
 }
 
-bool Jfr::on_flight_recorder_option(const JavaVMOption** option, char* tail) {
-  return JfrOptionSet::parse_flight_recorder_option(option, tail);
+bool Jfr::on_start_flight_recording_option(const JavaVMOption** option, char* delimiter) {
+  return JfrOptionSet::parse_start_flight_recording_option(option, delimiter);
 }
 
 Thread* Jfr::sampler_thread() {

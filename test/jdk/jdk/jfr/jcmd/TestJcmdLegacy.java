@@ -28,6 +28,7 @@ package jdk.jfr.jcmd;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
@@ -37,9 +38,10 @@ import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.FileHelper;
 import jdk.test.lib.process.OutputAnalyzer;
 
-/*
+/**
  * @test TestClassId
  * @key jfr
+ * @requires vm.hasJFR
  * @library /test/lib /test/jdk
  * @modules jdk.jfr/jdk.jfr.internal
  * @run main/othervm jdk.jfr.jcmd.TestJcmdLegacy
@@ -58,13 +60,13 @@ public class TestJcmdLegacy {
 
     private static void testJcmd() throws Exception {
         String name = "testLegacy";
-        File p = new File(name + ".jfr");
+        Path p = Paths.get(name + ".jfr").toAbsolutePath().normalize();
         OutputAnalyzer output = JcmdHelper.jcmd("JFR.start", "name=" + name, "settings=" + SETTINGS.getCanonicalPath());
         JcmdAsserts.assertRecordingHasStarted(output);
         JcmdHelper.waitUntilRunning(name);
-        JcmdHelper.stopWriteToFileAndCheck(name, p);
-        FileHelper.verifyRecording(p);
-        verify(p.toPath());
+        JcmdHelper.stopWriteToFileAndCheck(name, p.toFile());
+        FileHelper.verifyRecording(p.toFile());
+        verify(p);
     }
 
     private static void testAPI() throws IOException, Exception {

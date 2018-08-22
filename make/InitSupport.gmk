@@ -34,6 +34,9 @@ _INITSUPPORT_GMK := 1
 
 ifeq ($(HAS_SPEC),)
 
+  # COMMA is defined in spec.gmk, but that is not included yet
+  COMMA := ,
+
   # Include the corresponding closed file, if present.
   ifneq ($(CUSTOM_MAKE_DIR), )
     -include $(CUSTOM_MAKE_DIR)/InitSupport.gmk
@@ -453,6 +456,9 @@ else # $(HAS_SPEC)=true
 	)
   endef
 
+  # Failure logs are only supported for "parallel" main targets, not the
+  # (trivial) sequential make targets (such as clean and reconfigure),
+  # since the failure-logs directory creation will conflict with clean.
   define PrepareFailureLogs
 	$(RM) -r $(MAKESUPPORT_OUTPUTDIR)/failure-logs 2> /dev/null && \
 	$(MKDIR) -p $(MAKESUPPORT_OUTPUTDIR)/failure-logs
@@ -531,8 +537,6 @@ endif # HAS_SPEC
 define ParseLogOption
   ifneq ($$(findstring $1, $$(LOG)),)
     override $2 := true
-    # COMMA is defined in spec.gmk, but that is not included yet
-    COMMA := ,
     # First try to remove ",<option>" if it exists, otherwise just remove "<option>"
     LOG_STRIPPED := $$(subst $1,, $$(subst $$(COMMA)$$(strip $1),, $$(LOG)))
     # We might have ended up with a leading comma. Remove it. Need override
@@ -550,8 +554,6 @@ define ParseLogValue
     # Make words of out comma-separated list and find the one with opt=val
     value := $$(strip $$(subst $$(strip $1)=,, $$(filter $$(strip $1)=%, $$(subst $$(COMMA), , $$(LOG)))))
     override $2 := $$(value)
-    # COMMA is defined in spec.gmk, but that is not included yet
-    COMMA := ,
     # First try to remove ",<option>" if it exists, otherwise just remove "<option>"
     LOG_STRIPPED := $$(subst $$(strip $1)=$$(value),, \
         $$(subst $$(COMMA)$$(strip $1)=$$(value),, $$(LOG)))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,13 +145,11 @@ public class Reflection {
 
         // Check for nestmate access if member is private
         if (Modifier.isPrivate(modifiers)) {
-          // assert: isSubclassof(targetClass, memberClass)
-          // Note: targetClass may be outside the nest, but that is okay
-          //       as long as memberClass is in the nest.
-          boolean nestmates = areNestMates(currentClass, memberClass);
-          if (nestmates) {
-            return true;
-          }
+            // Note: targetClass may be outside the nest, but that is okay
+            //       as long as memberClass is in the nest.
+            if (areNestMates(currentClass, memberClass)) {
+                return true;
+            }
         }
 
         boolean successSoFar = false;

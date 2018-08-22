@@ -26,7 +26,6 @@
 #define SHARE_VM_OOPS_KLASS_HPP
 
 #include "classfile/classLoaderData.hpp"
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "oops/metadata.hpp"
@@ -37,6 +36,18 @@
 #if INCLUDE_JFR
 #include "jfr/support/jfrTraceIdExtension.hpp"
 #endif
+
+// Klass IDs for all subclasses of Klass
+enum KlassID {
+  InstanceKlassID,
+  InstanceRefKlassID,
+  InstanceMirrorKlassID,
+  InstanceClassLoaderKlassID,
+  TypeArrayKlassID,
+  ObjArrayKlassID
+};
+
+const uint KLASS_ID_COUNT = 6;
 
 //
 // A Klass provides:
@@ -102,6 +113,9 @@ class Klass : public Metadata {
   // Final note:  This comes first, immediately after C++ vtable,
   // because it is frequently queried.
   jint        _layout_helper;
+
+  // Klass identifier used to implement devirtualized oop closure dispatching.
+  const KlassID _id;
 
   // The fields _super_check_offset, _secondary_super_cache, _secondary_supers
   // and _primary_supers all help make fast subtype checks.  See big discussion
@@ -173,11 +187,14 @@ private:
 protected:
 
   // Constructor
-  Klass();
+  Klass(KlassID id);
+  Klass() : _id(KlassID(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
+  int id() { return _id; }
+
   enum DefaultsLookupMode { find_defaults, skip_defaults };
   enum OverpassLookupMode { find_overpass, skip_overpass };
   enum StaticLookupMode   { find_static,   skip_static };
@@ -185,21 +202,21 @@ protected:
 
   bool is_klass() const volatile { return true; }
 
-  // super
+  // super() cannot be InstanceKlass* -- Java arrays are covariant, and _super is used
+  // to implement that. NB: the _super of "[Ljava/lang/Integer;" is "[Ljava/lang/Number;"
+  // If this is not what your code expects, you're probably looking for Klass::java_super().
   Klass* super() const               { return _super; }
   void set_super(Klass* k)           { _super = k; }
 
   // initializes _super link, _primary_supers & _secondary_supers arrays
-  void initialize_supers(Klass* k, Array<Klass*>* transitive_interfaces, TRAPS);
-  void initialize_supers_impl1(Klass* k);
-  void initialize_supers_impl2(Klass* k);
+  void initialize_supers(Klass* k, Array<InstanceKlass*>* transitive_interfaces, TRAPS);
 
   // klass-specific helper for initializing _secondary_supers
   virtual GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
-                                                          Array<Klass*>* transitive_interfaces);
+                                                          Array<InstanceKlass*>* transitive_interfaces);
 
   // java_super is the Java-level super type as specified by Class.getSuperClass.
-  virtual Klass* java_super() const  { return NULL; }
+  virtual InstanceKlass* java_super() const  { return NULL; }
 
   juint    super_check_offset() const  { return _super_check_offset; }
   void set_super_check_offset(juint o) { _super_check_offset = o; }
@@ -244,7 +261,6 @@ protected:
   void set_java_mirror(Handle m);
 
   oop archived_java_mirror_raw() NOT_CDS_JAVA_HEAP_RETURN_(NULL); // no GC barrier
-  oop archived_java_mirror() NOT_CDS_JAVA_HEAP_RETURN_(NULL);     // accessor with GC barrier
   void set_archived_java_mirror_raw(oop m) NOT_CDS_JAVA_HEAP_RETURN; // no GC barrier
 
   // Temporary mirror switch used by RedefineClasses
@@ -544,7 +560,8 @@ protected:
   //     and the package separators as '/'.
   virtual const char* signature_name() const;
 
-  const char* class_loader_and_module_name() const;
+  const char* joint_in_module_of_loader(const Klass* class2, bool include_parent_loader = false) const;
+  const char* class_in_module_of_loader(bool use_are = false, bool include_parent_loader = false) const;
 
   // Returns "interface", "abstract class" or "class".
   const char* external_kind() const;
@@ -641,6 +658,11 @@ protected:
   // Klass is considered alive.  Has already been marked as unloading.
   bool is_loader_alive() const { return !class_loader_data()->is_unloading(); }
 
+  // Load the klass's holder as a phantom. This is useful when a weak Klass
+  // pointer has been "peeked" and then must be kept alive before it may
+  // be used safely.
+  oop holder_phantom() const;
+
   static void clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses = true);
   static void clean_subklass_tree() {
     clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
@@ -654,24 +676,6 @@ protected:
   // Parallel Compact
   virtual void oop_pc_follow_contents(oop obj, ParCompactionManager* cm) = 0;
   virtual void oop_pc_update_pointers(oop obj, ParCompactionManager* cm) = 0;
-#endif
-
-  // Iterators specialized to particular subtypes
-  // of ExtendedOopClosure, to avoid closure virtual calls.
-#define Klass_OOP_OOP_ITERATE_DECL(OopClosureType, nv_suffix)                                           \
-  virtual void oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure) = 0;                        \
-  /* Iterates "closure" over all the oops in "obj" (of type "this") within "mr". */                     \
-  virtual void oop_oop_iterate_bounded##nv_suffix(oop obj, OopClosureType* closure, MemRegion mr) = 0;
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(Klass_OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(Klass_OOP_OOP_ITERATE_DECL)
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-#define Klass_OOP_OOP_ITERATE_DECL_BACKWARDS(OopClosureType, nv_suffix)                     \
-  virtual void oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure) = 0;
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(Klass_OOP_OOP_ITERATE_DECL_BACKWARDS)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(Klass_OOP_OOP_ITERATE_DECL_BACKWARDS)
 #endif
 
   virtual void array_klasses_do(void f(Klass* k)) {}
@@ -705,7 +709,6 @@ protected:
 
 #ifndef PRODUCT
   bool verify_vtable_index(int index);
-  bool verify_itable_index(int index);
 #endif
 
   virtual void oop_verify_on(oop obj, outputStream* st);
@@ -720,45 +723,5 @@ protected:
   static Klass* decode_klass_not_null(narrowKlass v);
   static Klass* decode_klass(narrowKlass v);
 };
-
-// Helper to convert the oop iterate macro suffixes into bool values that can be used by template functions.
-#define nvs_nv_to_bool true
-#define nvs_v_to_bool  false
-#define nvs_to_bool(nv_suffix) nvs##nv_suffix##_to_bool
-
-// Oop iteration macros for declarations.
-// Used to generate declarations in the *Klass header files.
-
-#define OOP_OOP_ITERATE_DECL(OopClosureType, nv_suffix)                                    \
-  void oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure);                        \
-  void oop_oop_iterate_bounded##nv_suffix(oop obj, OopClosureType* closure, MemRegion mr);
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-#define OOP_OOP_ITERATE_DECL_BACKWARDS(OopClosureType, nv_suffix)               \
-  void oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure);
-#endif
-
-
-// Oop iteration macros for definitions.
-// Used to generate definitions in the *Klass.inline.hpp files.
-
-#define OOP_OOP_ITERATE_DEFN(KlassType, OopClosureType, nv_suffix)              \
-void KlassType::oop_oop_iterate##nv_suffix(oop obj, OopClosureType* closure) {  \
-  oop_oop_iterate<nvs_to_bool(nv_suffix)>(obj, closure);                        \
-}
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-#define OOP_OOP_ITERATE_DEFN_BACKWARDS(KlassType, OopClosureType, nv_suffix)              \
-void KlassType::oop_oop_iterate_backwards##nv_suffix(oop obj, OopClosureType* closure) {  \
-  oop_oop_iterate_reverse<nvs_to_bool(nv_suffix)>(obj, closure);                          \
-}
-#else
-#define OOP_OOP_ITERATE_DEFN_BACKWARDS(KlassType, OopClosureType, nv_suffix)
-#endif
-
-#define OOP_OOP_ITERATE_DEFN_BOUNDED(KlassType, OopClosureType, nv_suffix)                            \
-void KlassType::oop_oop_iterate_bounded##nv_suffix(oop obj, OopClosureType* closure, MemRegion mr) {  \
-  oop_oop_iterate_bounded<nvs_to_bool(nv_suffix)>(obj, closure, mr);                                  \
-}
 
 #endif // SHARE_VM_OOPS_KLASS_HPP

@@ -98,7 +98,7 @@ class OopStorage;
 // that makes some minor distinctions, like whether the klass
 // is preloaded, optional, release-specific, etc.
 // The order of these definitions is significant; it is the order in which
-// preloading is actually performed by initialize_preloaded_classes.
+// preloading is actually performed by resolve_preloaded_classes.
 
 #define WK_KLASSES_DO(do_klass)                                                                                          \
   /* well-known classes */                                                                                               \
@@ -199,6 +199,9 @@ class OopStorage;
   do_klass(StackFrameInfo_klass,                        java_lang_StackFrameInfo,                  Opt                 ) \
   do_klass(LiveStackFrameInfo_klass,                    java_lang_LiveStackFrameInfo,              Opt                 ) \
                                                                                                                          \
+  /* support for stack dump lock analysis */                                                                             \
+  do_klass(java_util_concurrent_locks_AbstractOwnableSynchronizer_klass, java_util_concurrent_locks_AbstractOwnableSynchronizer, Pre ) \
+                                                                                                                         \
   /* Preload boxing klasses */                                                                                           \
   do_klass(Boolean_klass,                               java_lang_Boolean,                         Pre                 ) \
   do_klass(Character_klass,                             java_lang_Character,                       Pre                 ) \
@@ -276,12 +279,12 @@ public:
   // Resolve a superclass or superinterface. Called from ClassFileParser,
   // parse_interfaces, resolve_instance_class_or_null, load_shared_class
   // "child_name" is the class whose super class or interface is being resolved.
-  static Klass* resolve_super_or_fail(Symbol* child_name,
-                                      Symbol* class_name,
-                                      Handle class_loader,
-                                      Handle protection_domain,
-                                      bool is_superclass,
-                                      TRAPS);
+  static InstanceKlass* resolve_super_or_fail(Symbol* child_name,
+                                              Symbol* class_name,
+                                              Handle class_loader,
+                                              Handle protection_domain,
+                                              bool is_superclass,
+                                              TRAPS);
 
   // Parse new stream. This won't update the dictionary or
   // class hierarchy, simply parse the stream. Used by JVMTI RedefineClasses.
@@ -413,11 +416,11 @@ public:
 
   JVMCI_ONLY(static InstanceKlass* check_klass_Jvmci(InstanceKlass* k) { return k; })
 
-  static bool initialize_wk_klass(WKID id, int init_opt, TRAPS);
-  static void initialize_wk_klasses_until(WKID limit_id, WKID &start_id, TRAPS);
-  static void initialize_wk_klasses_through(WKID end_id, WKID &start_id, TRAPS) {
+  static bool resolve_wk_klass(WKID id, int init_opt, TRAPS);
+  static void resolve_wk_klasses_until(WKID limit_id, WKID &start_id, TRAPS);
+  static void resolve_wk_klasses_through(WKID end_id, WKID &start_id, TRAPS) {
     int limit = (int)end_id + 1;
-    initialize_wk_klasses_until((WKID) limit, start_id, THREAD);
+    resolve_wk_klasses_until((WKID) limit, start_id, THREAD);
   }
 
 public:
@@ -448,12 +451,6 @@ public:
     return check_klass(_box_klasses[t]);
   }
   static BasicType box_klass_type(Klass* k);  // inverse of box_klass
-
-  // methods returning lazily loaded klasses
-  // The corresponding method to load the class must be called before calling them.
-  static InstanceKlass* abstract_ownable_synchronizer_klass() { return check_klass(_abstract_ownable_synchronizer_klass); }
-
-  static void load_abstract_ownable_synchronizer_klass(TRAPS);
 
 protected:
   // Returns the class loader data to be used when looking up/updating the
@@ -573,10 +570,6 @@ public:
                                                      Handle *method_type_result,
                                                      TRAPS);
 
-  // Utility for printing loader "name" as part of tracing constraints
-  static const char* loader_name(const oop loader);
-  static const char* loader_name(const ClassLoaderData* loader_data);
-
   // Record the error when the first attempt to resolve a reference from a constant
   // pool entry to a class fails.
   static void add_resolution_error(const constantPoolHandle& pool, int which, Symbol* error,
@@ -644,7 +637,11 @@ protected:
   static SymbolPropertyTable* invoke_method_table() { return _invoke_method_table; }
 
   // Basic loading operations
-  static Klass* resolve_instance_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
+  static InstanceKlass* resolve_instance_class_or_null_helper(Symbol* name,
+                                                              Handle class_loader,
+                                                              Handle protection_domain,
+                                                              TRAPS);
+  static InstanceKlass* resolve_instance_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static Klass* resolve_array_class_or_null(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
   static InstanceKlass* handle_parallel_super_load(Symbol* class_name, Symbol* supername, Handle class_loader, Handle protection_domain, Handle lockObject, TRAPS);
   // Wait on SystemDictionary_lock; unlocks lockObject before
@@ -714,8 +711,8 @@ protected:
                                   ClassLoaderData* loader_data,
                                   TRAPS);
 
-  // Initialization
-  static void initialize_preloaded_classes(TRAPS);
+  // Resolve preloaded classes so they can be used like SystemDictionary::String_klass()
+  static void resolve_preloaded_classes(TRAPS);
 
   // Class loader constraints
   static void check_constraints(unsigned int hash,
@@ -728,9 +725,6 @@ protected:
 
   // Variables holding commonly used klasses (preloaded)
   static InstanceKlass* _well_known_klasses[];
-
-  // Lazily loaded klasses
-  static InstanceKlass* volatile _abstract_ownable_synchronizer_klass;
 
   // table of box klasses (int_klass, etc.)
   static InstanceKlass* _box_klasses[T_VOID+1];

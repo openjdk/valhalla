@@ -135,16 +135,13 @@ public class VerifyAccess {
             // Rules for privates follows access rules for nestmates.
             boolean canAccess = ((allowedModes & PRIVATE) != 0 &&
                                  Reflection.areNestMates(defc, lookupClass));
-            // FIX ME: Sanity check refc == defc. Either remove or convert to
-            // plain assert before integration.
-            myassert((canAccess && refc == defc) || !canAccess);
+            // for private methods the selected method equals the
+            // resolved method - so refc == defc
+            assert (canAccess && refc == defc) || !canAccess;
             return canAccess;
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
         }
-    }
-    static void myassert(boolean cond) {
-        if (!cond) throw new Error("Assertion failed");
     }
 
     static boolean isRelatedClass(Class<?> refc, Class<?> lookupClass) {
@@ -336,7 +333,6 @@ public class VerifyAccess {
      * @return whether they are in the same package
      */
     public static boolean isSamePackage(Class<?> class1, Class<?> class2) {
-        assert(!class1.isArray() && !class2.isArray());
         if (class1 == class2)
             return true;
         if (class1.getClassLoader() != class2.getClassLoader())

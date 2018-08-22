@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.graph.test.graphio;
 
 import java.io.File;
@@ -29,6 +31,7 @@ import org.junit.Assume;
 import org.junit.Test;
 
 public class GraphSnippetTest {
+    @SuppressWarnings("deprecation")
     @Test
     public void dumpTheFile() throws Exception {
         Class<?> snippets = null;

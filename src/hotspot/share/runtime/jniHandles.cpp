@@ -109,7 +109,7 @@ jobject JNIHandles::make_global(Handle obj, AllocFailType alloc_failmode) {
     // Return NULL on allocation failure.
     if (ptr != NULL) {
       assert(*ptr == NULL, "invariant");
-      RootAccess<IN_CONCURRENT_ROOT>::oop_store(ptr, obj());
+      NativeAccess<>::oop_store(ptr, obj());
       res = reinterpret_cast<jobject>(ptr);
     } else {
       report_handle_allocation_failure(alloc_failmode, "global");
@@ -133,7 +133,7 @@ jobject JNIHandles::make_weak_global(Handle obj, AllocFailType alloc_failmode) {
     // Return NULL on allocation failure.
     if (ptr != NULL) {
       assert(*ptr == NULL, "invariant");
-      RootAccess<ON_PHANTOM_OOP_REF>::oop_store(ptr, obj());
+      NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(ptr, obj());
       char* tptr = reinterpret_cast<char*>(ptr) + weak_tag_value;
       res = reinterpret_cast<jobject>(tptr);
     } else {
@@ -160,14 +160,14 @@ oop JNIHandles::resolve_external_guard(jobject handle) {
 oop JNIHandles::resolve_jweak(jweak handle) {
   assert(handle != NULL, "precondition");
   assert(is_jweak(handle), "precondition");
-  return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(jweak_ptr(handle));
+  return NativeAccess<ON_PHANTOM_OOP_REF>::oop_load(jweak_ptr(handle));
 }
 
 bool JNIHandles::is_global_weak_cleared(jweak handle) {
   assert(handle != NULL, "precondition");
   assert(is_jweak(handle), "not a weak handle");
   oop* oop_ptr = jweak_ptr(handle);
-  oop value = RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(oop_ptr);
+  oop value = NativeAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(oop_ptr);
   return value == NULL;
 }
 
@@ -175,7 +175,7 @@ void JNIHandles::destroy_global(jobject handle) {
   if (handle != NULL) {
     assert(!is_jweak(handle), "wrong method for detroying jweak");
     oop* oop_ptr = jobject_ptr(handle);
-    RootAccess<IN_CONCURRENT_ROOT>::oop_store(oop_ptr, (oop)NULL);
+    NativeAccess<>::oop_store(oop_ptr, (oop)NULL);
     global_handles()->release(oop_ptr);
   }
 }
@@ -185,7 +185,7 @@ void JNIHandles::destroy_weak_global(jobject handle) {
   if (handle != NULL) {
     assert(is_jweak(handle), "JNI handle not jweak");
     oop* oop_ptr = jweak_ptr(handle);
-    RootAccess<ON_PHANTOM_OOP_REF>::oop_store(oop_ptr, (oop)NULL);
+    NativeAccess<ON_PHANTOM_OOP_REF>::oop_store(oop_ptr, (oop)NULL);
     weak_global_handles()->release(oop_ptr);
   }
 }
@@ -318,7 +318,7 @@ void JNIHandles::print_on(outputStream* st) {
 class VerifyJNIHandles: public OopClosure {
 public:
   virtual void do_oop(oop* root) {
-    (*root)->verify();
+    oopDesc::verify(*root);
   }
   virtual void do_oop(narrowOop* root) { ShouldNotReachHere(); }
 };
@@ -327,7 +327,11 @@ void JNIHandles::verify() {
   VerifyJNIHandles verify_handle;
 
   oops_do(&verify_handle);
-  weak_oops_do(&verify_handle);
+
+  // JNI weaks are handled concurrently in ZGC, so they can't be verified here
+  if (!UseZGC) {
+    weak_oops_do(&verify_handle);
+  }
 }
 
 // This method is implemented here to avoid circular includes between
@@ -513,7 +517,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj) {
   // Try last block
   if (_last->_top < block_size_in_oops) {
     oop* handle = &(_last->_handles)[_last->_top++];
-    RootAccess<AS_DEST_NOT_INITIALIZED>::oop_store(handle, obj);
+    NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
     return (jobject) handle;
   }
 
@@ -521,7 +525,7 @@ jobject JNIHandleBlock::allocate_handle(oop obj) {
   if (_free_list != NULL) {
     oop* handle = _free_list;
     _free_list = (oop*) *_free_list;
-    RootAccess<AS_DEST_NOT_INITIALIZED>::oop_store(handle, obj);
+    NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, obj);
     return (jobject) handle;
   }
   // Check if unused block follow last

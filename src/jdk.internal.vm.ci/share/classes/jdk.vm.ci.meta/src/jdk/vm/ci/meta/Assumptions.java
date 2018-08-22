@@ -22,8 +22,6 @@
  */
 package jdk.vm.ci.meta;
 
-import java.lang.invoke.CallSite;
-import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -100,7 +98,7 @@ public final class Assumptions implements Iterable<Assumptions.Assumption> {
     }
 
     /**
-     * An assumption that a given class has no subclasses implementing {@link Object#finalize()}).
+     * An assumption that a given class has no subclasses implementing {@code Object#finalize()}).
      */
     public static final class NoFinalizableSubclass extends Assumption {
 
@@ -274,10 +272,10 @@ public final class Assumptions implements Iterable<Assumptions.Assumption> {
      */
     public static final class CallSiteTargetValue extends Assumption {
 
-        public final CallSite callSite;
-        public final MethodHandle methodHandle;
+        public final JavaConstant callSite;
+        public final JavaConstant methodHandle;
 
-        public CallSiteTargetValue(CallSite callSite, MethodHandle methodHandle) {
+        public CallSiteTargetValue(JavaConstant callSite, JavaConstant methodHandle) {
             this.callSite = callSite;
             this.methodHandle = methodHandle;
         }

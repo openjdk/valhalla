@@ -149,6 +149,24 @@
 #define NOT_CMSGC_RETURN_(code) { return code; }
 #endif // INCLUDE_CMSGC
 
+#ifndef INCLUDE_EPSILONGC
+#define INCLUDE_EPSILONGC 1
+#endif // INCLUDE_EPSILONGC
+
+#if INCLUDE_EPSILONGC
+#define EPSILONGC_ONLY(x) x
+#define EPSILONGC_ONLY_ARG(arg) arg,
+#define NOT_EPSILONGC(x)
+#define NOT_EPSILONGC_RETURN        /* next token must be ; */
+#define NOT_EPSILONGC_RETURN_(code) /* next token must be ; */
+#else
+#define EPSILONGC_ONLY(x)
+#define EPSILONGC_ONLY_ARG(arg)
+#define NOT_EPSILONGC(x) x
+#define NOT_EPSILONGC_RETURN        {}
+#define NOT_EPSILONGC_RETURN_(code) { return code; }
+#endif // INCLUDE_EPSILONGC
+
 #ifndef INCLUDE_G1GC
 #define INCLUDE_G1GC 1
 #endif // INCLUDE_G1GC
@@ -203,13 +221,23 @@
 #define NOT_SERIALGC_RETURN_(code) { return code; }
 #endif // INCLUDE_SERIALGC
 
-#if INCLUDE_CMSGC || INCLUDE_G1GC || INCLUDE_PARALLELGC
-#define INCLUDE_NOT_ONLY_SERIALGC 1
-#else
-#define INCLUDE_NOT_ONLY_SERIALGC 0
-#endif
+#ifndef INCLUDE_ZGC
+#define INCLUDE_ZGC 1
+#endif // INCLUDE_ZGC
 
-#define INCLUDE_OOP_OOP_ITERATE_BACKWARDS INCLUDE_NOT_ONLY_SERIALGC
+#if INCLUDE_ZGC
+#define ZGC_ONLY(x) x
+#define ZGC_ONLY_ARG(arg) arg,
+#define NOT_ZGC(x)
+#define NOT_ZGC_RETURN        /* next token must be ; */
+#define NOT_ZGC_RETURN_(code) /* next token must be ; */
+#else
+#define ZGC_ONLY(x)
+#define ZGC_ONLY_ARG(arg)
+#define NOT_ZGC(x) x
+#define NOT_ZGC_RETURN        {}
+#define NOT_ZGC_RETURN_(code) { return code; }
+#endif // INCLUDE_ZGC
 
 #ifndef INCLUDE_NMT
 #define INCLUDE_NMT 1
@@ -541,6 +569,14 @@
 #define NOT_AARCH64(code) code
 #endif
 
+#ifdef VM_LITTLE_ENDIAN
+#define LITTLE_ENDIAN_ONLY(code) code
+#define BIG_ENDIAN_ONLY(code)
+#else
+#define LITTLE_ENDIAN_ONLY(code)
+#define BIG_ENDIAN_ONLY(code) code
+#endif
+
 #define define_pd_global(type, name, value) const type pd_##name = value;
 
 // Helper macros for constructing file names for includes.
@@ -572,26 +608,6 @@
 // basename<compiler>.hpp / basename<compiler>.inline.hpp
 #define COMPILER_HEADER(basename)        XSTR(COMPILER_HEADER_STEM(basename).hpp)
 #define COMPILER_HEADER_INLINE(basename) XSTR(COMPILER_HEADER_STEM(basename).inline.hpp)
-
-// To use Atomic::inc(jshort* dest) and Atomic::dec(jshort* dest), the address must be specially
-// aligned, such that (*dest) occupies the upper 16 bits of an aligned 32-bit word. The best way to
-// achieve is to place your short value next to another short value, which doesn't need atomic ops.
-//
-// Example
-//  ATOMIC_SHORT_PAIR(
-//    volatile short _refcount,  // needs atomic operation
-//    unsigned short _length     // number of UTF8 characters in the symbol (does not need atomic op)
-//  );
-
-#ifdef VM_LITTLE_ENDIAN
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    non_atomic_decl;                                       \
-    atomic_decl
-#else
-  #define ATOMIC_SHORT_PAIR(atomic_decl, non_atomic_decl)  \
-    atomic_decl;                                           \
-    non_atomic_decl
-#endif
 
 #if INCLUDE_CDS && INCLUDE_G1GC && defined(_LP64) && !defined(_WINDOWS)
 #define INCLUDE_CDS_JAVA_HEAP 1

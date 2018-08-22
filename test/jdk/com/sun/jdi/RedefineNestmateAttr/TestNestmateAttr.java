@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8010319
+ * @bug 8046171
  * @summary Class redefinition must preclude changes to nest attributes
  * @comment This is a copy of test/jdk/java/lang/instrument/RedefineNestmateAttr/
  * @comment modified for JDI
@@ -189,12 +189,14 @@ class Target {
 
         }
 
+        breakpoint();    // debugger runs to here before enabling events
         allowRedefine(); // debugger stops us here to attempt redefinitions
 
         System.out.println("Target executed okay");
     }
 
-    public static void allowRedefine() { }
+    static void allowRedefine() { }
+    static void breakpoint() { }
 }
 
 public class TestNestmateAttr extends TestScaffold {
@@ -226,7 +228,7 @@ public class TestNestmateAttr extends TestScaffold {
 
     public void runTests() throws Exception {
         // Get Target into debuggable state
-        BreakpointEvent bpe = startToMain("Target");
+        BreakpointEvent bpe = startTo("Target", "breakpoint", "()V");
         EventRequestManager erm = vm().eventRequestManager();
         MethodEntryRequest mee = erm.createMethodEntryRequest();
         mee.addClassFilter("Target");
@@ -313,7 +315,7 @@ public class TestNestmateAttr extends TestScaffold {
         default: throw new Error("Unknown test directory: " + origin);
         }
 
-        // Need to locate the type we will be trying to redefine  in Target
+        // Need to locate the type we will be trying to redefine in Target
         findReferenceTypes();
 
         try {
@@ -500,7 +502,7 @@ public class TestNestmateAttr extends TestScaffold {
     void checkGoodTransforms(ReferenceType c, String[] dirs) throws Throwable {
         // To verify the redefinition actually took place we will invoke the
         // Host.getID method and check the result. To do that we need to find the
-        // main thread in the target VM. We don't  check that "(new Host()).m()"
+        // main thread in the target VM. We don't check that "(new Host()).m()"
         // returns 2 due to the complexity of setting that up via JDI.
 
         ThreadReference main = null;

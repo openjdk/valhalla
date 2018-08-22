@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,10 +40,11 @@ import java.awt.peer.DesktopPeer;
 import java.io.File;
 import java.io.FilePermission;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Objects;
 
 import javax.swing.JMenuBar;
 
@@ -82,10 +83,6 @@ import sun.security.util.SecurityConstants;
  * <p> Note: when some action is invoked and the associated
  * application is executed, it will be executed on the same system as
  * the one on which the Java application was launched.
- *
- * <p> Note: the methods in the {@code Desktop} class may require
- * platform-dependent permissions in addition to those described in the
- * specification.
  *
  * @see Action
  *
@@ -364,15 +361,11 @@ public class Desktop {
      * @throws NullPointerException if file is null
      * @throws IllegalArgumentException if file doesn't exist
      */
-    private static void checkFileValidation(File file){
-        if (file == null) throw new NullPointerException("File must not be null");
-
+    private static void checkFileValidation(File file) {
         if (!file.exists()) {
             throw new IllegalArgumentException("The file: "
                     + file.getPath() + " doesn't exist.");
         }
-
-        file.canRead();
     }
 
     /**
@@ -391,11 +384,12 @@ public class Desktop {
 
 
     /**
-     *  Calls to the security manager's {@code checkPermission} method with
-     *  an {@code AWTPermission("showWindowWithoutWarningBanner")}
-     *  permission.
+     * Calls to the security manager's {@code checkPermission} method with an
+     * {@code AWTPermission("showWindowWithoutWarningBanner")} permission. This
+     * permission is needed, because we cannot add a security warning icon to
+     * the windows of the external native application.
      */
-    private void checkAWTPermission(){
+    private void checkAWTPermission() {
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(new AWTPermission(
@@ -426,6 +420,7 @@ public class Desktop {
      * @see java.awt.AWTPermission
      */
     public void open(File file) throws IOException {
+        file = new File(file.getPath());
         checkAWTPermission();
         checkExec();
         checkActionSupport(Action.OPEN);
@@ -457,6 +452,7 @@ public class Desktop {
      * @see java.awt.AWTPermission
      */
     public void edit(File file) throws IOException {
+        file = new File(file.getPath());
         checkAWTPermission();
         checkExec();
         checkActionSupport(Action.EDIT);
@@ -487,6 +483,7 @@ public class Desktop {
      * allowed to create a subprocess
      */
     public void print(File file) throws IOException {
+        file = new File(file.getPath());
         checkExec();
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
@@ -505,13 +502,6 @@ public class Desktop {
      * {@code URIs} of the specified type is invoked. The application
      * is determined from the protocol and path of the {@code URI}, as
      * defined by the {@code URI} class.
-     * <p>
-     * If the calling thread does not have the necessary permissions,
-     * and this is invoked from within an applet,
-     * {@code AppletContext.showDocument()} is used. Similarly, if the calling
-     * does not have the necessary permissions, and this is invoked from within
-     * a Java Web Started application, {@code BasicService.showDocument()}
-     * is used.
      *
      * @param uri the URI to be displayed in the user default browser
      * @throws NullPointerException if {@code uri} is {@code null}
@@ -524,46 +514,16 @@ public class Desktop {
      * denies the
      * {@code AWTPermission("showWindowWithoutWarningBanner")}
      * permission, or the calling thread is not allowed to create a
-     * subprocess; and not invoked from within an applet or Java Web Started
-     * application
-     * @throws IllegalArgumentException if the necessary permissions
-     * are not available and the URI can not be converted to a {@code URL}
+     * subprocess
      * @see java.net.URI
      * @see java.awt.AWTPermission
-     * @see java.applet.AppletContext
      */
     public void browse(URI uri) throws IOException {
-        SecurityException securityException = null;
-        try {
-            checkAWTPermission();
-            checkExec();
-        } catch (SecurityException e) {
-            securityException = e;
-        }
+        checkAWTPermission();
+        checkExec();
         checkActionSupport(Action.BROWSE);
-        if (uri == null) {
-            throw new NullPointerException();
-        }
-        if (securityException == null) {
-            peer.browse(uri);
-            return;
-        }
-
-        // Calling thread doesn't have necessary privileges.
-        // Delegate to DesktopBrowse so that it can work in
-        // applet/webstart.
-        URL url = null;
-        try {
-            url = uri.toURL();
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException("Unable to convert URI to URL", e);
-        }
-        sun.awt.DesktopBrowse db = sun.awt.DesktopBrowse.getInstance();
-        if (db == null) {
-            // Not in webstart/applet, throw the exception.
-            throw securityException;
-        }
-        db.browse(url);
+        Objects.requireNonNull(uri);
+        peer.browse(uri);
     }
 
     /**
@@ -649,14 +609,6 @@ public class Desktop {
         if (sm != null) {
             sm.checkPermission(new FilePermission("<<ALL FILES>>",
                     SecurityConstants.FILE_READ_ACTION));
-        }
-    }
-
-    private void checkDelete() throws SecurityException {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission(new FilePermission("<<ALL FILES>>",
-                    SecurityConstants.FILE_DELETE_ACTION));
         }
     }
 
@@ -982,12 +934,18 @@ public class Desktop {
      * and registered in the Info.plist with CFBundleHelpBookFolder
      *
      * @throws SecurityException if a security manager exists and it denies the
-     * {@code RuntimePermission("canProcessApplicationEvents")} permission.
+     *         {@code RuntimePermission("canProcessApplicationEvents")}
+     *         permission, or it denies the
+     *         {@code AWTPermission("showWindowWithoutWarningBanner")}
+     *         permission, or the calling thread is not allowed to create a
+     *         subprocess
      * @throws UnsupportedOperationException if the current platform
      * does not support the {@link Desktop.Action#APP_HELP_VIEWER} action
      * @since 9
      */
     public void openHelpViewer() {
+        checkAWTPermission();
+        checkExec();
         checkEventsProcessingPermission();
         checkActionSupport(Action.APP_HELP_VIEWER);
         peer.openHelpViewer();
@@ -1024,18 +982,27 @@ public class Desktop {
      * @param file the file
      * @throws SecurityException If a security manager exists and its
      *         {@link SecurityManager#checkRead(java.lang.String)} method
-     *         denies read access to the file
+     *         denies read access to the file or to its parent, or it denies the
+     *         {@code AWTPermission("showWindowWithoutWarningBanner")}
+     *         permission, or the calling thread is not allowed to create a
+     *         subprocess
      * @throws UnsupportedOperationException if the current platform
      *         does not support the {@link Desktop.Action#BROWSE_FILE_DIR} action
      * @throws NullPointerException if {@code file} is {@code null}
-     * @throws IllegalArgumentException if the specified file doesn't
-     * exist
+     * @throws IllegalArgumentException if the specified file or its parent
+     *         doesn't exist
      * @since 9
      */
     public void browseFileDirectory(File file) {
-        checkRead();
+        file = new File(file.getPath());
+        checkAWTPermission();
+        checkExec();
         checkActionSupport(Action.BROWSE_FILE_DIR);
         checkFileValidation(file);
+        File parentFile = file.getParentFile();
+        if (parentFile == null || !parentFile.exists()) {
+            throw new IllegalArgumentException("Parent folder doesn't exist");
+        }
         peer.browseFileDirectory(file);
     }
 
@@ -1050,15 +1017,22 @@ public class Desktop {
      * @throws UnsupportedOperationException if the current platform
      *         does not support the {@link Desktop.Action#MOVE_TO_TRASH} action
      * @throws NullPointerException if {@code file} is {@code null}
-     * @throws IllegalArgumentException if the specified file doesn't
-     * exist
+     * @throws IllegalArgumentException if the specified file doesn't exist
      *
      * @since 9
      */
-    public boolean moveToTrash(final File file) {
-        checkDelete();
+    public boolean moveToTrash(File file) {
+        file = new File(file.getPath());
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkDelete(file.getPath());
+        }
         checkActionSupport(Action.MOVE_TO_TRASH);
-        checkFileValidation(file);
+        final File finalFile = file;
+        AccessController.doPrivileged((PrivilegedAction<?>) () -> {
+            checkFileValidation(finalFile);
+            return null;
+        });
         return peer.moveToTrash(file);
     }
 }

@@ -347,7 +347,12 @@ WB_ENTRY(jboolean, WB_isObjectInOldGen(JNIEnv* env, jobject o, jobject obj))
     ParallelScavengeHeap* psh = ParallelScavengeHeap::heap();
     return !psh->is_in_young(p);
   }
-#endif // INCLUDE_PARALLELGC
+#endif
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    return Universe::heap()->is_in(p);
+  }
+#endif
   GenCollectedHeap* gch = GenCollectedHeap::heap();
   return !gch->is_in_young(p);
 WB_END
@@ -850,7 +855,16 @@ WB_END
 bool WhiteBox::compile_method(Method* method, int comp_level, int bci, Thread* THREAD) {
   // Screen for unavailable/bad comp level or null method
   AbstractCompiler* comp = CompileBroker::compiler(comp_level);
-  if (method == NULL || comp_level > MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier) || comp == NULL) {
+  if (method == NULL) {
+    tty->print_cr("WB error: request to compile NULL method");
+    return false;
+  }
+  if (comp_level > MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier)) {
+    tty->print_cr("WB error: invalid compilation level %d", comp_level);
+    return false;
+  }
+  if (comp == NULL) {
+    tty->print_cr("WB error: no compiler for requested compilation level %d", comp_level);
     return false;
   }
 
@@ -863,7 +877,17 @@ bool WhiteBox::compile_method(Method* method, int comp_level, int bci, Thread* T
   // Compile method and check result
   nmethod* nm = CompileBroker::compile_method(mh, bci, comp_level, mh, mh->invocation_count(), CompileTask::Reason_Whitebox, THREAD);
   MutexLockerEx mu(Compile_lock);
-  return ((!is_blocking && mh->queued_for_compilation()) || nm != NULL);
+  bool is_queued = mh->queued_for_compilation();
+  if ((!is_blocking && is_queued) || nm != NULL) {
+    return true;
+  }
+  tty->print("WB error: failed to %s compile at level %d method ", is_blocking ? "blocking" : "", comp_level);
+  mh->print_short_name(tty);
+  tty->cr();
+  if (is_blocking && is_queued) {
+    tty->print_cr("WB error: blocking compilation is still in queue!");
+  }
+  return false;
 }
 
 WB_ENTRY(jboolean, WB_EnqueueMethodForCompilation(JNIEnv* env, jobject o, jobject method, jint comp_level, jint bci))
@@ -1111,7 +1135,7 @@ WB_ENTRY(jobject, WB_GetUint64VMFlag(JNIEnv* env, jobject o, jstring name))
 WB_END
 
 WB_ENTRY(jobject, WB_GetSizeTVMFlag(JNIEnv* env, jobject o, jstring name))
-  uintx result;
+  size_t result;
   if (GetVMFlag <size_t> (thread, env, name, &result, &JVMFlag::size_tAt)) {
     ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
     return longBox(thread, env, result);
@@ -1761,6 +1785,14 @@ WB_ENTRY(jboolean, WB_IsJavaHeapArchiveSupported(JNIEnv* env))
 WB_END
 
 
+WB_ENTRY(jboolean, WB_IsJFRIncludedInVmBuild(JNIEnv* env))
+#if INCLUDE_JFR
+  return true;
+#else
+  return false;
+#endif // INCLUDE_JFR
+WB_END
+
 #if INCLUDE_CDS
 
 WB_ENTRY(jint, WB_GetOffsetForName(JNIEnv* env, jobject o, jstring name))
@@ -2139,6 +2171,7 @@ static JNINativeMethod methods[] = {
   {CC"getResolvedReferences", CC"(Ljava/lang/Class;)Ljava/lang/Object;", (void*)&WB_GetResolvedReferences},
   {CC"areOpenArchiveHeapObjectsMapped",   CC"()Z",    (void*)&WB_AreOpenArchiveHeapObjectsMapped},
   {CC"isCDSIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsCDSIncludedInVmBuild },
+  {CC"isJFRIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsJFRIncludedInVmBuild },
   {CC"isJavaHeapArchiveSupported",      CC"()Z",      (void*)&WB_IsJavaHeapArchiveSupported },
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },

@@ -20,16 +20,21 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.List;
 
 import org.graalvm.compiler.core.common.CompressEncoding;
 import org.graalvm.compiler.hotspot.nodes.GraalHotSpotVMConfigNode;
 
 import jdk.vm.ci.common.JVMCIError;
+import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
 import jdk.vm.ci.hotspot.HotSpotVMConfigStore;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 
 /**
  * Used to access native configuration details.
@@ -79,6 +84,9 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int codeSegmentSize = getFlag("CodeCacheSegmentSize", Integer.class);
     public final boolean foldStableValues = getFlag("FoldStableValues", Boolean.class);
     public final int maxVectorSize = getFlag("MaxVectorSize", Integer.class);
+
+    public final boolean verifyBeforeGC = getFlag("VerifyBeforeGC", Boolean.class);
+    public final boolean verifyAfterGC = getFlag("VerifyAfterGC", Boolean.class);
 
     public final boolean useTLAB = getFlag("UseTLAB", Boolean.class);
     public final boolean useBiasedLocking = getFlag("UseBiasedLocking", Boolean.class);
@@ -310,6 +318,17 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int jvmciCountersThreadOffset = getFieldOffset("JavaThread::_jvmci_counters", Integer.class, "jlong*");
     public final int javaThreadReservedStackActivationOffset = versioned.javaThreadReservedStackActivationOffset;
 
+    public boolean requiresReservedStackCheck(List<ResolvedJavaMethod> methods) {
+        if (enableStackReservedZoneAddress != 0 && methods != null) {
+            for (ResolvedJavaMethod method : methods) {
+                if (((HotSpotResolvedJavaMethod) method).hasReservedStackAccess()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * An invalid value for {@link #rtldDefault}.
      */
@@ -350,7 +369,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int pendingExceptionOffset = getFieldOffset("ThreadShadow::_pending_exception", Integer.class, "oop");
 
     public final int pendingDeoptimizationOffset = getFieldOffset("JavaThread::_pending_deoptimization", Integer.class, "int");
-    public final int pendingFailedSpeculationOffset = getFieldOffset("JavaThread::_pending_failed_speculation", Integer.class, "oop");
+    public final int pendingFailedSpeculationOffset = getFieldOffset("JavaThread::_pending_failed_speculation", Integer.class, "long");
     public final int pendingTransferToInterpreterOffset = getFieldOffset("JavaThread::_pending_transfer_to_interpreter", Integer.class, "bool");
 
     private final int javaFrameAnchorLastJavaSpOffset = getFieldOffset("JavaFrameAnchor::_last_Java_sp", Integer.class, "intptr_t*");

@@ -35,6 +35,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
 
+#include <dirent.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
@@ -50,6 +51,8 @@
 #define MAX_PID INT_MAX
 #endif
 #define IS_VALID_PID(p) (p > 0 && p < MAX_PID)
+
+#define ROOT_UID 0
 
 #ifndef MAP_ANONYMOUS
   #define MAP_ANONYMOUS MAP_ANON
@@ -146,6 +149,19 @@ bool os::unsetenv(const char* name) {
 
 int os::get_last_error() {
   return errno;
+}
+
+size_t os::lasterror(char *buf, size_t len) {
+  if (errno == 0)  return 0;
+
+  const char *s = os::strerror(errno);
+  size_t n = ::strlen(s);
+  if (n >= len) {
+    n = len - 1;
+  }
+  ::strncpy(buf, s, n);
+  buf[n] = '\0';
+  return n;
 }
 
 bool os::is_debugger_attached() {
@@ -510,6 +526,21 @@ void os::flockfile(FILE* fp) {
 
 void os::funlockfile(FILE* fp) {
   ::funlockfile(fp);
+}
+
+DIR* os::opendir(const char* dirname) {
+  assert(dirname != NULL, "just checking");
+  return ::opendir(dirname);
+}
+
+struct dirent* os::readdir(DIR* dirp) {
+  assert(dirp != NULL, "just checking");
+  return ::readdir(dirp);
+}
+
+int os::closedir(DIR *dirp) {
+  assert(dirp != NULL, "just checking");
+  return ::closedir(dirp);
 }
 
 // Builds a platform dependent Agent_OnLoad_<lib_name> function name
@@ -1332,6 +1363,13 @@ char* os::Posix::realpath(const char* filename, char* outbuf, size_t outbuflen) 
 
 }
 
+int os::stat(const char *path, struct stat *sbuf) {
+  return ::stat(path, sbuf);
+}
+
+char * os::native_path(char *path) {
+  return path;
+}
 
 // Check minimum allowable stack sizes for thread creation and to initialize
 // the java system classes, including StackOverflowError - depends on page
@@ -1452,6 +1490,18 @@ size_t os::Posix::get_initial_stack_size(ThreadType thr_type, size_t req_stack_s
   }
 
   return stack_size;
+}
+
+bool os::Posix::is_root(uid_t uid){
+    return ROOT_UID == uid;
+}
+
+bool os::Posix::matches_effective_uid_or_root(uid_t uid) {
+    return is_root(uid) || geteuid() == uid;
+}
+
+bool os::Posix::matches_effective_uid_and_gid_or_root(uid_t uid, gid_t gid) {
+    return is_root(uid) || (geteuid() == uid && getegid() == gid);
 }
 
 Thread* os::ThreadCrashProtection::_protected_thread = NULL;

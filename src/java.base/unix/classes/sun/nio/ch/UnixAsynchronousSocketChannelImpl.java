@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.util.concurrent.*;
 import java.io.IOException;
 import java.io.FileDescriptor;
 import sun.net.NetHooks;
+import sun.net.util.SocketExceptions;
 import sun.security.action.GetPropertyAction;
 
 /**
@@ -258,6 +259,10 @@ class UnixAsynchronousSocketChannelImpl
             end();
         }
         if (e != null) {
+            if (e instanceof IOException) {
+                var isa = (InetSocketAddress)pendingRemote;
+                e = SocketExceptions.of((IOException)e, isa);
+            }
             // close channel if connection cannot be established
             try {
                 close();
@@ -268,6 +273,7 @@ class UnixAsynchronousSocketChannelImpl
 
         // invoke handler and set result
         CompletionHandler<Void,Object> handler = connectHandler;
+        connectHandler = null;
         Object att = connectAttachment;
         PendingFuture<Void,Object> future = connectFuture;
         if (handler == null) {
@@ -350,6 +356,9 @@ class UnixAsynchronousSocketChannelImpl
 
         // close channel if connect fails
         if (e != null) {
+            if (e instanceof IOException) {
+                e = SocketExceptions.of((IOException)e, isa);
+            }
             try {
                 close();
             } catch (Throwable suppressed) {
@@ -397,6 +406,7 @@ class UnixAsynchronousSocketChannelImpl
             this.readBuffer = null;
             this.readBuffers = null;
             this.readAttachment = null;
+            this.readHandler = null;
 
             // allow another read to be initiated
             enableReading();
@@ -592,6 +602,7 @@ class UnixAsynchronousSocketChannelImpl
             this.writeBuffer = null;
             this.writeBuffers = null;
             this.writeAttachment = null;
+            this.writeHandler = null;
 
             // allow another write to be initiated
             enableWriting();

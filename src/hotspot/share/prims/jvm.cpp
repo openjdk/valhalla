@@ -38,6 +38,8 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/resourceArea.hpp"
@@ -64,7 +66,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
@@ -661,9 +663,10 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   oop new_obj_oop = NULL;
   if (obj->is_array()) {
     const int length = ((arrayOop)obj())->length();
-    new_obj_oop = CollectedHeap::array_allocate(klass, size, length, CHECK_NULL);
+    new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
+                                                   /* do_zero */ true, CHECK_NULL);
   } else {
-    new_obj_oop = CollectedHeap::obj_allocate(klass, size, CHECK_NULL);
+    new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
   }
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
@@ -1115,7 +1118,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
     return NULL;
   }
 
-  objArrayOop signers = java_lang_Class::signers(JNIHandles::resolve_non_null(cls));
+  objArrayHandle signers(THREAD, java_lang_Class::signers(JNIHandles::resolve_non_null(cls)));
 
   // If there are no signers set in the class, or if the class
   // is an array, return NULL.
@@ -3594,6 +3597,13 @@ JVM_END
 JVM_LEAF(jboolean, JVM_SupportsCX8())
   JVMWrapper("JVM_SupportsCX8");
   return VM_Version::supports_cx8();
+JVM_END
+
+JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
+  JVMWrapper("JVM_InitializeFromArchive");
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
+  assert(k->is_klass(), "just checking");
+  HeapShared::initialize_from_archived_subgraph(k);
 JVM_END
 
 // Returns an array of all live Thread objects (VM internal JavaThreads,

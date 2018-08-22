@@ -1547,13 +1547,13 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
     methodHandle    trap_method = trap_scope->method();
     int             trap_bci    = trap_scope->bci();
 #if INCLUDE_JVMCI
-    oop speculation = thread->pending_failed_speculation();
+    long speculation = thread->pending_failed_speculation();
     if (nm->is_compiled_by_jvmci()) {
-      if (speculation != NULL) {
+      if (speculation != 0) {
         oop speculation_log = nm->as_nmethod()->speculation_log();
         if (speculation_log != NULL) {
           if (TraceDeoptimization || TraceUncollectedSpeculations) {
-            if (HotSpotSpeculationLog::lastFailed(speculation_log) != NULL) {
+            if (HotSpotSpeculationLog::lastFailed(speculation_log) != 0) {
               tty->print_cr("A speculation that was not collected by the compiler is being overwritten");
             }
           }
@@ -1566,14 +1566,14 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
             tty->print_cr("Speculation present but no speculation log");
           }
         }
-        thread->set_pending_failed_speculation(NULL);
+        thread->set_pending_failed_speculation(0);
       } else {
         if (TraceDeoptimization) {
           tty->print_cr("No speculation");
         }
       }
     } else {
-      assert(speculation == NULL, "There should not be a speculation for method compiled by non-JVMCI compilers");
+      assert(speculation == 0, "There should not be a speculation for method compiled by non-JVMCI compilers");
     }
 
     if (trap_bci == SynchronizationEntryBCI) {
@@ -2044,7 +2044,7 @@ Deoptimization::update_method_data_from_interpreter(MethodData* trap_mdo, int tr
   bool ignore_maybe_prior_recompile;
   assert(!reason_is_speculate(reason), "reason speculate only used by compiler");
   // JVMCI uses the total counts to determine if deoptimizations are happening too frequently -> do not adjust total counts
-  bool update_total_counts = JVMCI_ONLY(false) NOT_JVMCI(true);
+  bool update_total_counts = true JVMCI_ONLY( && !UseJVMCICompiler);
   query_update_method_data(trap_mdo, trap_bci,
                            (DeoptReason)reason,
                            update_total_counts,
@@ -2071,7 +2071,7 @@ Deoptimization::UnrollBlock* Deoptimization::uncommon_trap(JavaThread* thread, j
 
 // Local derived constants.
 // Further breakdown of DataLayout::trap_state, as promised by DataLayout.
-const int DS_REASON_MASK   = DataLayout::trap_mask >> 1;
+const int DS_REASON_MASK   = ((uint)DataLayout::trap_mask) >> 1;
 const int DS_RECOMPILE_BIT = DataLayout::trap_mask - DS_REASON_MASK;
 
 //---------------------------trap_state_reason---------------------------------
@@ -2170,6 +2170,7 @@ const char* Deoptimization::_trap_reason_name[] = {
   "array_check",
   "intrinsic" JVMCI_ONLY("_or_type_checked_inlining"),
   "bimorphic" JVMCI_ONLY("_or_optimized_type_check"),
+  "profile_predicate",
   "unloaded",
   "uninitialized",
   "unreached",

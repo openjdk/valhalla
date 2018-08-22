@@ -169,6 +169,8 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
     case Op_LoadI:
     case Op_LoadL:
     case Op_LoadP:
+    case Op_LoadBarrierSlowReg:
+    case Op_LoadBarrierWeakSlowReg:
     case Op_LoadN:
     case Op_LoadS:
     case Op_LoadKlass:
@@ -644,7 +646,7 @@ Node* PhaseCFG::select(
     }
   } // End of for all ready nodes in worklist
 
-  assert(idx >= 0, "index should be set");
+  guarantee(idx >= 0, "index should be set");
   Node *n = worklist[(uint)idx];      // Get the winner
 
   worklist.map((uint)idx, worklist.pop());     // Compress worklist

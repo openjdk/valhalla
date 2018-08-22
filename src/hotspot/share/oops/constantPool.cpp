@@ -296,6 +296,11 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
     }
 
     oop archived = MetaspaceShared::archive_heap_object(rr, THREAD);
+    // If the resolved references array is not archived (too large),
+    // the 'archived' object is NULL. No need to explicitly check
+    // the return value of archive_heap_object here. At runtime, the
+    // resolved references will be created using the normal process
+    // when there is no archived value.
     _cache->set_archived_references(archived);
     set_resolved_references(NULL);
   }
@@ -805,6 +810,17 @@ void ConstantPool::save_and_throw_exception(const constantPoolHandle& this_cp, i
     // some other thread put this in error state
     throw_resolution_error(this_cp, which, CHECK);
   }
+}
+
+constantTag ConstantPool::constant_tag_at(int which) {
+  constantTag tag = tag_at(which);
+  if (tag.is_dynamic_constant() ||
+      tag.is_dynamic_constant_in_error()) {
+    // have to look at the signature for this one
+    Symbol* constant_type = uncached_signature_ref_at(which);
+    return constantTag::ofBasicType(FieldType::basic_type(constant_type));
+  }
+  return tag;
 }
 
 BasicType ConstantPool::basic_type_for_constant_at(int which) {
@@ -2479,9 +2495,9 @@ void ConstantPool::print_value_on(outputStream* st) const {
   if (has_preresolution()) st->print("/preresolution");
   if (operands() != NULL)  st->print("/operands[%d]", operands()->length());
   print_address_on(st);
-  st->print(" for ");
-  pool_holder()->print_value_on(st);
   if (pool_holder() != NULL) {
+    st->print(" for ");
+    pool_holder()->print_value_on(st);
     bool extra = (pool_holder()->constants() != this);
     if (extra)  st->print(" (extra)");
   }

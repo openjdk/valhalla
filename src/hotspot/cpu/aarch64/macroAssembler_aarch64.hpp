@@ -180,8 +180,9 @@ class MacroAssembler: public Assembler {
 
   template<class T>
   inline void cmpw(Register Rd, T imm)  { subsw(zr, Rd, imm); }
-  // imm is limited to 12 bits.
-  inline void cmp(Register Rd, unsigned imm)  { subs(zr, Rd, imm); }
+
+  inline void cmp(Register Rd, unsigned char imm8)  { subs(zr, Rd, imm8); }
+  inline void cmp(Register Rd, unsigned imm) __attribute__ ((deprecated));
 
   inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
   inline void cmn(Register Rd, unsigned imm) { adds(zr, Rd, imm); }
@@ -795,6 +796,10 @@ public:
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                        Register tmp1, Register tmp_thread);
 
+  // Resolves obj for access. Result is placed in the same register.
+  // All other registers are preserved.
+  void resolve(DecoratorSet decorators, Register obj);
+
   void load_heap_oop(Register dst, Address src, Register tmp1 = noreg,
                      Register thread_tmp = noreg, DecoratorSet decorators = 0);
 
@@ -865,10 +870,6 @@ public:
   );
   void zero_memory(Register addr, Register len, Register t1);
   void verify_tlab();
-
-  void incr_allocated_bytes(Register thread,
-                            Register var_size_in_bytes, int con_size_in_bytes,
-                            Register t1 = noreg);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -979,6 +980,8 @@ public:
   void addptr(const Address &dst, int32_t src);
   void cmpptr(Register src1, Address src2);
 
+  void cmpoop(Register obj1, Register obj2);
+
   // Various forms of CAS
 
   void cmpxchg_obj_header(Register oldv, Register newv, Register obj, Register tmp,
@@ -1020,7 +1023,7 @@ public:
   address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
 
   static bool far_branches() {
-    return ReservedCodeCacheSize > branch_range;
+    return ReservedCodeCacheSize > branch_range || UseAOT;
   }
 
   // Jumps that can reach anywhere in the code cache.
@@ -1214,8 +1217,8 @@ public:
 
   void string_compare(Register str1, Register str2,
                       Register cnt1, Register cnt2, Register result,
-                      Register tmp1,
-                      FloatRegister vtmp, FloatRegister vtmpZ, int ae);
+                      Register tmp1, Register tmp2, FloatRegister vtmp1,
+                      FloatRegister vtmp2, FloatRegister vtmp3, int ae);
 
   void has_negatives(Register ary1, Register len, Register result);
 
@@ -1249,11 +1252,25 @@ public:
                       Register cnt1, Register cnt2,
                       Register tmp1, Register tmp2,
                       Register tmp3, Register tmp4,
+                      Register tmp5, Register tmp6,
                       int int_cnt1, Register result, int ae);
   void string_indexof_char(Register str1, Register cnt1,
                            Register ch, Register result,
                            Register tmp1, Register tmp2, Register tmp3);
-private:
+  void fast_log(FloatRegister vtmp0, FloatRegister vtmp1, FloatRegister vtmp2,
+                FloatRegister vtmp3, FloatRegister vtmp4, FloatRegister vtmp5,
+                FloatRegister tmpC1, FloatRegister tmpC2, FloatRegister tmpC3,
+                FloatRegister tmpC4, Register tmp1, Register tmp2,
+                Register tmp3, Register tmp4, Register tmp5);
+  void generate_dsin_dcos(bool isCos, address npio2_hw, address two_over_pi,
+      address pio2, address dsin_coef, address dcos_coef);
+ private:
+  // begin trigonometric functions support block
+  void generate__ieee754_rem_pio2(address npio2_hw, address two_over_pi, address pio2);
+  void generate__kernel_rem_pio2(address two_over_pi, address pio2);
+  void generate_kernel_sin(FloatRegister x, bool iyIsOne, address dsin_coef);
+  void generate_kernel_cos(FloatRegister x, address dcos_coef);
+  // end trigonometric functions support block
   void add2_with_carry(Register final_dest_hi, Register dest_hi, Register dest_lo,
                        Register src1, Register src2);
   void add2_with_carry(Register dest_hi, Register dest_lo, Register src1, Register src2) {

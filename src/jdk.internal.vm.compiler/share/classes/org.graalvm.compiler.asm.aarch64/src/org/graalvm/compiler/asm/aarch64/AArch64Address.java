@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.asm.aarch64;
 
 import static jdk.vm.ci.aarch64.AArch64.zr;
@@ -78,7 +80,6 @@ public final class AArch64Address extends AbstractAddress {
          * address = base + imm9. base is updated to base + imm9
          */
         IMMEDIATE_PRE_INDEXED,
-        AddressingMode,
     }
 
     private final Register base;

@@ -53,6 +53,9 @@
   diagnostic(bool, StressGCM, false,                                        \
           "Randomize instruction scheduling in GCM")                        \
                                                                             \
+  develop(bool, StressMethodHandleLinkerInlining, false,                    \
+          "Stress inlining through method handle linkers")                  \
+                                                                            \
   develop(intx, OptoPrologueNops, 0,                                        \
           "Insert this many extra nop instructions "                        \
           "in the prologue of every nmethod")                               \
@@ -751,6 +754,9 @@
   product(uintx, LoopStripMiningIterShortLoop, 0,                           \
           "Loop with fewer iterations are not strip mined")                 \
           range(0, max_juint)                                               \
+                                                                            \
+  product(bool, UseProfiledLoopPredicate, true,                             \
+          "move predicates out of loops based on profiling data")           \
 
 C2_FLAGS(DECLARE_DEVELOPER_FLAG, \
          DECLARE_PD_DEVELOPER_FLAG, \

@@ -24,11 +24,12 @@
  */
 package jdk.jfr.event.gc.stacktrace;
 
-/*
+/**
  * @test
  * @key jfr
+ * @requires vm.hasJFR
  *
- * @requires vm.gc == "null" | vm.gc == "ConcMarkSweep"
+ * @requires (vm.gc == "null" | vm.gc == "ConcMarkSweep") & !vm.graal.enabled
  * @library /test/lib /test/jdk
  * @run main/othervm -XX:MaxNewSize=10M -Xmx64M -XX:+UseConcMarkSweepGC -Xlog:gc* jdk.jfr.event.gc.stacktrace.TestConcMarkSweepAllocationPendingStackTrace
  */

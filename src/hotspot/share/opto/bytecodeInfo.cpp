@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,11 +44,11 @@ InlineTree::InlineTree(Compile* c,
                        float site_invoke_ratio, int max_inline_level) :
   C(c),
   _caller_jvms(caller_jvms),
-  _caller_tree((InlineTree*) caller_tree),
   _method(callee),
+  _caller_tree((InlineTree*) caller_tree),
+  _count_inline_bcs(method()->code_size_for_inlining()),
   _site_invoke_ratio(site_invoke_ratio),
   _max_inline_level(max_inline_level),
-  _count_inline_bcs(method()->code_size_for_inlining()),
   _subtrees(c->comp_arena(), 2, 0, NULL),
   _msg(NULL)
 {
@@ -520,10 +520,10 @@ void InlineTree::print_inlining(ciMethod* callee_method, int caller_bci,
                                                caller_bci, inline_msg);
   if (C->print_inlining()) {
     C->print_inlining(callee_method, inline_level(), caller_bci, inline_msg);
-    if (callee_method == NULL) tty->print(" callee not monotonic or profiled");
-    if (Verbose && callee_method) {
+    guarantee(callee_method != NULL, "would crash in post_inlining_event");
+    if (Verbose) {
       const InlineTree *top = this;
-      while( top->caller_tree() != NULL ) { top = top->caller_tree(); }
+      while (top->caller_tree() != NULL) { top = top->caller_tree(); }
       //tty->print("  bcs: %d+%d  invoked: %d", top->count_inline_bcs(), callee_method->code_size(), callee_method->interpreter_invocation_count());
     }
   }

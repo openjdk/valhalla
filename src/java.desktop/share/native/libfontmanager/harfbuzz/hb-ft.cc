@@ -58,7 +58,7 @@
  *
  *   - In the future, we should add constructors to create fonts in font space?
  *
- *   - FT_Load_Glyph() is exteremely costly.  Do something about it?
+ *   - FT_Load_Glyph() is extremely costly.  Do something about it?
  */
 
 
@@ -119,7 +119,7 @@ hb_ft_font_set_load_flags (hb_font_t *font, int load_flags)
   if (font->immutable)
     return;
 
-  if (font->destroy != _hb_ft_font_destroy)
+  if (font->destroy != (hb_destroy_func_t) _hb_ft_font_destroy)
     return;
 
   hb_ft_font_t *ft_font = (hb_ft_font_t *) font->user_data;
@@ -139,7 +139,7 @@ hb_ft_font_set_load_flags (hb_font_t *font, int load_flags)
 int
 hb_ft_font_get_load_flags (hb_font_t *font)
 {
-  if (font->destroy != _hb_ft_font_destroy)
+  if (font->destroy != (hb_destroy_func_t) _hb_ft_font_destroy)
     return 0;
 
   const hb_ft_font_t *ft_font = (const hb_ft_font_t *) font->user_data;
@@ -150,7 +150,7 @@ hb_ft_font_get_load_flags (hb_font_t *font)
 FT_Face
 hb_ft_font_get_face (hb_font_t *font)
 {
-  if (font->destroy != _hb_ft_font_destroy)
+  if (font->destroy != (hb_destroy_func_t) _hb_ft_font_destroy)
     return nullptr;
 
   const hb_ft_font_t *ft_font = (const hb_ft_font_t *) font->user_data;
@@ -177,7 +177,7 @@ hb_ft_get_nominal_glyph (hb_font_t *font HB_UNUSED,
       /* For symbol-encoded OpenType fonts, we duplicate the
        * U+F000..F0FF range at U+0000..U+00FF.  That's what
        * Windows seems to do, and that's hinted about at:
-       * http://www.microsoft.com/typography/otspec/recom.htm
+       * https://docs.microsoft.com/en-us/typography/opentype/spec/recom
        * under "Non-Standard (Symbol) Fonts". */
       g = FT_Get_Char_Index (ft_font->ft_face, 0xF000u + unicode);
       if (!g)
@@ -210,7 +210,7 @@ hb_ft_get_variation_glyph (hb_font_t *font HB_UNUSED,
 }
 
 static hb_position_t
-hb_ft_get_glyph_h_advance (hb_font_t *font HB_UNUSED,
+hb_ft_get_glyph_h_advance (hb_font_t *font,
                            void *font_data,
                            hb_codepoint_t glyph,
                            void *user_data HB_UNUSED)
@@ -228,7 +228,7 @@ hb_ft_get_glyph_h_advance (hb_font_t *font HB_UNUSED,
 }
 
 static hb_position_t
-hb_ft_get_glyph_v_advance (hb_font_t *font HB_UNUSED,
+hb_ft_get_glyph_v_advance (hb_font_t *font,
                            void *font_data,
                            hb_codepoint_t glyph,
                            void *user_data HB_UNUSED)
@@ -248,7 +248,7 @@ hb_ft_get_glyph_v_advance (hb_font_t *font HB_UNUSED,
 }
 
 static hb_bool_t
-hb_ft_get_glyph_v_origin (hb_font_t *font HB_UNUSED,
+hb_ft_get_glyph_v_origin (hb_font_t *font,
                           void *font_data,
                           hb_codepoint_t glyph,
                           hb_position_t *x,
@@ -292,7 +292,7 @@ hb_ft_get_glyph_h_kerning (hb_font_t *font,
 }
 
 static hb_bool_t
-hb_ft_get_glyph_extents (hb_font_t *font HB_UNUSED,
+hb_ft_get_glyph_extents (hb_font_t *font,
                          void *font_data,
                          hb_codepoint_t glyph,
                          hb_glyph_extents_t *extents,
@@ -423,7 +423,12 @@ static hb_font_funcs_t *static_ft_funcs = nullptr;
 static
 void free_static_ft_funcs (void)
 {
-  hb_font_funcs_destroy (static_ft_funcs);
+retry:
+  hb_font_funcs_t *ft_funcs = (hb_font_funcs_t *) hb_atomic_ptr_get (&static_ft_funcs);
+  if (!hb_atomic_ptr_cmpexch (&static_ft_funcs, ft_funcs, nullptr))
+    goto retry;
+
+  hb_font_funcs_destroy (ft_funcs);
 }
 #endif
 
@@ -492,8 +497,10 @@ reference_table  (hb_face_t *face HB_UNUSED, hb_tag_t tag, void *user_data)
     return nullptr;
 
   error = FT_Load_Sfnt_Table (ft_face, tag, 0, buffer, &length);
-  if (error)
+  if (error) {
+    free (buffer);
     return nullptr;
+  }
 
   return hb_blob_create ((const char *) buffer, length,
                          HB_MEMORY_MODE_WRITABLE,
@@ -610,7 +617,7 @@ hb_ft_font_create (FT_Face           ft_face,
 void
 hb_ft_font_changed (hb_font_t *font)
 {
-  if (font->destroy != _hb_ft_font_destroy)
+  if (font->destroy != (hb_destroy_func_t) _hb_ft_font_destroy)
     return;
 
   hb_ft_font_t *ft_font = (hb_ft_font_t *) font->user_data;
@@ -635,15 +642,27 @@ hb_ft_font_changed (hb_font_t *font)
     {
       if (!FT_Get_Var_Blend_Coordinates (ft_face, mm_var->num_axis, ft_coords))
       {
-        for (unsigned int i = 0; i < mm_var->num_axis; ++i)
-          coords[i] = ft_coords[i] >>= 2;
+        bool nonzero = false;
 
-        hb_font_set_var_coords_normalized (font, coords, mm_var->num_axis);
+        for (unsigned int i = 0; i < mm_var->num_axis; ++i)
+         {
+          coords[i] = ft_coords[i] >>= 2;
+          nonzero = nonzero || coords[i];
+         }
+
+        if (nonzero)
+          hb_font_set_var_coords_normalized (font, coords, mm_var->num_axis);
+        else
+          hb_font_set_var_coords_normalized (font, nullptr, 0);
       }
     }
     free (coords);
     free (ft_coords);
+#ifdef HAVE_FT_DONE_MM_VAR
+    FT_Done_MM_Var (ft_face->glyph->library, mm_var);
+#else
     free (mm_var);
+#endif
   }
 #endif
 }
@@ -673,7 +692,12 @@ static FT_Library ft_library;
 static
 void free_ft_library (void)
 {
-  FT_Done_FreeType (ft_library);
+retry:
+  FT_Library library = (FT_Library) hb_atomic_ptr_get (&ft_library);
+  if (!hb_atomic_ptr_cmpexch (&ft_library, library, nullptr))
+    goto retry;
+
+  FT_Done_FreeType (library);
 }
 #endif
 
@@ -747,6 +771,7 @@ hb_ft_font_set_funcs (hb_font_t *font)
     FT_Set_Transform (ft_face, &matrix, nullptr);
   }
 
+#ifdef HAVE_FT_SET_VAR_BLEND_COORDINATES
   unsigned int num_coords;
   const int *coords = hb_font_get_var_coords_normalized (font, &num_coords);
   if (num_coords)
@@ -760,6 +785,7 @@ hb_ft_font_set_funcs (hb_font_t *font)
       free (ft_coords);
     }
   }
+#endif
 
   ft_face->generic.data = blob;
   ft_face->generic.finalizer = (FT_Generic_Finalizer) _release_blob;

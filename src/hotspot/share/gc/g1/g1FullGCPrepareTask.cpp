@@ -35,6 +35,7 @@
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/ticks.hpp"
 
@@ -60,8 +61,8 @@ bool G1FullGCPrepareTask::G1CalculatePointersClosure::do_heap_region(HeapRegion*
 
 G1FullGCPrepareTask::G1FullGCPrepareTask(G1FullCollector* collector) :
     G1FullGCTask("G1 Prepare Compact Task", collector),
-    _hrclaimer(collector->workers()),
-    _freed_regions(false) {
+    _freed_regions(false),
+    _hrclaimer(collector->workers()) {
 }
 
 void G1FullGCPrepareTask::set_freed_regions() {

@@ -853,7 +853,7 @@ void TemplateTable::aaload() {
   index_check(Z_tmp_1, index, shift);
   // Now load array element.
   do_oop_load(_masm, Address(Z_tmp_1, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT)), Z_tos,
-              Z_tmp_2, Z_tmp_3, IN_HEAP | IN_HEAP_ARRAY);
+              Z_tmp_2, Z_tmp_3, IS_ARRAY);
   __ verify_oop(Z_tos);
 }
 
@@ -1197,7 +1197,7 @@ void TemplateTable::aastore() {
 
   // Store a NULL.
   do_oop_store(_masm, Address(Rstore_addr, (intptr_t)0), noreg,
-               tmp3, tmp2, tmp1, IN_HEAP | IN_HEAP_ARRAY);
+               tmp3, tmp2, tmp1, IS_ARRAY);
   __ z_bru(done);
 
   // Come here on success.
@@ -1205,7 +1205,7 @@ void TemplateTable::aastore() {
 
   // Now store using the appropriate barrier.
   do_oop_store(_masm, Address(Rstore_addr, (intptr_t)0), Rvalue,
-               tmp3, tmp2, tmp1, IN_HEAP | IN_HEAP_ARRAY | OOP_NOT_NULL);
+               tmp3, tmp2, tmp1, IS_ARRAY | IS_NOT_NULL);
 
   // Pop stack arguments.
   __ bind(done);
@@ -3636,7 +3636,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   NearLabel subtype, no_such_interface;
 
-  __ check_klass_subtype(klass, interface, Z_tmp_2, Z_temp_3, subtype);
+  __ check_klass_subtype(klass, interface, Z_tmp_2, flags/*scratch*/, subtype);
   // If we get here the typecheck failed
   __ z_bru(no_such_interface);
   __ bind(subtype);
@@ -3649,7 +3649,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(notVFinal);
 
   // Get receiver klass into klass - also a null check.
-  __ restore_locals();
   __ load_klass(klass, receiver);
 
   __ lookup_interface_method(klass, interface, noreg, noreg, /*temp*/Z_ARG1,
@@ -3680,7 +3679,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // interpreter entry point and a conditional jump to it in case of a null
   // method.
   __ compareU64_and_branch(method2, (intptr_t) 0,
-                            Assembler::bcondZero, no_such_method);
+                           Assembler::bcondZero, no_such_method);
 
   __ profile_arguments_type(Z_tmp_1, method2, Z_tmp_2, true);
 
@@ -3695,8 +3694,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(no_such_method);
 
   // Throw exception.
-  __ restore_bcp();      // Bcp must be correct for exception handler   (was destroyed).
-  __ restore_locals();   // Make sure locals pointer is correct as well (was destroyed).
   // Pass arguments for generating a verbose error message.
   __ z_lgr(Z_tmp_1, method); // Prevent register clash.
   __ call_VM(noreg,
@@ -3709,8 +3706,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ bind(no_such_interface);
 
   // Throw exception.
-  __ restore_bcp();      // Bcp must be correct for exception handler   (was destroyed).
-  __ restore_locals();   // Make sure locals pointer is correct as well (was destroyed).
   // Pass arguments for generating a verbose error message.
   __ call_VM(noreg,
              CAST_FROM_FN_PTR(address,

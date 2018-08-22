@@ -26,7 +26,7 @@
 #define SHARE_VM_GC_G1_G1BARRIERSET_HPP
 
 #include "gc/g1/dirtyCardQueue.hpp"
-#include "gc/g1/satbMarkQueue.hpp"
+#include "gc/g1/g1SATBMarkQueueSet.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 
 class DirtyCardQueueSet;
@@ -39,8 +39,12 @@ class G1CardTable;
 class G1BarrierSet: public CardTableBarrierSet {
   friend class VMStructs;
  private:
-  static SATBMarkQueueSet  _satb_mark_queue_set;
-  static DirtyCardQueueSet _dirty_card_queue_set;
+  G1SATBMarkQueueSet _satb_mark_queue_set;
+  DirtyCardQueueSet _dirty_card_queue_set;
+
+  static G1BarrierSet* g1_barrier_set() {
+    return barrier_set_cast<G1BarrierSet>(BarrierSet::barrier_set());
+  }
 
  public:
   G1BarrierSet(G1CardTable* table);
@@ -50,15 +54,11 @@ class G1BarrierSet: public CardTableBarrierSet {
   // pre-marking object graph.
   static void enqueue(oop pre_val);
 
-  static void enqueue_if_weak_or_archive(DecoratorSet decorators, oop value);
+  static void enqueue_if_weak(DecoratorSet decorators, oop value);
 
   template <class T> void write_ref_array_pre_work(T* dst, size_t count);
   virtual void write_ref_array_pre(oop* dst, size_t count, bool dest_uninitialized);
   virtual void write_ref_array_pre(narrowOop* dst, size_t count, bool dest_uninitialized);
-
-  static void write_ref_array_pre_oop_entry(oop* dst, size_t length);
-  static void write_ref_array_pre_narrow_oop_entry(narrowOop* dst, size_t length);
-  static void write_ref_array_post_entry(HeapWord* dst, size_t length);
 
   template <DecoratorSet decorators, typename T>
   void write_ref_field_pre(T* field);
@@ -79,12 +79,12 @@ class G1BarrierSet: public CardTableBarrierSet {
   virtual void on_thread_attach(JavaThread* thread);
   virtual void on_thread_detach(JavaThread* thread);
 
-  static SATBMarkQueueSet& satb_mark_queue_set() {
-    return _satb_mark_queue_set;
+  static G1SATBMarkQueueSet& satb_mark_queue_set() {
+    return g1_barrier_set()->_satb_mark_queue_set;
   }
 
   static DirtyCardQueueSet& dirty_card_queue_set() {
-    return _dirty_card_queue_set;
+    return g1_barrier_set()->_dirty_card_queue_set;
   }
 
   // Callbacks for runtime accesses.

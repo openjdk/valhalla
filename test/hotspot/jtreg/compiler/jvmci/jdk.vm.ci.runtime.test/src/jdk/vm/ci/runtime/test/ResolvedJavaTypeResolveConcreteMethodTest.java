@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,6 +63,7 @@ public class ResolvedJavaTypeResolveConcreteMethodTest {
     }
 
     protected static class B extends A implements I {
+        @Override
         public void i() {
         }
 
@@ -77,6 +78,7 @@ public class ResolvedJavaTypeResolveConcreteMethodTest {
     }
 
     protected static class C extends B {
+        @Override
         public void d() {
         }
     }

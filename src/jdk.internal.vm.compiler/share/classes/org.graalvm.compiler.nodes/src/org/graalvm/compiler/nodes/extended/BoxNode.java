@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.extended;
 
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_8;
@@ -91,7 +93,9 @@ public class BoxNode extends FixedWithNextNode implements VirtualizableAllocatio
     }
 
     protected VirtualBoxingNode createVirtualBoxingNode() {
-        return new VirtualBoxingNode(StampTool.typeOrNull(stamp(NodeView.DEFAULT)), boxingKind);
+        VirtualBoxingNode node = new VirtualBoxingNode(StampTool.typeOrNull(stamp(NodeView.DEFAULT)), boxingKind);
+        node.setNodeSourcePosition(getNodeSourcePosition());
+        return node;
     }
 
     @Override

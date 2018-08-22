@@ -395,7 +395,7 @@ JDWP "Java(tm) Debug Wire Protocol"
                      "Can the VM add methods when redefining "
                      "classes?")
             (boolean canUnrestrictedlyRedefineClasses
-                     "Can the VM redefine classes"
+                     "Can the VM redefine classes "
                      "in ways that are normally restricted?")
             (boolean canPopFrames
                      "Can the VM pop stack frames?")
@@ -2009,8 +2009,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         )
     )
     (Command Stop=10
-        "Stops the thread with an asynchronous exception, as if done by "
-        "java.lang.Thread.stop "
+        "Stops the thread with an asynchronous exception. "
         (Out
             (threadObject thread "The thread object ID. ")
             (object throwable "Asynchronous exception. This object must "

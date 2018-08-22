@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases;
 
 import java.util.regex.Pattern;
@@ -258,7 +260,7 @@ public abstract class BasePhase<C> implements PhaseSizeContract {
         return false;
     }
 
-    private final class GraphChangeListener extends NodeEventListener {
+    private static final class GraphChangeListener extends NodeEventListener {
         boolean changed;
         private StructuredGraph graph;
         private Mark mark;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -666,10 +666,13 @@ void Parse::do_all_blocks() {
         if (block->is_SEL_head()) {
           // Add predicate to single entry (not irreducible) loop head.
           assert(!block->has_merged_backedge(), "only entry paths should be merged for now");
-          // Need correct bci for predicate.
-          // It is fine to set it here since do_one_block() will set it anyway.
-          set_parse_bci(block->start());
-          add_predicate();
+          // Predicates may have been added after a dominating if
+          if (!block->has_predicates()) {
+            // Need correct bci for predicate.
+            // It is fine to set it here since do_one_block() will set it anyway.
+            set_parse_bci(block->start());
+            add_predicate();
+          }
           // Add new region for back branches.
           int edges = block->pred_count() - block->preds_parsed() + 1; // +1 for original region
           RegionNode *r = new RegionNode(edges+1);
@@ -1262,6 +1265,7 @@ Parse::Block::Block(Parse* outer, int rpo) : _live_locals() {
   _is_handler = false;
   _has_merged_backedge = false;
   _start_map = NULL;
+  _has_predicates = false;
   _num_successors = 0;
   _all_successors = 0;
   _successors = NULL;
@@ -1819,7 +1823,7 @@ void Parse::merge_memory_edges(MergeMemNode* n, int pnum, bool nophi) {
       // Instead, wire the new split into a MergeMem on the backedge.
       // The optimizer will sort it out, slicing the phi.
       if (remerge == NULL) {
-        assert(base != NULL, "");
+        guarantee(base != NULL, "");
         assert(base->in(0) != NULL, "should not be xformed away");
         remerge = MergeMemNode::make(base->in(pnum));
         gvn().set_type(remerge, Type::MEMORY);

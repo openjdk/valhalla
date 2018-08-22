@@ -893,21 +893,14 @@ int SystemProcessInterface::SystemProcesses::ProcessIterator::current(SystemProc
 }
 
 int SystemProcessInterface::SystemProcesses::ProcessIterator::next_process() {
-  struct dirent* entry;
-
   if (!is_valid()) {
     return OS_ERR;
   }
 
   do {
-      entry = os::readdir(_dir, _entry);
-    if (entry == NULL) {
-      // error
-      _valid = false;
-      return OS_ERR;
-    }
+    _entry = os::readdir(_dir);
     if (_entry == NULL) {
-      // reached end
+      // Error or reached end.  Could use errno to distinguish those cases.
       _valid = false;
       return OS_ERR;
     }
@@ -929,11 +922,8 @@ bool SystemProcessInterface::SystemProcesses::ProcessIterator::initialize() {
 }
 
 SystemProcessInterface::SystemProcesses::ProcessIterator::~ProcessIterator() {
-  if (_entry != NULL) {
-    FREE_C_HEAP_ARRAY(char, _entry);
-  }
   if (_dir != NULL) {
-    closedir(_dir);
+    os::closedir(_dir);
   }
 }
 
@@ -1040,4 +1030,50 @@ int CPUInformationInterface::cpu_information(CPUInformation& cpu_info) {
 
   cpu_info = *_cpu_info; // shallow copy assignment
   return OS_OK;
+}
+
+class NetworkPerformanceInterface::NetworkPerformance : public CHeapObj<mtInternal> {
+  friend class NetworkPerformanceInterface;
+ private:
+  NetworkPerformance();
+  NetworkPerformance(const NetworkPerformance& rhs); // no impl
+  NetworkPerformance& operator=(const NetworkPerformance& rhs); // no impl
+  bool initialize();
+  ~NetworkPerformance();
+  int network_utilization(NetworkInterface** network_interfaces) const;
+};
+
+NetworkPerformanceInterface::NetworkPerformance::NetworkPerformance() {
+
+}
+
+bool NetworkPerformanceInterface::NetworkPerformance::initialize() {
+  return true;
+}
+
+NetworkPerformanceInterface::NetworkPerformance::~NetworkPerformance() {
+}
+
+int NetworkPerformanceInterface::NetworkPerformance::network_utilization(NetworkInterface** network_interfaces) const
+{
+  return FUNCTIONALITY_NOT_IMPLEMENTED;
+}
+
+NetworkPerformanceInterface::NetworkPerformanceInterface() {
+  _impl = NULL;
+}
+
+NetworkPerformanceInterface::~NetworkPerformanceInterface() {
+  if (_impl != NULL) {
+    delete _impl;
+  }
+}
+
+bool NetworkPerformanceInterface::initialize() {
+  _impl = new NetworkPerformanceInterface::NetworkPerformance();
+  return _impl != NULL && _impl->initialize();
+}
+
+int NetworkPerformanceInterface::network_utilization(NetworkInterface** network_interfaces) const {
+  return _impl->network_utilization(network_interfaces);
 }

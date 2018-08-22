@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.virtual;
 
 import org.graalvm.compiler.core.common.spi.ArrayOffsetProvider;
@@ -113,11 +115,15 @@ public class VirtualInstanceNode extends VirtualObjectNode {
 
     @Override
     public VirtualInstanceNode duplicate() {
-        return new VirtualInstanceNode(type, fields, super.hasIdentity());
+        VirtualInstanceNode node = new VirtualInstanceNode(type, fields, super.hasIdentity());
+        node.setNodeSourcePosition(this.getNodeSourcePosition());
+        return node;
     }
 
     @Override
     public ValueNode getMaterializedRepresentation(FixedNode fixed, ValueNode[] entries, LockState locks) {
-        return new AllocatedObjectNode(this);
+        AllocatedObjectNode node = new AllocatedObjectNode(this);
+        node.setNodeSourcePosition(this.getNodeSourcePosition());
+        return node;
     }
 }

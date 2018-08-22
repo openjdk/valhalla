@@ -59,12 +59,11 @@ void SafepointMechanism::block_if_requested_local_poll(JavaThread *thread) {
   bool armed = local_poll_armed(thread); // load acquire, polling page -> op / global state
   if(armed) {
     // We could be armed for either a handshake operation or a safepoint
+    if (global_poll()) {
+      SafepointSynchronize::block(thread);
+    }
     if (thread->has_handshake()) {
       thread->handshake_process_by_self();
-    } else {
-      if (global_poll()) {
-        SafepointSynchronize::block(thread);
-      }
     }
   }
 }
@@ -86,6 +85,14 @@ void SafepointMechanism::arm_local_poll(JavaThread* thread) {
 
 void SafepointMechanism::disarm_local_poll(JavaThread* thread) {
   thread->set_polling_page(poll_disarmed_value());
+}
+
+void SafepointMechanism::arm_local_poll_release(JavaThread* thread) {
+  thread->set_polling_page_release(poll_armed_value());
+}
+
+void SafepointMechanism::disarm_local_poll_release(JavaThread* thread) {
+  thread->set_polling_page_release(poll_disarmed_value());
 }
 
 #endif // SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP

@@ -40,6 +40,13 @@
 
 namespace metaspace {
 
+ChunkManager::ChunkManager(bool is_class)
+      : _is_class(is_class), _free_chunks_total(0), _free_chunks_count(0) {
+  _free_chunks[SpecializedIndex].set_size(get_size_for_nonhumongous_chunktype(SpecializedIndex, is_class));
+  _free_chunks[SmallIndex].set_size(get_size_for_nonhumongous_chunktype(SmallIndex, is_class));
+  _free_chunks[MediumIndex].set_size(get_size_for_nonhumongous_chunktype(MediumIndex, is_class));
+}
+
 void ChunkManager::remove_chunk(Metachunk* chunk) {
   size_t word_size = chunk->word_size();
   ChunkIndex index = list_index(word_size);
@@ -501,7 +508,7 @@ Metachunk* ChunkManager::free_chunks_get(size_t word_size) {
       return NULL;
     }
 
-    log_debug(gc, metaspace, alloc)("Free list allocate humongous chunk size " SIZE_FORMAT " for requested size " SIZE_FORMAT " waste " SIZE_FORMAT,
+    log_trace(gc, metaspace, alloc)("Free list allocate humongous chunk size " SIZE_FORMAT " for requested size " SIZE_FORMAT " waste " SIZE_FORMAT,
                                     chunk->word_size(), word_size, chunk->word_size() - word_size);
   }
 
@@ -543,7 +550,7 @@ Metachunk* ChunkManager::chunk_freelist_allocate(size_t word_size) {
   assert((word_size <= chunk->word_size()) ||
          (list_index(chunk->word_size()) == HumongousIndex),
          "Non-humongous variable sized chunk");
-  LogTarget(Debug, gc, metaspace, freelist) lt;
+  LogTarget(Trace, gc, metaspace, freelist) lt;
   if (lt.is_enabled()) {
     size_t list_count;
     if (list_index(word_size) < HumongousIndex) {

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.loop;
 
 import static org.graalvm.compiler.loop.MathUtil.add;
@@ -47,7 +49,7 @@ import org.graalvm.compiler.nodes.extended.GuardingNode;
 import jdk.vm.ci.code.CodeUtil;
 import jdk.vm.ci.meta.DeoptimizationAction;
 import jdk.vm.ci.meta.DeoptimizationReason;
-import jdk.vm.ci.meta.JavaConstant;
+import jdk.vm.ci.meta.SpeculationLog;
 
 public class CountedLoopInfo {
 
@@ -118,7 +120,7 @@ public class CountedLoopInfo {
         }
         // round-away-from-zero divison: (range + stride -/+ 1) / stride
         ValueNode denominator = add(graph, range, sub(graph, absStride, one));
-        ValueNode div = unsignedDivBefore(graph, loop.entryPoint(), denominator, absStride);
+        ValueNode div = unsignedDivBefore(graph, loop.entryPoint(), denominator, absStride, null);
 
         if (assumePositive) {
             return div;
@@ -251,7 +253,7 @@ public class CountedLoopInfo {
             }
             assert graph.getGuardsStage().allowsFloatingGuards();
             overflowGuard = graph.unique(new GuardNode(cond, AbstractBeginNode.prevBegin(loop.entryPoint()), DeoptimizationReason.LoopLimitCheck, DeoptimizationAction.InvalidateRecompile, true,
-                            JavaConstant.NULL_POINTER)); // TODO gd: use speculation
+                            SpeculationLog.NO_SPECULATION, null)); // TODO gd: use speculation
             loop.loopBegin().setOverflowGuard(overflowGuard);
             return overflowGuard;
         }

@@ -76,9 +76,6 @@
 #ifdef COMPILER1
 #include "c1/c1_Runtime1.hpp"
 #endif
-#if INCLUDE_G1GC
-#include "gc/g1/g1ThreadLocalData.hpp"
-#endif // INCLUDE_G1GC
 
 // Shared stub locations
 RuntimeStub*        SharedRuntime::_wrong_method_blob;
@@ -207,26 +204,6 @@ void SharedRuntime::print_ic_miss_histogram() {
   }
 }
 #endif // PRODUCT
-
-#if INCLUDE_G1GC
-
-// G1 write-barrier pre: executed before a pointer store.
-JRT_LEAF(void, SharedRuntime::g1_wb_pre(oopDesc* orig, JavaThread *thread))
-  if (orig == NULL) {
-    assert(false, "should be optimized out");
-    return;
-  }
-  assert(oopDesc::is_oop(orig, true /* ignore mark word */), "Error");
-  // store the original value that was in the field reference
-  G1ThreadLocalData::satb_mark_queue(thread).enqueue(orig);
-JRT_END
-
-// G1 write-barrier post: executed after a pointer store.
-JRT_LEAF(void, SharedRuntime::g1_wb_post(void* card_addr, JavaThread* thread))
-  G1ThreadLocalData::dirty_card_queue(thread).enqueue(card_addr);
-JRT_END
-
-#endif // INCLUDE_G1GC
 
 
 JRT_LEAF(jlong, SharedRuntime::lmul(jlong y, jlong x))
@@ -1105,6 +1082,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
 
   Bytecode_invoke bytecode(caller, bci);
   int bytecode_index = bytecode.index();
+  bc = bytecode.invoke_code();
 
   methodHandle attached_method = extract_attached_method(vfst);
   if (attached_method.not_null()) {
@@ -1118,6 +1096,11 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
 
       // Adjust invocation mode according to the attached method.
       switch (bc) {
+        case Bytecodes::_invokevirtual:
+          if (attached_method->method_holder()->is_interface()) {
+            bc = Bytecodes::_invokeinterface;
+          }
+          break;
         case Bytecodes::_invokeinterface:
           if (!attached_method->method_holder()->is_interface()) {
             bc = Bytecodes::_invokevirtual;
@@ -1133,9 +1116,9 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
           break;
       }
     }
-  } else {
-    bc = bytecode.invoke_code();
   }
+
+  assert(bc != Bytecodes::_illegal, "not initialized");
 
   bool has_receiver = bc != Bytecodes::_invokestatic &&
                       bc != Bytecodes::_invokedynamic &&
@@ -1976,14 +1959,27 @@ char* SharedRuntime::generate_class_cast_message(
 // must use a ResourceMark in order to correctly free the result.
 char* SharedRuntime::generate_class_cast_message(
     Klass* caster_klass, Klass* target_klass, Symbol* target_klass_name) {
-
-  const char* caster_name = caster_klass->class_loader_and_module_name();
+  const char* caster_name = caster_klass->external_name();
 
   assert(target_klass != NULL || target_klass_name != NULL, "one must be provided");
   const char* target_name = target_klass == NULL ? target_klass_name->as_C_string() :
-                                                   target_klass->class_loader_and_module_name();
+                                                   target_klass->external_name();
 
-  size_t msglen = strlen(caster_name) + strlen(" cannot be cast to ") + strlen(target_name) + 1;
+  size_t msglen = strlen(caster_name) + strlen("class ") + strlen(" cannot be cast to class ") + strlen(target_name) + 1;
+
+  const char* caster_klass_description = "";
+  const char* target_klass_description = "";
+  const char* klass_separator = "";
+  if (target_klass != NULL && caster_klass->module() == target_klass->module()) {
+    caster_klass_description = caster_klass->joint_in_module_of_loader(target_klass);
+  } else {
+    caster_klass_description = caster_klass->class_in_module_of_loader();
+    target_klass_description = (target_klass != NULL) ? target_klass->class_in_module_of_loader() : "";
+    klass_separator = (target_klass != NULL) ? "; " : "";
+  }
+
+  // add 3 for parenthesis and preceeding space
+  msglen += strlen(caster_klass_description) + strlen(target_klass_description) + strlen(klass_separator) + 3;
 
   char* message = NEW_RESOURCE_ARRAY_RETURN_NULL(char, msglen);
   if (message == NULL) {
@@ -1992,9 +1988,13 @@ char* SharedRuntime::generate_class_cast_message(
   } else {
     jio_snprintf(message,
                  msglen,
-                 "%s cannot be cast to %s",
+                 "class %s cannot be cast to class %s (%s%s%s)",
                  caster_name,
-                 target_name);
+                 target_name,
+                 caster_klass_description,
+                 klass_separator,
+                 target_klass_description
+                 );
   }
   return message;
 }
@@ -2006,11 +2006,7 @@ JRT_END
 
 // Handles the uncommon case in locking, i.e., contention or an inflated lock.
 JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* _obj, BasicLock* lock, JavaThread* thread))
-  // Disable ObjectSynchronizer::quick_enter() in default config
-  // on AARCH64 and ARM until JDK-8153107 is resolved.
-  if (ARM_ONLY((SyncFlags & 256) != 0 &&)
-      AARCH64_ONLY((SyncFlags & 256) != 0 &&)
-      !SafepointSynchronize::is_synchronizing()) {
+  if (!SafepointSynchronize::is_synchronizing()) {
     // Only try quick_enter() if we're not trying to reach a safepoint
     // so that the calling thread reaches the safepoint more quickly.
     if (ObjectSynchronizer::quick_enter(_obj, thread, lock)) return;
@@ -2865,6 +2861,22 @@ JRT_ENTRY_NO_ASYNC(void, SharedRuntime::block_for_jni_critical(JavaThread* threa
   // Lock and unlock a critical section to give the system a chance to block
   GCLocker::lock_critical(thread);
   GCLocker::unlock_critical(thread);
+JRT_END
+
+JRT_LEAF(oopDesc*, SharedRuntime::pin_object(JavaThread* thread, oopDesc* obj))
+  assert(Universe::heap()->supports_object_pinning(), "Why we are here?");
+  assert(obj != NULL, "Should not be null");
+  oop o(obj);
+  o = Universe::heap()->pin_object(thread, o);
+  assert(o != NULL, "Should not be null");
+  return o;
+JRT_END
+
+JRT_LEAF(void, SharedRuntime::unpin_object(JavaThread* thread, oopDesc* obj))
+  assert(Universe::heap()->supports_object_pinning(), "Why we are here?");
+  assert(obj != NULL, "Should not be null");
+  oop o(obj);
+  Universe::heap()->unpin_object(thread, o);
 JRT_END
 
 // -------------------------------------------------------------------------

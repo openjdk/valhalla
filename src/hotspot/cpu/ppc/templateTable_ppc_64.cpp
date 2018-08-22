@@ -688,7 +688,7 @@ void TemplateTable::aaload() {
                  Rtemp2     = R31;
   __ index_check(Rarray, R17_tos /* index */, UseCompressedOops ? 2 : LogBytesPerWord, Rtemp, Rload_addr);
   do_oop_load(_masm, Rload_addr, arrayOopDesc::base_offset_in_bytes(T_OBJECT), R17_tos, Rtemp, Rtemp2,
-              IN_HEAP | IN_HEAP_ARRAY);
+              IS_ARRAY);
   __ verify_oop(R17_tos);
   //__ dcbt(R17_tos); // prefetch
 }
@@ -1015,14 +1015,14 @@ void TemplateTable::aastore() {
 
   __ bind(Lis_null);
   do_oop_store(_masm, Rstore_addr, arrayOopDesc::base_offset_in_bytes(T_OBJECT), noreg /* 0 */,
-               Rscratch, Rscratch2, Rscratch3, IN_HEAP | IN_HEAP_ARRAY);
+               Rscratch, Rscratch2, Rscratch3, IS_ARRAY);
   __ profile_null_seen(Rscratch, Rscratch2);
   __ b(Ldone);
 
   // Store is OK.
   __ bind(Lstore_ok);
   do_oop_store(_masm, Rstore_addr, arrayOopDesc::base_offset_in_bytes(T_OBJECT), R17_tos /* value */,
-               Rscratch, Rscratch2, Rscratch3, IN_HEAP | IN_HEAP_ARRAY | OOP_NOT_NULL);
+               Rscratch, Rscratch2, Rscratch3, IS_ARRAY | IS_NOT_NULL);
 
   __ bind(Ldone);
   // Adjust sp (pops array, index and value).
@@ -3320,9 +3320,9 @@ void TemplateTable::fast_xaccess(TosState state) {
 //   - byte_no
 //
 // Output:
-//   - Rmethod:        The method to invoke next.
+//   - Rmethod:        The method to invoke next or i-klass (invokeinterface).
 //   - Rret_addr:      The return address to return to.
-//   - Rindex:         MethodType (invokehandle) or CallSite obj (invokedynamic)
+//   - Rindex:         MethodType (invokehandle), CallSite obj (invokedynamic) or Method (invokeinterface)
 //   - Rrecv:          Cache for "this" pointer, might be noreg if static call.
 //   - Rflags:         Method flags from const pool cache.
 //
@@ -3332,7 +3332,7 @@ void TemplateTable::fast_xaccess(TosState state) {
 void TemplateTable::prepare_invoke(int byte_no,
                                    Register Rmethod,  // linked method (or i-klass)
                                    Register Rret_addr,// return address
-                                   Register Rindex,   // itable index, MethodType, etc.
+                                   Register Rindex,   // itable index, MethodType, Method, etc.
                                    Register Rrecv,    // If caller wants to see it.
                                    Register Rflags,   // If caller wants to test it.
                                    Register Rscratch
@@ -3608,19 +3608,19 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ testbitdi(CCR0, R0, Rflags, ConstantPoolCacheEntry::is_vfinal_shift);
   __ bfalse(CCR0, LnotVFinal);
 
-  __ check_klass_subtype(Rrecv_klass, Rinterface_klass, Rscratch, Rscratch1, subtype);
+  __ check_klass_subtype(Rrecv_klass, Rinterface_klass, Rscratch1, Rscratch2, L_subtype);
   // If we get here the typecheck failed
   __ b(L_no_such_interface);
-  __ bind(subtype);
+  __ bind(L_subtype);
 
   // do the call
 
   Register Rscratch = Rflags; // Rflags is dead now.
 
   __ profile_final_call(Rscratch1, Rscratch);
-  __ profile_arguments_type(Rindex, Rscratch, Rrecv_klass /* scratch */, true);
+  __ profile_arguments_type(Rmethod, Rscratch, Rrecv_klass /* scratch */, true);
 
-  __ call_from_interpreter(Rindex, Rret_addr, Rscratch, Rrecv_klass /* scratch */);
+  __ call_from_interpreter(Rmethod, Rret_addr, Rscratch, Rrecv_klass /* scratch */);
 
   __ bind(LnotVFinal);
 

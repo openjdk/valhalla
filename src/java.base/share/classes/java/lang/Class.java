@@ -82,9 +82,9 @@ import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
 
 /**
- * Instances of the class {@code Class} represent classes and
- * interfaces in a running Java application.  An enum is a kind of
- * class and an annotation is a kind of interface.  Every array also
+ * Instances of the class {@code Class} represent classes and interfaces
+ * in a running Java application. An enum type is a kind of class and an
+ * annotation type is a kind of interface. Every array also
  * belongs to a class that is reflected as a {@code Class} object
  * that is shared by all arrays with the same element type and number
  * of dimensions.  The primitive Java types ({@code boolean},
@@ -93,10 +93,34 @@ import sun.reflect.misc.ReflectUtil;
  * {@code double}), and the keyword {@code void} are also
  * represented as {@code Class} objects.
  *
- * <p> {@code Class} has no public constructor. Instead {@code Class}
- * objects are constructed automatically by the Java Virtual Machine as classes
- * are loaded and by calls to the {@code defineClass} method in the class
- * loader.
+ * <p> {@code Class} has no public constructor. Instead a {@code Class}
+ * object is constructed automatically by the Java Virtual Machine
+ * when a class loader invokes one of the
+ * {@link ClassLoader#defineClass(String,byte[], int,int) defineClass} methods
+ * and passes the bytes of a {@code class} file.
+ *
+ * <p> The methods of class {@code Class} expose many characteristics of a
+ * class or interface. Most characteristics are derived from the {@code class}
+ * file that the class loader passed to the Java Virtual Machine. A few
+ * characteristics are determined by the class loading environment at run time,
+ * such as the module returned by {@link #getModule() getModule()}.
+ *
+ * <p> Some methods of class {@code Class} expose whether the declaration of
+ * a class or interface in Java source code was <em>enclosed</em> within
+ * another declaration. Other methods describe how a class or interface
+ * is situated in a <em>nest</em>. A <a id="nest">nest</a> is a set of
+ * classes and interfaces, in the same run-time package, that
+ * allow mutual access to their {@code private} members.
+ * The classes and interfaces are known as <em>nestmates</em>.
+ * One nestmate acts as the
+ * <em>nest host</em>, and enumerates the other nestmates which
+ * belong to the nest; each of them in turn records it as the nest host.
+ * The classes and interfaces which belong to a nest, including its host, are
+ * determined when
+ * {@code class} files are generated, for example, a Java compiler
+ * will typically record a top-level class as the host of a nest where the
+ * other members are the classes and interfaces whose declarations are
+ * enclosed within the top-level class declaration.
  *
  * <p> The following example uses a {@code Class} object to print the
  * class name of an object:
@@ -820,7 +844,7 @@ public final class Class<T> implements java.io.Serializable,
      * primitive type or void, then the {@code Module} object for the
      * {@code java.base} module is returned.
      *
-     * If this class is in an unnamed module then the {@link
+     * If this class is in an unnamed module then the {@linkplain
      * ClassLoader#getUnnamedModule() unnamed} {@code Module} of the class
      * loader for this class is returned.
      *
@@ -953,14 +977,14 @@ public final class Class<T> implements java.io.Serializable,
      * empty string if the class is in an unnamed package.
      *
      * <p> If this class is a member class, then this method is equivalent to
-     * invoking {@code getPackageName()} on the {@link #getEnclosingClass
+     * invoking {@code getPackageName()} on the {@linkplain #getEnclosingClass
      * enclosing class}.
      *
-     * <p> If this class is a {@link #isLocalClass local class} or an {@link
+     * <p> If this class is a {@linkplain #isLocalClass local class} or an {@linkplain
      * #isAnonymousClass() anonymous class}, then this method is equivalent to
-     * invoking {@code getPackageName()} on the {@link #getDeclaringClass
-     * declaring class} of the {@link #getEnclosingMethod enclosing method} or
-     * {@link #getEnclosingConstructor enclosing constructor}.
+     * invoking {@code getPackageName()} on the {@linkplain #getDeclaringClass
+     * declaring class} of the {@linkplain #getEnclosingMethod enclosing method} or
+     * {@linkplain #getEnclosingConstructor enclosing constructor}.
      *
      * <p> If this class represents an array type then this method returns the
      * package name of the element type. If this class represents a primitive
@@ -2576,7 +2600,7 @@ public final class Class<T> implements java.io.Serializable,
      * @param  name name of the desired resource
      * @return  A {@link java.io.InputStream} object; {@code null} if no
      *          resource with this name is found, the resource is in a package
-     *          that is not {@link Module#isOpen(String, Module) open} to at
+     *          that is not {@linkplain Module#isOpen(String, Module) open} to at
      *          least the caller module, or access to the resource is denied
      *          by the security manager.
      * @throws  NullPointerException If {@code name} is {@code null}
@@ -2675,7 +2699,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return A {@link java.net.URL} object; {@code null} if no resource with
      *         this name is found, the resource cannot be located by a URL, the
      *         resource is in a package that is not
-     *         {@link Module#isOpen(String, Module) open} to at least the caller
+     *         {@linkplain Module#isOpen(String, Module) open} to at least the caller
      *         module, or access to the resource is denied by the security
      *         manager.
      * @throws NullPointerException If {@code name} is {@code null}
@@ -3852,34 +3876,34 @@ public final class Class<T> implements java.io.Serializable,
     private native Class<?> getNestHost0();
 
     /**
-     * Returns the nest host of the object represented by this {@code Class}.
+     * Returns the nest host of the <a href=#nest>nest</a> to which the class
+     * or interface represented by this {@code Class} object belongs.
+     * Every class and interface is a member of exactly one nest.
+     * A class or interface that is not recorded as belonging to a nest
+     * belongs to the nest consisting only of itself, and is the nest
+     * host.
      *
-     * <p>If there is any error accessing the nest host, or the nest host is
-     * in any way invalid, then {@code this} is returned.
+     * <p>Each of the {@code Class} objects representing array types,
+     * primitive types, and {@code void} returns {@code this} to indicate
+     * that the represented entity belongs to the nest consisting only of
+     * itself, and is the nest host.
      *
-     * <p>A <em>nest</em> is a set of classes and interfaces (nestmates) that
-     * form an access control context in which each nestmate has access to the
-     * private members of the other nestmates.
-     * The <em>nest host</em> is the class or interface designated to hold the list of
-     * classes and interfaces that make up the nest, and to which each of the
-     * other nestmates refer.
+     * <p>If there is a {@linkplain LinkageError linkage error} accessing
+     * the nest host, or if this class or interface is not enumerated as
+     * a member of the nest by the nest host, then it is considered to belong
+     * to its own nest and {@code this} is returned as the host.
      *
-     * <p>A class or interface that is not explicitly a member of a nest,
-     * is a member of the nest consisting only of itself, and is the
-     * nest host. Every class and interface is a member of exactly one nest.
+     * @apiNote A {@code class} file of version 55.0 or greater may record the
+     * host of the nest to which it belongs by using the {@code NestHost}
+     * attribute (JVMS 4.7.28). Alternatively, a {@code class} file of
+     * version 55.0 or greater may act as a nest host by enumerating the nest's
+     * other members with the
+     * {@code NestMembers} attribute (JVMS 4.7.29).
+     * A {@code class} file of version 54.0 or lower does not use these
+     * attributes.
      *
-     * @apiNote The source language compiler is responsible for deciding which classes
-     * and interfaces are nestmates, by generating the appropriate attributes
-     * (JVMS 4.7.28 and 4.7.29) in the class file format (JVMS 4).
-     * For example, the {@code javac} compiler
-     * places a top-level class or interface into a nest with all of its direct,
-     * and indirect, {@linkplain #getDeclaredClasses() nested classes and interfaces}
-     * (JLS 8).
-     * The top-level {@linkplain #getEnclosingClass() enclosing class or interface}
-     * is designated as the nest host.
+     * @return the nest host of this class or interface
      *
-     * @return the nest host of this class, or {@code this} if we cannot
-     * obtain a valid nest host
      * @throws SecurityException
      *         If the returned class is not the current class, and
      *         if a security manager, <i>s</i>, is present and the caller's
@@ -3889,6 +3913,7 @@ public final class Class<T> implements java.io.Serializable,
      *         denies access to the package of the returned class
      * @since 11
      * @jvms 4.7.28 and 4.7.29 NestHost and NestMembers attributes
+     * @jvms 5.4.4 Access Control
      */
     @CallerSensitive
     public Class<?> getNestHost() {
@@ -3900,11 +3925,11 @@ public final class Class<T> implements java.io.Serializable,
             host = getNestHost0();
         } catch (LinkageError e) {
             // if we couldn't load our nest-host then we
-            // act as-if we have no nest-host
+            // act as-if we have no nest-host attribute
             return this;
         }
         // if null then nest membership validation failed, so we
-        // act as-if we have no nest-host
+        // act as-if we have no nest-host attribute
         if (host == null || host == this) {
             return this;
         }
@@ -3919,12 +3944,13 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Determines if the given {@code Class} is a nestmate of the
-     * object represented by this {@code Class}. Two classes are nestmates
-     * if they have the same {@linkplain #getNestHost nest host}.
+     * class or interface represented by this {@code Class} object.
+     * Two classes or interfaces are nestmates
+     * if they have the same {@linkplain #getNestHost() nest host}.
      *
-     * @param  c the class to check
-     * @return {@code true} if this class and {@code c} are valid members of the same
-     * nest; and {@code false} otherwise.
+     * @param c the class to check
+     * @return {@code true} if this class and {@code c} are members of
+     * the same nest; and {@code false} otherwise.
      *
      * @since 11
      */
@@ -3947,21 +3973,24 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns an array containing {@code Class} objects representing all the
-     * classes and interfaces that are declared in the
-     * {@linkplain #getNestHost() nest host} of this class, as being members
-     * of its nest. The nest host will always be the zeroth element.
+     * classes and interfaces that are members of the nest to which the class
+     * or interface represented by this {@code Class} object belongs.
+     * The {@linkplain #getNestHost() nest host} of that nest is the zeroth
+     * element of the array. Subsequent elements represent any classes or
+     * interfaces that are recorded by the nest host as being members of
+     * the nest; the order of such elements is unspecified. Duplicates are
+     * permitted.
+     * If the nest host of that nest does not enumerate any members, then the
+     * array has a single element containing {@code this}.
      *
-     * <p>Each listed nest member must be validated by checking its own
-     * declared nest host. Any exceptions that occur as part of this process
-     * will be thrown.
+     * <p>Each of the {@code Class} objects representing array types,
+     * primitive types, and {@code void} returns an array containing only
+     * {@code this}.
      *
-     * <p>The list of nest members is permitted to contain duplicates, or to
-     * explicitly include the nest host, as specified in the Java Virtual Machine
-     * Specification. It is not required that an implementation of this method
-     * removes these duplicates.
-     *
-     * @implNote This implementation does not remove duplicate nest members if they
-     * are present.
+     * <p>This method validates that, for each class or interface which is
+     * recorded as a member of the nest by the nest host, that class or
+     * interface records itself as a member of that same nest. Any exceptions
+     * that occur during this validation are rethrown by this method.
      *
      * @return an array of all classes and interfaces in the same nest as
      * this class
@@ -3978,7 +4007,7 @@ public final class Class<T> implements java.io.Serializable,
      *         denies access to the package of that returned class
      *
      * @since 11
-     * @jvms 4.7.29 NestMembers attribute
+     * @see #getNestHost()
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {

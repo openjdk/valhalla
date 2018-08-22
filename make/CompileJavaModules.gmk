@@ -325,6 +325,10 @@ jdk.internal.le_COPY += .properties
 
 ################################################################################
 
+jdk.internal.opt_COPY += .properties
+
+################################################################################
+
 jdk.jcmd_COPY += _options
 
 ################################################################################
@@ -341,10 +345,12 @@ jdk.jartool_ADD_JAVAC_FLAGS += -XDstringConcat=inline
 
 ################################################################################
 
+jdk.scripting.nashorn_ADD_JAVAC_FLAGS += $(DISABLE_WARNINGS),-overrides
 jdk.scripting.nashorn_COPY := .properties .js
 
 ################################################################################
 
+jdk.scripting.nashorn.shell_ADD_JAVAC_FLAGS += $(DISABLE_WARNINGS),-overrides
 jdk.scripting.nashorn.shell_COPY += .js .properties
 
 ################################################################################
@@ -444,11 +450,13 @@ jdk.internal.vm.compiler_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline \
 
 jdk.internal.vm.compiler_EXCLUDES += \
     jdk.internal.vm.compiler.collections.test \
+    org.graalvm.compiler.processor \
     org.graalvm.compiler.core.match.processor \
     org.graalvm.compiler.nodeinfo.processor \
     org.graalvm.compiler.options.processor \
     org.graalvm.compiler.serviceprovider.processor \
-    org.graalvm.compiler.replacements.verifier \
+    org.graalvm.compiler.replacements.processor \
+    org.graalvm.compiler.replacements.jdk9.test \
     org.graalvm.compiler.api.directives.test \
     org.graalvm.compiler.api.test \
     org.graalvm.compiler.asm.aarch64.test \
@@ -503,6 +511,10 @@ jdk.aot_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline \
     --add-exports jdk.internal.vm.ci/jdk.vm.ci.sparc=jdk.internal.vm.compiler,jdk.aot \
     #
 
+jdk.aot_EXCLUDES += \
+    jdk.tools.jaotc.test
+    #
+
 ################################################################################
 
 sun.charsets_COPY += .dat
@@ -513,6 +525,7 @@ jdk.localedata_COPY += _dict _th
 # Exclude BreakIterator classes that are just used in compile process to generate
 # data files and shouldn't go in the product
 jdk.localedata_EXCLUDE_FILES += sun/text/resources/ext/BreakIteratorRules_th.java
+jdk.localedata_KEEP_ALL_TRANSLATIONS := true
 ################################################################################
 
 # There is an issue in sjavac that triggers a warning in jdk.jfr that isn't
@@ -612,9 +625,14 @@ $(JDK_OUTPUTDIR)/modules/%_zh_HK.properties: $(JDK_OUTPUTDIR)/modules/%_zh_TW.pr
 	$(install-file)
 
 CreateHkTargets = \
-    $(patsubst $(TOPDIR)/src/%, $(JDK_OUTPUTDIR)/modules/%, \
-      $(subst /share/classes,, \
-        $(subst _zh_TW,_zh_HK, $(filter %_zh_TW.properties, $1))))
+    $(call FilterExcludedTranslations, \
+       $(patsubst $(TOPDIR)/src/%, $(JDK_OUTPUTDIR)/modules/%, \
+         $(subst /share/classes,, \
+            $(subst _zh_TW,_zh_HK, $(filter %_zh_TW.properties, $1)) \
+         ) \
+       ), \
+       .properties \
+    )
 
 ifeq ($(MODULE), java.sql.rowset)
   TARGETS += $(call CreateHkTargets, $(java.sql.rowset_CLEAN_FILES))

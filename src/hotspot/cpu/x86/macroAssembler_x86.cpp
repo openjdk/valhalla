@@ -33,7 +33,7 @@
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "oops/access.hpp"
+#include "oops/accessDecorators.hpp"
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
@@ -118,12 +118,22 @@ void MacroAssembler::cmpklass(Register src1, Metadata* obj) {
   cmp_literal32(src1, (int32_t)obj, metadata_Relocation::spec_for_immediate());
 }
 
-void MacroAssembler::cmpoop(Address src1, jobject obj) {
+void MacroAssembler::cmpoop_raw(Address src1, jobject obj) {
   cmp_literal32(src1, (int32_t)obj, oop_Relocation::spec_for_immediate());
 }
 
-void MacroAssembler::cmpoop(Register src1, jobject obj) {
+void MacroAssembler::cmpoop_raw(Register src1, jobject obj) {
   cmp_literal32(src1, (int32_t)obj, oop_Relocation::spec_for_immediate());
+}
+
+void MacroAssembler::cmpoop(Address src1, jobject obj) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->obj_equals(this, src1, obj);
+}
+
+void MacroAssembler::cmpoop(Register src1, jobject obj) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->obj_equals(this, src1, obj);
 }
 
 void MacroAssembler::extend_sign(Register hi, Register lo) {
@@ -2785,17 +2795,20 @@ void MacroAssembler::cmpptr(Address src1, AddressLiteral src2) {
 }
 
 void MacroAssembler::cmpoop(Register src1, Register src2) {
-  cmpptr(src1, src2);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->obj_equals(this, src1, src2);
 }
 
 void MacroAssembler::cmpoop(Register src1, Address src2) {
-  cmpptr(src1, src2);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->obj_equals(this, src1, src2);
 }
 
 #ifdef _LP64
 void MacroAssembler::cmpoop(Register src1, jobject src2) {
   movoop(rscratch1, src2);
-  cmpptr(src1, rscratch1);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->obj_equals(this, src1, rscratch1);
 }
 #endif
 
@@ -2945,40 +2958,6 @@ void MacroAssembler::empty_FPU_stack() {
 }
 #endif // !LP64 || C1 || !C2 || INCLUDE_JVMCI
 
-
-// Defines obj, preserves var_size_in_bytes
-void MacroAssembler::eden_allocate(Register obj,
-                                   Register var_size_in_bytes,
-                                   int con_size_in_bytes,
-                                   Register t1,
-                                   Label& slow_case) {
-  assert(obj == rax, "obj must be in rax, for cmpxchg");
-  assert_different_registers(obj, var_size_in_bytes, t1);
-  if (!Universe::heap()->supports_inline_contig_alloc()) {
-    jmp(slow_case);
-  } else {
-    Register end = t1;
-    Label retry;
-    bind(retry);
-    ExternalAddress heap_top((address) Universe::heap()->top_addr());
-    movptr(obj, heap_top);
-    if (var_size_in_bytes == noreg) {
-      lea(end, Address(obj, con_size_in_bytes));
-    } else {
-      lea(end, Address(obj, var_size_in_bytes, Address::times_1));
-    }
-    // if end < obj then we wrapped around => object too long => slow case
-    cmpptr(end, obj);
-    jcc(Assembler::below, slow_case);
-    cmpptr(end, ExternalAddress((address) Universe::heap()->end_addr()));
-    jcc(Assembler::above, slow_case);
-    // Compare obj with the top addr, and if still equal, store the new top addr in
-    // end at the address of the top addr pointer. Sets ZF if was equal, and clears
-    // it otherwise. Use lock prefix for atomicity on MPs.
-    locked_cmpxchgptr(end, heap_top);
-    jcc(Assembler::notEqual, retry);
-  }
-}
 
 void MacroAssembler::enter() {
   push(rbp);
@@ -3588,6 +3567,15 @@ void MacroAssembler::vmovdqu(XMMRegister dst, AddressLiteral src) {
   else {
     lea(rscratch1, src);
     vmovdqu(dst, Address(rscratch1, 0));
+  }
+}
+
+void MacroAssembler::evmovdquq(XMMRegister dst, AddressLiteral src, int vector_len, Register rscratch) {
+  if (reachable(src)) {
+    Assembler::evmovdquq(dst, as_Address(src), vector_len);
+  } else {
+    lea(rscratch, src);
+    Assembler::evmovdquq(dst, Address(rscratch, 0), vector_len);
   }
 }
 
@@ -5253,14 +5241,13 @@ void MacroAssembler::resolve_jobject(Register value,
   testptr(value, JNIHandles::weak_tag_mask); // Test for jweak tag.
   jcc(Assembler::zero, not_weak);
   // Resolve jweak.
-  access_load_at(T_OBJECT, IN_ROOT | ON_PHANTOM_OOP_REF,
+  access_load_at(T_OBJECT, IN_NATIVE | ON_PHANTOM_OOP_REF,
                  value, Address(value, -JNIHandles::weak_tag_value), tmp, thread);
   verify_oop(value);
   jmp(done);
   bind(not_weak);
   // Resolve (untagged) jobject.
-  access_load_at(T_OBJECT, IN_ROOT | IN_CONCURRENT_ROOT,
-                 value, Address(value, 0), tmp, thread);
+  access_load_at(T_OBJECT, IN_NATIVE, value, Address(value, 0), tmp, thread);
   verify_oop(value);
   bind(done);
 }
@@ -5297,38 +5284,24 @@ void MacroAssembler::testptr(Register dst, Register src) {
 }
 
 // Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.
-void MacroAssembler::tlab_allocate(Register obj,
+void MacroAssembler::tlab_allocate(Register thread, Register obj,
                                    Register var_size_in_bytes,
                                    int con_size_in_bytes,
                                    Register t1,
                                    Register t2,
                                    Label& slow_case) {
-  assert_different_registers(obj, t1, t2);
-  assert_different_registers(obj, var_size_in_bytes, t1);
-  Register end = t2;
-  Register thread = NOT_LP64(t1) LP64_ONLY(r15_thread);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->tlab_allocate(this, thread, obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
+}
 
-  verify_tlab();
-
-  NOT_LP64(get_thread(thread));
-
-  movptr(obj, Address(thread, JavaThread::tlab_top_offset()));
-  if (var_size_in_bytes == noreg) {
-    lea(end, Address(obj, con_size_in_bytes));
-  } else {
-    lea(end, Address(obj, var_size_in_bytes, Address::times_1));
-  }
-  cmpptr(end, Address(thread, JavaThread::tlab_end_offset()));
-  jcc(Assembler::above, slow_case);
-
-  // update the tlab top pointer
-  movptr(Address(thread, JavaThread::tlab_top_offset()), end);
-
-  // recover var_size_in_bytes if necessary
-  if (var_size_in_bytes == end) {
-    subptr(var_size_in_bytes, obj);
-  }
-  verify_tlab();
+// Defines obj, preserves var_size_in_bytes
+void MacroAssembler::eden_allocate(Register thread, Register obj,
+                                   Register var_size_in_bytes,
+                                   int con_size_in_bytes,
+                                   Register t1,
+                                   Label& slow_case) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->eden_allocate(this, thread, obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
 }
 
 // Preserves the contents of address, destroys the contents length_in_bytes and temp.
@@ -5385,36 +5358,6 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   }
 
   bind(done);
-}
-
-void MacroAssembler::incr_allocated_bytes(Register thread,
-                                          Register var_size_in_bytes,
-                                          int con_size_in_bytes,
-                                          Register t1) {
-  if (!thread->is_valid()) {
-#ifdef _LP64
-    thread = r15_thread;
-#else
-    assert(t1->is_valid(), "need temp reg");
-    thread = t1;
-    get_thread(thread);
-#endif
-  }
-
-#ifdef _LP64
-  if (var_size_in_bytes->is_valid()) {
-    addq(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())), var_size_in_bytes);
-  } else {
-    addq(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())), con_size_in_bytes);
-  }
-#else
-  if (var_size_in_bytes->is_valid()) {
-    addl(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())), var_size_in_bytes);
-  } else {
-    addl(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())), con_size_in_bytes);
-  }
-  adcl(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())+4), 0);
-#endif
 }
 
 // Look up the method for a megamorphic invokeinterface call.
@@ -6281,7 +6224,7 @@ void MacroAssembler::resolve_oop_handle(Register result, Register tmp) {
   // Only 64 bit platforms support GCs that require a tmp register
   // Only IN_HEAP loads require a thread_tmp register
   // OopHandle::resolve is an indirection like jobject.
-  access_load_at(T_OBJECT, IN_ROOT | IN_CONCURRENT_ROOT,
+  access_load_at(T_OBJECT, IN_NATIVE,
                  result, Address(result, 0), tmp, /*tmp_thread*/noreg);
 }
 
@@ -6323,6 +6266,7 @@ void MacroAssembler::store_klass(Register dst, Register src) {
 void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,
                                     Register tmp1, Register thread_tmp) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
     bs->BarrierSetAssembler::load_at(this, decorators, type, dst, src, tmp1, thread_tmp);
@@ -6334,12 +6278,22 @@ void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators, Reg
 void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                                      Register tmp1, Register tmp2) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
     bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, tmp2);
   } else {
     bs->store_at(this, decorators, type, dst, src, tmp1, tmp2);
   }
+}
+
+void MacroAssembler::resolve(DecoratorSet decorators, Register obj) {
+  // Use stronger ACCESS_WRITE|ACCESS_READ by default.
+  if ((decorators & (ACCESS_READ | ACCESS_WRITE)) == 0) {
+    decorators |= ACCESS_READ | ACCESS_WRITE;
+  }
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  return bs->resolve(this, decorators, obj);
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,
@@ -6350,7 +6304,7 @@ void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,
 // Doesn't do verfication, generates fixed size code
 void MacroAssembler::load_heap_oop_not_null(Register dst, Address src, Register tmp1,
                                             Register thread_tmp, DecoratorSet decorators) {
-  access_load_at(T_OBJECT, IN_HEAP | OOP_NOT_NULL | decorators, dst, src, tmp1, thread_tmp);
+  access_load_at(T_OBJECT, IN_HEAP | IS_NOT_NULL | decorators, dst, src, tmp1, thread_tmp);
 }
 
 void MacroAssembler::store_heap_oop(Address dst, Register src, Register tmp1,
@@ -6775,7 +6729,59 @@ void MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool fp_
 
 }
 
-void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, bool is_large) {
+// clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers
+void MacroAssembler::xmm_clear_mem(Register base, Register cnt, XMMRegister xtmp) {
+  // cnt - number of qwords (8-byte words).
+  // base - start address, qword aligned.
+  Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
+  if (UseAVX >= 2) {
+    vpxor(xtmp, xtmp, xtmp, AVX_256bit);
+  } else {
+    pxor(xtmp, xtmp);
+  }
+  jmp(L_zero_64_bytes);
+
+  BIND(L_loop);
+  if (UseAVX >= 2) {
+    vmovdqu(Address(base,  0), xtmp);
+    vmovdqu(Address(base, 32), xtmp);
+  } else {
+    movdqu(Address(base,  0), xtmp);
+    movdqu(Address(base, 16), xtmp);
+    movdqu(Address(base, 32), xtmp);
+    movdqu(Address(base, 48), xtmp);
+  }
+  addptr(base, 64);
+
+  BIND(L_zero_64_bytes);
+  subptr(cnt, 8);
+  jccb(Assembler::greaterEqual, L_loop);
+  addptr(cnt, 4);
+  jccb(Assembler::less, L_tail);
+  // Copy trailing 32 bytes
+  if (UseAVX >= 2) {
+    vmovdqu(Address(base, 0), xtmp);
+  } else {
+    movdqu(Address(base,  0), xtmp);
+    movdqu(Address(base, 16), xtmp);
+  }
+  addptr(base, 32);
+  subptr(cnt, 4);
+
+  BIND(L_tail);
+  addptr(cnt, 4);
+  jccb(Assembler::lessEqual, L_end);
+  decrement(cnt);
+
+  BIND(L_sloop);
+  movq(Address(base, 0), xtmp);
+  addptr(base, 8);
+  decrement(cnt);
+  jccb(Assembler::greaterEqual, L_sloop);
+  BIND(L_end);
+}
+
+void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, XMMRegister xtmp, bool is_large) {
   // cnt - number of qwords (8-byte words).
   // base - start address, qword aligned.
   // is_large - if optimizers know cnt is larger than InitArrayShortSize
@@ -6787,7 +6793,9 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, bool i
 
   Label DONE;
 
-  xorptr(tmp, tmp);
+  if (!is_large || !UseXMMForObjInit) {
+    xorptr(tmp, tmp);
+  }
 
   if (!is_large) {
     Label LOOP, LONG;
@@ -6813,6 +6821,9 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, bool i
   if (UseFastStosb) {
     shlptr(cnt, 3); // convert to number of bytes
     rep_stosb();
+  } else if (UseXMMForObjInit) {
+    movptr(tmp, base);
+    xmm_clear_mem(tmp, cnt, xtmp);
   } else {
     NOT_LP64(shlptr(cnt, 1);) // convert to number of 32-bit words for 32-bit VM
     rep_stos();
@@ -10556,7 +10567,7 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
   XMMRegister tmp1Reg, XMMRegister tmp2Reg,
   XMMRegister tmp3Reg, XMMRegister tmp4Reg,
   Register tmp5, Register result) {
-  Label copy_chars_loop, return_length, return_zero, done, below_threshold;
+  Label copy_chars_loop, return_length, return_zero, done;
 
   // rsi: src
   // rdi: dst
@@ -10579,13 +10590,12 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
 
     set_vector_masking();  // opening of the stub context for programming mask registers
 
-    Label copy_32_loop, copy_loop_tail, restore_k1_return_zero;
+    Label copy_32_loop, copy_loop_tail, restore_k1_return_zero, below_threshold;
 
-    // alignement
-    Label post_alignement;
+    // alignment
+    Label post_alignment;
 
-    // if length of the string is less than 16, handle it in an old fashioned
-    // way
+    // if length of the string is less than 16, handle it in an old fashioned way
     testl(len, -32);
     jcc(Assembler::zero, below_threshold);
 
@@ -10598,7 +10608,7 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
     kmovql(k3, k1);
 
     testl(len, -64);
-    jcc(Assembler::zero, post_alignement);
+    jcc(Assembler::zero, post_alignment);
 
     movl(tmp5, dst);
     andl(tmp5, (32 - 1));
@@ -10607,7 +10617,7 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
 
     // bail out when there is nothing to be done
     testl(tmp5, 0xFFFFFFFF);
-    jcc(Assembler::zero, post_alignement);
+    jcc(Assembler::zero, post_alignment);
 
     // ~(~0 << len), where len is the # of remaining elements to process
     movl(result, 0xFFFFFFFF);
@@ -10627,8 +10637,8 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
     addptr(dst, tmp5);
     subl(len, tmp5);
 
-    bind(post_alignement);
-    // end of alignement
+    bind(post_alignment);
+    // end of alignment
 
     movl(tmp5, len);
     andl(tmp5, (32 - 1));    // tail count (in chars)
@@ -10683,11 +10693,12 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
     jmp(return_zero);
 
     clear_vector_masking();   // closing of the stub context for programming mask registers
-  }
-  if (UseSSE42Intrinsics) {
-    Label copy_32_loop, copy_16, copy_tail;
 
     bind(below_threshold);
+  }
+
+  if (UseSSE42Intrinsics) {
+    Label copy_32_loop, copy_16, copy_tail;
 
     movl(result, len);
 
@@ -10801,8 +10812,7 @@ void MacroAssembler::byte_array_inflate(Register src, Register dst, Register len
     Label copy_32_loop, copy_tail;
     Register tmp3_aliased = len;
 
-    // if length of the string is less than 16, handle it in an old fashioned
-    // way
+    // if length of the string is less than 16, handle it in an old fashioned way
     testl(len, -16);
     jcc(Assembler::zero, below_threshold);
 
@@ -10916,7 +10926,10 @@ void MacroAssembler::byte_array_inflate(Register src, Register dst, Register len
     addptr(dst, 8);
 
     bind(copy_bytes);
+  } else {
+    bind(below_threshold);
   }
+
   testl(len, len);
   jccb(Assembler::zero, done);
   lea(src, Address(src, len, Address::times_1));

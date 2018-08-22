@@ -24,7 +24,7 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
@@ -247,26 +247,54 @@ void TemplateInterpreterGenerator::generate_transcendental_entry(AbstractInterpr
   address fn;
   switch (kind) {
   case Interpreter::java_lang_math_sin :
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dsin);
+    if (StubRoutines::dsin() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dsin);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dsin());
+    }
     break;
   case Interpreter::java_lang_math_cos :
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dcos);
+    if (StubRoutines::dcos() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dcos);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dcos());
+    }
     break;
   case Interpreter::java_lang_math_tan :
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dtan);
+    if (StubRoutines::dtan() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dtan);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dtan());
+    }
     break;
   case Interpreter::java_lang_math_log :
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dlog);
+    if (StubRoutines::dlog() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dlog);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dlog());
+    }
     break;
   case Interpreter::java_lang_math_log10 :
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dlog10);
+    if (StubRoutines::dlog10() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dlog10);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dlog10());
+    }
     break;
   case Interpreter::java_lang_math_exp :
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dexp);
+    if (StubRoutines::dexp() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dexp);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dexp());
+    }
     break;
   case Interpreter::java_lang_math_pow :
     fpargs = 2;
-    fn = CAST_FROM_FN_PTR(address, SharedRuntime::dpow);
+    if (StubRoutines::dpow() == NULL) {
+      fn = CAST_FROM_FN_PTR(address, SharedRuntime::dpow);
+    } else {
+      fn = CAST_FROM_FN_PTR(address, StubRoutines::dpow());
+    }
     break;
   default:
     ShouldNotReachHere();
@@ -808,6 +836,7 @@ void TemplateInterpreterGenerator::lock_method() {
 #endif // ASSERT
 
     __ bind(done);
+    __ resolve(IS_NOT_NULL, r0);
   }
 
   // add space for monitor & lock
@@ -1034,6 +1063,7 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
       __ ldrw(crc,   Address(esp, 4*wordSize)); // Initial CRC
     } else {
       __ ldr(buf, Address(esp, 2*wordSize)); // byte[] array
+      __ resolve(IS_NOT_NULL | ACCESS_READ, buf);
       __ add(buf, buf, arrayOopDesc::base_offset_in_bytes(T_BYTE)); // + header size
       __ ldrw(off, Address(esp, wordSize)); // offset
       __ add(buf, buf, off); // + offset
@@ -1078,6 +1108,9 @@ address TemplateInterpreterGenerator::generate_CRC32C_updateBytes_entry(Abstract
     __ ldrw(off, Address(esp, wordSize)); // int offset
     __ sub(len, end, off);
     __ ldr(buf, Address(esp, 2*wordSize)); // byte[] buf | long buf
+    if (kind == Interpreter::java_util_zip_CRC32C_updateBytes) {
+      __ resolve(IS_NOT_NULL | ACCESS_READ, buf);
+    }
     __ add(buf, buf, off); // + offset
     if (kind == Interpreter::java_util_zip_CRC32C_updateDirectByteBuffer) {
       __ ldrw(crc, Address(esp, 4*wordSize)); // long crc
@@ -1327,7 +1360,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   {
     Label L;
     __ ldrw(t, Address(rthread, JavaThread::thread_state_offset()));
-    __ cmp(t, _thread_in_Java);
+    __ cmp(t, (u1)_thread_in_Java);
     __ br(Assembler::EQ, L);
     __ stop("Wrong thread state in native stub");
     __ bind(L);
@@ -1434,7 +1467,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
     Label no_reguard;
     __ lea(rscratch1, Address(rthread, in_bytes(JavaThread::stack_guard_state_offset())));
     __ ldrw(rscratch1, Address(rscratch1));
-    __ cmp(rscratch1, JavaThread::stack_guard_yellow_reserved_disabled);
+    __ cmp(rscratch1, (u1)JavaThread::stack_guard_yellow_reserved_disabled);
     __ br(Assembler::NE, no_reguard);
 
     __ pusha(); // XXX only save smashed registers

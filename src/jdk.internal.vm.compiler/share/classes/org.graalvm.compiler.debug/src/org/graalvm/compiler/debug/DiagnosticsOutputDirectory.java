@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.debug;
 
 import java.io.File;
@@ -135,7 +137,7 @@ public class DiagnosticsOutputDirectory {
                                 String name = dir.relativize(file).toString();
                                 ZipEntry ze = new ZipEntry(name);
                                 zos.putNextEntry(ze);
-                                zos.write(Files.readAllBytes(file));
+                                Files.copy(file, zos);
                                 zos.closeEntry();
                             }
                             toDelete.add(file);

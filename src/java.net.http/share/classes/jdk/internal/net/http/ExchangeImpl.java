@@ -32,8 +32,8 @@ import java.util.function.Function;
 import java.net.http.HttpResponse;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
-import static java.net.http.HttpClient.Version.HTTP_1_1;
 import jdk.internal.net.http.common.Utils;
+import static java.net.http.HttpClient.Version.HTTP_1_1;
 
 /**
  * Splits request so that headers and body can be sent separately with optional
@@ -85,7 +85,7 @@ abstract class ExchangeImpl<T> {
         } else {
             Http2ClientImpl c2 = exchange.client().client2(); // #### improve
             HttpRequestImpl request = exchange.request();
-            CompletableFuture<Http2Connection> c2f = c2.getConnectionFor(request);
+            CompletableFuture<Http2Connection> c2f = c2.getConnectionFor(request, exchange);
             if (debug.on())
                 debug.log("get: Trying to get HTTP/2 connection");
             return c2f.handle((h2c, t) -> createExchangeImpl(h2c, t, exchange, connection))

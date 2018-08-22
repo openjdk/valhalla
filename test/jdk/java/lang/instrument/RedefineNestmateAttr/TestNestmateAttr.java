@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8010319
+ * @bug 8046171
  * @summary Class redefinition must preclude changes to nest attributes
  * @library /test/lib
  * @modules java.base/jdk.internal.misc

@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.test;
 
 import java.io.ByteArrayOutputStream;
@@ -61,6 +63,7 @@ public class FinalizableSubclassTest extends GraalCompilerTest {
 
     public static final class WithFinalizerAAAA extends NoFinalizerYetAAAA {
 
+        @SuppressWarnings("deprecation")
         @Override
         protected void finalize() throws Throwable {
             super.finalize();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.MetaEventListener;
@@ -76,6 +78,7 @@ public final class JavaSoundAudioClip implements AudioClip, MetaEventListener, L
     private Sequencer sequencer = null;
     private Sequence sequence = null;
     private boolean sequencerloop = false;
+    private volatile boolean success;
 
     /**
      * used for determining how many samples is the
@@ -91,12 +94,31 @@ public final class JavaSoundAudioClip implements AudioClip, MetaEventListener, L
     //private final static long CLIP_THRESHOLD = 1;
     private static final int STREAM_BUFFER_SIZE = 1024;
 
-    public JavaSoundAudioClip(InputStream in) throws IOException {
+    public static JavaSoundAudioClip create(final URLConnection uc) {
+        JavaSoundAudioClip clip = new JavaSoundAudioClip();
+        try {
+            clip.init(uc.getInputStream());
+        } catch (final Exception ignored) {
+            // AudioClip will be no-op if some exception will occurred
+        }
+        return clip;
+    }
+
+    public static JavaSoundAudioClip create(final URL url) {
+        JavaSoundAudioClip clip = new JavaSoundAudioClip();
+        try {
+            clip.init(url.openStream());
+        } catch (final Exception ignored) {
+            // AudioClip will be no-op if some exception will occurred
+        }
+        return clip;
+    }
+
+    private void init(InputStream in) throws IOException {
         if (DEBUG || Printer.debug)Printer.debug("JavaSoundAudioClip.<init>");
 
         BufferedInputStream bis = new BufferedInputStream(in, STREAM_BUFFER_SIZE);
         bis.mark(STREAM_BUFFER_SIZE);
-        boolean success = false;
         try {
             AudioInputStream as = AudioSystem.getAudioInputStream(bis);
             // load the stream data into memory
@@ -120,18 +142,21 @@ public final class JavaSoundAudioClip implements AudioClip, MetaEventListener, L
                 success = false;
             }
         }
-        if (!success) {
-            throw new IOException("Unable to create AudioClip from input stream");
-        }
     }
 
     @Override
     public synchronized void play() {
+        if (!success) {
+            return;
+        }
         startImpl(false);
     }
 
     @Override
     public synchronized void loop() {
+        if (!success) {
+            return;
+        }
         startImpl(true);
     }
 
@@ -148,29 +173,31 @@ public final class JavaSoundAudioClip implements AudioClip, MetaEventListener, L
         if (DEBUG || Printer.debug) Printer.debug("JavaSoundAudioClip.startImpl(loop="+loop+")");
         try {
             if (clip != null) {
-                if (!clip.isOpen()) {
-                    if (DEBUG || Printer.trace)Printer.trace("JavaSoundAudioClip: clip.open()");
-                    clip.open(loadedAudioFormat, loadedAudio, 0, loadedAudioByteLength);
-                } else {
-                    if (DEBUG || Printer.trace)Printer.trace("JavaSoundAudioClip: clip.flush()");
-                    clip.flush();
-                    if (loop != clipLooping) {
-                        // need to stop in case the looped status changed
-                        if (DEBUG || Printer.trace)Printer.trace("JavaSoundAudioClip: clip.stop()");
-                        clip.stop();
+                // We need to disable autoclosing mechanism otherwise the clip
+                // can be closed after "!clip.isOpen()" check, because of
+                // previous inactivity.
+                clip.setAutoClosing(false);
+                try {
+                    if (!clip.isOpen()) {
+                        clip.open(loadedAudioFormat, loadedAudio, 0,
+                                  loadedAudioByteLength);
+                    } else {
+                        clip.flush();
+                        if (loop != clipLooping) {
+                            // need to stop in case the looped status changed
+                            clip.stop();
+                        }
                     }
+                    clip.setFramePosition(0);
+                    if (loop) {
+                        clip.loop(Clip.LOOP_CONTINUOUSLY);
+                    } else {
+                        clip.start();
+                    }
+                    clipLooping = loop;
+                } finally {
+                    clip.setAutoClosing(true);
                 }
-                clip.setFramePosition(0);
-                if (loop) {
-                    if (DEBUG || Printer.trace)Printer.trace("JavaSoundAudioClip: clip.loop()");
-                    clip.loop(Clip.LOOP_CONTINUOUSLY);
-                } else {
-                    if (DEBUG || Printer.trace)Printer.trace("JavaSoundAudioClip: clip.start()");
-                    clip.start();
-                }
-                clipLooping = loop;
-                if (DEBUG || Printer.debug)Printer.debug("Clip should be playing/looping");
-
             } else if (datapusher != null ) {
                 datapusher.start(loop);
                 if (DEBUG || Printer.debug)Printer.debug("Stream should be playing/looping");
@@ -206,6 +233,9 @@ public final class JavaSoundAudioClip implements AudioClip, MetaEventListener, L
 
     @Override
     public synchronized void stop() {
+        if (!success) {
+            return;
+        }
 
         if (DEBUG || Printer.debug)Printer.debug("JavaSoundAudioClip->stop()");
         lastPlayCall = 0;

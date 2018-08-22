@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements;
 
 import static org.graalvm.compiler.core.common.GraalOptions.TrivialInliningSize;
@@ -53,7 +55,7 @@ public final class InlineDuringParsingPlugin implements InlineInvokePlugin {
             method.canBeInlined()) {
 
             // Test force inlining first
-            if (method.shouldBeInlined()) {
+            if (method.shouldBeInlined() && checkInliningDepth(b)) {
                 return createStandardInlineInfo(method);
             }
 

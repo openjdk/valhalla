@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interp_masm_aarch64.hpp"
@@ -267,9 +268,6 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
 void InterpreterMacroAssembler::load_resolved_reference_at_index(
                                            Register result, Register index, Register tmp) {
   assert_different_registers(result, index);
-  // convert from field index to resolved_references() index and from
-  // word index to byte offset. Since this is a java object, it can be compressed
-  lslw(index, index, LogBytesPerHeapOop);
 
   get_constant_pool(result);
   // load pointer for resolved_references[] objArray
@@ -277,8 +275,8 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   ldr(result, Address(result, ConstantPoolCache::resolved_references_offset_in_bytes()));
   resolve_oop_handle(result, tmp);
   // Add in the index
-  add(result, result, index);
-  load_heap_oop(result, Address(result, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  add(index, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
+  load_heap_oop(result, Address(result, index, Address::uxtw(LogBytesPerHeapOop)));
 }
 
 void InterpreterMacroAssembler::load_resolved_klass_at_offset(
@@ -969,12 +967,11 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
                                                 int flag_byte_constant) {
   assert(ProfileInterpreter, "must be profiling interpreter");
-  int header_offset = in_bytes(DataLayout::header_offset());
-  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  int flags_offset = in_bytes(DataLayout::flags_offset());
   // Set the flag
-  ldr(rscratch1, Address(mdp_in, header_offset));
-  orr(rscratch1, rscratch1, header_bits);
-  str(rscratch1, Address(mdp_in, header_offset));
+  ldrb(rscratch1, Address(mdp_in, flags_offset));
+  orr(rscratch1, rscratch1, flag_byte_constant);
+  strb(rscratch1, Address(mdp_in, flags_offset));
 }
 
 
@@ -1639,7 +1636,7 @@ void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& md
 
   ldr(rscratch1, mdo_addr);
   cbz(rscratch1, none);
-  cmp(rscratch1, TypeEntries::null_seen);
+  cmp(rscratch1, (u1)TypeEntries::null_seen);
   br(Assembler::EQ, none);
   // There is a chance that the checks above (re-reading profiling
   // data from memory) fail if another thread has just set the
@@ -1673,7 +1670,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
     int off_to_start = is_virtual ? in_bytes(VirtualCallData::virtual_call_data_size()) : in_bytes(CounterData::counter_data_size());
 
     ldrb(rscratch1, Address(mdp, in_bytes(DataLayout::tag_offset()) - off_to_start));
-    cmp(rscratch1, is_virtual ? DataLayout::virtual_call_type_data_tag : DataLayout::call_type_data_tag);
+    cmp(rscratch1, u1(is_virtual ? DataLayout::virtual_call_type_data_tag : DataLayout::call_type_data_tag));
     br(Assembler::NE, profile_continue);
 
     if (MethodData::profile_arguments()) {
@@ -1685,7 +1682,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
           // If return value type is profiled we may have no argument to profile
           ldr(tmp, Address(mdp, in_bytes(TypeEntriesAtCall::cell_count_offset())));
           sub(tmp, tmp, i*TypeStackSlotEntries::per_arg_count());
-          cmp(tmp, TypeStackSlotEntries::per_arg_count());
+          cmp(tmp, (u1)TypeStackSlotEntries::per_arg_count());
           add(rscratch1, mdp, off_to_args);
           br(Assembler::LT, done);
         }
@@ -1755,13 +1752,13 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
       // length
       Label do_profile;
       ldrb(rscratch1, Address(rbcp, 0));
-      cmp(rscratch1, Bytecodes::_invokedynamic);
+      cmp(rscratch1, (u1)Bytecodes::_invokedynamic);
       br(Assembler::EQ, do_profile);
-      cmp(rscratch1, Bytecodes::_invokehandle);
+      cmp(rscratch1, (u1)Bytecodes::_invokehandle);
       br(Assembler::EQ, do_profile);
       get_method(tmp);
       ldrh(rscratch1, Address(tmp, Method::intrinsic_id_offset_in_bytes()));
-      cmp(rscratch1, vmIntrinsics::_compiledLambdaForm);
+      subs(zr, rscratch1, vmIntrinsics::_compiledLambdaForm);
       br(Assembler::NE, profile_continue);
 
       bind(do_profile);

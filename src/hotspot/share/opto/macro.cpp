@@ -2154,6 +2154,7 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
 
   Node* mem  = alock->in(TypeFunc::Memory);
   Node* ctrl = alock->in(TypeFunc::Control);
+  guarantee(ctrl != NULL, "missing control projection, cannot replace_node() with NULL");
 
   extract_call_projections(alock);
   // There are 2 projections from the lock.  The lock node will
@@ -2188,8 +2189,7 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   }
 
   // Seach for MemBarReleaseLock node and delete it also.
-  if (alock->is_Unlock() && ctrl != NULL && ctrl->is_Proj() &&
-      ctrl->in(0)->is_MemBar()) {
+  if (alock->is_Unlock() && ctrl->is_Proj() && ctrl->in(0)->is_MemBar()) {
     MemBarNode* membar = ctrl->in(0)->as_MemBar();
     assert(membar->Opcode() == Op_MemBarReleaseLock &&
            mem->is_Proj() && membar == mem->in(0), "");
@@ -2574,7 +2574,9 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         assert(n->Opcode() == Op_LoopLimit ||
                n->Opcode() == Op_Opaque1   ||
                n->Opcode() == Op_Opaque2   ||
-               n->Opcode() == Op_Opaque3, "unknown node type in macro list");
+               n->Opcode() == Op_Opaque3   ||
+               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n),
+               "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
@@ -2656,7 +2658,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   while (macro_idx >= 0) {
     Node * n = C->macro_node(macro_idx);
     assert(n->is_macro(), "only macro nodes expected here");
-    if (_igvn.type(n) == Type::TOP || n->in(0)->is_top() ) {
+    if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
     } else if (n->is_ArrayCopy()){
@@ -2674,7 +2676,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     int macro_count = C->macro_count();
     Node * n = C->macro_node(macro_count-1);
     assert(n->is_macro(), "only macro nodes expected here");
-    if (_igvn.type(n) == Type::TOP || n->in(0)->is_top() ) {
+    if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
       continue;

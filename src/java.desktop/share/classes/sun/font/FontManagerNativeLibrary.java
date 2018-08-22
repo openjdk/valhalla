@@ -34,8 +34,7 @@ public class FontManagerNativeLibrary {
             public Object run() {
                /* REMIND do we really have to load awt here? */
                System.loadLibrary("awt");
-               if (FontUtilities.isOpenJDK &&
-                   System.getProperty("os.name").startsWith("Windows")) {
+               if (System.getProperty("os.name").startsWith("Windows")) {
                    /* Ideally fontmanager library should not depend on
                       particular implementation of the font scaler.
                       However, freetype scaler is basically small wrapper on
@@ -50,9 +49,6 @@ public class FontManagerNativeLibrary {
 
                       To avoid link error we have to load freetype explicitly
                       before we load fontmanager.
-
-                      Note that we do not need to do this for T2K because
-                      fontmanager.dll does not depend on t2k.dll.
 
                       NB: consider moving freetype wrapper part to separate
                           shared library in order to avoid dependency. */

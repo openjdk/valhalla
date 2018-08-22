@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common.util;
 
 import java.util.Arrays;
@@ -145,9 +147,9 @@ public final class IntList {
     /**
      * Adjusts the {@linkplain #size() size} of this int list.
      *
-     * If {@code newSize < size()}, the size is changed to {@code newSize}. If
-     * {@code newSize > size()}, sufficient 0 elements are {@linkplain #add(int) added} until
-     * {@code size() == newSize}.
+     * If {@code newSize > size()}, sufficient 0 elements are {@linkplain #add(int) added} until
+     * {@code size() == newSize}. If {@code newSize < size()}, the size is changed to
+     * {@code newSize}.
      *
      * @param newSize the new size of this int list
      */

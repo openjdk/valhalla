@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot;
 
 import java.io.FileNotFoundException;
@@ -29,17 +31,17 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.List;
 
+import org.graalvm.compiler.core.common.SuppressFBWarnings;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.serviceprovider.GraalServices;
 
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
-import jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider;
 
 /**
  * An option for a configurable file name that can also open a {@link PrintStream} on the file. If
  * no value is given for the option, the stream will output to HotSpot's
- * {@link HotSpotJVMCIRuntimeProvider#getLogStream() log} stream
+ * {@link HotSpotJVMCIRuntime#getLogStream() log} stream
  */
 public class PrintStreamOptionKey extends OptionKey<String> {
 
@@ -63,9 +65,9 @@ public class PrintStreamOptionKey extends OptionKey<String> {
     }
 
     /**
-     * An output stream that redirects to {@link HotSpotJVMCIRuntimeProvider#getLogStream()}. The
-     * {@link HotSpotJVMCIRuntimeProvider#getLogStream()} value is only accessed the first time an
-     * IO operation is performed on the stream. This is required to break a deadlock in early JVMCI
+     * An output stream that redirects to {@link HotSpotJVMCIRuntime#getLogStream()}. The
+     * {@link HotSpotJVMCIRuntime#getLogStream()} value is only accessed the first time an IO
+     * operation is performed on the stream. This is required to break a deadlock in early JVMCI
      * initialization.
      */
     static class DelayedOutputStream extends OutputStream {
@@ -105,8 +107,9 @@ public class PrintStreamOptionKey extends OptionKey<String> {
 
     /**
      * Gets the print stream configured by this option. If no file is configured, the print stream
-     * will output to HotSpot's {@link HotSpotJVMCIRuntimeProvider#getLogStream() log} stream.
+     * will output to HotSpot's {@link HotSpotJVMCIRuntime#getLogStream() log} stream.
      */
+    @SuppressFBWarnings(value = "DLS_DEAD_LOCAL_STORE", justification = "false positive on dead store to `ps`")
     public PrintStream getStream(OptionValues options) {
         String nameTemplate = getValue(options);
         if (nameTemplate != null) {

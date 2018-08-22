@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 7073631 7159445 7156633 8028235 8065753
+ * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913
  * @summary tests error and diagnostics positions
  * @author  Jan Lahoda
  * @modules jdk.compiler/com.sun.tools.javac.api
@@ -49,7 +49,10 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
+import com.sun.source.util.JavacTask;
 import com.sun.source.util.SourcePositions;
+import com.sun.source.util.TreePath;
+import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
@@ -1005,6 +1008,135 @@ public class JavacParserTest extends TestCase {
         assertEquals("the error message is not correct, actual: " + actualErrors, expectedErrors, actualErrors);
     }
 
+    @Test //JDK-8205913
+    void testForInit() throws IOException {
+        String code = "class T { void t() { for (n : ns) { } } }";
+        String expectedErrors = "Test.java:1:27: compiler.err.bad.initializer: for-loop\n";
+        StringWriter out = new StringWriter();
+        JavacTask ct = (JavacTask) tool.getTask(out, fm, null,
+                Arrays.asList("-XDrawDiagnostics"), null, Arrays.asList(new MyFileObject(code)));
+
+        Iterable<? extends CompilationUnitTree> cuts = ct.parse();
+        boolean[] foundVar = new boolean[1];
+
+        new TreePathScanner<Void, Void>() {
+            @Override public Void visitVariable(VariableTree vt, Void p) {
+                assertNotNull(vt.getModifiers());
+                assertNotNull(vt.getType());
+                assertNotNull(vt.getName());
+                assertEquals("name should be <error>", "<error>", vt.getName().toString());
+                foundVar[0] = true;
+                return super.visitVariable(vt, p);
+            }
+        }.scan(cuts, null);
+
+        if (!foundVar[0]) {
+            fail("haven't found a variable");
+        }
+
+        String actualErrors = normalize(out.toString());
+        assertEquals("the error message is not correct, actual: " + actualErrors, expectedErrors, actualErrors);
+    }
+
+    @Test
+    void testTypeParamsWithoutMethod() throws IOException {
+        assert tool != null;
+
+        String code = "package test; class Test { /**javadoc*/ |public <T> |}";
+        String[] parts = code.split("\\|");
+
+        code = parts[0] + parts[1] + parts[2];
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, null,
+                null, Arrays.asList(new MyFileObject(code)));
+        Trees trees = Trees.instance(ct);
+        SourcePositions pos = trees.getSourcePositions();
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
+        ErroneousTree err = (ErroneousTree) clazz.getMembers().get(0);
+        MethodTree method = (MethodTree) err.getErrorTrees().get(0);
+
+        final int methodStart = parts[0].length();
+        final int methodEnd = parts[0].length() + parts[1].length();
+        assertEquals("testTypeParamsWithoutMethod",
+                methodStart, pos.getStartPosition(cut, method));
+        assertEquals("testTypeParamsWithoutMethod",
+                methodEnd, pos.getEndPosition(cut, method));
+
+        TreePath path2Method = new TreePath(new TreePath(new TreePath(cut), clazz), method);
+        String javadoc = trees.getDocComment(path2Method);
+
+        if (!"javadoc".equals(javadoc)) {
+            throw new AssertionError("Expected javadoc not found, actual javadoc: " + javadoc);
+        }
+    }
+
+    @Test
+    void testAnalyzeParensWithComma1() throws IOException {
+        assert tool != null;
+
+        String code = "package test; class Test { FI fi = |(s, |";
+        String[] parts = code.split("\\|", 3);
+
+        code = parts[0] + parts[1] + parts[2];
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, null,
+                null, Arrays.asList(new MyFileObject(code)));
+        Trees trees = Trees.instance(ct);
+        SourcePositions pos = trees.getSourcePositions();
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        boolean[] found = new boolean[1];
+
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void visitLambdaExpression(LambdaExpressionTree tree, Void v) {
+                found[0] = true;
+                int lambdaStart = parts[0].length();
+                int lambdaEnd = parts[0].length() + parts[1].length();
+                assertEquals("testAnalyzeParensWithComma1",
+                        lambdaStart, pos.getStartPosition(cut, tree));
+                assertEquals("testAnalyzeParensWithComma1",
+                        lambdaEnd, pos.getEndPosition(cut, tree));
+                return null;
+            }
+        }.scan(cut, null);
+
+        assertTrue("testAnalyzeParensWithComma1", found[0]);
+    }
+
+    @Test
+    void testAnalyzeParensWithComma2() throws IOException {
+        assert tool != null;
+
+        String code = "package test; class Test { FI fi = |(s, o)|";
+        String[] parts = code.split("\\|", 3);
+
+        code = parts[0] + parts[1] + parts[2];
+
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, null,
+                null, Arrays.asList(new MyFileObject(code)));
+        Trees trees = Trees.instance(ct);
+        SourcePositions pos = trees.getSourcePositions();
+        CompilationUnitTree cut = ct.parse().iterator().next();
+        boolean[] found = new boolean[1];
+
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void visitLambdaExpression(LambdaExpressionTree tree, Void v) {
+                found[0] = true;
+                int lambdaStart = parts[0].length();
+                int lambdaEnd = parts[0].length() + parts[1].length();
+                assertEquals("testAnalyzeParensWithComma2",
+                        lambdaStart, pos.getStartPosition(cut, tree));
+                assertEquals("testAnalyzeParensWithComma2",
+                        lambdaEnd, pos.getEndPosition(cut, tree));
+                return null;
+            }
+        }.scan(cut, null);
+
+        assertTrue("testAnalyzeParensWithComma2", found[0]);
+    }
+
     void run(String[] args) throws Exception {
         int passed = 0, failed = 0;
         final Pattern p = (args != null && args.length > 0)
@@ -1046,6 +1178,12 @@ abstract class TestCase {
 
     void assertFalse(String message, boolean bvalue) {
         if (bvalue == true) {
+            fail(message);
+        }
+    }
+
+    void assertTrue(String message, boolean bvalue) {
+        if (bvalue == false) {
             fail(message);
         }
     }
