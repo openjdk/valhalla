@@ -387,8 +387,7 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
         // load barrier.
         if (!UseZGC &&
             ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
-             !Universe::heap()->is_in_or_null(*loc)
-             && !VTBuffer::is_in_vt_buffer(*loc))) {
+             (!Universe::heap()->is_in_or_null(*loc) && !VTBuffer::is_in_vt_buffer(*loc)))) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");
           // try to dump out some helpful debugging information
           trace_codeblob_maps(fr, reg_map);
