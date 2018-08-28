@@ -305,7 +305,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         Set<String> valueTypeNames = JLA.getDeclaredValueTypeNames(targetClass);
         if (!valueTypeNames.isEmpty()) {
             ValueTypesAttributeBuilder builder = new ValueTypesAttributeBuilder(valueTypeNames);
-            builder.add(invokedType)
+            builder.add(targetClass)
+                   .add(invokedType)
                    .add(samMethodType)
                    .add(implMethodType)
                    .add(instantiatedMethodType)
@@ -589,6 +590,11 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             for (MethodType mt : mtypes) {
                 add(mt);
             }
+            return this;
+        }
+
+        ValueTypesAttributeBuilder add(Class<?> c) {
+            addIfDeclaredValueType(c);
             return this;
         }
 
