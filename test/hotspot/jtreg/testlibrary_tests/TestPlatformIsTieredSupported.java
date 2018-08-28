@@ -28,6 +28,7 @@ import sun.hotspot.WhiteBox;
 /**
  * @test
  * @summary Verifies that Platform::isTieredSupported returns correct value.
+ * @requires vm.opt.final.TieredCompilation
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management

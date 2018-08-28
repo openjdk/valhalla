@@ -35,6 +35,8 @@ import jdk.experimental.value.MethodHandleBuilder;
 
 /**
  * @test ValueOops
+ * @requires vm.gc == null
+ * @requires vm.opt.ExplicitGCInvokesConcurrent != true
  * @summary Test embedding oops into Value types
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
@@ -42,7 +44,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @compile -XDenableValueTypes Person.java
  * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers ValueOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops

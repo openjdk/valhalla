@@ -268,6 +268,7 @@ public class VMProps implements Callable<Map<String, String>> {
         vmOptFinalFlag(map, "ClassUnloading");
         vmOptFinalFlag(map, "UseCompressedOops");
         vmOptFinalFlag(map, "EnableJVMCI");
+        vmOptFinalFlag(map, "TieredCompilation");
     }
 
     /**
@@ -350,11 +351,11 @@ public class VMProps implements Callable<Map<String, String>> {
      * @return true if CDS is supported by the VM to be tested.
      */
     protected String vmCDS() {
-        if (WB.isCDSIncludedInVmBuild()) {
-            return "true";
-        } else {
+        // if (WB.isCDSIncludedInVmBuild()) {
+            // return "true";
+        // } else {
             return "false";
-        }
+        // }
     }
 
     /**
