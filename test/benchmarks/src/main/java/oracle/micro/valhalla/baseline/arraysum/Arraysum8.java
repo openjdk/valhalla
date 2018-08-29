@@ -23,12 +23,11 @@
 package oracle.micro.valhalla.baseline.arraysum;
 
 import oracle.micro.valhalla.ArraysumBase;
-import oracle.micro.valhalla.BigDataSize;
-import oracle.micro.valhalla.SmallDataSize;
 import oracle.micro.valhalla.baseline.types.Box8;
-import org.openjdk.jmh.annotations.*;
-
-import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 
 public class Arraysum8 extends ArraysumBase {
 
@@ -54,6 +53,28 @@ public class Arraysum8 extends ArraysumBase {
             sum += values[i];
         }
         return sum;
+    }
+
+    public static int sumPrimitive1(int[] values ) {
+        int f0 = 0;
+        int f1 = 0;
+        int f2 = 0;
+        int f3 = 0;
+        int f4 = 0;
+        int f5 = 0;
+        int f6 = 0;
+        int f7 = 0;
+        for (int i = 0; i < values.length; i += 8) {
+            f0 += values[i];
+            f1 += values[i+1];
+            f2 += values[i+2];
+            f3 += values[i+3];
+            f4 += values[i+4];
+            f5 += values[i+5];
+            f6 += values[i+5];
+            f7 += values[i+7];
+        }
+        return f0 + f1 + f2 + f3 + f4 + f5 + f6 + f7;
     }
 
     public static Box8[] setupBoxed(int size) {
@@ -127,5 +148,10 @@ public class Arraysum8 extends ArraysumBase {
     @Benchmark
     public int primitive(StatePrimitive st) {
         return sumPrimitive(st.values);
+    }
+
+    @Benchmark
+    public int primitive1(StatePrimitive st) {
+        return sumPrimitive1(st.values);
     }
 }
