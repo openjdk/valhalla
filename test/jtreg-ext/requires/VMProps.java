@@ -333,6 +333,9 @@ public class VMProps implements Callable<Map<String, String>> {
      * @return true if VM supports AOT and false otherwise
      */
     protected String vmAOT() {
+        if (WB.getBooleanVMFlag("EnableValhalla").booleanValue()) {
+            return "false";
+        }
         // builds with aot have jaotc in <JDK>/bin
         Path bin = Paths.get(System.getProperty("java.home"))
                         .resolve("bin");
