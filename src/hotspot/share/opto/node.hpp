@@ -102,6 +102,7 @@ class MachJumpNode;
 class MachNode;
 class MachNullCheckNode;
 class MachProjNode;
+class MachPrologNode;
 class MachReturnNode;
 class MachSafePointNode;
 class MachSpillCopyNode;
@@ -662,6 +663,7 @@ public:
       DEFINE_CLASS_ID(MachConstant,     Mach, 5)
         DEFINE_CLASS_ID(MachJump,       MachConstant, 0)
       DEFINE_CLASS_ID(MachMerge,        Mach, 6)
+      DEFINE_CLASS_ID(MachProlog,       Mach, 7)
 
     DEFINE_CLASS_ID(Type,  Node, 2)
       DEFINE_CLASS_ID(Phi,   Type, 0)
@@ -854,6 +856,7 @@ public:
   DEFINE_CLASS_QUERY(MachJump)
   DEFINE_CLASS_QUERY(MachNullCheck)
   DEFINE_CLASS_QUERY(MachProj)
+  DEFINE_CLASS_QUERY(MachProlog)
   DEFINE_CLASS_QUERY(MachReturn)
   DEFINE_CLASS_QUERY(MachSafePoint)
   DEFINE_CLASS_QUERY(MachSpillCopy)

@@ -983,7 +983,7 @@ static void gen_i2c_adapter_helper(MacroAssembler* masm,
     }
     if (r_1->is_stack()) {
       // Convert stack slot to an SP offset (+ wordSize to account for return address)
-      int st_off = reg_pair.first()->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+      int st_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
       __ movq(Address(rsp, st_off), dst);
     }
   } else {
@@ -1025,24 +1025,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // clean up the stack pointer changes performed by the two adapters.
   // If this happens, control eventually transfers back to the compiled
   // caller, but with an uncorrected stack, causing delayed havoc.
-
-  /*
-  // TODO we currently check value type arguments for null at compiled method entry
-  Label value_arg_is_null;
-  bool has_null_check = false;
-  if (EnableValhalla) {
-    for (int i = 0; i < sig_extended.length(); i++) {
-      BasicType bt = sig_extended.at(i)._bt;
-      if (bt == T_VALUETYPEPTR) {
-        // Add null check for value type argument
-        int ld_off = (sig_extended.length() - i) * Interpreter::stackElementSize;
-        __ cmpptr(Address(rsp, ld_off), 0);
-        __ jcc(Assembler::equal, value_arg_is_null);
-        has_null_check = true;
-      }
-    }
-  }
-  */
 
   // Pick up the return address
   __ movptr(rax, Address(rsp, 0));
@@ -1107,7 +1089,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
-  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_offset())));
+  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI || UseAOT) {
@@ -1199,15 +1181,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // rax
   __ mov(rax, rbx);
   __ jmp(r11);
-
-  /*
-  if (has_null_check) {
-    __ bind(value_arg_is_null);
-    // TODO For now, we just call the interpreter if a value type argument is NULL
-    __ movptr(r11, Address(rbx, in_bytes(Method::interpreter_entry_offset())));
-    __ jmp(r11);
-  }
-  */
 }
 
 // ---------------------------------------------------------------
@@ -1264,43 +1237,42 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   __ flush();
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps);
 
-  // If value types are passed as fields, save the extended signature as symbol in
-  // the AdapterHandlerEntry to be used by nmethod::preserve_callee_argument_oops().
+  // If the method has value types arguments, save the extended signature as symbol in
+  // the AdapterHandlerEntry to be used for scalarization of value type arguments.
   Symbol* extended_signature = NULL;
-  if (ValueTypePassFieldsAsArgs) {
-    bool has_value_argument = false;
-    Thread* THREAD = Thread::current();
-    ResourceMark rm(THREAD);
-    int length = sig_extended.length();
-    char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
-    int idx = 0;
-    sig_str[idx++] = '(';
-    for (int index = 0; index < length; index++) {
-      BasicType bt = sig_extended.at(index)._bt;
-      if (bt == T_VALUETYPE) {
-        has_value_argument = true;
-      } else if (bt == T_VALUETYPEPTR) {
-        // non-flattened value type field
-        sig_str[idx++] = type2char(T_VALUETYPE);
+  bool has_value_argument = false;
+  Thread* THREAD = Thread::current();
+  ResourceMark rm(THREAD);
+  int length = sig_extended.length();
+  char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
+  int idx = 0;
+  sig_str[idx++] = '(';
+  for (int index = 0; index < length; index++) {
+    BasicType bt = sig_extended.at(index)._bt;
+    if (bt == T_VALUETYPE) {
+      has_value_argument = true;
+    } else if (bt == T_VALUETYPEPTR) {
+      has_value_argument = true;
+      // non-flattened value type field
+      sig_str[idx++] = type2char(T_VALUETYPE);
+      sig_str[idx++] = ';';
+    } else if (bt == T_VOID) {
+      // Ignore
+    } else {
+      if (bt == T_ARRAY) {
+        bt = T_OBJECT; // We don't know the element type, treat as Object
+      }
+      sig_str[idx++] = type2char(bt);
+      if (bt == T_OBJECT) {
         sig_str[idx++] = ';';
-      } else if (bt == T_VOID) {
-        // Ignore
-      } else {
-        if (bt == T_ARRAY) {
-          bt = T_OBJECT; // We don't know the element type, treat as Object
-        }
-        sig_str[idx++] = type2char(bt);
-        if (bt == T_OBJECT) {
-          sig_str[idx++] = ';';
-        }
       }
     }
-    sig_str[idx++] = ')';
-    sig_str[idx++] = '\0';
-    if (has_value_argument) {
-      // Extended signature is only required if a value type argument is passed
-      extended_signature = SymbolTable::new_permanent_symbol(sig_str, THREAD);
-    }
+  }
+  sig_str[idx++] = ')';
+  sig_str[idx++] = '\0';
+  if (has_value_argument) {
+    // Extended signature is only required if a value type argument is passed
+    extended_signature = SymbolTable::new_permanent_symbol(sig_str, THREAD);
   }
 
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, extended_signature);

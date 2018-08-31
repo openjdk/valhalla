@@ -588,6 +588,10 @@ nmethod::nmethod(
     _comp_level              = CompLevel_none;
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
+    if (method->has_value_args()) {
+      // Use the normale entry point for now
+      _verified_value_entry_point = _verified_entry_point;
+    }
     _osr_entry_point         = NULL;
     _exception_cache         = NULL;
     _pc_desc_container.reset_to(NULL);
@@ -745,6 +749,11 @@ nmethod::nmethod(
     _nmethod_end_offset      = _nul_chk_table_offset + align_up(nul_chk_table->size_in_bytes(), oopSize);
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
+    if (method->has_value_args()) {
+      _verified_value_entry_point = code_begin()     + offsets->value(CodeOffsets::Verified_Value_Entry);
+    } else {
+      _verified_value_entry_point = NULL;
+    }
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
     _exception_cache         = NULL;
 
@@ -2469,18 +2478,9 @@ ScopeDesc* nmethod::scope_desc_in(address begin, address end) {
 }
 
 void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) const {
-  if (block_begin == entry_point())             stream->print_cr("[Entry Point]");
-  if (block_begin == verified_entry_point())    stream->print_cr("[Verified Entry Point]");
-  if (JVMCI_ONLY(_exception_offset >= 0 &&) block_begin == exception_begin())         stream->print_cr("[Exception Handler]");
-  if (block_begin == stub_begin())              stream->print_cr("[Stub Code]");
-  if (JVMCI_ONLY(_deopt_handler_begin != NULL &&) block_begin == deopt_handler_begin())     stream->print_cr("[Deopt Handler Code]");
-
-  if (has_method_handle_invokes())
-    if (block_begin == deopt_mh_handler_begin())  stream->print_cr("[Deopt MH Handler Code]");
-
-  if (block_begin == consts_begin())            stream->print_cr("[Constants]");
-
-  if (block_begin == entry_point()) {
+  address low = verified_value_entry_point() != NULL ? verified_value_entry_point() : entry_point();
+  if (block_begin == low) {
+    // Print method arguments before the method entry
     methodHandle m = method();
     if (m.not_null()) {
       stream->print("  # ");
@@ -2583,6 +2583,18 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
       }
     }
   }
+
+  if (block_begin == entry_point())             stream->print_cr("[Entry Point]");
+  if (block_begin == verified_entry_point())    stream->print_cr("[Verified Entry Point]");
+  if (block_begin == verified_value_entry_point()) stream->print_cr("[Verified Value Entry Point]");
+  if (JVMCI_ONLY(_exception_offset >= 0 &&) block_begin == exception_begin())         stream->print_cr("[Exception Handler]");
+  if (block_begin == stub_begin())              stream->print_cr("[Stub Code]");
+  if (JVMCI_ONLY(_deopt_handler_begin != NULL &&) block_begin == deopt_handler_begin())     stream->print_cr("[Deopt Handler Code]");
+
+  if (has_method_handle_invokes())
+    if (block_begin == deopt_mh_handler_begin())  stream->print_cr("[Deopt MH Handler Code]");
+
+  if (block_begin == consts_begin() && consts_begin() != low) stream->print_cr("[Constants]");
 }
 
 void nmethod::print_code_comment_on(outputStream* st, int column, u_char* begin, u_char* end) {

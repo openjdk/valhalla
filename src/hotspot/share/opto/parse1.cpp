@@ -609,7 +609,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     if (!ValueTypePassFieldsAsArgs) {
       if (t->is_valuetypeptr()) {
         // Create ValueTypeNode from the oop and replace the parameter
-        assert(depth() == 1 || !t->is_ptr()->maybe_null(), "inlined value type arguments should never be null");
+        assert(!t->is_ptr()->maybe_null(), "value type arguments should never be null");
         Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true, /* null2default */ false);
         map()->replace_edge(parm, vt);
       }

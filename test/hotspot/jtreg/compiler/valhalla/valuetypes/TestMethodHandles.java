@@ -523,6 +523,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     // Test passing null for a value type
     @Test
+    @Warmup(11000) // Make sure lambda forms get compiled
     public void test12() throws Throwable {
         test12_mh1.invokeExact(nullValue);
         test12_mh2.invokeExact(nullValue);
@@ -551,6 +552,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     // Same as test12 but with non-final mh
     @Test
+    @Warmup(11000) // Make sure lambda forms get compiled
     public void test13() throws Throwable {
         test13_mh1.invokeExact(nullValue);
         test13_mh2.invokeExact(nullValue);
@@ -564,4 +566,21 @@ public class TestMethodHandles extends ValueTypeTest {
         }
     }
 
+    // Same as test12/13 but with constant null
+    @Test
+    @Warmup(11000) // Make sure lambda forms get compiled
+    public void test14(MethodHandle mh) throws Throwable {
+        mh.invoke(null);
+    }
+
+    public void test14_verifier(boolean warmup) {
+        try {
+            test14(test12_mh1);
+            test14(test12_mh2);
+            test14(test13_mh1);
+            test14(test13_mh2);
+        } catch (Throwable t) {
+            throw new RuntimeException("test14 failed", t);
+        }
+    }
 }

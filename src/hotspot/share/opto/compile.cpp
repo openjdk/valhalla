@@ -614,14 +614,23 @@ uint Compile::scratch_emit_size(const Node* n) {
     masm.bind(fakeL);
     n->as_MachBranch()->save_label(&saveL, &save_bnum);
     n->as_MachBranch()->label_set(&fakeL, 0);
+  } else if (n->is_MachProlog()) {
+    MacroAssembler masm(&buf);
+    masm.bind(fakeL);
+    saveL = ((MachPrologNode*)n)->_verified_entry;
+    ((MachPrologNode*)n)->_verified_entry = &fakeL;
   }
   n->emit(buf, this->regalloc());
 
   // Emitting into the scratch buffer should not fail
   assert (!failing(), "Must not have pending failure. Reason is: %s", failure_reason());
 
-  if (is_branch) // Restore label.
+  // Restore label.
+  if (is_branch) {
     n->as_MachBranch()->label_set(saveL, save_bnum);
+  } else if (n->is_MachProlog()) {
+    ((MachPrologNode*)n)->_verified_entry = saveL;
+  }
 
   // End scratch_emit_size section.
   set_in_scratch_emit_size(false);
@@ -937,6 +946,10 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
+      if (_code_offsets.value(CodeOffsets::Entry) == -1) {
+        // We emitted a value type entry point, adjust normal entry
+        _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);
+      }
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
     }
 

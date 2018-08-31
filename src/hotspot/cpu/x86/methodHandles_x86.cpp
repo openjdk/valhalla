@@ -147,7 +147,7 @@ void MethodHandles::jump_from_method_handle(MacroAssembler* _masm, Register meth
     __ BIND(run_compiled_code);
   }
 
-  const ByteSize entry_offset = for_compiler_entry ? Method::from_compiled_offset() :
+  const ByteSize entry_offset = for_compiler_entry ? Method::from_compiled_value_offset() :
                                                      Method::from_interpreted_offset();
   __ jmp(Address(method, entry_offset));
 

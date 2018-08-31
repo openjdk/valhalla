@@ -491,6 +491,10 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
 }
 #endif
 
+bool Method::has_value_args() const {
+  return adapter()->get_sig_extended() != NULL;
+}
+
 bool Method::is_empty_method() const {
   return  code_size() == 1
       && *code_base() == Bytecodes::_return;
@@ -937,8 +941,10 @@ void Method::clear_code(bool acquire_lock /* = true */) {
   // Only should happen at allocate time.
   if (adapter() == NULL) {
     _from_compiled_entry    = NULL;
+    _from_compiled_value_entry = NULL;
   } else {
     _from_compiled_entry    = adapter()->get_c2i_entry();
+    _from_compiled_value_entry = adapter()->get_c2i_entry();
   }
   OrderAccess::storestore();
   _from_interpreted_entry = _i2i_entry;
@@ -967,6 +973,8 @@ void Method::unlink_method() {
   constMethod()->set_adapter_trampoline(cds_adapter->get_adapter_trampoline());
   _from_compiled_entry = cds_adapter->get_c2i_entry_trampoline();
   assert(*((int*)_from_compiled_entry) == 0, "must be NULL during dump time, to be initialized at run time");
+  _from_compiled_value_entry = cds_adapter->get_c2i_entry_trampoline();
+  assert(*((int*)_from_compiled_value_entry) == 0, "must be NULL during dump time, to be initialized at run time");
 
   set_method_data(NULL);
   clear_method_counters();
@@ -1114,9 +1122,11 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   if (mh->is_shared()) {
     assert(mh->adapter() == adapter, "must be");
     assert(mh->_from_compiled_entry != NULL, "must be");
+    assert(mh->_from_compiled_value_entry != NULL, "must be");
   } else {
     mh->set_adapter_entry(adapter);
     mh->_from_compiled_entry = adapter->get_c2i_entry();
+    mh->_from_compiled_value_entry = adapter->get_c2i_entry();
   }
   return adapter->get_c2i_entry();
 }
@@ -1185,6 +1195,7 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
 
   OrderAccess::storestore();
   mh->_from_compiled_entry = code->verified_entry_point();
+  mh->_from_compiled_value_entry = mh->has_value_args() ? code->verified_value_entry_point() : code->verified_entry_point();
   OrderAccess::storestore();
   // Instantly compiled code can execute.
   if (!mh->is_method_handle_intrinsic())

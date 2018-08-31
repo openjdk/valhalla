@@ -6830,6 +6830,46 @@ void MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool fp_
 
 }
 
+// Add null checks for all value type arguments
+void MacroAssembler::null_check_value_args(Method* method) {
+  // Get registers/stack slots for arguments
+  assert(method->has_value_args(), "must have value type args");
+  Symbol* sig_ext = method->adapter()->get_sig_extended();
+  assert(sig_ext != NULL, "must have extended signature");
+  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
+  VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, 256);
+  int num = 0;
+  for (SignatureStream ss(sig_ext); !ss.at_return_type(); ss.next()) {
+    BasicType bt = ss.type();
+    sig_bt[num++] = bt;
+    if (type2size[bt] == 2) {
+      sig_bt[num++] = T_VOID;
+    }
+  }
+  SharedRuntime::java_calling_convention(sig_bt, regs, num, false);
+
+  // Jump to c2i adapter if a value type argument is null
+  bool has_receiver = !method->is_static();
+  RuntimeAddress interpreter_entry = RuntimeAddress(method->get_c2i_entry());
+  num = 0;
+  for (SignatureStream ss(sig_ext); !ss.at_return_type(); num += type2size[ss.type()], ss.next()) {
+    if ((has_receiver && num == 0) || ss.type() != T_VALUETYPEPTR) {
+      continue; // Skip receiver and non value type args
+    }
+    VMReg r = regs[num].first();
+    if (r->is_reg()) {
+      testptr(r->as_Register(), r->as_Register());
+    } else {
+      if (!r->is_stack()) {
+        r->print();
+      }
+      int st_off = r->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+      cmpptr(Address(rsp, st_off), NULL_WORD);
+    }
+    jump_cc(Assembler::zero, interpreter_entry);
+  }
+}
+
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers
 void MacroAssembler::xmm_clear_mem(Register base, Register cnt, XMMRegister xtmp) {
   // cnt - number of qwords (8-byte words).
