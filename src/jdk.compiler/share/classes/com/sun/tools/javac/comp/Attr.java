@@ -2104,7 +2104,11 @@ public class Attr extends JCTree.Visitor {
 
             /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
             */
-            if (types.isValue(qualifier)) {
+            boolean superCallOnValueReceiver = types.isValue(env.enclClass.sym.type)
+                                    && (tree.meth.hasTag(SELECT))
+                                    && ((JCFieldAccess) tree.meth).selected.hasTag(IDENT)
+                                    && TreeInfo.name(((JCFieldAccess) tree.meth).selected) == names._super;
+            if (types.isValue(qualifier) || superCallOnValueReceiver) {
                 int argSize = argtypes.size();
                 Name name = symbol.name;
                 switch (name.toString()) {
@@ -2121,6 +2125,12 @@ public class Attr extends JCTree.Visitor {
                     case "finalize":
                         if (argSize == 0)
                             log.error(tree.pos(), Errors.ValueDoesNotSupport(name));
+                        break;
+                    case "hashCode":
+                    case "equals":
+                    case "toString":
+                        if (superCallOnValueReceiver)
+                            log.error(tree.pos(), Errors.ValueDoesNotSupport(names.fromString("invocation of super." + name)));
                         break;
                 }
             }

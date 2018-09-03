@@ -1,0 +1,4 @@
+SneakThroSuperCallTest.java:13:21: compiler.err.value.does.not.support: notify
+SneakThroSuperCallTest.java:17:30: compiler.err.value.does.not.support: invocation of super.hashCode
+SneakThroSuperCallTest.java:21:30: compiler.err.value.does.not.support: invocation of super.toString
+3 errors
