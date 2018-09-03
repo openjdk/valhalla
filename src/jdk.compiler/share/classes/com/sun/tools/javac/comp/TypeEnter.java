@@ -1038,7 +1038,7 @@ public class TypeEnter implements Completer {
                 }
             }
 
-            make.at(tree.pos());
+            make.at(tree.pos);
             // Make a body comprising { throw new RuntimeException(""Internal error: This method must have been replaced by javac"); }
             JCBlock body = make.Block(Flags.SYNTHETIC, List.of(make.Throw(
                     make.NewClass(null,

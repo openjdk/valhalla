@@ -1061,6 +1061,8 @@ public class Checker extends DocTreePathScanner<Void, Void> {
             case CONSTRUCTOR:
                 // A synthetic default constructor has the same pos as the
                 // enclosing class
+            case METHOD:
+                // Ditto for a synthetic method injected by the compiler (for value types)
                 TreePath p = env.currPath;
                 return env.getPos(p) == env.getPos(p.getParentPath());
         }
