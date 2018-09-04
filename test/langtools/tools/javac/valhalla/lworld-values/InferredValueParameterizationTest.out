@@ -1,0 +1,6 @@
+InferredValueParameterizationTest.java:23:26: compiler.err.generic.parameterization.with.value.type: java.util.List<InferredValueParameterizationTest>
+InferredValueParameterizationTest.java:23:12: compiler.err.generic.parameterization.with.value.type: java.util.List<InferredValueParameterizationTest>
+InferredValueParameterizationTest.java:24:19: compiler.err.generic.parameterization.with.value.type: InferredValueParameterizationTest.Y<InferredValueParameterizationTest>
+InferredValueParameterizationTest.java:25:12: compiler.err.generic.parameterization.with.value.type: InferredValueParameterizationTest.Y<InferredValueParameterizationTest>
+InferredValueParameterizationTest.java:26:11: compiler.err.generic.parameterization.with.value.type: java.util.List<InferredValueParameterizationTest>
+5 errors

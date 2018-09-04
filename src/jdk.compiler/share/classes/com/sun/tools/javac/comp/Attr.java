@@ -2508,6 +2508,7 @@ public class Attr extends JCTree.Visitor {
                     for (Type t : clazztype.getTypeArguments()) {
                         rs.checkAccessibleType(env, t);
                     }
+                    chk.checkParameterizationWithValues(tree, clazztype);
                 }
 
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers

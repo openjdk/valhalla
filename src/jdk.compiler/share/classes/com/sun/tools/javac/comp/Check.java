@@ -558,6 +558,10 @@ public class Check {
         if (inferenceContext.free(req) || inferenceContext.free(found)) {
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
+        } else {
+            if (found.hasTag(CLASS)) {
+                checkParameterizationWithValues(pos, found);
+            }
         }
         if (req.hasTag(ERROR))
             return req;
@@ -809,6 +813,56 @@ public class Check {
             return true;
     }
 
+    void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
+        if (!allowGenericsOverValues && t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
+            valueParameterizationChecker.visit(t, pos);
+        }
+    }
+
+    /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
+     *  being used as type arguments and issues error against those usages.
+     */
+    private final Types.SimpleVisitor<Void, DiagnosticPosition> valueParameterizationChecker = new Types.SimpleVisitor<Void, DiagnosticPosition>() {
+
+        @Override
+        public Void visitType(Type t, DiagnosticPosition pos) {
+            return null;
+        }
+
+        @Override
+        public Void visitClassType(ClassType t, DiagnosticPosition pos) {
+            for (Type targ : t.allparams()) {
+                if (types.isValue(targ) && !allowGenericsOverValues) {
+                    log.error(pos, Errors.GenericParameterizationWithValueType(t));
+                }
+                visit(targ, pos);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitTypeVar(TypeVar t, DiagnosticPosition pos) {
+             return null;
+        }
+
+        @Override
+        public Void visitCapturedType(CapturedType t, DiagnosticPosition pos) {
+            return null;
+        }
+
+        @Override
+        public Void visitArrayType(ArrayType t, DiagnosticPosition pos) {
+            return visit(t.elemtype, pos);
+        }
+
+        @Override
+        public Void visitWildcardType(WildcardType t, DiagnosticPosition pos) {
+            return visit(t.type, pos);
+        }
+    };
+
+
+
     /** Check that usage of diamond operator is correct (i.e. diamond should not
      * be used with non-generic classes or in anonymous class creation expressions)
      */
@@ -957,7 +1011,11 @@ public class Check {
         }
 
         //upward project the initializer type
-        return types.upward(t, types.captures(t));
+        Type varType = types.upward(t, types.captures(t));
+        if (varType.hasTag(CLASS)) {
+            checkParameterizationWithValues(pos, varType);
+        }
+        return varType;
     }
 
     Type checkMethod(final Type mtype,
