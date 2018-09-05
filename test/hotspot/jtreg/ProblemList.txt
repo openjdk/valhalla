@@ -86,6 +86,24 @@ runtime/SharedArchiveFile/SASymbolTableTest.java 8193639 solaris-all
 
 # Valhalla TODO:
 runtime/RedefineTests/RedefineLeak.java 8205032 generic-all
+runtime/SharedArchiveFile/BootAppendTests.java 8210258 generic-all
+runtime/SharedArchiveFile/CdsDifferentCompactStrings.java 8210258 generic-all
+runtime/SharedArchiveFile/CdsDifferentObjectAlignment.java 8210258 generic-all
+runtime/SharedArchiveFile/NonBootLoaderClasses.java 8210258 generic-all
+runtime/SharedArchiveFile/PrintSharedArchiveAndExit.java 8210258 generic-all
+runtime/SharedArchiveFile/SharedArchiveFile.java 8210258 generic-all
+runtime/SharedArchiveFile/SharedStringsDedup.java 8210258 generic-all
+runtime/SharedArchiveFile/SharedStringsRunAuto.java 8210258 generic-all
+runtime/SharedArchiveFile/SharedSymbolTableBucketSize.java 8210258 generic-all
+runtime/SharedArchiveFile/SpaceUtilizationCheck.java 8210258 generic-all
+runtime/SharedArchiveFile/TestInterpreterMethodEntries.java 8210258 generic-all
+runtime/SharedArchiveFile/serviceability/transformRelatedClasses/TransformInterfaceAndImplementor.java 8210258 generic-all
+runtime/SharedArchiveFile/serviceability/transformRelatedClasses/TransformSuperAndSubClasses.java 8210258 generic-all
+runtime/SharedArchiveFile/serviceability/transformRelatedClasses/TransformSuperSubTwoPckgs.java 8210258 generic-all
+runtime/appcds/ClassLoaderTest.java 8210258 generic-all
+runtime/appcds/HelloTest.java 8210258 generic-all
+runtime/appcds/sharedStrings/SharedStringsBasic.java 8210258 generic-all
+
 
 #############################################################################
 
@@ -138,6 +156,8 @@ serviceability/sa/TestType.java 8193639 solaris-all
 serviceability/sa/TestUniverse.java#id0 8193639 solaris-all
 
 # Valhalla TODO:
+serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
+serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
 serviceability/sa/ClhsdbInspect.java 8190936 generic-all
 serviceability/sa/ClhsdbJdis.java 8190936 generic-all
