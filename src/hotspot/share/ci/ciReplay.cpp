@@ -872,7 +872,7 @@ class CompileReplay : public StackObj {
         } else if (strcmp(field_signature, "[S") == 0) {
           value = oopFactory::new_shortArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[F") == 0) {
-          value = oopFactory::new_floatArray(length, CHECK);
+          value = oopFactory::new_floatArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[D") == 0) {
           value = oopFactory::new_doubleArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[I") == 0) {

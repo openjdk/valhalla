@@ -41,6 +41,7 @@
 #include "oops/valueArrayOop.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
