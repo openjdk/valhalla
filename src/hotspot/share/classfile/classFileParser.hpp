@@ -84,7 +84,7 @@ class ClassFileParser {
   const Symbol* _requested_name;
   Symbol* _class_name;
   mutable ClassLoaderData* _loader_data;
-  const InstanceKlass* _host_klass;
+  const InstanceKlass* _unsafe_anonymous_host;
   GrowableArray<Handle>* _cp_patches; // overrides for CP entries
   int _num_patched_klasses;
   int _max_num_patched_klasses;
@@ -177,8 +177,8 @@ class ClassFileParser {
                                   ConstantPool* cp,
                                   TRAPS);
 
-  void prepend_host_package_name(const InstanceKlass* host_klass, TRAPS);
-  void fix_anonymous_class_name(TRAPS);
+  void prepend_host_package_name(const InstanceKlass* unsafe_anonymous_host, TRAPS);
+  void fix_unsafe_anonymous_class_name(TRAPS);
 
   void fill_instance_klass(InstanceKlass* ik, bool cf_changed_in_CFLH, TRAPS);
   void set_klass(InstanceKlass* instance);
@@ -524,7 +524,7 @@ class ClassFileParser {
                   Symbol* name,
                   ClassLoaderData* loader_data,
                   Handle protection_domain,
-                  const InstanceKlass* host_klass,
+                  const InstanceKlass* unsafe_anonymous_host,
                   GrowableArray<Handle>* cp_patches,
                   Publicity pub_level,
                   TRAPS);
@@ -547,7 +547,7 @@ class ClassFileParser {
   u2 this_class_index() const { return _this_class_index; }
   u2 super_class_index() const { return _super_class_index; }
 
-  bool is_anonymous() const { return _host_klass != NULL; }
+  bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
   bool is_interface() const { return _access_flags.is_interface(); }
   bool is_value_type() const { return _access_flags.is_value_type(); }
   bool is_value_capable_class() const;
@@ -555,7 +555,7 @@ class ClassFileParser {
 
   u2 java_fields_count() const { return _java_fields_count; }
 
-  const InstanceKlass* host_klass() const { return _host_klass; }
+  const InstanceKlass* unsafe_anonymous_host() const { return _unsafe_anonymous_host; }
   const GrowableArray<Handle>* cp_patches() const { return _cp_patches; }
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }

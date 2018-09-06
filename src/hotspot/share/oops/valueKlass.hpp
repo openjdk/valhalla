@@ -64,7 +64,7 @@ class ValueKlass: public InstanceKlass {
       return (ValueKlassFixedBlock*)(adr_fingerprint() + sizeof(u8));
     }
 
-    InstanceKlass** adr_host = adr_host_klass();
+    InstanceKlass** adr_host = adr_unsafe_anonymous_host();
     if (adr_host != NULL) {
       return (ValueKlassFixedBlock*)(adr_host + 1);
     }

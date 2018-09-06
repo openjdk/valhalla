@@ -47,6 +47,7 @@
 #include "prims/jvmtiTagMap.hpp"
 #include "prims/jvmtiThreadState.inline.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -2721,7 +2722,14 @@ void JvmtiEventCollector::setup_jvmti_thread_state() {
   // should not happen since we're trying to configure for event collection
   guarantee(state != NULL, "exiting thread called setup_jvmti_thread_state");
   if (is_vm_object_alloc_event()) {
-    _prev = state->get_vm_object_alloc_event_collector();
+    JvmtiVMObjectAllocEventCollector *prev = state->get_vm_object_alloc_event_collector();
+
+    // If we have a previous collector and it is disabled, it means this allocation came from a
+    // callback induced VM Object allocation, do not register this collector then.
+    if (prev && !prev->is_enabled()) {
+      return;
+    }
+    _prev = prev;
     state->set_vm_object_alloc_event_collector((JvmtiVMObjectAllocEventCollector *)this);
   } else if (is_dynamic_code_event()) {
     _prev = state->get_dynamic_code_event_collector();

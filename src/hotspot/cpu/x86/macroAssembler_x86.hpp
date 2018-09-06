@@ -112,7 +112,7 @@ class MacroAssembler: public Assembler {
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
-  void pd_patch_instruction(address branch, address target) {
+  void pd_patch_instruction(address branch, address target, const char* file, int line) {
     unsigned char op = branch[0];
     assert(op == 0xE8 /* call */ ||
         op == 0xE9 /* jmp */ ||
@@ -126,7 +126,7 @@ class MacroAssembler: public Assembler {
       // short offset operators (jmp and jcc)
       char* disp = (char*) &branch[1];
       int imm8 = target - (address) &disp[1];
-      guarantee(this->is8bit(imm8), "Short forward jump exceeds 8-bit offset");
+      guarantee(this->is8bit(imm8), "Short forward jump exceeds 8-bit offset at %s:%d", file, line);
       *disp = imm8;
     } else {
       int* disp = (int*) &branch[(op == 0x0F || op == 0xC7)? 2: 1];
@@ -494,6 +494,10 @@ class MacroAssembler: public Assembler {
   // Store double value to 'address'. If UseSSE >= 2, the value is stored
   // from register xmm0. Otherwise, the value is stored from the FPU stack.
   void store_double(Address dst);
+
+  // Save/restore ZMM (512bit) register on stack.
+  void push_zmm(XMMRegister reg);
+  void pop_zmm(XMMRegister reg);
 
   // pushes double TOS element of FPU stack on CPU stack; pops from FPU stack
   void push_fTOS();

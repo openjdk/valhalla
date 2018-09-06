@@ -51,7 +51,7 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "prims/resolvedMethodTable.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -1218,7 +1218,7 @@ oop java_lang_Class::process_archived_mirror(Klass* k, oop mirror,
 bool java_lang_Class::restore_archived_mirror(Klass *k,
                                               Handle class_loader, Handle module,
                                               Handle protection_domain, TRAPS) {
-  oop m = MetaspaceShared::materialize_archived_object(k->archived_java_mirror_raw());
+  oop m = MetaspaceShared::materialize_archived_object(k->archived_java_mirror_raw_narrow());
 
   if (m == NULL) {
     return false;
@@ -1276,6 +1276,13 @@ int  java_lang_Class::oop_size(oop java_class) {
   return size;
 }
 
+int  java_lang_Class::oop_size_raw(oop java_class) {
+  assert(_oop_size_offset != 0, "must be set");
+  int size = java_class->int_field_raw(_oop_size_offset);
+  assert(size > 0, "Oop size must be greater than zero, not %d", size);
+  return size;
+}
+
 void java_lang_Class::set_oop_size(HeapWord* java_class, int size) {
   assert(_oop_size_offset != 0, "must be set");
   assert(size > 0, "Oop size must be greater than zero, not %d", size);
@@ -1286,6 +1293,12 @@ int  java_lang_Class::static_oop_field_count(oop java_class) {
   assert(_static_oop_field_count_offset != 0, "must be set");
   return java_class->int_field(_static_oop_field_count_offset);
 }
+
+int  java_lang_Class::static_oop_field_count_raw(oop java_class) {
+  assert(_static_oop_field_count_offset != 0, "must be set");
+  return java_class->int_field_raw(_static_oop_field_count_offset);
+}
+
 void java_lang_Class::set_static_oop_field_count(oop java_class, int size) {
   assert(_static_oop_field_count_offset != 0, "must be set");
   java_class->int_field_put(_static_oop_field_count_offset, size);
@@ -1371,6 +1384,14 @@ Klass* java_lang_Class::as_Klass(oop java_class) {
   //%note memory_2
   assert(java_lang_Class::is_instance(java_class), "must be a Class object");
   Klass* k = ((Klass*)java_class->metadata_field(_klass_offset));
+  assert(k == NULL || k->is_klass(), "type check");
+  return k;
+}
+
+Klass* java_lang_Class::as_Klass_raw(oop java_class) {
+  //%note memory_2
+  assert(java_lang_Class::is_instance(java_class), "must be a Class object");
+  Klass* k = ((Klass*)java_class->metadata_field_raw(_klass_offset));
   assert(k == NULL || k->is_klass(), "type check");
   return k;
 }
@@ -3795,7 +3816,7 @@ oop java_lang_invoke_ResolvedMethodName::find_resolved_method(const methodHandle
     }
     oop new_resolved_method = k->allocate_instance(CHECK_NULL);
     new_resolved_method->address_field_put(_vmtarget_offset, (address)m());
-    // Add a reference to the loader (actually mirror because anonymous classes will not have
+    // Add a reference to the loader (actually mirror because unsafe anonymous classes will not have
     // distinct loaders) to ensure the metadata is kept alive.
     // This mirror may be different than the one in clazz field.
     new_resolved_method->obj_field_put(_vmholder_offset, m->method_holder()->java_mirror());
@@ -4014,6 +4035,11 @@ int  java_lang_ClassLoader::unnamedModule_offset = -1;
 ClassLoaderData* java_lang_ClassLoader::loader_data(oop loader) {
   assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
   return HeapAccess<>::load_at(loader, _loader_data_offset);
+}
+
+ClassLoaderData* java_lang_ClassLoader::loader_data_raw(oop loader) {
+  assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
+  return RawAccess<>::load_at(loader, _loader_data_offset);
 }
 
 ClassLoaderData* java_lang_ClassLoader::cmpxchg_loader_data(ClassLoaderData* new_data, oop loader, ClassLoaderData* expected_data) {

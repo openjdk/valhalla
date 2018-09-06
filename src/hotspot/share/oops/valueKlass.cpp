@@ -38,6 +38,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"

@@ -572,6 +572,8 @@ static SpecialFlag const special_jvm_flags[] = {
   { "PrintSafepointStatistics",      JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "PrintSafepointStatisticsTimeout",JDK_Version::jdk(11),    JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "PrintSafepointStatisticsCount", JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "TransmitErrorReport",           JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "ErrorReportServer",             JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   { "dep > obs",                    JDK_Version::jdk(9), JDK_Version::jdk(8), JDK_Version::undefined() },
@@ -1585,7 +1587,7 @@ static void no_shared_spaces(const char* message) {
   if (RequireSharedSpaces) {
     jio_fprintf(defaultStream::error_stream(),
       "Class data sharing is inconsistent with other specified options.\n");
-    vm_exit_during_initialization("Unable to use shared archive.", message);
+    vm_exit_during_initialization("Unable to use shared archive", message);
   } else {
     FLAG_SET_DEFAULT(UseSharedSpaces, false);
   }

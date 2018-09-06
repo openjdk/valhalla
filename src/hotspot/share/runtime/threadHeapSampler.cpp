@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -103,8 +104,10 @@ void ThreadHeapSampler::pick_next_geometric_sample() {
 }
 
 void ThreadHeapSampler::pick_next_sample(size_t overflowed_bytes) {
-  if (get_sampling_interval() == 1) {
-    _bytes_until_sample = 1;
+  // Explicitly test if the sampling interval is 0, return 0 to sample every
+  // allocation.
+  if (get_sampling_interval() == 0) {
+    _bytes_until_sample = 0;
     return;
   }
 

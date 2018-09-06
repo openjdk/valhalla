@@ -84,11 +84,6 @@ public class Gen extends JCTree.Visitor {
      */
     private final Type methodType;
 
-    /**
-     * Are we presently traversing a let expression ? Yes if depth != 0
-     */
-    private int letExprDepth;
-
     public static Gen instance(Context context) {
         Gen instance = context.get(genKey);
         if (instance == null)
@@ -1096,10 +1091,10 @@ public class Gen extends JCTree.Visitor {
         if (tree.init != null) {
             checkStringConstant(tree.init.pos(), v.getConstValue());
             if (v.getConstValue() == null || varDebugInfo) {
-                Assert.check(letExprDepth != 0 || code.state.stacksize == 0);
+                Assert.check(code.isStatementStart());
                 genExpr(tree.init, v.erasure(types)).load();
                 items.makeLocalItem(v).store();
-                Assert.check(letExprDepth != 0 || code.state.stacksize == 0);
+                Assert.check(code.isStatementStart());
             }
         }
         checkDimension(tree.pos(), v.type);
@@ -1189,14 +1184,14 @@ public class Gen extends JCTree.Visitor {
                 CondItem c;
                 if (cond != null) {
                     code.statBegin(cond.pos);
-                    Assert.check(code.state.stacksize == 0);
+                    Assert.check(code.isStatementStart());
                     c = genCond(TreeInfo.skipParens(cond), CRT_FLOW_CONTROLLER);
                 } else {
                     c = items.makeCondItem(goto_);
                 }
                 Chain loopDone = c.jumpFalse();
                 code.resolve(c.trueJumps);
-                Assert.check(code.state.stacksize == 0);
+                Assert.check(code.isStatementStart());
                 genStat(body, loopEnv, CRT_STATEMENT | CRT_FLOW_TARGET);
                 code.resolve(loopEnv.info.cont);
                 genStats(step, loopEnv);
@@ -1210,13 +1205,13 @@ public class Gen extends JCTree.Visitor {
                     CondItem c;
                     if (cond != null) {
                         code.statBegin(cond.pos);
-                        Assert.check(code.state.stacksize == 0);
+                        Assert.check(code.isStatementStart());
                         c = genCond(TreeInfo.skipParens(cond), CRT_FLOW_CONTROLLER);
                     } else {
                         c = items.makeCondItem(goto_);
                     }
                     code.resolve(c.jumpTrue(), startpc);
-                    Assert.check(code.state.stacksize == 0);
+                    Assert.check(code.isStatementStart());
                     code.resolve(c.falseJumps);
                 }
             }
@@ -1245,7 +1240,7 @@ public class Gen extends JCTree.Visitor {
         int limit = code.nextreg;
         Assert.check(!tree.selector.type.hasTag(CLASS));
         int startpcCrt = genCrt ? code.curCP() : 0;
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         Item sel = genExpr(tree.selector, syms.intType);
         List<JCCase> cases = tree.cases;
         if (cases.isEmpty()) {
@@ -1274,8 +1269,9 @@ public class Gen extends JCTree.Visitor {
 
             List<JCCase> l = cases;
             for (int i = 0; i < labels.length; i++) {
-                if (l.head.pat != null) {
-                    int val = ((Number)l.head.pat.type.constValue()).intValue();
+                if (l.head.pats.nonEmpty()) {
+                    Assert.check(l.head.pats.size() == 1);
+                    int val = ((Number)l.head.pats.head.type.constValue()).intValue();
                     labels[i] = val;
                     if (val < lo) lo = val;
                     if (hi < val) hi = val;
@@ -1414,7 +1410,7 @@ public class Gen extends JCTree.Visitor {
         int limit = code.nextreg;
         // Generate code to evaluate lock and save in temporary variable.
         final LocalItem lockVar = makeTemp(syms.objectType);
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         genExpr(tree.lock, tree.lock.type).load().duplicate();
         lockVar.store();
 
@@ -1676,11 +1672,11 @@ public class Gen extends JCTree.Visitor {
     public void visitIf(JCIf tree) {
         int limit = code.nextreg;
         Chain thenExit = null;
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         CondItem c = genCond(TreeInfo.skipParens(tree.cond),
                              CRT_FLOW_CONTROLLER);
         Chain elseChain = c.jumpFalse();
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         if (!c.isFalse()) {
             code.resolve(c.trueJumps);
             genStat(tree.thenpart, env, CRT_STATEMENT | CRT_FLOW_TARGET);
@@ -1694,7 +1690,7 @@ public class Gen extends JCTree.Visitor {
         }
         code.resolve(thenExit);
         code.endScopes(limit);
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
     }
 
     public void visitExec(JCExpressionStatement tree) {
@@ -1708,16 +1704,16 @@ public class Gen extends JCTree.Visitor {
                 ((JCUnary) e).setTag(PREDEC);
                 break;
         }
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         genExpr(tree.expr, tree.expr.type).drop();
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
     }
 
     public void visitBreak(JCBreak tree) {
         int tmpPos = code.pendingStatPos;
         Env<GenContext> targetEnv = unwind(tree.target, env);
         code.pendingStatPos = tmpPos;
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         targetEnv.info.addExit(code.branch(goto_));
         endFinalizerGaps(env, targetEnv);
     }
@@ -1726,7 +1722,7 @@ public class Gen extends JCTree.Visitor {
         int tmpPos = code.pendingStatPos;
         Env<GenContext> targetEnv = unwind(tree.target, env);
         code.pendingStatPos = tmpPos;
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         targetEnv.info.addCont(code.branch(goto_));
         endFinalizerGaps(env, targetEnv);
     }
@@ -1740,7 +1736,7 @@ public class Gen extends JCTree.Visitor {
          */
         int tmpPos = code.pendingStatPos;
         if (tree.expr != null) {
-            Assert.check(code.state.stacksize == 0);
+            Assert.check(code.isStatementStart());
             Item r = genExpr(tree.expr, pt).load();
             if (hasFinally(env.enclMethod, env)) {
                 r = makeTemp(pt);
@@ -1760,10 +1756,10 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitThrow(JCThrow tree) {
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
         genExpr(tree.expr, tree.expr.type).load();
         code.emitop0(athrow);
-        Assert.check(code.state.stacksize == 0);
+        Assert.check(code.isStatementStart());
     }
 
 /* ************************************************************************
@@ -2275,12 +2271,15 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitLetExpr(LetExpr tree) {
-        letExprDepth++;
         int limit = code.nextreg;
-        genStats(tree.defs, env);
+        int prevLetExprStart = code.setLetExprStackPos(code.state.stacksize);
+        try {
+            genStats(tree.defs, env);
+        } finally {
+            code.setLetExprStackPos(prevLetExprStart);
+        }
         result = genExpr(tree.expr, tree.expr.type).load();
         code.endScopes(limit);
-        letExprDepth--;
     }
 
     private void generateReferencesToPrunedTree(ClassSymbol classSymbol, Pool pool) {

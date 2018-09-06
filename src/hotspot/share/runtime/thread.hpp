@@ -64,7 +64,6 @@ class ThreadsList;
 class ThreadsSMRSupport;
 
 class JvmtiThreadState;
-class JvmtiGetLoadedClassesClosure;
 class ThreadStatistics;
 class ConcurrentLocksDump;
 class ParkEvent;
@@ -95,15 +94,21 @@ class WorkerThread;
 
 // Class hierarchy
 // - Thread
-//   - NamedThread
-//     - VMThread
-//     - ConcurrentGCThread
-//     - WorkerThread
-//       - GangWorker
-//       - GCTaskThread
 //   - JavaThread
 //     - various subclasses eg CompilerThread, ServiceThread
-//   - WatcherThread
+//   - NonJavaThread
+//     - NamedThread
+//       - VMThread
+//       - ConcurrentGCThread
+//       - WorkerThread
+//         - GangWorker
+//         - GCTaskThread
+//     - WatcherThread
+//     - JfrThreadSampler
+//
+// All Thread subclasses must be either JavaThread or NonJavaThread.
+// This means !t->is_Java_thread() iff t is a NonJavaThread, or t is
+// a partially constructed/destroyed Thread.
 
 class Thread: public ThreadShadow {
   friend class VMStructs;
@@ -391,7 +396,7 @@ class Thread: public ThreadShadow {
 
   // Constructor
   Thread();
-  virtual ~Thread();
+  virtual ~Thread() = 0;        // Thread is abstract.
 
   // Manage Thread::current()
   void initialize_thread_current();
@@ -775,9 +780,47 @@ inline Thread* Thread::current_or_null_safe() {
   return NULL;
 }
 
+class NonJavaThread: public Thread {
+  friend class VMStructs;
+
+  NonJavaThread* volatile _next;
+
+  class List;
+  static List _the_list;
+
+ public:
+  NonJavaThread();
+  ~NonJavaThread();
+
+  class Iterator;
+};
+
+// Provides iteration over the list of NonJavaThreads.  Because list
+// management occurs in the NonJavaThread constructor and destructor,
+// entries in the list may not be fully constructed instances of a
+// derived class.  Threads created after an iterator is constructed
+// will not be visited by the iterator.  The scope of an iterator is a
+// critical section; there must be no safepoint checks in that scope.
+class NonJavaThread::Iterator : public StackObj {
+  uint _protect_enter;
+  NonJavaThread* _current;
+
+  // Noncopyable.
+  Iterator(const Iterator&);
+  Iterator& operator=(const Iterator&);
+
+public:
+  Iterator();
+  ~Iterator();
+
+  bool end() const { return _current == NULL; }
+  NonJavaThread* current() const { return _current; }
+  void step();
+};
+
 // Name support for threads.  non-JavaThread subclasses with multiple
 // uniquely named instances should derive from this.
-class NamedThread: public Thread {
+class NamedThread: public NonJavaThread {
   friend class VMStructs;
   enum {
     max_name_len = 64
@@ -822,7 +865,7 @@ class WorkerThread: public NamedThread {
 };
 
 // A single WatcherThread is used for simulating timer interrupts.
-class WatcherThread: public Thread {
+class WatcherThread: public NonJavaThread {
   friend class VMStructs;
  public:
   virtual void run();
@@ -1886,8 +1929,6 @@ class JavaThread: public Thread {
   // the specified JavaThread is exiting.
   JvmtiThreadState *jvmti_thread_state() const                                   { return _jvmti_thread_state; }
   static ByteSize jvmti_thread_state_offset()                                    { return byte_offset_of(JavaThread, _jvmti_thread_state); }
-  void set_jvmti_get_loaded_classes_closure(JvmtiGetLoadedClassesClosure* value) { _jvmti_get_loaded_classes_closure = value; }
-  JvmtiGetLoadedClassesClosure* get_jvmti_get_loaded_classes_closure() const     { return _jvmti_get_loaded_classes_closure; }
 
   // JVMTI PopFrame support
   // Setting and clearing popframe_condition
@@ -1939,7 +1980,6 @@ class JavaThread: public Thread {
 
  private:
   JvmtiThreadState *_jvmti_thread_state;
-  JvmtiGetLoadedClassesClosure* _jvmti_get_loaded_classes_closure;
 
   // Used by the interpreter in fullspeed mode for frame pop, method
   // entry, method exit and single stepping support. This field is
@@ -2170,6 +2210,7 @@ class Threads: AllStatic {
   static int         _thread_claim_parity;
 #ifdef ASSERT
   static bool        _vm_complete;
+  static size_t      _threads_before_barrier_set;
 #endif
 
   static void initialize_java_lang_classes(JavaThread* main_thread, TRAPS);
@@ -2239,7 +2280,15 @@ class Threads: AllStatic {
 
 #ifdef ASSERT
   static bool is_vm_complete() { return _vm_complete; }
-#endif
+
+  static size_t threads_before_barrier_set() {
+    return _threads_before_barrier_set;
+  }
+
+  static void inc_threads_before_barrier_set() {
+    ++_threads_before_barrier_set;
+  }
+#endif // ASSERT
 
   // Verification
   static void verify();

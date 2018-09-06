@@ -3038,6 +3038,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
 
+  __ resolve(ACCESS_READ, src);
+  __ resolve(ACCESS_WRITE, dst);
+
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
@@ -3476,6 +3479,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
       scratch = op->scratch_opr()->as_register();
     }
     assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
+    __ resolve(ACCESS_READ | ACCESS_WRITE, obj);
     // add debug info for NullPointerException only if one is possible
     int null_check_offset = __ lock_object(hdr, obj, lock, scratch, *op->stub()->entry());
     if (op->info() != NULL) {
@@ -3601,7 +3605,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
     }
   } else {
     __ testptr(tmp, tmp);
-    __ jccb(Assembler::notZero, update);
+    __ jcc(Assembler::notZero, update);
     __ stop("unexpect null obj");
 #endif
   }
@@ -3616,7 +3620,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
       __ cmpptr(tmp, Address(rsp, 0));
-      __ jccb(Assembler::equal, ok);
+      __ jcc(Assembler::equal, ok);
       __ stop("exact klass and actual klass differ");
       __ bind(ok);
       __ pop(tmp);

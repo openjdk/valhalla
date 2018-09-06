@@ -37,6 +37,7 @@
 #include "jvmci/jvmciCompilerToVM.hpp"
 #include "jvmci/jvmciCodeInstaller.hpp"
 #include "jvmci/jvmciRuntime.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -1058,11 +1059,10 @@ C2V_VMENTRY(jobject, iterateFrames, (JNIEnv*, jobject compilerToVM, jobjectArray
               } else {
                 // some object might already have been re-allocated, only reallocate the non-allocated ones
                 objects = new GrowableArray<ScopeValue*>(scope->objects()->length());
-                int ii = 0;
                 for (int i = 0; i < scope->objects()->length(); i++) {
                   ObjectValue* sv = (ObjectValue*) scope->objects()->at(i);
                   if (sv->value().is_null()) {
-                    objects->at_put(ii++, sv);
+                    objects->append(sv);
                   }
                 }
               }
@@ -1436,7 +1436,7 @@ C2V_END
 
 C2V_VMENTRY(jobject, getHostClass, (JNIEnv*, jobject, jobject jvmci_type))
   InstanceKlass* k = InstanceKlass::cast(CompilerToVM::asKlass(jvmci_type));
-  InstanceKlass* host = k->host_klass();
+  InstanceKlass* host = k->unsafe_anonymous_host();
   JVMCIKlassHandle handle(THREAD, host);
   oop result = CompilerToVM::get_jvmci_type(handle, CHECK_NULL);
   return JNIHandles::make_local(THREAD, result);

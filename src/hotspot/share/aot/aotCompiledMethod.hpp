@@ -194,7 +194,7 @@ private:
   virtual address verified_entry_point() const { return _code + _meta->verified_entry_offset(); }
   virtual address verified_value_entry_point() const { return NULL; }
   virtual void log_identity(xmlStream* stream) const;
-  virtual void log_state_change() const;
+  virtual void log_state_change(oop cause = NULL) const;
   virtual bool make_entrant() NOT_TIERED({ ShouldNotReachHere(); return false; });
   virtual bool make_not_entrant() { return make_not_entrant_helper(not_entrant); }
   virtual bool make_not_used() { return make_not_entrant_helper(not_used); }

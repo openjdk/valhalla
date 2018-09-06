@@ -308,7 +308,7 @@ public:
                         class_loader,
                         protection_domain,
                         st,
-                        NULL, // host klass
+                        NULL, // unsafe_anonymous_host
                         NULL, // cp_patches
                         THREAD);
   }
@@ -316,7 +316,7 @@ public:
                                      Handle class_loader,
                                      Handle protection_domain,
                                      ClassFileStream* st,
-                                     const InstanceKlass* host_klass,
+                                     const InstanceKlass* unsafe_anonymous_host,
                                      GrowableArray<Handle>* cp_patches,
                                      TRAPS);
 
@@ -385,6 +385,9 @@ public:
 
   // System loader lock
   static oop system_loader_lock()           { return _system_loader_lock_obj; }
+
+  // Protection Domain Table
+  static ProtectionDomainCacheTable* pd_cache_table() { return _pd_cache_table; }
 
 public:
   // Sharing support.
