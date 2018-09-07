@@ -187,10 +187,6 @@ serviceability/sa/TestJmapCore.java 8190936 generic-all
 serviceability/sa/TestJmapCoreMetaspace.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 
-serviceability/dcmd/vm/ClassHierarchyTest.java 8209899 generic-all
-serviceability/dcmd/vm/ClassLoaderHierarchyTest.java 8209899 generic-all
-serviceability/dcmd/vm/ShowReflectionTargetTest.java 8209899 generic-all
-
 #############################################################################
 
 # :hotspot_misc
