@@ -500,43 +500,30 @@ void LateInlineCallGenerator::do_late_inline() {
   C->env()->notice_inlined_method(_inline_cg->method());
   C->set_inlining_progress(true);
 
-  if (return_type->is_valuetype()) {
-    const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
-    bool returned_as_fields = call->tf()->returns_value_type_as_fields();
-    if (result->is_ValueType()) {
-      ValueTypeNode* vt = result->as_ValueType();
-      if (!returned_as_fields) {
-        vt = vt->allocate(&kit)->as_ValueType();
-        result = ValueTypePtrNode::make_from_value_type(gvn, vt);
-      } else {
-        // Return of multiple values (the fields of a value type)
-        vt->replace_call_results(&kit, call, C);
-        if (gvn.type(vt->get_oop()) == TypePtr::NULL_PTR) {
-          result = vt->tagged_klass(gvn);
-        } else {
-          result = vt->get_oop();
-        }
-      }
-    } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
-      Node* cast = new CheckCastPPNode(NULL, result, vt_t);
-      gvn.record_for_igvn(cast);
-      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(&kit, gvn.transform(cast));
-      vtptr->replace_call_results(&kit, call, C);
-      result = cast;
+  // Handle value type returns
+  bool returned_as_fields = call->tf()->returns_value_type_as_fields();
+  if (result->is_ValueType()) {
+    ValueTypeNode* vt = result->as_ValueType();
+    if (!returned_as_fields) {
+      result = ValueTypePtrNode::make_from_value_type(&kit, vt);
     } else {
-      assert(result->is_top(), "what else?");
-      for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
-        ProjNode *pn = call->fast_out(i)->as_Proj();
-        uint con = pn->_con;
-        if (con >= TypeFunc::Parms) {
-          gvn.hash_delete(pn);
-          pn->set_req(0, C->top());
-          --i; --imax;
-        }
+      assert(false, "FIXME");
+      // Return of multiple values (the fields of a value type)
+      vt->replace_call_results(&kit, call, C);
+      if (gvn.type(vt->get_oop()) == TypePtr::NULL_PTR) {
+        result = vt->tagged_klass(gvn);
+      } else {
+        result = vt->get_oop();
       }
     }
-  } else if (result->is_ValueType()) {
-    result = result->isa_ValueType()->allocate(&kit)->get_oop();
+  } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
+    assert(false, "FIXME");
+    const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
+    Node* cast = new CheckCastPPNode(NULL, result, vt_t);
+    gvn.record_for_igvn(cast);
+    ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(&kit, gvn.transform(cast));
+    vtptr->replace_call_results(&kit, call, C);
+    result = cast;
   }
 
   kit.replace_call(call, result, true);
@@ -849,16 +836,14 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
     if (m->is_ValueType() && !t->isa_valuetype()) {
       // Allocate value type in fast path
-      ValueTypeBaseNode* vt = m->as_ValueType()->allocate(&kit);
-      m = ValueTypePtrNode::make_from_value_type(kit.gvn(), vt->as_ValueType());
+      m = ValueTypePtrNode::make_from_value_type(&kit, m->as_ValueType());
       kit.map()->set_req(i, m);
     }
     if (n->is_ValueType() && !t->isa_valuetype()) {
       // Allocate value type in slow path
       PreserveJVMState pjvms(&kit);
       kit.set_map(slow_map);
-      ValueTypeBaseNode* vt = n->as_ValueType()->allocate(&kit);
-      n = ValueTypePtrNode::make_from_value_type(kit.gvn(), vt->as_ValueType());
+      n = ValueTypePtrNode::make_from_value_type(&kit, n->as_ValueType());
       kit.map()->set_req(i, n);
       slow_map = kit.stop();
     }

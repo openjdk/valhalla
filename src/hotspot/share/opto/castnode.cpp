@@ -525,7 +525,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       region->init_req(2, ctl);
       mem_phi->init_req(2, kit.reset_memory());
       io_phi->init_req(2, kit.i_o());
-      res_phi->init_req(2, igvn->transform(res));
+      res_phi->init_req(2, res);
       ex_region->init_req(2, projs->catchall_catchproj);
       ex_mem_phi->init_req(2, projs->catchall_memproj);
       ex_io_phi->init_req(2, projs->catchall_ioproj);

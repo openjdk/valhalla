@@ -647,16 +647,14 @@ void Parse::do_call() {
     ciType* rtype = cg->method()->return_type();
     ciType* ctype = declared_signature->return_type();
 
-    if (rtype->basic_type() == T_VALUETYPE) {
-      Node* retnode = peek();
-      if (!retnode->is_ValueType()) {
-        pop();
-        assert(!cg->is_inline(), "should have ValueTypeNode result");
-        ciValueKlass* vk = _gvn.type(retnode)->value_klass();
-        // We will deoptimize if the return value is null and then need to continue execution after the call
-        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* null2default */ false, iter().next_bci());
-        push_node(T_VALUETYPE, vt);
-      }
+    Node* retnode = peek();
+    if (rtype->basic_type() == T_VALUETYPE && !retnode->is_ValueType()) {
+      pop();
+      assert(!cg->is_inline(), "should have ValueTypeNode result when inlining");
+      ciValueKlass* vk = _gvn.type(retnode)->value_klass();
+      // We will deoptimize if the return value is null and then need to continue execution after the call
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* null2default */ false, iter().next_bci());
+      push_node(T_VALUETYPE, vt);
     }
 
     if (Bytecodes::has_optional_appendix(iter().cur_bc_raw()) || is_signature_polymorphic) {
@@ -672,7 +670,7 @@ void Parse::do_call() {
         } else if (rt == T_INT || is_subword_type(rt)) {
           // Nothing.  These cases are handled in lambda form bytecode.
           assert(ct == T_INT || is_subword_type(ct), "must match: rt=%s, ct=%s", type2name(rt), type2name(ct));
-        } else if (rt == T_OBJECT || rt == T_ARRAY) {
+        } else if (rt == T_OBJECT || rt == T_ARRAY || rt == T_VALUETYPE) {
           assert(ct == T_OBJECT || ct == T_ARRAY || ct == T_VALUETYPE, "rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
@@ -683,8 +681,8 @@ void Parse::do_call() {
               // (See comments inside TypeTuple::make_range).
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
-              Node* retnode = pop();
+            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !retnode->is_ValueType()) {
+              pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               if (ct == T_VALUETYPE) {
                 // We will deoptimize if the return value is null and then need to continue execution after the call
@@ -693,12 +691,6 @@ void Parse::do_call() {
               push(cast_obj);
             }
           }
-        } else if (rt == T_VALUETYPE) {
-          assert(ct == T_OBJECT, "object expected but got ct=%s", type2name(ct));
-          ValueTypeNode* vt = pop()->as_ValueType();
-          vt = vt->allocate(this)->as_ValueType();
-          Node* vtptr = ValueTypePtrNode::make_from_value_type(_gvn, vt);
-          push(vtptr);
         } else {
           assert(rt == ct, "unexpected mismatch: rt=%s, ct=%s", type2name(rt), type2name(ct));
           // push a zero; it's better than getting an oop/int mismatch

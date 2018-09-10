@@ -3266,9 +3266,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
     Node* not_subtype_ctrl = gen_subtype_check( obj_klass, superklass );
 
     if (is_value) {
-      ValueTypeNode* vt = not_null_obj->as_ValueType();
-      vt = vt->allocate(this, true)->as_ValueType();
-      not_null_obj = ValueTypePtrNode::make_from_value_type(_gvn, vt);
+      not_null_obj = ValueTypePtrNode::make_from_value_type(this, not_null_obj->as_ValueType(), true);
     }
 
     // Plug in success path into the merge

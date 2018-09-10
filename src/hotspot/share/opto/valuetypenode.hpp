@@ -158,7 +158,7 @@ private:
 
 public:
   // Create and initialize with the values of a ValueTypeNode
-  static ValueTypePtrNode* make_from_value_type(PhaseGVN& gvn, ValueTypeNode* vt);
+  static ValueTypePtrNode* make_from_value_type(GraphKit* kit, ValueTypeNode* vt, bool deoptimize_on_exception = false);
   // Create and initialize with the result values of a call
   static ValueTypePtrNode* make_from_call(GraphKit* kit, ciValueKlass* vk, CallNode* call);
   // Create and initialize by loading the field values from an oop

@@ -1738,8 +1738,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       if (t != NULL && t != Type::BOTTOM) {
         if (n->is_ValueType() && !t->isa_valuetype()) {
           // Allocate value type in src block to be able to merge it with oop in target block
-          ValueTypeBaseNode* vt = n->as_ValueType()->allocate(this, true);
-          map()->set_req(j, ValueTypePtrNode::make_from_value_type(_gvn, vt->as_ValueType()));
+          map()->set_req(j, ValueTypePtrNode::make_from_value_type(this, n->as_ValueType(), true));
         }
         if (t->isa_valuetype() && !n->is_ValueType()) {
           // check for a null constant

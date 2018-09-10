@@ -912,12 +912,13 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   }
 }
 
-ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(PhaseGVN& gvn, ValueTypeNode* vt) {
-  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vt->value_klass(), vt->get_oop());
+ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(GraphKit* kit, ValueTypeNode* vt, bool deoptimize_on_exception) {
+  Node* oop = vt->allocate(kit, deoptimize_on_exception)->get_oop();
+  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vt->value_klass(), oop);
   for (uint i = Oop+1; i < vt->req(); i++) {
     vtptr->init_req(i, vt->in(i));
   }
-  return gvn.transform(vtptr)->as_ValueTypePtr();
+  return kit->gvn().transform(vtptr)->as_ValueTypePtr();
 }
 
 ValueTypePtrNode* ValueTypePtrNode::make_from_call(GraphKit* kit, ciValueKlass* vk, CallNode* call) {
@@ -932,5 +933,5 @@ ValueTypePtrNode* ValueTypePtrNode::make_from_oop(GraphKit* kit, Node* oop) {
   ciValueKlass* vk = kit->gvn().type(oop)->value_klass();
   ValueTypePtrNode* vtptr = new ValueTypePtrNode(vk, oop);
   vtptr->load(kit, oop, oop, vk);
-  return vtptr;
+  return kit->gvn().transform(vtptr)->as_ValueTypePtr();
 }
