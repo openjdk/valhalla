@@ -4686,29 +4686,6 @@ void Compile::remove_speculative_types(PhaseIterGVN &igvn) {
   }
 }
 
-Node* Compile::load_is_value_bit(PhaseGVN* phase, Node* oop) {
-  // Load the klass pointer and check if it's odd, i.e., if it defines a value type
-  // is_value = (klass & oop_metadata_valuetype_mask) >> LogKlassAlignmentInBytes
-  Node* k_adr = phase->transform(new AddPNode(oop, oop, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
-  Node* klass = NULL;
-  if (UseCompressedClassPointers) {
-    klass = phase->transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
-  } else {
-    klass = phase->transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
-  }
-  const int mask = Universe::oop_metadata_valuetype_mask();
-  Node* is_value = phase->transform(new CastP2XNode(NULL, klass));
-  is_value = phase->transform(new AndXNode(is_value, phase->MakeConX(mask)));
-  // Check if a shift is required for perturbation to affect aligned bits of oop
-  if (mask == KlassPtrValueTypeMask && ObjectAlignmentInBytes <= KlassAlignmentInBytes) {
-    assert((mask >> LogKlassAlignmentInBytes) == 1, "invalid shift");
-    is_value = phase->transform(new URShiftXNode(is_value, phase->intcon(LogKlassAlignmentInBytes)));
-  } else {
-    assert(mask < ObjectAlignmentInBytes, "invalid mask");
-  }
-  return is_value;
-}
-
 Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
   const TypeInstPtr* ta = phase->type(a)->isa_instptr();
   const TypeInstPtr* tb = phase->type(b)->isa_instptr();

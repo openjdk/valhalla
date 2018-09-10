@@ -71,12 +71,4 @@ inline Klass* Klass::decode_klass(narrowKlass v) {
   return is_null(v) ? (Klass*)NULL : decode_klass_not_null(v);
 }
 
-inline bool Klass::decode_ptr_is_value_type(narrowKlass v) {
- return (v & Universe::oop_metadata_valuetype_mask()) != 0;
-}
-
-inline bool Klass::ptr_is_value_type(Klass* v) {
- return ((uintptr_t)v & KlassPtrValueTypeMask) != 0;
-}
-
 #endif // SHARE_VM_OOPS_KLASS_INLINE_HPP

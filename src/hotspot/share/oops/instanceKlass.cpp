@@ -368,7 +368,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
       ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
     } else if (parser.is_value_type()) {
       // value type
-      ik = new (loader_data, size, true, THREAD) ValueKlass(parser);
+      ik = new (loader_data, size, THREAD) ValueKlass(parser);
     } else {
       // normal
       ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);

@@ -456,7 +456,6 @@ const int LogKlassAlignmentInBytes = 3;
 const int LogKlassAlignment        = LogKlassAlignmentInBytes - LogHeapWordSize;
 const int KlassAlignmentInBytes    = 1 << LogKlassAlignmentInBytes;
 const int KlassAlignment           = KlassAlignmentInBytes / HeapWordSize;
-const int KlassPtrValueTypeMask    = (1 << (LogKlassAlignmentInBytes + 1)) - 1;
 
 // Maximal size of heap where unscaled compression can be used. Also upper bound
 // for heap placement: 4GB.

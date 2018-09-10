@@ -30,29 +30,35 @@
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 0
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 0
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 1
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 1
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
  */
 
@@ -1336,6 +1342,23 @@ public class TestNewAcmp {
         return m.getName().startsWith("testNot");
     }
 
+    // Tests with profiling
+    public boolean cmpAlwaysEqual1(Object a, Object b) {
+        return a == b;
+    }
+
+    public boolean cmpAlwaysEqual2(Object a, Object b) {
+        return a != b;
+    }
+
+    public boolean cmpAlwaysUnEqual1(Object a, Object b) {
+        return a == b;
+    }
+
+    public boolean cmpAlwaysUnEqual2(Object a, Object b) {
+        return a != b;
+    }
+
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
 
@@ -1400,7 +1423,7 @@ public class TestNewAcmp {
         // Run tests
         for (Method m : getClass().getMethods()) {
             if (m.getName().startsWith("test")) {
-                // Do same warmup runs
+                // Do some warmup runs
                 runTest(m, args, 1000, nullMode);
                 // Make sure method is compiled
                 WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1408,6 +1431,13 @@ public class TestNewAcmp {
                 // Run again to verify correctness of compiled code
                 runTest(m, args, 1, nullMode);
             }
+        }
+
+        for (int i = 0; i < 10_000; ++i) {
+            Asserts.assertTrue(cmpAlwaysEqual1(args[1], args[1]));
+            Asserts.assertFalse(cmpAlwaysEqual2(args[1], args[1]));
+            Asserts.assertFalse(cmpAlwaysUnEqual1(args[1], args[2]));
+            Asserts.assertTrue(cmpAlwaysUnEqual2(args[1], args[2]));
         }
     }
 

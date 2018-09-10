@@ -2511,29 +2511,37 @@ void TemplateTable::if_nullcmp(Condition cc) {
 void TemplateTable::if_acmp(Condition cc) {
   transition(atos, vtos);
   // assume branch is more often taken than not (loops use backward branches)
-  Label not_taken, is_null;
+  Label taken, not_taken;
   __ pop_ptr(rdx);
 
-  if (EnableValhalla) {
-    // Handle value types
-    const int mask = Universe::oop_metadata_valuetype_mask();
+  const int is_value_mask = markOopDesc::always_locked_pattern;
+  if (EnableValhalla && UsePointerPerturbation) {
+    Label is_null;
     __ testptr(rdx, rdx);
     __ jcc(Assembler::zero, is_null);
-    __ movl(rbx, Address(rdx, oopDesc::klass_offset_in_bytes()));
-    __ andptr(rbx, mask);
-    // Check if a shift is required for perturbation to affect aligned bits
-    if (mask == KlassPtrValueTypeMask && ObjectAlignmentInBytes <= KlassAlignmentInBytes) {
-      assert((mask >> LogKlassAlignmentInBytes) == 1, "invalid shift");
-      __ shrptr(rbx, LogKlassAlignmentInBytes);
-    } else {
-      assert(mask < ObjectAlignmentInBytes, "invalid mask");
-    }
+    __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
+    __ andptr(rbx, is_value_mask);
+    __ cmpl(rbx, is_value_mask);
+    __ setb(Assembler::equal, rbx);
+    __ movzbl(rbx, rbx);
     __ orptr(rdx, rbx);
     __ bind(is_null);
   }
 
   __ cmpoop(rdx, rax);
+
+  if (EnableValhalla && !UsePointerPerturbation) {
+    __ jcc(Assembler::notEqual, (cc == not_equal) ? taken : not_taken);
+    __ testptr(rdx, rdx);
+    __ jcc(Assembler::zero, (cc == equal) ? taken : not_taken);
+    __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
+    __ andptr(rbx, is_value_mask);
+    __ cmpl(rbx, is_value_mask);
+    cc = (cc == equal) ? not_equal : equal;
+  }
+
   __ jcc(j_not(cc), not_taken);
+  __ bind(taken);
   branch(false, false);
   __ bind(not_taken);
   __ profile_not_taken_branch(rax);

@@ -192,10 +192,7 @@ protected:
   Klass(KlassID id);
   Klass() : _id(KlassID(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, bool is_value, TRAPS) throw();
-  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw() {
-   return operator new (size, loader_data, word_size, false, THREAD);
-  }
+  void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
   int id() { return _id; }
@@ -742,9 +739,6 @@ protected:
 
   static Klass* decode_klass_not_null(narrowKlass v);
   static Klass* decode_klass(narrowKlass v);
-
-  static bool decode_ptr_is_value_type(narrowKlass v);
-  static bool ptr_is_value_type(Klass* v);
 };
 
 #endif // SHARE_VM_OOPS_KLASS_HPP

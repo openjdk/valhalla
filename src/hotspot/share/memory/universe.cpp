@@ -157,8 +157,6 @@ NarrowPtrStruct Universe::_narrow_klass = { NULL, 0, true };
 address Universe::_narrow_ptrs_base;
 uint64_t Universe::_narrow_klass_range = (uint64_t(max_juint)+1);
 
-int Universe::_oop_metadata_valuetype_mask = KlassPtrValueTypeMask;
-
 void Universe::basic_type_classes_do(void f(Klass*)) {
   for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
     f(_typeArrayKlassObjs[i]);

@@ -3312,6 +3312,13 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   return res;
 }
 
+Node* GraphKit::is_always_locked(Node* obj) {
+  Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
+  Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
+  return _gvn.transform(new AndXNode(mark, value_mask));
+}
+
 // Deoptimize if 'obj' is a value type
 void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
   assert(EnableValhalla, "should only be used if value types are enabled");
@@ -3319,12 +3326,10 @@ void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
   if (obj->is_ValueTypeBase()) {
     bol = intcon(0);
   } else {
-    Node* kls = load_object_klass(obj);
-    Node* flags_addr = basic_plus_adr(kls, in_bytes(Klass::access_flags_offset()));
-    Node* flags = make_load(NULL, flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
-    Node* is_value = _gvn.transform(new AndINode(flags, intcon(JVM_ACC_VALUE)));
-    Node* cmp  = _gvn.transform(new CmpINode(is_value, intcon(0)));
-    bol  = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    Node* is_value = is_always_locked(obj);
+    Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
+    Node* cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
+    bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
   }
   { BuildCutout unless(this, bol, PROB_MAX);
     inc_sp(nargs);

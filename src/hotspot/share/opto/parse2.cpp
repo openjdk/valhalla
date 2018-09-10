@@ -1573,7 +1573,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_taken) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1671,7 +1671,14 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
       profile_taken_branch(target_bci);
       adjust_map_after_if(taken_btest, c, prob, branch_block);
       if (!stopped()) {
-        merge(target_bci);
+        if (ctrl_taken != NULL) {
+          // Don't merge but save taken branch to be wired by caller
+          *ctrl_taken = control();
+        } else if (new_path) {
+          merge_new_path(target_bci);
+        } else {
+          merge(target_bci);
+        }
       }
     }
   }
@@ -1692,7 +1699,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
   }
 }
 
-void Parse::do_acmp(BoolTest::mask& btest, Node* a, Node* b) {
+void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   // In the case were both operands might be value types, we need to
   // use the new acmp implementation. Otherwise, i.e. if one operand
   // is not a value type, we can use the old acmp implementation.
@@ -1704,6 +1711,41 @@ void Parse::do_acmp(BoolTest::mask& btest, Node* a, Node* b) {
     return;
   }
 
+  Node* ctrl = NULL;
+  bool safe_for_replace = true;
+  if (!UsePointerPerturbation) {
+    // Emit old acmp before new acmp for quick a != b check
+    cmp = CmpP(a, b);
+    cmp = optimize_cmp_with_klass(_gvn.transform(cmp));
+    if (btest == BoolTest::ne) {
+      do_if(btest, cmp, true);
+      if (stopped()) {
+        return; // Never equal
+      }
+    } else if (btest == BoolTest::eq) {
+      Node* is_equal = NULL;
+      {
+        PreserveJVMState pjvms(this);
+        do_if(btest, cmp, true, &is_equal);
+        if (!stopped()) {
+          // Not equal, skip valuetype check
+          ctrl = new RegionNode(3);
+          ctrl->init_req(1, control());
+          _gvn.set_type(ctrl, Type::CONTROL);
+          record_for_igvn(ctrl);
+          safe_for_replace = false;
+        }
+      }
+      if (is_equal == NULL) {
+        assert(ctrl != NULL, "no control left");
+        set_control(_gvn.transform(ctrl));
+        return; // Never equal
+      }
+      set_control(is_equal);
+    }
+  }
+
+  // Null check operand before loading the is_value bit
   bool speculate = false;
   if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(b))) {
     // Operand 'b' is never null, swap operands to avoid null check
@@ -1717,33 +1759,51 @@ void Parse::do_acmp(BoolTest::mask& btest, Node* a, Node* b) {
       swap(a, b);
     }
   }
-
-  // Null check operand before loading the is_value bit
-  Node* region = new RegionNode(2);
-  Node* is_value = new PhiNode(region, TypeX_X);
-  Node* null_ctl = top();
   inc_sp(2);
-  Node* not_null_a = null_check_oop(a, &null_ctl, speculate, true, speculate);
+  Node* null_ctl = top();
+  Node* not_null_a = null_check_oop(a, &null_ctl, speculate, safe_for_replace, speculate);
   assert(!stopped(), "operand is always null");
   dec_sp(2);
+  Node* region = new RegionNode(2);
+  Node* is_value = new PhiNode(region, TypeX_X);
   if (null_ctl != top()) {
     assert(!speculate, "should never be null");
     region->add_req(null_ctl);
     is_value->add_req(_gvn.MakeConX(0));
   }
 
-  Node* value_bit = C->load_is_value_bit(&_gvn, not_null_a);
+  Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
+  if (UsePointerPerturbation) {
+    Node* mark_addr = basic_plus_adr(not_null_a, oopDesc::mark_offset_in_bytes());
+    Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    Node* not_mark = _gvn.transform(new XorXNode(mark, _gvn.MakeConX(-1)));
+    Node* andn = _gvn.transform(new AndXNode(not_mark, value_mask));
+    Node* neg_if_value = _gvn.transform(new SubXNode(andn, _gvn.MakeConX(1)));
+    is_value->init_req(1, _gvn.transform(new RShiftXNode(neg_if_value, _gvn.intcon(63))));
+  } else {
+    is_value->init_req(1, is_always_locked(not_null_a));
+  }
   region->init_req(1, control());
-  is_value->set_req(1, value_bit);
 
   set_control(_gvn.transform(region));
   is_value = _gvn.transform(is_value);
 
-  // Perturbe oop if operand is a value type to make comparison fail
-  Node* pert = _gvn.transform(new AddPNode(a, a, is_value));
-  cmp = _gvn.transform(new CmpPNode(pert, b));
+  if (UsePointerPerturbation) {
+    // Perturbe oop if operand is a value type to make comparison fail
+    Node* pert = _gvn.transform(new AddPNode(a, a, is_value));
+    cmp = _gvn.transform(new CmpPNode(pert, b));
+  } else {
+    // Check for a value type because we already know that operands are equal
+    cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
+    btest = (btest == BoolTest::eq) ? BoolTest::ne : BoolTest::eq;
+  }
   cmp = optimize_cmp_with_klass(cmp);
   do_if(btest, cmp);
+
+  if (ctrl != NULL) {
+    ctrl->init_req(2, control());
+    set_control(_gvn.transform(ctrl));
+  }
 }
 
 bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {

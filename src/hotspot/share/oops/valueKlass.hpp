@@ -49,7 +49,6 @@ class ValueKlass: public InstanceKlass {
     *((address*)adr_unpack_handler()) = NULL;
     assert(pack_handler() == NULL, "pack handler not null");
     *((int*)adr_default_value_offset()) = 0;
-    assert(Klass::ptr_is_value_type(this), "Value type klass ptr encoding");
     set_prototype_header(markOopDesc::always_locked_prototype());
   }
 

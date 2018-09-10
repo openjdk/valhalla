@@ -3722,26 +3722,6 @@ void MacroAssembler::test_value_is_not_buffered(Register value, Register temp_re
   }
 }
 
-void MacroAssembler::test_oop_is_value(Register oop, Register temp, Label* is_value, Label* is_not_value) {
-  const int mask = Universe::oop_metadata_valuetype_mask();
-  assert((is_value != NULL) || (is_not_value != NULL), "Need a label to jump to");
-  assert((is_value == NULL) ^ (is_not_value == NULL), "Need one label");
-#ifdef _LP64
-  if (UseCompressedClassPointers) {
-    movl(temp, Address(oop, oopDesc::klass_offset_in_bytes()));
-  } else
-#endif
-  movptr(temp, Address(oop, oopDesc::klass_offset_in_bytes()));
-
-  andl(temp, mask);
-  testl(temp, temp);
-  if (is_not_value != NULL) {
-    jcc(Assembler::zero, *is_not_value);
-  } else {
-    jcc(Assembler::notZero, *is_value);
-  }
-}
-
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability
   // (e.g., MSVC can't call ps() otherwise)

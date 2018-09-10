@@ -2673,6 +2673,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
           "stress return of fields instead of a value type reference")      \
+                                                                            \
+  experimental(bool, UsePointerPerturbation, false,                         \
+               "With value types, use the perturbation scheme for acmp")    \
 
 
 #define VM_FLAGS(develop,                                                   \

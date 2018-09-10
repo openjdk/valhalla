@@ -596,6 +596,13 @@ Node* AndLNode::Identity(PhaseGVN* phase) {
           return usr;
       }
     }
+
+    if (con == markOopDesc::always_locked_pattern) {
+      assert(EnableValhalla, "should only be used for value types");
+      if (in(1)->is_Load() && phase->type(in(1)->in(MemNode::Address))->is_valuetypeptr()) {
+        return in(2); // Obj is known to be a value type
+      }
+    }
   }
   return MulNode::Identity(phase);
 }

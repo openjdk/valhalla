@@ -2734,7 +2734,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(slowpath_false);
   Node* rawmem = new StorePNode(slowpath_false, mem, top_adr, TypeRawPtr::BOTTOM, new_top, MemNode::unordered);
   transform_later(rawmem);
-  Node* mark_node = mark_node = makecon(TypeRawPtr::make((address)markOopDesc::always_locked_prototype()));
+  Node* mark_node = makecon(TypeRawPtr::make((address)markOopDesc::always_locked_prototype()));
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   if (UseCompressedClassPointers) {

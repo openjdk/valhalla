@@ -990,14 +990,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     if (cmp != NULL) {
       return cmp;
     }
-    if ( TypePtr::NULL_PTR->higher_equal(phase->type(a)) &&
-        !TypePtr::NULL_PTR->higher_equal(phase->type(b))) {
-      // Operand 'b' is never null, swap operands to avoid null check
-      Node* is_value = phase->C->load_is_value_bit(phase, b);
-      set_req(1, phase->transform(new AddPNode(b, b, is_value)));
-      set_req(2, a);
-      return this;
-    }
   }
 
   // Normalize comparisons between Java mirrors into comparisons of the low-
@@ -1110,7 +1102,7 @@ Node* CmpPNode::has_perturbed_operand() const {
       // RawPtr comparison
       return NULL;
     }
-    assert(EnableValhalla, "unexpected perturbed oop");
+    assert(EnableValhalla && UsePointerPerturbation, "unexpected perturbed oop");
     return in(1);
   }
   return NULL;

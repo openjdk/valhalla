@@ -96,7 +96,6 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
     set_layout_helper(Klass::_lh_neutral_value);
     set_is_cloneable(); // All arrays are considered to be cloneable (See JLS 20.1.5)
     JFR_ONLY(INIT_ID(this);)
-    assert(!ptr_is_value_type(this), "ArrayKlass encoded as value type");
 }
 
 Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {

@@ -551,8 +551,8 @@ class Parse : public GraphKit {
   bool    seems_stable_comparison() const;
 
   void    do_ifnull(BoolTest::mask btest, Node* c);
-  void    do_if(BoolTest::mask btest, Node* c);
-  void    do_acmp(BoolTest::mask& btest, Node* a, Node* b);
+  void    do_if(BoolTest::mask btest, Node* c, bool new_path = false, Node** ctrl_taken = NULL);
+  void    do_acmp(BoolTest::mask btest, Node* a, Node* b);
   int     repush_if_args();
   void    adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path);
   void    sharpen_type_after_if(BoolTest::mask btest,

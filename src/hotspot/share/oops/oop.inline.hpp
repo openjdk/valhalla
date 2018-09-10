@@ -137,23 +137,10 @@ narrowKlass* oopDesc::compressed_klass_addr() {
   return compressed_klass_addr((HeapWord*)this);
 }
 
-// oop only test (does not load klass)
-bool oopDesc::klass_is_value_type() {
-  if (UseCompressedClassPointers) {
-    return Klass::decode_ptr_is_value_type(_metadata._compressed_klass);
-  } else {
-    return Klass::ptr_is_value_type(_metadata._klass);
-  }
-}
-
-
 #define CHECK_SET_KLASS(k)                                                \
   do {                                                                    \
     assert(Universe::is_bootstrapping() || k != NULL, "NULL Klass");      \
     assert(Universe::is_bootstrapping() || k->is_klass(), "not a Klass"); \
-    assert(!EnableValhalla || (k->is_value() && Klass::ptr_is_value_type(k))    \
-                           || (!k->is_value() && !Klass::ptr_is_value_type(k)), \
-                           "Klass value encoding"); \
   } while (0)
 
 void oopDesc::set_klass(Klass* k) {
