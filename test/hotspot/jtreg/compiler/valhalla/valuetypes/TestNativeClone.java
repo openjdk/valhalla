@@ -25,9 +25,12 @@
  * @test
  * @bug 8209702
  * @summary Verify that the native clone intrinsic handles value types.
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
  * @library /test/lib
  * @compile -XDenableValueTypes TestNativeClone.java
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-UseTypeProfile
+ *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestNativeClone::test*
  *                   -XX:CompileCommand=compileonly,jdk.internal.reflect.GeneratedMethodAccessor1::invoke
  *                   -XX:CompileCommand=dontinline,jdk.internal.reflect.GeneratedMethodAccessor1::invoke
@@ -36,8 +39,10 @@
 
 package compiler.valhalla.valuetypes;
 
+import java.lang.invoke.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
 
 __ByValue class MyValue {
@@ -46,17 +51,24 @@ __ByValue class MyValue {
     public MyValue(int x) {
         this.x = x;
     }
-
-    public Object cloneValue() throws CloneNotSupportedException {
-        return super.clone();
-    }
 }
 
 public class TestNativeClone {
 
-    public static void test1(MyValue vt) {
+    private static final MethodHandle cloneValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "MyValue",
+        MethodType.methodType(Object.class, MyValue.class),
+        CODE -> {
+            CODE.
+            aload_0().
+            invokevirtual(Object.class, "clone", "()Ljava/lang/Object;", false).
+            areturn();
+        },
+        MyValue.class);
+
+    public static void test1(MyValue vt) throws Throwable {
         try {
-            vt.cloneValue();
+            cloneValue.invoke(vt);
             throw new RuntimeException("No exception thrown");
         } catch (CloneNotSupportedException e) {
             // Expected
@@ -76,7 +88,7 @@ public class TestNativeClone {
         throw new RuntimeException("No exception thrown");
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Throwable {
         MyValue vt = new MyValue(42);
         Method clone = Object.class.getDeclaredMethod("clone");
         clone.setAccessible(true);
