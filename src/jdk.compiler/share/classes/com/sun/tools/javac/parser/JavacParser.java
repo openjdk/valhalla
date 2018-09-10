@@ -35,6 +35,7 @@ import com.sun.source.tree.ModuleTree.ModuleKind;
 
 import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Flags.Flag;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.parser.Tokens.*;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
@@ -2204,11 +2205,31 @@ public class JavacParser implements Parser {
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
     JCExpression creator(int newpos, CreationMode creationMode, List<JCExpression> typeArgs) {
+        int valueModifierPos = Position.NOPOS;
+        if (token.kind == VALUE) {
+            checkSourceLevel(Feature.VALUE_TYPES);
+            if (creationMode == CreationMode.DEFAULT_VALUE) {
+                log.error(token.pos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
+            }
+            valueModifierPos = token.pos;
+            nextToken();
+        }
         List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
-
+        if (token.kind == VALUE) {
+            checkSourceLevel(Feature.VALUE_TYPES);
+            if (creationMode == CreationMode.DEFAULT_VALUE || valueModifierPos != Position.NOPOS) {
+                log.error(token.pos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
+            }
+            valueModifierPos = token.pos;
+            nextToken();
+            newAnnotations = newAnnotations.appendList(typeAnnotationsOpt());
+        }
         switch (token.kind) {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
+            if (valueModifierPos != Position.NOPOS) {
+                log.error(valueModifierPos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
+            }
             if (typeArgs == null) {
                 if (newAnnotations.isEmpty()) {
                     return arrayCreatorRest(newpos, basicType());
@@ -2277,7 +2298,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            JCNewClass newClass = classCreatorRest(newpos, creationMode, null, typeArgs, t);
+            JCNewClass newClass = classCreatorRest(newpos, creationMode, null, typeArgs, t, valueModifierPos == Position.NOPOS ? 0 : (Flags.VALUE | Flags.FINAL));
             if (newClass.def != null) {
                 assert newClass.def.mods.annotations.isEmpty();
                 if (newAnnotations.nonEmpty()) {
@@ -2289,6 +2310,9 @@ public class JavacParser implements Parser {
                     newClass.def.mods.annotations = newAnnotations;
                 }
             } else {
+                if (valueModifierPos != Position.NOPOS) {
+                    log.error(valueModifierPos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
+                }
                 // handle type annotations for instantiations
                 if (newAnnotations.nonEmpty()) {
                     t = insertAnnotationsToMostInner(t, newAnnotations, false);
@@ -2320,7 +2344,7 @@ public class JavacParser implements Parser {
             t = typeArguments(t, true);
             mode = oldmode;
         }
-        return classCreatorRest(newpos, creationMode, encl, typeArgs, t);
+        return classCreatorRest(newpos, creationMode, encl, typeArgs, t, 0);
     }
 
     /** ArrayCreatorRest = [Annotations] "[" ( "]" BracketsOpt ArrayInitializer
@@ -2403,14 +2427,15 @@ public class JavacParser implements Parser {
                                 CreationMode creationMode,
                                   JCExpression encl,
                                   List<JCExpression> typeArgs,
-                                  JCExpression t)
+                                  JCExpression t,
+                                  long flags)
     {
         List<JCExpression> args = arguments();
         JCClassDecl body = null;
         if (token.kind == LBRACE) {
             int pos = token.pos;
             List<JCTree> defs = classOrInterfaceBody(names.empty, false);
-            JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
+            JCModifiers mods = F.at(Position.NOPOS).Modifiers(flags);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
         JCNewClass newClass = toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body, creationMode));

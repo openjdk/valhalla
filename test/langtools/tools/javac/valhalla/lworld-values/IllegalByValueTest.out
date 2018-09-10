@@ -1,0 +1,8 @@
+IllegalByValueTest.java:20:23: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:21:23: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:21:33: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:22:30: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:23:30: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:24:25: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:25:13: compiler.err.mod.not.allowed.here: value
+7 errors
