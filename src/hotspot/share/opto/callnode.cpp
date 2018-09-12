@@ -1420,7 +1420,8 @@ uint AllocateNode::size_of() const { return sizeof(*this); }
 AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
                            Node *ctrl, Node *mem, Node *abio,
                            Node *size, Node *klass_node,
-                           Node* initial_test, ValueTypeBaseNode* value_node)
+                           Node* initial_test,
+                           ValueTypeBaseNode* value_node)
   : CallNode(atype, NULL, TypeRawPtr::BOTTOM)
 {
   init_class_id(Class_Allocate);
@@ -1440,6 +1441,8 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   init_req( InitialTest        , initial_test);
   init_req( ALength            , topnode);
   init_req( ValueNode          , value_node);
+  // DefaultValue defaults to NULL
+  // RawDefaultValue defaults to NULL
   C->add_macro_node(this);
 }
 

@@ -1083,6 +1083,8 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
+  static ByteSize adr_valueklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_valueklass_fixed_block)); }
+
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;
   bool is_same_or_direct_interface(Klass* k) const;

@@ -107,7 +107,7 @@ class ValueKlass: public InstanceKlass {
 
   address adr_default_value_offset() const {
     assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _default_value_offset));
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
   // static Klass* array_klass_impl(InstanceKlass* this_k, bool or_null, int n, TRAPS);
@@ -241,8 +241,7 @@ class ValueKlass: public InstanceKlass {
   }
 
   static ByteSize default_value_offset_offset() {
-    fatal("Should be re-implemented using the ValueKlassStaticBlock indirection");
-    return in_ByteSize((InstanceKlass::header_size()+2) * wordSize);
+    return byte_offset_of(ValueKlassFixedBlock, _default_value_offset);
   }
 
   void set_default_value_offset(int offset) {

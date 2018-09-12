@@ -2386,6 +2386,13 @@ void Matcher::find_shared( Node *n ) {
         n->del_req(3);
         break;
       }
+      case Op_ClearArray: {
+        Node* pair = new BinaryNode(n->in(2), n->in(3));
+        n->set_req(2, pair);
+        n->set_req(3, n->in(4));
+        n->del_req(4);
+        break;
+      }
       default:
         break;
       }

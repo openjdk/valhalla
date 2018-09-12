@@ -496,7 +496,7 @@ Node* ValueTypeNode::load_default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
   Node* base = gvn.makecon(tip);
   Node* adr = gvn.transform(new AddPNode(base, base, gvn.MakeConX(vk->default_value_offset())));
   const Type* rt = Type::get_const_type(vk)->join_speculative(TypePtr::NOTNULL);
-  return gvn.transform(LoadNode::make(gvn, NULL, gvn.C->immutable_memory(), adr, tip, rt, T_VALUETYPE, MemNode::unordered));
+  return gvn.transform(LoadNode::make(gvn, NULL, gvn.C->immutable_memory(), adr, tip->add_offset(vk->default_value_offset()), rt, T_VALUETYPE, MemNode::unordered));
 }
 
 ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {

@@ -1409,7 +1409,7 @@ void VM_Version::get_processor_features() {
   }
 
   // Use XMM/YMM MOVDQU instruction for Object Initialization
-  if (!UseFastStosb && UseSSE >= 2 && UseUnalignedLoadStores) {
+  if (UseSSE >= 2 && UseUnalignedLoadStores) {
     if (FLAG_IS_DEFAULT(UseXMMForObjInit)) {
       UseXMMForObjInit = true;
     }

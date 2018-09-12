@@ -278,13 +278,6 @@ bool PhaseMacroExpand::can_try_zeroing_elimination(AllocateArrayNode* alloc,
     if (top_dest->klass() == NULL) {
       return false;
     }
-    ciKlass* elem_klass = top_dest->klass()->as_array_klass()->element_klass();
-    if (elem_klass != NULL && elem_klass->is_valuetype()) {
-      ciValueKlass* vk = elem_klass->as_value_klass();
-      if (!vk->flatten_array()) {
-        return false;
-      }
-    }
   }
 
   return ReduceBulkZeroing
@@ -348,6 +341,8 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
 
   Node* original_dest      = dest;
   bool  dest_uninitialized = false;
+  Node* default_value = NULL;
+  Node* raw_default_value = NULL;
 
   // See if this is the initialization of a newly-allocated array.
   // If so, we will take responsibility here for initializing it to zero.
@@ -368,6 +363,8 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // Also, if this flag is set we make sure that arraycopy interacts properly
     // with G1, eliding pre-barriers. See CR 6627983.
     dest_uninitialized = true;
+    default_value = alloc->in(AllocateNode::DefaultValue);
+    raw_default_value = alloc->in(AllocateNode::RawDefaultValue);
   } else {
     // No zeroing elimination here.
     alloc             = NULL;
@@ -439,7 +436,9 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
       } else {
         // Clear the whole thing since there are no source elements to copy.
         generate_clear_array(local_ctrl, local_mem,
-                             adr_type, dest, basic_elem_type,
+                             adr_type, dest,
+                             default_value, raw_default_value,
+                             basic_elem_type,
                              intcon(0), NULL,
                              alloc->in(AllocateNode::AllocSize));
         // Use a secondary InitializeNode as raw memory barrier.
@@ -475,7 +474,9 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // If there is a head section that needs zeroing, do it now.
     if (_igvn.find_int_con(dest_offset, -1) != 0) {
       generate_clear_array(*ctrl, mem,
-                           adr_type, dest, basic_elem_type,
+                           adr_type, dest,
+                           default_value, raw_default_value,
+                           basic_elem_type,
                            intcon(0), dest_offset,
                            NULL);
     }
@@ -524,7 +525,9 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
       *ctrl = tail_ctl;
       if (notail_ctl == NULL) {
         generate_clear_array(*ctrl, mem,
-                             adr_type, dest, basic_elem_type,
+                             adr_type, dest,
+                             default_value, raw_default_value,
+                             basic_elem_type,
                              dest_tail, NULL,
                              dest_size);
       } else {
@@ -534,7 +537,9 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
         done_ctl->init_req(1, notail_ctl);
         done_mem->init_req(1, mem->memory_at(alias_idx));
         generate_clear_array(*ctrl, mem,
-                             adr_type, dest, basic_elem_type,
+                             adr_type, dest,
+                             default_value, raw_default_value,
+                             basic_elem_type,
                              dest_tail, NULL,
                              dest_size);
         done_ctl->init_req(2, *ctrl);
@@ -712,7 +717,9 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
 
     if (dest_uninitialized) {
       generate_clear_array(local_ctrl, local_mem,
-                           adr_type, dest, basic_elem_type,
+                           adr_type, dest,
+                           default_value, raw_default_value,
+                           basic_elem_type,
                            intcon(0), NULL,
                            alloc->in(AllocateNode::AllocSize));
     }
@@ -816,6 +823,8 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
 void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
                                             const TypePtr* adr_type,
                                             Node* dest,
+                                            Node* val,
+                                            Node* raw_val,
                                             BasicType basic_elem_type,
                                             Node* slice_idx,
                                             Node* slice_len,
@@ -855,12 +864,12 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
 
   if (start_con >= 0 && end_con >= 0) {
     // Constant start and end.  Simple.
-    mem = ClearArrayNode::clear_memory(ctrl, mem, dest,
+    mem = ClearArrayNode::clear_memory(ctrl, mem, dest, val, raw_val,
                                        start_con, end_con, &_igvn);
   } else if (start_con >= 0 && dest_size != top()) {
     // Constant start, pre-rounded end after the tail of the array.
     Node* end = dest_size;
-    mem = ClearArrayNode::clear_memory(ctrl, mem, dest,
+    mem = ClearArrayNode::clear_memory(ctrl, mem, dest, val, raw_val,
                                        start_con, end, &_igvn);
   } else if (start_con >= 0 && slice_len != top()) {
     // Constant start, non-constant end.  End needs rounding up.
@@ -873,7 +882,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
     end_base += end_round;
     end = transform_later(new AddXNode(end, MakeConX(end_base)) );
     end = transform_later(new AndXNode(end, MakeConX(~end_round)) );
-    mem = ClearArrayNode::clear_memory(ctrl, mem, dest,
+    mem = ClearArrayNode::clear_memory(ctrl, mem, dest, val, raw_val,
                                        start_con, end, &_igvn);
   } else if (start_con < 0 && dest_size != top()) {
     // Non-constant start, pre-rounded end after the tail of the array.
@@ -902,12 +911,18 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
         // Store a zero to the immediately preceding jint:
         Node* x1 = transform_later(new AddXNode(start, MakeConX(-bump_bit)) );
         Node* p1 = basic_plus_adr(dest, x1);
-        mem = StoreNode::make(_igvn, ctrl, mem, p1, adr_type, intcon(0), T_INT, MemNode::unordered);
+        if (val == NULL) {
+          assert(raw_val == NULL, "val may not be null");
+          mem = StoreNode::make(_igvn, ctrl, mem, p1, adr_type, intcon(0), T_INT, MemNode::unordered);
+        } else {
+          assert(_igvn.type(val)->isa_narrowoop(), "should be narrow oop");
+          mem = new StoreNNode(ctrl, mem, p1, adr_type, val, MemNode::unordered);
+        }
         mem = transform_later(mem);
       }
     }
     Node* end = dest_size; // pre-rounded
-    mem = ClearArrayNode::clear_memory(ctrl, mem, dest,
+    mem = ClearArrayNode::clear_memory(ctrl, mem, dest, raw_val,
                                        start, end, &_igvn);
   } else {
     // Non-constant start, unrounded non-constant end.

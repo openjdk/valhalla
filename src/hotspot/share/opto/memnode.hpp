@@ -1092,9 +1092,11 @@ public:
 class ClearArrayNode: public Node {
 private:
   bool _is_large;
+  bool _word_copy_only;
 public:
-  ClearArrayNode( Node *ctrl, Node *arymem, Node *word_cnt, Node *base, bool is_large)
-    : Node(ctrl,arymem,word_cnt,base), _is_large(is_large) {
+  ClearArrayNode( Node *ctrl, Node *arymem, Node *word_cnt, Node *base, Node* val, bool is_large)
+    : Node(ctrl, arymem, word_cnt, base, val), _is_large(is_large),
+      _word_copy_only(val->bottom_type()->isa_long() && (!val->bottom_type()->is_long()->is_con() || val->bottom_type()->is_long()->get_con() != 0)) {
     init_class_id(Class_ClearArray);
   }
   virtual int         Opcode() const;
@@ -1106,20 +1108,26 @@ public:
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual uint match_edge(uint idx) const;
   bool is_large() const { return _is_large; }
+  bool word_copy_only() const { return _word_copy_only; }
 
   // Clear the given area of an object or array.
   // The start offset must always be aligned mod BytesPerInt.
   // The end offset must always be aligned mod BytesPerLong.
   // Return the new memory.
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
+                            Node* val,
+                            Node* raw_val,
                             intptr_t start_offset,
                             intptr_t end_offset,
                             PhaseGVN* phase);
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
+                            Node* val,
+                            Node* raw_val,
                             intptr_t start_offset,
                             Node* end_offset,
                             PhaseGVN* phase);
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
+                            Node* raw_val,
                             Node* start_offset,
                             Node* end_offset,
                             PhaseGVN* phase);
@@ -1303,7 +1311,6 @@ class InitializeNode: public MemBarNode {
     Incomplete    = 0,
     Complete      = 1,
     WithArraycopy = 2,
-    UnknownValue  = 4
   };
   int _is_complete;
 
@@ -1341,20 +1348,12 @@ public:
   // An InitializeNode must completed before macro expansion is done.
   // Completion requires that the AllocateNode must be followed by
   // initialization of the new memory to zero, then to any initializers.
-  bool is_complete() { return (_is_complete & ~UnknownValue) != Incomplete; }
+  bool is_complete() { return _is_complete != Incomplete; }
   bool is_complete_with_arraycopy() { return (_is_complete & WithArraycopy) != 0; }
 
   // Mark complete.  (Must not yet be complete.)
   void set_complete(PhaseGVN* phase);
   void set_complete_with_arraycopy() { _is_complete = Complete | WithArraycopy; }
-
-  void set_unknown_value() { assert(_is_complete == Incomplete, "bad state"); _is_complete |= UnknownValue; }
-  bool is_unknown_value() {
-    assert((_is_complete & UnknownValue) == 0 || (_is_complete & ~UnknownValue) == Incomplete, "bad state");
-    return (_is_complete & UnknownValue) != 0;
-  }
-  void clear_unknown_value() { _is_complete &= ~UnknownValue; }
-
 
   bool does_not_escape() { return _does_not_escape; }
   void set_does_not_escape() { _does_not_escape = true; }

@@ -164,7 +164,6 @@ class LibraryCallKit : public GraphKit {
   void  generate_string_range_check(Node* array, Node* offset,
                                     Node* length, bool char_count);
   Node* generate_current_thread(Node* &tls_output);
-  Node* load_mirror_from_klass(Node* klass);
   Node* load_klass_from_mirror_common(Node* mirror, bool never_see_null,
                                       RegionNode* region, int null_path,
                                       int offset);
@@ -3070,15 +3069,6 @@ bool LibraryCallKit::inline_native_isInterrupted() {
   return true;
 }
 
-//---------------------------load_mirror_from_klass----------------------------
-// Given a klass oop, load its java mirror (a java.lang.Class oop).
-Node* LibraryCallKit::load_mirror_from_klass(Node* klass) {
-  Node* p = basic_plus_adr(klass, in_bytes(Klass::java_mirror_offset()));
-  Node* load = make_load(NULL, p, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
-  // mirror = ((OopHandle)mirror)->resolve();
-  return access_load(load, TypeInstPtr::MIRROR, T_OBJECT, IN_NATIVE);
-}
-
 //-----------------------load_klass_from_mirror_common-------------------------
 // Given a java mirror (a java.lang.Class oop), load its corresponding klass oop.
 // Test the klass oop for null (signifying a primitive Class like Integer.TYPE),
@@ -4316,7 +4306,6 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
     // We will be completely responsible for initializing this object -
     // mark Initialize node as complete.
     alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
-    alloc->initialization()->clear_unknown_value();
     // The object was just allocated - there should be no any stores!
     guarantee(alloc != NULL && alloc->maybe_set_complete(&_gvn), "");
     // Mark as complete_with_arraycopy so that on AllocateNode

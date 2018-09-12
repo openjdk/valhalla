@@ -544,6 +544,11 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   if (mem != NULL) {
     if (mem == start_mem || mem == alloc_mem) {
       // hit a sentinel, return appropriate 0 value
+      Node* default_value = alloc->in(AllocateNode::DefaultValue);
+      if (default_value != NULL) {
+        return default_value;
+      }
+      assert(alloc->in(AllocateNode::RawDefaultValue) == NULL, "default value may not be null");
       return _igvn.zerocon(ft);
     } else if (mem->is_Store()) {
       return mem->in(MemNode::ValueIn);
@@ -776,6 +781,13 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       assert(klass->is_array_klass() && nfields >= 0, "must be an array klass.");
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
+      if (elem_type->is_valuetype()) {
+        ciValueKlass* vk = elem_type->as_value_klass();
+        if (!vk->flatten_array()) {
+          assert(basic_elem_type == T_VALUETYPE, "unexpected element basic type");
+          basic_elem_type = T_OBJECT;
+        }
+      }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
       if (klass->is_value_array_klass()) {
@@ -1335,51 +1347,6 @@ void PhaseMacroExpand::expand_allocate_common(
   Node *slow_region = NULL;
   Node *toobig_false = ctrl;
 
-  if (!always_slow && (alloc->initialization() == NULL || alloc->initialization()->is_unknown_value())) {
-    const TypeOopPtr* ary_type = _igvn.type(klass_node)->is_klassptr()->as_instance_type();
-    const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
-
-    ciKlass* elem_klass = NULL;
-    if (ary_ptr != NULL && ary_ptr->klass() != NULL) {
-      elem_klass = ary_ptr->klass()->as_array_klass()->element_klass();
-    }
-
-    if (elem_klass == NULL || (elem_klass->is_java_lang_Object() && !ary_ptr->klass_is_exact()) || elem_klass->is_valuetype()) {
-      // If it's an array of values we must go to the slow path so it is
-      // correctly initialized with default values.
-      Node* fast_region = new RegionNode(3);
-      Node* not_obj_array = ctrl;
-      Node* obj_array = generate_object_array_guard(&not_obj_array, mem, klass_node, NULL);
-
-      fast_region->init_req(1, not_obj_array);
-      slow_region = new RegionNode(1);
-      Node* k_adr = basic_plus_adr(klass_node, klass_node, in_bytes(ArrayKlass::element_klass_offset()));
-      Node* elem_klass = LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS);
-      transform_later(elem_klass);
-      Node* flags = make_load(NULL, mem, elem_klass, in_bytes(Klass::access_flags_offset()), TypeInt::INT, T_INT);
-      Node* is_value_elem = new AndINode(flags, intcon(JVM_ACC_VALUE));
-      transform_later(is_value_elem);
-      Node* cmp = new CmpINode(is_value_elem, _igvn.intcon(0));
-      transform_later(cmp);
-      Node* bol = new BoolNode(cmp, BoolTest::ne);
-      transform_later(bol);
-      IfNode* value_array_iff = new IfNode(obj_array, bol, PROB_MIN, COUNT_UNKNOWN);
-      transform_later(value_array_iff);
-      Node* value_array = new IfTrueNode(value_array_iff);
-      transform_later(value_array);
-      slow_region->add_req(value_array);
-      Node* not_value_array = new IfFalseNode(value_array_iff);
-      transform_later(not_value_array);
-      fast_region->init_req(2, not_value_array);
-      transform_later(fast_region);
-      ctrl = fast_region;
-    }
-    InitializeNode* init = alloc->initialization();
-    if (init != NULL) {
-      init->clear_unknown_value();
-    }
-  }
-
   assert (initial_slow_test == NULL || !always_slow, "arguments must be consistent");
   // generate the initial test if necessary
   if (initial_slow_test != NULL ) {
@@ -1851,6 +1818,8 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
     // within an Allocate, and then (maybe or maybe not) clear some more later.
     if (!(UseTLAB && ZeroTLAB)) {
       rawmem = ClearArrayNode::clear_memory(control, rawmem, object,
+                                            alloc->in(AllocateNode::DefaultValue),
+                                            alloc->in(AllocateNode::RawDefaultValue),
                                             header_size, size_in_bytes,
                                             &_igvn);
     }

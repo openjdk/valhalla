@@ -829,9 +829,11 @@ class GraphKit : public Phase {
                        Node* *failure_control = NULL );
 
   Node* is_always_locked(Node* obj);
+  Node* gen_value_type_test(Node* kls);
   void gen_value_type_guard(Node* obj, int nargs = 0);
   void gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass = NULL);
   void gen_flattened_array_guard(Node* ary, int nargs = 0);
+  Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
 
   Node* gen_subtype_check(Node* subklass, Node* superklass) {
     MergeMemNode* mem = merged_memory();
@@ -861,8 +863,6 @@ class GraphKit : public Phase {
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);
-  // Initialize a non-flattened value type array with default oops
-  void initialize_value_type_array(Node* array, Node* length, ciValueKlass* vk, int nargs);
 
   // java.lang.String helpers
   Node* load_String_length(Node* ctrl, Node* str);
@@ -900,6 +900,8 @@ class GraphKit : public Phase {
 
   // Produce new array node of stable type
   Node* cast_array_to_stable(Node* ary, const TypeAryPtr* ary_type);
+
+  Node* load_mirror_from_klass(Node* klass);
 };
 
 // Helper class to support building of control flow branches. Upon

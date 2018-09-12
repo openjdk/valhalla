@@ -1064,6 +1064,11 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
       // can create new nodes.  Think of it as lazily manifesting
       // virtually pre-existing constants.)
       assert(memory_type() != T_VALUETYPE, "should not be used for value types");
+      Node* default_value = ld_alloc->in(AllocateNode::DefaultValue);
+      if (default_value != NULL) {
+        return default_value;
+      }
+      assert(ld_alloc->in(AllocateNode::RawDefaultValue) == NULL, "default value may not be null");
       return phase->zerocon(memory_type());
     }
 
@@ -1793,6 +1798,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     assert( off != Type::OffsetBot ||
             // arrays can be cast to Objects
             tp->is_oopptr()->klass()->is_java_lang_Object() ||
+            tp->is_oopptr()->klass() == ciEnv::current()->Class_klass() ||
             // unsafe field access may not have a constant offset
             C->has_unsafe_access(),
             "Field accesses must be precise" );
@@ -2497,6 +2503,7 @@ Node *StoreNode::Ideal(PhaseGVN *phase, bool can_reshape) {
              phase->C->get_alias_index(adr_type()) == Compile::AliasIdxRaw ||
              (Opcode() == Op_StoreL && st->Opcode() == Op_StoreI) || // expanded ClearArrayNode
              (Opcode() == Op_StoreI && st->Opcode() == Op_StoreL) || // initialization by arraycopy
+             (Opcode() == Op_StoreL && st->Opcode() == Op_StoreN) ||
              (is_mismatched_access() || st->as_Store()->is_mismatched_access()),
              "no mismatched stores, except on raw memory: %s %s", NodeClassNames[Opcode()], NodeClassNames[st->Opcode()]);
 
@@ -2582,10 +2589,11 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
   // Store of zero anywhere into a freshly-allocated object?
   // Then the store is useless.
   // (It must already have been captured by the InitializeNode.)
-  if (result == this &&
-      ReduceFieldZeroing && phase->type(val)->is_zero_type()) {
+  if (result == this && ReduceFieldZeroing) {
     // a newly allocated object is already all-zeroes everywhere
-    if (mem->is_Proj() && mem->in(0)->is_Allocate()) {
+    if (mem->is_Proj() && mem->in(0)->is_Allocate() &&
+        (phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == val)) {
+      assert(!phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == NULL, "storing null to value array is forbidden");
       result = mem;
     }
 
@@ -2598,7 +2606,15 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
         if (prev_val != NULL && phase->eqv(prev_val, val)) {
           // prev_val and val might differ by a cast; it would be good
           // to keep the more informative of the two.
-          result = mem;
+          if (phase->type(val)->is_zero_type()) {
+            result = mem;
+          } else if (prev_mem->is_Proj() && prev_mem->in(0)->is_Initialize()) {
+            InitializeNode* init = prev_mem->in(0)->as_Initialize();
+            AllocateNode* alloc = init->allocation();
+            if (alloc != NULL && alloc->in(AllocateNode::DefaultValue) == val) {
+              result = mem;
+            }
+          }
         }
       }
     }
@@ -2906,7 +2922,7 @@ Node *ClearArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Length too long; communicate this to matchers and assemblers.
   // Assemblers are responsible to produce fast hardware clears for it.
   if (size > InitArrayShortSize) {
-    return new ClearArrayNode(in(0), in(1), in(2), in(3), true);
+    return new ClearArrayNode(in(0), in(1), in(2), in(3), in(4), true);
   }
   Node *mem = in(1);
   if( phase->type(mem)==Type::TOP ) return NULL;
@@ -2921,14 +2937,14 @@ Node *ClearArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( adr->Opcode() != Op_AddP ) Unimplemented();
   Node *base = adr->in(1);
 
-  Node *zero = phase->makecon(TypeLong::ZERO);
+  Node *val = in(4);
   Node *off  = phase->MakeConX(BytesPerLong);
-  mem = new StoreLNode(in(0),mem,adr,atp,zero,MemNode::unordered,false);
+  mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   count--;
   while( count-- ) {
     mem = phase->transform(mem);
     adr = phase->transform(new AddPNode(base,adr,off));
-    mem = new StoreLNode(in(0),mem,adr,atp,zero,MemNode::unordered,false);
+    mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   }
   return mem;
 }
@@ -2962,6 +2978,8 @@ bool ClearArrayNode::step_through(Node** np, uint instance_id, PhaseTransform* p
 //----------------------------clear_memory-------------------------------------
 // Generate code to initialize object storage to zero.
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
+                                   Node* val,
+                                   Node* raw_val,
                                    intptr_t start_offset,
                                    Node* end_offset,
                                    PhaseGVN* phase) {
@@ -2972,17 +2990,24 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
     Node* adr = new AddPNode(dest, dest, phase->MakeConX(offset));
     adr = phase->transform(adr);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
-    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    if (val != NULL) {
+      assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
+      mem = new StoreNNode(ctl, mem, adr, atp, val, MemNode::unordered);
+    } else {
+      assert(raw_val == NULL, "val may not be null");
+      mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    }
     mem = phase->transform(mem);
     offset += BytesPerInt;
   }
   assert((offset % unit) == 0, "");
 
   // Initialize the remaining stuff, if any, with a ClearArray.
-  return clear_memory(ctl, mem, dest, phase->MakeConX(offset), end_offset, phase);
+  return clear_memory(ctl, mem, dest, raw_val, phase->MakeConX(offset), end_offset, phase);
 }
 
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
+                                   Node* raw_val,
                                    Node* start_offset,
                                    Node* end_offset,
                                    PhaseGVN* phase) {
@@ -3005,11 +3030,16 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
   // Bulk clear double-words
   Node* zsize = phase->transform(new SubXNode(zend, zbase) );
   Node* adr = phase->transform(new AddPNode(dest, dest, start_offset) );
-  mem = new ClearArrayNode(ctl, mem, zsize, adr, false);
+  if (raw_val == NULL) {
+    raw_val = phase->MakeConX(0);
+  }
+  mem = new ClearArrayNode(ctl, mem, zsize, adr, raw_val, false);
   return phase->transform(mem);
 }
 
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
+                                   Node* val,
+                                   Node* raw_val,
                                    intptr_t start_offset,
                                    intptr_t end_offset,
                                    PhaseGVN* phase) {
@@ -3024,14 +3054,20 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
     done_offset -= BytesPerInt;
   }
   if (done_offset > start_offset) {
-    mem = clear_memory(ctl, mem, dest,
+    mem = clear_memory(ctl, mem, dest, val, raw_val,
                        start_offset, phase->MakeConX(done_offset), phase);
   }
   if (done_offset < end_offset) { // emit the final 32-bit store
     Node* adr = new AddPNode(dest, dest, phase->MakeConX(done_offset));
     adr = phase->transform(adr);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
-    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    if (val != NULL) {
+      assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
+      mem = new StoreNNode(ctl, mem, adr, atp, val, MemNode::unordered);
+    } else {
+      assert(raw_val == NULL, "val may not be null");
+      mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    }
     mem = phase->transform(mem);
     done_offset += BytesPerInt;
   }
@@ -3413,7 +3449,6 @@ bool InitializeNode::is_non_zero() {
 
 void InitializeNode::set_complete(PhaseGVN* phase) {
   assert(!is_complete(), "caller responsibility");
-  assert(!is_unknown_value(), "unsupported");
   _is_complete = Complete;
 
   // After this node is complete, it contains a bunch of
@@ -3429,7 +3464,7 @@ void InitializeNode::set_complete(PhaseGVN* phase) {
 // return false if the init contains any stores already
 bool AllocateNode::maybe_set_complete(PhaseGVN* phase) {
   InitializeNode* init = initialization();
-  if (init == NULL || init->is_complete() || init->is_unknown_value()) {
+  if (init == NULL || init->is_complete()) {
     return false;
   }
   init->remove_extra_zeroes();
@@ -4174,6 +4209,8 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
         // Do some incremental zeroing on rawmem, in parallel with inits.
         zeroes_done = align_down(zeroes_done, BytesPerInt);
         rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
+                                              allocation()->in(AllocateNode::DefaultValue),
+                                              allocation()->in(AllocateNode::RawDefaultValue),
                                               zeroes_done, zeroes_needed,
                                               phase);
         zeroes_done = zeroes_needed;
@@ -4233,6 +4270,8 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
     }
     if (zeroes_done < size_limit) {
       rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
+                                            allocation()->in(AllocateNode::DefaultValue),
+                                            allocation()->in(AllocateNode::RawDefaultValue),
                                             zeroes_done, size_in_bytes, phase);
     }
   }

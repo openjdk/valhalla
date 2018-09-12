@@ -1452,4 +1452,124 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test63(va, oa);
         verify(verif, result);
     }
+
+    // Test default initialization of value type arrays: small array
+    @Test
+    public MyValue1[] test64() {
+        return new MyValue1[8];
+    }
+
+    @DontCompile
+    public void test64_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[8];
+        MyValue1[] var = test64();
+        for (int i = 0; i < 8; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Test default initialization of value type arrays: large array
+    @Test
+    public MyValue1[] test65() {
+        return new MyValue1[32];
+    }
+
+    @DontCompile
+    public void test65_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[32];
+        MyValue1[] var = test65();
+        for (int i = 0; i < 32; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Check init store elimination
+    @Test
+    public MyValue1[] test66(MyValue1 vt) {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = vt;
+        return va;
+    }
+
+    @DontCompile
+    public void test66_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyValue1[] va = test66(vt);
+        Asserts.assertEQ(va[0].hashPrimitive(), vt.hashPrimitive());
+    }
+
+    // Zeroing elimination and arraycopy
+    @Test
+    public MyValue1[] test67(MyValue1[] src) {
+        MyValue1[] dst = new MyValue1[16];
+        System.arraycopy(src, 0, dst, 0, 13);
+        return dst;
+    }
+
+    @DontCompile
+    public void test67_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[16];
+        MyValue1[] var = test67(va);
+        for (int i = 0; i < 16; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // A store with a default value can be eliminated
+    @Test
+    public MyValue1[] test68() {
+        MyValue1[] va = new MyValue1[2];
+        va[0] = va[1];
+        return va;
+    }
+
+    @DontCompile
+    public void test68_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1[] var = test68();
+        for (int i = 0; i < 2; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Requires individual stores to init array
+    @Test
+    public MyValue1[] test69(MyValue1 vt) {
+        MyValue1[] va = new MyValue1[4];
+        va[0] = vt;
+        va[3] = vt;
+        return va;
+    }
+
+    @DontCompile
+    public void test69_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyValue1[] va = new MyValue1[4];
+        va[0] = vt;
+        va[3] = vt;
+        MyValue1[] var = test69(vt);
+        for (int i = 0; i < va.length; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // A store with a default value can be eliminated: same as test68
+    // but store is farther away from allocation
+    @Test
+    public MyValue1[] test70(MyValue1[] other) {
+        other[1] = other[0];
+        MyValue1[] va = new MyValue1[2];
+        other[0] = va[1];
+        va[0] = va[1];
+        return va;
+    }
+
+    @DontCompile
+    public void test70_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1[] var = test70(va);
+        for (int i = 0; i < 2; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
 }
