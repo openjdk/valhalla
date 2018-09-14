@@ -140,7 +140,7 @@ public class ValueArray {
             points = new Point[0];
         }
         public static PointArray makeArray(Point... points) {
-            PointArray a = __MakeDefault PointArray();
+            PointArray a = PointArray.default;
             a = __WithField(a.points, points);
             return a;
         }

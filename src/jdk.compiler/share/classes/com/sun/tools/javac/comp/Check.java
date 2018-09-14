@@ -3711,7 +3711,9 @@ public class Check {
             if (warned) return; // suppress redundant diagnostics
             switch (lint) {
                 case UNCHECKED:
-                    Check.this.warnUnchecked(pos(), Warnings.ProbFoundReq(diags.fragment(uncheckedKey), found, expected));
+                    JCTree tree;
+                    if (!(tree = pos().getTree()).hasTag(Tag.SELECT) || ((JCFieldAccess) tree).name != names._default)
+                        Check.this.warnUnchecked(pos(), Warnings.ProbFoundReq(diags.fragment(uncheckedKey), found, expected));
                     break;
                 case VARARGS:
                     if (method != null &&

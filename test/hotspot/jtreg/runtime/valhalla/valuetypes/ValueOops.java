@@ -126,7 +126,7 @@ public class ValueOops {
         }
 
         public static Composition create(Person onePerson, Person otherPerson) {
-            Composition comp = __MakeDefault Composition();
+            Composition comp = Composition.default;
             comp = __WithField(comp.onePerson, onePerson);
             comp = __WithField(comp.otherPerson, otherPerson);
             return comp;
@@ -560,7 +560,7 @@ public class ValueOops {
         }
 
         public static FooValue create(int id, String name, String description, long timestamp, String notes) {
-            FooValue f = __MakeDefault FooValue();
+            FooValue f = FooValue.default;
             f = __WithField(f.id, id);
             f = __WithField(f.name, name);
             f = __WithField(f.description, description);

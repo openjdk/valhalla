@@ -33,7 +33,7 @@ public final __ByValue class IntValue {
     public int getInt() { return val; }
 
     public static IntValue create(int val) {
-        IntValue iv = __MakeDefault IntValue();
+        IntValue iv = IntValue.default;
         iv.val = val;
         return iv;
     }

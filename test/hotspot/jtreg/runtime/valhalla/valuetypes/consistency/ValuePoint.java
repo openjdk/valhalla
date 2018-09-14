@@ -35,7 +35,7 @@ __ByValue final class Point {
     public int getY() { return y; }
 
     public static Point createPoint() {
-        Point p = __MakeDefault Point();
+        Point p = Point.default;
         return p;
     }
 }

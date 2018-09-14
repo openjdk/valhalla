@@ -33,7 +33,7 @@ public __ByValue class NonFlattenValue {
     }
 
     public static NonFlattenValue make(int x, int y) {
-        NonFlattenValue v = __MakeDefault NonFlattenValue();
+        NonFlattenValue v = NonFlattenValue.default;
         v = __WithField(v.nfp, Point.makePoint(x, y));
         return v;
     }

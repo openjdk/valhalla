@@ -208,7 +208,7 @@ public class ValueTypeArray {
         }
 
         public static MyInt create(int v) {
-            MyInt mi = __MakeDefault MyInt();
+            MyInt mi = MyInt.default;
             mi = __WithField(mi.value, v);
             return mi;
         }
@@ -371,12 +371,12 @@ public class ValueTypeArray {
             return false;
         }
         static MyPoint create(int x) {
-            MyPoint mp = __MakeDefault MyPoint();
+            MyPoint mp = MyPoint.default;
             mp = __WithField(mp.x, MyInt.create(x));
             return mp;
         }
         static MyPoint create(int x, int y) {
-            MyPoint mp = __MakeDefault MyPoint();
+            MyPoint mp = MyPoint.default;
             mp = __WithField(mp.x, MyInt.create(x));
             mp = __WithField(mp.y, MyInt.create(y));
             return mp;

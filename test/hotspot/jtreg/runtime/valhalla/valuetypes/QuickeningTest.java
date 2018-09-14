@@ -69,7 +69,7 @@ public class QuickeningTest {
         }
 
         public static Value create() {
-            return __MakeDefault Value();
+            return Value.default;
         }
     }
 

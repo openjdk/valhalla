@@ -10,11 +10,11 @@ final __ByValue class CheckFlattenableCycles {
         CheckFlattenableCycles cfc;
     }
     __ByValue final class InnerValue {
-        final __Flattenable CheckFlattenableCycles cfc = __MakeDefault CheckFlattenableCycles(); // Error.
+        final __Flattenable CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.
     }
-    final __Flattenable CheckFlattenableCycles cfc = __MakeDefault CheckFlattenableCycles(); // Error.
+    final __Flattenable CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.
     final int i = 10;
     final String s = "blah";
     final InnerRef ir = new InnerRef(); // OK.
-    final __Flattenable InnerValue iv = __MakeDefault InnerValue(); // Error
+    final __Flattenable InnerValue iv = InnerValue.default; // Error
 }

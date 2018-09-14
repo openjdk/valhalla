@@ -42,7 +42,7 @@ public class VDefaultTest {
         final int y;
 
         static Point make() {
-            Point p = __MakeDefault Point();
+            Point p = Point.default;
             return p;
         }
 
@@ -63,7 +63,7 @@ public class VDefaultTest {
         __Flattenable final Point p;
 
         static Value make() {
-            Value p = __MakeDefault Value();
+            Value p = Value.default;
             return p;
         }
 

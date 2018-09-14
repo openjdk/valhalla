@@ -81,7 +81,7 @@ __ByValue class MyValue implements MyInterface {
     final int x = 42;
 
     static MyValue createDefault() {
-        return __MakeDefault MyValue();
+        return MyValue.default;
     }
 }
 

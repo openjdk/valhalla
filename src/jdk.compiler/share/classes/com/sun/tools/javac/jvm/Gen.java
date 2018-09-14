@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.jvm;
 
-import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.tools.javac.tree.TreeInfo.PosKind;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -1855,23 +1854,16 @@ public class Gen extends JCTree.Visitor {
         Assert.check(tree.encl == null && tree.def == null);
         setTypeAnnotationPositions(tree.pos);
 
-        Type newType = tree.type;
+        code.emitop2(new_, makeRef(tree.pos(), tree.type));
+        code.emitop0(dup);
 
-        if (types.isValue(newType)) {
-            Assert.check(tree.creationMode == CreationMode.DEFAULT_VALUE);
-            Assert.check(tree.constructorType.getParameterTypes().isEmpty());
-            code.emitop2(defaultvalue, makeRef(tree.pos(), newType));
-        } else {
-            code.emitop2(new_, makeRef(tree.pos(), tree.type));
-            code.emitop0(dup);
+        // Generate code for all arguments, where the expected types are
+        // the parameters of the constructor's external type (that is,
+        // any implicit outer instance appears as first parameter).
+        genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
 
-            // Generate code for all arguments, where the expected types are
-            // the parameters of the constructor's external type (that is,
-            // any implicit outer instance appears as first parameter).
-            genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
+        items.makeMemberItem(tree.constructor, true).invoke();
 
-            items.makeMemberItem(tree.constructor, true).invoke();
-        }
         result = items.makeStackItem(tree.type);
     }
 
@@ -2201,7 +2193,11 @@ public class Gen extends JCTree.Visitor {
             code.emitLdc(makeRef(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
-       }
+        } else if (tree.name == names._default) {
+            code.emitop2(defaultvalue, makeRef(tree.pos(), tree.type));
+            result = items.makeStackItem(tree.type);
+            return;
+        }
 
         Symbol ssym = TreeInfo.symbol(tree.selected);
 

@@ -42,7 +42,7 @@ public class VWithFieldTest {
         final private int y;
 
         static Point make(int x, int y) {
-            Point p = __MakeDefault Point();
+            Point p = Point.default;
             Asserts.assertEquals(p.x, 0, "invalid x default value");
             Asserts.assertEquals(p.y, 0, "invalid y default value");
             p = __WithField(p.x, x);

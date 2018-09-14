@@ -36,7 +36,6 @@ import com.sun.source.tree.CaseTree.CaseKind;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.tools.javac.code.*;
@@ -2499,7 +2498,7 @@ public class Attr extends JCTree.Visitor {
                  ((JCVariableDecl) env.tree).init != tree))
                 log.error(tree.pos(), Errors.EnumCantBeInstantiated);
 
-            if (tree.creationMode == CreationMode.NEW && types.isValue(clazztype)) {
+            if (types.isValue(clazztype)) {
                 if (!allowValueConstructors)
                     log.error(tree.pos(), Errors.GarbledValueReferenceInstantiation);
             }
@@ -2603,17 +2602,6 @@ public class Attr extends JCTree.Visitor {
                     instantiatedContext -> {
                         tree.constructorType = instantiatedContext.asInstType(tree.constructorType);
                     });
-        }
-        if (tree.creationMode == CreationMode.DEFAULT_VALUE) {
-            if (tree.constructor != null && tree.constructor.isConstructor()) {
-                final List<Type> parameterTypes = tree.constructorType.getParameterTypes();
-                if (!parameterTypes.isEmpty()) {
-                    log.error(tree.pos, "invalid.arguments.to.make.default");
-                }
-                if (!types.isValue(TreeInfo.symbol(tree.clazz).type)) {
-                    log.error(tree.pos, "make.default.with.nonvalue");
-                }
-            }
         }
         chk.validate(tree.typeargs, localEnv);
     }
@@ -3882,7 +3870,7 @@ public class Attr extends JCTree.Visitor {
         // Determine the expected kind of the qualifier expression.
         KindSelector skind = KindSelector.NIL;
         if (tree.name == names._this || tree.name == names._super ||
-                tree.name == names._class)
+                tree.name == names._class || tree.name == names._default)
         {
             skind = KindSelector.TYP;
         } else {
@@ -4051,6 +4039,13 @@ public class Attr extends JCTree.Visitor {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
+                } else if (name == names._default) {
+                    if (!types.isValue(site)) {
+                        log.error(pos, Errors.MakeDefaultWithNonvalue);
+                        return syms.errSymbol;
+                    } else {
+                        return new VarSymbol(STATIC, names._default, site, site.tsym);
+                    }
                 } else {
                     // We are seeing a plain identifier as selector.
                     Symbol sym = rs.findIdentInType(env, site, name, resultInfo.pkind);

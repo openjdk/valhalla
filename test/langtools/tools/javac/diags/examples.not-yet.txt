@@ -198,7 +198,6 @@ compiler.err.preview.without.source.or.release
 compiler.err.cyclic.value.type.membership
 compiler.err.garbled.value.reference.instantiation
 compiler.err.value.does.not.support
-compiler.err.invalid.arguments.to.make.default
 compiler.err.make.default.with.nonvalue
 compiler.err.value.may.not.extend
 compiler.warn.potential.null.pollution

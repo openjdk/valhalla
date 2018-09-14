@@ -45,7 +45,7 @@ public __ByValue final class ValueWithJni {
     public native void doJniMonitorExit();
 
     public static ValueWithJni createValueWithJni(int x) {
-        ValueWithJni v = __MakeDefault ValueWithJni();
+        ValueWithJni v = ValueWithJni.default;
         v = __WithField(v.x, x);
         return v;
     }

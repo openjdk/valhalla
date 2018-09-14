@@ -29,7 +29,7 @@ __ByValue final class SimpleValueType {
     }
 
     static SimpleValueType create() {
-        return __MakeDefault SimpleValueType();
+        return SimpleValueType.default;
     }
 }
 

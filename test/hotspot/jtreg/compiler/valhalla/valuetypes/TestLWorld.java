@@ -1851,7 +1851,7 @@ public class TestLWorld extends ValueTypeTest {
     public void test65_verifier(boolean warmup) {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
-        Test65Value holder = __MakeDefault Test65Value();
+        Test65Value holder = Test65Value.default;
         Asserts.assertEQ(testValue1.hash(), vt.hash());
         holder = holder.init();
         Asserts.assertEQ(holder.valueField1.hash(), vt.hash());
@@ -1869,7 +1869,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test66_verifier(boolean warmup) {
-        Test65Value vt = __MakeDefault Test65Value();
+        Test65Value vt = Test65Value.default;
         test66(vt);
     }
 
@@ -2226,7 +2226,7 @@ public class TestLWorld extends ValueTypeTest {
     @Test
     @Warmup(0)
     public int test86() {
-        Test86Value vt = __MakeDefault Test86Value();
+        Test86Value vt = Test86Value.default;
         return vt.get();
     }
 

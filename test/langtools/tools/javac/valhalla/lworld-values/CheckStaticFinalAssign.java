@@ -11,7 +11,7 @@ __ByValue final class CheckStaticFinalAssign {
     }
 
     static CheckStaticFinalAssign foo() {
-       CheckStaticFinalAssign x = __MakeDefault CheckStaticFinalAssign();
+       CheckStaticFinalAssign x = CheckStaticFinalAssign.default;
        x.x = 100;
        return x;
     }

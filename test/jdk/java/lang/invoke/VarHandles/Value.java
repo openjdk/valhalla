@@ -41,7 +41,7 @@ final __ByValue class Value {
         double_v = 0.2d;
     }
     static Value makeValue(char c, boolean z, byte b, int x, short y, long l, float f, double d) {
-        Value v = __MakeDefault Value();
+        Value v = Value.default;
         v = __WithField(v.char_v, c);
         v = __WithField(v.byte_v, b);
         v = __WithField(v.boolean_v, z);

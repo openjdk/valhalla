@@ -139,7 +139,7 @@ public class ValueTypeGenerator {
         sb.append("\tstatic public ").append(name).append(" ").append("make").append(name).append("(");
         sb.append(fieldsAsArgs(fields));
         sb.append(") {\n");
-        sb.append("\t\t").append(name).append(" v = ").append("__MakeDefault ").append(name).append("();\n");
+        sb.append("\t\t").append(name).append(" v = ").append(name).append(".default;\n");
         for (int i = 0 ; i < fields.length; i++) {
             sb.append("\t\tv = __WithField(v.").append(fields[i].name).append(", ").append(fields[i].name).append(");\n");
         }
@@ -149,7 +149,7 @@ public class ValueTypeGenerator {
 
         // default factory
         sb.append("\tstatic public ").append(name).append(" ").append("make").append(name).append("() {\n");
-        sb.append("\t\t").append(name).append(" v = ").append("__MakeDefault ").append(name).append("();\n");
+        sb.append("\t\t").append(name).append(" v = ").append(name).append(".default;\n");
         for (int i = 0 ; i < fields.length; i++) {
             sb.append("\t\tv = __WithField(v.").append(fields[i].name).append(", ").append(defaultValue(fields[i].type)).append(");\n");
         }

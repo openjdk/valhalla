@@ -53,7 +53,7 @@ __ByValue final class MyValueType {
     }
 
     static MyValueType testDefault() {
-        return __MakeDefault MyValueType();
+        return MyValueType.default;
     }
 
     static MyValueType testBranchArg1(boolean flag, MyValueType v1) {

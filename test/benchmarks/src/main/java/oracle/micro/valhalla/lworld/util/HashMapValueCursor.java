@@ -278,7 +278,7 @@ public class HashMapValueCursor<K, V> extends AbstractMap<K, V> {
         }
 
         public static <K,V> EntryCursor<K,V> of(HashMapValueCursor<K, V> map, int expectedModCount, int index, Entry<K, V> current) {
-            EntryCursor c = __MakeDefault EntryCursor();
+            EntryCursor c = EntryCursor.default;
             c = __WithField(c.map, map);
             c = __WithField(c.expectedModCount, expectedModCount);
             c = __WithField(c.index, index);
@@ -339,7 +339,7 @@ public class HashMapValueCursor<K, V> extends AbstractMap<K, V> {
         }
 
         public static <K,V> KeyCursor<K,V> of(HashMapValueCursor<K, V> map, int expectedModCount, int index, Entry<K, V> current) {
-            KeyCursor c = __MakeDefault KeyCursor();
+            KeyCursor c = KeyCursor.default;
             c = __WithField(c.map, map);
             c = __WithField(c.expectedModCount, expectedModCount);
             c = __WithField(c.index, index);

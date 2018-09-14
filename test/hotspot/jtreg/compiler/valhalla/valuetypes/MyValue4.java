@@ -47,7 +47,7 @@ __ByValue final class MyValue4 implements MyInterface {
 
     @ForceInline
     public static MyValue4 createDefault() {
-        return __MakeDefault MyValue4();
+        return MyValue4.default;
     }
 
     @ForceInline

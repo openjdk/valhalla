@@ -36,7 +36,7 @@
 //         int_v = 1;
 //     }
 //     static Value makeValue(int x) {
-//         Value v = __MakeDefault Value();
+//         Value v = Value.default;
 //         v = __WithField(v.int_v, x);
 //         return v;
 //     }
@@ -1285,10 +1285,10 @@ class ValueSuperClass {
 //     __Flattenable final Circ2 v2;
 //     Circ() {
 //         int_v = 1;
-//         v2 = __MakeDefault Circ2();
+//         v2 = Circ2.default;
 //     }
 //     static Circ makeCirc(int x) {
-//         Circ v = __MakeDefault Circ();
+//         Circ v = Circ.default;
 //         v = __WithField(v.int_v, x);
 //         return v;
 //     }
@@ -1300,10 +1300,10 @@ class ValueSuperClass {
 //     __Flattenable final Circ vv;
 //     Circ2() {
 //         char_v = 'z';
-//         vv = __MakeDefault Circ();
+//         vv = Circ.default;
 //     }
 //     static Circ2 makeCirc2(char c) {
-//         Circ2 v = __MakeDefault Circ2();
+//         Circ2 v = Circ2.default;
 //         v = __WithField(v.char_v, c);
 //         return v;
 //     }
@@ -1655,12 +1655,12 @@ class Circ2 {
 // final __ByValue class CircStaticA {
 //     static final CircStaticA VT = makeCircStaticA(0x01234567);
 //     final int int_v;
-//     __Flattenable static final CircStaticB v2 = __MakeDefault CircStaticB();
+//     __Flattenable static final CircStaticB v2 = CircStaticB.default;
 //     CircStaticA() {
 //         int_v = 1;
 //     }
 //     static CircStaticA makeCircStaticA(int x) {
-//         CircStaticA v = __MakeDefault CircStaticA();
+//         CircStaticA v = CircStaticA.default;
 //         v = __WithField(v.int_v, x);
 //         return v;
 //     }
@@ -1669,12 +1669,12 @@ class Circ2 {
 // final __ByValue class CircStaticB {
 //     static final CircStaticB VT = makeCircStaticB(0x01234567);
 //     final int int_v;
-//     __Flattenable static final CircStaticA v2 = __MakeDefault CircStaticA();
+//     __Flattenable static final CircStaticA v2 = CircStaticA.default;
 //     CircStaticB() {
 //         int_v = 1;
 //     }
 //     static CircStaticB makeCircStaticB(int x) {
-//         CircStaticB v = __MakeDefault CircStaticB();
+//         CircStaticB v = CircStaticB.default;
 //         v = __WithField(v.int_v, x);
 //         return v;
 //     }

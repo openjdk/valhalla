@@ -37,7 +37,7 @@ public class WithFieldAccessorTest {
         }
 
         public static V make(int i) {
-            V v = __MakeDefault V();
+            V v = V.default;
             v = __WithField(v.i, i);
             return v;
         }

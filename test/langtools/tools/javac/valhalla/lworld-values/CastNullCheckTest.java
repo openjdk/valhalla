@@ -55,7 +55,7 @@ public class CastNullCheckTest {
             caught++;
         }
 
-        o = __MakeDefault Point();
+        o = Point.default;
         try {
             Point p = (Point) o;
         } catch (NullPointerException npe) {

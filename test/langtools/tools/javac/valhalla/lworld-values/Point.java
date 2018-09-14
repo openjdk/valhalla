@@ -39,7 +39,7 @@ __ByValue class Point {
         y = 20;
     }
     static Point makePoint(int x, int y) {
-        Point p = __MakeDefault Point();
+        Point p = Point.default;
         p = __WithField(p.x, x);
         p = __WithField(p.y, y);
         return p;

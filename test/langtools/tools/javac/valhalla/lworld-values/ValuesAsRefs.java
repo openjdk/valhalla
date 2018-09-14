@@ -38,7 +38,8 @@ public final __ByValue class ValuesAsRefs {
     }
 
     void foo() {
-        I i = this.__MakeDefault I();  // values can be enclosing instances.
+        I i = this.new I();  // values can be enclosing instances.
+        i = ValuesAsRefs.I.default;
         Object o = (I & java.io.Serializable) i; // values can be used in intersection casts
     }
     <T> void goo() {

@@ -17,9 +17,6 @@ public class IllegalByValueTest {
 
     public static void main(String[] args) {
         // Error cases.
-        __MakeDefault __ByValue IllegalByValueTest() {};
-        __MakeDefault __ByValue __ByValue IllegalByValueTest() {};
-        __MakeDefault @Annot __ByValue IllegalByValueTest() {};
         new __ByValue @Annot __ByValue Comparable <String>() {};
         int [] ia = new __ByValue int[10];
         new __ByValue String("Hello");

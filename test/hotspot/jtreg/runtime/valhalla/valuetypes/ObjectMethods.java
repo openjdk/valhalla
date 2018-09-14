@@ -214,7 +214,7 @@ public class ObjectMethods {
         final int value;
         private MyInt() { value = 0; }
         public static MyInt create(int v) {
-            MyInt mi = __MakeDefault MyInt();
+            MyInt mi = MyInt.default;
             mi = __WithField(mi.value, v);
             return mi;
         }

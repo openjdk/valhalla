@@ -45,7 +45,7 @@ public class ValueBootstrapMethodsTest {
             this.l = List.of();
         }
         public static Value make(int i, double d, String s, String... items) {
-            Value v = __MakeDefault Value();
+            Value v = Value.default;
             v = __WithField(v.i, i);
             v = __WithField(v.d, d);
             v = __WithField(v.s, s);

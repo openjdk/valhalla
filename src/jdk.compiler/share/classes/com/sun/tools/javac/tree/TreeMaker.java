@@ -29,7 +29,6 @@ import java.util.Iterator;
 
 import com.sun.source.tree.CaseTree.CaseKind;
 import com.sun.source.tree.ModuleTree.ModuleKind;
-import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.UnresolvedClass;
@@ -385,19 +384,7 @@ public class TreeMaker implements JCTree.Factory {
                              List<JCExpression> args,
                              JCClassDecl def)
     {
-        JCNewClass tree = new JCNewClass(encl, typeargs, clazz, args, def, CreationMode.NEW);
-        tree.pos = pos;
-        return tree;
-    }
-
-    public JCNewClass NewClass(JCExpression encl,
-                               List<JCExpression> typeargs,
-                               JCExpression clazz,
-                               List<JCExpression> args,
-                               JCClassDecl def,
-                               CreationMode creationMode)
-    {
-        JCNewClass tree = new JCNewClass(encl, typeargs, clazz, args, def, creationMode);
+        JCNewClass tree = new JCNewClass(encl, typeargs, clazz, args, def);
         tree.pos = pos;
         return tree;
     }
@@ -748,14 +735,8 @@ public class TreeMaker implements JCTree.Factory {
     /** Create a method invocation from a method tree and a list of argument trees.
      */
     public JCExpression Create(Symbol ctor, List<JCExpression> args) {
-        return Create(ctor, args, CreationMode.NEW);
-    }
-
-    /** Create a method invocation from a method tree and a list of argument trees.
-     */
-    public JCExpression Create(Symbol ctor, List<JCExpression> args, CreationMode creationMode) {
         Type t = ctor.owner.erasure(types);
-        JCNewClass newclass = NewClass(null, null, Type(t), args, null, creationMode);
+        JCNewClass newclass = NewClass(null, null, Type(t), args, null);
         newclass.constructor = ctor;
         newclass.setType(t);
         return newclass;

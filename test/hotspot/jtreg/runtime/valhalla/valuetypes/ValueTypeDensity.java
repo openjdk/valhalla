@@ -82,7 +82,7 @@ public class ValueTypeDensity {
         public short getDay()   { return day; }
 
         public static LocalDateValue create(int year, short month, short day) {
-            LocalDateValue localDate = __MakeDefault LocalDateValue();
+            LocalDateValue localDate = LocalDateValue.default;
             localDate = __WithField(localDate.year, year);
             localDate = __WithField(localDate.month, month);
             localDate = __WithField(localDate.day, day);
@@ -109,7 +109,7 @@ public class ValueTypeDensity {
         public int getNano()    { return nano; }
 
         public static LocalTimeValue create(byte hour, byte minute, byte second, int nano) {
-            LocalTimeValue localTime = __MakeDefault LocalTimeValue();
+            LocalTimeValue localTime = LocalTimeValue.default;
             localTime = __WithField(localTime.hour, hour);
             localTime = __WithField(localTime.minute, minute);
             localTime = __WithField(localTime.second, second);
@@ -138,7 +138,7 @@ public class ValueTypeDensity {
         public int getNano()    { return time.nano; }
 
         public static LocalDateTimeValue create(LocalDateValue date, LocalTimeValue time) {
-            LocalDateTimeValue localDateTime = __MakeDefault LocalDateTimeValue();
+            LocalDateTimeValue localDateTime = LocalDateTimeValue.default;
             localDateTime = __WithField(localDateTime.date, date);
             localDateTime = __WithField(localDateTime.time, time);
             return localDateTime;

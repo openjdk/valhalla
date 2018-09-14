@@ -68,7 +68,7 @@ public __ByValue final class JumboValue {
     }
 
     public static JumboValue createJumboValue() {
-        JumboValue j = __MakeDefault JumboValue();
+        JumboValue j = JumboValue.default;
         return j;
     }
 

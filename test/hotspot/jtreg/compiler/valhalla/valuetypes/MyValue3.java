@@ -49,7 +49,7 @@ __ByValue final class MyValue3Inline {
 
     @ForceInline
     public static MyValue3Inline createDefault() {
-        return __MakeDefault MyValue3Inline();
+        return MyValue3Inline.default;
     }
 
     @ForceInline
@@ -174,7 +174,7 @@ __ByValue public final class MyValue3 implements MyInterface {
 
     @ForceInline
     public static MyValue3 createDefault() {
-        return __MakeDefault MyValue3();
+        return MyValue3.default;
     }
 
     @ForceInline

@@ -13,7 +13,7 @@ __ByValue public final class Value2 implements PNumber {
     }
 
     public static Value2 of(int f0, int f1) {
-        Value2 v = __MakeDefault Value2();
+        Value2 v = Value2.default;
         v = __WithField(v.f0, f0);
         v = __WithField(v.f1, f1);
         return v;

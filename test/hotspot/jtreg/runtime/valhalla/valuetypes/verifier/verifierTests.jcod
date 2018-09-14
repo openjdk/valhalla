@@ -31,7 +31,7 @@
 //         int_v = 1;
 //     }
 //     static Value makeValue(int x) {
-//         Value v = __MakeDefault Value();
+//         Value v = Value.default;
 //         v = __WithField(v.int_v, x);
 //         return v;
 //     }

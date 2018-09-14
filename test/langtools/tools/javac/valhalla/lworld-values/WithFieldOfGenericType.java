@@ -33,7 +33,7 @@ public final __ByValue class WithFieldOfGenericType<E> {
   private final boolean value;
 
   public static <E> WithFieldOfGenericType<E> create() {
-    WithFieldOfGenericType<E> bug = __MakeDefault WithFieldOfGenericType<E>();
+    WithFieldOfGenericType<E> bug = WithFieldOfGenericType.default;
     bug = __WithField(bug.value, true);
     return bug;
   }

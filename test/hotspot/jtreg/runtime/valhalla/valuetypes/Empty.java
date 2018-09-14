@@ -29,7 +29,7 @@ __ByValue final class EmptyValue {
     }
 
     public static EmptyValue createEmptyValue() {
-        EmptyValue e = __MakeDefault EmptyValue();
+        EmptyValue e = EmptyValue.default;
         return e;
     }
 }

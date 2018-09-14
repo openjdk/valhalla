@@ -42,7 +42,7 @@ public __ByValue final class TestValue2 {
     }
 
     public static TestValue2 create(long l) {
-        TestValue2 v = __MakeDefault TestValue2();
+        TestValue2 v = TestValue2.default;
         v = __WithField(v.l, l);
         v = __WithField(v.s, Long.valueOf(l).toString());
         v = __WithField(v.d, Double.parseDouble(v.s));
@@ -50,7 +50,7 @@ public __ByValue final class TestValue2 {
     }
 
     public static TestValue2 create() {
-        TestValue2 v = __MakeDefault TestValue2();
+        TestValue2 v = TestValue2.default;
         v = __WithField(v.l, System.nanoTime());
         v = __WithField(v.s, Long.valueOf(v.l).toString());
         v = __WithField(v.d, Double.parseDouble(v.s));

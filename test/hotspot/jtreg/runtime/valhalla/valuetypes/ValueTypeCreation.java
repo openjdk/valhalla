@@ -82,7 +82,7 @@ public class ValueTypeCreation {
         public String toString() { return "StaticSelf f1=" + f1; }
 
         static StaticSelf create(int f1) {
-            StaticSelf s = __MakeDefault StaticSelf();
+            StaticSelf s = StaticSelf.default;
             s = __WithField(s.f1, f1);
             return s;
         }

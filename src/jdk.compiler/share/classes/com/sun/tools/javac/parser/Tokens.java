@@ -166,7 +166,6 @@ public class Tokens {
         NOTFLATTENED("__NotFlattened"),
         TRY("try"),
         VALUE("__ByValue"),
-        VDEFAULT("__MakeDefault"),
         VOID("void", Tag.NAMED),
         VOLATILE("volatile"),
         WHILE("while"),

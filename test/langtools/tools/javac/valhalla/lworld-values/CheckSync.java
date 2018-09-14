@@ -25,7 +25,7 @@ public final __ByValue class CheckSync {
         }
     }
 
-    final Val val = __MakeDefault Val();
+    final Val val = Val.default;
 
     void test() throws InterruptedException {
         // All calls below are bad.

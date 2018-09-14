@@ -11,7 +11,7 @@ __ByValue final class A {
 
     __ByValue final class B {
 
-        final A a = __MakeDefault A();
+        final A a = A.default;
 
         void foo(A a) {
             a.x = 100;
