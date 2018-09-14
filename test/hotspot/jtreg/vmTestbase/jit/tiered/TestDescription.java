@@ -34,6 +34,7 @@
  *     If tiered compilation is explicitly disabled the test verifies that there are no
  *     output from PrintTieredEvents.
  *
+ * @requires vm.opt.final.TieredCompilation
  * @library /vmTestbase
  *          /test/lib
  * @run driver jdk.test.lib.FileInstaller . .
