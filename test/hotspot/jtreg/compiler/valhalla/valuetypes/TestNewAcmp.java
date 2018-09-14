@@ -30,35 +30,35 @@
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 0
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 0
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 1
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 1
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
  *                   -XX:+AlwaysIncrementalInline
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmpAlways*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
  */
 
@@ -1351,12 +1351,36 @@ public class TestNewAcmp {
         return a != b;
     }
 
+    public boolean cmpAlwaysEqual3(Object a) {
+        return a == a;
+    }
+
+    public boolean cmpAlwaysEqual4(Object a) {
+        return a != a;
+    }
+
     public boolean cmpAlwaysUnEqual1(Object a, Object b) {
         return a == b;
     }
 
     public boolean cmpAlwaysUnEqual2(Object a, Object b) {
         return a != b;
+    }
+
+    public boolean cmpAlwaysUnEqual3(Object a) {
+        return a == a;
+    }
+
+    public boolean cmpAlwaysUnEqual4(Object a) {
+        return a != a;
+    }
+
+    public boolean cmpSometimesEqual1(Object a) {
+        return a == a;
+    }
+
+    public boolean cmpSometimesEqual2(Object a) {
+        return a != a;
     }
 
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
@@ -1436,8 +1460,17 @@ public class TestNewAcmp {
         for (int i = 0; i < 10_000; ++i) {
             Asserts.assertTrue(cmpAlwaysEqual1(args[1], args[1]));
             Asserts.assertFalse(cmpAlwaysEqual2(args[1], args[1]));
+            Asserts.assertTrue(cmpAlwaysEqual3(args[1]));
+            Asserts.assertFalse(cmpAlwaysEqual4(args[1]));
+
             Asserts.assertFalse(cmpAlwaysUnEqual1(args[1], args[2]));
             Asserts.assertTrue(cmpAlwaysUnEqual2(args[1], args[2]));
+            Asserts.assertFalse(cmpAlwaysUnEqual3(args[3]));
+            Asserts.assertTrue(cmpAlwaysUnEqual4(args[3]));
+
+            int idx = i % args.length;
+            Asserts.assertEQ(cmpSometimesEqual1(args[idx]), idx != 3);
+            Asserts.assertNE(cmpSometimesEqual2(args[idx]), idx != 3);
         }
     }
 

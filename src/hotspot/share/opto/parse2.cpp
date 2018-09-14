@@ -1662,8 +1662,8 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
     set_control(taken_branch);
 
     if (stopped()) {
-      if (C->eliminate_boxing()) {
-        // Mark the successor block as parsed
+      if (C->eliminate_boxing() && !new_path) {
+        // Mark the successor block as parsed (if we haven't created a new path)
         branch_block->next_path_num();
       }
     } else {
@@ -1671,11 +1671,12 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
       profile_taken_branch(target_bci);
       adjust_map_after_if(taken_btest, c, prob, branch_block);
       if (!stopped()) {
-        if (ctrl_taken != NULL) {
+        if (new_path) {
+          // Merge by using a new path
+          merge_new_path(target_bci);
+        } else if (ctrl_taken != NULL) {
           // Don't merge but save taken branch to be wired by caller
           *ctrl_taken = control();
-        } else if (new_path) {
-          merge_new_path(target_bci);
         } else {
           merge(target_bci);
         }
@@ -1687,9 +1688,9 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
   set_control(untaken_branch);
 
   // Branch not taken.
-  if (stopped()) {
+  if (stopped() && ctrl_taken == NULL) {
     if (C->eliminate_boxing()) {
-      // Mark the successor block as parsed
+      // Mark the successor block as parsed (if caller does not re-wire control flow)
       next_block->next_path_num();
     }
   } else {
@@ -1726,7 +1727,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
       Node* is_equal = NULL;
       {
         PreserveJVMState pjvms(this);
-        do_if(btest, cmp, true, &is_equal);
+        do_if(btest, cmp, false, &is_equal);
         if (!stopped()) {
           // Not equal, skip valuetype check
           ctrl = new RegionNode(3);
