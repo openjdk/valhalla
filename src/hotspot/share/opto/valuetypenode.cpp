@@ -333,10 +333,6 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
         assert(con_type != NULL, "type not found");
         value = kit->gvn().transform(kit->makecon(con_type));
-        if (con_type->is_valuetypeptr()) {
-          // Constant, non-flattened value type field
-          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass());
-        }
       } else {
         // Load field value from memory
         const TypePtr* adr_type = field_adr_type(base, offset, holder, kit->gvn());
@@ -349,10 +345,10 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
           decorators |= IS_ARRAY;
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
-        if (bt == T_VALUETYPE) {
-          // Loading a non-flattened value type from memory
-          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, /* null2default */ field_is_flattenable(i), trap_bci);
-        }
+      }
+      if (ft->is_valuetype()) {
+        // Loading a non-flattened value type from memory
+        value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, /* null2default */ field_is_flattenable(i), trap_bci);
       }
     }
     set_field_value(i, value);
@@ -490,18 +486,14 @@ ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* kl
   return new ValueTypeNode(type, gvn.zerocon(T_VALUETYPE));
 }
 
-Node* ValueTypeNode::load_default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
-  // Load the default oop from the java mirror of the given ValueKlass
-  const TypeInstPtr* tip = TypeInstPtr::make(vk->java_mirror());
-  Node* base = gvn.makecon(tip);
-  Node* adr = gvn.transform(new AddPNode(base, base, gvn.MakeConX(vk->default_value_offset())));
-  const Type* rt = Type::get_const_type(vk)->join_speculative(TypePtr::NOTNULL);
-  return gvn.transform(LoadNode::make(gvn, NULL, gvn.C->immutable_memory(), adr, tip->add_offset(vk->default_value_offset()), rt, T_VALUETYPE, MemNode::unordered));
+Node* ValueTypeNode::default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
+  // Returns the constant oop of the default value type allocation
+  return gvn.makecon(TypeInstPtr::make(vk->default_value_instance()));
 }
 
 ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
   // Create a new ValueTypeNode with default values
-  Node* oop = load_default_oop(gvn, vk);
+  Node* oop = default_oop(gvn, vk);
   const TypeValueType* type = TypeValueType::make(vk);
   ValueTypeNode* vt = new ValueTypeNode(type, oop);
   for (uint i = 0; i < vt->field_count(); ++i) {
@@ -771,12 +763,9 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
 
 Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-
-  if (is_default(*phase) && !oop->is_Load() &&
-      !(oop->is_DecodeN() && oop->in(1)->is_Load())) {
+  if (is_default(*phase) && (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for default value types
-    Node* oop = load_default_oop(*phase, value_klass());
-    set_oop(oop);
+    set_oop(default_oop(*phase, value_klass()));
     return this;
   }
 
@@ -815,7 +804,7 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
                   Node* mem = store->in(MemNode::Memory);
                   Node* val = store->in(MemNode::ValueIn);
                   const Type* val_type = igvn->type(val);
-                  assert(val_type->is_zero_type() || (val->is_Load() && val_type->make_ptr()->is_valuetypeptr()),
+                  assert(val_type->is_zero_type() || (val->is_Con() && val_type->make_ptr()->is_valuetypeptr()),
                          "must be zero-type or default value store");
                   igvn->replace_in_uses(store, mem);
                 }
@@ -823,8 +812,7 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
             }
           }
           // Replace allocation by pre-allocated oop
-          Node* oop = load_default_oop(*phase, value_klass());
-          igvn->replace_node(res, oop);
+          igvn->replace_node(res, default_oop(*phase, value_klass()));
         } else if (user->is_ValueType()) {
           // Add value type user to worklist to give it a chance to get optimized as well
           igvn->_worklist.push(user);

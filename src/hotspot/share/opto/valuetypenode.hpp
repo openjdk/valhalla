@@ -126,8 +126,8 @@ public:
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_input, bool in);
 
-  // Load the default oop from the java mirror of the given ValueKlass
-  static Node* load_default_oop(PhaseGVN& gvn, ciValueKlass* vk);
+  // Returns the constant oop of the default value type allocation
+  static Node* default_oop(PhaseGVN& gvn, ciValueKlass* vk);
 
   // Allocate all non-flattened value type fields
   Node* allocate_fields(GraphKit* kit);

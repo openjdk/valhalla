@@ -100,9 +100,11 @@ int ciValueKlass::value_arg_slots() {
   return slots;
 }
 
-// Offset of the default oop in the mirror
-int ciValueKlass::default_value_offset() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->default_value_offset();)
+ciInstance* ciValueKlass::default_value_instance() const {
+  GUARDED_VM_ENTRY(
+    oop default_value = ValueKlass::cast(get_Klass())->default_value();
+    return CURRENT_ENV->get_instance(default_value);
+  )
 }
 
 bool ciValueKlass::contains_oops() const {

@@ -3994,7 +3994,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     if (elem_klass != NULL && elem_klass->is_valuetype()) {
       ciValueKlass* vk = elem_klass->as_value_klass();
       if (!vk->flatten_array()) {
-        default_value = ValueTypeNode::load_default_oop(gvn(), vk);
+        default_value = ValueTypeNode::default_oop(gvn(), vk);
         if (elem->isa_narrowoop()) {
           default_value = _gvn.transform(new EncodePNode(default_value, elem));
           raw_default_value = raw_default_for_coops(default_value, *this);
