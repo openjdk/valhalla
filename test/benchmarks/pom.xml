@@ -88,6 +88,7 @@
                     <target>12</target>
                     <compilerArgs>
                        <arg>-XDallowFlattenabilityModifiers</arg>
+                       <arg>-XDallowWithFieldOperator</arg>
                     </compilerArgs>
 <!--                    <compilerArgs>
                          <arg>-XDenableValueTypes</arg>
