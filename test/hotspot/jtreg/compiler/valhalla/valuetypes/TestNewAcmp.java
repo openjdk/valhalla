@@ -25,7 +25,7 @@
  * @test TestNewAcmp
  * @summary Verifies correctness of the new acmp bytecode.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestNewAcmp.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestNewAcmp.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222

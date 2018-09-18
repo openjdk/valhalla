@@ -27,8 +27,8 @@
  * @test
  * @summary Check that casting to a value type involves no null check when values are not recognized in source.
  *
- * @compile Point.java
- * @compile -source 10 CastNoNullCheckTest.java
+ * @compile -XDallowWithFieldOperator Point.java
+ * @compile -source 10 -XDallowWithFieldOperator CastNoNullCheckTest.java
  * @run main CastNoNullCheckTest
  */
 

@@ -25,6 +25,7 @@ package runtime.valhalla.valuetypes;
 
 /* @test
  * @summary test JNI functions with values
+ * @compile -XDallowWithFieldOperator ValueWithJni.java
  * @run main/othervm/native -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  * @run main/othervm/native -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  */

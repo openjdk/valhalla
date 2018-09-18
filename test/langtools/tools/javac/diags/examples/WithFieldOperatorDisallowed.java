@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,17 +21,11 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Check that value types have their super types wired to be j.l.Object
- *
- * @compile -XDallowWithFieldOperator Point.java
- * @compile CheckSuperCompileOnly.java
- */
+// key: compiler.err.with.field.operator.disallowed
 
-public class CheckSuperCompileOnly {
-    public static void main(String... args) {
-        final Point p = Point.makePoint(100, 200);
-        Object v = p;
+final __ByValue class Blah {
+    final int x;
+    Blah() {
+        Blah b = __WithField(x, 10);
     }
 }

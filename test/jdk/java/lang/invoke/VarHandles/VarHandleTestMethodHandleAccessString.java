@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @compile -XDallowWithFieldOperator Value.java
  * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessString
  */
 

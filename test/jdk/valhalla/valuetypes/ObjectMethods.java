@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test Object methods on value types
+ * @compile -XDallowWithFieldOperator ObjectMethods.java
  * @run testng/othervm -XX:+EnableValhalla ObjectMethods
  */
 

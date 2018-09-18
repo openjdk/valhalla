@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test value bootstrap methods
+ * @compile -XDallowWithFieldOperator ValueBootstrapMethodsTest.java
  * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethodsTest
  */
 

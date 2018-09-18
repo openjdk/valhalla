@@ -26,6 +26,7 @@
  * @summary Value Type interpreter value buffering test
  * @library /test/lib
  * @build ValueTypeGenerator
+ * @compile -XDallowWithFieldOperator VTBufferTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla VTBufferTest generate-and-run
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:ValueTypesBufferMaxMemory=0 VTBufferTest generate-and-run
  */
@@ -234,7 +235,7 @@ public class VTBufferTest implements Runnable {
             JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
             StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
             List<String> optionList = new ArrayList<String>();
-            optionList.addAll(Arrays.asList("-classpath",".","-XDenableValueTypes"));
+            optionList.addAll(Arrays.asList("-classpath",".","-XDenableValueTypes","-XDallowWithFieldOperator"));
 
             Iterable<? extends JavaFileObject> compilationUnits1 =
                     fileManager.getJavaFileObjectsFromFiles(Arrays.asList(valueSources));

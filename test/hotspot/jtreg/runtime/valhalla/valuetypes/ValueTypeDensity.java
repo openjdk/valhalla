@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @test ValueTypeDensity
  * @summary Heap density test for ValueTypes
  * @library /test/lib
- * @compile -XDenableValueTypes ValueTypeDensity.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator ValueTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions

@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test ValueTypeCreation
  * @summary Value Type creation test
  * @library /test/lib
- * @compile  -XDenableValueTypes -XDallowFlattenabilityModifiers ValueTypeCreation.java Point.java Long8Value.java Person.java
+ * @compile  -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueTypeCreation.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  */

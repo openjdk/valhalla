@@ -41,8 +41,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes Person.java
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers ValueOops.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla

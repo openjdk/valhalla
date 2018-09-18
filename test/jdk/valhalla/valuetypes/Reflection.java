@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test reflection on value types
- * @compile Point.java Line.java
+ * @compile -XDallowWithFieldOperator Point.java Line.java
  * @run main/othervm -XX:+EnableValhalla Reflection
  */
 

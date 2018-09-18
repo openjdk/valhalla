@@ -184,6 +184,7 @@ public class JavacParser implements Parser {
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
         this.allowFlattenabilityModifiers = fac.options.isSet("allowFlattenabilityModifiers");
+        this.allowWithFieldOperator = fac.options.isSet("allowWithFieldOperator");
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -203,6 +204,10 @@ public class JavacParser implements Parser {
     /** Switch: should we allow value type field flattenability modifiers?
     */
     boolean allowFlattenabilityModifiers;
+
+    /** Switch: should we allow withField operator at source level ?
+    */
+    boolean allowWithFieldOperator;
 
     /** Switch: should we keep docComments?
      */
@@ -1106,6 +1111,9 @@ public class JavacParser implements Parser {
             } else return illegal();
             break;
         case WITHFIELD:
+            if (!allowWithFieldOperator) {
+                log.error(pos, Errors.WithFieldOperatorDisallowed);
+            }
             if (typeArgs == null && (mode & EXPR) != 0) {
                 nextToken();
                 accept(LPAREN);

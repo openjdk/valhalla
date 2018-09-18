@@ -26,6 +26,7 @@
  * @test
  * @summary test value bootstrap methods
  * @modules java.base/jdk.internal.org.objectweb.asm
+ * @compile -XDallowWithFieldOperator ValueBootstrapMethods.java
  * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethods
  */
 

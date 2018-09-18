@@ -25,7 +25,7 @@
  * @test
  * @bug 8205686
  * @summary __WithField seems to have trouble if the value type is a generic type.
- * @compile -XDrawDiagnostics -XDdev WithFieldOfGenericType.java
+ * @compile -XDrawDiagnostics -XDdev -XDallowWithFieldOperator WithFieldOfGenericType.java
  * @run main/othervm -XX:+EnableValhalla WithFieldOfGenericType
  */
 

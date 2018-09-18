@@ -24,6 +24,7 @@
 /**
  * @test
  * @summary Test withfield behavior at runtime.
+ * @compile -XDallowWithFieldOperator WithFieldRuntimeTest.java
  * @run main/othervm -XX:+EnableValhalla WithFieldRuntimeTest
  */
 

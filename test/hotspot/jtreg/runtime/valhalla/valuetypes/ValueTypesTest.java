@@ -51,7 +51,7 @@ import javax.tools.*;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestValue1.java TestValue2.java TestValue3.java TestValue4.java ValueTypesTest.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestValue1.java TestValue2.java TestValue3.java TestValue4.java ValueTypesTest.java
  * @run main/othervm -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions

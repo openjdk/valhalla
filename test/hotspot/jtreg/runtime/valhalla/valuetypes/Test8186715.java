@@ -27,7 +27,7 @@ package runtime.valhalla.valuetypes;
  * @test Test8186715
  * @summary test return of buffered value passed in argument by caller
  * @library /test/lib
- * @compile -XDenableValueTypes Test8186715.java
+ * @compile -XDallowWithFieldOperator -XDenableValueTypes Test8186715.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
  */

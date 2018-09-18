@@ -21,6 +21,7 @@
  * questions.
  */
 
+// options: -XDallowWithFieldOperator
 // key: compiler.err.value.instance.field.expected.here
 
 final __ByValue class Blah {

@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Verify that various errors related to __WithField operator are caught.
- * @compile/fail/ref=WithFieldOperatorTest.out -XDrawDiagnostics -XDdev WithFieldOperatorTest.java
+ * @compile/fail/ref=WithFieldOperatorTest.out -XDallowWithFieldOperator -XDrawDiagnostics -XDdev WithFieldOperatorTest.java
  */
 
 public class WithFieldOperatorTest {
