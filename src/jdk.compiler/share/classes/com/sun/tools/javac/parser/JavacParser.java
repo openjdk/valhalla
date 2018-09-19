@@ -1363,6 +1363,12 @@ public class JavacParser implements Parser {
                             t = toP(F.at(pos1).TypeApply(t, args.toList()));
                             while (token.kind == DOT) {
                                 nextToken();
+                                if (token.kind == DEFAULT) {
+                                    selectExprMode();
+                                    t = F.at(pos).Select(t, names._default);
+                                    nextToken();
+                                    return term3Rest(t, typeArgs);
+                                }
                                 selectTypeMode();
                                 t = toP(F.at(token.pos).Select(t, ident()));
                                 t = typeArgumentsOpt(t);
