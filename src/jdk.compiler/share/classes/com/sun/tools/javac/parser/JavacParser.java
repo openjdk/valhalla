@@ -1348,9 +1348,10 @@ public class JavacParser implements Parser {
                         }
                         break loop;
                     case LT:
-                        if ((mode & TYPE) == 0 && isUnboundMemberRef()) {
-                            //this is an unbound method reference whose qualifier
-                            //is a generic type i.e. A<S>::m
+                        if ((mode & TYPE) == 0 && isParameterizedTypePrefix()) {
+                            //this is either an unbound method reference whose qualifier
+                            //is a generic type i.e. A<S>::m or a default value creation of
+                            //the form ValueType<S>.default
                             int pos1 = token.pos;
                             accept(LT);
                             ListBuffer<JCExpression> args = new ListBuffer<>();
@@ -1364,9 +1365,9 @@ public class JavacParser implements Parser {
                             while (token.kind == DOT) {
                                 nextToken();
                                 if (token.kind == DEFAULT) {
-                                    selectExprMode();
-                                    t = F.at(pos).Select(t, names._default);
+                                    t =  toP(F.at(token.pos).Select(t, names._default));
                                     nextToken();
+                                    selectExprMode();
                                     return term3Rest(t, typeArgs);
                                 }
                                 selectTypeMode();
@@ -1579,11 +1580,12 @@ public class JavacParser implements Parser {
 
     /**
      * If we see an identifier followed by a '&lt;' it could be an unbound
-     * method reference or a binary expression. To disambiguate, look for a
+     * method reference or a default value creation that uses a parameterized type
+     * or a binary expression. To disambiguate, look for a
      * matching '&gt;' and see if the subsequent terminal is either '.' or '::'.
      */
     @SuppressWarnings("fallthrough")
-    boolean isUnboundMemberRef() {
+    boolean isParameterizedTypePrefix() {
         int pos = 0, depth = 0;
         outer: for (Token t = S.token(pos) ; ; t = S.token(++pos)) {
             switch (t.kind) {
