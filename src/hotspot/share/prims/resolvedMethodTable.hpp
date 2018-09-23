@@ -56,8 +56,9 @@ class ResolvedMethodTable : public Hashtable<ClassLoaderWeakHandle, mtClass> {
     _table_size  = 1007
   };
 
-  static int _oops_removed;
-  static int _oops_counted;
+  static int _total_oops_removed;
+
+  static bool _dead_entries;
 
   static ResolvedMethodTable* _the_table;
 private:
@@ -89,6 +90,11 @@ public:
   // Called from java_lang_invoke_ResolvedMethodName
   static oop find_method(Method* method);
   static oop add_method(Handle rmethod_name);
+
+  static bool has_work() { return _dead_entries; }
+  static void trigger_cleanup();
+
+  static int removed_entries_count() { return _total_oops_removed; };
 
 #if INCLUDE_JVMTI
   // It is called at safepoint only for RedefineClasses

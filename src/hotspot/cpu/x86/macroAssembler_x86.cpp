@@ -1721,227 +1721,160 @@ void MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmpReg
   if (counters != NULL) {
     atomic_incl(ExternalAddress((address)counters->total_entry_count_addr()), scrReg);
   }
-  if (EmitSync & 1) {
-      // set box->dhw = markOopDesc::unused_mark()
-      // Force all sync thru slow-path: slow_enter() and slow_exit()
-      movptr (Address(boxReg, 0), (int32_t)intptr_t(markOopDesc::unused_mark()));
-      cmpptr (rsp, (int32_t)NULL_WORD);
-  } else {
-    // Possible cases that we'll encounter in fast_lock
-    // ------------------------------------------------
-    // * Inflated
-    //    -- unlocked
-    //    -- Locked
-    //       = by self
-    //       = by other
-    // * biased
-    //    -- by Self
-    //    -- by other
-    // * neutral
-    // * stack-locked
-    //    -- by self
-    //       = sp-proximity test hits
-    //       = sp-proximity test generates false-negative
-    //    -- by other
-    //
 
-    Label IsInflated, DONE_LABEL;
+  // Possible cases that we'll encounter in fast_lock
+  // ------------------------------------------------
+  // * Inflated
+  //    -- unlocked
+  //    -- Locked
+  //       = by self
+  //       = by other
+  // * biased
+  //    -- by Self
+  //    -- by other
+  // * neutral
+  // * stack-locked
+  //    -- by self
+  //       = sp-proximity test hits
+  //       = sp-proximity test generates false-negative
+  //    -- by other
+  //
 
-    // it's stack-locked, biased or neutral
-    // TODO: optimize away redundant LDs of obj->mark and improve the markword triage
-    // order to reduce the number of conditional branches in the most common cases.
-    // Beware -- there's a subtle invariant that fetch of the markword
-    // at [FETCH], below, will never observe a biased encoding (*101b).
-    // If this invariant is not held we risk exclusion (safety) failure.
-    if (UseBiasedLocking && !UseOptoBiasInlining) {
-      biased_locking_enter(boxReg, objReg, tmpReg, scrReg, false, DONE_LABEL, NULL, counters);
-    }
+  Label IsInflated, DONE_LABEL;
+
+  // it's stack-locked, biased or neutral
+  // TODO: optimize away redundant LDs of obj->mark and improve the markword triage
+  // order to reduce the number of conditional branches in the most common cases.
+  // Beware -- there's a subtle invariant that fetch of the markword
+  // at [FETCH], below, will never observe a biased encoding (*101b).
+  // If this invariant is not held we risk exclusion (safety) failure.
+  if (UseBiasedLocking && !UseOptoBiasInlining) {
+    biased_locking_enter(boxReg, objReg, tmpReg, scrReg, false, DONE_LABEL, NULL, counters);
+  }
 
 #if INCLUDE_RTM_OPT
-    if (UseRTMForStackLocks && use_rtm) {
-      rtm_stack_locking(objReg, tmpReg, scrReg, cx2Reg,
-                        stack_rtm_counters, method_data, profile_rtm,
-                        DONE_LABEL, IsInflated);
-    }
+  if (UseRTMForStackLocks && use_rtm) {
+    rtm_stack_locking(objReg, tmpReg, scrReg, cx2Reg,
+                      stack_rtm_counters, method_data, profile_rtm,
+                      DONE_LABEL, IsInflated);
+  }
 #endif // INCLUDE_RTM_OPT
 
-    movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));          // [FETCH]
-    testptr(tmpReg, markOopDesc::monitor_value); // inflated vs stack-locked|neutral|biased
-    jccb(Assembler::notZero, IsInflated);
+  movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));          // [FETCH]
+  testptr(tmpReg, markOopDesc::monitor_value); // inflated vs stack-locked|neutral|biased
+  jccb(Assembler::notZero, IsInflated);
 
-    // Attempt stack-locking ...
-    orptr (tmpReg, markOopDesc::unlocked_value);
-    movptr(Address(boxReg, 0), tmpReg);          // Anticipate successful CAS
-    if (os::is_MP()) {
-      lock();
-    }
-    cmpxchgptr(boxReg, Address(objReg, oopDesc::mark_offset_in_bytes()));      // Updates tmpReg
-    if (counters != NULL) {
-      cond_inc32(Assembler::equal,
-                 ExternalAddress((address)counters->fast_path_entry_count_addr()));
-    }
-    jcc(Assembler::equal, DONE_LABEL);           // Success
+  // Attempt stack-locking ...
+  orptr (tmpReg, markOopDesc::unlocked_value);
+  movptr(Address(boxReg, 0), tmpReg);          // Anticipate successful CAS
+  if (os::is_MP()) {
+    lock();
+  }
+  cmpxchgptr(boxReg, Address(objReg, oopDesc::mark_offset_in_bytes()));      // Updates tmpReg
+  if (counters != NULL) {
+    cond_inc32(Assembler::equal,
+               ExternalAddress((address)counters->fast_path_entry_count_addr()));
+  }
+  jcc(Assembler::equal, DONE_LABEL);           // Success
 
-    // Recursive locking.
-    // The object is stack-locked: markword contains stack pointer to BasicLock.
-    // Locked by current thread if difference with current SP is less than one page.
-    subptr(tmpReg, rsp);
-    // Next instruction set ZFlag == 1 (Success) if difference is less then one page.
-    andptr(tmpReg, (int32_t) (NOT_LP64(0xFFFFF003) LP64_ONLY(7 - os::vm_page_size())) );
-    movptr(Address(boxReg, 0), tmpReg);
-    if (counters != NULL) {
-      cond_inc32(Assembler::equal,
-                 ExternalAddress((address)counters->fast_path_entry_count_addr()));
-    }
-    jmp(DONE_LABEL);
+  // Recursive locking.
+  // The object is stack-locked: markword contains stack pointer to BasicLock.
+  // Locked by current thread if difference with current SP is less than one page.
+  subptr(tmpReg, rsp);
+  // Next instruction set ZFlag == 1 (Success) if difference is less then one page.
+  andptr(tmpReg, (int32_t) (NOT_LP64(0xFFFFF003) LP64_ONLY(7 - os::vm_page_size())) );
+  movptr(Address(boxReg, 0), tmpReg);
+  if (counters != NULL) {
+    cond_inc32(Assembler::equal,
+               ExternalAddress((address)counters->fast_path_entry_count_addr()));
+  }
+  jmp(DONE_LABEL);
 
-    bind(IsInflated);
-    // The object is inflated. tmpReg contains pointer to ObjectMonitor* + markOopDesc::monitor_value
+  bind(IsInflated);
+  // The object is inflated. tmpReg contains pointer to ObjectMonitor* + markOopDesc::monitor_value
 
 #if INCLUDE_RTM_OPT
-    // Use the same RTM locking code in 32- and 64-bit VM.
-    if (use_rtm) {
-      rtm_inflated_locking(objReg, boxReg, tmpReg, scrReg, cx1Reg, cx2Reg,
-                           rtm_counters, method_data, profile_rtm, DONE_LABEL);
-    } else {
+  // Use the same RTM locking code in 32- and 64-bit VM.
+  if (use_rtm) {
+    rtm_inflated_locking(objReg, boxReg, tmpReg, scrReg, cx1Reg, cx2Reg,
+                         rtm_counters, method_data, profile_rtm, DONE_LABEL);
+  } else {
 #endif // INCLUDE_RTM_OPT
 
 #ifndef _LP64
-    // The object is inflated.
+  // The object is inflated.
 
-    // boxReg refers to the on-stack BasicLock in the current frame.
-    // We'd like to write:
-    //   set box->_displaced_header = markOopDesc::unused_mark().  Any non-0 value suffices.
-    // This is convenient but results a ST-before-CAS penalty.  The following CAS suffers
-    // additional latency as we have another ST in the store buffer that must drain.
+  // boxReg refers to the on-stack BasicLock in the current frame.
+  // We'd like to write:
+  //   set box->_displaced_header = markOopDesc::unused_mark().  Any non-0 value suffices.
+  // This is convenient but results a ST-before-CAS penalty.  The following CAS suffers
+  // additional latency as we have another ST in the store buffer that must drain.
 
-    if (EmitSync & 8192) {
-       movptr(Address(boxReg, 0), 3);            // results in ST-before-CAS penalty
-       get_thread (scrReg);
-       movptr(boxReg, tmpReg);                    // consider: LEA box, [tmp-2]
-       movptr(tmpReg, NULL_WORD);                 // consider: xor vs mov
-       if (os::is_MP()) {
-         lock();
-       }
-       cmpxchgptr(scrReg, Address(boxReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-    } else
-    if ((EmitSync & 128) == 0) {                      // avoid ST-before-CAS
-       // register juggle because we need tmpReg for cmpxchgptr below
-       movptr(scrReg, boxReg);
-       movptr(boxReg, tmpReg);                   // consider: LEA box, [tmp-2]
+  // avoid ST-before-CAS
+  // register juggle because we need tmpReg for cmpxchgptr below
+  movptr(scrReg, boxReg);
+  movptr(boxReg, tmpReg);                   // consider: LEA box, [tmp-2]
 
-       // Using a prefetchw helps avoid later RTS->RTO upgrades and cache probes
-       if ((EmitSync & 2048) && VM_Version::supports_3dnow_prefetch() && os::is_MP()) {
-          // prefetchw [eax + Offset(_owner)-2]
-          prefetchw(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-       }
+  // Optimistic form: consider XORL tmpReg,tmpReg
+  movptr(tmpReg, NULL_WORD);
 
-       if ((EmitSync & 64) == 0) {
-         // Optimistic form: consider XORL tmpReg,tmpReg
-         movptr(tmpReg, NULL_WORD);
-       } else {
-         // Can suffer RTS->RTO upgrades on shared or cold $ lines
-         // Test-And-CAS instead of CAS
-         movptr(tmpReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));   // rax, = m->_owner
-         testptr(tmpReg, tmpReg);                   // Locked ?
-         jccb  (Assembler::notZero, DONE_LABEL);
-       }
+  // Appears unlocked - try to swing _owner from null to non-null.
+  // Ideally, I'd manifest "Self" with get_thread and then attempt
+  // to CAS the register containing Self into m->Owner.
+  // But we don't have enough registers, so instead we can either try to CAS
+  // rsp or the address of the box (in scr) into &m->owner.  If the CAS succeeds
+  // we later store "Self" into m->Owner.  Transiently storing a stack address
+  // (rsp or the address of the box) into  m->owner is harmless.
+  // Invariant: tmpReg == 0.  tmpReg is EAX which is the implicit cmpxchg comparand.
+  if (os::is_MP()) {
+    lock();
+  }
+  cmpxchgptr(scrReg, Address(boxReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+  movptr(Address(scrReg, 0), 3);          // box->_displaced_header = 3
+  // If we weren't able to swing _owner from NULL to the BasicLock
+  // then take the slow path.
+  jccb  (Assembler::notZero, DONE_LABEL);
+  // update _owner from BasicLock to thread
+  get_thread (scrReg);                    // beware: clobbers ICCs
+  movptr(Address(boxReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), scrReg);
+  xorptr(boxReg, boxReg);                 // set icc.ZFlag = 1 to indicate success
 
-       // Appears unlocked - try to swing _owner from null to non-null.
-       // Ideally, I'd manifest "Self" with get_thread and then attempt
-       // to CAS the register containing Self into m->Owner.
-       // But we don't have enough registers, so instead we can either try to CAS
-       // rsp or the address of the box (in scr) into &m->owner.  If the CAS succeeds
-       // we later store "Self" into m->Owner.  Transiently storing a stack address
-       // (rsp or the address of the box) into  m->owner is harmless.
-       // Invariant: tmpReg == 0.  tmpReg is EAX which is the implicit cmpxchg comparand.
-       if (os::is_MP()) {
-         lock();
-       }
-       cmpxchgptr(scrReg, Address(boxReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-       movptr(Address(scrReg, 0), 3);          // box->_displaced_header = 3
-       // If we weren't able to swing _owner from NULL to the BasicLock
-       // then take the slow path.
-       jccb  (Assembler::notZero, DONE_LABEL);
-       // update _owner from BasicLock to thread
-       get_thread (scrReg);                    // beware: clobbers ICCs
-       movptr(Address(boxReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), scrReg);
-       xorptr(boxReg, boxReg);                 // set icc.ZFlag = 1 to indicate success
-
-       // If the CAS fails we can either retry or pass control to the slow-path.
-       // We use the latter tactic.
-       // Pass the CAS result in the icc.ZFlag into DONE_LABEL
-       // If the CAS was successful ...
-       //   Self has acquired the lock
-       //   Invariant: m->_recursions should already be 0, so we don't need to explicitly set it.
-       // Intentional fall-through into DONE_LABEL ...
-    } else {
-       movptr(Address(boxReg, 0), intptr_t(markOopDesc::unused_mark()));  // results in ST-before-CAS penalty
-       movptr(boxReg, tmpReg);
-
-       // Using a prefetchw helps avoid later RTS->RTO upgrades and cache probes
-       if ((EmitSync & 2048) && VM_Version::supports_3dnow_prefetch() && os::is_MP()) {
-          // prefetchw [eax + Offset(_owner)-2]
-          prefetchw(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-       }
-
-       if ((EmitSync & 64) == 0) {
-         // Optimistic form
-         xorptr  (tmpReg, tmpReg);
-       } else {
-         // Can suffer RTS->RTO upgrades on shared or cold $ lines
-         movptr(tmpReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));   // rax, = m->_owner
-         testptr(tmpReg, tmpReg);                   // Locked ?
-         jccb  (Assembler::notZero, DONE_LABEL);
-       }
-
-       // Appears unlocked - try to swing _owner from null to non-null.
-       // Use either "Self" (in scr) or rsp as thread identity in _owner.
-       // Invariant: tmpReg == 0.  tmpReg is EAX which is the implicit cmpxchg comparand.
-       get_thread (scrReg);
-       if (os::is_MP()) {
-         lock();
-       }
-       cmpxchgptr(scrReg, Address(boxReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-
-       // If the CAS fails we can either retry or pass control to the slow-path.
-       // We use the latter tactic.
-       // Pass the CAS result in the icc.ZFlag into DONE_LABEL
-       // If the CAS was successful ...
-       //   Self has acquired the lock
-       //   Invariant: m->_recursions should already be 0, so we don't need to explicitly set it.
-       // Intentional fall-through into DONE_LABEL ...
-    }
+  // If the CAS fails we can either retry or pass control to the slow-path.
+  // We use the latter tactic.
+  // Pass the CAS result in the icc.ZFlag into DONE_LABEL
+  // If the CAS was successful ...
+  //   Self has acquired the lock
+  //   Invariant: m->_recursions should already be 0, so we don't need to explicitly set it.
+  // Intentional fall-through into DONE_LABEL ...
 #else // _LP64
-    // It's inflated
-    movq(scrReg, tmpReg);
-    xorq(tmpReg, tmpReg);
+  // It's inflated
+  movq(scrReg, tmpReg);
+  xorq(tmpReg, tmpReg);
 
-    if (os::is_MP()) {
-      lock();
-    }
-    cmpxchgptr(r15_thread, Address(scrReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-    // Unconditionally set box->_displaced_header = markOopDesc::unused_mark().
-    // Without cast to int32_t movptr will destroy r10 which is typically obj.
-    movptr(Address(boxReg, 0), (int32_t)intptr_t(markOopDesc::unused_mark()));
-    // Intentional fall-through into DONE_LABEL ...
-    // Propagate ICC.ZF from CAS above into DONE_LABEL.
+  if (os::is_MP()) {
+    lock();
+  }
+  cmpxchgptr(r15_thread, Address(scrReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+  // Unconditionally set box->_displaced_header = markOopDesc::unused_mark().
+  // Without cast to int32_t movptr will destroy r10 which is typically obj.
+  movptr(Address(boxReg, 0), (int32_t)intptr_t(markOopDesc::unused_mark()));
+  // Intentional fall-through into DONE_LABEL ...
+  // Propagate ICC.ZF from CAS above into DONE_LABEL.
 #endif // _LP64
 #if INCLUDE_RTM_OPT
-    } // use_rtm()
+  } // use_rtm()
 #endif
-    // DONE_LABEL is a hot target - we'd really like to place it at the
-    // start of cache line by padding with NOPs.
-    // See the AMD and Intel software optimization manuals for the
-    // most efficient "long" NOP encodings.
-    // Unfortunately none of our alignment mechanisms suffice.
-    bind(DONE_LABEL);
+  // DONE_LABEL is a hot target - we'd really like to place it at the
+  // start of cache line by padding with NOPs.
+  // See the AMD and Intel software optimization manuals for the
+  // most efficient "long" NOP encodings.
+  // Unfortunately none of our alignment mechanisms suffice.
+  bind(DONE_LABEL);
 
-    // At DONE_LABEL the icc ZFlag is set as follows ...
-    // Fast_Unlock uses the same protocol.
-    // ZFlag == 1 -> Success
-    // ZFlag == 0 -> Failure - force control through the slow-path
-  }
+  // At DONE_LABEL the icc ZFlag is set as follows ...
+  // Fast_Unlock uses the same protocol.
+  // ZFlag == 1 -> Success
+  // ZFlag == 0 -> Failure - force control through the slow-path
 }
 
 // obj: object to unlock
@@ -1980,293 +1913,179 @@ void MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register tmpR
   assert(boxReg == rax, "");
   assert_different_registers(objReg, boxReg, tmpReg);
 
-  if (EmitSync & 4) {
-    // Disable - inhibit all inlining.  Force control through the slow-path
-    cmpptr (rsp, 0);
-  } else {
-    Label DONE_LABEL, Stacked, CheckSucc;
+  Label DONE_LABEL, Stacked, CheckSucc;
 
-    // Critically, the biased locking test must have precedence over
-    // and appear before the (box->dhw == 0) recursive stack-lock test.
-    if (UseBiasedLocking && !UseOptoBiasInlining) {
-       biased_locking_exit(objReg, tmpReg, DONE_LABEL);
-    }
-
-#if INCLUDE_RTM_OPT
-    if (UseRTMForStackLocks && use_rtm) {
-      assert(!UseBiasedLocking, "Biased locking is not supported with RTM locking");
-      Label L_regular_unlock;
-      movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));           // fetch markword
-      andptr(tmpReg, markOopDesc::biased_lock_mask_in_place); // look at 3 lock bits
-      cmpptr(tmpReg, markOopDesc::unlocked_value);            // bits = 001 unlocked
-      jccb(Assembler::notEqual, L_regular_unlock);  // if !HLE RegularLock
-      xend();                                       // otherwise end...
-      jmp(DONE_LABEL);                              // ... and we're done
-      bind(L_regular_unlock);
-    }
-#endif
-
-    cmpptr(Address(boxReg, 0), (int32_t)NULL_WORD); // Examine the displaced header
-    jcc   (Assembler::zero, DONE_LABEL);            // 0 indicates recursive stack-lock
-    movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));             // Examine the object's markword
-    testptr(tmpReg, markOopDesc::monitor_value);    // Inflated?
-    jccb  (Assembler::zero, Stacked);
-
-    // It's inflated.
-#if INCLUDE_RTM_OPT
-    if (use_rtm) {
-      Label L_regular_inflated_unlock;
-      int owner_offset = OM_OFFSET_NO_MONITOR_VALUE_TAG(owner);
-      movptr(boxReg, Address(tmpReg, owner_offset));
-      testptr(boxReg, boxReg);
-      jccb(Assembler::notZero, L_regular_inflated_unlock);
-      xend();
-      jmpb(DONE_LABEL);
-      bind(L_regular_inflated_unlock);
-    }
-#endif
-
-    // Despite our balanced locking property we still check that m->_owner == Self
-    // as java routines or native JNI code called by this thread might
-    // have released the lock.
-    // Refer to the comments in synchronizer.cpp for how we might encode extra
-    // state in _succ so we can avoid fetching EntryList|cxq.
-    //
-    // I'd like to add more cases in fast_lock() and fast_unlock() --
-    // such as recursive enter and exit -- but we have to be wary of
-    // I$ bloat, T$ effects and BP$ effects.
-    //
-    // If there's no contention try a 1-0 exit.  That is, exit without
-    // a costly MEMBAR or CAS.  See synchronizer.cpp for details on how
-    // we detect and recover from the race that the 1-0 exit admits.
-    //
-    // Conceptually Fast_Unlock() must execute a STST|LDST "release" barrier
-    // before it STs null into _owner, releasing the lock.  Updates
-    // to data protected by the critical section must be visible before
-    // we drop the lock (and thus before any other thread could acquire
-    // the lock and observe the fields protected by the lock).
-    // IA32's memory-model is SPO, so STs are ordered with respect to
-    // each other and there's no need for an explicit barrier (fence).
-    // See also http://gee.cs.oswego.edu/dl/jmm/cookbook.html.
-#ifndef _LP64
-    get_thread (boxReg);
-    if ((EmitSync & 4096) && VM_Version::supports_3dnow_prefetch() && os::is_MP()) {
-      // prefetchw [ebx + Offset(_owner)-2]
-      prefetchw(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-    }
-
-    // Note that we could employ various encoding schemes to reduce
-    // the number of loads below (currently 4) to just 2 or 3.
-    // Refer to the comments in synchronizer.cpp.
-    // In practice the chain of fetches doesn't seem to impact performance, however.
-    xorptr(boxReg, boxReg);
-    if ((EmitSync & 65536) == 0 && (EmitSync & 256)) {
-       // Attempt to reduce branch density - AMD's branch predictor.
-       orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
-       orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
-       orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
-       jccb  (Assembler::notZero, DONE_LABEL);
-       movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), NULL_WORD);
-       jmpb  (DONE_LABEL);
-    } else {
-       orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
-       jccb  (Assembler::notZero, DONE_LABEL);
-       movptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
-       orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
-       jccb  (Assembler::notZero, CheckSucc);
-       movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), NULL_WORD);
-       jmpb  (DONE_LABEL);
-    }
-
-    // The Following code fragment (EmitSync & 65536) improves the performance of
-    // contended applications and contended synchronization microbenchmarks.
-    // Unfortunately the emission of the code - even though not executed - causes regressions
-    // in scimark and jetstream, evidently because of $ effects.  Replacing the code
-    // with an equal number of never-executed NOPs results in the same regression.
-    // We leave it off by default.
-
-    if ((EmitSync & 65536) != 0) {
-       Label LSuccess, LGoSlowPath ;
-
-       bind  (CheckSucc);
-
-       // Optional pre-test ... it's safe to elide this
-       cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), (int32_t)NULL_WORD);
-       jccb(Assembler::zero, LGoSlowPath);
-
-       // We have a classic Dekker-style idiom:
-       //    ST m->_owner = 0 ; MEMBAR; LD m->_succ
-       // There are a number of ways to implement the barrier:
-       // (1) lock:andl &m->_owner, 0
-       //     is fast, but mask doesn't currently support the "ANDL M,IMM32" form.
-       //     LOCK: ANDL [ebx+Offset(_Owner)-2], 0
-       //     Encodes as 81 31 OFF32 IMM32 or 83 63 OFF8 IMM8
-       // (2) If supported, an explicit MFENCE is appealing.
-       //     In older IA32 processors MFENCE is slower than lock:add or xchg
-       //     particularly if the write-buffer is full as might be the case if
-       //     if stores closely precede the fence or fence-equivalent instruction.
-       //     See https://blogs.oracle.com/dave/entry/instruction_selection_for_volatile_fences
-       //     as the situation has changed with Nehalem and Shanghai.
-       // (3) In lieu of an explicit fence, use lock:addl to the top-of-stack
-       //     The $lines underlying the top-of-stack should be in M-state.
-       //     The locked add instruction is serializing, of course.
-       // (4) Use xchg, which is serializing
-       //     mov boxReg, 0; xchgl boxReg, [tmpReg + Offset(_owner)-2] also works
-       // (5) ST m->_owner = 0 and then execute lock:orl &m->_succ, 0.
-       //     The integer condition codes will tell us if succ was 0.
-       //     Since _succ and _owner should reside in the same $line and
-       //     we just stored into _owner, it's likely that the $line
-       //     remains in M-state for the lock:orl.
-       //
-       // We currently use (3), although it's likely that switching to (2)
-       // is correct for the future.
-
-       movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), NULL_WORD);
-       if (os::is_MP()) {
-         lock(); addptr(Address(rsp, 0), 0);
-       }
-       // Ratify _succ remains non-null
-       cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), 0);
-       jccb  (Assembler::notZero, LSuccess);
-
-       xorptr(boxReg, boxReg);                  // box is really EAX
-       if (os::is_MP()) { lock(); }
-       cmpxchgptr(rsp, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-       // There's no successor so we tried to regrab the lock with the
-       // placeholder value. If that didn't work, then another thread
-       // grabbed the lock so we're done (and exit was a success).
-       jccb  (Assembler::notEqual, LSuccess);
-       // Since we're low on registers we installed rsp as a placeholding in _owner.
-       // Now install Self over rsp.  This is safe as we're transitioning from
-       // non-null to non=null
-       get_thread (boxReg);
-       movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), boxReg);
-       // Intentional fall-through into LGoSlowPath ...
-
-       bind  (LGoSlowPath);
-       orptr(boxReg, 1);                      // set ICC.ZF=0 to indicate failure
-       jmpb  (DONE_LABEL);
-
-       bind  (LSuccess);
-       xorptr(boxReg, boxReg);                 // set ICC.ZF=1 to indicate success
-       jmpb  (DONE_LABEL);
-    }
-
-    bind (Stacked);
-    // It's not inflated and it's not recursively stack-locked and it's not biased.
-    // It must be stack-locked.
-    // Try to reset the header to displaced header.
-    // The "box" value on the stack is stable, so we can reload
-    // and be assured we observe the same value as above.
-    movptr(tmpReg, Address(boxReg, 0));
-    if (os::is_MP()) {
-      lock();
-    }
-    cmpxchgptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes())); // Uses RAX which is box
-    // Intention fall-thru into DONE_LABEL
-
-    // DONE_LABEL is a hot target - we'd really like to place it at the
-    // start of cache line by padding with NOPs.
-    // See the AMD and Intel software optimization manuals for the
-    // most efficient "long" NOP encodings.
-    // Unfortunately none of our alignment mechanisms suffice.
-    if ((EmitSync & 65536) == 0) {
-       bind (CheckSucc);
-    }
-#else // _LP64
-    // It's inflated
-    if (EmitSync & 1024) {
-      // Emit code to check that _owner == Self
-      // We could fold the _owner test into subsequent code more efficiently
-      // than using a stand-alone check, but since _owner checking is off by
-      // default we don't bother. We also might consider predicating the
-      // _owner==Self check on Xcheck:jni or running on a debug build.
-      movptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-      xorptr(boxReg, r15_thread);
-    } else {
-      xorptr(boxReg, boxReg);
-    }
-    orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
-    jccb  (Assembler::notZero, DONE_LABEL);
-    movptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
-    orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
-    jccb  (Assembler::notZero, CheckSucc);
-    movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), (int32_t)NULL_WORD);
-    jmpb  (DONE_LABEL);
-
-    if ((EmitSync & 65536) == 0) {
-      // Try to avoid passing control into the slow_path ...
-      Label LSuccess, LGoSlowPath ;
-      bind  (CheckSucc);
-
-      // The following optional optimization can be elided if necessary
-      // Effectively: if (succ == null) goto SlowPath
-      // The code reduces the window for a race, however,
-      // and thus benefits performance.
-      cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), (int32_t)NULL_WORD);
-      jccb  (Assembler::zero, LGoSlowPath);
-
-      xorptr(boxReg, boxReg);
-      if ((EmitSync & 16) && os::is_MP()) {
-        xchgptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-      } else {
-        movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), (int32_t)NULL_WORD);
-        if (os::is_MP()) {
-          // Memory barrier/fence
-          // Dekker pivot point -- fulcrum : ST Owner; MEMBAR; LD Succ
-          // Instead of MFENCE we use a dummy locked add of 0 to the top-of-stack.
-          // This is faster on Nehalem and AMD Shanghai/Barcelona.
-          // See https://blogs.oracle.com/dave/entry/instruction_selection_for_volatile_fences
-          // We might also restructure (ST Owner=0;barrier;LD _Succ) to
-          // (mov box,0; xchgq box, &m->Owner; LD _succ) .
-          lock(); addl(Address(rsp, 0), 0);
-        }
-      }
-      cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), (int32_t)NULL_WORD);
-      jccb  (Assembler::notZero, LSuccess);
-
-      // Rare inopportune interleaving - race.
-      // The successor vanished in the small window above.
-      // The lock is contended -- (cxq|EntryList) != null -- and there's no apparent successor.
-      // We need to ensure progress and succession.
-      // Try to reacquire the lock.
-      // If that fails then the new owner is responsible for succession and this
-      // thread needs to take no further action and can exit via the fast path (success).
-      // If the re-acquire succeeds then pass control into the slow path.
-      // As implemented, this latter mode is horrible because we generated more
-      // coherence traffic on the lock *and* artifically extended the critical section
-      // length while by virtue of passing control into the slow path.
-
-      // box is really RAX -- the following CMPXCHG depends on that binding
-      // cmpxchg R,[M] is equivalent to rax = CAS(M,rax,R)
-      if (os::is_MP()) { lock(); }
-      cmpxchgptr(r15_thread, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
-      // There's no successor so we tried to regrab the lock.
-      // If that didn't work, then another thread grabbed the
-      // lock so we're done (and exit was a success).
-      jccb  (Assembler::notEqual, LSuccess);
-      // Intentional fall-through into slow-path
-
-      bind  (LGoSlowPath);
-      orl   (boxReg, 1);                      // set ICC.ZF=0 to indicate failure
-      jmpb  (DONE_LABEL);
-
-      bind  (LSuccess);
-      testl (boxReg, 0);                      // set ICC.ZF=1 to indicate success
-      jmpb  (DONE_LABEL);
-    }
-
-    bind  (Stacked);
-    movptr(tmpReg, Address (boxReg, 0));      // re-fetch
-    if (os::is_MP()) { lock(); }
-    cmpxchgptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes())); // Uses RAX which is box
-
-    if (EmitSync & 65536) {
-       bind (CheckSucc);
-    }
-#endif
-    bind(DONE_LABEL);
+  // Critically, the biased locking test must have precedence over
+  // and appear before the (box->dhw == 0) recursive stack-lock test.
+  if (UseBiasedLocking && !UseOptoBiasInlining) {
+    biased_locking_exit(objReg, tmpReg, DONE_LABEL);
   }
+
+#if INCLUDE_RTM_OPT
+  if (UseRTMForStackLocks && use_rtm) {
+    assert(!UseBiasedLocking, "Biased locking is not supported with RTM locking");
+    Label L_regular_unlock;
+    movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));           // fetch markword
+    andptr(tmpReg, markOopDesc::biased_lock_mask_in_place); // look at 3 lock bits
+    cmpptr(tmpReg, markOopDesc::unlocked_value);            // bits = 001 unlocked
+    jccb(Assembler::notEqual, L_regular_unlock);  // if !HLE RegularLock
+    xend();                                       // otherwise end...
+    jmp(DONE_LABEL);                              // ... and we're done
+    bind(L_regular_unlock);
+  }
+#endif
+
+  cmpptr(Address(boxReg, 0), (int32_t)NULL_WORD); // Examine the displaced header
+  jcc   (Assembler::zero, DONE_LABEL);            // 0 indicates recursive stack-lock
+  movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));             // Examine the object's markword
+  testptr(tmpReg, markOopDesc::monitor_value);    // Inflated?
+  jccb  (Assembler::zero, Stacked);
+
+  // It's inflated.
+#if INCLUDE_RTM_OPT
+  if (use_rtm) {
+    Label L_regular_inflated_unlock;
+    int owner_offset = OM_OFFSET_NO_MONITOR_VALUE_TAG(owner);
+    movptr(boxReg, Address(tmpReg, owner_offset));
+    testptr(boxReg, boxReg);
+    jccb(Assembler::notZero, L_regular_inflated_unlock);
+    xend();
+    jmpb(DONE_LABEL);
+    bind(L_regular_inflated_unlock);
+  }
+#endif
+
+  // Despite our balanced locking property we still check that m->_owner == Self
+  // as java routines or native JNI code called by this thread might
+  // have released the lock.
+  // Refer to the comments in synchronizer.cpp for how we might encode extra
+  // state in _succ so we can avoid fetching EntryList|cxq.
+  //
+  // I'd like to add more cases in fast_lock() and fast_unlock() --
+  // such as recursive enter and exit -- but we have to be wary of
+  // I$ bloat, T$ effects and BP$ effects.
+  //
+  // If there's no contention try a 1-0 exit.  That is, exit without
+  // a costly MEMBAR or CAS.  See synchronizer.cpp for details on how
+  // we detect and recover from the race that the 1-0 exit admits.
+  //
+  // Conceptually Fast_Unlock() must execute a STST|LDST "release" barrier
+  // before it STs null into _owner, releasing the lock.  Updates
+  // to data protected by the critical section must be visible before
+  // we drop the lock (and thus before any other thread could acquire
+  // the lock and observe the fields protected by the lock).
+  // IA32's memory-model is SPO, so STs are ordered with respect to
+  // each other and there's no need for an explicit barrier (fence).
+  // See also http://gee.cs.oswego.edu/dl/jmm/cookbook.html.
+#ifndef _LP64
+  get_thread (boxReg);
+
+  // Note that we could employ various encoding schemes to reduce
+  // the number of loads below (currently 4) to just 2 or 3.
+  // Refer to the comments in synchronizer.cpp.
+  // In practice the chain of fetches doesn't seem to impact performance, however.
+  xorptr(boxReg, boxReg);
+  orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
+  jccb  (Assembler::notZero, DONE_LABEL);
+  movptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
+  orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
+  jccb  (Assembler::notZero, CheckSucc);
+  movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), NULL_WORD);
+  jmpb  (DONE_LABEL);
+
+  bind (Stacked);
+  // It's not inflated and it's not recursively stack-locked and it's not biased.
+  // It must be stack-locked.
+  // Try to reset the header to displaced header.
+  // The "box" value on the stack is stable, so we can reload
+  // and be assured we observe the same value as above.
+  movptr(tmpReg, Address(boxReg, 0));
+  if (os::is_MP()) {
+    lock();
+  }
+  cmpxchgptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes())); // Uses RAX which is box
+  // Intention fall-thru into DONE_LABEL
+
+  // DONE_LABEL is a hot target - we'd really like to place it at the
+  // start of cache line by padding with NOPs.
+  // See the AMD and Intel software optimization manuals for the
+  // most efficient "long" NOP encodings.
+  // Unfortunately none of our alignment mechanisms suffice.
+  bind (CheckSucc);
+#else // _LP64
+  // It's inflated
+  xorptr(boxReg, boxReg);
+  orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
+  jccb  (Assembler::notZero, DONE_LABEL);
+  movptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(cxq)));
+  orptr(boxReg, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(EntryList)));
+  jccb  (Assembler::notZero, CheckSucc);
+  movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), (int32_t)NULL_WORD);
+  jmpb  (DONE_LABEL);
+
+  // Try to avoid passing control into the slow_path ...
+  Label LSuccess, LGoSlowPath ;
+  bind  (CheckSucc);
+
+  // The following optional optimization can be elided if necessary
+  // Effectively: if (succ == null) goto SlowPath
+  // The code reduces the window for a race, however,
+  // and thus benefits performance.
+  cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), (int32_t)NULL_WORD);
+  jccb  (Assembler::zero, LGoSlowPath);
+
+  xorptr(boxReg, boxReg);
+  movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), (int32_t)NULL_WORD);
+  if (os::is_MP()) {
+    // Memory barrier/fence
+    // Dekker pivot point -- fulcrum : ST Owner; MEMBAR; LD Succ
+    // Instead of MFENCE we use a dummy locked add of 0 to the top-of-stack.
+    // This is faster on Nehalem and AMD Shanghai/Barcelona.
+    // See https://blogs.oracle.com/dave/entry/instruction_selection_for_volatile_fences
+    // We might also restructure (ST Owner=0;barrier;LD _Succ) to
+    // (mov box,0; xchgq box, &m->Owner; LD _succ) .
+    lock(); addl(Address(rsp, 0), 0);
+  }
+  cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(succ)), (int32_t)NULL_WORD);
+  jccb  (Assembler::notZero, LSuccess);
+
+  // Rare inopportune interleaving - race.
+  // The successor vanished in the small window above.
+  // The lock is contended -- (cxq|EntryList) != null -- and there's no apparent successor.
+  // We need to ensure progress and succession.
+  // Try to reacquire the lock.
+  // If that fails then the new owner is responsible for succession and this
+  // thread needs to take no further action and can exit via the fast path (success).
+  // If the re-acquire succeeds then pass control into the slow path.
+  // As implemented, this latter mode is horrible because we generated more
+  // coherence traffic on the lock *and* artifically extended the critical section
+  // length while by virtue of passing control into the slow path.
+
+  // box is really RAX -- the following CMPXCHG depends on that binding
+  // cmpxchg R,[M] is equivalent to rax = CAS(M,rax,R)
+  if (os::is_MP()) { lock(); }
+  cmpxchgptr(r15_thread, Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
+  // There's no successor so we tried to regrab the lock.
+  // If that didn't work, then another thread grabbed the
+  // lock so we're done (and exit was a success).
+  jccb  (Assembler::notEqual, LSuccess);
+  // Intentional fall-through into slow-path
+
+  bind  (LGoSlowPath);
+  orl   (boxReg, 1);                      // set ICC.ZF=0 to indicate failure
+  jmpb  (DONE_LABEL);
+
+  bind  (LSuccess);
+  testl (boxReg, 0);                      // set ICC.ZF=1 to indicate success
+  jmpb  (DONE_LABEL);
+
+  bind  (Stacked);
+  movptr(tmpReg, Address (boxReg, 0));      // re-fetch
+  if (os::is_MP()) { lock(); }
+  cmpxchgptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes())); // Uses RAX which is box
+
+#endif
+  bind(DONE_LABEL);
 }
 #endif // COMPILER2
 
@@ -3123,6 +2942,16 @@ void MacroAssembler::store_double(Address dst) {
   }
 }
 
+void MacroAssembler::push_zmm(XMMRegister reg) {
+  lea(rsp, Address(rsp, -64)); // Use lea to not affect flags
+  evmovdqul(Address(rsp, 0), reg, Assembler::AVX_512bit);
+}
+
+void MacroAssembler::pop_zmm(XMMRegister reg) {
+  evmovdqul(reg, Address(rsp, 0), Assembler::AVX_512bit);
+  lea(rsp, Address(rsp, 64)); // Use lea to not affect flags
+}
+
 void MacroAssembler::fremr(Register tmp) {
   save_rax(tmp);
   { Label L;
@@ -3848,33 +3677,25 @@ void MacroAssembler::pcmpeqb(XMMRegister dst, XMMRegister src) {
   } else if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::pcmpeqb(dst, src);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::pcmpeqb(xmm0, src);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::pcmpeqb(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::pcmpeqb(xmm1, xmm0);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -3886,33 +3707,25 @@ void MacroAssembler::pcmpeqw(XMMRegister dst, XMMRegister src) {
   } else if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::pcmpeqw(dst, src);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::pcmpeqw(xmm0, src);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::pcmpeqw(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::pcmpeqw(xmm1, xmm0);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -3921,13 +3734,11 @@ void MacroAssembler::pcmpestri(XMMRegister dst, Address src, int imm8) {
   if (dst_enc < 16) {
     Assembler::pcmpestri(dst, src, imm8);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::pcmpestri(xmm0, src, imm8);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   }
 }
 
@@ -3937,33 +3748,25 @@ void MacroAssembler::pcmpestri(XMMRegister dst, XMMRegister src, int imm8) {
   if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::pcmpestri(dst, src, imm8);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::pcmpestri(xmm0, src, imm8);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::pcmpestri(dst, xmm0, imm8);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::pcmpestri(xmm1, xmm0, imm8);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -3975,33 +3778,25 @@ void MacroAssembler::pmovzxbw(XMMRegister dst, XMMRegister src) {
   } else if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::pmovzxbw(dst, src);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::pmovzxbw(xmm0, src);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::pmovzxbw(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::pmovzxbw(xmm1, xmm0);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4012,13 +3807,11 @@ void MacroAssembler::pmovzxbw(XMMRegister dst, Address src) {
   } else if (dst_enc < 16) {
     Assembler::pmovzxbw(dst, src);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::pmovzxbw(xmm0, src);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4027,12 +3820,10 @@ void MacroAssembler::pmovmskb(Register dst, XMMRegister src) {
   if (src_enc < 16) {
     Assembler::pmovmskb(dst, src);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::pmovmskb(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4042,31 +3833,23 @@ void MacroAssembler::ptest(XMMRegister dst, XMMRegister src) {
   if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::ptest(dst, src);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::ptest(xmm0, src);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::ptest(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::ptest(xmm1, xmm0);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4202,32 +3985,33 @@ void MacroAssembler::vabsss(XMMRegister dst, XMMRegister nds, XMMRegister src, A
   if ((dst_enc < 16) && (nds_enc < 16)) {
     vandps(dst, nds, negate_field, vector_len);
   } else if ((src_enc < 16) && (dst_enc < 16)) {
+    // Use src scratch register
     evmovdqul(src, nds, Assembler::AVX_512bit);
     vandps(dst, src, negate_field, vector_len);
+  } else if (dst_enc < 16) {
+    evmovdqul(dst, nds, Assembler::AVX_512bit);
+    vandps(dst, dst, negate_field, vector_len);
+  } else if (nds_enc < 16) {
+    vandps(nds, nds, negate_field, vector_len);
+    evmovdqul(dst, nds, Assembler::AVX_512bit);
   } else if (src_enc < 16) {
     evmovdqul(src, nds, Assembler::AVX_512bit);
     vandps(src, src, negate_field, vector_len);
     evmovdqul(dst, src, Assembler::AVX_512bit);
-  } else if (dst_enc < 16) {
-    evmovdqul(src, xmm0, Assembler::AVX_512bit);
-    evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    vandps(dst, xmm0, negate_field, vector_len);
-    evmovdqul(xmm0, src, Assembler::AVX_512bit);
   } else {
     if (src_enc != dst_enc) {
+      // Use src scratch register
       evmovdqul(src, xmm0, Assembler::AVX_512bit);
       evmovdqul(xmm0, nds, Assembler::AVX_512bit);
       vandps(xmm0, xmm0, negate_field, vector_len);
       evmovdqul(dst, xmm0, Assembler::AVX_512bit);
       evmovdqul(xmm0, src, Assembler::AVX_512bit);
     } else {
-      subptr(rsp, 64);
-      evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+      push_zmm(xmm0);
       evmovdqul(xmm0, nds, Assembler::AVX_512bit);
       vandps(xmm0, xmm0, negate_field, vector_len);
       evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-      evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-      addptr(rsp, 64);
+      pop_zmm(xmm0);
     }
   }
 }
@@ -4239,17 +4023,19 @@ void MacroAssembler::vabssd(XMMRegister dst, XMMRegister nds, XMMRegister src, A
   if ((dst_enc < 16) && (nds_enc < 16)) {
     vandpd(dst, nds, negate_field, vector_len);
   } else if ((src_enc < 16) && (dst_enc < 16)) {
+    // Use src scratch register
     evmovdqul(src, nds, Assembler::AVX_512bit);
     vandpd(dst, src, negate_field, vector_len);
+  } else if (dst_enc < 16) {
+    evmovdqul(dst, nds, Assembler::AVX_512bit);
+    vandpd(dst, dst, negate_field, vector_len);
+  } else if (nds_enc < 16) {
+    vandpd(nds, nds, negate_field, vector_len);
+    evmovdqul(dst, nds, Assembler::AVX_512bit);
   } else if (src_enc < 16) {
     evmovdqul(src, nds, Assembler::AVX_512bit);
     vandpd(src, src, negate_field, vector_len);
     evmovdqul(dst, src, Assembler::AVX_512bit);
-  } else if (dst_enc < 16) {
-    evmovdqul(src, xmm0, Assembler::AVX_512bit);
-    evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    vandpd(dst, xmm0, negate_field, vector_len);
-    evmovdqul(xmm0, src, Assembler::AVX_512bit);
   } else {
     if (src_enc != dst_enc) {
       evmovdqul(src, xmm0, Assembler::AVX_512bit);
@@ -4258,13 +4044,11 @@ void MacroAssembler::vabssd(XMMRegister dst, XMMRegister nds, XMMRegister src, A
       evmovdqul(dst, xmm0, Assembler::AVX_512bit);
       evmovdqul(xmm0, src, Assembler::AVX_512bit);
     } else {
-      subptr(rsp, 64);
-      evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+      push_zmm(xmm0);
       evmovdqul(xmm0, nds, Assembler::AVX_512bit);
       vandpd(xmm0, xmm0, negate_field, vector_len);
       evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-      evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-      addptr(rsp, 64);
+      pop_zmm(xmm0);
     }
   }
 }
@@ -4294,16 +4078,14 @@ void MacroAssembler::vpaddb(XMMRegister dst, XMMRegister nds, XMMRegister src, i
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, src, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpaddb(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4324,6 +4106,7 @@ void MacroAssembler::vpaddb(XMMRegister dst, XMMRegister nds, Address src, int v
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpaddb(xmm0, xmm0, src, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4353,16 +4136,14 @@ void MacroAssembler::vpaddw(XMMRegister dst, XMMRegister nds, XMMRegister src, i
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, src, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpaddw(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4374,7 +4155,7 @@ void MacroAssembler::vpaddw(XMMRegister dst, XMMRegister nds, Address src, int v
   } else if (dst_enc < 16) {
     Assembler::vpaddw(dst, dst, src, vector_len);
   } else if (nds_enc < 16) {
-    // implies dst_enc in upper bank with src as scratch
+    // implies dst_enc in upper bank with nds as scratch
     evmovdqul(nds, dst, Assembler::AVX_512bit);
     Assembler::vpaddw(nds, nds, src, vector_len);
     evmovdqul(dst, nds, Assembler::AVX_512bit);
@@ -4383,6 +4164,7 @@ void MacroAssembler::vpaddw(XMMRegister dst, XMMRegister nds, Address src, int v
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpaddw(xmm0, xmm0, src, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4404,33 +4186,25 @@ void MacroAssembler::vpbroadcastw(XMMRegister dst, XMMRegister src) {
   } else if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::vpbroadcastw(dst, src);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpbroadcastw(xmm0, src);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::vpbroadcastw(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::vpbroadcastw(xmm1, xmm0);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4442,33 +4216,25 @@ void MacroAssembler::vpcmpeqb(XMMRegister dst, XMMRegister nds, XMMRegister src,
   if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::vpcmpeqb(dst, nds, src, vector_len);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpcmpeqb(xmm0, xmm0, src, vector_len);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::vpcmpeqb(dst, dst, xmm0, vector_len);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::vpcmpeqb(xmm1, xmm1, xmm0, vector_len);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4480,33 +4246,25 @@ void MacroAssembler::vpcmpeqw(XMMRegister dst, XMMRegister nds, XMMRegister src,
   if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::vpcmpeqw(dst, nds, src, vector_len);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpcmpeqw(xmm0, xmm0, src, vector_len);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::vpcmpeqw(dst, dst, xmm0, vector_len);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::vpcmpeqw(xmm1, xmm1, xmm0, vector_len);
     movdqu(dst, xmm1);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4517,13 +4275,11 @@ void MacroAssembler::vpmovzxbw(XMMRegister dst, Address src, int vector_len) {
   } else if (dst_enc < 16) {
     Assembler::vpmovzxbw(dst, src, vector_len);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpmovzxbw(xmm0, src, vector_len);
     movdqu(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4532,12 +4288,10 @@ void MacroAssembler::vpmovmskb(Register dst, XMMRegister src) {
   if (src_enc < 16) {
     Assembler::vpmovmskb(dst, src);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::vpmovmskb(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4566,16 +4320,14 @@ void MacroAssembler::vpmullw(XMMRegister dst, XMMRegister nds, XMMRegister src, 
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, src, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpmullw(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4596,6 +4348,7 @@ void MacroAssembler::vpmullw(XMMRegister dst, XMMRegister nds, Address src, int 
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpmullw(xmm0, xmm0, src, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4625,16 +4378,14 @@ void MacroAssembler::vpsubb(XMMRegister dst, XMMRegister nds, XMMRegister src, i
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, src, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsubb(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4654,7 +4405,8 @@ void MacroAssembler::vpsubb(XMMRegister dst, XMMRegister nds, Address src, int v
     // worse case scenario, all regs in upper bank
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
-    Assembler::vpsubw(xmm0, xmm0, src, vector_len);
+    Assembler::vpsubb(xmm0, xmm0, src, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4684,16 +4436,14 @@ void MacroAssembler::vpsubw(XMMRegister dst, XMMRegister nds, XMMRegister src, i
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, src, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsubw(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4714,6 +4464,7 @@ void MacroAssembler::vpsubw(XMMRegister dst, XMMRegister nds, Address src, int v
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsubw(xmm0, xmm0, src, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4727,7 +4478,7 @@ void MacroAssembler::vpsraw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
   } else if ((dst_enc < 16) && (shift_enc < 16)) {
     Assembler::vpsraw(dst, dst, shift, vector_len);
   } else if ((dst_enc < 16) && (nds_enc < 16)) {
-    // use nds_enc as scratch with shift
+    // use nds as scratch with shift
     evmovdqul(nds, shift, Assembler::AVX_512bit);
     Assembler::vpsraw(dst, dst, nds, vector_len);
   } else if ((shift_enc < 16) && (nds_enc < 16)) {
@@ -4742,7 +4493,7 @@ void MacroAssembler::vpsraw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
     Assembler::vpsraw(dst, dst, xmm0, vector_len);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else if (nds_enc < 16) {
-    // use nds as dest as temps
+    // use nds and dst as temps
     evmovdqul(nds, dst, Assembler::AVX_512bit);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, shift, Assembler::AVX_512bit);
@@ -4751,17 +4502,14 @@ void MacroAssembler::vpsraw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
     evmovdqul(dst, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, shift, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
-    Assembler::vpsllw(xmm0, xmm0, xmm1, vector_len);
-    evmovdqul(xmm1, dst, Assembler::AVX_512bit);
+    Assembler::vpsraw(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4782,6 +4530,7 @@ void MacroAssembler::vpsraw(XMMRegister dst, XMMRegister nds, int shift, int vec
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsraw(xmm0, xmm0, shift, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4795,7 +4544,7 @@ void MacroAssembler::vpsrlw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
   } else if ((dst_enc < 16) && (shift_enc < 16)) {
     Assembler::vpsrlw(dst, dst, shift, vector_len);
   } else if ((dst_enc < 16) && (nds_enc < 16)) {
-    // use nds_enc as scratch with shift
+    // use nds as scratch with shift
     evmovdqul(nds, shift, Assembler::AVX_512bit);
     Assembler::vpsrlw(dst, dst, nds, vector_len);
   } else if ((shift_enc < 16) && (nds_enc < 16)) {
@@ -4810,7 +4559,7 @@ void MacroAssembler::vpsrlw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
     Assembler::vpsrlw(dst, dst, xmm0, vector_len);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else if (nds_enc < 16) {
-    // use nds as dest as temps
+    // use nds and dst as temps
     evmovdqul(nds, dst, Assembler::AVX_512bit);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, shift, Assembler::AVX_512bit);
@@ -4819,17 +4568,14 @@ void MacroAssembler::vpsrlw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
     evmovdqul(dst, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, shift, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
-    Assembler::vpsllw(xmm0, xmm0, xmm1, vector_len);
-    evmovdqul(xmm1, dst, Assembler::AVX_512bit);
+    Assembler::vpsrlw(xmm0, xmm0, xmm1, vector_len);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4850,6 +4596,7 @@ void MacroAssembler::vpsrlw(XMMRegister dst, XMMRegister nds, int shift, int vec
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsrlw(xmm0, xmm0, shift, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4863,7 +4610,7 @@ void MacroAssembler::vpsllw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
   } else if ((dst_enc < 16) && (shift_enc < 16)) {
     Assembler::vpsllw(dst, dst, shift, vector_len);
   } else if ((dst_enc < 16) && (nds_enc < 16)) {
-    // use nds_enc as scratch with shift
+    // use nds as scratch with shift
     evmovdqul(nds, shift, Assembler::AVX_512bit);
     Assembler::vpsllw(dst, dst, nds, vector_len);
   } else if ((shift_enc < 16) && (nds_enc < 16)) {
@@ -4878,7 +4625,7 @@ void MacroAssembler::vpsllw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
     Assembler::vpsllw(dst, dst, xmm0, vector_len);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   } else if (nds_enc < 16) {
-    // use nds as dest as temps
+    // use nds and dst as temps
     evmovdqul(nds, dst, Assembler::AVX_512bit);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, shift, Assembler::AVX_512bit);
@@ -4887,17 +4634,14 @@ void MacroAssembler::vpsllw(XMMRegister dst, XMMRegister nds, XMMRegister shift,
     evmovdqul(dst, nds, Assembler::AVX_512bit);
   } else {
     // worse case scenario, all regs are in the upper bank
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm1);
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm1, shift, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsllw(xmm0, xmm0, xmm1, vector_len);
-    evmovdqul(xmm1, dst, Assembler::AVX_512bit);
     evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
   }
 }
 
@@ -4918,6 +4662,7 @@ void MacroAssembler::vpsllw(XMMRegister dst, XMMRegister nds, int shift, int vec
     evmovdqul(nds, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vpsllw(xmm0, xmm0, shift, vector_len);
+    evmovdqul(dst, xmm0, Assembler::AVX_512bit);
     evmovdqul(xmm0, nds, Assembler::AVX_512bit);
   }
 }
@@ -4928,31 +4673,23 @@ void MacroAssembler::vptest(XMMRegister dst, XMMRegister src) {
   if ((dst_enc < 16) && (src_enc < 16)) {
     Assembler::vptest(dst, src);
   } else if (src_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, dst, Assembler::AVX_512bit);
     Assembler::vptest(xmm0, src);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else if (dst_enc < 16) {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+    push_zmm(xmm0);
     evmovdqul(xmm0, src, Assembler::AVX_512bit);
     Assembler::vptest(dst, xmm0);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm0);
   } else {
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-    subptr(rsp, 64);
-    evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+    push_zmm(xmm0);
+    push_zmm(xmm1);
     movdqu(xmm0, src);
     movdqu(xmm1, dst);
     Assembler::vptest(xmm1, xmm0);
-    evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
-    evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-    addptr(rsp, 64);
+    pop_zmm(xmm1);
+    pop_zmm(xmm0);
   }
 }
 
@@ -4966,45 +4703,35 @@ void MacroAssembler::punpcklbw(XMMRegister dst, XMMRegister src) {
       if (dst_enc < 16) {
         Assembler::punpcklbw(dst, src);
       } else {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+        push_zmm(xmm0);
         evmovdqul(xmm0, dst, Assembler::AVX_512bit);
         Assembler::punpcklbw(xmm0, xmm0);
         evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm0);
       }
     } else {
       if ((src_enc < 16) && (dst_enc < 16)) {
         Assembler::punpcklbw(dst, src);
       } else if (src_enc < 16) {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+        push_zmm(xmm0);
         evmovdqul(xmm0, dst, Assembler::AVX_512bit);
         Assembler::punpcklbw(xmm0, src);
         evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm0);
       } else if (dst_enc < 16) {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+        push_zmm(xmm0);
         evmovdqul(xmm0, src, Assembler::AVX_512bit);
         Assembler::punpcklbw(dst, xmm0);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm0);
       } else {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+        push_zmm(xmm0);
+        push_zmm(xmm1);
         evmovdqul(xmm0, dst, Assembler::AVX_512bit);
         evmovdqul(xmm1, src, Assembler::AVX_512bit);
         Assembler::punpcklbw(xmm0, xmm1);
         evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-        evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm1);
+        pop_zmm(xmm0);
       }
     }
   } else {
@@ -5020,12 +4747,10 @@ void MacroAssembler::pshufd(XMMRegister dst, Address src, int mode) {
     if (dst_enc < 16) {
       Assembler::pshufd(dst, src, mode);
     } else {
-      subptr(rsp, 64);
-      evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+      push_zmm(xmm0);
       Assembler::pshufd(xmm0, src, mode);
       evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-      evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-      addptr(rsp, 64);
+      pop_zmm(xmm0);
     }
   }
 }
@@ -5040,45 +4765,35 @@ void MacroAssembler::pshuflw(XMMRegister dst, XMMRegister src, int mode) {
       if (dst_enc < 16) {
         Assembler::pshuflw(dst, src, mode);
       } else {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+        push_zmm(xmm0);
         evmovdqul(xmm0, dst, Assembler::AVX_512bit);
         Assembler::pshuflw(xmm0, xmm0, mode);
         evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm0);
       }
     } else {
       if ((src_enc < 16) && (dst_enc < 16)) {
         Assembler::pshuflw(dst, src, mode);
       } else if (src_enc < 16) {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+        push_zmm(xmm0);
         evmovdqul(xmm0, dst, Assembler::AVX_512bit);
         Assembler::pshuflw(xmm0, src, mode);
         evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm0);
       } else if (dst_enc < 16) {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+        push_zmm(xmm0);
         evmovdqul(xmm0, src, Assembler::AVX_512bit);
         Assembler::pshuflw(dst, xmm0, mode);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm0);
       } else {
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
-        subptr(rsp, 64);
-        evmovdqul(Address(rsp, 0), xmm1, Assembler::AVX_512bit);
+        push_zmm(xmm0);
+        push_zmm(xmm1);
         evmovdqul(xmm0, dst, Assembler::AVX_512bit);
         evmovdqul(xmm1, src, Assembler::AVX_512bit);
         Assembler::pshuflw(xmm0, xmm1, mode);
         evmovdqul(dst, xmm0, Assembler::AVX_512bit);
-        evmovdqul(xmm1, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
-        evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-        addptr(rsp, 64);
+        pop_zmm(xmm1);
+        pop_zmm(xmm0);
       }
     }
   } else {
@@ -5166,13 +4881,11 @@ void MacroAssembler::vnegatess(XMMRegister dst, XMMRegister nds, AddressLiteral 
   if (VM_Version::supports_avx512novl() &&
       (nds_upper_bank || dst_upper_bank)) {
     if (dst_upper_bank) {
-      subptr(rsp, 64);
-      evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+      push_zmm(xmm0);
       movflt(xmm0, nds);
       vxorps(xmm0, xmm0, src, Assembler::AVX_128bit);
       movflt(dst, xmm0);
-      evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-      addptr(rsp, 64);
+      pop_zmm(xmm0);
     } else {
       movflt(dst, nds);
       vxorps(dst, dst, src, Assembler::AVX_128bit);
@@ -5190,13 +4903,11 @@ void MacroAssembler::vnegatesd(XMMRegister dst, XMMRegister nds, AddressLiteral 
   if (VM_Version::supports_avx512novl() &&
       (nds_upper_bank || dst_upper_bank)) {
     if (dst_upper_bank) {
-      subptr(rsp, 64);
-      evmovdqul(Address(rsp, 0), xmm0, Assembler::AVX_512bit);
+      push_zmm(xmm0);
       movdbl(xmm0, nds);
       vxorpd(xmm0, xmm0, src, Assembler::AVX_128bit);
       movdbl(dst, xmm0);
-      evmovdqul(xmm0, Address(rsp, 0), Assembler::AVX_512bit);
-      addptr(rsp, 64);
+      pop_zmm(xmm0);
     } else {
       movdbl(dst, nds);
       vxorpd(dst, dst, src, Assembler::AVX_128bit);
@@ -7248,7 +6959,7 @@ void MacroAssembler::string_indexof(Register str1, Register str2,
 
   bind(RET_NOT_FOUND);
   movl(result, -1);
-  jmpb(CLEANUP);
+  jmp(CLEANUP);
 
   bind(FOUND_SUBSTR);
   // Compute start addr of substr
@@ -7266,7 +6977,7 @@ void MacroAssembler::string_indexof(Register str1, Register str2,
     addl(tmp, cnt2);
     // Found result if we matched whole substring.
     cmpl(tmp, stride);
-    jccb(Assembler::lessEqual, RET_FOUND);
+    jcc(Assembler::lessEqual, RET_FOUND);
 
     // Repeat search for small substring (<= 8 chars)
     // from new point 'str1' without reloading substring.
@@ -7366,7 +7077,7 @@ void MacroAssembler::string_indexof_char(Register str1, Register cnt1, Register 
     jcc(Assembler::carryClear, FOUND_CHAR);
     addptr(result, 32);
     subl(tmp, 2*stride);
-    jccb(Assembler::notZero, SCAN_TO_16_CHAR_LOOP);
+    jcc(Assembler::notZero, SCAN_TO_16_CHAR_LOOP);
     jmp(SCAN_TO_8_CHAR);
     bind(SCAN_TO_8_CHAR_INIT);
     movdl(vec1, ch);
@@ -7396,7 +7107,7 @@ void MacroAssembler::string_indexof_char(Register str1, Register cnt1, Register 
   jcc(Assembler::carryClear, FOUND_CHAR);
   addptr(result, 16);
   subl(tmp, stride);
-  jccb(Assembler::notZero, SCAN_TO_8_CHAR_LOOP);
+  jcc(Assembler::notZero, SCAN_TO_8_CHAR_LOOP);
   bind(SCAN_TO_CHAR);
   testl(cnt1, cnt1);
   jcc(Assembler::zero, RET_NOT_FOUND);
@@ -7975,7 +7686,7 @@ void MacroAssembler::has_negatives(Register ary1, Register len,
       // Compare 16-byte vectors
       andl(result, 0x0000000f);  //   tail count (in bytes)
       andl(len, 0xfffffff0);   // vector count (in bytes)
-      jccb(Assembler::zero, COMPARE_TAIL);
+      jcc(Assembler::zero, COMPARE_TAIL);
 
       lea(ary1, Address(ary1, len, Address::times_1));
       negptr(len);
@@ -7987,12 +7698,12 @@ void MacroAssembler::has_negatives(Register ary1, Register len,
       bind(COMPARE_WIDE_VECTORS);
       movdqu(vec1, Address(ary1, len, Address::times_1));
       ptest(vec1, vec2);
-      jccb(Assembler::notZero, TRUE_LABEL);
+      jcc(Assembler::notZero, TRUE_LABEL);
       addptr(len, 16);
       jcc(Assembler::notZero, COMPARE_WIDE_VECTORS);
 
       testl(result, result);
-      jccb(Assembler::zero, FALSE_LABEL);
+      jcc(Assembler::zero, FALSE_LABEL);
 
       movdqu(vec1, Address(ary1, result, Address::times_1, -16));
       ptest(vec1, vec2);
@@ -8271,7 +7982,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
                                    Register rtmp, XMMRegister xtmp) {
   ShortBranchVerifier sbv(this);
   assert_different_registers(to, value, count, rtmp);
-  Label L_exit, L_skip_align1, L_skip_align2, L_fill_byte;
+  Label L_exit;
   Label L_fill_2_bytes, L_fill_4_bytes;
 
   int shift = -1;
@@ -8306,8 +8017,10 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
   cmpl(count, 2<<shift); // Short arrays (< 8 bytes) fill by element
   jcc(Assembler::below, L_fill_4_bytes); // use unsigned cmp
   if (!UseUnalignedLoadStores && !aligned && (t == T_BYTE || t == T_SHORT)) {
+    Label L_skip_align2;
     // align source address at 4 bytes address boundary
     if (t == T_BYTE) {
+      Label L_skip_align1;
       // One byte misalignment happens only for byte arrays
       testptr(to, 1);
       jccb(Assembler::zero, L_skip_align1);
@@ -8472,6 +8185,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
   jccb(Assembler::zero, L_fill_2_bytes);
   movl(Address(to, 0), value);
   if (t == T_BYTE || t == T_SHORT) {
+    Label L_fill_byte;
     addptr(to, 4);
     BIND(L_fill_2_bytes);
     // fill trailing 2 bytes
@@ -8535,7 +8249,7 @@ void MacroAssembler::encode_iso_array(Register src, Register dst, Register len,
   negptr(len);
 
   if (UseSSE42Intrinsics || UseAVX >= 2) {
-    Label L_chars_8_check, L_copy_8_chars, L_copy_8_chars_exit;
+    Label L_copy_8_chars, L_copy_8_chars_exit;
     Label L_chars_16_check, L_copy_16_chars, L_copy_16_chars_exit;
 
     if (UseAVX >= 2) {
@@ -9101,9 +8815,8 @@ void MacroAssembler::multiply_to_len(Register x, Register xlen, Register y, Regi
 void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register length, Register log2_array_indxscale,
   Register result, Register tmp1, Register tmp2, XMMRegister rymm0, XMMRegister rymm1, XMMRegister rymm2){
   assert(UseSSE42Intrinsics, "SSE4.2 must be enabled.");
-  Label VECTOR64_LOOP, VECTOR64_TAIL, VECTOR64_NOT_EQUAL, VECTOR32_TAIL;
-  Label VECTOR32_LOOP, VECTOR16_LOOP, VECTOR8_LOOP, VECTOR4_LOOP;
-  Label VECTOR16_TAIL, VECTOR8_TAIL, VECTOR4_TAIL;
+  Label VECTOR16_LOOP, VECTOR8_LOOP, VECTOR4_LOOP;
+  Label VECTOR8_TAIL, VECTOR4_TAIL;
   Label VECTOR32_NOT_EQUAL, VECTOR16_NOT_EQUAL, VECTOR8_NOT_EQUAL, VECTOR4_NOT_EQUAL;
   Label SAME_TILL_END, DONE;
   Label BYTES_LOOP, BYTES_TAIL, BYTES_NOT_EQUAL;
@@ -9116,6 +8829,8 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
 
   if ((UseAVX > 2) &&
       VM_Version::supports_avx512vlbw()) {
+    Label VECTOR64_LOOP, VECTOR64_NOT_EQUAL, VECTOR32_TAIL;
+
     set_vector_masking();  // opening of the stub context for programming mask registers
     cmpq(length, 64);
     jcc(Assembler::less, VECTOR32_TAIL);
@@ -9137,7 +8852,7 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
     testq(tmp1, tmp1);
     jcc(Assembler::zero, SAME_TILL_END);
 
-    bind(VECTOR64_TAIL);
+    //bind(VECTOR64_TAIL);
     // AVX512 code to compare upto 63 byte vectors.
     // Save k1
     kmovql(k3, k1);
@@ -9170,6 +8885,7 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
   jcc(Assembler::less, VECTOR4_TAIL);
 
   if (UseAVX >= 2) {
+    Label VECTOR16_TAIL, VECTOR32_LOOP;
 
     cmpq(length, 16);
     jcc(Assembler::equal, VECTOR16_LOOP);
@@ -9187,7 +8903,7 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
     jcc(Assembler::notZero, VECTOR32_NOT_EQUAL);//mismatch found
     addq(result, 32);
     subq(length, 32);
-    jccb(Assembler::greaterEqual, VECTOR32_LOOP);
+    jcc(Assembler::greaterEqual, VECTOR32_LOOP);
     addq(length, 32);
     jcc(Assembler::equal, SAME_TILL_END);
     //falling through if less than 32 bytes left //close the branch here.
@@ -9258,24 +8974,24 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
   load_unsigned_byte(tmp2, Address(objb, result));
   xorl(tmp1, tmp2);
   testl(tmp1, tmp1);
-  jccb(Assembler::notZero, BYTES_NOT_EQUAL);//mismatch found
+  jcc(Assembler::notZero, BYTES_NOT_EQUAL);//mismatch found
   decq(length);
-  jccb(Assembler::zero, SAME_TILL_END);
+  jcc(Assembler::zero, SAME_TILL_END);
   incq(result);
   load_unsigned_byte(tmp1, Address(obja, result));
   load_unsigned_byte(tmp2, Address(objb, result));
   xorl(tmp1, tmp2);
   testl(tmp1, tmp1);
-  jccb(Assembler::notZero, BYTES_NOT_EQUAL);//mismatch found
+  jcc(Assembler::notZero, BYTES_NOT_EQUAL);//mismatch found
   decq(length);
-  jccb(Assembler::zero, SAME_TILL_END);
+  jcc(Assembler::zero, SAME_TILL_END);
   incq(result);
   load_unsigned_byte(tmp1, Address(obja, result));
   load_unsigned_byte(tmp2, Address(objb, result));
   xorl(tmp1, tmp2);
   testl(tmp1, tmp1);
-  jccb(Assembler::notZero, BYTES_NOT_EQUAL);//mismatch found
-  jmpb(SAME_TILL_END);
+  jcc(Assembler::notZero, BYTES_NOT_EQUAL);//mismatch found
+  jmp(SAME_TILL_END);
 
   if (UseAVX >= 2) {
     bind(VECTOR32_NOT_EQUAL);
@@ -9286,7 +9002,7 @@ void MacroAssembler::vectorized_mismatch(Register obja, Register objb, Register 
     bsfq(tmp1, tmp1);
     addq(result, tmp1);
     shrq(result);
-    jmpb(DONE);
+    jmp(DONE);
   }
 
   bind(VECTOR16_NOT_EQUAL);
@@ -9520,7 +9236,7 @@ void MacroAssembler::lshift_by_1(Register x, Register len, Register z, Register 
  */
 void MacroAssembler::square_to_len(Register x, Register len, Register z, Register zlen, Register tmp1, Register tmp2, Register tmp3, Register tmp4, Register tmp5, Register rdxReg, Register raxReg) {
 
-  Label L_second_loop, L_second_loop_exit, L_third_loop, L_third_loop_exit, fifth_loop, fifth_loop_exit, L_last_x, L_multiply;
+  Label L_second_loop, L_second_loop_exit, L_third_loop, L_third_loop_exit, L_last_x, L_multiply;
   push(tmp1);
   push(tmp2);
   push(tmp3);
@@ -10708,7 +10424,7 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
     andl(len, 0xfffffff0);    // vector count (in chars)
     andl(result, 0x0000000f);    // tail count (in chars)
     testl(len, len);
-    jccb(Assembler::zero, copy_16);
+    jcc(Assembler::zero, copy_16);
 
     // compress 16 chars per iter
     movdl(tmp1Reg, tmp5);

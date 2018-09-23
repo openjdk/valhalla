@@ -1778,7 +1778,6 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     __ bind(profile_cast_success);
     __ mov_metadata(mdo, md->constant_encoding());
     __ load_klass(recv, obj);
-    Label update_done;
     type_profile_helper(mdo, md, data, recv, success);
     __ jmp(*success);
 
@@ -1861,7 +1860,6 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       __ bind(profile_cast_success);
       __ mov_metadata(mdo, md->constant_encoding());
       __ load_klass(recv, value);
-      Label update_done;
       type_profile_helper(mdo, md, data, recv, &done);
       __ jmpb(done);
 
@@ -3038,6 +3036,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
 
+  __ resolve(ACCESS_READ, src);
+  __ resolve(ACCESS_WRITE, dst);
+
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
@@ -3045,7 +3046,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
 
   // if we don't know anything, just go through the generic arraycopy
   if (default_type == NULL) {
-    Label done;
     // save outgoing arguments on stack in case call to System.arraycopy is needed
     // HACK ALERT. This code used to push the parameters in a hardwired fashion
     // for interpreter calling conventions. Now we have to do it in new style conventions.
@@ -3476,6 +3476,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
       scratch = op->scratch_opr()->as_register();
     }
     assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
+    __ resolve(ACCESS_READ | ACCESS_WRITE, obj);
     // add debug info for NullPointerException only if one is possible
     int null_check_offset = __ lock_object(hdr, obj, lock, scratch, *op->stub()->entry());
     if (op->info() != NULL) {
@@ -3601,7 +3602,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
     }
   } else {
     __ testptr(tmp, tmp);
-    __ jccb(Assembler::notZero, update);
+    __ jcc(Assembler::notZero, update);
     __ stop("unexpect null obj");
 #endif
   }
@@ -3616,7 +3617,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
       __ cmpptr(tmp, Address(rsp, 0));
-      __ jccb(Assembler::equal, ok);
+      __ jcc(Assembler::equal, ok);
       __ stop("exact klass and actual klass differ");
       __ bind(ok);
       __ pop(tmp);

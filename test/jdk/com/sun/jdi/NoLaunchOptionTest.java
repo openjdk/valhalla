@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,9 @@
  * questions.
  */
 
-import static jdk.testlibrary.Asserts.assertFalse;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import static jdk.test.lib.Asserts.assertFalse;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 /*
  * @test       NoLaunchOptionTest.java
@@ -31,10 +31,10 @@ import jdk.testlibrary.ProcessTools;
  * @summary    Test for -Xrunjdwp:[onthrow,onuncaught] suboptions require launch suboption
  * @author     Tim Bell
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  *
  * @run compile -g NoLaunchOptionTest.java
- * @build jdk.testlibrary.* VMConnection
+ * @build VMConnection
  * @run driver NoLaunchOptionTest
  */
 public class NoLaunchOptionTest extends Object {

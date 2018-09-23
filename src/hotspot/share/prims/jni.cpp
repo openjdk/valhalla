@@ -66,7 +66,7 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/compilationPolicy.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -2687,7 +2687,7 @@ DEFINE_NEWSCALARARRAY(jintArray,     new_intArray,    Int,
 DEFINE_NEWSCALARARRAY(jlongArray,    new_longArray,   Long,
                       HOTSPOT_JNI_NEWLONGARRAY_ENTRY(env, len),
                       HOTSPOT_JNI_NEWLONGARRAY_RETURN(_ret_ref))
-DEFINE_NEWSCALARARRAY(jfloatArray,   new_singleArray, Float,
+DEFINE_NEWSCALARARRAY(jfloatArray,   new_floatArray,  Float,
                       HOTSPOT_JNI_NEWFLOATARRAY_ENTRY(env, len),
                       HOTSPOT_JNI_NEWFLOATARRAY_RETURN(_ret_ref))
 DEFINE_NEWSCALARARRAY(jdoubleArray,  new_doubleArray, Double,

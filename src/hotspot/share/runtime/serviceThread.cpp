@@ -23,14 +23,17 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/systemDictionary.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 #include "prims/jvmtiImpl.hpp"
+#include "prims/resolvedMethodTable.hpp"
 #include "services/diagnosticArgument.hpp"
 #include "services/diagnosticFramework.hpp"
 #include "services/gcNotifier.hpp"
@@ -83,9 +86,10 @@ void ServiceThread::service_thread_entry(JavaThread* jt, TRAPS) {
     bool has_jvmti_events = false;
     bool has_gc_notification_event = false;
     bool has_dcmd_notification_event = false;
-    bool acs_notify = false;
     bool stringtable_work = false;
     bool symboltable_work = false;
+    bool resolved_method_table_work = false;
+    bool protection_domain_table_work = false;
     JvmtiDeferredEvent jvmti_event;
     {
       // Need state transition ThreadBlockInVM so that this thread
@@ -99,14 +103,20 @@ void ServiceThread::service_thread_entry(JavaThread* jt, TRAPS) {
       ThreadBlockInVM tbivm(jt);
 
       MutexLockerEx ml(Service_lock, Mutex::_no_safepoint_check_flag);
-      while (!(sensors_changed = LowMemoryDetector::has_pending_requests()) &&
-             !(has_jvmti_events = JvmtiDeferredEventQueue::has_events()) &&
-              !(has_gc_notification_event = GCNotifier::has_event()) &&
-              !(has_dcmd_notification_event = DCmdFactory::has_pending_jmx_notification()) &&
-              !(stringtable_work = StringTable::has_work()) &&
-              !(symboltable_work = SymbolTable::has_work())) {
-        // wait until one of the sensors has pending requests, or there is a
-        // pending JVMTI event or JMX GC notification to post
+      // Process all available work on each (outer) iteration, rather than
+      // only the first recognized bit of work, to avoid frequently true early
+      // tests from potentially starving later work.  Hence the use of
+      // arithmetic-or to combine results; we don't want short-circuiting.
+      while (((sensors_changed = LowMemoryDetector::has_pending_requests()) |
+              (has_jvmti_events = JvmtiDeferredEventQueue::has_events()) |
+              (has_gc_notification_event = GCNotifier::has_event()) |
+              (has_dcmd_notification_event = DCmdFactory::has_pending_jmx_notification()) |
+              (stringtable_work = StringTable::has_work()) |
+              (symboltable_work = SymbolTable::has_work()) |
+              (resolved_method_table_work = ResolvedMethodTable::has_work()) |
+              (protection_domain_table_work = SystemDictionary::pd_cache_table()->has_work()))
+             == 0) {
+        // Wait until notified that there is some work to do.
         Service_lock->wait(Mutex::_no_safepoint_check_flag);
       }
 
@@ -132,11 +142,19 @@ void ServiceThread::service_thread_entry(JavaThread* jt, TRAPS) {
     }
 
     if(has_gc_notification_event) {
-        GCNotifier::sendNotification(CHECK);
+      GCNotifier::sendNotification(CHECK);
     }
 
     if(has_dcmd_notification_event) {
       DCmdFactory::send_notification(CHECK);
+    }
+
+    if (resolved_method_table_work) {
+      ResolvedMethodTable::unlink();
+    }
+
+    if (protection_domain_table_work) {
+      SystemDictionary::pd_cache_table()->unlink();
     }
   }
 }

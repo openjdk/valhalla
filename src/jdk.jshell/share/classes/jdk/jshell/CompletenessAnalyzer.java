@@ -31,6 +31,7 @@ import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.Tokens.Token;
 import com.sun.tools.javac.parser.Tokens.TokenKind;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -121,6 +122,7 @@ class CompletenessAnalyzer {
 
         private CaLog(Context context, PrintWriter pw) {
             super(context, pw);
+            this.source = DiagnosticSource.NO_SOURCE;
         }
 
         @Override
@@ -247,7 +249,7 @@ class CompletenessAnalyzer {
         FOR(TokenKind.FOR, XSTMT1|XSTART),  //  for
         IF(TokenKind.IF, XSTMT1|XSTART),  //  if
         RETURN(TokenKind.RETURN, XSTMT1|XTERM|XSTART),  //  return
-        SWITCH(TokenKind.SWITCH, XSTMT1|XSTART),  //  switch
+        SWITCH(TokenKind.SWITCH, XSTMT1|XEXPR),  //  switch
         SYNCHRONIZED(TokenKind.SYNCHRONIZED, XSTMT1|XDECL),  //  synchronized
         THROW(TokenKind.THROW, XSTMT1|XSTART),  //  throw
         TRY(TokenKind.TRY, XSTMT1|XSTART),  //  try

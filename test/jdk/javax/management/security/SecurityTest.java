@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @summary Checks various secure ways of connecting from remote jmx client
  * @author Olivier Lagneau
  * @modules java.management.rmi
- * @library /lib/testlibrary
+ * @library /test/lib
  * @compile MBS_Light.java ServerDelegate.java TestSampleLoginModule.java
  * @run main/othervm/timeout=300 -DDEBUG_STANDARD -Dusername=SQE_username -Dpassword=SQE_password SecurityTest -server -mapType x.password.file -client -mapType credentials
  * @run main/othervm/timeout=300 -DDEBUG_STANDARD -Dusername=UNKNOWN_username -Dpassword=SQE_password SecurityTest -server -mapType x.password.file -client -mapType credentials -expectedThrowable java.lang.SecurityException
@@ -80,8 +80,8 @@ import javax.rmi.ssl.SslRMIServerSocketFactory;
 
 import java.security.Security;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.JDKToolFinder;
+import jdk.test.lib.JDKToolFinder;
+import jdk.test.lib.process.ProcessTools;
 
 public class SecurityTest {
 
@@ -397,7 +397,7 @@ public class SecurityTest {
 
         List<String> opts = new ArrayList<>();
         opts.add(JDKToolFinder.getJDKTool("java"));
-        opts.addAll(Arrays.asList(jdk.testlibrary.Utils.getTestJavaOpts()));
+        opts.addAll(Arrays.asList(jdk.test.lib.Utils.getTestJavaOpts()));
 
         // We need to forward some properties to the client side
         opts.add("-Dtest.src=" + System.getProperty("test.src"));

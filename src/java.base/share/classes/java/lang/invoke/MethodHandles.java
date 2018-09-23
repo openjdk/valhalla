@@ -54,6 +54,7 @@ import java.util.BitSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -450,7 +451,7 @@ public class MethodHandles {
      * independently of any {@code Lookup} object.
      * <p>
      * If the desired member is {@code protected}, the usual JVM rules apply,
-     * including the requirement that the lookup class must be either be in the
+     * including the requirement that the lookup class must either be in the
      * same package as the desired member, or must inherit that member.
      * (See the Java Virtual Machine Specification, sections 4.9.2, 5.4.3.5, and 6.4.)
      * In addition, if the desired member is a non-static field or method
@@ -642,6 +643,10 @@ public class MethodHandles {
 
         /** The allowed sorts of members which may be looked up (PUBLIC, etc.). */
         private final int allowedModes;
+
+        static {
+            Reflection.registerFieldsToFilter(Lookup.class, Set.of("lookupClass", "allowedModes"));
+        }
 
         /** A single-bit mask representing {@code public} access,
          *  which may contribute to the result of {@link #lookupModes lookupModes}.

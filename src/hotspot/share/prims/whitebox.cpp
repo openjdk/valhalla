@@ -28,6 +28,7 @@
 
 #include "classfile/classLoaderData.hpp"
 #include "classfile/modules.hpp"
+#include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/methodMatcher.hpp"
@@ -36,7 +37,7 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "memory/metadataFactory.hpp"
-#include "memory/metaspaceShared.hpp"
+#include "memory/metaspaceShared.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -48,11 +49,13 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "prims/resolvedMethodTable.hpp"
 #include "prims/wbtestmethods/parserTests.hpp"
 #include "prims/whitebox.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handshake.hpp"
@@ -144,7 +147,7 @@ WB_ENTRY(jlong, WB_GetVMLargePageSize(JNIEnv* env, jobject o))
   return os::large_page_size();
 WB_END
 
-class WBIsKlassAliveClosure : public KlassClosure {
+class WBIsKlassAliveClosure : public LockedClassesDo {
     Symbol* _name;
     bool _found;
 public:
@@ -174,6 +177,15 @@ WB_ENTRY(jboolean, WB_IsClassAlive(JNIEnv* env, jobject target, jstring name))
 
   return closure.found();
 WB_END
+
+WB_ENTRY(jint, WB_GetSymbolRefcount(JNIEnv* env, jobject unused, jstring name))
+  oop h_name = JNIHandles::resolve(name);
+  if (h_name == NULL) return false;
+  Symbol* sym = java_lang_String::as_symbol(h_name, CHECK_0);
+  TempNewSymbol tsym(sym); // Make sure to decrement reference count on sym on return
+  return (jint)sym->refcount();
+WB_END
+
 
 WB_ENTRY(void, WB_AddToBootstrapClassLoaderSearch(JNIEnv* env, jobject o, jstring segment)) {
 #if INCLUDE_JVMTI
@@ -1501,7 +1513,7 @@ WB_ENTRY(jlong, WB_AllocateMetaspace(JNIEnv* env, jobject wb, jobject class_load
 
   oop class_loader_oop = JNIHandles::resolve(class_loader);
   ClassLoaderData* cld = class_loader_oop != NULL
-      ? java_lang_ClassLoader::loader_data(class_loader_oop)
+      ? java_lang_ClassLoader::loader_data_acquire(class_loader_oop)
       : ClassLoaderData::the_null_class_loader_data();
 
   void* metadata = MetadataFactory::new_array<u1>(cld, WhiteBox::array_bytes_to_length((size_t)size), thread);
@@ -1512,7 +1524,7 @@ WB_END
 WB_ENTRY(void, WB_FreeMetaspace(JNIEnv* env, jobject wb, jobject class_loader, jlong addr, jlong size))
   oop class_loader_oop = JNIHandles::resolve(class_loader);
   ClassLoaderData* cld = class_loader_oop != NULL
-      ? java_lang_ClassLoader::loader_data(class_loader_oop)
+      ? java_lang_ClassLoader::loader_data_acquire(class_loader_oop)
       : ClassLoaderData::the_null_class_loader_data();
 
   MetadataFactory::free_array(cld, (Array<u1>*)(uintptr_t)addr);
@@ -1971,6 +1983,13 @@ WB_ENTRY(void, WB_DisableElfSectionCache(JNIEnv* env))
 #endif
 WB_END
 
+WB_ENTRY(jint, WB_ResolvedMethodRemovedCount(JNIEnv* env, jobject o))
+  return (jint) ResolvedMethodTable::removed_entries_count();
+WB_END
+
+WB_ENTRY(jint, WB_ProtectionDomainRemovedCount(JNIEnv* env, jobject o))
+  return (jint) SystemDictionary::pd_cache_table()->removed_entries_count();
+WB_END
 
 #define CC (char*)
 
@@ -1985,6 +2004,7 @@ static JNINativeMethod methods[] = {
   {CC"getHeapSpaceAlignment",            CC"()J",                   (void*)&WB_GetHeapSpaceAlignment},
   {CC"getHeapAlignment",                 CC"()J",                   (void*)&WB_GetHeapAlignment},
   {CC"isClassAlive0",                    CC"(Ljava/lang/String;)Z", (void*)&WB_IsClassAlive      },
+  {CC"getSymbolRefcount",                CC"(Ljava/lang/String;)I", (void*)&WB_GetSymbolRefcount },
   {CC"parseCommandLine0",
       CC"(Ljava/lang/String;C[Lsun/hotspot/parser/DiagnosticCommand;)[Ljava/lang/Object;",
       (void*) &WB_ParseCommandLine
@@ -2192,6 +2212,8 @@ static JNINativeMethod methods[] = {
   {CC"isContainerized",           CC"()Z",            (void*)&WB_IsContainerized },
   {CC"printOsInfo",               CC"()V",            (void*)&WB_PrintOsInfo },
   {CC"disableElfSectionCache",    CC"()V",            (void*)&WB_DisableElfSectionCache },
+  {CC"resolvedMethodRemovedCount",     CC"()I",       (void*)&WB_ResolvedMethodRemovedCount },
+  {CC"protectionDomainRemovedCount",   CC"()I",       (void*)&WB_ProtectionDomainRemovedCount },
 };
 
 

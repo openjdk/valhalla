@@ -25,7 +25,7 @@
 /**
  * @test
  * @requires vm.cds
- * @library /test/jdk/lib/testlibrary /test/lib /test/hotspot/jtreg/runtime/appcds
+ * @library /test/lib /test/hotspot/jtreg/runtime/appcds
  * @modules jdk.compiler
  *          jdk.jartool/sun.tools.jar
  *          jdk.jlink
@@ -40,8 +40,7 @@ import java.nio.file.Paths;
 
 import jdk.test.lib.compiler.CompilerUtils;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Asserts;
+import jdk.test.lib.Asserts;
 
 public class ExportModule {
 
@@ -118,7 +117,6 @@ public class ExportModule {
         // the module in the --module-path
         OutputAnalyzer output = TestCommon.createArchive(
                                         appJar.toString(), appClasses,
-                                        "-Xlog:class+load=trace",
                                         "--module-path", moduleDir.toString(),
                                         "--add-modules", TEST_MODULE2, MAIN_CLASS);
         TestCommon.checkDump(output);
@@ -142,7 +140,6 @@ public class ExportModule {
         // unnmaed.
         output = TestCommon.createArchive(
                                         appJar2.toString(), appClasses2,
-                                        "-Xlog:class+load=trace",
                                         "--module-path", moduleDir.toString(),
                                         "--add-modules", TEST_MODULE2,
                                         "--add-exports", "org.astro/org.astro=ALL-UNNAMED",

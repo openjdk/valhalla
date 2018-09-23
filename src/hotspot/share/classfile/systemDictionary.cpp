@@ -89,6 +89,9 @@
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciRuntime.hpp"
 #endif
+#if INCLUDE_JFR
+#include "jfr/jfr.hpp"
+#endif
 
 PlaceholderTable*      SystemDictionary::_placeholders        = NULL;
 Dictionary*            SystemDictionary::_shared_dictionary   = NULL;
@@ -988,18 +991,18 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               Handle class_loader,
                                               Handle protection_domain,
                                               ClassFileStream* st,
-                                              const InstanceKlass* host_klass,
+                                              const InstanceKlass* unsafe_anonymous_host,
                                               GrowableArray<Handle>* cp_patches,
                                               TRAPS) {
 
   EventClassLoad class_load_start_event;
 
   ClassLoaderData* loader_data;
-  if (host_klass != NULL) {
-    // Create a new CLD for anonymous class, that uses the same class loader
-    // as the host_klass
-    guarantee(oopDesc::equals(host_klass->class_loader(), class_loader()), "should be the same");
-    loader_data = ClassLoaderData::anonymous_class_loader_data(class_loader);
+  if (unsafe_anonymous_host != NULL) {
+    // Create a new CLD for an unsafe anonymous class, that uses the same class loader
+    // as the unsafe_anonymous_host
+    guarantee(oopDesc::equals(unsafe_anonymous_host->class_loader(), class_loader()), "should be the same");
+    loader_data = ClassLoaderData::unsafe_anonymous_class_loader_data(class_loader);
   } else {
     loader_data = ClassLoaderData::class_loader_data(class_loader());
   }
@@ -1016,12 +1019,12 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                                       class_name,
                                                       loader_data,
                                                       protection_domain,
-                                                      host_klass,
+                                                      unsafe_anonymous_host,
                                                       cp_patches,
                                                       CHECK_NULL);
 
-  if (host_klass != NULL && k != NULL) {
-    // Anonymous classes must update ClassLoaderData holder (was host_klass loader)
+  if (unsafe_anonymous_host != NULL && k != NULL) {
+    // Unsafe anonymous classes must update ClassLoaderData holder (was unsafe_anonymous_host loader)
     // so that they can be unloaded when the mirror is no longer referenced.
     k->class_loader_data()->initialize_holder(Handle(THREAD, k->java_mirror()));
 
@@ -1056,8 +1059,8 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
       post_class_load_event(&class_load_start_event, k, loader_data);
     }
   }
-  assert(host_klass != NULL || NULL == cp_patches,
-         "cp_patches only found with host_klass");
+  assert(unsafe_anonymous_host != NULL || NULL == cp_patches,
+         "cp_patches only found with unsafe_anonymous_host");
 
   return k;
 }
@@ -1115,7 +1118,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          class_name,
                                          loader_data,
                                          protection_domain,
-                                         NULL, // host_klass
+                                         NULL, // unsafe_anonymous_host
                                          NULL, // cp_patches
                                          CHECK_NULL);
   }
@@ -1160,10 +1163,12 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
 #if INCLUDE_CDS
 void SystemDictionary::set_shared_dictionary(HashtableBucket<mtClass>* t, int length,
                                              int number_of_entries) {
+  assert(!DumpSharedSpaces, "Should not be called with DumpSharedSpaces");
   assert(length == _shared_dictionary_size * sizeof(HashtableBucket<mtClass>),
          "bad shared dictionary size.");
   _shared_dictionary = new Dictionary(ClassLoaderData::the_null_class_loader_data(),
-                                      _shared_dictionary_size, t, number_of_entries);
+                                      _shared_dictionary_size, t, number_of_entries,
+                                      false /* explicitly set _resizable to false */);
 }
 
 
@@ -1854,6 +1859,7 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer,
     // First, mark for unload all ClassLoaderData referencing a dead class loader.
     unloading_occurred = ClassLoaderDataGraph::do_unloading(do_cleaning);
     if (unloading_occurred) {
+      JFR_ONLY(Jfr::on_unloading_classes();)
       ClassLoaderDataGraph::clean_module_and_package_info();
     }
   }
@@ -1878,12 +1884,12 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer,
     // Oops referenced by the protection domain cache table may get unreachable independently
     // of the class loader (eg. cached protection domain oops). So we need to
     // explicitly unlink them here.
-    _pd_cache_table->unlink();
+    _pd_cache_table->trigger_cleanup();
   }
 
   if (do_cleaning) {
     GCTraceTime(Debug, gc, phases) t("ResolvedMethodTable", gc_timer);
-    ResolvedMethodTable::unlink();
+    ResolvedMethodTable::trigger_cleanup();
   }
 
   return unloading_occurred;
@@ -1913,6 +1919,7 @@ void SystemDictionary::well_known_klasses_do(MetaspaceClosure* it) {
 
 void SystemDictionary::methods_do(void f(Method*)) {
   // Walk methods in loaded classes
+  MutexLocker ml(ClassLoaderDataGraph_lock);
   ClassLoaderDataGraph::methods_do(f);
   // Walk method handle intrinsics
   invoke_method_table()->methods_do(f);
@@ -1930,6 +1937,7 @@ class RemoveClassesClosure : public CLDClosure {
 void SystemDictionary::remove_classes_in_error_state() {
   ClassLoaderData::the_null_class_loader_data()->dictionary()->remove_classes_in_error_state();
   RemoveClassesClosure rcc;
+  MutexLocker ml(ClassLoaderDataGraph_lock);
   ClassLoaderDataGraph::cld_do(&rcc);
 }
 
@@ -2020,6 +2028,22 @@ void SystemDictionary::resolve_preloaded_classes(TRAPS) {
 #if INCLUDE_CDS
   if (UseSharedSpaces) {
     resolve_wk_klasses_through(WK_KLASS_ENUM_NAME(Object_klass), scan, CHECK);
+
+    // It's unsafe to access the archived heap regions before they
+    // are fixed up, so we must do the fixup as early as possible
+    // before the archived java objects are accessed by functions
+    // such as java_lang_Class::restore_archived_mirror and
+    // ConstantPool::restore_unshareable_info (restores the archived
+    // resolved_references array object).
+    //
+    // MetaspaceShared::fixup_mapped_heap_regions() fills the empty
+    // spaces in the archived heap regions and may use
+    // SystemDictionary::Object_klass(), so we can do this only after
+    // Object_klass is resolved. See the above resolve_wk_klasses_through()
+    // call. No mirror objects are accessed/restored in the above call.
+    // Mirrors are restored after java.lang.Class is loaded.
+    MetaspaceShared::fixup_mapped_heap_regions();
+
     // Initialize the constant pool for the Object_class
     Object_klass()->constants()->restore_unshareable_info(CHECK);
     resolve_wk_klasses_through(WK_KLASS_ENUM_NAME(Class_klass), scan, CHECK);
@@ -3010,7 +3034,7 @@ class CombineDictionariesClosure : public CLDClosure {
       _master_dictionary(master_dictionary) {}
     void do_cld(ClassLoaderData* cld) {
       ResourceMark rm;
-      if (cld->is_anonymous()) {
+      if (cld->is_unsafe_anonymous()) {
         return;
       }
       if (cld->is_system_class_loader_data() || cld->is_platform_class_loader_data()) {

@@ -26,7 +26,6 @@
 #define SHARE_VM_OOPS_OOP_INLINE_HPP
 
 #include "gc/shared/collectedHeap.hpp"
-#include "memory/metaspaceShared.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
@@ -306,6 +305,7 @@ inline jshort oopDesc::short_field(int offset) const                { return Hea
 inline void   oopDesc::short_field_put(int offset, jshort value)    { HeapAccess<>::store_at(as_oop(), offset, value); }
 
 inline jint oopDesc::int_field(int offset) const                    { return HeapAccess<>::load_at(as_oop(), offset);  }
+inline jint oopDesc::int_field_raw(int offset) const                { return RawAccess<>::load_at(as_oop(), offset);   }
 inline void oopDesc::int_field_put(int offset, jint value)          { HeapAccess<>::store_at(as_oop(), offset, value); }
 
 inline jlong oopDesc::long_field(int offset) const                  { return HeapAccess<>::load_at(as_oop(), offset);  }
@@ -351,8 +351,8 @@ void oopDesc::forward_to(oop p) {
          "forwarding to something not aligned");
   assert(Universe::heap()->is_in_reserved(p),
          "forwarding to something not in heap");
-  assert(!MetaspaceShared::is_archive_object(oop(this)) &&
-         !MetaspaceShared::is_archive_object(p),
+  assert(!is_archive_object(oop(this)) &&
+         !is_archive_object(p),
          "forwarding archive object");
   markOop m = markOopDesc::encode_pointer_as_mark(p);
   assert(m->decode_pointer() == p, "encoding must be reversable");

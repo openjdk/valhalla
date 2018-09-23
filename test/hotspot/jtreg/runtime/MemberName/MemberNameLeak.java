@@ -34,7 +34,7 @@
 import java.lang.invoke.*;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
-
+import sun.hotspot.WhiteBox;
 import sun.hotspot.code.Compiler;
 
 public class MemberNameLeak {
@@ -44,6 +44,9 @@ public class MemberNameLeak {
 
       public static void main(String[] args) throws Throwable {
         Leak leak = new Leak();
+        WhiteBox wb = WhiteBox.getWhiteBox();
+        int removedCountOrig =  wb.resolvedMethodRemovedCount();
+        int removedCount;
 
         for (int i = 0; i < 10; i++) {
           MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -53,14 +56,28 @@ public class MemberNameLeak {
           mh.invokeExact(leak);
         }
 
-        System.gc();  // make mh unused
+        // Wait until ServiceThread cleans ResolvedMethod table
+        int cnt = 0;
+        while (true) {
+          if (cnt++ % 30 == 0) {
+            System.gc();  // make mh unused
+          }
+          removedCount = wb.resolvedMethodRemovedCount();
+          if (removedCountOrig != removedCount) {
+            break;
+          }
+          Thread.sleep(100);
+        }
       }
     }
 
     public static void test(String gc) throws Throwable {
-       // Run this Leak class with logging
+        // Run this Leak class with logging
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                                       "-Xlog:membername+table=trace",
+                                      "-XX:+UnlockDiagnosticVMOptions",
+                                      "-XX:+WhiteBoxAPI",
+                                      "-Xbootclasspath/a:.",
                                       gc, Leak.class.getName());
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("ResolvedMethod entry added for MemberNameLeak$Leak.callMe()V");

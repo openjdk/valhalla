@@ -190,10 +190,18 @@ public:
 
   virtual void clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const;
 
+  virtual Node* resolve(GraphKit* kit, Node* n, DecoratorSet decorators) const { return n; }
+
+  virtual Node* obj_allocate(PhaseMacroExpand* macro, Node* ctrl, Node* mem, Node* toobig_false, Node* size_in_bytes,
+                             Node*& i_o, Node*& needgc_ctrl,
+                             Node*& fast_oop_ctrl, Node*& fast_oop_rawmem,
+                             intx prefetch_lines) const;
+
   // These are general helper methods used by C2
   virtual bool array_copy_requires_gc_barriers(BasicType type) const { return false; }
 
   // Support for GC barriers emitted during parsing
+  virtual bool has_load_barriers() const { return false; }
   virtual bool is_gc_barrier_node(Node* node) const { return false; }
   virtual Node* step_over_gc_barrier(Node* c) const { return c; }
 

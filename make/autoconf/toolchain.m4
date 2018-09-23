@@ -232,6 +232,7 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETERMINE_TOOLCHAIN_TYPE],
       XCODE_VERSION_OUTPUT=`"$XCODEBUILD" -version 2>&1 | $HEAD -n 1`
       $ECHO "$XCODE_VERSION_OUTPUT" | $GREP "Xcode " > /dev/null
       if test $? -ne 0; then
+        AC_MSG_NOTICE([xcodebuild output: $XCODE_VERSION_OUTPUT])
         AC_MSG_ERROR([Failed to determine Xcode version.])
       fi
       XCODE_MAJOR_VERSION=`$ECHO $XCODE_VERSION_OUTPUT | \
@@ -995,11 +996,6 @@ AC_DEFUN_ONCE([TOOLCHAIN_SETUP_BUILD_COMPILERS],
 # Do some additional checks on the detected tools.
 AC_DEFUN_ONCE([TOOLCHAIN_MISC_CHECKS],
 [
-  # The package path is used only on macosx?
-  # FIXME: clean this up, and/or move it elsewhere.
-  PACKAGE_PATH=/opt/local
-  AC_SUBST(PACKAGE_PATH)
-
   # Check for extra potential brokenness.
   if test  "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     # On Windows, double-check that we got the right compiler.
@@ -1022,12 +1018,16 @@ AC_DEFUN_ONCE([TOOLCHAIN_MISC_CHECKS],
     # This is later checked when setting flags.
   fi
 
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    # Check if linker has -z noexecstack.
+    HAS_NOEXECSTACK=`$CC -Wl,--help 2>/dev/null | $GREP 'z noexecstack'`
+    # This is later checked when setting flags.
+  fi
+
   # Setup hotspot lecagy names for toolchains
   HOTSPOT_TOOLCHAIN_TYPE=$TOOLCHAIN_TYPE
   if test "x$TOOLCHAIN_TYPE" = xclang; then
     HOTSPOT_TOOLCHAIN_TYPE=gcc
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    HOTSPOT_TOOLCHAIN_TYPE=sparcWorks
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     HOTSPOT_TOOLCHAIN_TYPE=visCPP
   fi

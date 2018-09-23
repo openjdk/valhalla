@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,11 @@
  * @bug 4531526
  * @summary Test that more than one debuggee cannot bind to same port
  *          at the same time.
- * @library /lib/testlibrary
+ * @library /test/lib
  *
  * @modules java.management
  *          jdk.jdi
- * @build jdk.testlibrary.* VMConnection ExclusiveBind HelloWorld
+ * @build VMConnection ExclusiveBind HelloWorld
  * @run driver ExclusiveBind
  */
 import java.net.ServerSocket;
@@ -44,8 +44,8 @@ import java.util.List;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 public class ExclusiveBind {
     /*

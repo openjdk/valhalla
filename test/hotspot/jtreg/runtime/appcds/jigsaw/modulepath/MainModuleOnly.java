@@ -25,7 +25,7 @@
 /**
  * @test
  * @requires vm.cds
- * @library /test/jdk/lib/testlibrary /test/lib /test/hotspot/jtreg/runtime/appcds
+ * @library /test/lib /test/hotspot/jtreg/runtime/appcds
  * @modules jdk.compiler
  *          jdk.jartool/sun.tools.jar
  *          jdk.jlink
@@ -41,7 +41,6 @@ import java.util.Arrays;
 
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.Platform;
-import jdk.testlibrary.ProcessTools;
 
 public class MainModuleOnly {
 
@@ -90,7 +89,6 @@ public class MainModuleOnly {
         // the class in the modular jar in the -cp won't be archived.
         OutputAnalyzer output = TestCommon.createArchive(
                                         destJar.toString(), appClasses,
-                                        "-Xlog:class+load=trace",
                                         "--module-path", moduleDir.toString(),
                                         "-m", TEST_MODULE1);
         TestCommon.checkDump(output);
@@ -169,8 +167,7 @@ public class MainModuleOnly {
         // run with the archive and the jar with modified timestamp.
         // It should fail due to timestamp of the jar doesn't match the one
         // used during dump time.
-        TestCommon.run("-Xlog:class+load=trace",
-                       "-cp", destJar.toString(),
+        TestCommon.run("-cp", destJar.toString(),
                        "--module-path", moduleDir.toString(),
                        "-m", TEST_MODULE1)
             .assertAbnormalExit(

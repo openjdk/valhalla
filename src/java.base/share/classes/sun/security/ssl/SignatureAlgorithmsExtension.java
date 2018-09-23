@@ -362,16 +362,16 @@ final class SignatureAlgorithmsExtension {
                 // certificates and server key exchange), it MUST send the
                 // signature_algorithms extension, listing the algorithms it
                 // is willing to accept.
-                List<SignatureScheme> shemes = Arrays.asList(
+                List<SignatureScheme> schemes = Arrays.asList(
                         SignatureScheme.RSA_PKCS1_SHA1,
                         SignatureScheme.DSA_SHA1,
                         SignatureScheme.ECDSA_SHA1
                 );
 
-                shc.peerRequestedSignatureSchemes = shemes;
+                shc.peerRequestedSignatureSchemes = schemes;
                 if (shc.peerRequestedCertSignSchemes == null ||
-                    shc.peerRequestedCertSignSchemes.isEmpty()) {
-                        shc.peerRequestedCertSignSchemes = shemes;
+                        shc.peerRequestedCertSignSchemes.isEmpty()) {
+                    shc.peerRequestedCertSignSchemes = schemes;
                 }
 
                 // Use the default peer signature algorithms.
@@ -525,7 +525,7 @@ final class SignatureAlgorithmsExtension {
             // signatures appearing in certificates.
             SignatureSchemesSpec certSpec =
                     (SignatureSchemesSpec)chc.handshakeExtensions.get(
-                            SSLExtension.CH_SIGNATURE_ALGORITHMS_CERT);
+                            SSLExtension.CR_SIGNATURE_ALGORITHMS_CERT);
             if (certSpec == null) {
                 chc.peerRequestedCertSignSchemes = sss;
                 chc.handshakeSession.setPeerSupportedSignatureAlgorithms(sss);

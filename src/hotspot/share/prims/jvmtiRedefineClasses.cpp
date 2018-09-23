@@ -136,7 +136,7 @@ bool VM_RedefineClasses::doit_prologue() {
     }
 
     oop mirror = JNIHandles::resolve_non_null(_class_defs[i].klass);
-    // classes for primitives and arrays and vm anonymous classes cannot be redefined
+    // classes for primitives and arrays and vm unsafe anonymous classes cannot be redefined
     // check here so following code can assume these classes are InstanceKlass
     if (!is_modifiable_class(mirror)) {
       _res = JVMTI_ERROR_UNMODIFIABLE_CLASS;
@@ -278,8 +278,8 @@ bool VM_RedefineClasses::is_modifiable_class(oop klass_mirror) {
     return false;
   }
 
-  // Cannot redefine or retransform an anonymous class.
-  if (InstanceKlass::cast(k)->is_anonymous()) {
+  // Cannot redefine or retransform an unsafe anonymous class.
+  if (InstanceKlass::cast(k)->is_unsafe_anonymous()) {
     return false;
   }
   return true;
@@ -699,7 +699,6 @@ static jvmtiError check_nest_attributes(InstanceKlass* the_class,
   // Check whether the class NestHost attribute has been changed.
   Thread* thread = Thread::current();
   ResourceMark rm(thread);
-  JvmtiThreadState *state = JvmtiThreadState::state_for((JavaThread*)thread);
   u2 the_nest_host_idx = the_class->nest_host_index();
   u2 scr_nest_host_idx = scratch_class->nest_host_index();
 
@@ -1232,8 +1231,7 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
       // verifier. Please, refer to jvmtiThreadState.hpp for the detailed
       // description.
       RedefineVerifyMark rvm(the_class, scratch_class, state);
-      Verifier::verify(
-        scratch_class, Verifier::ThrowException, true, THREAD);
+      Verifier::verify(scratch_class, true, THREAD);
     }
 
     if (HAS_PENDING_EXCEPTION) {
@@ -1264,7 +1262,7 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
       // verify what we have done during constant pool merging
       {
         RedefineVerifyMark rvm(the_class, scratch_class, state);
-        Verifier::verify(scratch_class, Verifier::ThrowException, true, THREAD);
+        Verifier::verify(scratch_class, true, THREAD);
       }
 
       if (HAS_PENDING_EXCEPTION) {
@@ -2650,7 +2648,7 @@ bool VM_RedefineClasses::skip_type_annotation_target(
 
     case 0x10:
     // kind: type in extends clause of class or interface declaration
-    //       (including the direct superclass of an anonymous class declaration),
+    //       (including the direct superclass of an unsafe anonymous class declaration),
     //       or in implements clause of interface declaration
     // location: ClassFile
 

@@ -50,7 +50,7 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "gc/shared/vmGCOperations.hpp"
-#include "gc/shared/weakProcessor.hpp"
+#include "gc/shared/weakProcessor.inline.hpp"
 #include "include/jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
@@ -714,28 +714,6 @@ void G1ConcurrentMark::cleanup_for_next_mark() {
 void G1ConcurrentMark::clear_prev_bitmap(WorkGang* workers) {
   assert_at_safepoint_on_vm_thread();
   clear_bitmap(_prev_mark_bitmap, workers, false);
-}
-
-class CheckBitmapClearHRClosure : public HeapRegionClosure {
-  G1CMBitMap* _bitmap;
- public:
-  CheckBitmapClearHRClosure(G1CMBitMap* bitmap) : _bitmap(bitmap) {
-  }
-
-  virtual bool do_heap_region(HeapRegion* r) {
-    // This closure can be called concurrently to the mutator, so we must make sure
-    // that the result of the getNextMarkedWordAddress() call is compared to the
-    // value passed to it as limit to detect any found bits.
-    // end never changes in G1.
-    HeapWord* end = r->end();
-    return _bitmap->get_next_marked_addr(r->bottom(), end) != end;
-  }
-};
-
-bool G1ConcurrentMark::next_mark_bitmap_is_clear() {
-  CheckBitmapClearHRClosure cl(_next_mark_bitmap);
-  _g1h->heap_region_iterate(&cl);
-  return cl.is_complete();
 }
 
 class NoteStartOfMarkHRClosure : public HeapRegionClosure {
@@ -1669,7 +1647,7 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
 
   {
     GCTraceTime(Debug, gc, phases) debug("Weak Processing", _gc_timer_cm);
-    WeakProcessor::weak_oops_do(&g1_is_alive, &do_nothing_cl);
+    WeakProcessor::weak_oops_do(_g1h->workers(), &g1_is_alive, &do_nothing_cl, 1);
   }
 
   // Unload Klasses, String, Code Cache, etc.

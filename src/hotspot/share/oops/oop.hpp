@@ -163,6 +163,7 @@ class oopDesc {
   void obj_field_put_volatile(int offset, oop value);
 
   Metadata* metadata_field(int offset) const;
+  Metadata* metadata_field_raw(int offset) const;
   void metadata_field_put(int offset, Metadata* value);
 
   Metadata* metadata_field_acquire(int offset) const;
@@ -178,6 +179,7 @@ class oopDesc {
   void bool_field_put(int offset, jboolean contents);
 
   jint int_field(int offset) const;
+  jint int_field_raw(int offset) const;
   void int_field_put(int offset, jint contents);
 
   jshort short_field(int offset) const;
@@ -254,6 +256,7 @@ class oopDesc {
   static bool is_oop_or_null(oop obj, bool ignore_mark_word = false);
 #ifndef PRODUCT
   inline bool is_unlocked_oop() const;
+  static bool is_archive_object(oop p) NOT_CDS_JAVA_HEAP_RETURN_(false);
 #endif
 
   // garbage collection

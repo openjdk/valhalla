@@ -37,7 +37,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/oopFactory.hpp"
-#include "memory/metaspaceShared.hpp"
+#include "memory/metaspaceShared.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/fieldStreams.hpp"
@@ -50,7 +50,7 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/resolvedMethodTable.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -85,7 +85,6 @@ InjectedField JavaClasses::_injected_fields[] = {
 int JavaClasses::compute_injected_offset(InjectedFieldID id) {
   return _injected_fields[id].compute_offset();
 }
-
 
 InjectedField* JavaClasses::get_injected(Symbol* class_name, int* field_count) {
   *field_count = 0;
@@ -156,18 +155,6 @@ static void compute_offset(int& dest_offset, InstanceKlass* ik,
   compute_offset(dest_offset, ik, name, signature_symbol, is_static);
 }
 
-// Same as above but for "optional" offsets that might not be present in certain JDK versions
-// Old versions should be cleaned out since Hotspot only supports the current JDK, and this
-// function should be removed.
-static void
-compute_optional_offset(int& dest_offset,
-                        InstanceKlass* ik, Symbol* name_symbol, Symbol* signature_symbol) {
-  fieldDescriptor fd;
-  if (ik->find_local_field(name_symbol, signature_symbol, &fd)) {
-    dest_offset = fd.offset();
-  }
-}
-
 int java_lang_String::value_offset  = 0;
 int java_lang_String::hash_offset   = 0;
 int java_lang_String::coder_offset  = 0;
@@ -181,16 +168,10 @@ bool java_lang_String::is_instance(oop obj) {
 #if INCLUDE_CDS
 #define FIELD_SERIALIZE_OFFSET(offset, klass, name, signature, is_static) \
   f->do_u4((u4*)&offset)
-
-#define FIELD_SERIALIZE_OFFSET_OPTIONAL(offset, klass, name, signature) \
-  f->do_u4((u4*)&offset)
 #endif
 
 #define FIELD_COMPUTE_OFFSET(offset, klass, name, signature, is_static) \
   compute_offset(offset, klass, name, vmSymbols::signature(), is_static)
-
-#define FIELD_COMPUTE_OFFSET_OPTIONAL(offset, klass, name, signature) \
-  compute_optional_offset(offset, klass, name, vmSymbols::signature())
 
 #define STRING_FIELDS_DO(macro) \
   macro(value_offset, k, vmSymbols::value_name(), byte_array_signature, false); \
@@ -260,7 +241,7 @@ Handle java_lang_String::basic_create(int length, bool is_latin1, TRAPS) {
   return h_obj;
 }
 
-Handle java_lang_String::create_from_unicode(jchar* unicode, int length, TRAPS) {
+Handle java_lang_String::create_from_unicode(const jchar* unicode, int length, TRAPS) {
   bool is_latin1 = CompactStrings && UNICODE::is_latin1(unicode, length);
   Handle h_obj = basic_create(length, is_latin1, CHECK_NH);
   typeArrayOop buffer = value(h_obj());
@@ -290,7 +271,7 @@ Handle java_lang_String::create_from_unicode(jchar* unicode, int length, TRAPS) 
   return h_obj;
 }
 
-oop java_lang_String::create_oop_from_unicode(jchar* unicode, int length, TRAPS) {
+oop java_lang_String::create_oop_from_unicode(const jchar* unicode, int length, TRAPS) {
   Handle h_obj = create_from_unicode(unicode, length, CHECK_0);
   return h_obj();
 }
@@ -662,7 +643,7 @@ char* java_lang_String::as_utf8_string(oop java_string, int start, int len, char
   }
 }
 
-bool java_lang_String::equals(oop java_string, jchar* chars, int len) {
+bool java_lang_String::equals(oop java_string, const jchar* chars, int len) {
   assert(java_string->klass() == SystemDictionary::String_klass(),
          "must be java_string");
   typeArrayOop value = java_lang_String::value_no_keepalive(java_string);
@@ -1213,7 +1194,15 @@ oop java_lang_Class::process_archived_mirror(Klass* k, oop mirror,
 bool java_lang_Class::restore_archived_mirror(Klass *k,
                                               Handle class_loader, Handle module,
                                               Handle protection_domain, TRAPS) {
-  oop m = MetaspaceShared::materialize_archived_object(k->archived_java_mirror_raw());
+  // Postpone restoring archived mirror until java.lang.Class is loaded. Please
+  // see more details in SystemDictionary::resolve_preloaded_classes().
+  if (!SystemDictionary::Class_klass_loaded()) {
+    assert(fixup_mirror_list() != NULL, "fixup_mirror_list not initialized");
+    fixup_mirror_list()->push(k);
+    return true;
+  }
+
+  oop m = MetaspaceShared::materialize_archived_object(k->archived_java_mirror_raw_narrow());
 
   if (m == NULL) {
     return false;
@@ -1224,10 +1213,6 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
   // mirror is archived, restore
   assert(MetaspaceShared::is_archive_object(m), "must be archived mirror object");
   Handle mirror(THREAD, m);
-
-  // The java.lang.Class field offsets were archived and reloaded from archive.
-  // No need to put classes on the fixup_mirror_list before java.lang.Class
-  // is loaded.
 
   if (!k->is_array_klass()) {
     // - local static final fields with initial values were initialized at dump time
@@ -1271,6 +1256,13 @@ int  java_lang_Class::oop_size(oop java_class) {
   return size;
 }
 
+int  java_lang_Class::oop_size_raw(oop java_class) {
+  assert(_oop_size_offset != 0, "must be set");
+  int size = java_class->int_field_raw(_oop_size_offset);
+  assert(size > 0, "Oop size must be greater than zero, not %d", size);
+  return size;
+}
+
 void java_lang_Class::set_oop_size(HeapWord* java_class, int size) {
   assert(_oop_size_offset != 0, "must be set");
   assert(size > 0, "Oop size must be greater than zero, not %d", size);
@@ -1281,6 +1273,12 @@ int  java_lang_Class::static_oop_field_count(oop java_class) {
   assert(_static_oop_field_count_offset != 0, "must be set");
   return java_class->int_field(_static_oop_field_count_offset);
 }
+
+int  java_lang_Class::static_oop_field_count_raw(oop java_class) {
+  assert(_static_oop_field_count_offset != 0, "must be set");
+  return java_class->int_field_raw(_static_oop_field_count_offset);
+}
+
 void java_lang_Class::set_static_oop_field_count(oop java_class, int size) {
   assert(_static_oop_field_count_offset != 0, "must be set");
   java_class->int_field_put(_static_oop_field_count_offset, size);
@@ -1366,6 +1364,14 @@ Klass* java_lang_Class::as_Klass(oop java_class) {
   //%note memory_2
   assert(java_lang_Class::is_instance(java_class), "must be a Class object");
   Klass* k = ((Klass*)java_class->metadata_field(_klass_offset));
+  assert(k == NULL || k->is_klass(), "type check");
+  return k;
+}
+
+Klass* java_lang_Class::as_Klass_raw(oop java_class) {
+  //%note memory_2
+  assert(java_lang_Class::is_instance(java_class), "must be a Class object");
+  Klass* k = ((Klass*)java_class->metadata_field_raw(_klass_offset));
   assert(k == NULL || k->is_klass(), "type check");
   return k;
 }
@@ -2563,7 +2569,7 @@ void java_lang_StackTraceElement::fill_in(Handle element,
   // Fill in class name
   ResourceMark rm(THREAD);
   const char* str = holder->external_name();
-  oop classname = StringTable::intern((char*) str, CHECK);
+  oop classname = StringTable::intern(str, CHECK);
   java_lang_StackTraceElement::set_declaringClass(element(), classname);
   java_lang_StackTraceElement::set_declaringClassObject(element(), holder->java_mirror());
 
@@ -2710,20 +2716,13 @@ void java_lang_reflect_AccessibleObject::set_override(oop reflect, jboolean valu
   macro(exceptionTypes_offset, k, vmSymbols::exceptionTypes_name(), class_array_signature, false); \
   macro(slot_offset,           k, vmSymbols::slot_name(),           int_signature,         false); \
   macro(modifiers_offset,      k, vmSymbols::modifiers_name(),      int_signature,         false); \
-  macro##_OPTIONAL(signature_offset,             k, vmSymbols::signature_name(),             string_signature); \
-  macro##_OPTIONAL(annotations_offset,           k, vmSymbols::annotations_name(),           byte_array_signature); \
-  macro##_OPTIONAL(parameter_annotations_offset, k, vmSymbols::parameter_annotations_name(), byte_array_signature); \
-  macro##_OPTIONAL(annotation_default_offset,    k, vmSymbols::annotation_default_name(),    byte_array_signature); \
-  macro##_OPTIONAL(type_annotations_offset,      k, vmSymbols::type_annotations_name(),      byte_array_signature)
+  macro(signature_offset,             k, vmSymbols::signature_name(),             string_signature,     false); \
+  macro(annotations_offset,           k, vmSymbols::annotations_name(),           byte_array_signature, false); \
+  macro(parameter_annotations_offset, k, vmSymbols::parameter_annotations_name(), byte_array_signature, false); \
+  macro(annotation_default_offset,    k, vmSymbols::annotation_default_name(),    byte_array_signature, false);
 
 void java_lang_reflect_Method::compute_offsets() {
   InstanceKlass* k = SystemDictionary::reflect_Method_klass();
-  // The generic signature and annotations fields are only present in 1.5
-  signature_offset = -1;
-  annotations_offset = -1;
-  parameter_annotations_offset = -1;
-  annotation_default_offset = -1;
-  type_annotations_offset = -1;
   METHOD_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
@@ -2762,11 +2761,6 @@ void java_lang_reflect_Method::set_slot(oop reflect, int value) {
   reflect->int_field_put(slot_offset, value);
 }
 
-oop java_lang_reflect_Method::name(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  return method->obj_field(name_offset);
-}
-
 void java_lang_reflect_Method::set_name(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
   method->obj_field_put(name_offset, value);
@@ -2792,19 +2786,9 @@ void java_lang_reflect_Method::set_parameter_types(oop method, oop value) {
   method->obj_field_put(parameterTypes_offset, value);
 }
 
-oop java_lang_reflect_Method::exception_types(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  return method->obj_field(exceptionTypes_offset);
-}
-
 void java_lang_reflect_Method::set_exception_types(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
   method->obj_field_put(exceptionTypes_offset, value);
-}
-
-int java_lang_reflect_Method::modifiers(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  return method->int_field(modifiers_offset);
 }
 
 void java_lang_reflect_Method::set_modifiers(oop method, int value) {
@@ -2812,84 +2796,24 @@ void java_lang_reflect_Method::set_modifiers(oop method, int value) {
   method->int_field_put(modifiers_offset, value);
 }
 
-bool java_lang_reflect_Method::has_signature_field() {
-  return (signature_offset >= 0);
-}
-
-oop java_lang_reflect_Method::signature(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_signature_field(), "signature field must be present");
-  return method->obj_field(signature_offset);
-}
-
 void java_lang_reflect_Method::set_signature(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_signature_field(), "signature field must be present");
   method->obj_field_put(signature_offset, value);
-}
-
-bool java_lang_reflect_Method::has_annotations_field() {
-  return (annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Method::annotations(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotations_field(), "annotations field must be present");
-  return method->obj_field(annotations_offset);
 }
 
 void java_lang_reflect_Method::set_annotations(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotations_field(), "annotations field must be present");
   method->obj_field_put(annotations_offset, value);
-}
-
-bool java_lang_reflect_Method::has_parameter_annotations_field() {
-  return (parameter_annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Method::parameter_annotations(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_parameter_annotations_field(), "parameter annotations field must be present");
-  return method->obj_field(parameter_annotations_offset);
 }
 
 void java_lang_reflect_Method::set_parameter_annotations(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_parameter_annotations_field(), "parameter annotations field must be present");
   method->obj_field_put(parameter_annotations_offset, value);
-}
-
-bool java_lang_reflect_Method::has_annotation_default_field() {
-  return (annotation_default_offset >= 0);
-}
-
-oop java_lang_reflect_Method::annotation_default(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotation_default_field(), "annotation default field must be present");
-  return method->obj_field(annotation_default_offset);
 }
 
 void java_lang_reflect_Method::set_annotation_default(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotation_default_field(), "annotation default field must be present");
   method->obj_field_put(annotation_default_offset, value);
-}
-
-bool java_lang_reflect_Method::has_type_annotations_field() {
-  return (type_annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Method::type_annotations(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_type_annotations_field(), "type_annotations field must be present");
-  return method->obj_field(type_annotations_offset);
-}
-
-void java_lang_reflect_Method::set_type_annotations(oop method, oop value) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_type_annotations_field(), "type_annotations field must be present");
-  method->obj_field_put(type_annotations_offset, value);
 }
 
 #define CONSTRUCTOR_FIELDS_DO(macro) \
@@ -2898,19 +2822,12 @@ void java_lang_reflect_Method::set_type_annotations(oop method, oop value) {
   macro(exceptionTypes_offset, k, vmSymbols::exceptionTypes_name(), class_array_signature, false); \
   macro(slot_offset,           k, vmSymbols::slot_name(),           int_signature,         false); \
   macro(modifiers_offset,      k, vmSymbols::modifiers_name(),      int_signature,         false); \
-  macro##_OPTIONAL(signature_offset,             k, vmSymbols::signature_name(),             string_signature); \
-  macro##_OPTIONAL(annotations_offset,           k, vmSymbols::annotations_name(),           byte_array_signature); \
-  macro##_OPTIONAL(parameter_annotations_offset, k, vmSymbols::parameter_annotations_name(), byte_array_signature); \
-  macro##_OPTIONAL(type_annotations_offset,      k, vmSymbols::type_annotations_name(),      byte_array_signature)
-
+  macro(signature_offset,             k, vmSymbols::signature_name(),             string_signature,     false); \
+  macro(annotations_offset,           k, vmSymbols::annotations_name(),           byte_array_signature, false); \
+  macro(parameter_annotations_offset, k, vmSymbols::parameter_annotations_name(), byte_array_signature, false);
 
 void java_lang_reflect_Constructor::compute_offsets() {
   InstanceKlass* k = SystemDictionary::reflect_Constructor_klass();
-  // The generic signature and annotations fields are only present in 1.5
-  signature_offset = -1;
-  annotations_offset = -1;
-  parameter_annotations_offset = -1;
-  type_annotations_offset = -1;
   CONSTRUCTOR_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
@@ -2950,11 +2867,6 @@ void java_lang_reflect_Constructor::set_parameter_types(oop constructor, oop val
   constructor->obj_field_put(parameterTypes_offset, value);
 }
 
-oop java_lang_reflect_Constructor::exception_types(oop constructor) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  return constructor->obj_field(exceptionTypes_offset);
-}
-
 void java_lang_reflect_Constructor::set_exception_types(oop constructor, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
   constructor->obj_field_put(exceptionTypes_offset, value);
@@ -2970,78 +2882,24 @@ void java_lang_reflect_Constructor::set_slot(oop reflect, int value) {
   reflect->int_field_put(slot_offset, value);
 }
 
-int java_lang_reflect_Constructor::modifiers(oop constructor) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  return constructor->int_field(modifiers_offset);
-}
-
 void java_lang_reflect_Constructor::set_modifiers(oop constructor, int value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
   constructor->int_field_put(modifiers_offset, value);
 }
 
-bool java_lang_reflect_Constructor::has_signature_field() {
-  return (signature_offset >= 0);
-}
-
-oop java_lang_reflect_Constructor::signature(oop constructor) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_signature_field(), "signature field must be present");
-  return constructor->obj_field(signature_offset);
-}
-
 void java_lang_reflect_Constructor::set_signature(oop constructor, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_signature_field(), "signature field must be present");
   constructor->obj_field_put(signature_offset, value);
-}
-
-bool java_lang_reflect_Constructor::has_annotations_field() {
-  return (annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Constructor::annotations(oop constructor) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotations_field(), "annotations field must be present");
-  return constructor->obj_field(annotations_offset);
 }
 
 void java_lang_reflect_Constructor::set_annotations(oop constructor, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotations_field(), "annotations field must be present");
   constructor->obj_field_put(annotations_offset, value);
-}
-
-bool java_lang_reflect_Constructor::has_parameter_annotations_field() {
-  return (parameter_annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Constructor::parameter_annotations(oop method) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_parameter_annotations_field(), "parameter annotations field must be present");
-  return method->obj_field(parameter_annotations_offset);
 }
 
 void java_lang_reflect_Constructor::set_parameter_annotations(oop method, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_parameter_annotations_field(), "parameter annotations field must be present");
   method->obj_field_put(parameter_annotations_offset, value);
-}
-
-bool java_lang_reflect_Constructor::has_type_annotations_field() {
-  return (type_annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Constructor::type_annotations(oop constructor) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_type_annotations_field(), "type_annotations field must be present");
-  return constructor->obj_field(type_annotations_offset);
-}
-
-void java_lang_reflect_Constructor::set_type_annotations(oop constructor, oop value) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_type_annotations_field(), "type_annotations field must be present");
-  constructor->obj_field_put(type_annotations_offset, value);
 }
 
 #define FIELD_FIELDS_DO(macro) \
@@ -3050,16 +2908,11 @@ void java_lang_reflect_Constructor::set_type_annotations(oop constructor, oop va
   macro(type_offset,      k, vmSymbols::type_name(),      class_signature,  false); \
   macro(slot_offset,      k, vmSymbols::slot_name(),      int_signature,    false); \
   macro(modifiers_offset, k, vmSymbols::modifiers_name(), int_signature,    false); \
-  macro##_OPTIONAL(signature_offset,        k, vmSymbols::signature_name(), string_signature); \
-  macro##_OPTIONAL(annotations_offset,      k, vmSymbols::annotations_name(),  byte_array_signature); \
-  macro##_OPTIONAL(type_annotations_offset, k, vmSymbols::type_annotations_name(),  byte_array_signature)
+  macro(signature_offset,        k, vmSymbols::signature_name(),        string_signature,     false); \
+  macro(annotations_offset,      k, vmSymbols::annotations_name(),      byte_array_signature, false);
 
 void java_lang_reflect_Field::compute_offsets() {
   InstanceKlass* k = SystemDictionary::reflect_Field_klass();
-  // The generic signature and annotations fields are only present in 1.5
-  signature_offset = -1;
-  annotations_offset = -1;
-  type_annotations_offset = -1;
   FIELD_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
@@ -3129,52 +2982,14 @@ void java_lang_reflect_Field::set_modifiers(oop field, int value) {
   field->int_field_put(modifiers_offset, value);
 }
 
-bool java_lang_reflect_Field::has_signature_field() {
-  return (signature_offset >= 0);
-}
-
-oop java_lang_reflect_Field::signature(oop field) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_signature_field(), "signature field must be present");
-  return field->obj_field(signature_offset);
-}
-
 void java_lang_reflect_Field::set_signature(oop field, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_signature_field(), "signature field must be present");
   field->obj_field_put(signature_offset, value);
-}
-
-bool java_lang_reflect_Field::has_annotations_field() {
-  return (annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Field::annotations(oop field) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotations_field(), "annotations field must be present");
-  return field->obj_field(annotations_offset);
 }
 
 void java_lang_reflect_Field::set_annotations(oop field, oop value) {
   assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_annotations_field(), "annotations field must be present");
   field->obj_field_put(annotations_offset, value);
-}
-
-bool java_lang_reflect_Field::has_type_annotations_field() {
-  return (type_annotations_offset >= 0);
-}
-
-oop java_lang_reflect_Field::type_annotations(oop field) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_type_annotations_field(), "type_annotations field must be present");
-  return field->obj_field(type_annotations_offset);
-}
-
-void java_lang_reflect_Field::set_type_annotations(oop field, oop value) {
-  assert(Universe::is_fully_initialized(), "Need to find another solution to the reflection problem");
-  assert(has_type_annotations_field(), "type_annotations field must be present");
-  field->obj_field_put(type_annotations_offset, value);
 }
 
 #define CONSTANTPOOL_FIELDS_DO(macro) \
@@ -3786,7 +3601,7 @@ oop java_lang_invoke_ResolvedMethodName::find_resolved_method(const methodHandle
     }
     oop new_resolved_method = k->allocate_instance(CHECK_NULL);
     new_resolved_method->address_field_put(_vmtarget_offset, (address)m());
-    // Add a reference to the loader (actually mirror because anonymous classes will not have
+    // Add a reference to the loader (actually mirror because unsafe anonymous classes will not have
     // distinct loaders) to ensure the metadata is kept alive.
     // This mirror may be different than the one in clazz field.
     new_resolved_method->obj_field_put(_vmholder_offset, m->method_holder()->java_mirror());
@@ -4002,14 +3817,19 @@ int  java_lang_ClassLoader::name_offset = -1;
 int  java_lang_ClassLoader::nameAndId_offset = -1;
 int  java_lang_ClassLoader::unnamedModule_offset = -1;
 
-ClassLoaderData* java_lang_ClassLoader::loader_data(oop loader) {
+ClassLoaderData* java_lang_ClassLoader::loader_data_acquire(oop loader) {
   assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
-  return HeapAccess<>::load_at(loader, _loader_data_offset);
+  return HeapAccess<MO_ACQUIRE>::load_at(loader, _loader_data_offset);
 }
 
-ClassLoaderData* java_lang_ClassLoader::cmpxchg_loader_data(ClassLoaderData* new_data, oop loader, ClassLoaderData* expected_data) {
+ClassLoaderData* java_lang_ClassLoader::loader_data_raw(oop loader) {
   assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
-  return HeapAccess<>::atomic_cmpxchg_at(new_data, loader, _loader_data_offset, expected_data);
+  return RawAccess<>::load_at(loader, _loader_data_offset);
+}
+
+void java_lang_ClassLoader::release_set_loader_data(oop loader, ClassLoaderData* new_data) {
+  assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
+  HeapAccess<MO_RELEASE>::store_at(loader, _loader_data_offset, new_data);
 }
 
 #define CLASSLOADER_FIELDS_DO(macro) \
@@ -4189,7 +4009,6 @@ int java_lang_reflect_Method::signature_offset;
 int java_lang_reflect_Method::annotations_offset;
 int java_lang_reflect_Method::parameter_annotations_offset;
 int java_lang_reflect_Method::annotation_default_offset;
-int java_lang_reflect_Method::type_annotations_offset;
 int java_lang_reflect_Constructor::clazz_offset;
 int java_lang_reflect_Constructor::parameterTypes_offset;
 int java_lang_reflect_Constructor::exceptionTypes_offset;
@@ -4198,7 +4017,6 @@ int java_lang_reflect_Constructor::modifiers_offset;
 int java_lang_reflect_Constructor::signature_offset;
 int java_lang_reflect_Constructor::annotations_offset;
 int java_lang_reflect_Constructor::parameter_annotations_offset;
-int java_lang_reflect_Constructor::type_annotations_offset;
 int java_lang_reflect_Field::clazz_offset;
 int java_lang_reflect_Field::name_offset;
 int java_lang_reflect_Field::type_offset;
@@ -4206,7 +4024,6 @@ int java_lang_reflect_Field::slot_offset;
 int java_lang_reflect_Field::modifiers_offset;
 int java_lang_reflect_Field::signature_offset;
 int java_lang_reflect_Field::annotations_offset;
-int java_lang_reflect_Field::type_annotations_offset;
 int java_lang_reflect_Parameter::name_offset;
 int java_lang_reflect_Parameter::modifiers_offset;
 int java_lang_reflect_Parameter::index_offset;

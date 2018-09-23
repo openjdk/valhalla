@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,19 +33,19 @@ import javax.management.remote.JMXServiceURL;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 
-import jdk.testlibrary.ProcessThread;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.thread.ProcessThread;
+import jdk.test.lib.Utils;
 
 /*
  * @test
  * @summary Test for VirtualMachine.startManagementAgent and VirtualMachine.startLocalManagementAgent
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.management
  *          jdk.attach
  *          jdk.jartool/sun.tools.jar
  *
- * @run build Application SimpleProvider jdk.testlibrary.*
+ * @run build Application SimpleProvider
  * @run main/timeout=300 StartManagementAgent
  */
 

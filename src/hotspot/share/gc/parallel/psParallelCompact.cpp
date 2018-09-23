@@ -972,7 +972,6 @@ void PSParallelCompact::pre_compact()
   heap->trace_heap_before_gc(&_gc_tracer);
 
   // Fill in TLABs
-  heap->accumulate_statistics_all_tlabs();
   heap->ensure_parsability(true);  // retire TLABs
 
   if (VerifyBeforeGC && heap->total_collections() >= VerifyGCStartAt) {
@@ -2188,7 +2187,8 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   Management::oops_do(&oop_closure);
   JvmtiExport::oops_do(&oop_closure);
   SystemDictionary::oops_do(&oop_closure);
-  ClassLoaderDataGraph::oops_do(&oop_closure, true);
+  CLDToOopClosure cld_closure(&oop_closure);
+  ClassLoaderDataGraph::cld_do(&cld_closure);
 
   // Now adjust pointers in remaining weak roots.  (All of which should
   // have been cleared if they pointed to non-surviving objects.)

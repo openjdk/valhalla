@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * All the communication should be done via Open Types
  * @author Olivier Lagneau
  * @modules java.management.rmi
- * @library /lib/testlibrary
+ * @library /test/lib
  * @compile Basic.java
  * @run main/othervm/timeout=300 -DDEBUG_STANDARD MXBeanWeirdParamTest
  */
@@ -58,8 +58,8 @@ import javax.management.openmbean.SimpleType;
 import javax.management.openmbean.TabularDataSupport;
 import javax.management.openmbean.TabularType;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.JDKToolFinder;
+import jdk.test.lib.JDKToolFinder;
+import jdk.test.lib.process.ProcessTools;
 
 public class MXBeanWeirdParamTest {
 
@@ -120,7 +120,7 @@ public class MXBeanWeirdParamTest {
     private List<String> buildCommandLine() {
         List<String> opts = new ArrayList<>();
         opts.add(JDKToolFinder.getJDKTool("java"));
-        opts.addAll(Arrays.asList(jdk.testlibrary.Utils.getTestJavaOpts()));
+        opts.addAll(Arrays.asList(jdk.test.lib.Utils.getTestJavaOpts()));
         // We need to set WEIRD_PARAM propertty on the client-side
         opts.add("-DWEIRD_PARAM");
         opts.add("-cp");

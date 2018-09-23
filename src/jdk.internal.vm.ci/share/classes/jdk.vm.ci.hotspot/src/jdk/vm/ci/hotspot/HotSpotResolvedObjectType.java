@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -110,6 +110,21 @@ public interface HotSpotResolvedObjectType extends ResolvedJavaType {
     @Override
     ResolvedJavaMethod getClassInitializer();
 
-    boolean isAnonymous();
+    /**
+     * Checks whether this type is an unsafe anonymous class.
+     *
+     * @return {@code true} if this type is an unsafe anonymous class
+     */
+    boolean isUnsafeAnonymous();
+
+    /**
+     * Checks whether this type is an unsafe anonymous class.
+     * This method is here to maintain compatibility with JDK11.
+     *
+     * @return {@code true} if this type is an unsafe anonymous class
+     */
+    default boolean isAnonymous() {
+      return isUnsafeAnonymous();
+    }
 
 }

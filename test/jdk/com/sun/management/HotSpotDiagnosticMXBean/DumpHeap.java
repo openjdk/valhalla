@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,15 @@
  * questions.
  */
 
-import static jdk.testlibrary.Asserts.assertTrue;
-import static jdk.testlibrary.Asserts.fail;
+import static jdk.test.lib.Asserts.assertTrue;
+import static jdk.test.lib.Asserts.fail;
 
 import java.io.File;
 import java.lang.management.*;
 import java.util.List;
 
 import jdk.test.lib.hprof.HprofParser;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.ProcessTools;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
 
@@ -37,9 +37,7 @@ import com.sun.management.HotSpotDiagnosticMXBean;
  * @test
  * @bug 6455258
  * @summary Sanity test for com.sun.management.HotSpotDiagnosticMXBean.dumpHeap method
- * @library /lib/testlibrary
  * @library /test/lib
- * @build jdk.testlibrary.*
  * @build jdk.test.lib.hprof.*
  * @build jdk.test.lib.hprof.model.*
  * @build jdk.test.lib.hprof.parser.*

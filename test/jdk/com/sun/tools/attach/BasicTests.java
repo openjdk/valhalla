@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,9 @@ import java.net.Socket;
 import java.util.List;
 import java.util.Properties;
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessThread;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.thread.ProcessThread;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 import com.sun.tools.attach.AgentInitializationException;
 import com.sun.tools.attach.AgentLoadException;
@@ -45,6 +45,7 @@ import com.sun.tools.attach.VirtualMachineDescriptor;
  * a number of basic attach tests.
  *
  * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.instrument
  *          jdk.attach
  *          jdk.jartool/sun.tools.jar

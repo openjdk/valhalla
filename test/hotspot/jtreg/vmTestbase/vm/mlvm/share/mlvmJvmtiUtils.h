@@ -26,6 +26,8 @@
 
 #include "jvmti.h"
 
+extern "C" {
+
 void copyFromJString(JNIEnv * pEnv, jstring src, char ** dst);
 
 struct MethodName {
@@ -38,5 +40,6 @@ struct MethodName * getMethodName(jvmtiEnv * pJvmtiEnv, jmethodID method);
 char * locationToString(jvmtiEnv * pJvmtiEnv, jmethodID method, jlocation location);
 
 void * getTLS(jvmtiEnv * pJvmtiEnv, jthread thread, jsize sizeToAllocate);
+}
 
 #endif /* MLVMJVMTIUTILS_H_ */

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -241,6 +241,10 @@ CONSTANT_REGISTER_DECLARATION(ConditionRegister, CCR7,   (7));
 
 #endif // DONT_USE_REGISTER_DEFINES
 
+// Forward declaration
+// Use VectorSRegister as a shortcut.
+class VectorSRegisterImpl;
+typedef VectorSRegisterImpl* VectorSRegister;
 
 // Use FloatRegister as shortcut
 class FloatRegisterImpl;
@@ -270,6 +274,9 @@ class FloatRegisterImpl: public AbstractRegisterImpl {
   bool is_valid() const { return (0 <= value() && value() < number_of_registers); }
 
   const char* name() const;
+
+  // convert to VSR
+  VectorSRegister to_vsr() const;
 };
 
 // The float registers of the PPC architecture
@@ -398,11 +405,6 @@ inline VectorRegister as_VectorRegister(int encoding) {
   return (VectorRegister)(intptr_t)encoding;
 }
 
-// Forward declaration
-// Use VectorSRegister as a shortcut.
-class VectorSRegisterImpl;
-typedef VectorSRegisterImpl* VectorSRegister;
-
 // The implementation of vector registers for the Power architecture
 class VectorRegisterImpl: public AbstractRegisterImpl {
  public:
@@ -515,11 +517,15 @@ class VectorSRegisterImpl: public AbstractRegisterImpl {
 
   // accessors
   int encoding() const { assert(is_valid(), "invalid register"); return value(); }
+  inline VMReg as_VMReg();
 
   // testers
   bool is_valid() const { return 0 <=  value() &&  value() < number_of_registers; }
 
   const char* name() const;
+
+  // convert to VR
+  VectorRegister to_vr() const;
 };
 
 // The Vector-Scalar (VSX) registers of the POWER architecture.
@@ -592,7 +598,7 @@ CONSTANT_REGISTER_DECLARATION(VectorSRegister, VSR62, (62));
 CONSTANT_REGISTER_DECLARATION(VectorSRegister, VSR63, (63));
 
 #ifndef DONT_USE_REGISTER_DEFINES
-#define vsnoregi ((VectorSRegister)(vsnoreg_VectorSRegisterEnumValue))
+#define vsnoreg ((VectorSRegister)(vsnoreg_VectorSRegisterEnumValue))
 #define VSR0    ((VectorSRegister)(   VSR0_VectorSRegisterEnumValue))
 #define VSR1    ((VectorSRegister)(   VSR1_VectorSRegisterEnumValue))
 #define VSR2    ((VectorSRegister)(   VSR2_VectorSRegisterEnumValue))
@@ -668,21 +674,16 @@ const int PPC_ARGS_IN_REGS_NUM = 8;
 class ConcreteRegisterImpl : public AbstractRegisterImpl {
  public:
   enum {
+    max_gpr = RegisterImpl::number_of_registers * 2,
+    max_fpr = max_gpr + FloatRegisterImpl::number_of_registers * 2,
+    max_vsr = max_fpr + VectorSRegisterImpl::number_of_registers,
+    max_cnd = max_vsr + ConditionRegisterImpl::number_of_registers,
+    max_spr = max_cnd + SpecialRegisterImpl::number_of_registers,
     // This number must be large enough to cover REG_COUNT (defined by c2) registers.
     // There is no requirement that any ordering here matches any ordering c2 gives
     // it's optoregs.
-    number_of_registers =
-      ( RegisterImpl::number_of_registers +
-        FloatRegisterImpl::number_of_registers )
-      * 2                                          // register halves
-      + ConditionRegisterImpl::number_of_registers // condition code registers
-      + SpecialRegisterImpl::number_of_registers   // special registers
-      + VectorSRegisterImpl::number_of_registers   // VSX registers
+    number_of_registers = max_spr
   };
-
-  static const int max_gpr;
-  static const int max_fpr;
-  static const int max_cnd;
 };
 
 // Common register declarations used in assembler code.

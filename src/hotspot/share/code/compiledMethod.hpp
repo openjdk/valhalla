@@ -202,7 +202,7 @@ public:
 
   virtual address verified_entry_point() const = 0;
   virtual void log_identity(xmlStream* log) const = 0;
-  virtual void log_state_change() const = 0;
+  virtual void log_state_change(oop cause = NULL) const = 0;
   virtual bool make_not_used() = 0;
   virtual bool make_not_entrant() = 0;
   virtual bool make_entrant() = 0;
@@ -237,6 +237,8 @@ public:
     // The latter happens during uncommon traps when deoptimized nmethod is made not entrant.
     return _mark_for_deoptimization_status != deoptimize_noupdate;
   }
+
+  static bool nmethod_access_is_safe(nmethod* nm);
 
   // tells whether frames described by this nmethod can be deoptimized
   // note: native wrappers cannot be deoptimized.
