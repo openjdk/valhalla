@@ -222,6 +222,13 @@ public class Attr extends JCTree.Visitor {
      */
     String sourceName;
 
+    /** Does the current declaration perform value compares ? If so we may have to make
+     *  another pass over it to see if additional diagnostics are warranted. The concerned diagnostics
+     *  are not conveniently emitted in the initial pass itself.
+     *  (TODO: reduce granularity of the subsequent pass)
+     */
+    private boolean checkValueCompares;
+
     /** Check kind and type of given tree against protokind and prototype.
      *  If check succeeds, store type in tree and return it.
      *  If check fails, store errType in tree and return it.
@@ -3716,7 +3723,7 @@ public class Attr extends JCTree.Visitor {
                     log.error(tree.pos(), Errors.IncomparableTypes(left, right));
                 }
                 if (types.isValue(left) || types.isValue(right)) {
-                    log.error(tree.pos(), Errors.ValueDoesNotSupport(tree.operator.name));
+                    checkValueCompares = true;
                 }
             }
 
@@ -5006,7 +5013,12 @@ public class Attr extends JCTree.Visitor {
         boolean hasInstanceFields = false;
         for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
             // Attribute declaration
+            checkValueCompares = false;
             attribStat(l.head, env);
+            if (checkValueCompares) {
+                chk.checkValueCompares(tree);
+                checkValueCompares = false;
+            }
 
             if (l.head.hasTag(VARDEF) && (TreeInfo.flags(l.head) & STATIC) == 0)
                 hasInstanceFields = true;

@@ -452,7 +452,75 @@ public class Check {
         compiled.remove(Pair.of(csym.packge().modle, csym.flatname));
     }
 
-/* *************************************************************************
+    public <T extends JCTree> void checkValueCompares(T stat) {
+        new TreeScanner() { // complain if ==/!= is operating on value types, but ...
+            @Override
+            public void visitBinary(JCBinary tree) {
+                /* ... mute complaints on "legacy idiom for equality": i.e don't nitpick on
+                        if (v1 == v2 || v1.equals(v2))
+                */
+                if (tree.getTag() == Tag.OR && tree.lhs.getTag() == Tag.EQ && tree.rhs.getTag() == Tag.APPLY) {
+                    JCMethodInvocation method = (JCMethodInvocation) tree.rhs;
+                    boolean isEqualsCall =
+                            method.type != null
+                                    && !method.type.isErroneous() // kosher call.
+                                    && TreeInfo.name(method.meth).equals(names.equals)
+                                    && (TreeInfo.symbol(method.meth).flags() & STATIC) == 0
+                                    && method.meth.type.getParameterTypes().size() == 1
+                                    && method.meth.type.getParameterTypes().head.tsym == syms.objectType.tsym;
+
+                    if (isEqualsCall) {
+
+                        JCBinary eqOp = (JCBinary) tree.lhs;
+
+                        Symbol lhsSymbol = TreeInfo.symbol(eqOp.lhs);
+                        Symbol rhsSymbol = TreeInfo.symbol(eqOp.rhs);
+
+                        Symbol argSymbol = TreeInfo.symbol(method.args.head);
+
+                        boolean equalityIdiom = false;
+                        if (lhsSymbol != null && rhsSymbol != null &&
+                                (types.isValue(lhsSymbol.type) || types.isValue(rhsSymbol.type))) {
+                            switch (method.meth.getTag()) {
+                                case IDENT:
+                                    if ((lhsSymbol.name == names._this && rhsSymbol == argSymbol) ||
+                                            (rhsSymbol.name == names._this && lhsSymbol == argSymbol))
+                                        equalityIdiom = true;
+                                    break;
+                                case SELECT:
+                                    Symbol recvSymbol = TreeInfo.symbol(((JCFieldAccess) method.meth).selected);
+                                    if ((recvSymbol == lhsSymbol && rhsSymbol == argSymbol) ||
+                                            (recvSymbol == rhsSymbol && lhsSymbol == argSymbol))
+                                        equalityIdiom = true;
+                                    break;
+                            }
+                        }
+                        if (equalityIdiom) {
+                            super.visitApply(method);
+                            return; // do not descend into the == subtree.
+                        }
+                    }
+                }
+
+                Type left = tree.lhs.type;
+                Type right = tree.rhs.type;
+                Symbol operator = tree.operator;
+                if (operator != null && operator.kind == MTH &&
+                        left != null && !left.isErroneous() &&
+                        right != null && !right.isErroneous()) {
+                    int opc = ((OperatorSymbol)operator).opcode;
+                    if ((opc == ByteCodes.if_acmpeq || opc == ByteCodes.if_acmpne)) {
+                        if (types.isValue(left) || types.isValue(right)) {
+                            log.error(tree.pos(), Errors.ValueDoesNotSupport(tree.operator.name));
+                        }
+                    }
+                }
+                super.visitBinary(tree);
+            }
+        }.scan(stat);
+    }
+
+    /* *************************************************************************
  * Type Checking
  **************************************************************************/
 
