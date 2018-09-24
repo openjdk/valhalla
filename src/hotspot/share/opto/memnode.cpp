@@ -1808,7 +1808,17 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != NULL && const_oop->is_instance()) {
-      const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), memory_type());
+      BasicType bt = memory_type();
+      ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
+      if (mirror_type != NULL && mirror_type->is_valuetype()) {
+        ciValueKlass* vk = mirror_type->as_value_klass();
+        if (off == vk->default_value_offset()) {
+          // Loading a special hidden field that contains the oop of the default value type
+          const Type* const_oop = TypeInstPtr::make(vk->default_value_instance());
+          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
+        }
+      }
+      const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
       if (con_type != NULL) {
         return con_type;
       }
@@ -1823,21 +1833,37 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             Opcode() == Op_LoadKlass,
             "Field accesses must be precise" );
     // For klass/static loads, we expect the _type to be precise
-  } else if (tp->base() == Type::RawPtr && adr->is_Load() && off == 0) {
-    /* With mirrors being an indirect in the Klass*
-     * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
-     * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
-     *
-     * So check the type and klass of the node before the LoadP.
-     */
-    Node* adr2 = adr->in(MemNode::Address);
-    const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
-    if (tkls != NULL && !StressReflectiveCode) {
-      ciKlass* klass = tkls->klass();
-      if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
-        assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-        assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-        return TypeInstPtr::make(klass->java_mirror());
+  } else if (tp->base() == Type::RawPtr && !StressReflectiveCode) {
+    if (adr->is_Load() && off == 0) {
+      /* With mirrors being an indirect in the Klass*
+       * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
+       * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
+       *
+       * So check the type and klass of the node before the LoadP.
+       */
+      Node* adr2 = adr->in(MemNode::Address);
+      const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
+      if (tkls != NULL) {
+        ciKlass* klass = tkls->klass();
+        if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
+          assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+          assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+          return TypeInstPtr::make(klass->java_mirror());
+        }
+      }
+    } else {
+      // Check for a load of the default value offset from the ValueKlassFixedBlock:
+      // LoadI(LoadP(value_klass, adr_valueklass_fixed_block_offset), default_value_offset_offset)
+      intptr_t offset = 0;
+      Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
+      if (base != NULL && base->is_Load() && offset == in_bytes(ValueKlass::default_value_offset_offset())) {
+        const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
+        if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->isa_valuetype() &&
+            tkls->offset() == in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())) {
+          assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
+          assert(Opcode() == Op_LoadI, "must load an int from fixed block");
+          return TypeInt::make(tkls->klass()->as_value_klass()->default_value_offset());
+        }
       }
     }
   }

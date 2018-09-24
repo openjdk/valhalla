@@ -3236,9 +3236,15 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
           // Static fields
           assert(o != NULL, "must be constant");
           ciInstanceKlass* ik = o->as_instance()->java_lang_Class_klass()->as_instance_klass();
-          ciField* field = ik->get_field_by_offset(this->offset(), true);
-          assert(field != NULL, "missing field");
-          BasicType basic_elem_type = field->layout_type();
+          BasicType basic_elem_type;
+          if (ik->is_valuetype() && this->offset() == ik->as_value_klass()->default_value_offset()) {
+            // Special hidden field that contains the oop of the default value type
+            basic_elem_type = T_VALUETYPE;
+          } else {
+            ciField* field = ik->get_field_by_offset(this->offset(), true);
+            assert(field != NULL, "missing field");
+            basic_elem_type = field->layout_type();
+          }
           _is_ptr_to_narrowoop = UseCompressedOops && (basic_elem_type == T_OBJECT ||
                                                        basic_elem_type == T_VALUETYPE ||
                                                        basic_elem_type == T_ARRAY);

@@ -413,4 +413,20 @@ public class TestIntrinsics extends ValueTypeTest {
         Test25Value vt = new Test25Value();
         test25(vt);
     }
+
+    @Test
+    public Object test26() {
+        Class<?>[] ca = new Class<?>[1];
+        for (int i = 0; i < 1; ++i) {
+          // Folds during loop opts
+          ca[i] = MyValue1.class;
+        }
+        return Array.newInstance(ca[0], 1);
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        Object[] res = (Object[])test26();
+        Asserts.assertEQ(((MyValue1)res[0]).hashPrimitive(), MyValue1.createDefaultInline().hashPrimitive());
+    }
 }

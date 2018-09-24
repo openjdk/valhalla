@@ -41,7 +41,7 @@ class ValueKlass: public InstanceKlass {
   // Constructor
   ValueKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type, InstanceKlass::ID) {
-    _adr_valueklass_fixed_block = valueklass_static_bloc();
+    _adr_valueklass_fixed_block = valueklass_static_block();
     // Addresses used for value type calling convention
     *((Array<SigEntry>**)adr_extended_sig()) = NULL;
     *((Array<VMRegPair>**)adr_return_regs()) = NULL;
@@ -52,7 +52,7 @@ class ValueKlass: public InstanceKlass {
     set_prototype_header(markOopDesc::always_locked_prototype());
   }
 
-  ValueKlassFixedBlock* valueklass_static_bloc() const {
+  ValueKlassFixedBlock* valueklass_static_block() const {
     address adr_jf = adr_value_fields_klasses();
     if (adr_jf != NULL) {
       return (ValueKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
@@ -82,7 +82,7 @@ class ValueKlass: public InstanceKlass {
   }
 
   address adr_return_regs() const {
-    ValueKlassFixedBlock* vkst = valueklass_static_bloc();
+    ValueKlassFixedBlock* vkst = valueklass_static_block();
     return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _return_regs));
   }
 

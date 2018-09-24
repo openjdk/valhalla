@@ -354,6 +354,8 @@ class InstanceKlass: public Klass {
   //     ...
   Array<u2>*      _fields;
 
+  const ValueKlassFixedBlock* _adr_valueklass_fixed_block;
+
   // embedded Java vtable follows here
   // embedded Java itables follows here
   // embedded static fields follows here
@@ -373,8 +375,6 @@ class InstanceKlass: public Klass {
   //   or an anonymous class loaded through normal classloading does not
   //   have this embedded field.
   //
-
-  ValueKlassFixedBlock* _adr_valueklass_fixed_block;
 
   friend class SystemDictionary;
 

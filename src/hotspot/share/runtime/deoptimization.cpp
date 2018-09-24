@@ -1012,9 +1012,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       if (field._type == T_VALUETYPE) {
         if (fs.is_flattened()) {
           // Resolve klass of flattened value type field
-          SignatureStream ss(fs.signature(), false);
-          Klass* vk = ss.as_klass(Handle(THREAD, klass->class_loader()), Handle(THREAD, klass->protection_domain()), SignatureStream::NCDFError, THREAD);
-          guarantee(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
+          Klass* vk = klass->get_value_field_klass(fs.index());
           assert(vk->is_value(), "must be a ValueKlass");
           field._klass = InstanceKlass::cast(vk);
         } else {
