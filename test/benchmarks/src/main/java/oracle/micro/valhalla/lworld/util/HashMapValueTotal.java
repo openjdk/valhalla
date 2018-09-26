@@ -32,7 +32,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
-    __ByValue public static final class Entry<K, V> implements Map.Entry<K, V> {
+    value public static final class Entry<K, V> implements Map.Entry<K, V> {
         final K key;
         final V value;
         final HEntry<K, V> next;
@@ -362,7 +362,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         return KeyCursor.of(this);
     }
 
-    __ByValue  public static final class EntryCursor<K,V> implements Cursor<Map.Entry<K,V>> {
+    value  public static final class EntryCursor<K,V> implements Cursor<Map.Entry<K,V>> {
         private final HashMapValueTotal<K,V> map;
         private final int expectedModCount;
         private final int index;
@@ -421,7 +421,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         }
     }
 
-    __ByValue  public static final class KeyCursor<K,V> implements Cursor<K> {
+    value  public static final class KeyCursor<K,V> implements Cursor<K> {
         private final HashMapValueTotal<K,V> map;
         private final int expectedModCount;
         private final int index;

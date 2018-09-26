@@ -43,7 +43,7 @@ public class Test8186715 {
     }
 }
 
-__ByValue final class MyValueType {
+value final class MyValueType {
     final int i;
     final int j;
 

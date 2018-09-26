@@ -36,7 +36,7 @@ import java.nio.file.Paths;
 
 public class WithFieldOfExplicitSelector {
 
-    final __ByValue class X {
+    final value class X {
 
         final int i;
 

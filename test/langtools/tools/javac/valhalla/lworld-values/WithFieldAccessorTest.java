@@ -31,7 +31,7 @@
 
 public class WithFieldAccessorTest {
 
-    public static final __ByValue class V {
+    public static final value class V {
         private final int i;
         V() {
             this.i = 0;

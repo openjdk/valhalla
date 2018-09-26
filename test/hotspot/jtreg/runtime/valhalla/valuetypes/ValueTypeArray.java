@@ -193,7 +193,7 @@ public class ValueTypeArray {
         assertEquals(x, 0, "Bad Point Value");
     }
 
-    static final __ByValue class MyInt implements Comparable<MyInt> {
+    static final value class MyInt implements Comparable<MyInt> {
         final int value;
 
         private MyInt() { value = 0; }
@@ -222,7 +222,7 @@ public class ValueTypeArray {
         default String hi() { return "Hi"; }
     }
 
-    static final __ByValue class MyOtherInt implements SomeSecondaryType {
+    static final value class MyOtherInt implements SomeSecondaryType {
         final int value;
         private MyOtherInt() { value = 0; }
     }
@@ -355,7 +355,7 @@ public class ValueTypeArray {
         } catch (ArrayStoreException ase) {}
     }
 
-    static final __ByValue class MyPoint {
+    static final value class MyPoint {
         final __Flattenable MyInt x;
         final               MyInt y;
 

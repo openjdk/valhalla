@@ -21,7 +21,7 @@
  * questions.
  */
 
-final __ByValue class Value {
+final value class Value {
     final char char_v;
     final byte byte_v;
     final boolean boolean_v;

@@ -8,7 +8,7 @@
 
 import java.util.List;
 
-public __ByValue class InferredValueParameterizationTest {
+public value class InferredValueParameterizationTest {
     int x = 10;
 
     static class Y<T> {

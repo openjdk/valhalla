@@ -45,7 +45,7 @@ import java.lang.reflect.Method;
 import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
 
-__ByValue class MyValue {
+value class MyValue {
     public final int x;
 
     public MyValue(int x) {

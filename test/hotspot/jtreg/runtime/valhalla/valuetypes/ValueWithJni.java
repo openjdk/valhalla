@@ -29,7 +29,7 @@ package runtime.valhalla.valuetypes;
  * @run main/othervm/native -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  * @run main/othervm/native -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  */
-public __ByValue final class ValueWithJni {
+public value final class ValueWithJni {
 
     static {
         System.loadLibrary("ValueWithJni");

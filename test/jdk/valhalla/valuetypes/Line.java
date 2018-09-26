@@ -21,7 +21,7 @@
  * questions.
  */
 
-public final __ByValue class Line {
+public final value class Line {
     public Point p1;
     public Point p2;
     Line () {

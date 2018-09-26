@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckEqualityIdiom.out -XDrawDiagnostics -XDdev CheckEqualityIdiom.java
  */
 
-final __ByValue class CheckEqualityIdiom {
+final value class CheckEqualityIdiom {
 
     int x = 42;
 

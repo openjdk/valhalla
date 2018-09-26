@@ -35,7 +35,7 @@
 public class CastNullCheckTest {
 
     @ValueBased
-    final __ByValue class XX {
+    final value class XX {
         final int x = 10;
     }
 

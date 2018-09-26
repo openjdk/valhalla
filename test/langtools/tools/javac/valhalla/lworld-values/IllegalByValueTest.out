@@ -1,4 +1,4 @@
-IllegalByValueTest.java:20:30: compiler.err.mod.not.allowed.here: value
-IllegalByValueTest.java:21:25: compiler.err.mod.not.allowed.here: value
-IllegalByValueTest.java:22:13: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:20:26: compiler.err.repeated.modifier
+IllegalByValueTest.java:21:31: compiler.err.mod.not.allowed.here: value
+IllegalByValueTest.java:22:9: compiler.err.mod.not.allowed.here: value
 3 errors

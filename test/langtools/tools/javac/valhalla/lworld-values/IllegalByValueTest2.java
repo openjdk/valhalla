@@ -16,6 +16,6 @@ public class IllegalByValueTest2 {
     }
 
     public static void main(String[] args) {
-        new @Annot __ByValue @Annot IllegalByValueTest2() {};
+        new @Annot value @Annot IllegalByValueTest2() {};
     }
 }

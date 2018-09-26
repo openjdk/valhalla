@@ -47,7 +47,7 @@ interface MyInterface {
     public MyInterface hash(MyInterface arg);
 }
 
-__ByValue final class TestValue1 implements MyInterface {
+value final class TestValue1 implements MyInterface {
     final int x;
 
     public TestValue1(int x) {
@@ -59,7 +59,7 @@ __ByValue final class TestValue1 implements MyInterface {
     }
 }
 
-__ByValue final class TestValue2 implements MyInterface {
+value final class TestValue2 implements MyInterface {
     final int x;
 
     public TestValue2(int x) {

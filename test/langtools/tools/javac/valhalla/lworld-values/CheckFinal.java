@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckFinal.out -XDrawDiagnostics -XDdisallowValueConstructors CheckFinal.java
  */
 
-__ByValue class CheckFinal { // implicitly final
+value class CheckFinal { // implicitly final
     int fi;  // implicitly final
     final int fe; // explicitly final
     void f(int x) {
@@ -17,9 +17,6 @@ __ByValue class CheckFinal { // implicitly final
         this.xsf = 100; // Error
 
         CheckFinal cf = new CheckFinal() {}; // Error, final class cannot be extended.
-        __ByValue final class CheckLocalFinal { // Explicitly final
-            int x;
-        }
     }
     final Object o = new Object() { int i;
                          void foo() {

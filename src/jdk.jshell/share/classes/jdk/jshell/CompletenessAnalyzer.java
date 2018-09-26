@@ -183,7 +183,6 @@ class CompletenessAnalyzer {
         ERROR(TokenKind.ERROR, XERRO),  //
         IDENTIFIER(TokenKind.IDENTIFIER, XEXPR1|XDECL1|XTERM),  //
         UNDERSCORE(TokenKind.UNDERSCORE, XERRO),  //  _
-        VALUE(TokenKind.VALUE, XEXPR1|XDECL1|XTERM),  //  "__ByValue"
         CLASS(TokenKind.CLASS, XEXPR|XDECL1|XBRACESNEEDED),  //  class decl (MAPPED: DOTCLASS)
         MONKEYS_AT(TokenKind.MONKEYS_AT, XEXPR|XDECL1),  //  @
         IMPORT(TokenKind.IMPORT, XDECL1|XSTART),  //  import -- consider declaration

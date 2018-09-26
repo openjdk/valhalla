@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla -ea CanonicalCtorTest
  */
 
-public __ByValue class CanonicalCtorTest {
+public value class CanonicalCtorTest {
 
 	private final int x, ymx;
 

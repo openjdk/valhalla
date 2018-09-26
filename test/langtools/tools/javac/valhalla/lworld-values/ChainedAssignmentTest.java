@@ -30,7 +30,7 @@
 
 public class ChainedAssignmentTest {
 
-	static __ByValue class Point {
+	static value class Point {
 		int x;
 		int y;
 		Point() {
@@ -38,7 +38,7 @@ public class ChainedAssignmentTest {
 		}
 	}
 
-	static __ByValue class LongPoint {
+	static value class LongPoint {
 		long x;
 		long y;
 		LongPoint() {

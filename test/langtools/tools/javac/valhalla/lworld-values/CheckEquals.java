@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckEquals.out -XDrawDiagnostics CheckEquals.java
  */
 
-final __ByValue class CheckEquals {
+final value class CheckEquals {
     boolean foo(CheckEquals a, CheckEquals b) {
         return (a == b) || (a != b);
     }

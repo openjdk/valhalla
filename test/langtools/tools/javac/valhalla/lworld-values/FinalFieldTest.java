@@ -4,7 +4,7 @@
  * @compile/fail/ref=FinalFieldTest.out --should-stop=at=FLOW -XDrawDiagnostics  FinalFieldTest.java
  */
 
-final __ByValue class Blah {
+final value class Blah {
     final int x = 10;
     final int y;
     Blah() {

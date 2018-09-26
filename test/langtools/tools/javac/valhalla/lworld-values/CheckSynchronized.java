@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics CheckSynchronized.java
  */
 
-__ByValue final class CheckSynchronized {
+value final class CheckSynchronized {
     synchronized void foo() { // <<-- ERROR, no monitor associated with `this'
     }
     void goo() {

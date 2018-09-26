@@ -1787,7 +1787,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Value type with some non-flattened fields
-    __ByValue final class Test65Value {
+    value final class Test65Value {
         final Object objectField1 = null;
         final Object objectField2 = null;
         final Object objectField3 = null;
@@ -2213,7 +2213,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test calling a method on an uninitialized value type
-    __ByValue final class Test86Value {
+    value final class Test86Value {
         final int x = 42;
         public int get() {
             return x;

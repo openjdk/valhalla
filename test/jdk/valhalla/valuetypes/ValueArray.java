@@ -135,7 +135,7 @@ public class ValueArray {
         }
     }
 
-    static __ByValue class PointArray {
+    static value class PointArray {
         public Point[] points;
         PointArray() {
             points = new Point[0];

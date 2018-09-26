@@ -21,7 +21,7 @@
  * questions.
  */
 
-__ByValue final class SimpleValueType {
+value final class SimpleValueType {
     final int x;
 
     private SimpleValueType() {

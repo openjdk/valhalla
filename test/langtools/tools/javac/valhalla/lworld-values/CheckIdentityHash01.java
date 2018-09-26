@@ -7,7 +7,7 @@
 
 import static java.lang.System.*;
 
-final __ByValue class CheckIdentityHash01 {
+final value class CheckIdentityHash01 {
     void test(CheckIdentityHash01 v) {
 
         identityHashCode(v);      // <- error

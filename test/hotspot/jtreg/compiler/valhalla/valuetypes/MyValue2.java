@@ -23,7 +23,7 @@
 
 package compiler.valhalla.valuetypes;
 
-__ByValue final class MyValue2Inline {
+value final class MyValue2Inline {
     final boolean b;
     final long c;
 
@@ -58,7 +58,7 @@ __ByValue final class MyValue2Inline {
     }
 }
 
-__ByValue public final class MyValue2 implements MyInterface {
+value public final class MyValue2 implements MyInterface {
     final int x;
     final byte y;
     __Flattenable final MyValue2Inline v1;

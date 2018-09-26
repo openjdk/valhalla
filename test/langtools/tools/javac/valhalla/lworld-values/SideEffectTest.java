@@ -31,7 +31,7 @@
 
 public class SideEffectTest {
 
-	static __ByValue class V {
+	static value class V {
 
         static String output = "";
 

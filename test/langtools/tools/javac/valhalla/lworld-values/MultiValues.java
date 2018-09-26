@@ -21,26 +21,26 @@
  * questions.
  */
 
-final __ByValue class V1 {
+final value class V1 {
     final int x = 10;
 }
 
-final __ByValue class V2 {
+final value class V2 {
     final int x = 10;
 }
 
-final __ByValue class V3 {
+final value class V3 {
     final int x = 10;
 }
 
-final __ByValue class V4 {
+final value class V4 {
     final int x = 10;
 }
 
-final __ByValue class V5 {
+final value class V5 {
     final int x = 10;
 }
 
-final __ByValue class V6 {
+final value class V6 {
     final int x = 10;
 }

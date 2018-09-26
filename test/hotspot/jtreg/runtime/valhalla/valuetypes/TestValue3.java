@@ -28,7 +28,7 @@ final class ContainerValue3 {
     TestValue3[] valueArray;
 }
 
-public __ByValue final class TestValue3 {
+public value final class TestValue3 {
 
     static __NotFlattened TestValue3 staticValue = getInstance();
 

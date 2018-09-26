@@ -6,10 +6,10 @@
  */
 
 public class FlattenableNegativeTest {
-    __ByValue final class V {
+    value final class V {
         final int x = 10;
         
-        __ByValue final class X {
+        value final class X {
             final V v = null;  // Error: initialization illegal
             final V v2 = v;    // OK, null not constant propagated.
 

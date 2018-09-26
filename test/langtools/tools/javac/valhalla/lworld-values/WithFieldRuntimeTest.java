@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla WithFieldRuntimeTest
  */
 
-public final __ByValue class WithFieldRuntimeTest {
+public final value class WithFieldRuntimeTest {
 
     final int x = 10;
 

@@ -22,7 +22,7 @@
  */
 
 // Point is a Value Type.
-__ByValue final class Point {
+value final class Point {
     final int x;
     final int y;
 

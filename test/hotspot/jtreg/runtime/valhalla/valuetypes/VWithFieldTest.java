@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
 
 public class VWithFieldTest {
 
-    static __ByValue final class Point {
+    static value final class Point {
         final private int x;
         final private int y;
 

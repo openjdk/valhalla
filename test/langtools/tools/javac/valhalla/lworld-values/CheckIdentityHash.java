@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckIdentityHash.out -XDrawDiagnostics CheckIdentityHash.java
  */
 
-final __ByValue class CheckIdentityHash {
+final value class CheckIdentityHash {
     int identityHashCode(CheckIdentityHash x) {
         return 0;
     }

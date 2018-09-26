@@ -29,11 +29,11 @@
  */
 import java.util.ArrayList;
 
-public final __ByValue class ValuesAsRefs {
+public final value class ValuesAsRefs {
 
     final ArrayList<? extends ValuesAsRefs> ao = null; // values can be wildcard bounds.
 
-    final __ByValue class I implements java.io.Serializable {
+    final value class I implements java.io.Serializable {
         final int y = 42;
     }
 

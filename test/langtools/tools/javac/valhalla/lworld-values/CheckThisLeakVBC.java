@@ -6,7 +6,7 @@
  */
 
 @ValueBased
-__ByValue class V {
+value class V {
 
 	private final int x, ymx;
 

@@ -21,7 +21,7 @@
  * questions.
  */
 
-public __ByValue class NonFlattenValue {
+public value class NonFlattenValue {
     __NotFlattened Point nfp;
 
     NonFlattenValue() {

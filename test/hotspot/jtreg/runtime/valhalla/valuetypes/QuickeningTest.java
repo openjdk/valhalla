@@ -57,7 +57,7 @@ public class QuickeningTest {
         public void setFj2(JumboValue j) { fj2 = j; }
     }
 
-    static final __ByValue class Value {
+    static final value class Value {
         final __NotFlattened Point nfp;       /* Not flattenable value field */
         final __Flattenable Point fp;         /* Flattenable and flattened value field */
         final __Flattenable JumboValue fj;    /* Flattenable not flattene value field */

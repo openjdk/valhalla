@@ -30,7 +30,7 @@
  * @compile -XDallowWithFieldOperator Point.java
  */
 
-__ByValue class Point {
+value class Point {
     static final Point origin = makePoint(10, 20);
     int x;
     int y;

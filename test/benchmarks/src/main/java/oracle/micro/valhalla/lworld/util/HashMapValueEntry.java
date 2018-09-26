@@ -32,7 +32,7 @@ public class HashMapValueEntry<K, V> extends AbstractMap<K, V> {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
-    __ByValue public static final class Entry<K, V> implements Map.Entry<K, V> {
+    value public static final class Entry<K, V> implements Map.Entry<K, V> {
         final K key;
         final V value;
         final HEntry<K, V> next;

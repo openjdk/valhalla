@@ -66,7 +66,7 @@ public class ValueTypeDensity {
 
     interface LocalDateTime extends LocalDate, LocalTime {}
 
-    static final __ByValue class LocalDateValue implements LocalDate {
+    static final value class LocalDateValue implements LocalDate {
         final int   year;
         final short month;
         final short day;
@@ -90,7 +90,7 @@ public class ValueTypeDensity {
         }
     }
 
-    static final __ByValue class LocalTimeValue implements LocalTime {
+    static final value class LocalTimeValue implements LocalTime {
         final byte hour;
         final byte minute;
         final byte second;
@@ -118,7 +118,7 @@ public class ValueTypeDensity {
         }
     }
 
-    static final __ByValue class LocalDateTimeValue implements LocalDateTime {
+    static final value class LocalDateTimeValue implements LocalDateTime {
         final LocalDateValue date;
         final LocalTimeValue time;
 

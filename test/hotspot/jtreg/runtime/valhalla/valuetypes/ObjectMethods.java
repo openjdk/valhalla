@@ -210,7 +210,7 @@ public class ObjectMethods {
         }
     }
 
-    static final __ByValue class MyInt {
+    static final value class MyInt {
         final int value;
         private MyInt() { value = 0; }
         public static MyInt create(int v) {

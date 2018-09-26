@@ -23,7 +23,7 @@
 
 package runtime.valhalla.valuetypes;
 
-public final __ByValue class IntValue {
+public final value class IntValue {
     final int val;
 
     IntValue() {

@@ -49,6 +49,7 @@ import com.sun.tools.javac.util.JCDiagnostic.Error;
 import com.sun.tools.javac.util.JCDiagnostic.Fragment;
 import com.sun.tools.javac.util.List;
 
+import static com.sun.tools.javac.code.Flags.asFlagSet;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.*;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.ASSERT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.CASE;
@@ -2217,27 +2218,17 @@ public class JavacParser implements Parser {
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
     JCExpression creator(int newpos, List<JCExpression> typeArgs) {
-        int valueModifierPos = Position.NOPOS;
-        if (token.kind == VALUE) {
-            checkSourceLevel(Feature.VALUE_TYPES);
-            valueModifierPos = token.pos;
-            nextToken();
-        }
-        List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
-        if (token.kind == VALUE) {
-            checkSourceLevel(Feature.VALUE_TYPES);
-            if (valueModifierPos != Position.NOPOS) {
-                log.error(token.pos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
-            }
-            valueModifierPos = token.pos;
-            nextToken();
-            newAnnotations = newAnnotations.appendList(typeAnnotationsOpt());
+        final JCModifiers mods = modifiersOpt();
+        List<JCAnnotation> newAnnotations = mods.annotations;
+        if (!newAnnotations.isEmpty()) {
+            checkSourceLevel(newAnnotations.head.pos, Feature.TYPE_ANNOTATIONS);
         }
         switch (token.kind) {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
-            if (valueModifierPos != Position.NOPOS) {
-                log.error(valueModifierPos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
+            if (mods.flags != 0) {
+                long badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             if (typeArgs == null) {
                 if (newAnnotations.isEmpty()) {
@@ -2307,7 +2298,10 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            JCNewClass newClass = classCreatorRest(newpos,null, typeArgs, t, valueModifierPos == Position.NOPOS ? 0 : (Flags.VALUE | Flags.FINAL));
+            long badModifiers = mods.flags & ~(Flags.VALUE | Flags.FINAL);
+            if (badModifiers != 0)
+                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
+            JCNewClass newClass = classCreatorRest(newpos,null, typeArgs, t, mods.flags);
             if (newClass.def != null) {
                 assert newClass.def.mods.annotations.isEmpty();
                 if (newAnnotations.nonEmpty()) {
@@ -2319,8 +2313,9 @@ public class JavacParser implements Parser {
                     newClass.def.mods.annotations = newAnnotations;
                 }
             } else {
-                if (valueModifierPos != Position.NOPOS) {
-                    log.error(valueModifierPos, Errors.ModNotAllowedHere(EnumSet.of(Flag.VALUE)));
+                if (mods.flags != 0) {
+                    badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                    log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
                 }
                 // handle type annotations for instantiations
                 if (newAnnotations.nonEmpty()) {
@@ -2587,7 +2582,6 @@ public class JavacParser implements Parser {
         case ASSERT:
             return List.of(parseSimpleStatement());
         case MONKEYS_AT:
-        case VALUE:
         case FINAL: {
             Comment dc = token.comment(CommentStyle.JAVADOC);
             JCModifiers mods = modifiersOpt();
@@ -2974,7 +2968,10 @@ public class JavacParser implements Parser {
         } else {
             JCExpression t = term(EXPR | TYPE);
             if ((lastmode & TYPE) != 0 && LAX_IDENTIFIER.accepts(token.kind)) {
-                return variableDeclarators(modifiersOpt(), t, stats, true).toList();
+                pos = token.pos;
+                JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
+                F.at(pos);
+                return variableDeclarators(mods, t, stats, true).toList();
             } else if ((lastmode & TYPE) != 0 && token.kind == COLON) {
                 log.error(DiagnosticFlag.SYNTAX, pos, Errors.BadInitializer("for-loop"));
                 return List.of((JCStatement)F.at(pos).VarDef(modifiersOpt(), names.error, t, null));
@@ -3060,9 +3057,11 @@ public class JavacParser implements Parser {
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
             case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
-            case VALUE       : checkSourceLevel(Feature.VALUE_TYPES); flag = Flags.VALUE; break;
             case ERROR       : flag = 0; nextToken(); break;
-            default: break loop;
+            default:           if (token.kind == IDENTIFIER && token.name() == names.value) {
+                                   checkSourceLevel(Feature.VALUE_TYPES); flag = Flags.VALUE; break;
+                               }
+                               break loop;
             }
             if ((flags & flag) != 0) log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.RepeatedModifier);
             lastPos = token.pos;

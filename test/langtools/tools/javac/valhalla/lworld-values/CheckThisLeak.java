@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckThisLeak.out -XDrawDiagnostics -XDdev CheckThisLeak.java
  */
 
-__ByValue class V {
+value class V {
 
 	private final int x, ymx;
 

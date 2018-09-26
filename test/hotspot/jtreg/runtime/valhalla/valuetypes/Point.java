@@ -22,7 +22,7 @@
  */
 package runtime.valhalla.valuetypes;
 
-public __ByValue final class Point {
+public value final class Point {
     final int x;
     final int y;
 

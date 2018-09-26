@@ -34,7 +34,7 @@ import java.util.Objects;
 
 public class ValueBootstrapMethodsTest {
 
-    public static final __ByValue class Value {
+    public static final value class Value {
         private final int i;
         private final double d;
         private final String s;

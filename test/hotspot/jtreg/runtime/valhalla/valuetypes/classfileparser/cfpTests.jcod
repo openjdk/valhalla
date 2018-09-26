@@ -29,7 +29,7 @@
 // modified to cause ClassFormatError or ClassCircularityError exceptions.  The
 // '(bad)' comments in most of the tests show where the modifications were made.
 //
-// final __ByValue class Value {
+// final value class Value {
 //     static final Value VT = makeValue(0x01234567);
 //     final int int_v;
 //     Value() {
@@ -1279,7 +1279,7 @@ class ValueSuperClass {
 //
 // The value types are based on these two Java classes:
 //
-// final __ByValue class Circ {
+// final value class Circ {
 //     static final Circ VT = makeCirc(0x01234567);
 //     final int int_v;
 //     __Flattenable final Circ2 v2;
@@ -1294,7 +1294,7 @@ class ValueSuperClass {
 //     }
 // }
 //----------------------------------------------------------------
-// final __ByValue class Circ2 {
+// final value class Circ2 {
 //     static final Circ2 VT = makeCirc2('\u0123');
 //     final char char_v;
 //     __Flattenable final Circ vv;
@@ -1652,7 +1652,7 @@ class Circ2 {
 //
 // The value types are based on these two Java classes:
 //
-// final __ByValue class CircStaticA {
+// final value class CircStaticA {
 //     static final CircStaticA VT = makeCircStaticA(0x01234567);
 //     final int int_v;
 //     __Flattenable static final CircStaticB v2 = CircStaticB.default;
@@ -1666,7 +1666,7 @@ class Circ2 {
 //     }
 // }
 //----------------------------------------------------------------
-// final __ByValue class CircStaticB {
+// final value class CircStaticB {
 //     static final CircStaticB VT = makeCircStaticB(0x01234567);
 //     final int int_v;
 //     __Flattenable static final CircStaticA v2 = CircStaticA.default;
@@ -2018,7 +2018,7 @@ class CircStaticB {
 
 // Test that a value type cannot be Cloneable.
 //
-// final __ByValue class ValueCloneable implements Cloneable {
+// final value class ValueCloneable implements Cloneable {
 //    final int field;
 //    private ValueCloneable() { field = 0; }
 //}

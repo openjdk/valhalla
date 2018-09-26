@@ -37,7 +37,7 @@ import java.nio.file.Paths;
 
 public class ValueTypesAttributeTest {
 
-    static final __ByValue class X {
+    static final value class X {
         final V1 [] v1 = null; // field descriptor 
         V2[] foo() {  // method descriptor encoding value type
             return null;

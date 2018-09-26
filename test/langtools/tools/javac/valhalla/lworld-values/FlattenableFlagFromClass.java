@@ -23,7 +23,7 @@
 
 public class FlattenableFlagFromClass {
 
-    public __ByValue final class V {
+    public value final class V {
         final int x = 10;
     }
 

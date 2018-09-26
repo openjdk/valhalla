@@ -22,7 +22,7 @@
  */
 package runtime.valhalla.valuetypes;
 
-public __ByValue final class JumboValue {
+public value final class JumboValue {
     final long l0;
     final long l1;
     final long l2;

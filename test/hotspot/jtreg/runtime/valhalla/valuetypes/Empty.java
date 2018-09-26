@@ -23,7 +23,7 @@
 
 package runtime.valhalla.valuetypes;
 
-__ByValue final class EmptyValue {
+value final class EmptyValue {
 
     private EmptyValue() {
     }

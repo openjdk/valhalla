@@ -5,11 +5,11 @@
  * @compile/fail/ref=CheckCyclicMembership.out -XDrawDiagnostics CheckCyclicMembership.java
  */
 
-final __ByValue class CheckCyclicMembership {
+final value class CheckCyclicMembership {
     class InnerRef {
         CheckCyclicMembership ccm;
     }
-    __ByValue final class InnerValue {
+    value final class InnerValue {
         final CheckCyclicMembership ccm = CheckCyclicMembership.default; // Error.
     }
     final CheckCyclicMembership ccm = CheckCyclicMembership.default; // Error.

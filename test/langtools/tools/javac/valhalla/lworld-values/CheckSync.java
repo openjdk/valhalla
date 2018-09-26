@@ -9,9 +9,9 @@
    cannot synchronize using the methods declared on jlO.
 */
 
-public final __ByValue class CheckSync {
+public final value class CheckSync {
 
-    final __ByValue class Val {
+    final value class Val {
         int x = 10;
         void foo() {
             // All calls below are bad.

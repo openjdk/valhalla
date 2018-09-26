@@ -17,8 +17,8 @@ public class IllegalByValueTest {
 
     public static void main(String[] args) {
         // Error cases.
-        new __ByValue @Annot __ByValue Comparable <String>() {};
-        int [] ia = new __ByValue int[10];
-        new __ByValue String("Hello");
+        new value @Annot value Comparable <String>() {};
+        int [] ia = new value int[10];
+        new value String("Hello");
     }
 }

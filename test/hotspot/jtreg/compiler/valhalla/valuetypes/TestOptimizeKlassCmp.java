@@ -35,7 +35,7 @@ package compiler.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
 
-__ByValue class MyValue {
+value class MyValue {
     public final int x;
 
     public MyValue(int x) {

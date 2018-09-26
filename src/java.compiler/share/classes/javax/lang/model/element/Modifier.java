@@ -59,7 +59,7 @@ public enum Modifier {
      */
      DEFAULT,
     /**
-     * The modifier {@code __ByValue}
+     * The modifier {@code value}
      * @since 1.11
      */
     VALUE,

@@ -23,7 +23,7 @@
 
 package runtime.valhalla.valuetypes;
 
-public final __ByValue class Person {
+public final value class Person {
 
     final int    id;
     final String firstName;

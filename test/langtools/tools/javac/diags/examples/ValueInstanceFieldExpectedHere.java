@@ -24,7 +24,7 @@
 // options: -XDallowWithFieldOperator
 // key: compiler.err.value.instance.field.expected.here
 
-final __ByValue class Blah {
+final value class Blah {
     final int x;
     static int si;
     Blah() {

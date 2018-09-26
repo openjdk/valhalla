@@ -5,11 +5,11 @@
  * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics -XDallowFlattenabilityModifiers CheckFlattenableCycles.java
  */
 
-final __ByValue class CheckFlattenableCycles {
+final value class CheckFlattenableCycles {
     class InnerRef {
         CheckFlattenableCycles cfc;
     }
-    __ByValue final class InnerValue {
+    value final class InnerValue {
         final __Flattenable CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.
     }
     final __Flattenable CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.

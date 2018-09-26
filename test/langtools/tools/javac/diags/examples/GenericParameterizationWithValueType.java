@@ -27,7 +27,7 @@
 
 import java.util.List;
 
-__ByValue class X {
+value class X {
 
     int x = 10;
     

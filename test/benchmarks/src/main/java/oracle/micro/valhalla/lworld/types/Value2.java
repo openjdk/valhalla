@@ -2,7 +2,7 @@ package oracle.micro.valhalla.lworld.types;
 
 import oracle.micro.valhalla.types.PNumber;
 
-__ByValue public final class Value2 implements PNumber {
+value public final class Value2 implements PNumber {
 
     public final int f0;
     public final int f1;

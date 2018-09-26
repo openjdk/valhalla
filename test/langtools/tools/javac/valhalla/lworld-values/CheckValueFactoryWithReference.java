@@ -7,6 +7,6 @@
 
 final class CheckValueFactoryWithReference {
     final Object o = Object.default;
-    __ByValue final class Point { int x = 10; }
+    value final class Point { int x = 10; }
     Point p = new Point();
 }

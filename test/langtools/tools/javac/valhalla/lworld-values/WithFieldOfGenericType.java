@@ -29,7 +29,7 @@
  * @run main/othervm -XX:+EnableValhalla WithFieldOfGenericType
  */
 
-public final __ByValue class WithFieldOfGenericType<E> {
+public final value class WithFieldOfGenericType<E> {
   private final boolean value;
 
   public static <E> WithFieldOfGenericType<E> create() {

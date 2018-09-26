@@ -77,7 +77,7 @@ interface MyInterface {
 
 }
 
-__ByValue class MyValue implements MyInterface {
+value class MyValue implements MyInterface {
     final int x = 42;
 
     static MyValue createDefault() {

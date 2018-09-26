@@ -143,7 +143,7 @@ public class ValueTypesAttributeTest {
         Line toLine(Point p, NonFlattenValue nfv);
     }
 
-    static __ByValue class ValueTest {
+    static value class ValueTest {
         private final int value;
         public ValueTest() { this.value = 0; }
 

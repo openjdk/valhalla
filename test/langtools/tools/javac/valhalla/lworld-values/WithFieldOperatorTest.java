@@ -8,9 +8,9 @@ public class WithFieldOperatorTest {
     static int xs;
     int ifld;
     class Y {}
-    public final __ByValue class V { int x = 10; }
+    public final value class V { int x = 10; }
 
-    public final __ByValue class X {
+    public final value class X {
 
         final int x;
         final V v;

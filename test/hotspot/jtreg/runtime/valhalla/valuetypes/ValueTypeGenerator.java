@@ -118,7 +118,7 @@ public class ValueTypeGenerator {
         sb.append("import java.io.PrintStream;\n\n");
 
         // class declaration
-        sb.append("public __ByValue final class ").append(name).append(" {\n");
+        sb.append("public value final class ").append(name).append(" {\n");
 
         // field declarations
         for (FieldDescriptor f : fields) {

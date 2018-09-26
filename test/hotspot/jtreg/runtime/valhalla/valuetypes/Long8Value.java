@@ -25,7 +25,7 @@ package runtime.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
 
-public final __ByValue class Long8Value {
+public final value class Long8Value {
 
     final long longField1;
     final long longField2;
