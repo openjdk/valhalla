@@ -1,5 +1,4 @@
 /*
- * @test /nodynamiccopyright/
  * @bug 8209400
  * @summary Allow anonymous classes to be value types
  * @compile/fail/ref=IllegalByValueTest2.out -XDrawDiagnostics -XDdev IllegalByValueTest2.java

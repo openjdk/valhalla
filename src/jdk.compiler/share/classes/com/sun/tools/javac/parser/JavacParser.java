@@ -2218,11 +2218,8 @@ public class JavacParser implements Parser {
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
     JCExpression creator(int newpos, List<JCExpression> typeArgs) {
-        final JCModifiers mods = modifiersOpt();
-        List<JCAnnotation> newAnnotations = mods.annotations;
-        if (!newAnnotations.isEmpty()) {
-            checkSourceLevel(newAnnotations.head.pos, Feature.TYPE_ANNOTATIONS);
-        }
+        List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
+        final JCModifiers mods = F.at(Position.NOPOS).Modifiers(0, newAnnotations);
         switch (token.kind) {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
