@@ -999,8 +999,8 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
          (byte == Bytecodes::_nop && !link_info.check_access()), "bad field access bytecode");
 
   bool is_static = (byte == Bytecodes::_getstatic || byte == Bytecodes::_putstatic);
-  bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic || byte == Bytecodes::_nofast_putfield
-                    || byte == Bytecodes::_withfield);
+  bool is_put    = (byte == Bytecodes::_putfield  || byte == Bytecodes::_putstatic ||
+                    byte == Bytecodes::_nofast_putfield || byte == Bytecodes::_withfield);
   // Check if there's a resolved klass containing the field
   Klass* resolved_klass = link_info.resolved_klass();
   Symbol* field = link_info.name();
@@ -1039,15 +1039,27 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
   // (1) by methods declared in the class declaring the field and
   // (2) by the <clinit> method (in case of a static field)
   //     or by the <init> method (in case of an instance field).
+  // (3) by withfield when field is in a value type and the
+  //     selected class and current class are nest mates.
   if (is_put && fd.access_flags().is_final()) {
     ResourceMark rm(THREAD);
     stringStream ss;
 
     if (sel_klass != current_klass) {
-      ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
-                is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
-                current_klass->external_name());
-      THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
+      // If byte code is a withfield check if they are nestmates.
+      bool are_nestmates = false;
+      if (sel_klass->is_instance_klass() &&
+          InstanceKlass::cast(sel_klass)->is_value() &&
+          current_klass->is_instance_klass()) {
+        are_nestmates = InstanceKlass::cast(link_info.current_klass())->has_nestmate_access_to(
+                                                        InstanceKlass::cast(sel_klass), THREAD);
+      }
+      if (!are_nestmates) {
+        ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
+                  is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
+                  current_klass->external_name());
+        THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
+      }
     }
 
     if (fd.constants()->pool_holder()->major_version() >= 53) {
