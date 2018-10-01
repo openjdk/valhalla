@@ -899,7 +899,7 @@ public class TestLWorld extends ValueTypeTest {
         MyInterface vt4 = valueField1;
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test5"));
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test28"));
         }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
