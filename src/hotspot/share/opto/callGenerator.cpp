@@ -218,7 +218,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   // correctly, but may bail out in final_graph_reshaping, because
   // the call instruction will have a seemingly deficient out-count.
   // (The bailout says something misleading about an "infinite loop".)
-  if (kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
+  if (!receiver->is_ValueType() && kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
     assert(Bytecodes::is_invoke(kit.java_bc()), "%d: %s", kit.java_bc(), Bytecodes::name(kit.java_bc()));
     ciMethod* declared_method = kit.method()->get_method_at_bci(kit.bci());
     int arg_size = declared_method->signature()->arg_size_for_bc(kit.java_bc());

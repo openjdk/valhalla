@@ -421,29 +421,6 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
 }
 
 // ------------------------------------------------------------------
-// ciInstanceKlass::get_field_type_by_offset
-ciType* ciInstanceKlass::get_field_type_by_offset(int field_offset) {
-  ASSERT_IN_VM;
-  fieldDescriptor fd;
-  InstanceKlass* klass = get_instanceKlass();
-  // Important: We cannot get the field type via get_field_by_offset() because if the field
-  // is another value type, the offset would refer to the first field of that value type due
-  // to flattening. Instead, do a SystemDictionary lookup for the type of the declared field.
-  bool found = klass->find_field_from_offset(field_offset, false, &fd);
-  assert(found, "field not found");
-  BasicType field_type = fd.field_type();
-  if (is_java_primitive(field_type)) {
-    // Primitive type
-    return ciType::make(field_type);
-  } else {
-    // Do a SystemDictionary lookup for the type
-    ciEnv* env = CURRENT_ENV;
-    ciSymbol* signature = env->get_symbol(fd.signature());
-    return env->get_klass_by_name_impl(this, constantPoolHandle(), signature, false);
-  }
-}
-
-// ------------------------------------------------------------------
 // ciInstanceKlass::get_field_by_name
 ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static) {
   VM_ENTRY_MARK;
@@ -545,7 +522,8 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       // Value type fields are embedded
       int field_offset = fd.offset();
       // Get ValueKlass and adjust number of fields
-      ciValueKlass* vk = get_field_type_by_offset(field_offset)->as_value_klass();
+      Klass* k = get_instanceKlass()->get_value_field_klass(fd.index());
+      ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
       flen += vk->nof_nonstatic_fields() - 1;
       // Iterate over fields of the flattened value type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
