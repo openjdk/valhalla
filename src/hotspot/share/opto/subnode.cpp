@@ -746,7 +746,7 @@ bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
 const Type* CmpLNode::Value(PhaseGVN* phase) const {
   Node* a = NULL;
   Node* b = NULL;
-  if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(a)->maybe_null())) {
+  if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(b)->maybe_null())) {
     // One operand is never NULL, emit constant false
     return TypeInt::CC_GT;
   }
