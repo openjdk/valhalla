@@ -141,7 +141,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     // Test default value type array creation via reflection
     @Test()
-    public Object[] test7(Class<?> componentType, int len, long hash) {
+    public Object[] test7(Class<?> componentType, int len) {
         Object[] va = (Object[])Array.newInstance(componentType, len);
         return va;
     }
@@ -150,7 +150,7 @@ public class TestIntrinsics extends ValueTypeTest {
     public void test7_verifier(boolean warmup) {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
-        Object[] va = test7(MyValue1.class, len, hash);
+        Object[] va = test7(MyValue1.class, len);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }

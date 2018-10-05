@@ -585,6 +585,17 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return NULL;
   }
 
+  Node* src = in(ArrayCopyNode::Src);
+  Node* dest = in(ArrayCopyNode::Dest);
+  const Type* src_type = phase->type(src);
+  const Type* dest_type = phase->type(dest);
+
+  if (src_type->isa_aryptr() && dest_type->isa_instptr()) {
+    // clone used for load of unknown value type can't be optimized at
+    // this point
+    return NULL;
+  }
+
   Node* mem = try_clone_instance(phase, can_reshape, count);
   if (mem != NULL) {
     return (mem == NodeSentinel) ? NULL : mem;
@@ -622,8 +633,6 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   new_map->set_memory(MergeMemNode::make(in(TypeFunc::Memory)));
   new_map->set_i_o(in(TypeFunc::I_O));
 
-  Node* src = in(ArrayCopyNode::Src);
-  Node* dest = in(ArrayCopyNode::Dest);
   const TypeAryPtr* atp_src = get_address_type(phase, src);
   const TypeAryPtr* atp_dest = get_address_type(phase, dest);
   uint alias_idx_src = phase->C->get_alias_index(atp_src);

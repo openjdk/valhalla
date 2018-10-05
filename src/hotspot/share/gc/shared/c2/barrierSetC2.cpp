@@ -562,33 +562,15 @@ Node* BarrierSetC2::atomic_add_at(C2AtomicAccess& access, Node* new_val, const T
   return atomic_add_at_resolved(access, new_val, value_type);
 }
 
-void BarrierSetC2::clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const {
-  // Exclude the header but include array length to copy by 8 bytes words.
-  // Can't use base_offset_in_bytes(bt) since basic type is unknown.
-  int base_off = is_array ? arrayOopDesc::length_offset_in_bytes() :
-                            instanceOopDesc::base_offset_in_bytes();
-  // base_off:
-  // 8  - 32-bit VM
-  // 12 - 64-bit VM, compressed klass
-  // 16 - 64-bit VM, normal klass
-  if (base_off % BytesPerLong != 0) {
-    assert(UseCompressedClassPointers, "");
-    if (is_array) {
-      // Exclude length to copy by 8 bytes words.
-      base_off += sizeof(int);
-    } else {
-      // Include klass to copy by 8 bytes words.
-      base_off = instanceOopDesc::klass_offset_in_bytes();
-    }
-    assert(base_off % BytesPerLong == 0, "expect 8 bytes alignment");
-  }
-  Node* src_base  = kit->basic_plus_adr(src,  base_off);
-  Node* dst_base = kit->basic_plus_adr(dst, base_off);
-
-  // Compute the length also, if needed:
-  Node* countx = size;
-  countx = kit->gvn().transform(new SubXNode(countx, kit->MakeConX(base_off)));
-  countx = kit->gvn().transform(new URShiftXNode(countx, kit->intcon(LogBytesPerLong) ));
+void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const {
+#ifdef ASSERT
+  intptr_t src_offset;
+  Node* src = AddPNode::Ideal_base_and_offset(src_base, &kit->gvn(), src_offset);
+  intptr_t dst_offset;
+  Node* dst = AddPNode::Ideal_base_and_offset(dst_base, &kit->gvn(), dst_offset);
+  assert(src == NULL || (src_offset % BytesPerLong == 0), "expect 8 bytes alignment");
+  assert(dst == NULL || (dst_offset % BytesPerLong == 0), "expect 8 bytes alignment");
+#endif
 
   const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
 

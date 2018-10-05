@@ -321,6 +321,11 @@ private:
   static const TypeFunc* store_value_type_fields_Type();
   static const TypeFunc* pack_value_type_Type();
 
+  static void load_unknown_value(valueArrayOopDesc* array, int index, instanceOopDesc* buffer);
+  static const TypeFunc *load_unknown_value_Type();
+  static void store_unknown_value(instanceOopDesc* buffer, valueArrayOopDesc* array, int index);
+  static const TypeFunc *store_unknown_value_Type();
+
  private:
  static NamedCounter * volatile _named_counters;
 

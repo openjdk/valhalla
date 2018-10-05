@@ -1722,9 +1722,9 @@ Node* GraphKit::access_atomic_add_at(Node* ctl,
   }
 }
 
-void GraphKit::access_clone(Node* ctl, Node* src, Node* dst, Node* size, bool is_array) {
+void GraphKit::access_clone(Node* ctl, Node* src_base, Node* dst_base, Node* countx, bool is_array) {
   set_control(ctl);
-  return _barrier_set->clone(this, src, dst, size, is_array);
+  return _barrier_set->clone(this, src_base, dst_base, countx, is_array);
 }
 
 //-------------------------array_element_address-------------------------
@@ -3347,14 +3347,12 @@ void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
 }
 
 // Deoptimize if 'ary' is flattened or if 'obj' is null and 'ary' is a value type array
-void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass) {
+void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, int nargs) {
   assert(EnableValhalla, "should only be used if value types are enabled");
-  if (elem_klass == NULL) {
-    // Load array element klass
-    Node* kls = load_object_klass(ary);
-    Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
-    elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
-  }
+  // Load array element klass
+  Node* kls = load_object_klass(ary);
+  Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
+  Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
   // Check if element is a value type
   Node* flags_addr = basic_plus_adr(elem_klass, in_bytes(Klass::access_flags_offset()));
   Node* flags = make_load(NULL, flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
@@ -3367,57 +3365,41 @@ void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass
     Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
     { BuildCutout unless(this, bol, PROB_MAX);
       // TODO just deoptimize for now if we store null to a value type array
+      inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_array_check,
                     Deoptimization::Action_none);
     }
   } else {
-    // Check if array is flattened or if we are storing null to a value type array
-    // TODO can we merge these checks?
-    gen_flattened_array_guard(ary);
-    if (objtype->meet(TypePtr::NULL_PTR) == objtype) {
-      // Check if (is_value_elem && obj_is_null) <=> (!is_value_elem | !obj_is_null == 0)
-      // TODO what if we later figure out that obj is never null?
-      Node* not_value = _gvn.transform(new XorINode(is_value_elem, intcon(JVM_ACC_VALUE)));
-      not_value = _gvn.transform(new ConvI2LNode(not_value));
-      Node* not_null = _gvn.transform(new CastP2XNode(NULL, obj));
-      Node* both = _gvn.transform(new OrLNode(not_null, not_value));
-      Node* cmp  = _gvn.transform(new CmpLNode(both, longcon(0)));
-      Node* bol  = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
-      { BuildCutout unless(this, bol, PROB_MAX);
-        // TODO just deoptimize for now if we store null to a value type array
-        uncommon_trap(Deoptimization::Reason_array_check,
-                      Deoptimization::Action_none);
-      }
-    }
-  }
-}
-
-Node* GraphKit::gen_lh_array_test(Node* kls, unsigned int lh_value) {
-  Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-  Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
-  layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-  Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(lh_value)));
-  return cmp;
-}
-
-
-// Deoptimize if 'ary' is a flattened value type array
-void GraphKit::gen_flattened_array_guard(Node* ary, int nargs) {
-  assert(EnableValhalla, "should only be used if value types are enabled");
-  if (ValueArrayFlatten) {
-    // Cannot statically determine if array is flattened, emit runtime check
-    Node* kls = load_object_klass(ary);
-    Node* cmp = gen_lh_array_test(kls, Klass::_lh_array_tag_vt_value);
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
-
+    // Check if (is_value_elem && obj_is_null) <=> (!is_value_elem | !obj_is_null == 0)
+    // TODO what if we later figure out that obj is never null?
+    Node* not_value = _gvn.transform(new XorINode(is_value_elem, intcon(JVM_ACC_VALUE)));
+    not_value = _gvn.transform(new ConvI2LNode(not_value));
+    Node* not_null = _gvn.transform(new CastP2XNode(NULL, obj));
+    Node* both = _gvn.transform(new OrLNode(not_null, not_value));
+    Node* cmp  = _gvn.transform(new CmpLNode(both, longcon(0)));
+    Node* bol  = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
     { BuildCutout unless(this, bol, PROB_MAX);
-      // TODO just deoptimize for now if value type array is flattened
+      // TODO just deoptimize for now if we store null to a value type array
       inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_array_check,
                     Deoptimization::Action_none);
     }
   }
 }
+
+Node* GraphKit::load_lh_array_tag(Node* kls) {
+  Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
+  Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
+  return _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
+}
+
+
+Node* GraphKit::gen_lh_array_test(Node* kls, unsigned int lh_value) {
+  Node* layout_val = load_lh_array_tag(kls);
+  Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(lh_value)));
+  return cmp;
+}
+
 
 //------------------------------next_monitor-----------------------------------
 // What number should be given to the next monitor?

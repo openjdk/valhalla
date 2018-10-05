@@ -4318,7 +4318,34 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   // TODO: generate fields copies for small objects instead.
   Node* size = _gvn.transform(obj_size);
 
-  access_clone(control(), obj, alloc_obj, size, is_array);
+  // Exclude the header but include array length to copy by 8 bytes words.
+  // Can't use base_offset_in_bytes(bt) since basic type is unknown.
+  int base_off = is_array ? arrayOopDesc::length_offset_in_bytes() :
+                            instanceOopDesc::base_offset_in_bytes();
+  // base_off:
+  // 8  - 32-bit VM
+  // 12 - 64-bit VM, compressed klass
+  // 16 - 64-bit VM, normal klass
+  if (base_off % BytesPerLong != 0) {
+    assert(UseCompressedClassPointers, "");
+    if (is_array) {
+      // Exclude length to copy by 8 bytes words.
+      base_off += sizeof(int);
+    } else {
+      // Include klass to copy by 8 bytes words.
+      base_off = instanceOopDesc::klass_offset_in_bytes();
+    }
+    assert(base_off % BytesPerLong == 0, "expect 8 bytes alignment");
+  }
+  Node* src_base  = basic_plus_adr(obj,  base_off);
+  Node* dst_base = basic_plus_adr(alloc_obj, base_off);
+
+  // Compute the length also, if needed:
+  Node* countx = size;
+  countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
+  countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
+
+  access_clone(control(), src_base, dst_base, countx, is_array);
 
   // Do not let reads from the cloned object float above the arraycopy.
   if (alloc != NULL) {

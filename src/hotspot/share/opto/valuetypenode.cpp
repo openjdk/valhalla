@@ -231,7 +231,7 @@ void ValueTypeBaseNode::make_scalar_in_safepoints(Node* root, PhaseGVN* gvn) {
   Unique_Node_List worklist;
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node* u = fast_out(i);
-    if (u->is_SafePoint() && (!u->is_Call() || u->as_Call()->has_debug_use(this))) {
+    if (u->is_SafePoint() && !u->is_CallLeaf() && (!u->is_Call() || u->as_Call()->has_debug_use(this))) {
       SafePointNode* sfpt = u->as_SafePoint();
       Node* in_oop = get_oop();
       const Type* oop_type = in_oop->bottom_type();

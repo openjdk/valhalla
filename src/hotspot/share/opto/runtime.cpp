@@ -50,6 +50,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -1716,6 +1717,72 @@ const TypeFunc *OptoRuntime::pack_value_type_Type() {
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+JRT_LEAF(void, OptoRuntime::load_unknown_value(valueArrayOopDesc* array, int index, instanceOopDesc* buffer))
+{
+  Klass* klass = array->klass();
+  assert(klass->is_valueArray_klass(), "expected value array oop");
+
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+  void* src = array->value_at_addr(index, vaklass->layout_helper());
+  vklass->value_store(src, vklass->data_for_oop(buffer),
+                        vaklass->element_byte_size(), true, false);
+}
+JRT_END
+
+const TypeFunc *OptoRuntime::load_unknown_value_Type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(3);
+  // We don't know the number of returned values and their
+  // types. Assume all registers available to the return convention
+  // are used.
+  fields[TypeFunc::Parms] = TypeOopPtr::NOTNULL;
+  fields[TypeFunc::Parms+1] = TypeInt::POS;
+  fields[TypeFunc::Parms+2] = TypeInstPtr::NOTNULL;
+
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(0);
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+JRT_LEAF(void, OptoRuntime::store_unknown_value(instanceOopDesc* buffer, valueArrayOopDesc* array, int index))
+{
+  assert(buffer != NULL, "can't store null into flat array");
+  Klass* klass = array->klass();
+  assert(klass->is_valueArray_klass(), "expected value array");
+  assert(ArrayKlass::cast(klass)->element_klass() == buffer->klass(), "Store type incorrect");
+
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+  const int lh = vaklass->layout_helper();
+  vklass->value_store(vklass->data_for_oop(buffer), array->value_at_addr(index, lh),
+                      vaklass->element_byte_size(), true, false);
+}
+JRT_END
+
+const TypeFunc *OptoRuntime::store_unknown_value_Type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(3);
+  // We don't know the number of returned values and their
+  // types. Assume all registers available to the return convention
+  // are used.
+  fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
+  fields[TypeFunc::Parms+1] = TypeOopPtr::NOTNULL;
+  fields[TypeFunc::Parms+2] = TypeInt::POS;
+
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(0);
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
 
   return TypeFunc::make(domain, range);
 }

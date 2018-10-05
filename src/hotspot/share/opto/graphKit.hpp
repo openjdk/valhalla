@@ -644,7 +644,7 @@ class GraphKit : public Phase {
                              BasicType bt,
                              DecoratorSet decorators);
 
-  void access_clone(Node* ctl, Node* src, Node* dst, Node* size, bool is_array);
+  void access_clone(Node* ctl, Node* src_base, Node* dst_base, Node* countx, bool is_array);
 
   // Return addressing for an array element.
   Node* array_element_address(Node* ary, Node* idx, BasicType elembt,
@@ -831,8 +831,8 @@ class GraphKit : public Phase {
   Node* is_always_locked(Node* obj);
   Node* gen_value_type_test(Node* kls);
   void gen_value_type_guard(Node* obj, int nargs = 0);
-  void gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass = NULL);
-  void gen_flattened_array_guard(Node* ary, int nargs = 0);
+  void gen_value_type_array_guard(Node* ary, Node* obj, int nargs);
+  Node* load_lh_array_tag(Node* kls);
   Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
 
   Node* gen_subtype_check(Node* subklass, Node* superklass) {

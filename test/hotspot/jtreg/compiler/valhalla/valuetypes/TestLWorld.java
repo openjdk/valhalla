@@ -2270,4 +2270,47 @@ public class TestLWorld extends ValueTypeTest {
     public void test88_verifier(boolean warmup) {
         test88();
     }
+
+    // Tests for loading/storing unkown values
+    @Test
+    public Object test89(Object[] va) {
+        return va[0];
+    }
+
+    @DontCompile
+    public void test89_verifier(boolean warmup) {
+        MyValue1 vt = (MyValue1)test89(testValue1Array);
+        Asserts.assertEquals(testValue1Array[0].hash(), vt.hash());
+    }
+
+    @Test
+    public void test90(Object[] va, Object vt) {
+        va[0] = vt;
+    }
+
+    @DontCompile
+    public void test90_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        test90(va, testValue1);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+    }
+
+    // Verify that mixing instances and arrays with the clone api
+    // doesn't break anything
+    @Test
+    public Object test91(Object o) {
+        MyValue1[] va = new MyValue1[1];
+        Object[] next = va;
+        Object[] arr = va;
+        for (int i = 0; i < 10; i++) {
+            arr = next;
+            next = new Integer[1];
+        }
+        return arr[0];
+    }
+
+    @DontCompile
+    public void test91_verifier(boolean warmup) {
+        test91(42);
+    }
 }
