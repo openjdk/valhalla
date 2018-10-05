@@ -4005,7 +4005,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     }
   }
 
-  if (EnableValhalla && (!layout_con || elem == NULL || (elem_klass != NULL && elem_klass->is_java_lang_Object() && !ary_type->klass_is_exact()))) {
+  if (EnableValhalla && (elem == NULL || (elem_klass != NULL && elem_klass->is_java_lang_Object() && !ary_type->klass_is_exact()))) {
     assert(raw_default_value == NULL, "shouldn't be set yet");
 
     // unkown array type, could be a non flattened value array that's
