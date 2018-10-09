@@ -1008,7 +1008,10 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                  aat->isa_ptr() != NULL, "expecting an Ptr");
           bool arg_has_oops = aat->isa_oopptr() &&
                               (aat->isa_oopptr()->klass() == NULL || aat->isa_instptr() ||
-                               (aat->isa_aryptr() && aat->isa_aryptr()->klass()->is_obj_array_klass()));
+                               (aat->isa_aryptr() && aat->isa_aryptr()->klass()->is_obj_array_klass()) ||
+                               (aat->isa_aryptr() && aat->isa_aryptr()->elem() != NULL &&
+                                aat->isa_aryptr()->elem()->isa_valuetype() &&
+                                aat->isa_aryptr()->elem()->isa_valuetype()->value_klass()->contains_oops()));
           if (i == TypeFunc::Parms) {
             src_has_oops = arg_has_oops;
           }

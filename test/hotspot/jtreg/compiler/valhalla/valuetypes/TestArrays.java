@@ -1572,4 +1572,24 @@ public class TestArrays extends ValueTypeTest {
             Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
         }
     }
+
+    // EA needs to consider oop fields in flattened arrays
+    @Test
+    public void test71() {
+        int len = 10;
+        MyValue2[] src = new MyValue2[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsDontInline(rI, (i % 2) == 0);
+        }
+        System.arraycopy(src, 0, dst, 0, src.length);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    @DontCompile
+    public void test71_verifier(boolean warmup) {
+        test71();
+    }
 }

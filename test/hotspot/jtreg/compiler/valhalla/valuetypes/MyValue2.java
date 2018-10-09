@@ -83,6 +83,15 @@ value public final class MyValue2 implements MyInterface {
         return v;
     }
 
+    @DontInline
+    public static MyValue2 createWithFieldsDontInline(int x, boolean b) {
+        MyValue2 v = createDefaultInline();
+        v = setX(v, x);
+        v = setY(v, (byte)x);
+        v = setV1(v, MyValue2Inline.createWithFieldsInline(b, ValueTypeTest.rL));
+        return v;
+    }
+
     @ForceInline
     public long hash() {
         return x + y + (v1.b ? 0 : 1) + v1.c;
