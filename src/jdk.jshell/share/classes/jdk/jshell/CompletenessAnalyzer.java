@@ -224,6 +224,7 @@ class CompletenessAnalyzer {
         FLATTENABLE(TokenKind.FLATTENABLE, XDECL1),  //  __Flattenable
         NOTFLATTENED(TokenKind.NOTFLATTENED, XDECL1),  //  __NotFlattened
         VOLATILE(TokenKind.VOLATILE, XDECL1),  //  volatile
+        VALUE(TokenKind.VALUE, 0),
 
         // Declarations and type parameters (thus expressions)
         EXTENDS(TokenKind.EXTENDS, XEXPR|XDECL),  //  extends

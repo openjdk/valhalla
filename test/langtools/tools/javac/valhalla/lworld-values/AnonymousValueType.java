@@ -22,6 +22,7 @@
  */
 
 /**
+ * @test
  * @bug 8209400
  * @summary Allow anonymous classes to be value types
  * @run main/othervm -Xverify:none -XX:+EnableValhalla AnonymousValueType

@@ -58,6 +58,7 @@ import static com.sun.tools.javac.parser.Tokens.TokenKind.EQ;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.GT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.IMPORT;
 import static com.sun.tools.javac.parser.Tokens.TokenKind.LT;
+import static com.sun.tools.javac.parser.Tokens.TokenKind.SYNCHRONIZED;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.ImplicitAndExplicitNotAllowed;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.VarAndExplicitNotAllowed;
@@ -2218,8 +2219,11 @@ public class JavacParser implements Parser {
     /** Creator = [Annotations] Qualident [TypeArguments] ( ArrayCreatorRest | ClassCreatorRest )
      */
     JCExpression creator(int newpos, List<JCExpression> typeArgs) {
-        List<JCAnnotation> newAnnotations = typeAnnotationsOpt();
-        final JCModifiers mods = F.at(Position.NOPOS).Modifiers(0, newAnnotations);
+        final JCModifiers mods = modifiersOpt();
+        List<JCAnnotation> newAnnotations = mods.annotations;
+        if (!newAnnotations.isEmpty()) {
+            checkSourceLevel(newAnnotations.head.pos, Feature.TYPE_ANNOTATIONS);
+        }
         switch (token.kind) {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
@@ -2569,6 +2573,7 @@ public class JavacParser implements Parser {
      */
     List<JCStatement> blockStatement() {
         //todo: skip to anchor on error(?)
+        token = recastToken(token);
         int pos = token.pos;
         switch (token.kind) {
         case RBRACE: case CASE: case DEFAULT: case EOF:
@@ -2578,6 +2583,7 @@ public class JavacParser implements Parser {
         case CONTINUE: case SEMI: case ELSE: case FINALLY: case CATCH:
         case ASSERT:
             return List.of(parseSimpleStatement());
+        case VALUE:
         case MONKEYS_AT:
         case FINAL: {
             Comment dc = token.comment(CommentStyle.JAVADOC);
@@ -3038,6 +3044,7 @@ public class JavacParser implements Parser {
     loop:
         while (true) {
             long flag;
+            token = recastToken(token);
             switch (token.kind) {
             case PRIVATE     : flag = Flags.PRIVATE; break;
             case PROTECTED   : flag = Flags.PROTECTED; break;
@@ -3049,16 +3056,14 @@ public class JavacParser implements Parser {
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
+            case VALUE       : flag = Flags.VALUE; break;
             case VOLATILE    : flag = Flags.VOLATILE; break;
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
             case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
             case ERROR       : flag = 0; nextToken(); break;
-            default:           if (token.kind == IDENTIFIER && token.name() == names.value) {
-                                   checkSourceLevel(Feature.VALUE_TYPES); flag = Flags.VALUE; break;
-                               }
-                               break loop;
+            default: break loop;
             }
             if ((flags & flag) != 0) log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.RepeatedModifier);
             lastPos = token.pos;
@@ -3282,6 +3287,44 @@ public class JavacParser implements Parser {
         attach(result, dc);
         result.startPos = startPos;
         return result;
+    }
+
+    // Does the given token signal a value modifier ? If yes, suitably reclassify token.
+    Token recastToken(Token token) {
+        if (token.kind != IDENTIFIER || token.name() != names.value) {
+            return token;
+        }
+        if (peekToken(t->t == PRIVATE ||
+                         t == PROTECTED ||
+                         t == PUBLIC ||
+                         t == STATIC ||
+                         t == TRANSIENT ||
+                         t == FLATTENABLE ||
+                         t == NOTFLATTENED ||
+                         t == FINAL ||
+                         t == ABSTRACT ||
+                         t == NATIVE ||
+                         t == VOLATILE ||
+                         t == SYNCHRONIZED ||
+                         t == STRICTFP ||
+                         t == MONKEYS_AT ||
+                         t == DEFAULT ||
+                         t == BYTE ||
+                         t == SHORT ||
+                         t == CHAR ||
+                         t == INT ||
+                         t == LONG ||
+                         t == FLOAT ||
+                         t == DOUBLE ||
+                         t == BOOLEAN ||
+                         t == CLASS ||
+                         t == INTERFACE ||
+                         t == ENUM ||
+                         t == IDENTIFIER)) { // new value Comparable() {}
+            checkSourceLevel(Feature.VALUE_TYPES);
+            return new Token(VALUE, token.pos, token.endPos, token.comments);
+        }
+        return token;
     }
 
     boolean isRestrictedLocalVarTypeName(JCExpression e, boolean shouldWarn) {
