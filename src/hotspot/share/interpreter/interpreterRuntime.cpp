@@ -355,23 +355,24 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       new_value_h()->obj_field_put_raw(field_offset, aoop);
     }
   } else if (field_type == T_OBJECT) {
-    // Logic below is optimized
-    // Null checks for non flattenable fields have already be performed in the assembly template
-    // of the interpreter, which reduces the number of possible cases:
-    // 1 - flattened or not flattened
-    // 2 - if not flattened: argument is buffered (value) or in heap (value and objects)
     if (cp_entry->is_flattened()) {
+      oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
+      if (vt_oop == NULL) {
+        THROW_(vmSymbols::java_lang_NullPointerException(),
+            (type2size[field_type] * AbstractInterpreter::stackElementSize));
+      }
+      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
       Klass* field_k = vklass->get_value_field_klass(field_index);
       ValueKlass* field_vk = ValueKlass::cast(field_k);
-      oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
       assert(field_vk == vt_oop->klass(), "Must match");
       field_vk->value_store(field_vk->data_for_oop(vt_oop),
           ((char*)(oopDesc*)new_value_h()) + field_offset, in_heap, false);
     } else { // not flattened
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(voop != NULL || !cp_entry->is_flattenable(),
-             "NULL checks for non flattenable fields must have been performed in interpreter assembly template");
+      if (voop == NULL && cp_entry->is_flattenable()) {
+        THROW_(vmSymbols::java_lang_NullPointerException(),
+            (type2size[field_type] * AbstractInterpreter::stackElementSize));
+      }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
       if (VTBuffer::is_in_vt_buffer(voop)) {
         // new value field is currently allocated in a TLVB, a heap allocated
