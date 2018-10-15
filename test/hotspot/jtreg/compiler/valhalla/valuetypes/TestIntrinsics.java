@@ -429,4 +429,27 @@ public class TestIntrinsics extends ValueTypeTest {
         Object[] res = (Object[])test26();
         Asserts.assertEQ(((MyValue1)res[0]).hashPrimitive(), MyValue1.createDefaultInline().hashPrimitive());
     }
+
+    // Load non-flattenable value type field with unsafe
+    __NotFlattened MyValue1 test27_vt = MyValue1.createWithFieldsInline(rI, rL);
+    private static final long TEST27_OFFSET;
+    static {
+        try {
+            Field field = TestIntrinsics.class.getDeclaredField("test27_vt");
+            TEST27_OFFSET = U.objectFieldOffset(field);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test()
+    public MyValue1 test27() {
+        return (MyValue1)U.getObject(this, TEST27_OFFSET);
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        MyValue1 res = test27();
+        Asserts.assertEQ(res.hash(), test24_vt.hash());
+    }
 }

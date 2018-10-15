@@ -2674,6 +2674,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
           "stress return of fields instead of a value type reference")      \
                                                                             \
+  develop(bool, ScalarizeValueTypes, true,                                  \
+          "Scalarize value types in compiled code")                         \
+                                                                            \
   experimental(bool, UsePointerPerturbation, false,                         \
                "With value types, use the perturbation scheme for acmp")    \
 

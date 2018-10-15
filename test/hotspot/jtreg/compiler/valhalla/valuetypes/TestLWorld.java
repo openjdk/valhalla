@@ -24,6 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 import java.lang.invoke.*;
+import java.lang.reflect.Method;
 
 import jdk.experimental.value.MethodHandleBuilder;
 import jdk.experimental.bytecode.MacroCodeBuilder;
@@ -2312,5 +2313,53 @@ public class TestLWorld extends ValueTypeTest {
     @DontCompile
     public void test91_verifier(boolean warmup) {
         test91(42);
+    }
+
+    @DontInline
+    public boolean test92_dontinline(MyValue1 vt) {
+        return (Object)vt == null;
+    }
+
+    // Test c2c call passing null for a value type
+    @Test
+    @Warmup(10000) // Warmup to make sure 'test92_dontinline' is compiled
+    public boolean test92(Object arg) throws Exception {
+        Method test92method = getClass().getMethod("test92_dontinline", MyValue1.class);
+        return (boolean)test92method.invoke(this, arg);
+    }
+
+    @DontCompile
+    public void test92_verifier(boolean warmup) throws Exception {
+        boolean res = test92(null);
+        Asserts.assertTrue(res);
+    }
+
+    // Cast an Integer to a value type
+    private static final MethodHandle castIntegerToValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "castIntegerToValue",
+        MethodType.methodType(void.class, TestLWorld.class, Integer.class),
+        CODE -> {
+            CODE.
+            aload_1().
+            checkcast(MyValue1.class).
+            return_();
+        },
+        MyValue1.class);
+
+    // Casting a null Integer to a value type should throw an exception
+    @Test
+    public void test93(Integer i) throws Throwable {
+        castIntegerToValue.invoke(this, i);
+    }
+
+    @DontCompile
+    public void test93_verifier(boolean warmup) throws Throwable {
+        try {
+            test93(null);
+// TODO enable this once we've fixed the interpreter to throw a NPE
+//            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
     }
 }

@@ -340,7 +340,7 @@ void Parse::do_defaultvalue() {
   emit_guard_for_new(vk);
   if (stopped()) return;
 
-  // Create and push a new default ValueTypeNode
+  // Always scalarize default value because it's not NULL by definition
   push(ValueTypeNode::make_default(_gvn, vk));
 }
 
@@ -351,18 +351,32 @@ void Parse::do_withfield() {
   assert(will_link, "withfield: typeflow responsibility");
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
-  Node* vt = pop();
-  assert(vt->is_ValueType(), "value type expected here");
+  ciValueKlass* holder_klass = field->holder()->as_value_klass();
+  Node* holder = pop();
 
-  ValueTypeNode* new_vt = vt->clone()->as_ValueType();
+  if (!holder->is_ValueType()) {
+    assert(!gvn().type(holder)->maybe_null(), "should never be null");
+    inc_sp(2);
+    holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
+    if (field->is_flattenable() && !val->is_ValueType() && gvn().type(val)->maybe_null()) {
+      assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+      return;
+    }
+    dec_sp(2);
+  }
+
+  // Clone the value type node and set the new field value
+  ValueTypeNode* new_vt = holder->clone()->as_ValueType();
   new_vt->set_oop(_gvn.zerocon(T_VALUETYPE));
-  int offset = field->offset();
-  uint i = 0;
-  for (; i < new_vt->field_count() && new_vt->field_offset(i) != offset; i++) {}
-  assert(i < new_vt->field_count(), "field not found");
-  new_vt->set_field_value(i, val);
+  gvn().set_type(new_vt, new_vt->bottom_type());
+  new_vt->set_field_value_by_offset(field->offset(), val);
 
-  push(_gvn.transform(new_vt));
+  if (holder_klass->is_scalarizable()) {
+    push(_gvn.transform(new_vt));
+  } else {
+    push(new_vt->allocate(this)->get_oop());
+  }
 }
 
 #ifndef PRODUCT

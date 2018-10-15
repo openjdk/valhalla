@@ -266,7 +266,12 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_VALUETYPE:
-    return TypeValueType::make(type->as_value_klass());
+    if (type->as_value_klass()->is_scalarizable()) {
+      return TypeValueType::make(type->as_value_klass());
+    } else {
+      // Value types cannot be null
+      return TypeOopPtr::make_from_klass(type->as_klass())->join_speculative(TypePtr::NOTNULL);
+    }
 
   default:
     // make sure we did not mix up the cases:

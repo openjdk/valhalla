@@ -836,7 +836,7 @@ const Type* CmpULNode::sub(const Type* t1, const Type* t2) const {
 const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
   if (t1->isa_valuetype() || t2->isa_valuetype() ||
       ((t1->is_valuetypeptr() || t2->is_valuetypeptr()) &&
-      (!t1->is_ptr()->maybe_null() || !t2->is_ptr()->maybe_null()))) {
+      (!t1->maybe_null() || !t2->maybe_null()))) {
     // One operand is a value type and one operand is never null, fold to constant false
     return TypeInt::CC_GT;
   }

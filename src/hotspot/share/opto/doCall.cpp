@@ -647,16 +647,6 @@ void Parse::do_call() {
     ciType* rtype = cg->method()->return_type();
     ciType* ctype = declared_signature->return_type();
 
-    Node* retnode = peek();
-    if (rtype->basic_type() == T_VALUETYPE && !retnode->is_ValueType()) {
-      pop();
-      assert(!cg->is_inline(), "should have ValueTypeNode result when inlining");
-      ciValueKlass* vk = _gvn.type(retnode)->value_klass();
-      // We will deoptimize if the return value is null and then need to continue execution after the call
-      ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* null2default */ false, iter().next_bci());
-      push_node(T_VALUETYPE, vt);
-    }
-
     if (Bytecodes::has_optional_appendix(iter().cur_bc_raw()) || is_signature_polymorphic) {
       // Be careful here with return types.
       if (ctype != rtype) {
@@ -681,13 +671,9 @@ void Parse::do_call() {
               // (See comments inside TypeTuple::make_range).
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !retnode->is_ValueType()) {
-              pop();
+            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
+              Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
-              if (ct == T_VALUETYPE) {
-                // We will deoptimize if the return value is null and then need to continue execution after the call
-                cast_obj = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* buffer_check */ false, /* null2default */ false, iter().next_bci());
-              }
               push(cast_obj);
             }
           }
@@ -709,6 +695,18 @@ void Parse::do_call() {
       // the accessing class).
       assert(!rtype->is_loaded() || !ctype->is_loaded() || rtype == ctype,
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
+    }
+
+    if (rtype->basic_type() == T_VALUETYPE && !peek()->is_ValueType()) {
+      // Deoptimize if the return value is null and then continue execution after the call
+      Node* retnode = pop();
+      assert(!gvn().type(retnode)->maybe_null() || !cg->method()->get_Method()->is_returning_vt(), "should never be null");
+      if (rtype->as_value_klass()->is_scalarizable()) {
+        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass(), /* buffer_check */ false, /* null2default */ false, iter().next_bci());
+      } else if (gvn().type(retnode)->maybe_null()) {
+        retnode = filter_null(retnode, false, NULL, iter().next_bci());
+      }
+      push_node(T_VALUETYPE, retnode);
     }
 
     // If the return type of the method is not loaded, assert that the

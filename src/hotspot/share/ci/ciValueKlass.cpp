@@ -86,6 +86,11 @@ bool ciValueKlass::is_bufferable() const {
   GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->is_bufferable();)
 }
 
+// TODO
+bool ciValueKlass::is_scalarizable() const {
+  return ScalarizeValueTypes;
+}
+
 // When passing a value type's fields as arguments, count the number
 // of argument slots that are needed
 int ciValueKlass::value_arg_slots() {

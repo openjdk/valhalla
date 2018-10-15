@@ -123,14 +123,8 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_INT:     l = new LoadINode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInt::INT,        MemNode::unordered); break;
   case T_FLOAT:   l = new LoadFNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::FLOAT,         MemNode::unordered); break;
   case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
+  case T_VALUETYPE:
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
-  case T_VALUETYPE: {
-    // Load oop and create a new ValueTypeNode
-    const TypeInstPtr* ptr_type = TypeInstPtr::make(TypePtr::BotPTR, type->is_valuetype()->value_klass());
-    l = _gvn.transform(new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, ptr_type, MemNode::unordered));
-    l = ValueTypeNode::make_from_oop(this, l, type->is_valuetype()->value_klass(), /* buffer_check */ true, /* null2default */ false);
-    break;
-  }
   case T_LONG:
   case T_DOUBLE: {
     // Since arguments are in reverse order, the argument address 'adr'
@@ -160,8 +154,11 @@ Node* Parse::fetch_interpreter_state(int index,
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
                                     SafePointNode* &bad_type_exit) {
-
   const TypeOopPtr* tp = type->isa_oopptr();
+  if (type->isa_valuetype() != NULL) {
+    // The interpreter passes value types as oops
+    tp = TypeOopPtr::make_from_klass(type->isa_valuetype()->value_klass());
+  }
 
   // TypeFlow may assert null-ness if a type appears unloaded.
   if (type == TypePtr::NULL_PTR ||
@@ -184,6 +181,12 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   if (tp != NULL && tp->klass() != C->env()->Object_klass()) {
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = NULL;
+    if (tp->is_valuetypeptr()) {
+      // Check value types for null here to prevent checkcast from adding an
+      // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
+      l = null_check_oop(l, &bad_type_ctrl);
+      bad_type_exit->control()->add_req(bad_type_ctrl);
+    }
     l = gen_checkcast(l, makecon(TypeKlassPtr::make(tp->klass())), &bad_type_ctrl);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
@@ -609,9 +612,11 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     if (!ValueTypePassFieldsAsArgs) {
       if (t->is_valuetypeptr()) {
         // Create ValueTypeNode from the oop and replace the parameter
-        assert(!t->is_ptr()->maybe_null(), "value type arguments should never be null");
-        Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true, /* null2default */ false);
-        map()->replace_edge(parm, vt);
+        assert(!t->maybe_null(), "value type arguments should never be null");
+        if (t->value_klass()->is_scalarizable()) {
+          Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true);
+          map()->replace_edge(parm, vt);
+        }
       }
     } else {
       assert(false, "FIXME");
@@ -820,7 +825,8 @@ void Parse::build_exits() {
     if (ret_oop_type && !ret_oop_type->klass()->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
-    if ((_caller->has_method() || tf()->returns_value_type_as_fields()) && ret_type->is_valuetypeptr()) {
+    if ((_caller->has_method() || tf()->returns_value_type_as_fields()) &&
+        ret_type->is_valuetypeptr() && ret_type->value_klass()->is_scalarizable()) {
       // When inlining or with multiple return values: return value
       // type as ValueTypeNode not as oop
       ret_type = TypeValueType::make(ret_type->value_klass());
@@ -1738,8 +1744,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Allocate value type in src block to be able to merge it with oop in target block
           map()->set_req(j, ValueTypePtrNode::make_from_value_type(this, n->as_ValueType(), true));
         }
-        if (t->isa_valuetype() && !n->is_ValueType()) {
-          // check for a null constant
+        if ((t->isa_valuetype() || t->is_valuetypeptr()) && !n->is_ValueType() && gvn().type(n)->maybe_null()) {
           assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
           uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
           assert(stopped(), "should be a dead path now");
@@ -1887,7 +1892,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two value types?
-      if (phi != NULL && n->isa_ValueType()) {
+      if (phi != NULL && n->is_ValueType()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
         ValueTypeNode* vtm = m->as_ValueType(); // Current value type
@@ -2329,15 +2334,10 @@ void Parse::decrement_age() {
 //------------------------------return_current---------------------------------
 // Append current _map to _exit_return
 void Parse::return_current(Node* value) {
-  if (value != NULL && value->is_ValueType() && !_caller->has_method()) {
-    // Returning a value type from root JVMState
-    if (tf()->returns_value_type_as_fields()) {
-      // Value type is returned as fields, make sure non-flattened value type fields are allocated
-      value = value->as_ValueType()->allocate_fields(this);
-    } else {
-      // Value type is returned as oop, make sure it's allocated
-      value = value->as_ValueType()->allocate(this)->get_oop();
-    }
+  if (tf()->returns_value_type_as_fields()) {
+    assert(false, "Fix this with the calling convention changes");
+    // Value type is returned as fields, make sure non-flattened value type fields are allocated
+    // value = value->as_ValueType()->allocate_fields(this);
   }
 
   if (RegisterFinalizersAtInit &&
@@ -2360,8 +2360,10 @@ void Parse::return_current(Node* value) {
   if (value != NULL) {
     Node* phi = _exits.argument(0);
     const TypeOopPtr* tr = phi->bottom_type()->isa_oopptr();
-    if (tr && tr->isa_instptr() && tr->klass()->is_loaded() &&
-        tr->klass()->is_interface()) {
+    if (value->is_ValueType() && (!_caller->has_method() || (tr && tr->is_valuetypeptr()))) {
+      // Value type is returned as oop, make sure it's allocated
+      value = value->as_ValueType()->allocate(this)->get_oop();
+    } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.
       const TypeInstPtr* tp = value->bottom_type()->isa_instptr();
@@ -2372,11 +2374,8 @@ void Parse::return_current(Node* value) {
         }
         value = _gvn.transform(new CheckCastPPNode(0, value, tr));
       }
-    } else if (tr && tr->isa_instptr() && value->is_ValueType()) {
-      // Value type to Object return
-      assert(tr->isa_instptr()->klass()->is_java_lang_Object(), "must be java.lang.Object");
-      assert(_caller->has_method(), "value type should be returned as oop");
-    } else if (phi->bottom_type()->isa_valuetype() && !value->is_ValueType()) {
+    } else if ((phi->bottom_type()->isa_valuetype() || phi->bottom_type()->is_valuetypeptr())
+               && !value->is_ValueType() && gvn().type(value)->maybe_null()) {
       assert(value->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
       inc_sp(1);
       uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);

@@ -67,7 +67,7 @@ void Parse::array_load(BasicType bt) {
   if (elemtype->isa_valuetype() != NULL) {
     // Load from flattened value type array
     ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
-    ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
+    Node* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
   } else if (elemptr != NULL && elemptr->is_valuetypeptr()) {
@@ -154,8 +154,10 @@ void Parse::array_load(BasicType bt) {
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened (but flattenable) value type from an array
-    assert(!gvn().type(ld)->is_ptr()->maybe_null(), "value type array elements should never be null");
-    ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
+    assert(!gvn().type(ld)->maybe_null(), "value type array elements should never be null");
+    if (elemptr->value_klass()->is_scalarizable()) {
+      ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
+    }
   }
 
   push_node(bt, ld);
@@ -182,18 +184,26 @@ void Parse::array_store(BasicType bt) {
     const Type* val_t = _gvn.type(val);
     if (elemtype->isa_valuetype() != NULL) {
       // Store to flattened value type array
-      if (!val->is_ValueType() && val_t == TypePtr::NULL_PTR) {
-        // Can not store null into a value type array
-        inc_sp(3);
-        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-        return;
+      val_t = _gvn.type(cast_val);
+      if (!cast_val->is_ValueType()) {
+        if (val_t->maybe_null()) {
+          // Can not store null into a value type array
+          assert(val_t == TypePtr::NULL_PTR, "Anything other than null?");
+          inc_sp(3);
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+          return;
+        }
+        assert(!val_t->maybe_null(), "should never be null");
+        cast_val = ValueTypeNode::make_from_oop(this, cast_val, elemtype->is_valuetype()->value_klass());
       }
       cast_val->as_ValueType()->store_flattened(this, ary, adr);
       return;
     } else if (elemptr->is_valuetypeptr()) {
       // Store to non-flattened value type array
-      if (!val->is_ValueType() && val_t == TypePtr::NULL_PTR) {
+      val_t = _gvn.type(cast_val);
+      if (!cast_val->is_ValueType() && val_t->maybe_null()) {
         // Can not store null into a value type array
+        assert(val_t == TypePtr::NULL_PTR, "Anything other than null?");
         inc_sp(3);
         uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
         return;
@@ -231,15 +241,9 @@ void Parse::array_store(BasicType bt) {
           } else {
             if (TypePtr::NULL_PTR->higher_equal(val_t)) {
               sync_kit(ideal);
-              Node* null_ctl = top();
-              val = null_check_oop(val, &null_ctl);
-              {
-                assert(null_ctl != top(), "expected to possibly be null");
-                PreserveJVMState pjvms(this);
-                set_control(null_ctl);
-                inc_sp(3);
-                uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-              }
+              inc_sp(3);
+              val = filter_null(val);
+              dec_sp(3);
               ideal.sync_kit(this);
             }
 

@@ -71,6 +71,7 @@ public:
   Node*         field_value(uint index) const;
   Node*         field_value_by_offset(int offset, bool recursive = false) const;
   void      set_field_value(uint index, Node* value);
+  void      set_field_value_by_offset(int offset, Node* value);
   int           field_offset(uint index) const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;
@@ -99,8 +100,8 @@ class ValueTypeNode : public ValueTypeBaseNode {
   friend class ValueTypeBaseNode;
   friend class ValueTypePtrNode;
 private:
-  ValueTypeNode(const TypeValueType* t, Node* oop)
-    : ValueTypeBaseNode(t, Values + t->value_klass()->nof_declared_nonstatic_fields()) {
+  ValueTypeNode(ciValueKlass* vk, Node* oop)
+    : ValueTypeBaseNode(TypeValueType::make(vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_ValueType);
     init_req(Oop, oop);
   }
@@ -116,7 +117,7 @@ private:
 
 public:
   // Create uninitialized
-  static ValueTypeNode* make_uninitialized(PhaseGVN& gvn, ciValueKlass* klass);
+  static ValueTypeNode* make_uninitialized(PhaseGVN& gvn, ciValueKlass* vk);
   // Create with default field values
   static ValueTypeNode* make_default(PhaseGVN& gvn, ciValueKlass* vk);
   // Create and initialize by loading the field values from an oop

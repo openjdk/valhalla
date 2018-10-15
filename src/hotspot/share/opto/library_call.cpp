@@ -2525,6 +2525,15 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
+    if (value_type->is_valuetypeptr()) {
+      // Load a non-flattened value type from memory
+      assert(!field->is_flattened(), "unsafe value type load from flattened field");
+      if (value_type->value_klass()->is_scalarizable()) {
+        p = ValueTypeNode::make_from_oop(this, p, value_type->value_klass(), /* buffer_check */ false, /* null2default */ field->is_flattenable());
+      } else if (gvn().type(p)->maybe_null()) {
+        p = filter_null(p, field->is_flattenable(), value_type->value_klass());
+      }
+    }
     // The load node has the control of the preceding MemBarCPUOrder.  All
     // following nodes will have the control of the MemBarCPUOrder inserted at
     // the end of this method.  So, pushing the load onto the stack at a later
@@ -3932,7 +3941,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
   Node* obj = argument(0);
 
-  if (obj->is_ValueType()) {
+  if (obj->is_ValueType() || gvn().type(obj)->is_valuetypeptr()) {
     return false;
   }
 
