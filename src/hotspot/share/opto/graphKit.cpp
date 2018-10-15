@@ -1398,7 +1398,9 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
-  assert(!obj->is_ValueType(), "should not cast value type");
+  if (obj->is_ValueType()) {
+    return obj;
+  }
   const Type *t = _gvn.type(obj);
   const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
   // Object is already not-null?

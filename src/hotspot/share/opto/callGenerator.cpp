@@ -162,11 +162,9 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   }
   _call_node = call;  // Save the call node in case we need it later
   if (!is_static) {
-    if (!kit.argument(0)->is_ValueType()) {
-      // Make an explicit receiver null_check as part of this call.
-      // Since we share a map with the caller, his JVMS gets adjusted.
-      kit.null_check_receiver_before_call(method());
-    }
+    // Make an explicit receiver null_check as part of this call.
+    // Since we share a map with the caller, his JVMS gets adjusted.
+    kit.null_check_receiver_before_call(method());
     if (kit.stopped()) {
       // And dump it back to the caller, decorated with any exceptions:
       return kit.transfer_exceptions_into_jvms();
