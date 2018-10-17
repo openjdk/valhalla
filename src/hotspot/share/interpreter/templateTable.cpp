@@ -258,9 +258,6 @@ void TemplateTable::initialize() {
   const int  clvm = 1 << Template::calls_vm_bit;
   const int  iswd = 1 << Template::wide_bit;
 
- // Special flags modifications for the Valhalla L-world
-  const int  lwrl = ValueTypesBufferMaxMemory > 0 ? clvm : ____ ;
-
   //                                    interpr. templates
   // Java spec bytecodes                ubcp|disp|clvm|iswd  in    out   generator             argument
   def(Bytecodes::_nop                 , ____|____|____|____, vtos, vtos, nop                 ,  _           );
@@ -495,7 +492,7 @@ void TemplateTable::initialize() {
   def(Bytecodes::_fast_lgetfield      , ubcp|____|____|____, atos, ltos, fast_accessfield    ,  ltos        );
   def(Bytecodes::_fast_sgetfield      , ubcp|____|____|____, atos, itos, fast_accessfield    ,  itos        );
 
-  def(Bytecodes::_fast_aputfield      , ubcp|____|lwrl|____, atos, vtos, fast_storefield ,   atos        );
+  def(Bytecodes::_fast_aputfield      , ubcp|____|____|____, atos, vtos, fast_storefield ,   atos        );
   def(Bytecodes::_fast_qputfield      , ubcp|____|clvm|____, atos, vtos, fast_storefield ,   atos        );
   def(Bytecodes::_fast_bputfield      , ubcp|____|____|____, itos, vtos, fast_storefield ,   itos        );
   def(Bytecodes::_fast_zputfield      , ubcp|____|____|____, itos, vtos, fast_storefield ,   itos        );

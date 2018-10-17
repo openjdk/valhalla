@@ -2104,7 +2104,6 @@ bool Arguments::check_vm_args_consistency() {
     }
     FLAG_SET_CMDLINE(bool, TieredCompilation, false);
   } else {
-    FLAG_SET_CMDLINE(intx, ValueTypesBufferMaxMemory, 0);
     FLAG_SET_CMDLINE(bool, ValueArrayFlatten, false);
   }
 

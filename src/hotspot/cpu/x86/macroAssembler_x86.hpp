@@ -102,7 +102,6 @@ class MacroAssembler: public Assembler {
   void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
   void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
   void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
-  void test_value_is_not_buffered(Register value, Register temp_reg, Label& not_buffered);
 
   // Check klass/oops is flat value type array (oop->_klass->_layout_helper & vt_bit)
   void test_flat_array_klass(Register klass, Register temp_reg, Label& is_flat_array);

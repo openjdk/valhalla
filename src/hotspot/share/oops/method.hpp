@@ -274,12 +274,6 @@ class Method : public Metadata {
   int  max_locals() const                        { return constMethod()->max_locals(); }
   void set_max_locals(int size)                  { constMethod()->set_max_locals(size); }
 
-  // value type buffering
-  void initialize_max_vt_buffer();
-  int max_vt_buffer() const                      { return _max_vt_buffer; }
-  void set_max_vt_buffer(int size)               { _max_vt_buffer = size; }
-
-
   int highest_comp_level() const;
   void set_highest_comp_level(int level);
   int highest_osr_comp_level() const;

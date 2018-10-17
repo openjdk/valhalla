@@ -105,22 +105,6 @@ instanceOop ValueKlass::allocate_instance(TRAPS) {
   return oop;
 }
 
-instanceOop ValueKlass::allocate_buffered_or_heap_instance(bool* in_heap, TRAPS) {
-  assert(THREAD->is_Java_thread(), "Only Java threads can call this method");
-
-  instanceOop value = NULL;
-  if (is_bufferable()) {
-    value = (instanceOop)VTBuffer::allocate_value(this, CHECK_NULL);
-    *in_heap = false;
-  }
-  if (value == NULL) {
-    log_info(valuetypes)("Value buffering failed, allocating in the Java heap");
-    value = allocate_instance(CHECK_NULL);
-    *in_heap = true;
-  }
-  return value;
-}
-
 bool ValueKlass::is_atomic() {
   return (nonstatic_field_size() * heapOopSize) <= longSize;
 }
@@ -471,15 +455,9 @@ void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>
 
 // Fields are in registers. Create an instance of the value type and
 // initialize it with the values of the fields.
-oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, bool buffered, TRAPS) {
-  bool ignored = false;
-  oop new_vt = NULL;
-  if (buffered) {
-    new_vt = allocate_buffered_or_heap_instance(&ignored, CHECK_NULL);
-  } else {
-    new_vt = allocate_instance(CHECK_NULL);
-  }
+oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS) {
 
+  oop new_vt = allocate_instance(CHECK_NULL);
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
 

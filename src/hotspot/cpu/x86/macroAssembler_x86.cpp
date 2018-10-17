@@ -3698,30 +3698,6 @@ void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
   test_flat_array_klass(temp_reg, temp_reg, is_flat_array);
 }
 
-void MacroAssembler::test_value_is_not_buffered(Register value, Register temp_reg, Label& not_buffered) {
-  ExternalAddress VTBuffer_top(VTBuffer::top_addr());
-  ExternalAddress VTBuffer_end(VTBuffer::end_addr());
-
-  // Test below is ordered based on the relative positions of
-  // the Java heap and the VTBuffer to execute a single test for heap-allocated values
-
-  if (VTBuffer::base() < Universe::heap()->base()) {
-    lea(temp_reg, VTBuffer_end);
-    cmpptr(value, temp_reg);
-    jcc(Assembler::greaterEqual, not_buffered);
-    lea(temp_reg, VTBuffer_top);
-    cmpptr(value, temp_reg);
-    jcc(Assembler::less, not_buffered);
-  } else {
-    lea(temp_reg, VTBuffer_top);
-    cmpptr(value, temp_reg);
-    jcc(Assembler::less, not_buffered);
-    lea(temp_reg, VTBuffer_end);
-    cmpptr(value, temp_reg);
-    jcc(Assembler::greaterEqual, not_buffered);
-  }
-}
-
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability
   // (e.g., MSVC can't call ps() otherwise)

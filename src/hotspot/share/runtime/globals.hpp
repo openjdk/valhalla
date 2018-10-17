@@ -2653,24 +2653,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product_pd(bool, ValueTypeReturnedAsFields,                               \
             "return fields instead of a value type reference")              \
                                                                             \
-  product(size_t, BigValueTypeThreshold, 4 * BytesPerLong,                  \
-          "Max value type size for buffering")                              \
-                                                                            \
-  product(intx, ValueTypesBufferMaxMemory, 0,                               \
-          "Max memory used for value types buffers (in pages)")             \
-                                                                            \
-  product(bool, ValueTypesThreadLocalRecycling, true,                       \
-          "Enable Thread local recycling of buffered values")               \
-                                                                            \
-  product(bool, ReportVTBufferRecyclingTimes, false,                        \
-          "Print duration of each VBuffer recycling")                       \
-                                                                            \
-  product(int, MinimumVTBufferChunkPerFrame, 2,                             \
-          "Minimum number of VT buffer chunk allowed per frame")            \
-                                                                            \
-  product(bool, ZapVTBufferChunks, trueInDebug,                             \
-          "Zap VTBufferChunk memory when recycled")                         \
-                                                                            \
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
           "stress return of fields instead of a value type reference")      \
                                                                             \

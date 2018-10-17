@@ -123,7 +123,6 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStartLocalDCmd>(jmx_agent_export_flags, true,false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStopRemoteDCmd>(jmx_agent_export_flags, true,false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<JMXStatusDCmd>(jmx_agent_export_flags, true,false));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VTBufferStatsDCmd>(full_export, true, false));
 }
 
 #ifndef HAVE_EXTRA_DCMD
@@ -1056,28 +1055,3 @@ int TouchedMethodsDCmd::num_arguments() {
   return 0;
 }
 
-VTBufferStatsDCmd::VTBufferStatsDCmd(outputStream* output, bool heap) :
-                                    DCmd(output, heap)  { }
-
-void VTBufferStatsDCmd::execute(DCmdSource source, TRAPS) {
-
-  VM_VTBufferStats op1(output());
-  VMThread::execute(&op1);
-
-  int in_pool;
-  int max_in_pool;
-  int total_allocated;
-  int total_failed;
-  {
-    MutexLockerEx ml(VTBuffer::lock(), Mutex::_no_safepoint_check_flag);
-    in_pool = VTBuffer::in_pool();
-    max_in_pool = VTBuffer::max_in_pool();
-    total_allocated = VTBuffer::total_allocated();
-    total_failed = VTBuffer::total_failed();
-  }
-  output()->print_cr("Global VTBuffer Pool statistics:");
-  output()->print_cr("\tChunks in pool   : %d", in_pool);
-  output()->print_cr("\tMax in pool      : %d", max_in_pool);
-  output()->print_cr("\tTotal allocated  : %d", total_allocated);
-  output()->print_cr("\tTotal failed     : %d", total_failed);
-}

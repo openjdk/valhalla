@@ -867,23 +867,4 @@ public:
   virtual void execute(DCmdSource source, TRAPS);
 };
 
-class VTBufferStatsDCmd : public DCmd {
-public:
-  VTBufferStatsDCmd(outputStream* output, bool heap);
-  static const char* name() { return "VTBuffer.stats"; }
-  static const char* description() {
-    return "[EXPERIMENTAL] Print statistics about Value Types buffering.";
-  }
-  static const char* impact() {
-    return "Medium: Depends on the number of threads.";
-  }
-  static const JavaPermission permission() {
-    JavaPermission p = {"java.lang.management.ManagementPermission",
-        "monitor", NULL};
-    return p;
-  }
-  static int num_arguments() { return 0; }
-  virtual void execute(DCmdSource source, TRAPS);
-};
-
 #endif // SHARE_VM_SERVICES_DIAGNOSTICCOMMAND_HPP

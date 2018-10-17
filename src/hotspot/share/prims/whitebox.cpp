@@ -1749,7 +1749,6 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaFrameOopIterator(JNIEnv* env, jobject wb,
   CollectOops collectOops;
   collectOops.array = array;
   StackFrameStream sfs(thread);
-  BufferedValuesDealiaser dealiaser(thread);
   while (depth > 0) { // Skip the native WB API frame
     sfs.next();
     frame* f = sfs.current();

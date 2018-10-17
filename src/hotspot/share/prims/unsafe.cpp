@@ -343,12 +343,11 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   ValueKlass* vk = ValueKlass::cast(k);
   assert_and_log_unsafe_value_type_access(p, offset, vk);
   Handle p_h(THREAD, p);
-  bool in_heap;
-  oop v = vk->allocate_buffered_or_heap_instance(&in_heap, CHECK_NULL); // allocate instance
+  oop v = vk->allocate_instance(CHECK_NULL); // allocate instance
   vk->initialize(CHECK_NULL); // If field is a default value, value class might not be initialized yet
   vk->value_store(((char*)(oopDesc*)p_h()) + offset,
                   vk->data_for_oop(v),
-                  in_heap, true);                  
+                  true, true);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 

@@ -971,7 +971,6 @@ void TemplateTable::aload_0_internal(RewriteControl rc) {
 
     // if _agetfield then rewrite to _fast_aaccess_0
     assert(Bytecodes::java_code(Bytecodes::_fast_aaccess_0) == Bytecodes::_aload_0, "fix bytecode definition");
-    assert(ValueTypesBufferMaxMemory == 0, "Such rewritting doesn't support flattened values yet");
     __ cmpl(rbx, Bytecodes::_fast_agetfield);
     __ movl(bc, Bytecodes::_fast_aaccess_0);
     __ jccb(Assembler::equal, rewrite);
@@ -1173,14 +1172,6 @@ void TemplateTable::aastore() {
 
   // Get the value we will store
   __ movptr(rax, at_tos());
-  if (ValueTypesBufferMaxMemory > 0) {
-    Label is_on_heap;
-    __ test_value_is_not_buffered(rax, rbx, is_on_heap);
-    __ push(rdx); // save precomputed element address, and convert buffer oop to heap oop
-    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_heap_copy), rax);
-    __ pop(rdx);
-    __ bind(is_on_heap);
-  }
   __ movl(rcx, at_tos_p1()); // index
   // Now store using the appropriate barrier
   do_oop_store(_masm, element_address, rax, IS_ARRAY);
@@ -2214,36 +2205,6 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
 }
 
 void TemplateTable::branch(bool is_jsr, bool is_wide) {
-  if (ValueTypesThreadLocalRecycling) {
-    Label no_vt_recycling, no_fixing_required;
-    const Register thread1 = NOT_LP64(rbx) LP64_ONLY(r15_thread);
-    NOT_LP64(__ get_thread(thread1));
-    __ movptr(rbx, Address(thread1, in_bytes(JavaThread::vt_alloc_ptr_offset())));
-    __ testptr(rbx, rbx);
-    __ jcc(Assembler::zero, no_vt_recycling);
-    __ movptr(rcx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
-    __ testptr(rcx, rcx);
-    __ jcc(Assembler::notZero, no_fixing_required);
-    // vt_alloc_ptr in JavaThread is non-null but frame vt_alloc_ptr is null
-    // which means frame vt_alloc_ptr needs to be initialized
-    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::fix_frame_vt_alloc_ptr));
-    __ movptr(rcx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
-    __ bind(no_fixing_required);
-    __ testptr(rcx, rbx);
-    __ jcc(Assembler::equal, no_vt_recycling);
-    __ andptr(rcx, VTBufferChunk::chunk_mask());
-    __ movl(rcx, Address(rcx, VTBufferChunk::index_offset()));
-    __ andptr(rbx, VTBufferChunk::chunk_mask());
-    __ movl(rbx, Address(rbx, VTBufferChunk::index_offset()));
-    __ subl(rbx, rcx);
-    __ get_method(rcx);
-    __ movl(rcx, Address(rcx, Method::max_vt_buffer_offset()));
-    __ cmpl(rbx, rcx);
-    __ jcc(Assembler::lessEqual, no_vt_recycling);
-    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::recycle_buffered_values));
-    __ bind(no_vt_recycling);
-  }
-
   __ get_method(rcx); // rcx holds method
   __ profile_taken_branch(rax, rbx); // rax holds updated MDP, rbx
                                      // holds bumped taken count
@@ -2818,17 +2779,6 @@ void TemplateTable::_return(TosState state) {
     __ jcc(Assembler::zero, not_returning_null_vt);
     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::deoptimize_caller_frame_for_vt), method);
     __ bind(not_returning_null_vt);
-
-    if (ValueTypesBufferMaxMemory > 0) {
-      Label notBuffered;
-
-      __ test_value_is_not_buffered(rax, rbx, notBuffered);
-      const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
-      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::return_value), rax);
-      NOT_LP64(__ get_thread(thread1));
-      __ get_vm_result(rax, thread1);
-      __ bind(notBuffered);
-    }
   }
 
   // Narrow result if state is itos but result type is smaller.
@@ -3438,13 +3388,6 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ test_field_is_not_flattenable(flags2, rscratch1, notFlattenable);
         __ null_check(rax);
         __ bind(notFlattenable);
-        if (ValueTypesBufferMaxMemory > 0) {
-          __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
-          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
-                  rax, off, obj);
-          __ jmp(Done);
-          __ bind(notBuffered);
-        }
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
@@ -3453,13 +3396,6 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         // Not flattenable case, covers not flattenable values and objects
         pop_and_check_object(obj);
         // Store into the field
-        if (ValueTypesBufferMaxMemory > 0) {
-          __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
-          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
-                  rax, off, obj);
-          __ jmp(rewriteNotFlattenable);
-          __ bind(notBuffered);
-        }
         do_oop_store(_masm, field, rax);
         __ bind(rewriteNotFlattenable);
         if (rc == may_rewrite) {
@@ -3471,14 +3407,6 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         __ null_check(rax);
         __ test_field_is_flattened(flags2, rscratch1, isFlattened);
         // Not flattened case
-        if (ValueTypesBufferMaxMemory > 0) {
-          __ test_value_is_not_buffered(rax, rscratch1, notBuffered2);
-          pop_and_check_object(obj);
-          call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
-                  rax, off, obj);
-          __ jmp(rewriteFlattenable);
-          __ bind(notBuffered2);
-        }
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
@@ -3747,17 +3675,10 @@ void TemplateTable::fast_storefield(TosState state) {
   switch (bytecode()) {
   case Bytecodes::_fast_qputfield:
     {
-      Label isFlattened, notBuffered, done;
+      Label isFlattened, done;
       __ null_check(rax);
       __ test_field_is_flattened(rscratch2, rscratch1, isFlattened);
       // No Flattened case
-      if (ValueTypesBufferMaxMemory > 0) {
-        __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
-        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
-                    rax, rbx, rcx);
-        __ jmp(done);
-        __ bind(notBuffered);
-      }
       do_oop_store(_masm, field, rax);
       __ jmp(done);
       __ bind(isFlattened);
@@ -3768,16 +3689,7 @@ void TemplateTable::fast_storefield(TosState state) {
     break;
   case Bytecodes::_fast_aputfield:
     {
-      Label notBuffered, done;
-      if (ValueTypesBufferMaxMemory > 0) {
-        __ test_value_is_not_buffered(rax, rscratch1, notBuffered);
-        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_heap_copy),
-            rax, rbx, rcx);
-        __ jmp(done);
-        __ bind(notBuffered);
-      }
       do_oop_store(_masm, field, rax);
-      __ bind(done);
     }
     break;
   case Bytecodes::_fast_lputfield:

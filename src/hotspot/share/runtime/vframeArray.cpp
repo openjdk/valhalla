@@ -297,8 +297,6 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
                                  is_top_frame,
                                  is_bottom_frame);
 
-  iframe()->interpreter_frame_set_vt_alloc_ptr((intptr_t*)thread->vt_alloc_ptr());
-
   // Update the pc in the frame object and overwrite the temporary pc
   // we placed in the skeletal frame now that we finally know the
   // exact interpreter address we should use.

@@ -863,7 +863,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, GrowableArra
 // reference to a value type instance. Allocate and initialize it from
 // the register values here.
 bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
-  oop new_vt = vk->realloc_result(map, return_oops, false, THREAD);
+  oop new_vt = vk->realloc_result(map, return_oops, THREAD);
   if (new_vt == NULL) {
     CLEAR_PENDING_EXCEPTION;
     THROW_OOP_(Universe::out_of_memory_error_realloc_objects(), true);

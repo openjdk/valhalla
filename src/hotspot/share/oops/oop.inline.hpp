@@ -27,7 +27,6 @@
 
 #include "gc/shared/collectedHeap.hpp"
 #include "memory/metaspaceShared.hpp"
-#include "memory/vtBuffer.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"

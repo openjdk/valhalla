@@ -142,10 +142,6 @@ class ValueKlass: public InstanceKlass {
 
   // allocate_instance() allocates a stand alone value in the Java heap
   instanceOop allocate_instance(TRAPS);
-  // allocate_buffered_or_heap_instance() tries to allocate a value in the
-  // thread local value buffer, if allocation fails, it allocates it in the
-  // Java heap
-  instanceOop allocate_buffered_or_heap_instance(bool* in_heap, TRAPS);
 
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
   int raw_value_byte_size() const;
@@ -160,27 +156,6 @@ class ValueKlass: public InstanceKlass {
     oop o = (oop) (data - first_field_offset());
     assert(oopDesc::is_oop(o, false), "Not an oop");
     return o;
-  }
-
-  void set_if_bufferable() {
-    bool bufferable;
-
-    int size_in_heap_words = size_helper();
-    int base_offset = instanceOopDesc::base_offset_in_bytes();
-    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
-    bufferable = size_in_bytes <= BigValueTypeThreshold;
-    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
-    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
-
-    if (bufferable) {
-      _extra_flags |= _extra_is_bufferable;
-    } else {
-      _extra_flags &= ~_extra_is_bufferable;
-    }
-  }
-
-  bool is_bufferable() const          {
-    return (_extra_flags & _extra_is_bufferable) != 0;
   }
 
   // Query if h/w provides atomic load/store
@@ -225,7 +200,7 @@ class ValueKlass: public InstanceKlass {
   bool can_be_returned_as_fields() const;
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
-  oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, bool buffered, TRAPS);
+  oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
   static ValueKlass* returned_value_klass(const RegisterMap& reg_map);
 
   // pack and unpack handlers. Need to be loadable from generated code

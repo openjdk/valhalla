@@ -702,7 +702,7 @@ void Parse::do_call() {
       Node* retnode = pop();
       assert(!gvn().type(retnode)->maybe_null() || !cg->method()->get_Method()->is_returning_vt(), "should never be null");
       if (rtype->as_value_klass()->is_scalarizable()) {
-        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass(), /* buffer_check */ false, /* null2default */ false, iter().next_bci());
+        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass(), /* null2default */ false, iter().next_bci());
       } else if (gvn().type(retnode)->maybe_null()) {
         retnode = filter_null(retnode, false, NULL, iter().next_bci());
       }

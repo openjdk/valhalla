@@ -3196,7 +3196,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
           obj = record_profiled_receiver_for_speculation(obj);
           if (toop->is_valuetypeptr()) {
             if (toop->value_klass()->is_scalarizable()) {
-              obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* buffer_check */ false, /* null2default */ false);
+              obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* null2default */ false);
             } else {
               obj = filter_null(obj);
             }

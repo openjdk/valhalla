@@ -324,10 +324,6 @@ class frame {
   ConstantPoolCache** interpreter_frame_cache_addr() const;
   oop* interpreter_frame_mirror_addr() const;
 
-  intptr_t* interpreter_frame_vt_alloc_ptr() const;
-  intptr_t** interpreter_frame_vt_alloc_ptr_addr() const;
-  void interpreter_frame_set_vt_alloc_ptr(intptr_t* ptr);
-
   void interpreter_frame_set_mirror(oop mirror);
 
  public:

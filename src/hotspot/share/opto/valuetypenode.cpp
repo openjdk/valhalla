@@ -356,7 +356,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
       if (ft->is_valuetype()) {
         // Loading a non-flattened value type from memory
         if (ft->as_value_klass()->is_scalarizable()) {
-          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* buffer_check */ false, /* null2default */ field_is_flattenable(i), trap_bci);
+          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass(), /* null2default */ field_is_flattenable(i), trap_bci);
         } else {
           value = kit->filter_null(value, field_is_flattenable(i), ft->as_value_klass(), trap_bci);
         }
@@ -540,7 +540,7 @@ bool ValueTypeNode::is_default(PhaseGVN& gvn) const {
   return true;
 }
 
-ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool buffer_check, bool null2default, int trap_bci) {
+ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool null2default, int trap_bci) {
   PhaseGVN& gvn = kit->gvn();
   const TypePtr* oop_type = gvn.type(oop)->is_ptr();
   bool null_check = oop_type->maybe_null();
@@ -604,30 +604,6 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0, trap_bci);
     assert(init_ctl != kit->control() || oop->is_Con() || oop->is_CheckCastPP() || oop->Opcode() == Op_ValueTypePtr ||
            vt->is_loaded(&gvn) == oop, "value type should be loaded");
-  }
-
-  if (buffer_check && vk->is_bufferable()) {
-    // Check if oop is in heap bounds or if it points into the vtBuffer:
-    // base <= oop < (base + size)  <=>  (oop - base) <U size
-    // Discard buffer oops to avoid storing them into fields or arrays.
-    assert(!gvn.type(oop)->isa_narrowoop(), "should not be a narrow oop");
-    Node* heap_base = gvn.MakeConX((intptr_t)Universe::heap()->base());
-    Node* heap_size = gvn.MakeConX(Universe::heap()->max_capacity());
-    Node* sub = gvn.transform(new SubXNode(gvn.transform(new CastP2XNode(NULL, oop)), heap_base));
-    Node* chk = gvn.transform(new CmpUXNode(sub, heap_size));
-    Node* tst = gvn.transform(new BoolNode(chk, BoolTest::lt));
-    IfNode* iff = gvn.transform(new IfNode(kit->control(), tst, PROB_MAX, COUNT_UNKNOWN))->as_If();
-
-    Node* region = new RegionNode(3);
-    region->init_req(1, gvn.transform(new IfTrueNode(iff)));
-    region->init_req(2, gvn.transform(new IfFalseNode(iff)));
-    Node* new_oop = new PhiNode(region, vt->value_ptr());
-    new_oop->init_req(1, oop);
-    new_oop->init_req(2, gvn.zerocon(T_VALUETYPE));
-
-    gvn.hash_delete(vt);
-    vt->set_oop(gvn.transform(new_oop));
-    kit->set_control(gvn.transform(region));
   }
 
   assert(vt->is_allocated(&gvn), "value type should be allocated");
@@ -786,7 +762,7 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     return this;
   }
 
-  if (!is_allocated(phase) && !value_klass()->is_bufferable()) {
+  if (!is_allocated(phase)) {
     // Save base oop if fields are loaded from memory and the value
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);

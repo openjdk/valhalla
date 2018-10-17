@@ -468,7 +468,6 @@ void JNIHandleBlock::oops_do(OopClosure* f) {
       for (int index = 0; index < current->_top; index++) {
         oop* root = &(current->_handles)[index];
         oop value = *root;
-        assert(!VTBuffer::is_in_vt_buffer(value), "JNIHandles must not point to a buffered value");
         // traverse heap pointers only, not deleted handles or free list
         // pointers
         if (value != NULL && Universe::heap()->is_in_reserved(value)) {

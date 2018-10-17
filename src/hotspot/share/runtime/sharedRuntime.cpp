@@ -3487,7 +3487,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
   JRT_BLOCK;
   {
     Thread* THREAD = thread;
-    oop vt = vk->realloc_result(reg_map, handles, callerFrame.is_interpreted_frame(), CHECK);
+    oop vt = vk->realloc_result(reg_map, handles, CHECK);
     new_vt = Handle(thread, vt);
 
 #ifdef ASSERT

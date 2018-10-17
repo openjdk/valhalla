@@ -614,7 +614,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
         // Create ValueTypeNode from the oop and replace the parameter
         assert(!t->maybe_null(), "value type arguments should never be null");
         if (t->value_klass()->is_scalarizable()) {
-          Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass(), /* buffer_check */ true);
+          Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass());
           map()->replace_edge(parm, vt);
         }
       }

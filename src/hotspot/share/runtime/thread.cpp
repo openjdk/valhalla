@@ -294,8 +294,6 @@ Thread::Thread() {
   _MutexEvent  = ParkEvent::Allocate(this);
   _MuxEvent    = ParkEvent::Allocate(this);
 
-  _buffered_values_dealiaser = NULL;
-
 #ifdef CHECK_UNHANDLED_OOPS
   if (CheckUnhandledOops) {
     _unhandled_oops = new UnhandledOops(this);
@@ -931,17 +929,6 @@ void Thread::print_value_on(outputStream* st) const {
     st->print(" \"%s\" ", name());
   }
   st->print(INTPTR_FORMAT, p2i(this));   // print address
-}
-
-void JavaThread::print_vt_buffer_stats_on(outputStream* st) const {
-  st->print_cr("%s:", this->name());
-  st->print_cr("\tChunks in use       : %d", vtchunk_in_use());
-  st->print_cr("\tCached chunk        : %d", local_free_chunk() == NULL ? 0 : 1);
-  st->print_cr("\tMax chunks          : %d", vtchunk_max());
-  st->print_cr("\tReturned chunks     : %d", vtchunk_total_returned());
-  st->print_cr("\tFailed chunk allocs : %d", vtchunk_total_failed());
-  st->print_cr("\tMemory buffered     : " JLONG_FORMAT, vtchunk_total_memory_buffered());
-  st->print_cr("");
 }
 
 #ifdef ASSERT
@@ -1610,18 +1597,6 @@ void JavaThread::initialize() {
   _popframe_preserved_args_size = 0;
   _frames_to_pop_failed_realloc = 0;
 
-  // Buffered value types support
-  _vt_alloc_ptr = NULL;
-  _vt_alloc_limit = NULL;
-  _local_free_chunk = NULL;
-  _current_vtbuffer_mark = VTBuffer::mark_A;
-  // Buffered value types instrumentation support
-  _vtchunk_in_use = 0;
-  _vtchunk_max = 0;
-  _vtchunk_total_returned = 0;
-  _vtchunk_total_failed = 0;
-  _vtchunk_total_memory_buffered = 0;
-
   if (SafepointMechanism::uses_thread_local_poll()) {
     SafepointMechanism::initialize_header(this);
   }
@@ -1746,17 +1721,6 @@ JavaThread::~JavaThread() {
   // All Java related clean up happens in exit
   ThreadSafepointState::destroy(this);
   if (_thread_stat != NULL) delete _thread_stat;
-
-  if (_vt_alloc_ptr != NULL) {
-    VTBufferChunk* chunk = VTBufferChunk::chunk(_vt_alloc_ptr);
-    while (chunk != NULL) {
-      VTBufferChunk* temp = chunk->prev();
-      VTBuffer::recycle_chunk(this, chunk);
-      chunk = temp;
-    }
-    _vt_alloc_ptr = NULL;
-    _vt_alloc_limit = NULL;
-  }
 
 #if INCLUDE_JVMCI
   if (JVMCICounterSize > 0) {
@@ -2739,7 +2703,6 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
   if (!has_last_Java_frame()) return;
   // Because this method is used to verify oops, it must support
   // oops in buffered values
-  BufferedValuesDealiaser dealiaser(this);
 
   // traverse the stack frames. Starts from top frame.
   for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
@@ -2853,8 +2816,6 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   // Verify that the deferred card marks have been flushed.
   assert(deferred_card_mark().is_empty(), "Should be empty during GC");
 
-  BufferedValuesDealiaser dealiaser(this);
-
   // Traverse the GCHandles
   Thread::oops_do(f, cf);
 
@@ -2873,13 +2834,7 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
     // traverse the registered growable array
     if (_array_for_gc != NULL) {
       for (int index = 0; index < _array_for_gc->length(); index++) {
-        if (!VTBuffer::is_in_vt_buffer(_array_for_gc->at(index))) {
-         f->do_oop(_array_for_gc->adr_at(index));
-        } else {
-          oop value = _array_for_gc->at(index);
-          assert(value->is_value(), "Sanity check");
-          dealiaser.oops_do(f, value);
-        }
+        f->do_oop(_array_for_gc->adr_at(index));
       }
     }
 
@@ -2912,12 +2867,7 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   // Traverse instance variables at the end since the GC may be moving things
   // around using this function
   f->do_oop((oop*) &_threadObj);
-  if (!VTBuffer::is_in_vt_buffer(_vm_result)) {
-    f->do_oop((oop*) &_vm_result);
-  } else {
-    assert(_vm_result->is_value(), "Must be a value");
-    dealiaser.oops_do(f, _vm_result);
-  }
+  f->do_oop((oop*) &_vm_result);
   f->do_oop((oop*) &_exception_oop);
   f->do_oop((oop*) &_pending_async_exception);
 
@@ -5040,10 +4990,4 @@ void Threads::verify() {
   }
   VMThread* thread = VMThread::vm_thread();
   if (thread != NULL) thread->verify();
-}
-
-void Threads::print_vt_buffer_stats_on(outputStream* st) {
-  ALL_JAVA_THREADS(p) {
-    p->print_vt_buffer_stats_on(st);
-  }
 }

@@ -114,10 +114,7 @@ unsigned int oopDesc::new_hash(juint seed) {
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (!Universe::heap()->is_oop(obj)) {
-    assert(obj->klass()->is_value(), "Only value type can be outside of the Java heap");
-    VTBufferChunk* chunk = VTBufferChunk::chunk(obj);
-    assert(chunk->is_valid(), "if not in the heap, should a buffered VT");
-    if (!VTBuffer::is_in_vt_buffer(obj)) return false;
+    return false;
   }
 
   // Header verification: the mark is typically non-NULL. If we're
@@ -130,8 +127,7 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (obj->mark_raw() != NULL) {
     return true;
   }
-  return !SafepointSynchronize::is_at_safepoint()
-    || (obj->klass()->is_value() && VTBuffer::is_in_vt_buffer(obj)) ;
+  return !SafepointSynchronize::is_at_safepoint() ;
 }
 
 // used only for asserts and guarantees

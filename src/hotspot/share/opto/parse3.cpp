@@ -233,7 +233,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     if (bt == T_VALUETYPE) {
       // Load a non-flattened value type from memory
       if (field_klass->as_value_klass()->is_scalarizable()) {
-        ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* buffer_check */ false, /* null2default */ flattenable, iter().next_bci());
+        ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* null2default */ flattenable, iter().next_bci());
       } else if (gvn().type(ld)->maybe_null()){
         ld = filter_null(ld, flattenable, field_klass->as_value_klass(), iter().next_bci());
       }

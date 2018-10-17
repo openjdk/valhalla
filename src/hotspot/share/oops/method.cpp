@@ -40,7 +40,6 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/vtBuffer.hpp"
 #include "oops/constMethod.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
@@ -107,9 +106,6 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
     clear_native_function();
     set_signature_handler(NULL);
   }
-
-  initialize_max_vt_buffer();
-
   NOT_PRODUCT(set_compiled_invocation_count(0);)
 }
 
@@ -1878,14 +1874,6 @@ int Method::backedge_count() {
   } else {
     return (mcs == NULL) ? 0 : mcs->backedge_counter()->count();
   }
-}
-
-void Method::initialize_max_vt_buffer() {
-  long long max_entries = constMethod()->max_locals() + constMethod()->max_stack();
-  max_entries *= 2; // Add margin for loops
-  long long max_size = max_entries * (BigValueTypeThreshold + 8); // 8 -> header size
-  int max_chunks = (int)(max_size / VTBufferChunk::max_alloc_size()) + 1;
-  set_max_vt_buffer(MAX2(MinimumVTBufferChunkPerFrame, max_chunks));
 }
 
 int Method::highest_comp_level() const {

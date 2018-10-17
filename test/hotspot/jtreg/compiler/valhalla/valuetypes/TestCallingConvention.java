@@ -44,7 +44,6 @@ public class TestCallingConvention extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 1: return new String[] {"-XX:ValueTypesBufferMaxMemory=0"};
         case 3: return new String[] {"-XX:-ValueArrayFlatten"};
         }
         return null;

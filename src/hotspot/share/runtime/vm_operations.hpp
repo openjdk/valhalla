@@ -493,16 +493,6 @@ class VM_PrintCompileQueue: public VM_Operation {
   void doit();
 };
 
-class VM_VTBufferStats: public VM_Operation {
-private:
-  outputStream* _out;
-public:
-  VM_VTBufferStats()                  { _out = tty; }
-  VM_VTBufferStats(outputStream* out) { _out = out; }
-  VMOp_Type type() const              {  return VMOp_VTBufferStats; }
-  void doit();
-};
-
 #if INCLUDE_SERVICES
 class VM_PrintClassHierarchy: public VM_Operation {
  private:

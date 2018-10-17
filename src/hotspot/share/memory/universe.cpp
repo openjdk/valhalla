@@ -48,7 +48,6 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "memory/universe.hpp"
-#include "memory/vtBuffer.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -651,7 +650,6 @@ jint universe_init() {
   SystemDictionary::initialize_oop_storage();
 
   Metaspace::global_initialize();
-  VTBuffer::init();
   // Initialize performance counters for metaspaces
   MetaspaceCounters::initialize_performance_counters();
   CompressedClassSpaceCounters::initialize_performance_counters();

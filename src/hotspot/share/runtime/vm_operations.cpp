@@ -501,10 +501,6 @@ void VM_PrintCompileQueue::doit() {
   CompileBroker::print_compile_queues(_out);
 }
 
-void VM_VTBufferStats::doit() {
-  Threads::print_vt_buffer_stats_on(_out);
-}
-
 #if INCLUDE_SERVICES
 void VM_PrintClassHierarchy::doit() {
   KlassHierarchy::print_class_hierarchy(_out, _print_interfaces, _print_subclasses, _classname);

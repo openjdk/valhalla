@@ -252,7 +252,6 @@ void InterfaceSupport::stress_derived_pointers() {
 
 void InterfaceSupport::verify_stack() {
   JavaThread* thread = JavaThread::current();
-  BufferedValuesDealiaser dealiaser(thread);
   ResourceMark rm(thread);
   // disabled because it throws warnings that oop maps should only be accessed
   // in VM thread or during debugging
@@ -275,7 +274,6 @@ void InterfaceSupport::verify_stack() {
 
 void InterfaceSupport::verify_last_frame() {
   JavaThread* thread = JavaThread::current();
-  BufferedValuesDealiaser dealiaser(thread);
   ResourceMark rm(thread);
   RegisterMap reg_map(thread);
   frame fr = thread->last_frame();

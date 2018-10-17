@@ -6055,7 +6055,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   if (is_value_type()) {
     ValueKlass* vk = ValueKlass::cast(ik);
-    vk->set_if_bufferable();
     vk->initialize_calling_convention();
   }
 

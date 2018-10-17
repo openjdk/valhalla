@@ -192,10 +192,6 @@ inline oop* frame::interpreter_frame_mirror_addr() const {
   return (oop*)addr_at(interpreter_frame_mirror_offset);
 }
 
-inline intptr_t** frame::interpreter_frame_vt_alloc_ptr_addr() const {
-  return (intptr_t**)addr_at(interpreter_frame_vt_alloc_ptr_offset);
-}
-
 // top of expression stack
 inline intptr_t* frame::interpreter_frame_tos_address() const {
   intptr_t* last_sp = interpreter_frame_last_sp();

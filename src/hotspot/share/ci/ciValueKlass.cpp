@@ -81,11 +81,6 @@ bool ciValueKlass::can_be_returned_as_fields() const {
   GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->can_be_returned_as_fields();)
 }
 
-// Can this value type be returned as multiple values?
-bool ciValueKlass::is_bufferable() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->is_bufferable();)
-}
-
 // TODO
 bool ciValueKlass::is_scalarizable() const {
   return ScalarizeValueTypes;
