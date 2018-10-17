@@ -546,6 +546,9 @@ public class ClassReader {
         int index =  poolIdx[i];
         int len = getChar(index + 1);
         int start = index + 3;
+        if (buf[start] == 'Q' && buf[start + len - 1] == ';') {
+            return enterClass(names.fromUtf(internalize(buf, start + 1, len - 2)));
+        }
         Assert.check(buf[start] == '[' || buf[start + len - 1] != ';');
         // by the above assertion, the following test can be
         // simplified to (buf[start] == '[')
