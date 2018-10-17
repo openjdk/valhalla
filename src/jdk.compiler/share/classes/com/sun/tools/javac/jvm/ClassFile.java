@@ -50,7 +50,7 @@ import com.sun.tools.javac.util.Name;
  *  <pre>{@literal
  *     type       ::= ... | classtype | methodtype | typevar
  *     classtype  ::= classsig { '.' classsig }
- *     classig    ::= 'L' name [typeargs] ';'
+ *     classig    ::= 'L' name [typeargs] ';' | 'Q' name [typeargs] ';'
  *     methodtype ::= [ typeparams ] '(' { type } ')' type
  *     typevar    ::= 'T' name ';'
  *     typeargs   ::= '<' type { type } '>'

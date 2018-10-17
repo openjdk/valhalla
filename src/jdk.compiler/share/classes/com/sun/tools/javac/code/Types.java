@@ -99,6 +99,7 @@ public class Types {
     final Name capturedName;
 
     public final Warner noWarnings;
+    public final boolean emitQtypes;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
@@ -121,7 +122,9 @@ public class Types {
         messages = JavacMessages.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         noWarnings = new Warner(null);
-        allowValueBasedClasses = Options.instance(context).isSet("allowValueBasedClasses");
+        Options options = Options.instance(context);
+        allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        emitQtypes = options.isSet("emitQtypes");
     }
     // </editor-fold>
 
@@ -5068,7 +5071,10 @@ public class Types {
                     if (type.isCompound()) {
                         throw new InvalidSignatureException(type);
                     }
-                    append('L');
+                    if (types.emitQtypes && types.isValue(type))
+                        append('Q');
+                    else
+                        append('L');
                     assembleClassSig(type);
                     append(';');
                     break;

@@ -157,6 +157,7 @@ public class Descriptor {
                     type = "long";
                     break;
 
+                case 'Q':
                 case 'L':
                     int sep = desc.indexOf(';', p);
                     if (sep == -1)

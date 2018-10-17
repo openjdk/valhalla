@@ -447,7 +447,7 @@ public class ClassWriter extends ClassFile {
                 ClassSymbol c = (ClassSymbol)value;
                 if (c.owner.kind == TYP) pool.put(c.owner);
                 poolbuf.appendByte(CONSTANT_Class);
-                if (c.type.hasTag(ARRAY)) {
+                if (c.type.hasTag(ARRAY) || (types.emitQtypes && c.isValue())) {
                     poolbuf.appendChar(pool.put(typeSig(c.type)));
                 } else {
                     poolbuf.appendChar(pool.put(names.fromUtf(externalize(c.flatname))));

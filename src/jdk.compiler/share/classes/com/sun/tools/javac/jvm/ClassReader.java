@@ -740,6 +740,7 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
+        case 'Q':
         case 'L':
             {
                 // int oldsigp = sigp;
@@ -801,7 +802,7 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L')
+        if (signature[sigp] != 'L' && signature[sigp] != 'Q') 
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
