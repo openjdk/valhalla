@@ -1,7 +1,7 @@
 
 *** Project Valhalla "L-World Value Types" Early Access ***
 
-Prototype Version: LW1
+Prototype Version: LW2
 
 This is an "early access" build, from "Project Valhalla" [1], aimed at testing a
 "Value Types" implementation within the JVM, where-by value types may
@@ -12,7 +12,7 @@ Intended for a number of expert users with active interest in the
 Valhalla project, and is provided as a convenience to users needing to build
 from source code (branch "lworld") [3].
 
-Warning, not only is this build based on an incomplete version of "JDK 11",
+Warning, not only is this build based on an incomplete version of "JDK 12",
 there has been less than comprehensive testing carried out.
 
 * System Limitations
@@ -48,4 +48,4 @@ Current known issues [4]
 [1] https://wiki.openjdk.java.net/display/valhalla/Main
 [2] https://wiki.openjdk.java.net/display/valhalla/L-World+Value+Types
 [3] http://hg.openjdk.java.net/valhalla/valhalla/
-[4] https://bugs.openjdk.java.net/issues/?filter=34576
+[4] https://bugs.openjdk.java.net/issues/?filter=35615
