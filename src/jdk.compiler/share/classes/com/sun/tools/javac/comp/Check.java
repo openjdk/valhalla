@@ -239,7 +239,7 @@ public class Check {
      *  @param pos        Position to be used for error reporting.
      */
     void warnUnsafeVararg(DiagnosticPosition pos, Warning warnKey) {
-        if (lint.isEnabled(LintCategory.VARARGS) && Feature.SIMPLIFIED_VARARGS.allowedInSource(source))
+        if (lint.isEnabled(LintCategory.VARARGS))
             log.warning(LintCategory.VARARGS, pos, warnKey);
     }
 
@@ -452,7 +452,75 @@ public class Check {
         compiled.remove(Pair.of(csym.packge().modle, csym.flatname));
     }
 
-/* *************************************************************************
+    public <T extends JCTree> void checkValueCompares(T stat) {
+        new TreeScanner() { // complain if ==/!= is operating on value types, but ...
+            @Override
+            public void visitBinary(JCBinary tree) {
+                /* ... mute complaints on "legacy idiom for equality": i.e don't nitpick on
+                        if (v1 == v2 || v1.equals(v2))
+                */
+                if (tree.getTag() == Tag.OR && tree.lhs.getTag() == Tag.EQ && tree.rhs.getTag() == Tag.APPLY) {
+                    JCMethodInvocation method = (JCMethodInvocation) tree.rhs;
+                    boolean isEqualsCall =
+                            method.type != null
+                                    && !method.type.isErroneous() // kosher call.
+                                    && TreeInfo.name(method.meth).equals(names.equals)
+                                    && (TreeInfo.symbol(method.meth).flags() & STATIC) == 0
+                                    && method.meth.type.getParameterTypes().size() == 1
+                                    && method.meth.type.getParameterTypes().head.tsym == syms.objectType.tsym;
+
+                    if (isEqualsCall) {
+
+                        JCBinary eqOp = (JCBinary) tree.lhs;
+
+                        Symbol lhsSymbol = TreeInfo.symbol(eqOp.lhs);
+                        Symbol rhsSymbol = TreeInfo.symbol(eqOp.rhs);
+
+                        Symbol argSymbol = TreeInfo.symbol(method.args.head);
+
+                        boolean equalityIdiom = false;
+                        if (lhsSymbol != null && rhsSymbol != null &&
+                                (types.isValue(lhsSymbol.type) || types.isValue(rhsSymbol.type))) {
+                            switch (method.meth.getTag()) {
+                                case IDENT:
+                                    if ((lhsSymbol.name == names._this && rhsSymbol == argSymbol) ||
+                                            (rhsSymbol.name == names._this && lhsSymbol == argSymbol))
+                                        equalityIdiom = true;
+                                    break;
+                                case SELECT:
+                                    Symbol recvSymbol = TreeInfo.symbol(((JCFieldAccess) method.meth).selected);
+                                    if ((recvSymbol == lhsSymbol && rhsSymbol == argSymbol) ||
+                                            (recvSymbol == rhsSymbol && lhsSymbol == argSymbol))
+                                        equalityIdiom = true;
+                                    break;
+                            }
+                        }
+                        if (equalityIdiom) {
+                            super.visitApply(method);
+                            return; // do not descend into the == subtree.
+                        }
+                    }
+                }
+
+                Type left = tree.lhs.type;
+                Type right = tree.rhs.type;
+                Symbol operator = tree.operator;
+                if (operator != null && operator.kind == MTH &&
+                        left != null && !left.isErroneous() &&
+                        right != null && !right.isErroneous()) {
+                    int opc = ((OperatorSymbol)operator).opcode;
+                    if ((opc == ByteCodes.if_acmpeq || opc == ByteCodes.if_acmpne)) {
+                        if (types.isValue(left) || types.isValue(right)) {
+                            log.error(tree.pos(), Errors.ValueDoesNotSupport(tree.operator.name));
+                        }
+                    }
+                }
+                super.visitBinary(tree);
+            }
+        }.scan(stat);
+    }
+
+    /* *************************************************************************
  * Type Checking
  **************************************************************************/
 
@@ -558,6 +626,10 @@ public class Check {
         if (inferenceContext.free(req) || inferenceContext.free(found)) {
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
+        } else {
+            if (found.hasTag(CLASS)) {
+                checkParameterizationWithValues(pos, found);
+            }
         }
         if (req.hasTag(ERROR))
             return req;
@@ -809,6 +881,56 @@ public class Check {
             return true;
     }
 
+    void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
+        if (!allowGenericsOverValues && t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
+            valueParameterizationChecker.visit(t, pos);
+        }
+    }
+
+    /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
+     *  being used as type arguments and issues error against those usages.
+     */
+    private final Types.SimpleVisitor<Void, DiagnosticPosition> valueParameterizationChecker = new Types.SimpleVisitor<Void, DiagnosticPosition>() {
+
+        @Override
+        public Void visitType(Type t, DiagnosticPosition pos) {
+            return null;
+        }
+
+        @Override
+        public Void visitClassType(ClassType t, DiagnosticPosition pos) {
+            for (Type targ : t.allparams()) {
+                if (types.isValue(targ) && !allowGenericsOverValues) {
+                    log.error(pos, Errors.GenericParameterizationWithValueType(t));
+                }
+                visit(targ, pos);
+            }
+            return null;
+        }
+
+        @Override
+        public Void visitTypeVar(TypeVar t, DiagnosticPosition pos) {
+             return null;
+        }
+
+        @Override
+        public Void visitCapturedType(CapturedType t, DiagnosticPosition pos) {
+            return null;
+        }
+
+        @Override
+        public Void visitArrayType(ArrayType t, DiagnosticPosition pos) {
+            return visit(t.elemtype, pos);
+        }
+
+        @Override
+        public Void visitWildcardType(WildcardType t, DiagnosticPosition pos) {
+            return visit(t.type, pos);
+        }
+    };
+
+
+
     /** Check that usage of diamond operator is correct (i.e. diamond should not
      * be used with non-generic classes or in anonymous class creation expressions)
      */
@@ -909,7 +1031,6 @@ public class Check {
 
     void checkVarargsMethodDecl(Env<AttrContext> env, JCMethodDecl tree) {
         MethodSymbol m = tree.sym;
-        if (!Feature.SIMPLIFIED_VARARGS.allowedInSource(source)) return;
         boolean hasTrustMeAnno = m.attribute(syms.trustMeType.tsym) != null;
         Type varargElemType = null;
         if (m.isVarArgs()) {
@@ -958,7 +1079,11 @@ public class Check {
         }
 
         //upward project the initializer type
-        return types.upward(t, types.captures(t));
+        Type varType = types.upward(t, types.captures(t));
+        if (varType.hasTag(CLASS)) {
+            checkParameterizationWithValues(pos, varType);
+        }
+        return varType;
     }
 
     Type checkMethod(final Type mtype,
@@ -1021,15 +1146,11 @@ public class Check {
         if (useVarargs) {
             Type argtype = owntype.getParameterTypes().last();
             if (!types.isReifiable(argtype) &&
-                (!Feature.SIMPLIFIED_VARARGS.allowedInSource(source) ||
-                 sym.baseSymbol().attribute(syms.trustMeType.tsym) == null ||
+                (sym.baseSymbol().attribute(syms.trustMeType.tsym) == null ||
                  !isTrustMeAllowedOnMethod(sym))) {
                 warnUnchecked(env.tree.pos(), Warnings.UncheckedGenericArrayCreation(argtype));
             }
             TreeInfo.setVarargsElement(env.tree, types.elemtype(argtype));
-         }
-         if ((sym.flags() & SIGNATURE_POLYMORPHIC) != 0 && !target.hasMethodHandles()) {
-            log.error(env.tree, Errors.BadTargetSigpolyCall(target, Target.JDK1_7));
          }
          return owntype;
     }
@@ -2070,7 +2191,8 @@ public class Check {
         // or by virtue of being a member of a diamond inferred anonymous class. Latter case is to
         // be treated "as if as they were annotated" with @Override.
         boolean mustOverride = explicitOverride ||
-                (env.info.isAnonymousDiamond && !m.isConstructor() && !m.isPrivate());
+                (env.info.isAnonymousDiamond && !m.isConstructor() && !m.isPrivate() &&
+                        (!m.owner.isValue() || (tree.body.flags & SYNTHETIC) == 0));
         if (mustOverride && !isOverrider(m)) {
             DiagnosticPosition pos = tree.pos();
             for (JCAnnotation a : tree.getModifiers().annotations) {
@@ -3729,17 +3851,8 @@ public class Check {
         OUTER: for (JCImport imp : toplevel.getImports()) {
             if (!imp.staticImport && TreeInfo.name(imp.qualid) == names.asterisk) {
                 TypeSymbol tsym = ((JCFieldAccess)imp.qualid).selected.type.tsym;
-                if (toplevel.modle.visiblePackages != null) {
-                    //TODO - unclear: selects like javax.* will get resolved from the current module
-                    //(as javax is not an exported package from any module). And as javax in the current
-                    //module typically does not contain any classes or subpackages, we need to go through
-                    //the visible packages to find a sub-package:
-                    for (PackageSymbol known : toplevel.modle.visiblePackages.values()) {
-                        if (Convert.packagePart(known.fullname) == tsym.flatName())
-                            continue OUTER;
-                    }
-                }
-                if (tsym.kind == PCK && tsym.members().isEmpty() && !tsym.exists()) {
+                if (tsym.kind == PCK && tsym.members().isEmpty() &&
+                    !(Feature.IMPORT_ON_DEMAND_OBSERVABLE_PACKAGES.allowedInSource(source) && tsym.exists())) {
                     log.error(DiagnosticFlag.RESOLVE_ERROR, imp.pos, Errors.DoesntExist(tsym));
                 }
             }

@@ -728,8 +728,8 @@ public:
 
   public:
     Loop(Block* head, Block* tail) :
-      _head(head),   _tail(tail),
       _parent(NULL), _sibling(NULL), _child(NULL),
+      _head(head),   _tail(tail),
       _irreducible(false), _def_locals() {}
 
     Loop* parent()  const { return _parent; }

@@ -83,16 +83,17 @@ class DataLayout {
 private:
   // Every data layout begins with a header.  This header
   // contains a tag, which is used to indicate the size/layout
-  // of the data, 4 bits of flags, which can be used in any way,
-  // 4 bits of trap history (none/one reason/many reasons),
+  // of the data, 8 bits of flags, which can be used in any way,
+  // 32 bits of trap history (none/one reason/many reasons),
   // and a bci, which is used to tie this piece of data to a
   // specific bci in the bytecodes.
   union {
-    intptr_t _bits;
+    u8 _bits;
     struct {
       u1 _tag;
       u1 _flags;
       u2 _bci;
+      u4 _traps;
     } _struct;
   } _header;
 
@@ -131,28 +132,23 @@ public:
   };
 
   enum {
-    // The _struct._flags word is formatted as [trap_state:4 | flags:4].
-    // The trap state breaks down further as [recompile:1 | reason:3].
+    // The trap state breaks down as [recompile:1 | reason:31].
     // This further breakdown is defined in deoptimization.cpp.
     // See Deoptimization::trap_state_reason for an assert that
     // trap_bits is big enough to hold reasons < Reason_RECORDED_LIMIT.
     //
     // The trap_state is collected only if ProfileTraps is true.
-    trap_bits = 1+3,  // 3: enough to distinguish [0..Reason_RECORDED_LIMIT].
-    trap_shift = BitsPerByte - trap_bits,
-    trap_mask = right_n_bits(trap_bits),
-    trap_mask_in_place = (trap_mask << trap_shift),
-    flag_limit = trap_shift,
-    flag_mask = right_n_bits(flag_limit),
+    trap_bits = 1+31,  // 31: enough to distinguish [0..Reason_RECORDED_LIMIT].
+    trap_mask = -1,
     first_flag = 0
   };
 
   // Size computation
   static int header_size_in_bytes() {
-    return cell_size;
+    return header_size_in_cells() * cell_size;
   }
   static int header_size_in_cells() {
-    return 1;
+    return LP64_ONLY(1) NOT_LP64(2);
   }
 
   static int compute_size_in_bytes(int cell_count) {
@@ -167,7 +163,7 @@ public:
     return _header._struct._tag;
   }
 
-  // Return a few bits of trap state.  Range is [0..trap_mask].
+  // Return 32 bits of trap state.
   // The state tells if traps with zero, one, or many reasons have occurred.
   // It also tells whether zero or many recompilations have occurred.
   // The associated trap histogram in the MDO itself tells whether
@@ -175,14 +171,14 @@ public:
   // occurred, and the MDO shows N occurrences of X, we make the
   // simplifying assumption that all N occurrences can be blamed
   // on that BCI.
-  int trap_state() const {
-    return ((_header._struct._flags >> trap_shift) & trap_mask);
+  uint trap_state() const {
+    return _header._struct._traps;
   }
 
-  void set_trap_state(int new_state) {
+  void set_trap_state(uint new_state) {
     assert(ProfileTraps, "used only under +ProfileTraps");
-    uint old_flags = (_header._struct._flags & flag_mask);
-    _header._struct._flags = (new_state << trap_shift) | old_flags;
+    uint old_flags = _header._struct._traps;
+    _header._struct._traps = new_state | old_flags;
   }
 
   u1 flags() const {
@@ -193,10 +189,10 @@ public:
     return _header._struct._bci;
   }
 
-  void set_header(intptr_t value) {
+  void set_header(u8 value) {
     _header._bits = value;
   }
-  intptr_t header() {
+  u8 header() {
     return _header._bits;
   }
   void set_cell_at(int index, intptr_t value) {
@@ -207,12 +203,10 @@ public:
     return _cells[index];
   }
 
-  void set_flag_at(int flag_number) {
-    assert(flag_number < flag_limit, "oob");
+  void set_flag_at(u1 flag_number) {
     _header._struct._flags |= (0x1 << flag_number);
   }
-  bool flag_at(int flag_number) const {
-    assert(flag_number < flag_limit, "oob");
+  bool flag_at(u1 flag_number) const {
     return (_header._struct._flags & (0x1 << flag_number)) != 0;
   }
 
@@ -232,20 +226,14 @@ public:
   static ByteSize cell_offset(int index) {
     return byte_offset_of(DataLayout, _cells) + in_ByteSize(index * cell_size);
   }
-#ifdef CC_INTERP
-  static int cell_offset_in_bytes(int index) {
-    return (int)offset_of(DataLayout, _cells[index]);
-  }
-#endif // CC_INTERP
   // Return a value which, when or-ed as a byte into _flags, sets the flag.
-  static int flag_number_to_byte_constant(int flag_number) {
-    assert(0 <= flag_number && flag_number < flag_limit, "oob");
+  static u1 flag_number_to_constant(u1 flag_number) {
     DataLayout temp; temp.set_header(0);
     temp.set_flag_at(flag_number);
     return temp._header._struct._flags;
   }
   // Return a value which, when or-ed as a word into _header, sets the flag.
-  static intptr_t flag_mask_to_header_mask(int byte_constant) {
+  static u8 flag_mask_to_header_mask(uint byte_constant) {
     DataLayout temp; temp.set_header(0);
     temp._header._struct._flags = byte_constant;
     return temp._header._bits;
@@ -364,48 +352,13 @@ protected:
   static ByteSize cell_offset(int index) {
     return DataLayout::cell_offset(index);
   }
-  static int flag_number_to_byte_constant(int flag_number) {
-    return DataLayout::flag_number_to_byte_constant(flag_number);
+  static int flag_number_to_constant(int flag_number) {
+    return DataLayout::flag_number_to_constant(flag_number);
   }
 
   ProfileData(DataLayout* data) {
     _data = data;
   }
-
-#ifdef CC_INTERP
-  // Static low level accessors for DataLayout with ProfileData's semantics.
-
-  static int cell_offset_in_bytes(int index) {
-    return DataLayout::cell_offset_in_bytes(index);
-  }
-
-  static void increment_uint_at_no_overflow(DataLayout* layout, int index,
-                                            int inc = DataLayout::counter_increment) {
-    uint count = ((uint)layout->cell_at(index)) + inc;
-    if (count == 0) return;
-    layout->set_cell_at(index, (intptr_t) count);
-  }
-
-  static int int_at(DataLayout* layout, int index) {
-    return (int)layout->cell_at(index);
-  }
-
-  static int uint_at(DataLayout* layout, int index) {
-    return (uint)layout->cell_at(index);
-  }
-
-  static oop oop_at(DataLayout* layout, int index) {
-    return cast_to_oop(layout->cell_at(index));
-  }
-
-  static void set_intptr_at(DataLayout* layout, int index, intptr_t value) {
-    layout->set_cell_at(index, (intptr_t) value);
-  }
-
-  static void set_flag_at(DataLayout* layout, int flag_number) {
-    layout->set_flag_at(flag_number);
-  }
-#endif // CC_INTERP
 
 public:
   // Constructor for invalid ProfileData.
@@ -574,26 +527,12 @@ public:
 
   // Code generation support
   static int null_seen_byte_constant() {
-    return flag_number_to_byte_constant(null_seen_flag);
+    return flag_number_to_constant(null_seen_flag);
   }
 
   static ByteSize bit_data_size() {
     return cell_offset(bit_cell_count);
   }
-
-#ifdef CC_INTERP
-  static int bit_data_size_in_bytes() {
-    return cell_offset_in_bytes(bit_cell_count);
-  }
-
-  static void set_null_seen(DataLayout* layout) {
-    set_flag_at(layout, null_seen_flag);
-  }
-
-  static DataLayout* advance(DataLayout* layout) {
-    return (DataLayout*) (((address)layout) + (ssize_t)BitData::bit_data_size_in_bytes());
-  }
-#endif // CC_INTERP
 
   void print_data_on(outputStream* st, const char* extra = NULL) const;
 };
@@ -638,25 +577,6 @@ public:
   void set_count(uint count) {
     set_uint_at(count_off, count);
   }
-
-#ifdef CC_INTERP
-  static int counter_data_size_in_bytes() {
-    return cell_offset_in_bytes(counter_cell_count);
-  }
-
-  static void increment_count_no_overflow(DataLayout* layout) {
-    increment_uint_at_no_overflow(layout, count_off);
-  }
-
-  // Support counter decrementation at checkcast / subtype check failed.
-  static void decrement_count(DataLayout* layout) {
-    increment_uint_at_no_overflow(layout, count_off, -1);
-  }
-
-  static DataLayout* advance(DataLayout* layout) {
-    return (DataLayout*) (((address)layout) + (ssize_t)CounterData::counter_data_size_in_bytes());
-  }
-#endif // CC_INTERP
 
   void print_data_on(outputStream* st, const char* extra = NULL) const;
 };
@@ -727,20 +647,6 @@ public:
   static ByteSize displacement_offset() {
     return cell_offset(displacement_off_set);
   }
-
-#ifdef CC_INTERP
-  static void increment_taken_count_no_overflow(DataLayout* layout) {
-    increment_uint_at_no_overflow(layout, taken_off_set);
-  }
-
-  static DataLayout* advance_taken(DataLayout* layout) {
-    return (DataLayout*) (((address)layout) + (ssize_t)int_at(layout, displacement_off_set));
-  }
-
-  static uint taken_count(DataLayout* layout) {
-    return (uint) uint_at(layout, taken_off_set);
-  }
-#endif // CC_INTERP
 
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
@@ -827,7 +733,7 @@ protected:
   const int _base_off;
 
   TypeEntries(int base_off)
-    : _base_off(base_off), _pd(NULL) {}
+    : _pd(NULL), _base_off(base_off) {}
 
   void set_intptr_at(int index, intptr_t value) {
     _pd->set_intptr_at(index, value);
@@ -1302,43 +1208,6 @@ public:
   // GC support
   virtual void clean_weak_klass_links(bool always_clean);
 
-#ifdef CC_INTERP
-  static int receiver_type_data_size_in_bytes() {
-    return cell_offset_in_bytes(static_cell_count());
-  }
-
-  static Klass *receiver_unchecked(DataLayout* layout, uint row) {
-    Klass* recv = (Klass*)layout->cell_at(receiver_cell_index(row));
-    return recv;
-  }
-
-  static void increment_receiver_count_no_overflow(DataLayout* layout, Klass *rcvr) {
-    const int num_rows = row_limit();
-    // Receiver already exists?
-    for (int row = 0; row < num_rows; row++) {
-      if (receiver_unchecked(layout, row) == rcvr) {
-        increment_uint_at_no_overflow(layout, receiver_count_cell_index(row));
-        return;
-      }
-    }
-    // New receiver, find a free slot.
-    for (int row = 0; row < num_rows; row++) {
-      if (receiver_unchecked(layout, row) == NULL) {
-        set_intptr_at(layout, receiver_cell_index(row), (intptr_t)rcvr);
-        increment_uint_at_no_overflow(layout, receiver_count_cell_index(row));
-        return;
-      }
-    }
-    // Receiver did not match any saved receiver and there is no empty row for it.
-    // Increment total counter to indicate polymorphic case.
-    increment_count_no_overflow(layout);
-  }
-
-  static DataLayout* advance(DataLayout* layout) {
-    return (DataLayout*) (((address)layout) + (ssize_t)ReceiverTypeData::receiver_type_data_size_in_bytes());
-  }
-#endif // CC_INTERP
-
   void print_receiver_data_on(outputStream* st) const;
   void print_data_on(outputStream* st, const char* extra = NULL) const;
 };
@@ -1370,16 +1239,6 @@ public:
   static ByteSize virtual_call_data_size() {
     return cell_offset(static_cell_count());
   }
-
-#ifdef CC_INTERP
-  static int virtual_call_data_size_in_bytes() {
-    return cell_offset_in_bytes(static_cell_count());
-  }
-
-  static DataLayout* advance(DataLayout* layout) {
-    return (DataLayout*) (((address)layout) + (ssize_t)VirtualCallData::virtual_call_data_size_in_bytes());
-  }
-#endif // CC_INTERP
 
 #if INCLUDE_JVMCI
   static ByteSize method_offset(uint row) {
@@ -1658,10 +1517,6 @@ public:
     return cell_offset(bci_displacement_cell_index(row));
   }
 
-#ifdef CC_INTERP
-  static DataLayout* advance(MethodData *md, int bci);
-#endif // CC_INTERP
-
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
@@ -1726,20 +1581,6 @@ public:
     return cell_offset(branch_cell_count);
   }
 
-#ifdef CC_INTERP
-  static int branch_data_size_in_bytes() {
-    return cell_offset_in_bytes(branch_cell_count);
-  }
-
-  static void increment_not_taken_count_no_overflow(DataLayout* layout) {
-    increment_uint_at_no_overflow(layout, not_taken_off_set);
-  }
-
-  static DataLayout* advance_not_taken(DataLayout* layout) {
-    return (DataLayout*) (((address)layout) + (ssize_t)BranchData::branch_data_size_in_bytes());
-  }
-#endif // CC_INTERP
-
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
@@ -1778,20 +1619,6 @@ protected:
     int aindex = index + array_start_off_set;
     set_int_at(aindex, value);
   }
-
-#ifdef CC_INTERP
-  // Static low level accessors for DataLayout with ArrayData's semantics.
-
-  static void increment_array_uint_at_no_overflow(DataLayout* layout, int index) {
-    int aindex = index + array_start_off_set;
-    increment_uint_at_no_overflow(layout, aindex);
-  }
-
-  static int array_int_at(DataLayout* layout, int index) {
-    int aindex = index + array_start_off_set;
-    return int_at(layout, aindex);
-  }
-#endif // CC_INTERP
 
   // Code generation support for subclasses.
   static ByteSize array_element_offset(int index) {
@@ -1913,28 +1740,6 @@ public:
     return in_ByteSize(relative_displacement_off_set) * cell_size;
   }
 
-#ifdef CC_INTERP
-  static void increment_count_no_overflow(DataLayout* layout, int index) {
-    if (index == -1) {
-      increment_array_uint_at_no_overflow(layout, default_count_off_set);
-    } else {
-      increment_array_uint_at_no_overflow(layout, case_array_start +
-                                                  index * per_case_cell_count +
-                                                  relative_count_off_set);
-    }
-  }
-
-  static DataLayout* advance(DataLayout* layout, int index) {
-    if (index == -1) {
-      return (DataLayout*) (((address)layout) + (ssize_t)array_int_at(layout, default_disaplacement_off_set));
-    } else {
-      return (DataLayout*) (((address)layout) + (ssize_t)array_int_at(layout, case_array_start +
-                                                                              index * per_case_cell_count +
-                                                                              relative_displacement_off_set));
-    }
-  }
-#endif // CC_INTERP
-
   // Specific initialization.
   void post_initialize(BytecodeStream* stream, MethodData* mdo);
 
@@ -2050,6 +1855,17 @@ class SpeculativeTrapData : public ProfileData {
 protected:
   enum {
     speculative_trap_method,
+#ifndef _LP64
+    // The size of the area for traps is a multiple of the header
+    // size, 2 cells on 32 bits. Packed at the end of this area are
+    // argument info entries (with tag
+    // DataLayout::arg_info_data_tag). The logic in
+    // MethodData::bci_to_extra_data() that guarantees traps don't
+    // overflow over argument info entries assumes the size of a
+    // SpeculativeTrapData is twice the header size. On 32 bits, a
+    // SpeculativeTrapData must be 4 cells.
+    padding,
+#endif
     speculative_trap_cell_count
   };
 public:
@@ -2127,13 +1943,11 @@ public:
 // adjusted in the event of a change in control flow.
 //
 
-CC_INTERP_ONLY(class BytecodeInterpreter;)
 class CleanExtraDataClosure;
 
 class MethodData : public Metadata {
   friend class VMStructs;
   friend class JVMCIVMStructs;
-  CC_INTERP_ONLY(friend class BytecodeInterpreter;)
 private:
   friend class ProfileData;
   friend class TypeEntriesAtCall;
@@ -2162,7 +1976,7 @@ public:
 
   // Whole-method sticky bits and flags
   enum {
-    _trap_hist_limit    = 23 JVMCI_ONLY(+5),   // decoupled from Deoptimization::Reason_LIMIT
+    _trap_hist_limit    = 24 JVMCI_ONLY(+5),   // decoupled from Deoptimization::Reason_LIMIT
     _trap_hist_mask     = max_jubyte,
     _extra_data_count   = 4     // extra DataLayout headers, for trap history
   }; // Public flag values

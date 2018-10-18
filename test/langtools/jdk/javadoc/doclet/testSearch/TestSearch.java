@@ -241,7 +241,6 @@ public class TestSearch extends JavadocTester {
 
     @Test
     void test7() {
-        setAutomaticCheckLinks(false); // @ignore JDK-8202627
         javadoc("-d", "out-7",
                 "-nodeprecated",
                 "-Xdoclint:none",
@@ -249,7 +248,7 @@ public class TestSearch extends JavadocTester {
                 "-use",
                 "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
-        setAutomaticCheckLinks(true); // @ignore JDK-8202627
+
         checkExit(Exit.OK);
         checkSearchOutput(true);
         checkIndexNoDeprecated();
@@ -400,7 +399,8 @@ public class TestSearch extends JavadocTester {
                 "<!--[if IE]>\n",
                 "<script type=\"text/javascript\" src=\"jquery/jszip-utils/dist/jszip-utils-ie.min.js\"></script>\n",
                 "<![endif]-->\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-1.10.2.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"jquery/jquery-3.3.1.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"jquery/jquery-migrate-3.0.1.js\"></script>\n",
                 "<script type=\"text/javascript\" src=\"jquery/jquery-ui.js\"></script>",
                 "var pathtoroot = \"./\";\n"
                 + "var useModuleDirectories = " + moduleDirectoriesVar + ";\n"
@@ -592,7 +592,8 @@ public class TestSearch extends JavadocTester {
     void checkJqueryAndImageFiles(boolean expectedOutput) {
         checkFiles(expectedOutput,
                 "search.js",
-                "jquery/jquery-1.10.2.js",
+                "jquery/jquery-3.3.1.js",
+                "jquery/jquery-migrate-3.0.1.js",
                 "jquery/jquery-ui.js",
                 "jquery/jquery-ui.css",
                 "jquery/jquery-ui.min.js",
@@ -630,9 +631,9 @@ public class TestSearch extends JavadocTester {
                 "camelCaseMatcher.test(item.l)",
                 "var secondaryresult = new Array();",
                 "function nestedName(e) {",
-                "function sortAndConcatResults(a1, a2) {",
+                "function concatResults(a1, a2) {",
                 "if (exactMatcher.test(item.l)) {\n"
-                + "                        presult.unshift(item);",
+                + "                        presult.push(item);",
                 "$(\"#search\").on('click keydown', function() {\n"
                 + "        if ($(this).val() == watermark) {\n"
                 + "            $(this).val('').removeClass('watermark');\n"

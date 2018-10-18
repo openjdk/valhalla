@@ -32,19 +32,19 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
-    __ByValue public static final class Entry<K, V> implements Map.Entry<K, V> {
+    value public static final class Entry<K, V> implements Map.Entry<K, V> {
         final K key;
         final V value;
         final HEntry<K, V> next;
         final int hash;
 
         public static <K,V> Entry<K,V> empty() {
-            Entry e = __MakeDefault Entry();
+            Entry e = Entry.default;
             return e;
         }
 
         public static <K,V> Entry<K,V> of(int h, K k, V v, HEntry<K, V> n) {
-            Entry e = __MakeDefault Entry();
+            Entry e = Entry.default;
             e = __WithField(e.key, k);
             e = __WithField(e.value, v);
             e = __WithField(e.next, n);
@@ -362,7 +362,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         return KeyCursor.of(this);
     }
 
-    __ByValue  public static final class EntryCursor<K,V> implements Cursor<Map.Entry<K,V>> {
+    value  public static final class EntryCursor<K,V> implements Cursor<Map.Entry<K,V>> {
         private final HashMapValueTotal<K,V> map;
         private final int expectedModCount;
         private final int index;
@@ -378,7 +378,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         }
 
         public static <K,V> EntryCursor<K,V> of(HashMapValueTotal<K, V> map, int expectedModCount, int index, HEntry<K, V> current) {
-            EntryCursor c = __MakeDefault EntryCursor();
+            EntryCursor c = EntryCursor.default;
             c = __WithField(c.map, map);
             c = __WithField(c.expectedModCount, expectedModCount);
             c = __WithField(c.index, index);
@@ -421,7 +421,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         }
     }
 
-    __ByValue  public static final class KeyCursor<K,V> implements Cursor<K> {
+    value  public static final class KeyCursor<K,V> implements Cursor<K> {
         private final HashMapValueTotal<K,V> map;
         private final int expectedModCount;
         private final int index;
@@ -437,7 +437,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
         }
 
         public static <K,V> KeyCursor<K,V> of(HashMapValueTotal<K, V> map, int expectedModCount, int index, HEntry<K, V> current) {
-            KeyCursor c = __MakeDefault KeyCursor();
+            KeyCursor c = KeyCursor.default;
             c = __WithField(c.map, map);
             c = __WithField(c.expectedModCount, expectedModCount);
             c = __WithField(c.index, index);

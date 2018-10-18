@@ -47,7 +47,6 @@
 #include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
-#include "utilities/errorReporter.hpp"
 #include "utilities/events.hpp"
 #include "utilities/vmError.hpp"
 #include "utilities/macros.hpp"
@@ -1287,7 +1286,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
   // then save detailed information in log file (verbose = true).
   static bool out_done = false;         // done printing to standard out
   static bool log_done = false;         // done saving error log
-  static bool transmit_report_done = false; // done error reporting
 
   if (SuppressFatalErrorMessage) {
       os::abort(CreateCoredumpOnCrash);
@@ -1385,9 +1383,24 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
         os::infinite_sleep();
       } else {
         // Crash or assert during error reporting. Lets continue reporting with the next step.
-        jio_snprintf(buffer, sizeof(buffer),
-           "[error occurred during error reporting (%s), id 0x%x]",
-                   _current_step_info, _id);
+        stringStream ss(buffer, sizeof(buffer));
+        // Note: this string does get parsed by a number of jtreg tests,
+        // see hotspot/jtreg/runtime/ErrorHandling.
+        ss.print("[error occurred during error reporting (%s), id 0x%x",
+                   _current_step_info, id);
+        char signal_name[64];
+        if (os::exception_name(id, signal_name, sizeof(signal_name))) {
+          ss.print(", %s (0x%x) at pc=" PTR_FORMAT, signal_name, id, p2i(pc));
+        } else {
+          if (should_report_bug(id)) {
+            ss.print(", Internal Error (%s:%d)",
+              filename == NULL ? "??" : filename, lineno);
+          } else {
+            ss.print(", Out of Memory Error (%s:%d)",
+              filename == NULL ? "??" : filename, lineno);
+          }
+        }
+        ss.print("]");
         st->print_raw_cr(buffer);
         st->cr();
       }
@@ -1418,9 +1431,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       } else {
         out.print_raw_cr("# Can not save log file, dump to screen..");
         log.set_fd(defaultStream::output_fd());
-        /* Error reporting currently needs dumpfile.
-         * Maybe implement direct streaming in the future.*/
-        transmit_report_done = true;
       }
     }
 
@@ -1428,20 +1438,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     log_done = true;
     _current_step = 0;
     _current_step_info = "";
-
-    // Run error reporting to determine whether or not to report the crash.
-    if (!transmit_report_done && should_report_bug(_id)) {
-      transmit_report_done = true;
-      const int fd2 = ::dup(log.fd());
-      if (fd2 != -1) {
-        FILE* const hs_err = ::fdopen(fd2, "r");
-        if (NULL != hs_err) {
-          ErrorReporter er;
-          er.call(hs_err, buffer, O_BUFLEN);
-          ::fclose(hs_err);
-        }
-      }
-    }
 
     if (log.fd() != defaultStream::output_fd()) {
       close(log.fd());
@@ -1698,6 +1694,13 @@ void VMError::controlled_crash(int how) {
   // Case 15 is tested by test/hotspot/jtreg/runtime/ErrorHandling/SecondaryErrorTest.java.
   // Case 16 is tested by test/hotspot/jtreg/runtime/ErrorHandling/ThreadsListHandleInErrorHandlingTest.java.
   // Case 17 is tested by test/hotspot/jtreg/runtime/ErrorHandling/NestedThreadsListHandleInErrorHandlingTest.java.
+
+  // We grab Threads_lock to keep ThreadsSMRSupport::print_info_on()
+  // from racing with Threads::add() or Threads::remove() as we
+  // generate the hs_err_pid file. This makes our ErrorHandling tests
+  // more stable.
+  MutexLockerEx ml(Threads_lock->owned_by_self() ? NULL : Threads_lock, Mutex::_no_safepoint_check_flag);
+
   switch (how) {
     case  1: vmassert(str == NULL, "expected null"); break;
     case  2: vmassert(num == 1023 && *str == 'X',

@@ -192,25 +192,12 @@ void VM_ZombieAll::doit() {
 
 #endif // !PRODUCT
 
-void VM_UnlinkSymbols::doit() {
-  JavaThread *thread = (JavaThread *)calling_thread();
-  assert(thread->is_Java_thread(), "must be a Java thread");
-  SymbolTable::unlink();
-}
-
 void VM_Verify::doit() {
   Universe::heap()->prepare_for_verify();
   Universe::verify();
 }
 
 bool VM_PrintThreads::doit_prologue() {
-  // Make sure AbstractOwnableSynchronizer is loaded
-  JavaThread* jt = JavaThread::current();
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-  if (jt->has_pending_exception()) {
-    return false;
-  }
-
   // Get Heap_lock if concurrent locks will be dumped
   if (_print_concurrent_locks) {
     Heap_lock->lock();
@@ -219,7 +206,7 @@ bool VM_PrintThreads::doit_prologue() {
 }
 
 void VM_PrintThreads::doit() {
-  Threads::print_on(_out, true, false, _print_concurrent_locks);
+  Threads::print_on(_out, true, false, _print_concurrent_locks, _print_extended_info);
 }
 
 void VM_PrintThreads::doit_epilogue() {
@@ -246,19 +233,6 @@ VM_FindDeadlocks::~VM_FindDeadlocks() {
       delete d;
     }
   }
-}
-
-bool VM_FindDeadlocks::doit_prologue() {
-  if (_concurrent_locks) {
-    // Make sure AbstractOwnableSynchronizer is loaded
-    JavaThread* jt = JavaThread::current();
-    java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-    if (jt->has_pending_exception()) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void VM_FindDeadlocks::doit() {
@@ -316,13 +290,6 @@ VM_ThreadDump::VM_ThreadDump(ThreadDumpResult* result,
 }
 
 bool VM_ThreadDump::doit_prologue() {
-  // Make sure AbstractOwnableSynchronizer is loaded
-  JavaThread* jt = JavaThread::current();
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(jt);
-  if (jt->has_pending_exception()) {
-    return false;
-  }
-
   if (_with_locked_synchronizers) {
     // Acquire Heap_lock to dump concurrent locks
     Heap_lock->lock();
@@ -532,10 +499,6 @@ void VM_Exit::wait_if_vm_exited() {
 
 void VM_PrintCompileQueue::doit() {
   CompileBroker::print_compile_queues(_out);
-}
-
-void VM_VTBufferStats::doit() {
-  Threads::print_vt_buffer_stats_on(_out);
 }
 
 #if INCLUDE_SERVICES

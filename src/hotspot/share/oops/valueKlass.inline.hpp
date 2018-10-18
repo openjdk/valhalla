@@ -24,15 +24,14 @@
 #ifndef SHARE_VM_OOPS_VALUEKLASS_INLINE_HPP
 #define SHARE_VM_OOPS_VALUEKLASS_INLINE_HPP
 
-#include "memory/memRegion.hpp"
-#include "memory/iterator.inline.hpp"
+#include "memory/iterator.hpp"
 #include "oops/klass.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/valueKlass.hpp"
 #include "utilities/macros.hpp"
 
-template <bool nv, typename T, class OopClosureType>
+template <typename T, class OopClosureType>
 void ValueKlass::oop_iterate_specialized(const address oop_addr, OopClosureType* closure) {
   OopMapBlock* map = start_of_nonstatic_oop_maps();
   OopMapBlock* const end_map = map + nonstatic_oop_map_count();
@@ -41,12 +40,12 @@ void ValueKlass::oop_iterate_specialized(const address oop_addr, OopClosureType*
     T* p = (T*) (oop_addr + map->offset());
     T* const end = p + map->count();
     for (; p < end; ++p) {
-      Devirtualizer<nv>::do_oop(closure, p);
+      Devirtualizer::do_oop(closure, p);
     }
   }
 }
 
-template <bool nv, typename T, class OopClosureType>
+template <typename T, class OopClosureType>
 inline void ValueKlass::oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi) {
   OopMapBlock* map = start_of_nonstatic_oop_maps();
   OopMapBlock* const end_map = map + nonstatic_oop_map_count();
@@ -64,7 +63,7 @@ inline void ValueKlass::oop_iterate_specialized_bounded(const address oop_addr, 
       end = h;
     }
     for (; p < end; ++p) {
-      Devirtualizer<nv>::do_oop(closure, p);
+      Devirtualizer::do_oop(closure, p);
     }
   }
 }

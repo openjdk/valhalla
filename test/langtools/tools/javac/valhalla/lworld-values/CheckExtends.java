@@ -5,5 +5,5 @@
  * @compile/fail/ref=CheckExtends.out -XDrawDiagnostics CheckExtends.java
  */
 
-final __ByValue class CheckExtends extends Object {
+final value class CheckExtends extends Object {
 }

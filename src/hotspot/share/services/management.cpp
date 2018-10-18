@@ -713,50 +713,53 @@ JVM_END
 JVM_ENTRY(jobject, jmm_GetMemoryUsage(JNIEnv* env, jboolean heap))
   ResourceMark rm(THREAD);
 
-  // Calculate the memory usage
-  size_t total_init = 0;
-  size_t total_used = 0;
-  size_t total_committed = 0;
-  size_t total_max = 0;
-  bool   has_undefined_init_size = false;
-  bool   has_undefined_max_size = false;
+  MemoryUsage usage;
 
-  for (int i = 0; i < MemoryService::num_memory_pools(); i++) {
-    MemoryPool* pool = MemoryService::get_memory_pool(i);
-    if ((heap && pool->is_heap()) || (!heap && pool->is_non_heap())) {
-      MemoryUsage u = pool->get_memory_usage();
-      total_used += u.used();
-      total_committed += u.committed();
+  if (heap) {
+    usage = Universe::heap()->memory_usage();
+  } else {
+    // Calculate the memory usage by summing up the pools.
+    size_t total_init = 0;
+    size_t total_used = 0;
+    size_t total_committed = 0;
+    size_t total_max = 0;
+    bool   has_undefined_init_size = false;
+    bool   has_undefined_max_size = false;
 
-      if (u.init_size() == (size_t)-1) {
-        has_undefined_init_size = true;
-      }
-      if (!has_undefined_init_size) {
-        total_init += u.init_size();
-      }
+    for (int i = 0; i < MemoryService::num_memory_pools(); i++) {
+      MemoryPool* pool = MemoryService::get_memory_pool(i);
+      if (pool->is_non_heap()) {
+        MemoryUsage u = pool->get_memory_usage();
+        total_used += u.used();
+        total_committed += u.committed();
 
-      if (u.max_size() == (size_t)-1) {
-        has_undefined_max_size = true;
-      }
-      if (!has_undefined_max_size) {
-        total_max += u.max_size();
+        if (u.init_size() == MemoryUsage::undefined_size()) {
+          has_undefined_init_size = true;
+        }
+        if (!has_undefined_init_size) {
+          total_init += u.init_size();
+        }
+
+        if (u.max_size() == MemoryUsage::undefined_size()) {
+          has_undefined_max_size = true;
+        }
+        if (!has_undefined_max_size) {
+          total_max += u.max_size();
+        }
       }
     }
-  }
 
-  // if any one of the memory pool has undefined init_size or max_size,
-  // set it to -1
-  if (has_undefined_init_size) {
-    total_init = (size_t)-1;
-  }
-  if (has_undefined_max_size) {
-    total_max = (size_t)-1;
-  }
+    // if any one of the memory pool has undefined init_size or max_size,
+    // set it to MemoryUsage::undefined_size()
+    if (has_undefined_init_size) {
+      total_init = MemoryUsage::undefined_size();
+    }
+    if (has_undefined_max_size) {
+      total_max = MemoryUsage::undefined_size();
+    }
 
-  MemoryUsage usage((heap ? InitialHeapSize : total_init),
-                    total_used,
-                    total_committed,
-                    (heap ? Universe::heap()->max_capacity() : total_max));
+    usage = MemoryUsage(total_init, total_used, total_committed, total_max);
+  }
 
   Handle obj = MemoryService::create_MemoryUsage_obj(usage, CHECK_NULL);
   return JNIHandles::make_local(env, obj());
@@ -1081,9 +1084,6 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
                "The length of the given ThreadInfo array does not match the length of the given array of thread IDs", -1);
   }
 
-  // make sure the AbstractOwnableSynchronizer klass is loaded before taking thread snapshots
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(CHECK_0);
-
   // Must use ThreadDumpResult to store the ThreadSnapshot.
   // GC may occur after the thread snapshots are taken but before
   // this function returns. The threadObj and other oops kept
@@ -1153,9 +1153,6 @@ JVM_END
 JVM_ENTRY(jobjectArray, jmm_DumpThreads(JNIEnv *env, jlongArray thread_ids, jboolean locked_monitors,
                                         jboolean locked_synchronizers, jint maxDepth))
   ResourceMark rm(THREAD);
-
-  // make sure the AbstractOwnableSynchronizer klass is loaded before taking thread snapshots
-  java_util_concurrent_locks_AbstractOwnableSynchronizer::initialize(CHECK_NULL);
 
   typeArrayOop ta = typeArrayOop(JNIHandles::resolve(thread_ids));
   int num_threads = (ta != NULL ? ta->length() : 0);

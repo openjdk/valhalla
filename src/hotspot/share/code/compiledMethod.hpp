@@ -201,8 +201,9 @@ public:
   virtual int   compile_id() const = 0;
 
   virtual address verified_entry_point() const = 0;
+  virtual address verified_value_entry_point() const = 0;
   virtual void log_identity(xmlStream* log) const = 0;
-  virtual void log_state_change() const = 0;
+  virtual void log_state_change(oop cause = NULL) const = 0;
   virtual bool make_not_used() = 0;
   virtual bool make_not_entrant() = 0;
   virtual bool make_entrant() = 0;
@@ -237,6 +238,8 @@ public:
     // The latter happens during uncommon traps when deoptimized nmethod is made not entrant.
     return _mark_for_deoptimization_status != deoptimize_noupdate;
   }
+
+  static bool nmethod_access_is_safe(nmethod* nm);
 
   // tells whether frames described by this nmethod can be deoptimized
   // note: native wrappers cannot be deoptimized.
@@ -331,8 +334,19 @@ public:
 
   static address get_deopt_original_pc(const frame* fr);
 
-  // Inline cache support
-  void cleanup_inline_caches(bool clean_all = false);
+  // GC unloading support
+  // Cleans unloaded klasses and unloaded nmethods in inline caches
+  bool unload_nmethod_caches(bool parallel, bool class_unloading_occurred);
+
+  // Inline cache support for class unloading and nmethod unloading
+ private:
+  bool cleanup_inline_caches_impl(bool parallel, bool unloading_occurred, bool clean_all);
+ public:
+  bool cleanup_inline_caches(bool clean_all = false) {
+    // Serial version used by sweeper and whitebox test
+    return cleanup_inline_caches_impl(false, false, clean_all);
+  }
+
   virtual void clear_inline_caches();
   void clear_ic_stubs();
 
@@ -364,12 +378,15 @@ public:
   void set_unloading_next(CompiledMethod* next) { _unloading_next = next; }
   CompiledMethod* unloading_next()              { return _unloading_next; }
 
+ protected:
+  address oops_reloc_begin() const;
+ private:
   void static clean_ic_if_metadata_is_dead(CompiledIC *ic);
 
-  // Check that all metadata is still alive
-  void verify_metadata_loaders(address low_boundary);
+  void clean_ic_stubs();
 
-  virtual void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
+ public:
+  virtual void do_unloading(BoolObjectClosure* is_alive);
   //  The parallel versions are used by G1.
   virtual bool do_unloading_parallel(BoolObjectClosure* is_alive, bool unloading_occurred);
   virtual void do_unloading_parallel_postponed();
@@ -381,9 +398,9 @@ public:
   unsigned char unloading_clock();
 
 protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred) = 0;
+  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive) = 0;
 #if INCLUDE_JVMCI
-  virtual bool do_unloading_jvmci(bool unloading_occurred) = 0;
+  virtual bool do_unloading_jvmci() = 0;
 #endif
 
 private:

@@ -51,7 +51,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -367,7 +367,9 @@ void os::init_system_properties_values() {
       }
     }
     Arguments::set_java_home(buf);
-    set_boot_path('/', ':');
+    if (!set_boot_path('/', ':')) {
+      vm_exit_during_initialization("Failed setting boot class path.", NULL);
+    }
   }
 
   // Where to look for native libraries.
@@ -1419,23 +1421,6 @@ void os::die() {
   ::abort();
 }
 
-
-// This method is a copy of JDK's sysGetLastErrorString
-// from src/solaris/hpi/src/system_md.c
-
-size_t os::lasterror(char *buf, size_t len) {
-  if (errno == 0)  return 0;
-
-  const char *s = os::strerror(errno);
-  size_t n = ::strlen(s);
-  if (n >= len) {
-    n = len - 1;
-  }
-  ::strncpy(buf, s, n);
-  buf[n] = '\0';
-  return n;
-}
-
 // thread_id is kernel thread id (similar to Solaris LWP id)
 intx os::current_thread_id() { return os::Linux::gettid(); }
 int os::current_process_id() {
@@ -1757,7 +1742,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
 
 #if  (defined IA32)
   static  Elf32_Half running_arch_code=EM_386;
-#elif   (defined AMD64)
+#elif   (defined AMD64) || (defined X32)
   static  Elf32_Half running_arch_code=EM_X86_64;
 #elif  (defined IA64)
   static  Elf32_Half running_arch_code=EM_IA_64;
@@ -1988,6 +1973,8 @@ void os::print_os_info(outputStream* st) {
 
   os::Linux::print_full_memory_info(st);
 
+  os::Linux::print_proc_sys_info(st);
+
   os::Linux::print_container_info(st);
 }
 
@@ -2106,7 +2093,9 @@ void os::get_summary_os_info(char* buf, size_t buflen) {
   // special case for debian
   if (file_exists("/etc/debian_version")) {
     strncpy(buf, "Debian ", buflen);
-    parse_os_info(&buf[7], buflen-7, "/etc/debian_version");
+    if (buflen > 7) {
+      parse_os_info(&buf[7], buflen-7, "/etc/debian_version");
+    }
   } else {
     strncpy(buf, "Linux", buflen);
   }
@@ -2117,6 +2106,24 @@ void os::Linux::print_libversion_info(outputStream* st) {
   st->print("libc:");
   st->print("%s ", os::Linux::glibc_version());
   st->print("%s ", os::Linux::libpthread_version());
+  st->cr();
+}
+
+void os::Linux::print_proc_sys_info(outputStream* st) {
+  st->cr();
+  st->print_cr("/proc/sys/kernel/threads-max (system-wide limit on the number of threads):");
+  _print_ascii_file("/proc/sys/kernel/threads-max", st);
+  st->cr();
+  st->cr();
+
+  st->print_cr("/proc/sys/vm/max_map_count (maximum number of memory map areas a process may have):");
+  _print_ascii_file("/proc/sys/vm/max_map_count", st);
+  st->cr();
+  st->cr();
+
+  st->print_cr("/proc/sys/kernel/pid_max (system-wide limit on number of process identifiers):");
+  _print_ascii_file("/proc/sys/kernel/pid_max", st);
+  st->cr();
   st->cr();
 }
 
@@ -2800,8 +2807,8 @@ int os::numa_get_group_id() {
 }
 
 int os::Linux::get_existing_num_nodes() {
-  size_t node;
-  size_t highest_node_number = Linux::numa_max_node();
+  int node;
+  int highest_node_number = Linux::numa_max_node();
   int num_nodes = 0;
 
   // Get the total number of nodes in the system including nodes without memory.
@@ -2814,14 +2821,15 @@ int os::Linux::get_existing_num_nodes() {
 }
 
 size_t os::numa_get_leaf_groups(int *ids, size_t size) {
-  size_t highest_node_number = Linux::numa_max_node();
+  int highest_node_number = Linux::numa_max_node();
   size_t i = 0;
 
-  // Map all node ids in which is possible to allocate memory. Also nodes are
+  // Map all node ids in which it is possible to allocate memory. Also nodes are
   // not always consecutively available, i.e. available from 0 to the highest
-  // node number.
-  for (size_t node = 0; node <= highest_node_number; node++) {
-    if (Linux::isnode_in_configured_nodes(node)) {
+  // node number. If the nodes have been bound explicitly using numactl membind,
+  // then allocate memory from those nodes only.
+  for (int node = 0; node <= highest_node_number; node++) {
+    if (Linux::isnode_in_bound_nodes((unsigned int)node)) {
       ids[i++] = node;
     }
   }
@@ -2922,6 +2930,8 @@ bool os::Linux::libnuma_init() {
                                                libnuma_dlsym(handle, "numa_bitmask_isbitset")));
       set_numa_distance(CAST_TO_FN_PTR(numa_distance_func_t,
                                        libnuma_dlsym(handle, "numa_distance")));
+      set_numa_get_membind(CAST_TO_FN_PTR(numa_get_membind_func_t,
+                                          libnuma_v2_dlsym(handle, "numa_get_membind")));
 
       if (numa_available() != -1) {
         set_numa_all_nodes((unsigned long*)libnuma_dlsym(handle, "numa_all_nodes"));
@@ -2986,17 +2996,23 @@ void os::Linux::rebuild_cpu_to_node_map() {
   unsigned long *cpu_map = NEW_C_HEAP_ARRAY(unsigned long, cpu_map_size, mtInternal);
   for (size_t i = 0; i < node_num; i++) {
     // Check if node is configured (not a memory-less node). If it is not, find
-    // the closest configured node.
-    if (!isnode_in_configured_nodes(nindex_to_node()->at(i))) {
+    // the closest configured node. Check also if node is bound, i.e. it's allowed
+    // to allocate memory from the node. If it's not allowed, map cpus in that node
+    // to the closest node from which memory allocation is allowed.
+    if (!isnode_in_configured_nodes(nindex_to_node()->at(i)) ||
+        !isnode_in_bound_nodes(nindex_to_node()->at(i))) {
       closest_distance = INT_MAX;
       // Check distance from all remaining nodes in the system. Ignore distance
-      // from itself and from another non-configured node.
+      // from itself, from another non-configured node, and from another non-bound
+      // node.
       for (size_t m = 0; m < node_num; m++) {
-        if (m != i && isnode_in_configured_nodes(nindex_to_node()->at(m))) {
+        if (m != i &&
+            isnode_in_configured_nodes(nindex_to_node()->at(m)) &&
+            isnode_in_bound_nodes(nindex_to_node()->at(m))) {
           distance = numa_distance(nindex_to_node()->at(i), nindex_to_node()->at(m));
           // If a closest node is found, update. There is always at least one
-          // configured node in the system so there is always at least one node
-          // close.
+          // configured and bound node in the system so there is always at least
+          // one node close.
           if (distance != 0 && distance < closest_distance) {
             closest_distance = distance;
             closest_node = nindex_to_node()->at(m);
@@ -3046,6 +3062,7 @@ os::Linux::numa_interleave_memory_v2_func_t os::Linux::_numa_interleave_memory_v
 os::Linux::numa_set_bind_policy_func_t os::Linux::_numa_set_bind_policy;
 os::Linux::numa_bitmask_isbitset_func_t os::Linux::_numa_bitmask_isbitset;
 os::Linux::numa_distance_func_t os::Linux::_numa_distance;
+os::Linux::numa_get_membind_func_t os::Linux::_numa_get_membind;
 unsigned long* os::Linux::_numa_all_nodes;
 struct bitmask* os::Linux::_numa_all_nodes_ptr;
 struct bitmask* os::Linux::_numa_nodes_ptr;
@@ -3106,7 +3123,10 @@ static address get_stack_commited_bottom(address bottom, size_t size) {
 bool os::committed_in_range(address start, size_t size, address& committed_start, size_t& committed_size) {
   int mincore_return_value;
   const size_t stripe = 1024;  // query this many pages each time
-  unsigned char vec[stripe];
+  unsigned char vec[stripe + 1];
+  // set a guard
+  vec[stripe] = 'X';
+
   const size_t page_sz = os::vm_page_size();
   size_t pages = size / page_sz;
 
@@ -3118,7 +3138,9 @@ bool os::committed_in_range(address start, size_t size, address& committed_start
   int loops = (pages + stripe - 1) / stripe;
   int committed_pages = 0;
   address loop_base = start;
-  for (int index = 0; index < loops; index ++) {
+  bool found_range = false;
+
+  for (int index = 0; index < loops && !found_range; index ++) {
     assert(pages > 0, "Nothing to do");
     int pages_to_query = (pages >= stripe) ? stripe : pages;
     pages -= pages_to_query;
@@ -3133,12 +3155,14 @@ bool os::committed_in_range(address start, size_t size, address& committed_start
       return false;
     }
 
+    assert(vec[stripe] == 'X', "overflow guard");
     assert(mincore_return_value == 0, "Range must be valid");
     // Process this stripe
     for (int vecIdx = 0; vecIdx < pages_to_query; vecIdx ++) {
       if ((vec[vecIdx] & 0x01) == 0) { // not committed
         // End of current contiguous region
         if (committed_start != NULL) {
+          found_range = true;
           break;
         }
       } else { // committed
@@ -4168,10 +4192,6 @@ OSReturn os::get_native_priority(const Thread* const thread,
   return (*priority_ptr != -1 || errno == 0 ? OS_OK : OS_ERR);
 }
 
-// Hint to the underlying OS that a task switch would not be good.
-// Void return because it's a hint and can fail.
-void os::hint_no_preempt() {}
-
 ////////////////////////////////////////////////////////////////////////////////
 // suspend/resume support
 
@@ -5020,8 +5040,9 @@ jint os::init_2(void) {
     if (!Linux::libnuma_init()) {
       UseNUMA = false;
     } else {
-      if ((Linux::numa_max_node() < 1)) {
-        // There's only one node(they start from 0), disable NUMA.
+      if ((Linux::numa_max_node() < 1) || Linux::isbound_to_single_node()) {
+        // If there's only one node (they start from 0) or if the process
+        // is bound explicitly to a single node using membind, disable NUMA.
         UseNUMA = false;
       }
     }
@@ -5351,16 +5372,6 @@ bool os::message_box(const char* title, const char* message) {
   return buf[0] == 'y' || buf[0] == 'Y';
 }
 
-int os::stat(const char *path, struct stat *sbuf) {
-  char pathbuf[MAX_PATH];
-  if (strlen(path) > MAX_PATH - 1) {
-    errno = ENAMETOOLONG;
-    return -1;
-  }
-  os::native_path(strcpy(pathbuf, path));
-  return ::stat(pathbuf, sbuf);
-}
-
 // Is a (classpath) directory empty?
 bool os::dir_is_empty(const char* path) {
   DIR *dir = NULL;
@@ -5371,8 +5382,7 @@ bool os::dir_is_empty(const char* path) {
 
   // Scan the directory
   bool result = true;
-  char buf[sizeof(struct dirent) + MAX_PATH];
-  while (result && (ptr = ::readdir(dir)) != NULL) {
+  while (result && (ptr = readdir(dir)) != NULL) {
     if (strcmp(ptr->d_name, ".") != 0 && strcmp(ptr->d_name, "..") != 0) {
       result = false;
     }
@@ -5555,14 +5565,18 @@ bool os::pd_unmap_memory(char* addr, size_t bytes) {
 
 static jlong slow_thread_cpu_time(Thread *thread, bool user_sys_cpu_time);
 
-static clockid_t thread_cpu_clockid(Thread* thread) {
-  pthread_t tid = thread->osthread()->pthread_id();
-  clockid_t clockid;
-
-  // Get thread clockid
-  int rc = os::Linux::pthread_getcpuclockid(tid, &clockid);
-  assert(rc == 0, "pthread_getcpuclockid is expected to return 0 code");
-  return clockid;
+static jlong fast_cpu_time(Thread *thread) {
+    clockid_t clockid;
+    int rc = os::Linux::pthread_getcpuclockid(thread->osthread()->pthread_id(),
+                                              &clockid);
+    if (rc == 0) {
+      return os::Linux::fast_thread_cpu_time(clockid);
+    } else {
+      // It's possible to encounter a terminated native thread that failed
+      // to detach itself from the VM - which should result in ESRCH.
+      assert_status(rc == ESRCH, rc, "pthread_getcpuclockid failed");
+      return -1;
+    }
 }
 
 // current_thread_cpu_time(bool) and thread_cpu_time(Thread*, bool)
@@ -5584,7 +5598,7 @@ jlong os::current_thread_cpu_time() {
 jlong os::thread_cpu_time(Thread* thread) {
   // consistent with what current_thread_cpu_time() returns
   if (os::Linux::supports_fast_thread_cpu_time()) {
-    return os::Linux::fast_thread_cpu_time(thread_cpu_clockid(thread));
+    return fast_cpu_time(thread);
   } else {
     return slow_thread_cpu_time(thread, true /* user + sys */);
   }
@@ -5600,7 +5614,7 @@ jlong os::current_thread_cpu_time(bool user_sys_cpu_time) {
 
 jlong os::thread_cpu_time(Thread *thread, bool user_sys_cpu_time) {
   if (user_sys_cpu_time && os::Linux::supports_fast_thread_cpu_time()) {
-    return os::Linux::fast_thread_cpu_time(thread_cpu_clockid(thread));
+    return fast_cpu_time(thread);
   } else {
     return slow_thread_cpu_time(thread, user_sys_cpu_time);
   }
@@ -5779,11 +5793,21 @@ int os::get_core_path(char* buffer, size_t bufferSize) {
     core_pattern[ret] = '\0';
   }
 
+  // Replace the %p in the core pattern with the process id. NOTE: we do this
+  // only if the pattern doesn't start with "|", and we support only one %p in
+  // the pattern.
   char *pid_pos = strstr(core_pattern, "%p");
+  const char* tail = (pid_pos != NULL) ? (pid_pos + 2) : "";  // skip over the "%p"
   int written;
 
   if (core_pattern[0] == '/') {
-    written = jio_snprintf(buffer, bufferSize, "%s", core_pattern);
+    if (pid_pos != NULL) {
+      *pid_pos = '\0';
+      written = jio_snprintf(buffer, bufferSize, "%s%d%s", core_pattern,
+                             current_process_id(), tail);
+    } else {
+      written = jio_snprintf(buffer, bufferSize, "%s", core_pattern);
+    }
   } else {
     char cwd[PATH_MAX];
 
@@ -5796,6 +5820,10 @@ int os::get_core_path(char* buffer, size_t bufferSize) {
       written = jio_snprintf(buffer, bufferSize,
                              "\"%s\" (or dumping to %s/core.%d)",
                              &core_pattern[1], p, current_process_id());
+    } else if (pid_pos != NULL) {
+      *pid_pos = '\0';
+      written = jio_snprintf(buffer, bufferSize, "%s/%s%d%s", p, core_pattern,
+                             current_process_id(), tail);
     } else {
       written = jio_snprintf(buffer, bufferSize, "%s/%s", p, core_pattern);
     }

@@ -23,7 +23,7 @@
 
 package compiler.valhalla.valuetypes;
 
-__ByValue final class MyValue2Inline {
+value final class MyValue2Inline {
     final boolean b;
     final long c;
 
@@ -46,7 +46,7 @@ __ByValue final class MyValue2Inline {
 
     @ForceInline
     public static MyValue2Inline createDefault() {
-        return __MakeDefault MyValue2Inline();
+        return MyValue2Inline.default;
     }
 
     @ForceInline
@@ -58,7 +58,7 @@ __ByValue final class MyValue2Inline {
     }
 }
 
-__ByValue public final class MyValue2 implements MyInterface {
+value public final class MyValue2 implements MyInterface {
     final int x;
     final byte y;
     __Flattenable final MyValue2Inline v1;
@@ -71,11 +71,20 @@ __ByValue public final class MyValue2 implements MyInterface {
 
     @ForceInline
     public static MyValue2 createDefaultInline() {
-        return __MakeDefault MyValue2();
+        return MyValue2.default;
     }
 
     @ForceInline
     public static MyValue2 createWithFieldsInline(int x, boolean b) {
+        MyValue2 v = createDefaultInline();
+        v = setX(v, x);
+        v = setY(v, (byte)x);
+        v = setV1(v, MyValue2Inline.createWithFieldsInline(b, ValueTypeTest.rL));
+        return v;
+    }
+
+    @DontInline
+    public static MyValue2 createWithFieldsDontInline(int x, boolean b) {
         MyValue2 v = createDefaultInline();
         v = setX(v, x);
         v = setY(v, (byte)x);

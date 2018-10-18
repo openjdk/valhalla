@@ -25,7 +25,7 @@ package runtime.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
 
-public final __ByValue class Long8Value {
+public final value class Long8Value {
 
     final long longField1;
     final long longField2;
@@ -64,7 +64,7 @@ public final __ByValue class Long8Value {
             long long6,
             long long7,
             long long8) {
-        Long8Value l8v = __MakeDefault Long8Value();
+        Long8Value l8v = Long8Value.default;
         l8v = __WithField(l8v.longField1, long1);
         l8v = __WithField(l8v.longField2, long2);
         l8v = __WithField(l8v.longField3, long3);

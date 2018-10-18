@@ -94,20 +94,12 @@ static uintx chunk_oops_do(OopClosure* f, Chunk* chunk, char* chunk_top) {
   oop* bottom = (oop*) chunk->bottom();
   oop* top    = (oop*) chunk_top;
   uintx handles_visited = top - bottom;
-  BufferedValuesDealiaser* dealiaser = NULL;
   assert(top >= bottom && top <= (oop*) chunk->top(), "just checking");
   // during GC phase 3, a handle may be a forward pointer that
   // is not yet valid, so loosen the assertion
   while (bottom < top) {
     if (Universe::heap()->is_in_reserved_or_null(*bottom)) {
       f->do_oop(bottom);
-    } else {
-      if (VTBuffer::is_in_vt_buffer(*bottom)) {
-        if(dealiaser == NULL) {
-          dealiaser = Thread::current()->buffered_values_dealiaser();
-        }
-        dealiaser->oops_do(f, *bottom);
-      }
     }
     bottom++;
   }

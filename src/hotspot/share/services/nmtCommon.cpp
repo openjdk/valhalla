@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,27 +25,12 @@
 #include "services/nmtCommon.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+#define MEMORY_TYPE_DECLARE_NAME(type, human_readable) \
+  human_readable,
+
 const char* NMTUtil::_memory_type_names[] = {
-  "Java Heap",
-  "Class",
-  "Thread",
-  "Thread Stack",
-  "Code",
-  "GC",
-  "Compiler",
-  "Internal",
-  "Other",
-  "Symbol",
-  "Native Memory Tracking",
-  "Shared class space",
-  "Arena Chunk",
-  "Test",
-  "Tracing",
-  "Logging",
-  "Arguments",
-  "Module",
+  MEMORY_TYPES_DO(MEMORY_TYPE_DECLARE_NAME)
   "Value Types",
-  "Unknown"
 };
 
 

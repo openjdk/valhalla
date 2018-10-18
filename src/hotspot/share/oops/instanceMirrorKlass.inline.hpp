@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,42 +33,34 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
-template <bool nv, typename T, class OopClosureType>
-void InstanceMirrorKlass::oop_oop_iterate_statics_specialized(oop obj, OopClosureType* closure) {
+template <typename T, class OopClosureType>
+void InstanceMirrorKlass::oop_oop_iterate_statics(oop obj, OopClosureType* closure) {
   T* p         = (T*)start_of_static_fields(obj);
-  T* const end = p + java_lang_Class::static_oop_field_count(obj);
+  T* const end = p + java_lang_Class::static_oop_field_count_raw(obj);
 
   for (; p < end; ++p) {
-    Devirtualizer<nv>::do_oop(closure, p);
+    Devirtualizer::do_oop(closure, p);
   }
 }
 
-template <bool nv, class OopClosureType>
-void InstanceMirrorKlass::oop_oop_iterate_statics(oop obj, OopClosureType* closure) {
-  if (UseCompressedOops) {
-    oop_oop_iterate_statics_specialized<nv, narrowOop>(obj, closure);
-  } else {
-    oop_oop_iterate_statics_specialized<nv, oop>(obj, closure);
-  }
-}
-
-template <bool nv, class OopClosureType>
+template <typename T, class OopClosureType>
 void InstanceMirrorKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
-  InstanceKlass::oop_oop_iterate<nv>(obj, closure);
+  InstanceKlass::oop_oop_iterate<T>(obj, closure);
 
-  if (Devirtualizer<nv>::do_metadata(closure)) {
-    Klass* klass = java_lang_Class::as_Klass(obj);
+  if (Devirtualizer::do_metadata(closure)) {
+    Klass* klass = java_lang_Class::as_Klass_raw(obj);
     // We'll get NULL for primitive mirrors.
     if (klass != NULL) {
-      if (klass->is_instance_klass() && InstanceKlass::cast(klass)->is_anonymous()) {
-        // An anonymous class doesn't have its own class loader, so when handling
-        // the java mirror for an anonymous class we need to make sure its class
+      if (klass->is_instance_klass() &&
+          InstanceKlass::cast(klass)->is_unsafe_anonymous()) {
+        // An unsafe anonymous class doesn't have its own class loader, so
+        // when handling the java mirror for the class we need to make sure its class
         // loader data is claimed, this is done by calling do_cld explicitly.
         // For non-anonymous classes the call to do_cld is made when the class
         // loader itself is handled.
-        Devirtualizer<nv>::do_cld(closure, klass->class_loader_data());
+        Devirtualizer::do_cld(closure, klass->class_loader_data());
       } else {
-        Devirtualizer<nv>::do_klass(closure, klass);
+        Devirtualizer::do_klass(closure, klass);
       }
     } else {
       // We would like to assert here (as below) that if klass has been NULL, then
@@ -83,24 +75,22 @@ void InstanceMirrorKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
     }
   }
 
-  oop_oop_iterate_statics<nv>(obj, closure);
+  oop_oop_iterate_statics<T>(obj, closure);
 }
 
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-template <bool nv, class OopClosureType>
+template <typename T, class OopClosureType>
 void InstanceMirrorKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
-  InstanceKlass::oop_oop_iterate_reverse<nv>(obj, closure);
+  InstanceKlass::oop_oop_iterate_reverse<T>(obj, closure);
 
-  InstanceMirrorKlass::oop_oop_iterate_statics<nv>(obj, closure);
+  InstanceMirrorKlass::oop_oop_iterate_statics<T>(obj, closure);
 }
-#endif // INCLUDE_OOP_OOP_ITERATE_BACKWARDS
 
-template <bool nv, typename T, class OopClosureType>
-void InstanceMirrorKlass::oop_oop_iterate_statics_specialized_bounded(oop obj,
-                                                                     OopClosureType* closure,
-                                                                     MemRegion mr) {
+template <typename T, class OopClosureType>
+void InstanceMirrorKlass::oop_oop_iterate_statics_bounded(oop obj,
+                                                          OopClosureType* closure,
+                                                          MemRegion mr) {
   T* p   = (T*)start_of_static_fields(obj);
-  T* end = p + java_lang_Class::static_oop_field_count(obj);
+  T* end = p + java_lang_Class::static_oop_field_count_raw(obj);
 
   T* const l   = (T*)mr.start();
   T* const h   = (T*)mr.end();
@@ -116,39 +106,25 @@ void InstanceMirrorKlass::oop_oop_iterate_statics_specialized_bounded(oop obj,
   }
 
   for (;p < end; ++p) {
-    Devirtualizer<nv>::do_oop(closure, p);
+    Devirtualizer::do_oop(closure, p);
   }
 }
 
-template <bool nv, class OopClosureType>
-void InstanceMirrorKlass::oop_oop_iterate_statics_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
-  if (UseCompressedOops) {
-    oop_oop_iterate_statics_specialized_bounded<nv, narrowOop>(obj, closure, mr);
-  } else {
-    oop_oop_iterate_statics_specialized_bounded<nv, oop>(obj, closure, mr);
-  }
-}
-
-template <bool nv, class OopClosureType>
+template <typename T, class OopClosureType>
 void InstanceMirrorKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
-  InstanceKlass::oop_oop_iterate_bounded<nv>(obj, closure, mr);
+  InstanceKlass::oop_oop_iterate_bounded<T>(obj, closure, mr);
 
-  if (Devirtualizer<nv>::do_metadata(closure)) {
+  if (Devirtualizer::do_metadata(closure)) {
     if (mr.contains(obj)) {
-      Klass* klass = java_lang_Class::as_Klass(obj);
+      Klass* klass = java_lang_Class::as_Klass_raw(obj);
       // We'll get NULL for primitive mirrors.
       if (klass != NULL) {
-        Devirtualizer<nv>::do_klass(closure, klass);
+        Devirtualizer::do_klass(closure, klass);
       }
     }
   }
 
-  oop_oop_iterate_statics_bounded<nv>(obj, closure, mr);
+  oop_oop_iterate_statics_bounded<T>(obj, closure, mr);
 }
-
-#define ALL_INSTANCE_MIRROR_KLASS_OOP_OOP_ITERATE_DEFN(OopClosureType, nv_suffix)  \
-  OOP_OOP_ITERATE_DEFN(          InstanceMirrorKlass, OopClosureType, nv_suffix)   \
-  OOP_OOP_ITERATE_DEFN_BOUNDED(  InstanceMirrorKlass, OopClosureType, nv_suffix)   \
-  OOP_OOP_ITERATE_DEFN_BACKWARDS(InstanceMirrorKlass, OopClosureType, nv_suffix)
 
 #endif // SHARE_VM_OOPS_INSTANCEMIRRORKLASS_INLINE_HPP

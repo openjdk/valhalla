@@ -50,13 +50,16 @@
 
 jshort ClassLoaderExt::_app_class_paths_start_index = ClassLoaderExt::max_classpath_index;
 jshort ClassLoaderExt::_app_module_paths_start_index = ClassLoaderExt::max_classpath_index;
+jshort ClassLoaderExt::_max_used_path_index = 0;
 bool ClassLoaderExt::_has_app_classes = false;
 bool ClassLoaderExt::_has_platform_classes = false;
 
 void ClassLoaderExt::append_boot_classpath(ClassPathEntry* new_entry) {
 #if INCLUDE_CDS
-  warning("Sharing is only supported for boot loader classes because bootstrap classpath has been appended");
-  FileMapInfo::current_info()->header()->set_has_platform_or_app_classes(false);
+  if (UseSharedSpaces) {
+    warning("Sharing is only supported for boot loader classes because bootstrap classpath has been appended");
+    FileMapInfo::current_info()->header()->set_has_platform_or_app_classes(false);
+  }
 #endif
   ClassLoader::add_to_boot_append_entries(new_entry);
 }
@@ -240,6 +243,9 @@ void ClassLoaderExt::record_result(const s2 classpath_index,
     classloader_type = ClassLoader::PLATFORM_LOADER;
     ClassLoaderExt::set_has_platform_classes();
   }
+  if (classpath_index > ClassLoaderExt::max_used_path_index()) {
+    ClassLoaderExt::set_max_used_path_index(classpath_index);
+  }
   result->set_shared_classpath_index(classpath_index);
   result->set_class_loader_type(classloader_type);
 }
@@ -292,7 +298,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            name,
                                                            loader_data,
                                                            protection_domain,
-                                                           NULL, // host_klass
+                                                           NULL, // unsafe_anonymous_host
                                                            NULL, // cp_patches
                                                            THREAD);
 

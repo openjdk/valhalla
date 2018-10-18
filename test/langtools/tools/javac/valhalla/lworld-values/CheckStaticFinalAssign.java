@@ -4,14 +4,14 @@
  * @compile/fail/ref=CheckStaticFinalAssign.out -XDrawDiagnostics -XDdev CheckStaticFinalAssign.java
  */
 
-__ByValue final class CheckStaticFinalAssign {
+value final class CheckStaticFinalAssign {
     static final int x;
     static {
         x = 10;
     }
 
     static CheckStaticFinalAssign foo() {
-       CheckStaticFinalAssign x = __MakeDefault CheckStaticFinalAssign();
+       CheckStaticFinalAssign x = CheckStaticFinalAssign.default;
        x.x = 100;
        return x;
     }

@@ -52,6 +52,7 @@
  *         can't force collection of thread group because of thread group always has 1 referrer - parent thread group, so
  *         just test disableCollection/enableCollection don't throw any unexpected exceptions
  *
+ * @requires !vm.graal.enabled
  * @library /vmTestbase
  *          /test/lib
  * @run driver jdk.test.lib.FileInstaller . .
@@ -64,7 +65,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdi.ObjectReference.referringObjects.referringObjects003;

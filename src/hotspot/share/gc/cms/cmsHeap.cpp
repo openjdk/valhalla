@@ -69,7 +69,7 @@ CMSHeap::CMSHeap(GenCollectorPolicy *policy) :
     GenCollectedHeap(policy,
                      Generation::ParNew,
                      Generation::ConcurrentMarkSweep,
-                     "ParNew::CMS"),
+                     "ParNew:CMS"),
     _eden_pool(NULL),
     _survivor_pool(NULL),
     _old_pool(NULL) {
@@ -220,17 +220,18 @@ void CMSHeap::cms_process_roots(StrongRootsScope* scope,
                                 ScanningOption so,
                                 bool only_strong_roots,
                                 OopsInGenClosure* root_closure,
-                                CLDClosure* cld_closure) {
+                                CLDClosure* cld_closure,
+                                OopStorage::ParState<false, false>* par_state_string) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, !CodeBlobToOopClosure::FixRelocations);
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
 
   process_roots(scope, so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
   if (!only_strong_roots) {
-    process_string_table_roots(scope, root_closure);
+    process_string_table_roots(scope, root_closure, par_state_string);
   }
 
   if (young_gen_as_roots &&
-      !_process_strong_tasks->is_task_claimed(GCH_PS_younger_gens)) {
+      _process_strong_tasks->try_claim_task(GCH_PS_younger_gens)) {
     root_closure->set_generation(young_gen());
     young_gen()->oop_iterate(root_closure);
     root_closure->reset_generation();

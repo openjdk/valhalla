@@ -86,12 +86,11 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_valuetype()) {
+  if (is_field && field_holder->is_valuetype() && peek()->is_ValueType()) {
     assert(is_get, "value type field store not supported");
-    BasicType bt = field->layout_type();
     ValueTypeNode* vt = pop()->as_ValueType();
     Node* value = vt->field_value_by_offset(field->offset());
-    push_node(bt, value);
+    push_node(field->layout_type(), value);
     return;
   }
 
@@ -233,7 +232,11 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
     if (bt == T_VALUETYPE) {
       // Load a non-flattened value type from memory
-      ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* buffer_check */ false, /* null2default */ flattenable, iter().next_bci());
+      if (field_klass->as_value_klass()->is_scalarizable()) {
+        ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* null2default */ flattenable, iter().next_bci());
+      } else if (gvn().type(ld)->maybe_null()){
+        ld = filter_null(ld, flattenable, field_klass->as_value_klass(), iter().next_bci());
+      }
     }
   }
 
@@ -293,7 +296,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       field_type = Type::BOTTOM;
     }
   }
-  if (field->is_flattenable() && !val->is_ValueType()) {
+  if (field->is_flattenable() && !val->is_ValueType() && gvn().type(val)->maybe_null()) {
     // We can see a null constant here
     assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
     push(null());
@@ -301,6 +304,10 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     assert(stopped(), "dead path");
     return;
   } else if (field->is_flattened()) {
+    if (!val->is_ValueType()) {
+      assert(!gvn().type(val)->maybe_null(), "should never be null");
+      val = ValueTypeNode::make_from_oop(this, val, field->type()->as_value_klass());
+    }
     // Store flattened value type to a non-static field
     assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
     val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
@@ -401,7 +408,7 @@ Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, in
       Node*    elem   = expand_multianewarray(array_klass_1, &lengths[1], ndimensions-1, nargs);
       intptr_t offset = header + ((intptr_t)i << LogBytesPerHeapOop);
       Node*    eaddr  = basic_plus_adr(array, offset);
-      access_store_at(control(), array, eaddr, adr_type, elem, elemtype, T_OBJECT, IN_HEAP | IN_HEAP_ARRAY);
+      access_store_at(control(), array, eaddr, adr_type, elem, elemtype, T_OBJECT, IN_HEAP | IS_ARRAY);
     }
   }
   return array;

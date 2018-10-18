@@ -187,12 +187,13 @@ class MutexGangTaskDispatcher : public GangTaskDispatcher {
   Monitor* _monitor;
 
  public:
-  MutexGangTaskDispatcher()
-      : _task(NULL),
-        _monitor(new Monitor(Monitor::leaf, "WorkGang dispatcher lock", false, Monitor::_safepoint_check_never)),
-        _started(0),
-        _finished(0),
-        _num_workers(0) {}
+  MutexGangTaskDispatcher() :
+    _task(NULL),
+    _started(0),
+    _finished(0),
+    _num_workers(0),
+    _monitor(new Monitor(Monitor::leaf, "WorkGang dispatcher lock", false, Monitor::_safepoint_check_never)) {
+  }
 
   ~MutexGangTaskDispatcher() {
     delete _monitor;
@@ -408,7 +409,7 @@ void WorkGangBarrierSync::abort() {
 // SubTasksDone functions.
 
 SubTasksDone::SubTasksDone(uint n) :
-  _n_tasks(n), _tasks(NULL) {
+  _tasks(NULL), _n_tasks(n), _threads_completed(0) {
   _tasks = NEW_C_HEAP_ARRAY(uint, n, mtInternal);
   guarantee(_tasks != NULL, "alloc failure");
   clear();
@@ -428,16 +429,16 @@ void SubTasksDone::clear() {
 #endif
 }
 
-bool SubTasksDone::is_task_claimed(uint t) {
+bool SubTasksDone::try_claim_task(uint t) {
   assert(t < _n_tasks, "bad task id.");
   uint old = _tasks[t];
   if (old == 0) {
     old = Atomic::cmpxchg(1u, &_tasks[t], 0u);
   }
   assert(_tasks[t] == 1, "What else?");
-  bool res = old != 0;
+  bool res = old == 0;
 #ifdef ASSERT
-  if (!res) {
+  if (res) {
     assert(_claimed < _n_tasks, "Too many tasks claimed; missing clear?");
     Atomic::inc(&_claimed);
   }
@@ -461,7 +462,7 @@ void SubTasksDone::all_tasks_completed(uint n_threads) {
 
 
 SubTasksDone::~SubTasksDone() {
-  if (_tasks != NULL) FREE_C_HEAP_ARRAY(jint, _tasks);
+  if (_tasks != NULL) FREE_C_HEAP_ARRAY(uint, _tasks);
 }
 
 // *** SequentialSubTasksDone
@@ -475,16 +476,16 @@ bool SequentialSubTasksDone::valid() {
   return _n_threads > 0;
 }
 
-bool SequentialSubTasksDone::is_task_claimed(uint& t) {
+bool SequentialSubTasksDone::try_claim_task(uint& t) {
   t = _n_claimed;
   while (t < _n_tasks) {
     uint res = Atomic::cmpxchg(t+1, &_n_claimed, t);
     if (res == t) {
-      return false;
+      return true;
     }
     t = res;
   }
-  return true;
+  return false;
 }
 
 bool SequentialSubTasksDone::all_tasks_completed() {

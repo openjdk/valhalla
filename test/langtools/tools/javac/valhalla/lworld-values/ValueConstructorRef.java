@@ -31,7 +31,7 @@
 
 import java.util.function.Supplier;
 
-public __ByValue class ValueConstructorRef {
+public value class ValueConstructorRef {
 
     final int x;
     final int y;

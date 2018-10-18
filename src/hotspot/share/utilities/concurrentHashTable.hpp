@@ -309,7 +309,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Insert which handles a number of cases.
   template <typename LOOKUP_FUNC, typename VALUE_FUNC, typename CALLBACK_FUNC>
   bool internal_insert(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& value_f,
-                       CALLBACK_FUNC& callback, bool* grow_hint = NULL);
+                       CALLBACK_FUNC& callback, bool* grow_hint = NULL, bool* clean_hint = NULL);
 
   // Returns true if an item matching LOOKUP_FUNC is removed.
   // Calls DELETE_FUNC before destroying the node.
@@ -361,7 +361,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
   template <typename EVALUATE_FUNC, typename DELETE_FUNC>
   void do_bulk_delete_locked_for(Thread* thread, size_t start_idx,
                                  size_t stop_idx, EVALUATE_FUNC& eval_f,
-                                 DELETE_FUNC& del_f);
+                                 DELETE_FUNC& del_f, bool is_mt = false);
 
   // Method to delete one items.
   template <typename LOOKUP_FUNC>
@@ -396,8 +396,8 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // value already exists.
   template <typename LOOKUP_FUNC, typename VALUE_FUNC, typename CALLBACK_FUNC>
   bool get_insert_lazy(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& val_f,
-                       CALLBACK_FUNC& callback_f, bool* grow_hint = NULL) {
-    return !internal_insert(thread, lookup_f, val_f, callback_f, grow_hint);
+                       CALLBACK_FUNC& callback_f, bool* grow_hint = NULL, bool* clean_hint = NULL) {
+    return !internal_insert(thread, lookup_f, val_f, callback_f, grow_hint, clean_hint);
   }
 
   // Same without CALLBACK_FUNC.
@@ -436,9 +436,9 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // LOOKUP_FUNC.
   template <typename LOOKUP_FUNC>
   bool insert(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
-              bool* grow_hint = NULL) {
+              bool* grow_hint = NULL, bool* clean_hint = NULL) {
     LazyValueRetrieve vp(value);
-    return internal_insert(thread, lookup_f, vp, noOp, grow_hint);
+    return internal_insert(thread, lookup_f, vp, noOp, grow_hint, clean_hint);
   }
 
   // This does a fast unsafe insert and can thus only be used when there is no
@@ -483,6 +483,9 @@ class ConcurrentHashTable : public CHeapObj<F> {
   template <typename VALUE_SIZE_FUNC>
   void statistics_to(Thread* thread, VALUE_SIZE_FUNC& vs_f, outputStream* st,
                      const char* table_name);
+
+  // Moves all nodes from this table to to_cht
+  bool try_move_nodes_to(Thread* thread, ConcurrentHashTable<VALUE, CONFIG, F>* to_cht);
 
   // This is a Curiously Recurring Template Pattern (CRPT) interface for the
   // specialization.

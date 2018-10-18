@@ -130,7 +130,8 @@ public class CLDRTimeZoneNameProviderImpl extends TimeZoneNameProviderImpl {
 
         // Fill in for the empty names.
         // English names are prefilled for performance.
-        if (locale.getLanguage() != "en") {
+        if (!locale.equals(Locale.ENGLISH) &&
+            !locale.equals(Locale.US)) {
             for (int zoneIndex = 0; zoneIndex < ret.length; zoneIndex++) {
                 deriveFallbackNames(ret[zoneIndex], locale);
             }
@@ -178,13 +179,27 @@ public class CLDRTimeZoneNameProviderImpl extends TimeZoneNameProviderImpl {
 
         // last resort
         String id = names[INDEX_TZID].toUpperCase(Locale.ROOT);
-        if (!id.startsWith("ETC/GMT") &&
-                !id.startsWith("GMT") &&
-                !id.startsWith("UT")) {
+        if (!id.startsWith("UT")) {
             names[index] = toGMTFormat(names[INDEX_TZID],
                                        index == INDEX_DST_LONG || index == INDEX_DST_SHORT,
                                        index % 2 != 0,
                                        locale);
+            // aliases of "GMT" timezone.
+            if ((exists(names, INDEX_STD_LONG)) && (id.startsWith("Etc/")
+                    || id.startsWith("GMT") || id.startsWith("Greenwich"))) {
+                switch (id) {
+                case "Etc/GMT":
+                case "Etc/GMT-0":
+                case "Etc/GMT+0":
+                case "Etc/GMT0":
+                case "GMT+0":
+                case "GMT-0":
+                case "GMT0":
+                case "Greenwich":
+                    names[INDEX_DST_LONG] = names[INDEX_GEN_LONG] = names[INDEX_STD_LONG];
+                    break;
+                }
+            }
         }
     }
 

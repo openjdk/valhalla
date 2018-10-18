@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -49,11 +50,14 @@
 #include "gc/shared/isGCActiveMark.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/instanceClassLoaderKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/methodData.hpp"
@@ -852,7 +856,8 @@ void PSParallelCompact::post_initialize() {
                            true,                // mt discovery
                            ParallelGCThreads,   // mt discovery degree
                            true,                // atomic_discovery
-                           &_is_alive_closure); // non-header is alive closure
+                           &_is_alive_closure,  // non-header is alive closure
+                           false);              // disable adjusting number of processing threads
   _counters = new CollectorCounters("PSParallelCompact", 1);
 
   // Initialize static fields in ParCompactionManager.
@@ -2112,8 +2117,11 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
     GCTraceTime(Debug, gc, phases) tm("Reference Processing", &_gc_timer);
 
     ReferenceProcessorStats stats;
-    ReferenceProcessorPhaseTimes pt(&_gc_timer, ref_processor()->num_queues());
+    ReferenceProcessorPhaseTimes pt(&_gc_timer, ref_processor()->max_num_queues());
+
     if (ref_processor()->processing_is_mt()) {
+      ref_processor()->set_active_mt_degree(active_gc_threads);
+
       RefProcTaskExecutor task_executor;
       stats = ref_processor()->process_discovered_references(
         is_alive_closure(), &mark_and_push_closure, &follow_stack_closure,
@@ -2181,7 +2189,8 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   Management::oops_do(&oop_closure);
   JvmtiExport::oops_do(&oop_closure);
   SystemDictionary::oops_do(&oop_closure);
-  ClassLoaderDataGraph::oops_do(&oop_closure, true);
+  CLDToOopClosure cld_closure(&oop_closure);
+  ClassLoaderDataGraph::cld_do(&cld_closure);
 
   // Now adjust pointers in remaining weak roots.  (All of which should
   // have been cleared if they pointed to non-surviving objects.)
@@ -2209,7 +2218,7 @@ private:
   bool _enabled;
   size_t _total_regions;
 public:
-  FillableRegionLogger() : _next_index(0), _total_regions(0), _enabled(log_develop_is_enabled(Trace, gc, compaction)) { }
+  FillableRegionLogger() : _next_index(0), _enabled(log_develop_is_enabled(Trace, gc, compaction)), _total_regions(0) { }
   ~FillableRegionLogger() {
     log.trace(SIZE_FORMAT " initially fillable regions", _total_regions);
   }
@@ -3065,14 +3074,22 @@ void MoveAndUpdateClosure::copy_partial_obj()
 
 void InstanceKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   PSParallelCompact::AdjustPointerClosure closure(cm);
-  oop_oop_iterate_oop_maps<true>(obj, &closure);
+  if (UseCompressedOops) {
+    oop_oop_iterate_oop_maps<narrowOop>(obj, &closure);
+  } else {
+    oop_oop_iterate_oop_maps<oop>(obj, &closure);
+  }
 }
 
 void InstanceMirrorKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   InstanceKlass::oop_pc_update_pointers(obj, cm);
 
   PSParallelCompact::AdjustPointerClosure closure(cm);
-  oop_oop_iterate_statics<true>(obj, &closure);
+  if (UseCompressedOops) {
+    oop_oop_iterate_statics<narrowOop>(obj, &closure);
+  } else {
+    oop_oop_iterate_statics<oop>(obj, &closure);
+  }
 }
 
 void InstanceClassLoaderKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
@@ -3114,7 +3131,11 @@ void InstanceRefKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm)
 void ObjArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
   assert(obj->is_objArray(), "obj must be obj array");
   PSParallelCompact::AdjustPointerClosure closure(cm);
-  oop_oop_iterate_elements<true>(objArrayOop(obj), &closure);
+  if (UseCompressedOops) {
+    oop_oop_iterate_elements<narrowOop>(objArrayOop(obj), &closure);
+  } else {
+    oop_oop_iterate_elements<oop>(objArrayOop(obj), &closure);
+  }
 }
 
 void TypeArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
@@ -3125,7 +3146,11 @@ void ValueArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) 
   assert(obj->is_valueArray(),"must be a value array");
   if (contains_oops()) {
     PSParallelCompact::AdjustPointerClosure closure(cm);
-    oop_oop_iterate_elements<true>(valueArrayOop(obj), &closure);
+    if (UseCompressedOops) {
+      oop_oop_iterate_elements<narrowOop>(valueArrayOop(obj), &closure);
+    } else {
+      oop_oop_iterate_elements<oop>(valueArrayOop(obj), &closure);
+    }
   }
 }
 

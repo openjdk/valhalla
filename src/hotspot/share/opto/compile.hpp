@@ -55,6 +55,7 @@ class CloneMap;
 class ConnectionGraph;
 class InlineTree;
 class Int_Array;
+class LoadBarrierNode;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -90,6 +91,14 @@ class nmethod;
 class WarmCallInfo;
 class Node_Stack;
 struct Final_Reshape_Counts;
+
+enum LoopOptsMode {
+  LoopOptsDefault,
+  LoopOptsNone,
+  LoopOptsSkipSplitIf,
+  LoopOptsVerify,
+  LoopOptsLastRound
+};
 
 typedef unsigned int node_idx_t;
 class NodeCloneInfo {
@@ -361,9 +370,6 @@ class Compile : public Phase {
   const char*           _stub_name;             // Name of stub or adapter being compiled, or NULL
   address               _stub_entry_point;      // Compile code entry for generated stub, or NULL
 
-  // For GC
-  void*                 _barrier_set_state;
-
   // Control of this compilation.
   int                   _num_loop_opts;         // Number of iterations for doing loop optimiztions
   int                   _max_inline_size;       // Max inline size for this compilation
@@ -412,6 +418,7 @@ class Compile : public Phase {
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
+  void*                 _barrier_set_state;     // Potential GC barrier state for Compile
   ciEnv*                _env;                   // CI interface
   DirectiveSet*         _directive;             // Compiler directive
   CompileLog*           _log;                   // from CompilerThread
@@ -1089,6 +1096,7 @@ class Compile : public Phase {
   void inline_incrementally(PhaseIterGVN& igvn);
   void inline_string_calls(bool parse_time);
   void inline_boxing_calls(PhaseIterGVN& igvn);
+  bool optimize_loops(int& loop_opts_cnt, PhaseIterGVN& igvn, LoopOptsMode mode);
 
   // Matching, CFG layout, allocation, code generation
   PhaseCFG*         cfg()                       { return _cfg; }
@@ -1357,7 +1365,6 @@ class Compile : public Phase {
   // Convert integer value to a narrowed long type dependent on ctrl (for example, a range check)
   static Node* constrained_convI2L(PhaseGVN* phase, Node* value, const TypeInt* itype, Node* ctrl);
 
-  Node* load_is_value_bit(PhaseGVN* phase, Node* oop);
   Node* optimize_acmp(PhaseGVN* phase, Node* a, Node* b);
 
   // Auxiliary method for randomized fuzzing/stressing

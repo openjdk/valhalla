@@ -33,7 +33,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/vm_version.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/thread.inline.hpp"
@@ -120,7 +120,7 @@ void JfrTraceId::assign(const PackageEntry* package) {
 
 void JfrTraceId::assign(const ClassLoaderData* cld) {
   assert(cld != NULL, "invariant");
-  if (cld->is_anonymous()) {
+  if (cld->is_unsafe_anonymous()) {
     cld->set_trace_id(0);
     return;
   }

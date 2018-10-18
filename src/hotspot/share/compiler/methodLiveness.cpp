@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -484,7 +484,7 @@ MethodLivenessResult MethodLiveness::get_liveness_at(int entry_bci) {
     while (block == NULL && t > 0) {
      block = _block_map->at(--t);
     }
-    assert( block != NULL, "invalid bytecode index; must be instruction index" );
+    guarantee(block != NULL, "invalid bytecode index; must be instruction index");
     assert(bci >= block->start_bci() && bci < block->limit_bci(), "block must contain bci.");
 
     answer = block->get_liveness_at(method(), bci);
@@ -569,11 +569,11 @@ void MethodLiveness::print_times() {
 
 
 MethodLiveness::BasicBlock::BasicBlock(MethodLiveness *analyzer, int start, int limit) :
-         _gen(analyzer->arena(),            analyzer->bit_map_size_bits()),
-         _kill(analyzer->arena(),           analyzer->bit_map_size_bits()),
          _entry(analyzer->arena(),          analyzer->bit_map_size_bits()),
          _normal_exit(analyzer->arena(),    analyzer->bit_map_size_bits()),
          _exception_exit(analyzer->arena(), analyzer->bit_map_size_bits()),
+         _gen(analyzer->arena(),            analyzer->bit_map_size_bits()),
+         _kill(analyzer->arena(),           analyzer->bit_map_size_bits()),
          _last_bci(-1) {
   _analyzer = analyzer;
   _start_bci = start;

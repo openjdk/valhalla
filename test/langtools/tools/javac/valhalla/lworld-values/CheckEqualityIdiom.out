@@ -1,0 +1,3 @@
+CheckEqualityIdiom.java:16:28: compiler.err.value.does.not.support: ==
+CheckEqualityIdiom.java:36:18: compiler.err.value.does.not.support: ==
+2 errors

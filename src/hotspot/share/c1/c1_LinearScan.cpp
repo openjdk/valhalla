@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,7 @@ LinearScan::LinearScan(IR* ir, LIRGenerator* gen, FrameMap* frame_map)
  , _ir(ir)
  , _gen(gen)
  , _frame_map(frame_map)
+ , _cached_blocks(*ir->linear_scan_order())
  , _num_virtual_regs(gen->max_virtual_register_number())
  , _has_fpu_registers(false)
  , _num_calls(-1)
@@ -87,9 +88,8 @@ LinearScan::LinearScan(IR* ir, LIRGenerator* gen, FrameMap* frame_map)
  , _block_of_op(0) // initialized later with correct length
  , _has_info(0)
  , _has_call(0)
- , _scope_value_cache(0) // initialized later with correct length
  , _interval_in_loop(0)  // initialized later with correct length
- , _cached_blocks(*ir->linear_scan_order())
+ , _scope_value_cache(0) // initialized later with correct length
 #ifdef X86
  , _fpu_stack_allocator(NULL)
 #endif
@@ -3717,13 +3717,13 @@ void RegisterVerifier::process_operations(LIR_List* ops, IntervalList* input_sta
 
 MoveResolver::MoveResolver(LinearScan* allocator) :
   _allocator(allocator),
-  _multiple_reads_allowed(false),
+  _insert_list(NULL),
+  _insert_idx(-1),
+  _insertion_buffer(),
   _mapping_from(8),
   _mapping_from_opr(8),
   _mapping_to(8),
-  _insert_list(NULL),
-  _insert_idx(-1),
-  _insertion_buffer()
+  _multiple_reads_allowed(false)
 {
   for (int i = 0; i < LinearScan::nof_regs; i++) {
     _register_blocked[i] = 0;
@@ -3954,7 +3954,7 @@ void MoveResolver::resolve_mappings() {
     if (!processed_interval) {
       // no move could be processed because there is a cycle in the move list
       // (e.g. r1 -> r2, r2 -> r1), so one interval must be spilled to memory
-      assert(spill_candidate != -1, "no interval in register for spilling found");
+      guarantee(spill_candidate != -1, "no interval in register for spilling found");
 
       // create a new spill interval and assign a stack slot to it
       Interval* from_interval = _mapping_from.at(spill_candidate);
@@ -4127,9 +4127,9 @@ Interval::Interval(int reg_num) :
   _split_children(0),
   _canonical_spill_slot(-1),
   _insert_move_when_activated(false),
-  _register_hint(NULL),
   _spill_state(noDefinitionFound),
-  _spill_definition_pos(-1)
+  _spill_definition_pos(-1),
+  _register_hint(NULL)
 {
   _split_parent = this;
   _current_split_child = this;
@@ -6301,7 +6301,8 @@ void ControlFlowOptimizer::delete_unnecessary_jumps(BlockList* code) {
                   assert(prev_branch->cond() == prev_cmp->condition(), "should be the same");
                 }
               }
-              assert(prev_cmp != NULL, "should have found comp instruction for branch");
+              // Guarantee because it is dereferenced below.
+              guarantee(prev_cmp != NULL, "should have found comp instruction for branch");
               if (prev_branch->block() == code->at(i + 1) && prev_branch->info() == NULL) {
 
                 TRACE_LINEAR_SCAN(3, tty->print_cr("Negating conditional branch and deleting unconditional branch at end of block B%d", block->block_id()));

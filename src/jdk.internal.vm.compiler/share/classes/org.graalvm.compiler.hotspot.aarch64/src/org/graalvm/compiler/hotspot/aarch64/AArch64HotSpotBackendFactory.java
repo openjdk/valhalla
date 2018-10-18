@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,10 +21,15 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.aarch64;
 
 import static jdk.vm.ci.aarch64.AArch64.sp;
 import static jdk.vm.ci.common.InitTimer.timer;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.bytecode.BytecodeProvider;
@@ -65,13 +71,13 @@ import org.graalvm.compiler.word.WordTypes;
 
 import jdk.vm.ci.aarch64.AArch64;
 import jdk.vm.ci.code.Architecture;
-import jdk.vm.ci.code.RegisterArray;
+import jdk.vm.ci.code.Register;
 import jdk.vm.ci.code.RegisterConfig;
 import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.common.InitTimer;
 import jdk.vm.ci.hotspot.HotSpotCodeCacheProvider;
 import jdk.vm.ci.hotspot.HotSpotConstantReflectionProvider;
-import jdk.vm.ci.hotspot.HotSpotJVMCIRuntimeProvider;
+import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
 import jdk.vm.ci.hotspot.HotSpotMetaAccessProvider;
 import jdk.vm.ci.hotspot.aarch64.AArch64HotSpotRegisterConfig;
 import jdk.vm.ci.meta.Value;
@@ -92,7 +98,7 @@ public class AArch64HotSpotBackendFactory implements HotSpotBackendFactory {
 
     @Override
     @SuppressWarnings("try")
-    public HotSpotBackend createBackend(HotSpotGraalRuntimeProvider graalRuntime, CompilerConfiguration compilerConfiguration, HotSpotJVMCIRuntimeProvider jvmciRuntime, HotSpotBackend host) {
+    public HotSpotBackend createBackend(HotSpotGraalRuntimeProvider graalRuntime, CompilerConfiguration compilerConfiguration, HotSpotJVMCIRuntime jvmciRuntime, HotSpotBackend host) {
         assert host == null;
 
         JVMCIBackend jvmci = jvmciRuntime.getHostJVMCIBackend();
@@ -162,7 +168,7 @@ public class AArch64HotSpotBackendFactory implements HotSpotBackendFactory {
                     HotSpotReplacementsImpl replacements, HotSpotWordTypes wordTypes, HotSpotStampProvider stampProvider) {
         Plugins plugins = HotSpotGraphBuilderPlugins.create(compilerConfiguration, config, wordTypes, metaAccess, constantReflection, snippetReflection, foreignCalls, lowerer, stampProvider,
                         replacements);
-        AArch64GraphBuilderPlugins.register(plugins, replacements.getDefaultReplacementBytecodeProvider());
+        AArch64GraphBuilderPlugins.register(plugins, replacements.getDefaultReplacementBytecodeProvider(), false);
         return plugins;
     }
 
@@ -178,7 +184,7 @@ public class AArch64HotSpotBackendFactory implements HotSpotBackendFactory {
         return new HotSpotReplacementsImpl(options, p, snippetReflection, bytecodeProvider, p.getCodeCache().getTarget());
     }
 
-    protected HotSpotHostForeignCallsProvider createForeignCalls(HotSpotJVMCIRuntimeProvider jvmciRuntime, HotSpotGraalRuntimeProvider runtime, HotSpotMetaAccessProvider metaAccess,
+    protected HotSpotHostForeignCallsProvider createForeignCalls(HotSpotJVMCIRuntime jvmciRuntime, HotSpotGraalRuntimeProvider runtime, HotSpotMetaAccessProvider metaAccess,
                     HotSpotCodeCacheProvider codeCache, WordTypes wordTypes, Value[] nativeABICallerSaveRegisters) {
         return new AArch64HotSpotForeignCallsProvider(jvmciRuntime, runtime, metaAccess, codeCache, wordTypes, nativeABICallerSaveRegisters);
     }
@@ -200,12 +206,20 @@ public class AArch64HotSpotBackendFactory implements HotSpotBackendFactory {
     }
 
     protected static Value[] createNativeABICallerSaveRegisters(@SuppressWarnings("unused") GraalHotSpotVMConfig config, RegisterConfig regConfig) {
-        AArch64HotSpotRegisterConfig conf = (AArch64HotSpotRegisterConfig) regConfig;
-        RegisterArray callerSavedRegisters = conf.getCallerSaveRegisters();
-        int size = callerSavedRegisters.size();
-        Value[] nativeABICallerSaveRegisters = new Value[size];
-        for (int i = 0; i < size; i++) {
-            nativeABICallerSaveRegisters[i] = callerSavedRegisters.get(i).asValue();
+        List<Register> callerSave = new ArrayList<>(regConfig.getAllocatableRegisters().asList());
+        callerSave.remove(AArch64.r19);
+        callerSave.remove(AArch64.r20);
+        callerSave.remove(AArch64.r21);
+        callerSave.remove(AArch64.r22);
+        callerSave.remove(AArch64.r23);
+        callerSave.remove(AArch64.r24);
+        callerSave.remove(AArch64.r25);
+        callerSave.remove(AArch64.r26);
+        callerSave.remove(AArch64.r27);
+        callerSave.remove(AArch64.r28);
+        Value[] nativeABICallerSaveRegisters = new Value[callerSave.size()];
+        for (int i = 0; i < callerSave.size(); i++) {
+            nativeABICallerSaveRegisters[i] = callerSave.get(i).asValue();
         }
         return nativeABICallerSaveRegisters;
     }

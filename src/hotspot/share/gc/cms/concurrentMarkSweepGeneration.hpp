@@ -486,7 +486,7 @@ public:
   { }
 
   // Executes a task using worker threads.
-  virtual void execute(ProcessTask& task);
+  virtual void execute(ProcessTask& task, uint ergo_workers);
 private:
   CMSCollector& _collector;
 };
@@ -543,8 +543,6 @@ class CMSCollector: public CHeapObj<mtGC> {
   // This code will likely be revisited under RFE#4922830.
   Stack<oop, mtGC>     _preserved_oop_stack;
   Stack<markOop, mtGC> _preserved_mark_stack;
-
-  int*             _hash_seed;
 
   // In support of multi-threaded concurrent phases
   YieldingFlexibleWorkGang* _conc_workers;
@@ -713,7 +711,6 @@ class CMSCollector: public CHeapObj<mtGC> {
   bool stop_world_and_do(CMS_op_type op);
 
   OopTaskQueueSet* task_queues() { return _task_queues; }
-  int*             hash_seed(int i) { return &_hash_seed[i]; }
   YieldingFlexibleWorkGang* conc_workers() { return _conc_workers; }
 
   // Support for parallelizing Eden rescan in CMS remark phase
@@ -1190,7 +1187,7 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
   void save_sweep_limit();
 
   // More iteration support
-  virtual void oop_iterate(ExtendedOopClosure* cl);
+  virtual void oop_iterate(OopIterateClosure* cl);
   virtual void safe_object_iterate(ObjectClosure* cl);
   virtual void object_iterate(ObjectClosure* cl);
 
@@ -1307,7 +1304,7 @@ class ParMarkFromRootsClosure: public BitMapClosure {
 
 // The following closures are used to do certain kinds of verification of
 // CMS marking.
-class PushAndMarkVerifyClosure: public MetadataAwareOopClosure {
+class PushAndMarkVerifyClosure: public MetadataVisitingOopIterateClosure {
   CMSCollector*    _collector;
   MemRegion        _span;
   CMSBitMap*       _verification_bm;
@@ -1455,9 +1452,9 @@ class MarkFromDirtyCardsClosure: public MemRegionClosure {
                             CMSMarkStack* mark_stack,
                             MarkRefsIntoAndScanClosure* cl):
     _space(space),
-    _num_dirty_cards(0),
     _scan_cl(collector, span, collector->ref_processor(), bit_map,
-                 mark_stack, cl) { }
+                 mark_stack, cl),
+    _num_dirty_cards(0) { }
 
   MarkFromDirtyCardsClosure(CMSCollector* collector,
                             MemRegion span,
@@ -1466,9 +1463,9 @@ class MarkFromDirtyCardsClosure: public MemRegionClosure {
                             OopTaskQueue* work_queue,
                             ParMarkRefsIntoAndScanClosure* cl):
     _space(space),
-    _num_dirty_cards(0),
     _scan_cl(collector, span, collector->ref_processor(), bit_map,
-             work_queue, cl) { }
+             work_queue, cl),
+    _num_dirty_cards(0) { }
 
   void do_MemRegion(MemRegion mr);
   void set_space(CompactibleFreeListSpace* space) { _space = space; }
@@ -1710,8 +1707,8 @@ class CMSDrainMarkingStackClosure: public VoidClosure {
                       bool cpc):
     _collector(collector),
     _span(span),
-    _bit_map(bit_map),
     _mark_stack(mark_stack),
+    _bit_map(bit_map),
     _keep_alive(keep_alive),
     _concurrent_precleaning(cpc) {
     assert(_concurrent_precleaning == _keep_alive->concurrent_precleaning(),
@@ -1735,8 +1732,8 @@ class CMSParDrainMarkingStackClosure: public VoidClosure {
                                  OopTaskQueue* work_queue):
     _collector(collector),
     _span(span),
-    _bit_map(bit_map),
     _work_queue(work_queue),
+    _bit_map(bit_map),
     _mark_and_push(collector, span, bit_map, work_queue) { }
 
  public:

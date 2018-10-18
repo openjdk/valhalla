@@ -149,6 +149,8 @@ private:
   void generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
                             const TypePtr* adr_type,
                             Node* dest,
+                            Node* val,
+                            Node* raw_val,
                             BasicType basic_elem_type,
                             Node* slice_idx,
                             Node* slice_len,

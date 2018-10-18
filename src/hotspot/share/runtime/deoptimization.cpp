@@ -723,13 +723,12 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
           // a given bytecode or the state after, so we try both
           if (!Bytecodes::is_invoke(cur_code) && cur_code != Bytecodes::_athrow) {
             // Get expression stack size for the next bytecode
+            InterpreterOopMap next_mask;
+            OopMapCache::compute_one_oop_map(mh, str.bci(), &next_mask);
+            next_mask_expression_stack_size = next_mask.expression_stack_size();
             if (Bytecodes::is_invoke(next_code)) {
               Bytecode_invoke invoke(mh, str.bci());
-              next_mask_expression_stack_size = invoke.size_of_parameters();
-            } else {
-              InterpreterOopMap next_mask;
-              OopMapCache::compute_one_oop_map(mh, str.bci(), &next_mask);
-              next_mask_expression_stack_size = next_mask.expression_stack_size();
+              next_mask_expression_stack_size += invoke.size_of_parameters();
             }
             // Need to subtract off the size of the result type of
             // the bytecode because this is not described in the
@@ -759,28 +758,30 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
             (is_top_frame && (exec_mode == Unpack_uncommon_trap || exec_mode == Unpack_reexecute || el->should_reexecute()) &&
              (iframe->interpreter_frame_expression_stack_size() == mask.expression_stack_size() + cur_invoke_parameter_size))
             )) {
-        ttyLocker ttyl;
+        {
+          ttyLocker ttyl;
 
-        // Print out some information that will help us debug the problem
-        tty->print_cr("Wrong number of expression stack elements during deoptimization");
-        tty->print_cr("  Error occurred while verifying frame %d (0..%d, 0 is topmost)", i, cur_array->frames() - 1);
-        tty->print_cr("  Fabricated interpreter frame had %d expression stack elements",
-                      iframe->interpreter_frame_expression_stack_size());
-        tty->print_cr("  Interpreter oop map had %d expression stack elements", mask.expression_stack_size());
-        tty->print_cr("  try_next_mask = %d", try_next_mask);
-        tty->print_cr("  next_mask_expression_stack_size = %d", next_mask_expression_stack_size);
-        tty->print_cr("  callee_size_of_parameters = %d", callee_size_of_parameters);
-        tty->print_cr("  callee_max_locals = %d", callee_max_locals);
-        tty->print_cr("  top_frame_expression_stack_adjustment = %d", top_frame_expression_stack_adjustment);
-        tty->print_cr("  exec_mode = %d", exec_mode);
-        tty->print_cr("  cur_invoke_parameter_size = %d", cur_invoke_parameter_size);
-        tty->print_cr("  Thread = " INTPTR_FORMAT ", thread ID = %d", p2i(thread), thread->osthread()->thread_id());
-        tty->print_cr("  Interpreted frames:");
-        for (int k = 0; k < cur_array->frames(); k++) {
-          vframeArrayElement* el = cur_array->element(k);
-          tty->print_cr("    %s (bci %d)", el->method()->name_and_sig_as_C_string(), el->bci());
-        }
-        cur_array->print_on_2(tty);
+          // Print out some information that will help us debug the problem
+          tty->print_cr("Wrong number of expression stack elements during deoptimization");
+          tty->print_cr("  Error occurred while verifying frame %d (0..%d, 0 is topmost)", i, cur_array->frames() - 1);
+          tty->print_cr("  Fabricated interpreter frame had %d expression stack elements",
+                        iframe->interpreter_frame_expression_stack_size());
+          tty->print_cr("  Interpreter oop map had %d expression stack elements", mask.expression_stack_size());
+          tty->print_cr("  try_next_mask = %d", try_next_mask);
+          tty->print_cr("  next_mask_expression_stack_size = %d", next_mask_expression_stack_size);
+          tty->print_cr("  callee_size_of_parameters = %d", callee_size_of_parameters);
+          tty->print_cr("  callee_max_locals = %d", callee_max_locals);
+          tty->print_cr("  top_frame_expression_stack_adjustment = %d", top_frame_expression_stack_adjustment);
+          tty->print_cr("  exec_mode = %d", exec_mode);
+          tty->print_cr("  cur_invoke_parameter_size = %d", cur_invoke_parameter_size);
+          tty->print_cr("  Thread = " INTPTR_FORMAT ", thread ID = %d", p2i(thread), thread->osthread()->thread_id());
+          tty->print_cr("  Interpreted frames:");
+          for (int k = 0; k < cur_array->frames(); k++) {
+            vframeArrayElement* el = cur_array->element(k);
+            tty->print_cr("    %s (bci %d)", el->method()->name_and_sig_as_C_string(), el->bci());
+          }
+          cur_array->print_on_2(tty);
+        } // release tty lock before calling guarantee
         guarantee(false, "wrong number of expression stack elements during deopt");
       }
       VerifyOopClosure verify;
@@ -827,7 +828,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, GrowableArra
     } else if (k->is_valueArray_klass()) {
       ValueArrayKlass* ak = ValueArrayKlass::cast(k);
       // Value type array must be zeroed because not all memory is reassigned
-      obj = ak->allocate(sv->field_size(), true, THREAD);
+      obj = ak->allocate(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       assert(sv->field_size() % type2size[ak->element_type()] == 0, "non-integral array length");
@@ -862,7 +863,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, GrowableArra
 // reference to a value type instance. Allocate and initialize it from
 // the register values here.
 bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
-  oop new_vt = vk->realloc_result(map, return_oops, false, THREAD);
+  oop new_vt = vk->realloc_result(map, return_oops, THREAD);
   if (new_vt == NULL) {
     CLEAR_PENDING_EXCEPTION;
     THROW_OOP_(Universe::out_of_memory_error_realloc_objects(), true);
@@ -1011,9 +1012,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       if (field._type == T_VALUETYPE) {
         if (fs.is_flattened()) {
           // Resolve klass of flattened value type field
-          SignatureStream ss(fs.signature(), false);
-          Klass* vk = ss.as_klass(Handle(THREAD, klass->class_loader()), Handle(THREAD, klass->protection_domain()), SignatureStream::NCDFError, THREAD);
-          guarantee(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
+          Klass* vk = klass->get_value_field_klass(fs.index());
           assert(vk->is_value(), "must be a ValueKlass");
           field._klass = InstanceKlass::cast(vk);
         } else {
@@ -1629,13 +1628,13 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
     methodHandle    trap_method = trap_scope->method();
     int             trap_bci    = trap_scope->bci();
 #if INCLUDE_JVMCI
-    oop speculation = thread->pending_failed_speculation();
+    long speculation = thread->pending_failed_speculation();
     if (nm->is_compiled_by_jvmci()) {
-      if (speculation != NULL) {
+      if (speculation != 0) {
         oop speculation_log = nm->as_nmethod()->speculation_log();
         if (speculation_log != NULL) {
           if (TraceDeoptimization || TraceUncollectedSpeculations) {
-            if (HotSpotSpeculationLog::lastFailed(speculation_log) != NULL) {
+            if (HotSpotSpeculationLog::lastFailed(speculation_log) != 0) {
               tty->print_cr("A speculation that was not collected by the compiler is being overwritten");
             }
           }
@@ -1648,14 +1647,14 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint tra
             tty->print_cr("Speculation present but no speculation log");
           }
         }
-        thread->set_pending_failed_speculation(NULL);
+        thread->set_pending_failed_speculation(0);
       } else {
         if (TraceDeoptimization) {
           tty->print_cr("No speculation");
         }
       }
     } else {
-      assert(speculation == NULL, "There should not be a speculation for method compiled by non-JVMCI compilers");
+      assert(speculation == 0, "There should not be a speculation for method compiled by non-JVMCI compilers");
     }
 
     if (trap_bci == SynchronizationEntryBCI) {
@@ -2126,7 +2125,7 @@ Deoptimization::update_method_data_from_interpreter(MethodData* trap_mdo, int tr
   bool ignore_maybe_prior_recompile;
   assert(!reason_is_speculate(reason), "reason speculate only used by compiler");
   // JVMCI uses the total counts to determine if deoptimizations are happening too frequently -> do not adjust total counts
-  bool update_total_counts = JVMCI_ONLY(false) NOT_JVMCI(true);
+  bool update_total_counts = true JVMCI_ONLY( && !UseJVMCICompiler);
   query_update_method_data(trap_mdo, trap_bci,
                            (DeoptReason)reason,
                            update_total_counts,
@@ -2153,7 +2152,7 @@ Deoptimization::UnrollBlock* Deoptimization::uncommon_trap(JavaThread* thread, j
 
 // Local derived constants.
 // Further breakdown of DataLayout::trap_state, as promised by DataLayout.
-const int DS_REASON_MASK   = DataLayout::trap_mask >> 1;
+const int DS_REASON_MASK   = ((uint)DataLayout::trap_mask) >> 1;
 const int DS_RECOMPILE_BIT = DataLayout::trap_mask - DS_REASON_MASK;
 
 //---------------------------trap_state_reason---------------------------------
@@ -2252,6 +2251,7 @@ const char* Deoptimization::_trap_reason_name[] = {
   "array_check",
   "intrinsic" JVMCI_ONLY("_or_type_checked_inlining"),
   "bimorphic" JVMCI_ONLY("_or_optimized_type_check"),
+  "profile_predicate",
   "unloaded",
   "uninitialized",
   "unreached",

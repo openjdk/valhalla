@@ -24,6 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 import java.lang.invoke.*;
+import java.lang.reflect.Method;
 
 import jdk.experimental.value.MethodHandleBuilder;
 import jdk.experimental.bytecode.MacroCodeBuilder;
@@ -39,7 +40,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @build TestLWorld_mismatched
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestLWorld.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -899,7 +900,7 @@ public class TestLWorld extends ValueTypeTest {
         MyInterface vt4 = valueField1;
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test5"));
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test28"));
         }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
@@ -1227,13 +1228,13 @@ public class TestLWorld extends ValueTypeTest {
     // Test value store to (flattened) value type array disguised as interface array
 
     @ForceInline
-    public void test43_inline(MyInterface[] ia, MyInterface i, int index) {
+    public void test44_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
     }
 
     @Test()
     public void test44(MyInterface[] ia, MyInterface i, int index) {
-        test43_inline(ia, i, index);
+        test44_inline(ia, i, index);
     }
 
     @DontCompile
@@ -1787,7 +1788,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Value type with some non-flattened fields
-    __ByValue final class Test65Value {
+    value final class Test65Value {
         final Object objectField1 = null;
         final Object objectField2 = null;
         final Object objectField3 = null;
@@ -1851,7 +1852,7 @@ public class TestLWorld extends ValueTypeTest {
     public void test65_verifier(boolean warmup) {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
-        Test65Value holder = __MakeDefault Test65Value();
+        Test65Value holder = Test65Value.default;
         Asserts.assertEQ(testValue1.hash(), vt.hash());
         holder = holder.init();
         Asserts.assertEQ(holder.valueField1.hash(), vt.hash());
@@ -1869,7 +1870,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test66_verifier(boolean warmup) {
-        Test65Value vt = __MakeDefault Test65Value();
+        Test65Value vt = Test65Value.default;
         test66(vt);
     }
 
@@ -2213,7 +2214,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test calling a method on an uninitialized value type
-    __ByValue final class Test86Value {
+    value final class Test86Value {
         final int x = 42;
         public int get() {
             return x;
@@ -2226,7 +2227,7 @@ public class TestLWorld extends ValueTypeTest {
     @Test
     @Warmup(0)
     public int test86() {
-        Test86Value vt = __MakeDefault Test86Value();
+        Test86Value vt = Test86Value.default;
         return vt.get();
     }
 
@@ -2269,5 +2270,96 @@ public class TestLWorld extends ValueTypeTest {
     @DontCompile
     public void test88_verifier(boolean warmup) {
         test88();
+    }
+
+    // Tests for loading/storing unkown values
+    @Test
+    public Object test89(Object[] va) {
+        return va[0];
+    }
+
+    @DontCompile
+    public void test89_verifier(boolean warmup) {
+        MyValue1 vt = (MyValue1)test89(testValue1Array);
+        Asserts.assertEquals(testValue1Array[0].hash(), vt.hash());
+    }
+
+    @Test
+    public void test90(Object[] va, Object vt) {
+        va[0] = vt;
+    }
+
+    @DontCompile
+    public void test90_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        test90(va, testValue1);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+    }
+
+    // Verify that mixing instances and arrays with the clone api
+    // doesn't break anything
+    @Test
+    public Object test91(Object o) {
+        MyValue1[] va = new MyValue1[1];
+        Object[] next = va;
+        Object[] arr = va;
+        for (int i = 0; i < 10; i++) {
+            arr = next;
+            next = new Integer[1];
+        }
+        return arr[0];
+    }
+
+    @DontCompile
+    public void test91_verifier(boolean warmup) {
+        test91(42);
+    }
+
+    @DontInline
+    public boolean test92_dontinline(MyValue1 vt) {
+        return (Object)vt == null;
+    }
+
+    // Test c2c call passing null for a value type
+    @Test
+    @Warmup(10000) // Warmup to make sure 'test92_dontinline' is compiled
+    public boolean test92(Object arg) throws Exception {
+        Method test92method = getClass().getMethod("test92_dontinline", MyValue1.class);
+        return (boolean)test92method.invoke(this, arg);
+    }
+
+    @DontCompile
+    public void test92_verifier(boolean warmup) throws Exception {
+        boolean res = test92(null);
+        Asserts.assertTrue(res);
+    }
+
+    // Cast an Integer to a value type
+    private static final MethodHandle castIntegerToValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+        "castIntegerToValue",
+        MethodType.methodType(void.class, TestLWorld.class, Integer.class),
+        CODE -> {
+            CODE.
+            aload_1().
+            checkcast(MyValue1.class).
+            return_();
+        },
+        MyValue1.class);
+
+    // Casting a null Integer to a value type should throw an exception
+    @Test
+    public void test93(Integer i) throws Throwable {
+        castIntegerToValue.invoke(this, i);
+    }
+
+    @DontCompile
+    public void test93_verifier(boolean warmup) throws Throwable {
+        try {
+            test93(null);
+// TODO enable this once we've fixed the interpreter to throw a NPE
+//            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
     }
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="generator" content="pandoc">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Testing OpenJDK</title>
+  <title>Testing the JDK</title>
   <style type="text/css">code{white-space: pre;}</style>
   <link rel="stylesheet" href="../make/data/docs-resources/resources/jdk-default.css">
   <!--[if lt IE 9]>
@@ -14,7 +14,7 @@
 </head>
 <body>
 <header>
-<h1 class="title">Testing OpenJDK</h1>
+<h1 class="title">Testing the JDK</h1>
 </header>
 <nav id="TOC">
 <ul>
@@ -33,7 +33,7 @@
 </ul>
 </nav>
 <h2 id="using-the-run-test-framework">Using the run-test framework</h2>
-<p>This new way of running tests is developer-centric. It assumes that you have built a jdk locally and want to test it. Running common test targets is simple, and more complex ad-hoc combination of tests is possible. The user interface is forgiving, and clearly report errors it cannot resolve.</p>
+<p>This new way of running tests is developer-centric. It assumes that you have built a JDK locally and want to test it. Running common test targets is simple, and more complex ad-hoc combination of tests is possible. The user interface is forgiving, and clearly report errors it cannot resolve.</p>
 <p>The main target &quot;run-test&quot; uses the jdk-image as the tested product. There is also an alternate target &quot;exploded-run-test&quot; that uses the exploded image instead. Not all tests will run successfully on the exploded image, but using this target can greatly improve rebuild times for certain workflows.</p>
 <p>Some example command-lines:</p>
 <pre><code>$ make run-test-tier1
@@ -51,9 +51,9 @@ $ make exploded-run-test TEST=tier2</code></pre>
 <p>The test specifications given in <code>TEST</code> is parsed into fully qualified test descriptors, which clearly and unambigously show which tests will be run. As an example, <code>:tier1</code> will expand to <code>jtreg:$(TOPDIR)/test/hotspot/jtreg:tier1 jtreg:$(TOPDIR)/test/jdk:tier1 jtreg:$(TOPDIR)/test/langtools:tier1 jtreg:$(TOPDIR)/test/nashorn:tier1 jtreg:$(TOPDIR)/test/jaxp:tier1</code>. You can always submit a list of fully qualified test descriptors in the <code>TEST</code> variable if you want to shortcut the parser.</p>
 <h3 id="jtreg">JTReg</h3>
 <p>JTReg tests can be selected either by picking a JTReg test group, or a selection of files or directories containing JTReg tests.</p>
-<p>JTReg test groups can be specified either without a test root, e.g. <code>:tier1</code> (or <code>tier1</code>, the initial colon is optional), or with, e.g. <code>hotspot:tier1</code>, <code>test/jdk:jdk_util</code> or <code>$(TOPDIR)/test/hotspot/jtreg:hotspot_all</code>. The test root can be specified either as an absolute path, or a path relative to the OpenJDK top directory, or the <code>test</code> directory. For simplicity, the hotspot JTReg test root, which really is <code>hotspot/jtreg</code> can be abbreviated as just <code>hotspot</code>.</p>
+<p>JTReg test groups can be specified either without a test root, e.g. <code>:tier1</code> (or <code>tier1</code>, the initial colon is optional), or with, e.g. <code>hotspot:tier1</code>, <code>test/jdk:jdk_util</code> or <code>$(TOPDIR)/test/hotspot/jtreg:hotspot_all</code>. The test root can be specified either as an absolute path, or a path relative to the JDK top directory, or the <code>test</code> directory. For simplicity, the hotspot JTReg test root, which really is <code>hotspot/jtreg</code> can be abbreviated as just <code>hotspot</code>.</p>
 <p>When specified without a test root, all matching groups from all test roots will be added. Otherwise, only the group from the specified test root will be added.</p>
-<p>Individual JTReg tests or directories containing JTReg tests can also be specified, like <code>test/hotspot/jtreg/native_sanity/JniVersion.java</code> or <code>hotspot/jtreg/native_sanity</code>. Just like for test root selection, you can either specify an absolute path (which can even point to JTReg tests outside the source tree), or a path relative to either the OpenJDK top directory or the <code>test</code> directory. <code>hotspot</code> can be used as an alias for <code>hotspot/jtreg</code> here as well.</p>
+<p>Individual JTReg tests or directories containing JTReg tests can also be specified, like <code>test/hotspot/jtreg/native_sanity/JniVersion.java</code> or <code>hotspot/jtreg/native_sanity</code>. Just like for test root selection, you can either specify an absolute path (which can even point to JTReg tests outside the source tree), or a path relative to either the JDK top directory or the <code>test</code> directory. <code>hotspot</code> can be used as an alias for <code>hotspot/jtreg</code> here as well.</p>
 <p>As long as the test groups or test paths can be uniquely resolved, you do not need to enter the <code>jtreg:</code> prefix. If this is not possible, or if you want to use a fully qualified test descriptor, add <code>jtreg:</code>, e.g. <code>jtreg:test/hotspot/jtreg/native_sanity</code>.</p>
 <h3 id="gtest">Gtest</h3>
 <p>Since the Hotspot Gtest suite is so quick, the default is to run all tests. This is specified by just <code>gtest</code>, or as a fully qualified test descriptor <code>gtest:all</code>.</p>

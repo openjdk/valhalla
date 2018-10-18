@@ -273,7 +273,7 @@ public abstract class ValueTypeTest {
            exclude = Arrays.asList(EXCLUDELIST.split(","));
         }
         // Gather all test methods and put them in Hashtable
-        for (Method m : getClass().getMethods()) {
+        for (Method m : getClass().getDeclaredMethods()) {
             Test[] annos = m.getAnnotationsByType(Test.class);
             if (annos.length != 0 &&
                 ((list == null || list.contains(m.getName())) && (exclude == null || !exclude.contains(m.getName())))) {

@@ -65,9 +65,10 @@ void ResolutionErrorEntry::set_error(Symbol* e) {
 }
 
 void ResolutionErrorEntry::set_message(Symbol* c) {
-  assert(c != NULL, "must set a value");
   _message = c;
-  _message->increment_refcount();
+  if (_message != NULL) {
+    _message->increment_refcount();
+  }
 }
 
 // create new error entry
@@ -87,7 +88,9 @@ void ResolutionErrorTable::free_entry(ResolutionErrorEntry *entry) {
   // decrement error refcount
   assert(entry->error() != NULL, "error should be set");
   entry->error()->decrement_refcount();
-  entry->message()->decrement_refcount();
+  if (entry->message() != NULL) {
+    entry->message()->decrement_refcount();
+  }
   Hashtable<ConstantPool*, mtClass>::free_entry(entry);
 }
 
@@ -100,7 +103,7 @@ ResolutionErrorTable::ResolutionErrorTable(int table_size)
 // RedefineClasses support - remove matching entry of a
 // constant pool that is going away
 void ResolutionErrorTable::delete_entry(ConstantPool* c) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(SystemDictionary_lock);
   for (int i = 0; i < table_size(); i++) {
     for (ResolutionErrorEntry** p = bucket_addr(i); *p != NULL; ) {
       ResolutionErrorEntry* entry = *p;
@@ -118,7 +121,7 @@ void ResolutionErrorTable::delete_entry(ConstantPool* c) {
 
 // Remove unloaded entries from the table
 void ResolutionErrorTable::purge_resolution_errors() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(SystemDictionary_lock);
   for (int i = 0; i < table_size(); i++) {
     for (ResolutionErrorEntry** p = bucket_addr(i); *p != NULL; ) {
       ResolutionErrorEntry* entry = *p;

@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "classfile/metadataOnStackMark.hpp"
-#include "classfile/symbolTable.hpp"
 #include "code/codeCache.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
@@ -51,7 +50,7 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "gc/shared/vmGCOperations.hpp"
-#include "gc/shared/weakProcessor.hpp"
+#include "gc/shared/weakProcessor.inline.hpp"
 #include "include/jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
@@ -625,7 +624,7 @@ private:
     G1CMBitMap* _bitmap;
     G1ConcurrentMark* _cm;
   public:
-    G1ClearBitmapHRClosure(G1CMBitMap* bitmap, G1ConcurrentMark* cm) : HeapRegionClosure(), _cm(cm), _bitmap(bitmap) {
+    G1ClearBitmapHRClosure(G1CMBitMap* bitmap, G1ConcurrentMark* cm) : HeapRegionClosure(), _bitmap(bitmap), _cm(cm) {
     }
 
     virtual bool do_heap_region(HeapRegion* r) {
@@ -1024,11 +1023,17 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
 
     uint _num_regions_selected_for_rebuild;  // The number of regions actually selected for rebuild.
 
-    void update_remset_before_rebuild(HeapRegion * hr) {
+    void update_remset_before_rebuild(HeapRegion* hr) {
       G1RemSetTrackingPolicy* tracking_policy = _g1h->g1_policy()->remset_tracker();
 
-      size_t const live_bytes = _cm->liveness(hr->hrm_index()) * HeapWordSize;
-      bool selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes);
+      bool selected_for_rebuild;
+      if (hr->is_humongous()) {
+        bool const is_live = _cm->liveness(hr->humongous_start_region()->hrm_index()) > 0;
+        selected_for_rebuild = tracking_policy->update_humongous_before_rebuild(hr, is_live);
+      } else {
+        size_t const live_bytes = _cm->liveness(hr->hrm_index());
+        selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes);
+      }
       if (selected_for_rebuild) {
         _num_regions_selected_for_rebuild++;
       }
@@ -1089,7 +1094,7 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public AbstractGangTask {
 
   public:
     G1UpdateRemSetTrackingBeforeRebuild(G1CollectedHeap* g1h, G1ConcurrentMark* cm, G1PrintRegionLivenessInfoClosure* cl) :
-      _g1h(g1h), _cm(cm), _num_regions_selected_for_rebuild(0), _cl(cl) { }
+      _g1h(g1h), _cm(cm), _cl(cl), _num_regions_selected_for_rebuild(0) { }
 
     virtual bool do_heap_region(HeapRegion* r) {
       update_remset_before_rebuild(r);
@@ -1409,10 +1414,9 @@ class G1CMKeepAliveAndDrainClosure : public OopClosure {
   bool              _is_serial;
 public:
   G1CMKeepAliveAndDrainClosure(G1ConcurrentMark* cm, G1CMTask* task, bool is_serial) :
-    _cm(cm), _task(task), _is_serial(is_serial),
-    _ref_counter_limit(G1RefProcDrainInterval) {
+    _cm(cm), _task(task), _ref_counter_limit(G1RefProcDrainInterval),
+    _ref_counter(_ref_counter_limit), _is_serial(is_serial) {
     assert(!_is_serial || _task->worker_id() == 0, "only task 0 for serial code");
-    _ref_counter = _ref_counter_limit;
   }
 
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
@@ -1518,8 +1522,7 @@ public:
     _g1h(g1h), _cm(cm),
     _workers(workers), _active_workers(n_workers) { }
 
-  // Executes the given task using concurrent marking worker threads.
-  virtual void execute(ProcessTask& task);
+  virtual void execute(ProcessTask& task, uint ergo_workers);
 };
 
 class G1CMRefProcTaskProxy : public AbstractGangTask {
@@ -1550,9 +1553,12 @@ public:
   }
 };
 
-void G1CMRefProcTaskExecutor::execute(ProcessTask& proc_task) {
+void G1CMRefProcTaskExecutor::execute(ProcessTask& proc_task, uint ergo_workers) {
   assert(_workers != NULL, "Need parallel worker threads.");
   assert(_g1h->ref_processor_cm()->processing_is_mt(), "processing is not MT");
+  assert(_workers->active_workers() >= ergo_workers,
+         "Ergonomically chosen workers(%u) should be less than or equal to active workers(%u)",
+         ergo_workers, _workers->active_workers());
 
   G1CMRefProcTaskProxy proc_task_proxy(proc_task, _g1h, _cm);
 
@@ -1560,8 +1566,8 @@ void G1CMRefProcTaskExecutor::execute(ProcessTask& proc_task) {
   // proxy task execution, so that the termination protocol
   // and overflow handling in G1CMTask::do_marking_step() knows
   // how many workers to wait for.
-  _cm->set_concurrency(_active_workers);
-  _workers->run_task(&proc_task_proxy);
+  _cm->set_concurrency(ergo_workers);
+  _workers->run_task(&proc_task_proxy, ergo_workers);
 }
 
 void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
@@ -1571,8 +1577,8 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
   // Is alive closure.
   G1CMIsAliveClosure g1_is_alive(_g1h);
 
-  // Inner scope to exclude the cleaning of the string and symbol
-  // tables from the displayed time.
+  // Inner scope to exclude the cleaning of the string table
+  // from the displayed time.
   {
     GCTraceTime(Debug, gc, phases) debug("Reference Processing", _gc_timer_cm);
 
@@ -1625,7 +1631,7 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
     // Reference lists are balanced (see balance_all_queues() and balance_queues()).
     rp->set_active_mt_degree(active_workers);
 
-    ReferenceProcessorPhaseTimes pt(_gc_timer_cm, rp->num_queues());
+    ReferenceProcessorPhaseTimes pt(_gc_timer_cm, rp->max_num_queues());
 
     // Process the weak references.
     const ReferenceProcessorStats& stats =
@@ -1651,7 +1657,11 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
   }
 
   if (has_overflown()) {
-    // We can not trust g1_is_alive if the marking stack overflowed
+    // We can not trust g1_is_alive and the contents of the heap if the marking stack
+    // overflowed while processing references. Exit the VM.
+    fatal("Overflow during reference processing, can not continue. Please "
+          "increase MarkStackSizeMax (current value: " SIZE_FORMAT ") and "
+          "restart.", MarkStackSizeMax);
     return;
   }
 
@@ -1659,19 +1669,19 @@ void G1ConcurrentMark::weak_refs_work(bool clear_all_soft_refs) {
 
   {
     GCTraceTime(Debug, gc, phases) debug("Weak Processing", _gc_timer_cm);
-    WeakProcessor::weak_oops_do(&g1_is_alive, &do_nothing_cl);
+    WeakProcessor::weak_oops_do(_g1h->workers(), &g1_is_alive, &do_nothing_cl, 1);
   }
 
-  // Unload Klasses, String, Symbols, Code Cache, etc.
+  // Unload Klasses, String, Code Cache, etc.
   if (ClassUnloadingWithConcurrentMark) {
     GCTraceTime(Debug, gc, phases) debug("Class Unloading", _gc_timer_cm);
     bool purged_classes = SystemDictionary::do_unloading(_gc_timer_cm, false /* Defer cleaning */);
     _g1h->complete_cleaning(&g1_is_alive, purged_classes);
   } else {
     GCTraceTime(Debug, gc, phases) debug("Cleanup", _gc_timer_cm);
-    // No need to clean string table and symbol table as they are treated as strong roots when
+    // No need to clean string table as it is treated as strong roots when
     // class unloading is disabled.
-    _g1h->partial_cleaning(&g1_is_alive, false, false, G1StringDedup::is_enabled());
+    _g1h->partial_cleaning(&g1_is_alive, false, G1StringDedup::is_enabled());
   }
 }
 
@@ -2110,7 +2120,7 @@ static ReferenceProcessor* get_cm_oop_closure_ref_processor(G1CollectedHeap* g1h
 
 G1CMOopClosure::G1CMOopClosure(G1CollectedHeap* g1h,
                                G1CMTask* task)
-  : MetadataAwareOopClosure(get_cm_oop_closure_ref_processor(g1h)),
+  : MetadataVisitingOopIterateClosure(get_cm_oop_closure_ref_processor(g1h)),
     _g1h(g1h), _task(task)
 { }
 
@@ -2344,7 +2354,7 @@ void G1CMTask::drain_local_queue(bool partially) {
   // of things to do) or totally (at the very end).
   size_t target_size;
   if (partially) {
-    target_size = MIN2((size_t)_task_queue->max_elems()/3, GCDrainStackTargetSize);
+    target_size = MIN2((size_t)_task_queue->max_elems()/3, (size_t)GCDrainStackTargetSize);
   } else {
     target_size = 0;
   }
@@ -2454,8 +2464,8 @@ void G1CMTask::print_stats() {
                        hits, misses, percent_of(hits, hits + misses));
 }
 
-bool G1ConcurrentMark::try_stealing(uint worker_id, int* hash_seed, G1TaskQueueEntry& task_entry) {
-  return _task_queues->steal(worker_id, hash_seed, task_entry);
+bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry) {
+  return _task_queues->steal(worker_id, task_entry);
 }
 
 /*****************************************************************************
@@ -2761,7 +2771,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
            "only way to reach here");
     while (!has_aborted()) {
       G1TaskQueueEntry entry;
-      if (_cm->try_stealing(_worker_id, &_hash_seed, entry)) {
+      if (_cm->try_stealing(_worker_id, entry)) {
         scan_task_entry(entry);
 
         // And since we're towards the end, let's totally drain the
@@ -2903,7 +2913,6 @@ G1CMTask::G1CMTask(uint worker_id,
   _refs_reached(0),
   _refs_reached_limit(0),
   _real_refs_reached_limit(0),
-  _hash_seed(17),
   _has_aborted(false),
   _has_timed_out(false),
   _draining_satb_buffers(false),

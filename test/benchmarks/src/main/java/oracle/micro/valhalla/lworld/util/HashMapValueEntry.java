@@ -32,19 +32,19 @@ public class HashMapValueEntry<K, V> extends AbstractMap<K, V> {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
-    __ByValue public static final class Entry<K, V> implements Map.Entry<K, V> {
+    value public static final class Entry<K, V> implements Map.Entry<K, V> {
         final K key;
         final V value;
         final HEntry<K, V> next;
         final int hash;
 
         public static <K,V> Entry<K,V> empty() {
-            Entry e = __MakeDefault Entry();
+            Entry e = Entry.default;
             return e;
         }
 
         public static <K,V> Entry<K,V> of(int h, K k, V v, HEntry<K, V> n) {
-            Entry e = __MakeDefault Entry();
+            Entry e = Entry.default;
             e = __WithField(e.key, k);
             e = __WithField(e.value, v);
             e = __WithField(e.next, n);

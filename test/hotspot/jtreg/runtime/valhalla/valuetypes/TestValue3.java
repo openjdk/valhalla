@@ -28,7 +28,7 @@ final class ContainerValue3 {
     TestValue3[] valueArray;
 }
 
-public __ByValue final class TestValue3 {
+public value final class TestValue3 {
 
     static __NotFlattened TestValue3 staticValue = getInstance();
 
@@ -39,13 +39,13 @@ public __ByValue final class TestValue3 {
     }
 
     public static TestValue3 create(byte b) {
-        TestValue3 v = __MakeDefault TestValue3();
+        TestValue3 v = TestValue3.default;
         v = __WithField(v.b, b);
         return v;
     }
 
     public static TestValue3 create() {
-        TestValue3 v = __MakeDefault TestValue3();
+        TestValue3 v = TestValue3.default;
         v = __WithField(v.b, 123);
         return v;
     }

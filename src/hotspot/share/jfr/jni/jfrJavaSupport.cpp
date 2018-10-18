@@ -39,7 +39,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/synchronizer.hpp"
@@ -584,10 +584,8 @@ static bool is_jdk_jfr_module_in_readability_graph() {
 
 static void print_module_resolution_error(outputStream* stream) {
   assert(stream != NULL, "invariant");
-  stream->print_cr("%s not found.", JDK_JFR_MODULE_NAME);
+  stream->print_cr("Module %s not found.", JDK_JFR_MODULE_NAME);
   stream->print_cr("Flight Recorder can not be enabled.");
-  stream->print_cr("To use Flight Recorder, you might need to add" \
-    " \"--add-modules %s\" to the VM command-line options.", JDK_JFR_MODULE_NAME);
 }
 
 bool JfrJavaSupport::is_jdk_jfr_module_available() {

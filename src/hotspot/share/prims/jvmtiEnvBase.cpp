@@ -1219,7 +1219,7 @@ VM_GetMultipleStackTraces::fill_frames(jthread jt, JavaThread *thr, oop thread_o
   }
   infop->state = state;
 
-  if (thr != NULL || (state & JVMTI_THREAD_STATE_ALIVE) != 0) {
+  if (thr != NULL && (state & JVMTI_THREAD_STATE_ALIVE) != 0) {
     infop->frame_buffer = NEW_RESOURCE_ARRAY(jvmtiFrameInfo, max_frame_count());
     env()->get_stack_trace(thr, 0, max_frame_count(),
                            infop->frame_buffer, &(infop->frame_count));
@@ -1489,6 +1489,7 @@ void JvmtiModuleClosure::do_module(ModuleEntry* entry) {
 jvmtiError
 JvmtiModuleClosure::get_all_modules(JvmtiEnv* env, jint* module_count_ptr, jobject** modules_ptr) {
   ResourceMark rm;
+  MutexLocker mcld(ClassLoaderDataGraph_lock);
   MutexLocker ml(Module_lock);
 
   _tbl = new GrowableArray<OopHandle>(77);

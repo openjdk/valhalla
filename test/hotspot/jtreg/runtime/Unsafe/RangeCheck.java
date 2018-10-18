@@ -46,9 +46,8 @@ public class RangeCheck {
 
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                 true,
-                "-Xmx32m",
+                "-Xmx128m",
                 "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
-                "-XX:-TransmitErrorReport",
                 "-XX:-CreateCoredumpOnCrash",
                 "-XX:-InlineUnsafeOps", // The compiler intrinsics doesn't have the assert
                 DummyClassWithMainRangeCheck.class.getName());

@@ -28,7 +28,7 @@ final class ContainerValue1 {
     TestValue1[] valueArray;
 }
 
-public __ByValue final class TestValue1 {
+public value final class TestValue1 {
 
     static __NotFlattened TestValue1 staticValue = getInstance();
 
@@ -41,14 +41,14 @@ public __ByValue final class TestValue1 {
     }
 
     public static TestValue1 create(int i) {
-        TestValue1 v = __MakeDefault TestValue1();
+        TestValue1 v = TestValue1.default;
         v = __WithField(v.i, i);
         v = __WithField(v.name, Integer.valueOf(i).toString());
         return v;
     }
 
     public static TestValue1 create() {
-        TestValue1 v = __MakeDefault TestValue1();
+        TestValue1 v = TestValue1.default;
         v = __WithField(v.i, (int)System.nanoTime());
         v = __WithField(v.name, Integer.valueOf(v.i).toString());
         return v;

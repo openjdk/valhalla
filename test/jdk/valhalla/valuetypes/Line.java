@@ -21,7 +21,7 @@
  * questions.
  */
 
-public final __ByValue class Line {
+public final value class Line {
     public Point p1;
     public Point p2;
     Line () {
@@ -42,7 +42,7 @@ public final __ByValue class Line {
     }
 
     public static Line makeLine(Point p1, Point p2) {
-        Line l = __MakeDefault Line();
+        Line l = Line.default;
 
         l = __WithField(l.p1, p1);
         l = __WithField(l.p2, p2);

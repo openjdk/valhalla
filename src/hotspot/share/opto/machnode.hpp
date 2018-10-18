@@ -463,6 +463,22 @@ public:
   int  constant_offset_unchecked() const;
 };
 
+//------------------------------MachVTEPNode-----------------------------------
+// Machine Verified Value Type Entry Point Node
+class MachVVEPNode : public MachIdealNode {
+public:
+  MachVVEPNode(Label* verified_entry) : _verified_entry(verified_entry) {}
+  virtual void emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const;
+  virtual uint size(PhaseRegAlloc* ra_) const;
+
+#ifndef PRODUCT
+  virtual const char* Name() const { return "Verified ValueType Entry-Point"; }
+  virtual void format(PhaseRegAlloc*, outputStream* st) const;
+#endif
+private:
+  Label* _verified_entry;
+};
+
 //------------------------------MachUEPNode-----------------------------------
 // Machine Unvalidated Entry Point Node
 class MachUEPNode : public MachIdealNode {
@@ -481,11 +497,14 @@ public:
 // Machine function Prolog Node
 class MachPrologNode : public MachIdealNode {
 public:
-  MachPrologNode( ) {}
+  MachPrologNode(Label* verified_entry) : _verified_entry(verified_entry) {
+    init_class_id(Class_MachProlog);
+  }
   virtual void emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;
   virtual uint size(PhaseRegAlloc *ra_) const;
   virtual int reloc() const;
 
+  Label* _verified_entry;
 #ifndef PRODUCT
   virtual const char *Name() const { return "Prolog"; }
   virtual void format( PhaseRegAlloc *, outputStream *st ) const;
@@ -569,7 +588,7 @@ private:
   const SpillType _spill_type;
 public:
   MachSpillCopyNode(SpillType spill_type, Node *n, const RegMask &in, const RegMask &out ) :
-    MachIdealNode(), _spill_type(spill_type), _in(&in), _out(&out), _type(n->bottom_type()) {
+    MachIdealNode(), _in(&in), _out(&out), _type(n->bottom_type()), _spill_type(spill_type) {
     init_class_id(Class_MachSpillCopy);
     init_flags(Flag_is_Copy);
     add_req(NULL);
@@ -1001,6 +1020,19 @@ public:
   virtual JVMState* jvms() const;
 };
 
+class MachMemBarNode : public MachNode {
+  virtual uint size_of() const; // Size is bigger
+public:
+  const TypePtr* _adr_type;     // memory effects
+  MachMemBarNode() : MachNode() {
+    init_class_id(Class_MachMemBar);
+    _adr_type = TypePtr::BOTTOM; // the default: all of memory
+  }
+
+  void set_adr_type(const TypePtr* atp) { _adr_type = atp; }
+  virtual const TypePtr *adr_type() const;
+};
+
 
 //------------------------------MachTempNode-----------------------------------
 // Node used by the adlc to construct inputs to represent temporary registers
@@ -1041,7 +1073,7 @@ public:
 
   uint _block_num;
 
-  labelOper() : _block_num(0), _label(0) {}
+  labelOper() : _label(0), _block_num(0) {}
 
   labelOper(Label* label, uint block_num) : _label(label), _block_num(block_num) {}
 

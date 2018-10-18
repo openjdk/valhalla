@@ -1,2 +1,2 @@
-EmptyValueTest.java:7:24: compiler.err.empty.value.not.yet
+EmptyValueTest.java:7:20: compiler.err.empty.value.not.yet
 1 error

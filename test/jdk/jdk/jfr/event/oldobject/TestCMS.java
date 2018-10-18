@@ -34,10 +34,11 @@ import jdk.jfr.internal.test.WhiteBox;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
 
-/*
+/**
  * @test
  * @key jfr
- * @requires vm.gc == "null"
+ * @requires vm.hasJFR
+ * @requires vm.gc == "null" & !vm.graal.enabled
  * @summary Test leak profiler with CMS GC
  * @library /test/lib /test/jdk
  * @modules jdk.jfr/jdk.jfr.internal.test

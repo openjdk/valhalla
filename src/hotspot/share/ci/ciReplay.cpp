@@ -36,6 +36,7 @@
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/valueKlass.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
@@ -871,7 +872,7 @@ class CompileReplay : public StackObj {
         } else if (strcmp(field_signature, "[S") == 0) {
           value = oopFactory::new_shortArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[F") == 0) {
-          value = oopFactory::new_singleArray(length, CHECK_(true));
+          value = oopFactory::new_floatArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[D") == 0) {
           value = oopFactory::new_doubleArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[I") == 0) {

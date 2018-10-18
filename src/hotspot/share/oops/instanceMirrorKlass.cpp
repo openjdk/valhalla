@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "oops/instanceKlass.hpp"
@@ -53,11 +52,11 @@ instanceOop InstanceMirrorKlass::allocate_instance(Klass* k, TRAPS) {
 
   // Since mirrors can be variable sized because of the static fields, store
   // the size in the mirror itself.
-  return (instanceOop)CollectedHeap::class_allocate(this, size, CHECK_NULL);
+  return (instanceOop)Universe::heap()->class_allocate(this, size, CHECK_NULL);
 }
 
 int InstanceMirrorKlass::oop_size(oop obj) const {
-  return java_lang_Class::oop_size(obj);
+  return java_lang_Class::oop_size_raw(obj);
 }
 
 int InstanceMirrorKlass::compute_static_oop_field_count(oop obj) {
@@ -67,3 +66,9 @@ int InstanceMirrorKlass::compute_static_oop_field_count(oop obj) {
   }
   return 0;
 }
+
+#if INCLUDE_CDS
+void InstanceMirrorKlass::serialize_offsets(SerializeClosure* f) {
+  f->do_u4((u4*)&_offset_of_static_fields);
+}
+#endif

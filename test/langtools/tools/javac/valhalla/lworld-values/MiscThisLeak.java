@@ -9,7 +9,7 @@ public class MiscThisLeak {
     interface I {
         void foo();
     }
-    __ByValue class V {
+    value class V {
         class K {}
         int f;
         V() {

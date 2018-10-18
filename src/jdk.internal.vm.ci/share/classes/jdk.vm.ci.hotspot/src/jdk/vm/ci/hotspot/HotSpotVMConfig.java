@@ -100,7 +100,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
 
     final int instanceKlassStateLinked = getConstant("InstanceKlass::linked", Integer.class);
     final int instanceKlassStateFullyInitialized = getConstant("InstanceKlass::fully_initialized", Integer.class);
-    final int instanceKlassMiscIsAnonymous = getConstant("InstanceKlass::_misc_is_anonymous", Integer.class);
+    final int instanceKlassMiscIsUnsafeAnonymous = getConstant("InstanceKlass::_misc_is_unsafe_anonymous", Integer.class);
 
     final int arrayU1LengthOffset = getFieldOffset("Array<int>::_length", Integer.class, "int");
     final int arrayU1DataOffset = getFieldOffset("Array<u1>::_data", Integer.class);
@@ -261,7 +261,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
      * @return the symbol at position id
      */
     String symbolAt(int index) {
-        HotSpotJVMCIRuntimeProvider runtime = runtime();
+        HotSpotJVMCIRuntime runtime = runtime();
         assert vmSymbolsFirstSID <= index && index < vmSymbolsSIDLimit : "index " + index + " is out of bounds";
         assert symbolPointerSize == Unsafe.ADDRESS_SIZE : "the following address read is broken";
         int offset = index * symbolPointerSize;

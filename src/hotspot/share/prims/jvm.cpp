@@ -38,6 +38,8 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/resourceArea.hpp"
@@ -65,7 +67,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
@@ -663,9 +665,10 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   oop new_obj_oop = NULL;
   if (obj->is_array()) {
     const int length = ((arrayOop)obj())->length();
-    new_obj_oop = CollectedHeap::array_allocate(klass, size, length, CHECK_NULL);
+    new_obj_oop = Universe::heap()->array_allocate(klass, size, length,
+                                                   /* do_zero */ true, CHECK_NULL);
   } else {
-    new_obj_oop = CollectedHeap::obj_allocate(klass, size, CHECK_NULL);
+    new_obj_oop = Universe::heap()->obj_allocate(klass, size, CHECK_NULL);
   }
 
   HeapAccess<>::clone(obj(), new_obj_oop, size);
@@ -1117,7 +1120,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
     return NULL;
   }
 
-  objArrayOop signers = java_lang_Class::signers(JNIHandles::resolve_non_null(cls));
+  objArrayHandle signers(THREAD, java_lang_Class::signers(JNIHandles::resolve_non_null(cls)));
 
   // If there are no signers set in the class, or if the class
   // is an array, return NULL.
@@ -1891,6 +1894,99 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
   return k->access_flags().as_int() & JVM_ACC_WRITTEN_FLAGS;
+}
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
+{
+  JVMWrapper("JVM_AreNestMates");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  Klass* m = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(member));
+  assert(m->is_instance_klass(), "must be");
+  InstanceKlass* mk = InstanceKlass::cast(m);
+  return ck->has_nestmate_access_to(mk, THREAD);
+}
+JVM_END
+
+JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestHost");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Don't post exceptions if validation fails
+  InstanceKlass* host = ck->nest_host(NULL, THREAD);
+  return (jclass) (host == NULL ? NULL :
+                   JNIHandles::make_local(THREAD, host->java_mirror()));
+}
+JVM_END
+
+JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
+{
+  // current is not a primitive or array class
+  JVMWrapper("JVM_GetNestMembers");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  assert(c->is_instance_klass(), "must be");
+  InstanceKlass* ck = InstanceKlass::cast(c);
+  // Get the nest host for this nest - throw ICCE if validation fails
+  Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+  InstanceKlass* host = ck->nest_host(icce, CHECK_NULL);
+
+  {
+    JvmtiVMObjectAllocEventCollector oam;
+    Array<u2>* members = host->nest_members();
+    int length = members == NULL ? 0 : members->length();
+    // nest host is first in the array so make it one bigger
+    objArrayOop r = oopFactory::new_objArray(SystemDictionary::Class_klass(),
+                                             length + 1, CHECK_NULL);
+    objArrayHandle result (THREAD, r);
+    result->obj_at_put(0, host->java_mirror());
+    if (length != 0) {
+      int i;
+      for (i = 0; i < length; i++) {
+         int cp_index = members->at(i);
+         Klass* k = host->constants()->klass_at(cp_index, CHECK_NULL);
+         if (k->is_instance_klass()) {
+           InstanceKlass* nest_host_k =
+             InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
+           if (nest_host_k == host) {
+             result->obj_at_put(i+1, k->java_mirror());
+           }
+           else {
+             // k's nest host is legal but it isn't our host so
+             // throw ICCE
+             ResourceMark rm(THREAD);
+             Exceptions::fthrow(THREAD_AND_LOCATION,
+                                icce,
+                                "Nest member %s in %s declares a different nest host of %s",
+                                k->external_name(),
+                                host->external_name(),
+                                nest_host_k->external_name()
+                           );
+             return NULL;
+           }
+         }
+         else {
+           // we have a bad nest member entry - throw ICCE
+           ResourceMark rm(THREAD);
+           Exceptions::fthrow(THREAD_AND_LOCATION,
+                              icce,
+                              "Class %s can not be a nest member of %s",
+                              k->external_name(),
+                              host->external_name()
+                              );
+           return NULL;
+         }
+      }
+    }
+    else {
+      assert(host == ck, "must be singleton nest");
+    }
+    return (jobjectArray)JNIHandles::make_local(THREAD, result());
+  }
 }
 JVM_END
 
@@ -3571,6 +3667,13 @@ JVM_END
 JVM_LEAF(jboolean, JVM_SupportsCX8())
   JVMWrapper("JVM_SupportsCX8");
   return VM_Version::supports_cx8();
+JVM_END
+
+JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
+  JVMWrapper("JVM_InitializeFromArchive");
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
+  assert(k->is_klass(), "just checking");
+  HeapShared::initialize_from_archived_subgraph(k);
 JVM_END
 
 // Returns an array of all live Thread objects (VM internal JavaThreads,

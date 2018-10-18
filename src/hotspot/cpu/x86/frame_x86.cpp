@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -526,7 +526,7 @@ bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
   Method* m = *interpreter_frame_method_addr();
 
   // validate the method we'd find in this potential sender
-  if (!m->is_valid_method()) return false;
+  if (!Method::is_valid_method(m)) return false;
 
   // stack frames shouldn't be much larger than max_stack elements
   // this test requires the use the unextended_sp which is the sp as seen by
@@ -643,7 +643,6 @@ void frame::describe_pd(FrameValues& values, int frame_no) {
     DESCRIBE_FP_OFFSET(interpreter_frame_mirror);
     DESCRIBE_FP_OFFSET(interpreter_frame_mdp);
     DESCRIBE_FP_OFFSET(interpreter_frame_cache);
-    DESCRIBE_FP_OFFSET(interpreter_frame_vt_alloc_ptr);
     DESCRIBE_FP_OFFSET(interpreter_frame_locals);
     DESCRIBE_FP_OFFSET(interpreter_frame_bcp);
     DESCRIBE_FP_OFFSET(interpreter_frame_initial_sp);

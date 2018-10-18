@@ -75,12 +75,12 @@ public class Test {
     // Then it loads the D2 variant of D from the current working directory and it's
     // superclass C. This fails as D1 is already loaded with the same superclass.
 
-    static String expectedErrorMessage =
-        "loader constraint violation: loader \"<unnamed>\" (instance of PreemptingClassLoader, " +
-        "child of \"app\" jdk.internal.loader.ClassLoaders$AppClassLoader) wants to load " +
-        "class test.D_ambgs. A different class with the same name was previously loaded " +
-        "by \"app\" (instance of jdk.internal.loader.ClassLoaders$AppClassLoader).";
-
+    // Break the expectedErrorMessage into 2 pieces since the loader name will include
+    // its identity hash and can not be compared against.
+    static String expectedErrorMessage_part1 = "loader constraint violation: loader PreemptingClassLoader @";
+    static String expectedErrorMessage_part2 = " wants to load class test.D_ambgs. A different class " +
+                                               "with the same name was previously loaded by 'app'. " +
+                                               "(test.D_ambgs is in unnamed module of loader 'app')";
     public static void test_access() throws Exception {
         try {
             // Make a Class 'D_ambgs' under the default loader.
@@ -101,8 +101,9 @@ public class Test {
             throw new RuntimeException("Expected LinkageError was not thrown.");
         } catch (LinkageError jle) {
             String errorMsg = jle.getMessage();
-            if (!errorMsg.equals(expectedErrorMessage)) {
-                System.out.println("Expected: " + expectedErrorMessage + "\n" +
+            if (!errorMsg.contains(expectedErrorMessage_part1) ||
+                !errorMsg.contains(expectedErrorMessage_part2)) {
+                System.out.println("Expected: " + expectedErrorMessage_part1 + "<id>" + expectedErrorMessage_part2 + "\n" +
                                    "but got:  " + errorMsg);
                 throw new RuntimeException("Wrong error message of LinkageError.");
             } else {
@@ -115,4 +116,3 @@ public class Test {
         test_access();
     }
 }
-

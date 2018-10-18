@@ -15,7 +15,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jmh.version>1.21</jmh.version>
-        <javac.target>11</javac.target>
+        <javac.target>12</javac.target>
         <uberjar.name>benchmarks</uberjar.name>
     </properties>
     
@@ -84,8 +84,12 @@
                 <version>3.1</version>
                 <configuration>
                     <compilerVersion>${javac.target}</compilerVersion>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>12</source>
+                    <target>12</target>
+                    <compilerArgs>
+                       <arg>-XDallowFlattenabilityModifiers</arg>
+                       <arg>-XDallowWithFieldOperator</arg>
+                    </compilerArgs>
 <!--                    <compilerArgs>
                          <arg>-XDenableValueTypes</arg>
 			 <arg>add-modules</arg><arg>jdk.incubator.mvt</arg>

@@ -265,9 +265,11 @@ static OopMap* save_live_registers(StubAssembler* sasm,
   __ push(RegSet::range(r0, r29), sp);         // integer registers except lr & sp
 
   if (save_fpu_registers) {
-    for (int i = 30; i >= 0; i -= 2)
-      __ stpd(as_FloatRegister(i), as_FloatRegister(i+1),
-              Address(__ pre(sp, -2 * wordSize)));
+    for (int i = 31; i>= 0; i -= 4) {
+      __ sub(sp, sp, 4 * wordSize); // no pre-increment for st1. Emulate it without modifying other registers
+      __ st1(as_FloatRegister(i-3), as_FloatRegister(i-2), as_FloatRegister(i-1),
+          as_FloatRegister(i), __ T1D, Address(sp));
+    }
   } else {
     __ add(sp, sp, -32 * wordSize);
   }
@@ -277,9 +279,9 @@ static OopMap* save_live_registers(StubAssembler* sasm,
 
 static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registers = true) {
   if (restore_fpu_registers) {
-    for (int i = 0; i < 32; i += 2)
-      __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
-              Address(__ post(sp, 2 * wordSize)));
+    for (int i = 0; i < 32; i += 4)
+      __ ld1(as_FloatRegister(i), as_FloatRegister(i+1), as_FloatRegister(i+2),
+          as_FloatRegister(i+3), __ T1D, Address(__ post(sp, 4 * wordSize)));
   } else {
     __ add(sp, sp, 32 * wordSize);
   }
@@ -290,9 +292,9 @@ static void restore_live_registers(StubAssembler* sasm, bool restore_fpu_registe
 static void restore_live_registers_except_r0(StubAssembler* sasm, bool restore_fpu_registers = true)  {
 
   if (restore_fpu_registers) {
-    for (int i = 0; i < 32; i += 2)
-      __ ldpd(as_FloatRegister(i), as_FloatRegister(i+1),
-              Address(__ post(sp, 2 * wordSize)));
+    for (int i = 0; i < 32; i += 4)
+      __ ld1(as_FloatRegister(i), as_FloatRegister(i+1), as_FloatRegister(i+2),
+          as_FloatRegister(i+3), __ T1D, Address(__ post(sp, 4 * wordSize)));
   } else {
     __ add(sp, sp, 32 * wordSize);
   }
@@ -323,7 +325,7 @@ void Runtime1::initialize_pd() {
 
 
 // target: the entry point of the method that creates and posts the exception oop
-// has_argument: true if the exception needs arguments (passed in r22 and r23)
+// has_argument: true if the exception needs arguments (passed in rscratch1 and rscratch2)
 
 OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address target, bool has_argument) {
   // make a frame and preserve the caller's caller-save registers
@@ -332,7 +334,9 @@ OopMapSet* Runtime1::generate_exception_throw(StubAssembler* sasm, address targe
   if (!has_argument) {
     call_offset = __ call_RT(noreg, noreg, target);
   } else {
-    call_offset = __ call_RT(noreg, noreg, target, r22, r23);
+    __ mov(c_rarg1, rscratch1);
+    __ mov(c_rarg2, rscratch2);
+    call_offset = __ call_RT(noreg, noreg, target);
   }
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(call_offset, oop_map);
@@ -683,8 +687,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ set_info("fast new_instance init check", dont_gc_arguments);
         }
 
+        // If TLAB is disabled, see if there is support for inlining contiguous
+        // allocations.
+        // Otherwise, just go to the slow path.
         if ((id == fast_new_instance_id || id == fast_new_instance_init_check_id) &&
-            UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
+            !UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
           Label slow_path;
           Register obj_size = r2;
           Register t1       = r19;
@@ -705,7 +712,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           {
             Label ok, not_ok;
             __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
-            __ cmp(obj_size, 0u);
+            __ cmp(obj_size, (u1)0);
             __ br(Assembler::LE, not_ok);  // make sure it's an instance (LH > 0)
             __ tstw(obj_size, Klass::_lh_instance_slow_path_bit);
             __ br(Assembler::EQ, ok);
@@ -720,7 +727,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ ldrw(obj_size, Address(klass, Klass::layout_helper_offset()));
 
           __ eden_allocate(obj, obj_size, 0, t1, slow_path);
-          __ incr_allocated_bytes(rthread, obj_size, 0, rscratch1);
 
           __ initialize_object(obj, klass, obj_size, 0, t1, t2, /* is_tlab_allocated */ false);
           __ verify_oop(obj);
@@ -796,7 +802,10 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         }
 #endif // ASSERT
 
-        if (UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
+        // If TLAB is disabled, see if there is support for inlining contiguous
+        // allocations.
+        // Otherwise, just go to the slow path.
+        if (!UseTLAB && Universe::heap()->supports_inline_contig_alloc()) {
           Register arr_size = r4;
           Register t1       = r2;
           Register t2       = r5;
@@ -821,7 +830,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ andr(arr_size, arr_size, ~MinObjAlignmentInBytesMask);
 
           __ eden_allocate(obj, arr_size, 0, t1, slow_path);  // preserves arr_size
-          __ incr_allocated_bytes(rthread, arr_size, 0, rscratch1);
 
           __ initialize_header(obj, klass, length, t1, t2);
           __ ldrb(t1, Address(klass, in_bytes(Klass::layout_helper_offset()) + (Klass::_lh_header_size_shift / BitsPerByte)));

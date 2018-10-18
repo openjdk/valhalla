@@ -23,13 +23,13 @@
 
 package runtime.valhalla.valuetypes;
 
-__ByValue final class EmptyValue {
+value final class EmptyValue {
 
     private EmptyValue() {
     }
 
     public static EmptyValue createEmptyValue() {
-        EmptyValue e = __MakeDefault EmptyValue();
+        EmptyValue e = EmptyValue.default;
         return e;
     }
 }

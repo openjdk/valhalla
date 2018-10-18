@@ -39,7 +39,7 @@ import java.lang.reflect.Method;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  *          java.base/jdk.internal.misc:+open
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestMethodHandles.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestMethodHandles.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -146,7 +146,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestMethodHandles test = new TestMethodHandles();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class);
     }
 
     // Everything inlined
@@ -160,8 +160,8 @@ public class TestMethodHandles extends ValueTypeTest {
     static final MethodHandle test1_mh;
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
-    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 11 })
-    MyValue3 test1() throws Throwable {
+    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 12 })
+    public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
 
@@ -181,7 +181,7 @@ public class TestMethodHandles extends ValueTypeTest {
     static final MethodHandle test2_mh;
 
     @Test
-    MyValue3 test2() throws Throwable {
+    public MyValue3 test2() throws Throwable {
         return (MyValue3)test2_mh.invokeExact(this);
     }
 
@@ -206,7 +206,7 @@ public class TestMethodHandles extends ValueTypeTest {
     static final MethodHandle test3_mh;
 
     @Test
-    MyValue3 test3() throws Throwable {
+    public MyValue3 test3() throws Throwable {
         return (MyValue3)test3_mh.invokeExact(this);
     }
 
@@ -289,7 +289,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
-    MyValue3 test6() throws Throwable {
+    public MyValue3 test6() throws Throwable {
         return (MyValue3)test6_mh.invokeExact(this);
     }
 
@@ -323,7 +323,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
-    long test7() throws Throwable {
+    public long test7() throws Throwable {
         return ((MyValue2)test7_mh.invokeExact(test7_mh1)).hash();
     }
 
@@ -357,7 +357,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
-    long test8() throws Throwable {
+    public long test8() throws Throwable {
         return ((MyValue2)test8_mh.invokeExact(test8_mh2)).hash();
     }
 
@@ -404,7 +404,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
-    MyValue3 test9() throws Throwable {
+    public MyValue3 test9() throws Throwable {
         return (MyValue3)test9_mh.invokeExact(this);
     }
 
@@ -452,7 +452,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
-    long test10() throws Throwable {
+    public long test10() throws Throwable {
         return ((MyValue2)test10_mh.invokeExact(test10_mh2, test10_mh3)).hash();
     }
 
@@ -494,7 +494,7 @@ public class TestMethodHandles extends ValueTypeTest {
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
     @Test(valid = ValueTypeReturnedAsFieldsOff)
     @Warmup(11000)
-    long test11() throws Throwable {
+    public long test11() throws Throwable {
         return ((MyValue2)test11_mh.invokeExact(test11_mh2)).hash();
     }
 
@@ -523,11 +523,13 @@ public class TestMethodHandles extends ValueTypeTest {
 
     // Test passing null for a value type
     @Test
+    @Warmup(11000) // Make sure lambda forms get compiled
     public void test12() throws Throwable {
         test12_mh1.invokeExact(nullValue);
         test12_mh2.invokeExact(nullValue);
     }
 
+    @DontCompile
     public void test12_verifier(boolean warmup) {
         try {
             test12();
@@ -551,11 +553,13 @@ public class TestMethodHandles extends ValueTypeTest {
 
     // Same as test12 but with non-final mh
     @Test
+    @Warmup(11000) // Make sure lambda forms get compiled
     public void test13() throws Throwable {
         test13_mh1.invokeExact(nullValue);
         test13_mh2.invokeExact(nullValue);
     }
 
+    @DontCompile
     public void test13_verifier(boolean warmup) {
         try {
             test13();
@@ -564,4 +568,22 @@ public class TestMethodHandles extends ValueTypeTest {
         }
     }
 
+    // Same as test12/13 but with constant null
+    @Test
+    @Warmup(11000) // Make sure lambda forms get compiled
+    public void test14(MethodHandle mh) throws Throwable {
+        mh.invoke(null);
+    }
+
+    @DontCompile
+    public void test14_verifier(boolean warmup) {
+        try {
+            test14(test12_mh1);
+            test14(test12_mh2);
+            test14(test13_mh1);
+            test14(test13_mh2);
+        } catch (Throwable t) {
+            throw new RuntimeException("test14 failed", t);
+        }
+    }
 }

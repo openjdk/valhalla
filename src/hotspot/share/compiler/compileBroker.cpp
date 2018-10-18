@@ -170,21 +170,23 @@ elapsedTimer CompileBroker::_t_standard_compilation;
 elapsedTimer CompileBroker::_t_invalidated_compilation;
 elapsedTimer CompileBroker::_t_bailedout_compilation;
 
-int CompileBroker::_total_bailout_count          = 0;
-int CompileBroker::_total_invalidated_count      = 0;
-int CompileBroker::_total_compile_count          = 0;
-int CompileBroker::_total_osr_compile_count      = 0;
-int CompileBroker::_total_standard_compile_count = 0;
+int CompileBroker::_total_bailout_count            = 0;
+int CompileBroker::_total_invalidated_count        = 0;
+int CompileBroker::_total_compile_count            = 0;
+int CompileBroker::_total_osr_compile_count        = 0;
+int CompileBroker::_total_standard_compile_count   = 0;
+int CompileBroker::_total_compiler_stopped_count   = 0;
+int CompileBroker::_total_compiler_restarted_count = 0;
 
-int CompileBroker::_sum_osr_bytes_compiled       = 0;
-int CompileBroker::_sum_standard_bytes_compiled  = 0;
-int CompileBroker::_sum_nmethod_size             = 0;
-int CompileBroker::_sum_nmethod_code_size        = 0;
+int CompileBroker::_sum_osr_bytes_compiled         = 0;
+int CompileBroker::_sum_standard_bytes_compiled    = 0;
+int CompileBroker::_sum_nmethod_size               = 0;
+int CompileBroker::_sum_nmethod_code_size          = 0;
 
-long CompileBroker::_peak_compilation_time       = 0;
+long CompileBroker::_peak_compilation_time         = 0;
 
-CompileQueue* CompileBroker::_c2_compile_queue   = NULL;
-CompileQueue* CompileBroker::_c1_compile_queue   = NULL;
+CompileQueue* CompileBroker::_c2_compile_queue     = NULL;
+CompileQueue* CompileBroker::_c1_compile_queue     = NULL;
 
 
 
@@ -528,7 +530,6 @@ CompileQueue* CompileBroker::compile_queue(int comp_level) {
 
 void CompileBroker::print_compile_queues(outputStream* st) {
   st->print_cr("Current compiles: ");
-  MutexLocker locker(MethodCompileQueue_lock);
 
   char buf[2000];
   int buflen = sizeof(buf);
@@ -544,7 +545,7 @@ void CompileBroker::print_compile_queues(outputStream* st) {
 }
 
 void CompileQueue::print(outputStream* st) {
-  assert(MethodCompileQueue_lock->owned_by_self(), "must own lock");
+  assert_locked_or_safepoint(MethodCompileQueue_lock);
   st->print_cr("%s:", name());
   CompileTask* task = _first;
   if (task == NULL) {
@@ -1784,6 +1785,11 @@ void CompileBroker::compiler_thread_loop() {
             tty->print_cr("Removing compiler thread %s after " JLONG_FORMAT " ms idle time",
                           thread->name(), thread->idle_time_millis());
           }
+          // Free buffer blob, if allocated
+          if (thread->get_buffer_blob() != NULL) {
+            MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+            CodeCache::free(thread->get_buffer_blob());
+          }
           return; // Stop this thread.
         }
       }
@@ -1792,12 +1798,6 @@ void CompileBroker::compiler_thread_loop() {
 
     if (UseDynamicNumberOfCompilerThreads) {
       possibly_add_compiler_threads();
-    }
-
-    // Give compiler threads an extra quanta.  They tend to be bursty and
-    // this helps the compiler to finish up the job.
-    if (CompilerThreadHintNoPreempt) {
-      os::hint_no_preempt();
     }
 
     // Assign the task to the current thread.  Mark this compilation

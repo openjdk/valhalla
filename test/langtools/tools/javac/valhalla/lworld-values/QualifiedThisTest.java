@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla QualifiedThisTest
  */
 
-public __ByValue  class QualifiedThisTest {
+public value  class QualifiedThisTest {
 
     final int x;
     final int y;

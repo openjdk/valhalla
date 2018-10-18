@@ -295,7 +295,7 @@ class PrePost {
   int _offset;
   Register _r;
 public:
-  PrePost(Register reg, int o) : _r(reg), _offset(o) { }
+  PrePost(Register reg, int o) : _offset(o), _r(reg) { }
   int offset() { return _offset; }
   Register reg() { return _r; }
 };
@@ -305,8 +305,11 @@ public:
   Pre(Register reg, int o) : PrePost(reg, o) { }
 };
 class Post : public PrePost {
+  Register _idx;
 public:
-  Post(Register reg, int o) : PrePost(reg, o) { }
+  Post(Register reg, int o) : PrePost(reg, o) { _idx = NULL; }
+  Post(Register reg, Register idx) : PrePost(reg, 0) { _idx = idx; }
+  Register idx_reg() { return _idx; }
 };
 
 namespace ext
@@ -341,7 +344,7 @@ static inline unsigned long uabs(int n) { return uabs((unsigned int)n); }
 class Address {
  public:
 
-  enum mode { no_mode, base_plus_offset, pre, post, pcrel,
+  enum mode { no_mode, base_plus_offset, pre, post, post_reg, pcrel,
               base_plus_offset_reg, literal };
 
   // Shift and extend for base reg + reg offset addressing
@@ -350,7 +353,7 @@ class Address {
     ext::operation _op;
   public:
     extend() { }
-    extend(int s, int o, ext::operation op) : _shift(s), _option(o), _op(op) { }
+    extend(int s, int o, ext::operation op) : _option(o), _shift(s), _op(op) { }
     int option() const{ return _option; }
     int shift() const { return _shift; }
     ext::operation op() const { return _op; }
@@ -395,25 +398,25 @@ class Address {
   Address()
     : _mode(no_mode) { }
   Address(Register r)
-    : _mode(base_plus_offset), _base(r), _offset(0), _index(noreg), _target(0) { }
+    : _base(r), _index(noreg), _offset(0), _mode(base_plus_offset), _target(0) { }
   Address(Register r, int o)
-    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg), _target(0) { }
+    : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
   Address(Register r, long o)
-    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg), _target(0) { }
+    : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
   Address(Register r, unsigned long o)
-    : _mode(base_plus_offset), _base(r), _offset(o), _index(noreg), _target(0) { }
+    : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
 #ifdef ASSERT
   Address(Register r, ByteSize disp)
-    : _mode(base_plus_offset), _base(r), _offset(in_bytes(disp)),
-      _index(noreg), _target(0) { }
+    : _base(r), _index(noreg), _offset(in_bytes(disp)), _mode(base_plus_offset), _target(0) { }
 #endif
   Address(Register r, Register r1, extend ext = lsl())
-    : _mode(base_plus_offset_reg), _base(r), _index(r1),
-    _ext(ext), _offset(0), _target(0) { }
+    : _base(r), _index(r1), _offset(0), _mode(base_plus_offset_reg),
+      _ext(ext), _target(0) { }
   Address(Pre p)
-    : _mode(pre), _base(p.reg()), _offset(p.offset()) { }
+    : _base(p.reg()), _offset(p.offset()), _mode(pre) { }
   Address(Post p)
-    : _mode(post), _base(p.reg()), _offset(p.offset()), _target(0) { }
+    : _base(p.reg()),  _index(p.idx_reg()), _offset(p.offset()),
+      _mode(p.idx_reg() == NULL ? post : post_reg), _target(0) { }
   Address(address target, RelocationHolder const& rspec)
     : _mode(literal),
       _rspec(rspec),
@@ -422,7 +425,7 @@ class Address {
   Address(address target, relocInfo::relocType rtype = relocInfo::external_word_type);
   Address(Register base, RegisterOrConstant index, extend ext = lsl())
     : _base (base),
-      _ext(ext), _offset(0), _target(0) {
+      _offset(0), _ext(ext), _target(0) {
     if (index.is_register()) {
       _mode = base_plus_offset_reg;
       _index = index.as_register();
@@ -436,7 +439,7 @@ class Address {
 
   Register base() const {
     guarantee((_mode == base_plus_offset | _mode == base_plus_offset_reg
-               | _mode == post),
+               | _mode == post | _mode == post_reg),
               "wrong mode");
     return _base;
   }
@@ -660,8 +663,12 @@ public:
     return adjust(base, offset, true);
   }
 
-  Address post (Register base, int offset) {
+  Address post(Register base, int offset) {
     return adjust(base, offset, false);
+  }
+
+  Address post(Register base, Register idx) {
+    return Address(Post(base, idx));
   }
 
   Instruction_aarch64* current;
@@ -1630,12 +1637,14 @@ void mvnw(Register Rd, Register Rm,
 #undef INSN
 
   // Conditional compare (both kinds)
-  void conditional_compare(unsigned op, int o2, int o3,
+  void conditional_compare(unsigned op, int o1, int o2, int o3,
                            Register Rn, unsigned imm5, unsigned nzcv,
                            unsigned cond) {
+    starti;
     f(op, 31, 29);
     f(0b11010010, 28, 21);
     f(cond, 15, 12);
+    f(o1, 11);
     f(o2, 10);
     f(o3, 4);
     f(nzcv, 3, 0);
@@ -1644,15 +1653,12 @@ void mvnw(Register Rd, Register Rm,
 
 #define INSN(NAME, op)                                                  \
   void NAME(Register Rn, Register Rm, int imm, Condition cond) {        \
-    starti;                                                             \
-    f(0, 11);                                                           \
-    conditional_compare(op, 0, 0, Rn, (uintptr_t)Rm, imm, cond);        \
+    int regNumber = (Rm == zr ? 31 : (uintptr_t)Rm);                    \
+    conditional_compare(op, 0, 0, 0, Rn, regNumber, imm, cond);         \
   }                                                                     \
                                                                         \
-  void NAME(Register Rn, int imm5, int imm, Condition cond) {   \
-    starti;                                                             \
-    f(1, 11);                                                           \
-    conditional_compare(op, 0, 0, Rn, imm5, imm, cond);                 \
+  void NAME(Register Rn, int imm5, int imm, Condition cond) {           \
+    conditional_compare(op, 1, 0, 0, Rn, imm5, imm, cond);              \
   }
 
   INSN(ccmnw, 0b001);
@@ -2017,6 +2023,57 @@ public:
       fmovd(Vn, zr);
   }
 
+   // Floating-point rounding
+   // type: half-precision = 11
+   //       single         = 00
+   //       double         = 01
+   // rmode: A = Away     = 100
+   //        I = current  = 111
+   //        M = MinusInf = 010
+   //        N = eveN     = 000
+   //        P = PlusInf  = 001
+   //        X = eXact    = 110
+   //        Z = Zero     = 011
+  void float_round(unsigned type, unsigned rmode, FloatRegister Rd, FloatRegister Rn) {
+    starti;
+    f(0b00011110, 31, 24);
+    f(type, 23, 22);
+    f(0b1001, 21, 18);
+    f(rmode, 17, 15);
+    f(0b10000, 14, 10);
+    rf(Rn, 5), rf(Rd, 0);
+  }
+#define INSN(NAME, type, rmode)                   \
+  void NAME(FloatRegister Vd, FloatRegister Vn) { \
+    float_round(type, rmode, Vd, Vn);             \
+  }
+
+public:
+  INSN(frintah, 0b11, 0b100);
+  INSN(frintih, 0b11, 0b111);
+  INSN(frintmh, 0b11, 0b010);
+  INSN(frintnh, 0b11, 0b000);
+  INSN(frintph, 0b11, 0b001);
+  INSN(frintxh, 0b11, 0b110);
+  INSN(frintzh, 0b11, 0b011);
+
+  INSN(frintas, 0b00, 0b100);
+  INSN(frintis, 0b00, 0b111);
+  INSN(frintms, 0b00, 0b010);
+  INSN(frintns, 0b00, 0b000);
+  INSN(frintps, 0b00, 0b001);
+  INSN(frintxs, 0b00, 0b110);
+  INSN(frintzs, 0b00, 0b011);
+
+  INSN(frintad, 0b01, 0b100);
+  INSN(frintid, 0b01, 0b111);
+  INSN(frintmd, 0b01, 0b010);
+  INSN(frintnd, 0b01, 0b000);
+  INSN(frintpd, 0b01, 0b001);
+  INSN(frintxd, 0b01, 0b110);
+  INSN(frintzd, 0b01, 0b011);
+#undef INSN
+
 /* SIMD extensions
  *
  * We just use FloatRegister in the following. They are exactly the same
@@ -2032,6 +2089,10 @@ public:
        B, H, S, D, Q
   };
 
+private:
+  static short SIMD_Size_in_bytes[];
+
+public:
 #define INSN(NAME, op)                                            \
   void NAME(FloatRegister Rt, SIMD_RegVariant T, const Address &adr) {   \
     ld_st2((Register)Rt, adr, (int)T & 3, op + ((T==Q) ? 0b10:0b00), 1); \
@@ -2051,7 +2112,8 @@ public:
     f((int)T >> 1, 11, 10), srf(Xn, 5), rf(Vt, 0);
   }
   void ld_st(FloatRegister Vt, SIMD_Arrangement T, Register Xn,
-             int imm, int op1, int op2) {
+             int imm, int op1, int op2, int regs) {
+    guarantee(T <= T1Q && imm == SIMD_Size_in_bytes[T] * regs, "bad offset");
     starti;
     f(0,31), f((int)T & 1, 30);
     f(op1 | 0b100, 29, 21), f(0b11111, 20, 16), f(op2, 15, 12);
@@ -2065,34 +2127,34 @@ public:
     f((int)T >> 1, 11, 10), srf(Xn, 5), rf(Vt, 0);
   }
 
- void ld_st(FloatRegister Vt, SIMD_Arrangement T, Address a, int op1, int op2) {
-   switch (a.getMode()) {
-   case Address::base_plus_offset:
-     guarantee(a.offset() == 0, "no offset allowed here");
-     ld_st(Vt, T, a.base(), op1, op2);
-     break;
-   case Address::post:
-     ld_st(Vt, T, a.base(), a.offset(), op1, op2);
-     break;
-   case Address::base_plus_offset_reg:
-     ld_st(Vt, T, a.base(), a.index(), op1, op2);
-     break;
-   default:
-     ShouldNotReachHere();
-   }
- }
+  void ld_st(FloatRegister Vt, SIMD_Arrangement T, Address a, int op1, int op2, int regs) {
+    switch (a.getMode()) {
+    case Address::base_plus_offset:
+      guarantee(a.offset() == 0, "no offset allowed here");
+      ld_st(Vt, T, a.base(), op1, op2);
+      break;
+    case Address::post:
+      ld_st(Vt, T, a.base(), a.offset(), op1, op2, regs);
+      break;
+    case Address::post_reg:
+      ld_st(Vt, T, a.base(), a.index(), op1, op2);
+      break;
+    default:
+      ShouldNotReachHere();
+    }
+  }
 
  public:
 
-#define INSN1(NAME, op1, op2)                                   \
+#define INSN1(NAME, op1, op2)                                           \
   void NAME(FloatRegister Vt, SIMD_Arrangement T, const Address &a) {   \
-   ld_st(Vt, T, a, op1, op2);                                           \
+    ld_st(Vt, T, a, op1, op2, 1);                                       \
  }
 
 #define INSN2(NAME, op1, op2)                                           \
   void NAME(FloatRegister Vt, FloatRegister Vt2, SIMD_Arrangement T, const Address &a) { \
     assert(Vt->successor() == Vt2, "Registers must be ordered");        \
-    ld_st(Vt, T, a, op1, op2);                                          \
+    ld_st(Vt, T, a, op1, op2, 2);                                       \
   }
 
 #define INSN3(NAME, op1, op2)                                           \
@@ -2100,7 +2162,7 @@ public:
             SIMD_Arrangement T, const Address &a) {                     \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3,           \
            "Registers must be ordered");                                \
-    ld_st(Vt, T, a, op1, op2);                                          \
+    ld_st(Vt, T, a, op1, op2, 3);                                       \
   }
 
 #define INSN4(NAME, op1, op2)                                           \
@@ -2108,7 +2170,7 @@ public:
             FloatRegister Vt4, SIMD_Arrangement T, const Address &a) {  \
     assert(Vt->successor() == Vt2 && Vt2->successor() == Vt3 &&         \
            Vt3->successor() == Vt4, "Registers must be ordered");       \
-    ld_st(Vt, T, a, op1, op2);                                          \
+    ld_st(Vt, T, a, op1, op2, 4);                                       \
   }
 
   INSN1(ld1,  0b001100010, 0b0111);
@@ -2281,6 +2343,42 @@ public:
 
 #undef INSN
 
+#define INSN(NAME, op1, op2) \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm, int index = 0) { \
+    starti;                                                                                            \
+    assert(T == T2S || T == T4S || T == T2D, "invalid arrangement");                                   \
+    assert(index >= 0 && ((T == T2D && index <= 1) || (T != T2D && index <= 3)), "invalid index");     \
+    f(0, 31), f((int)T & 1, 30), f(op1, 29); f(0b011111, 28, 23);                                      \
+    f(T == T2D ? 1 : 0, 22), f(T == T2D ? 0 : index & 1, 21), rf(Vm, 16);                              \
+    f(op2, 15, 12), f(T == T2D ? index : (index >> 1), 11), f(0, 10);                                  \
+    rf(Vn, 5), rf(Vd, 0);                                                                              \
+  }
+
+  // FMLA/FMLS - Vector - Scalar
+  INSN(fmlavs, 0, 0b0001);
+  INSN(fmlsvs, 0, 0b0001);
+  // FMULX - Vector - Scalar
+  INSN(fmulxvs, 1, 0b1001);
+
+#undef INSN
+
+  // Floating-point Reciprocal Estimate
+  void frecpe(FloatRegister Vd, FloatRegister Vn, SIMD_RegVariant type) {
+    assert(type == D || type == S, "Wrong type for frecpe");
+    starti;
+    f(0b010111101, 31, 23);
+    f(type == D ? 1 : 0, 22);
+    f(0b100001110110, 21, 10);
+    rf(Vn, 5), rf(Vd, 0);
+  }
+
+  // (double) {a, b} -> (a + b)
+  void faddpd(FloatRegister Vd, FloatRegister Vn) {
+    starti;
+    f(0b0111111001110000110110, 31, 10);
+    rf(Vn, 5), rf(Vd, 0);
+  }
+
   void ins(FloatRegister Vd, SIMD_RegVariant T, FloatRegister Vn, int didx, int sidx) {
     starti;
     assert(T != Q, "invalid register variant");
@@ -2339,15 +2437,6 @@ public:
   }
   void ushll2(FloatRegister Vd, SIMD_Arrangement Ta, FloatRegister Vn,  SIMD_Arrangement Tb, int shift) {
     ushll(Vd, Ta, Vn, Tb, shift);
-  }
-
-  void uzp1(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T, int op = 0){
-    starti;
-    f(0, 31), f((T & 0x1), 30), f(0b001110, 29, 24), f((T >> 1), 23, 22), f(0, 21);
-    rf(Vm, 16), f(0, 15), f(op, 14), f(0b0110, 13, 10), rf(Vn, 5), rf(Vd, 0);
-  }
-  void uzp2(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm,  SIMD_Arrangement T){
-    uzp1(Vd, Vn, Vm, T, 1);
   }
 
   // Move from general purpose register

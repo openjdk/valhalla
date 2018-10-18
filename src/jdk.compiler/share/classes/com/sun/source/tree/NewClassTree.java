@@ -51,17 +51,6 @@ import java.util.List;
 public interface NewClassTree extends ExpressionTree {
 
     /**
-     * There are two kinds of new class trees: (i) references (new String("Foo"))
-     * (ii) default values (__MakeDefault Point())
-     */
-    public enum CreationMode {
-        /** enum constant for reference creation. */
-        NEW,
-        /** enum constant for default value creation. */
-        DEFAULT_VALUE,
-    }
-
-    /**
      * Returns the enclosing expression, or {@code null} if none.
      * @return the enclosing expression
      */

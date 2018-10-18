@@ -24,7 +24,8 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on value array
- * @compile -XDallowFlattenabilityModifiers Point.java NonFlattenValue.java
+ * @compile -XDallowFlattenabilityModifiers -XDallowWithFieldOperator Point.java NonFlattenValue.java
+ * @compile -XDallowFlattenabilityModifiers -XDallowWithFieldOperator ValueArray.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+ValueArrayFlatten ValueArray
  * @run testng/othervm -XX:+EnableValhalla -XX:-ValueArrayFlatten ValueArray
  */
@@ -134,13 +135,13 @@ public class ValueArray {
         }
     }
 
-    static __ByValue class PointArray {
+    static value class PointArray {
         public Point[] points;
         PointArray() {
             points = new Point[0];
         }
         public static PointArray makeArray(Point... points) {
-            PointArray a = __MakeDefault PointArray();
+            PointArray a = PointArray.default;
             a = __WithField(a.points, points);
             return a;
         }

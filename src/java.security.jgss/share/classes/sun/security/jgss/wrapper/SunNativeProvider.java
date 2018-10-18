@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,10 +51,8 @@ public final class SunNativeProvider extends Provider {
     private static final String INFO = "Sun Native GSS provider";
     private static final String MF_CLASS =
         "sun.security.jgss.wrapper.NativeGSSFactory";
-    private static final String LIB_PROP = "sun.security.jgss.lib";
-    private static final String DEBUG_PROP = "sun.security.nativegss.debug";
-    private static HashMap<String, String> MECH_MAP;
-    static final Provider INSTANCE = new SunNativeProvider();
+    private static final HashMap<String, String> MECH_MAP;
+    static final Provider INSTANCE;
     static boolean DEBUG;
     static void debug(String message) {
         if (DEBUG) {
@@ -70,8 +68,8 @@ public final class SunNativeProvider extends Provider {
             AccessController.doPrivileged(
                 new PrivilegedAction<HashMap<String, String>>() {
                     public HashMap<String, String> run() {
-                        DEBUG = Boolean.parseBoolean
-                            (System.getProperty(DEBUG_PROP));
+                        DEBUG = Boolean.parseBoolean(
+                            System.getProperty("sun.security.nativegss.debug"));
                         try {
                             System.loadLibrary("j2gss");
                         } catch (Error err) {
@@ -80,7 +78,8 @@ public final class SunNativeProvider extends Provider {
                             return null;
                         }
                         String[] gssLibs = new String[0];
-                        String defaultLib = System.getProperty(LIB_PROP);
+                        String defaultLib
+                                = System.getProperty("sun.security.jgss.lib");
                         if (defaultLib == null || defaultLib.trim().equals("")) {
                             String osname = System.getProperty("os.name");
                             if (osname.startsWith("SunOS")) {
@@ -117,6 +116,8 @@ public final class SunNativeProvider extends Provider {
                         return null;
                     }
                 });
+        // initialize INSTANCE after MECH_MAP is constructed
+        INSTANCE = new SunNativeProvider();
     }
 
     public SunNativeProvider() {

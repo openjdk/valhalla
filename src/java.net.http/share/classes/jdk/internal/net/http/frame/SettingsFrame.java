@@ -110,14 +110,14 @@ public class SettingsFrame extends Http2Frame {
         return TYPE;
     }
 
-    public int getParameter(int paramID) {
+    public synchronized int getParameter(int paramID) {
         if (paramID > MAX_PARAM) {
             throw new IllegalArgumentException("illegal parameter");
         }
         return parameters[paramID - 1];
     }
 
-    public SettingsFrame setParameter(int paramID, int value) {
+    public synchronized SettingsFrame setParameter(int paramID, int value) {
         if (paramID > MAX_PARAM) {
             throw new IllegalArgumentException("illegal parameter");
         }
@@ -161,14 +161,24 @@ public class SettingsFrame extends Http2Frame {
         }
     }
 
-    public static SettingsFrame getDefaultSettings() {
+    // The initial value is 4,096 octets.
+    public static final int DEFAULT_HEADER_TABLE_SIZE = 4 * K;
+    // The initial value is 1, which indicates that server push is permitted.
+    public static final int DEFAULT_ENABLE_PUSH = 1;
+    // Initially, there is no limit to this value. This limit is directional.
+    public static final int DEFAULT_MAX_CONCURRENT_STREAMS = Integer.MAX_VALUE;
+    // The initial value is 2^16-1 (65,535) octets.
+    public static final int DEFAULT_INITIAL_WINDOW_SIZE = 64 * K -1;
+    // The initial value is 2^14 (16,384) octets.
+    public static final int DEFAULT_MAX_FRAME_SIZE = 16 * K;
+
+    public static SettingsFrame defaultRFCSettings() {
         SettingsFrame f = new SettingsFrame();
-        // TODO: check these values
-        f.setParameter(ENABLE_PUSH, 1);
-        f.setParameter(HEADER_TABLE_SIZE, 4 * K);
-        f.setParameter(MAX_CONCURRENT_STREAMS, 35);
-        f.setParameter(INITIAL_WINDOW_SIZE, 64 * K - 1);
-        f.setParameter(MAX_FRAME_SIZE, 16 * K);
+        f.setParameter(ENABLE_PUSH, DEFAULT_ENABLE_PUSH);
+        f.setParameter(HEADER_TABLE_SIZE, DEFAULT_HEADER_TABLE_SIZE);
+        f.setParameter(MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONCURRENT_STREAMS);
+        f.setParameter(INITIAL_WINDOW_SIZE, DEFAULT_INITIAL_WINDOW_SIZE);
+        f.setParameter(MAX_FRAME_SIZE, DEFAULT_MAX_FRAME_SIZE);
         return f;
     }
 }

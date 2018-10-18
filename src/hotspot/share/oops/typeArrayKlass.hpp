@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,10 @@
 
 class TypeArrayKlass : public ArrayKlass {
   friend class VMStructs;
+
+ public:
+  static const KlassID ID = TypeArrayKlassID;
+
  private:
   jint _max_length;            // maximum number of elements allowed in an array
 
@@ -52,10 +56,8 @@ class TypeArrayKlass : public ArrayKlass {
   // klass allocation
   static TypeArrayKlass* create_klass(BasicType type, const char* name_str,
                                TRAPS);
-  static inline Klass* create_klass(BasicType type, int scale, TRAPS) {
-    TypeArrayKlass* tak = create_klass(type, external_name(type), CHECK_NULL);
-    assert(scale == (1 << tak->log2_element_size()), "scale must check out");
-    return tak;
+  static TypeArrayKlass* create_klass(BasicType type, TRAPS) {
+    return create_klass(type, external_name(type), THREAD);
   }
 
   int oop_size(oop obj) const;
@@ -87,28 +89,20 @@ class TypeArrayKlass : public ArrayKlass {
 
  private:
   // The implementation used by all oop_oop_iterate functions in TypeArrayKlasses.
-  inline void oop_oop_iterate_impl(oop obj, ExtendedOopClosure* closure);
+  inline void oop_oop_iterate_impl(oop obj, OopIterateClosure* closure);
 
+ public:
   // Wraps oop_oop_iterate_impl to conform to macros.
-  template <bool nv, typename OopClosureType>
+  template <typename T, typename OopClosureType>
   inline void oop_oop_iterate(oop obj, OopClosureType* closure);
 
   // Wraps oop_oop_iterate_impl to conform to macros.
-  template <bool nv, typename OopClosureType>
+  template <typename T, typename OopClosureType>
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
- public:
-
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL)
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_RANGE)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_RANGE)
-
-#if INCLUDE_OOP_OOP_ITERATE_BACKWARDS
-  ALL_OOP_OOP_ITERATE_CLOSURES_1(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-  ALL_OOP_OOP_ITERATE_CLOSURES_2(OOP_OOP_ITERATE_DECL_NO_BACKWARDS)
-#endif
-
+  // Wraps oop_oop_iterate_impl to conform to macros.
+  template <typename T, typename OopClosureType>
+  inline void oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
 
  protected:
   // Find n'th dimensional array

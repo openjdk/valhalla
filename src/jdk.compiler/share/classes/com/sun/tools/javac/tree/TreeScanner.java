@@ -181,8 +181,13 @@ public class TreeScanner extends Visitor {
     }
 
     public void visitCase(JCCase tree) {
-        scan(tree.pat);
+        scan(tree.pats);
         scan(tree.stats);
+    }
+
+    public void visitSwitchExpression(JCSwitchExpression tree) {
+        scan(tree.selector);
+        scan(tree.cases);
     }
 
     public void visitSynchronized(JCSynchronized tree) {
@@ -219,6 +224,7 @@ public class TreeScanner extends Visitor {
     }
 
     public void visitBreak(JCBreak tree) {
+        scan(tree.value);
     }
 
     public void visitContinue(JCContinue tree) {

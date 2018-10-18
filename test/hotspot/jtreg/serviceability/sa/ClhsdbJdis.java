@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,22 @@
  * questions.
  */
 
+/**
+ * @test
+ * @bug 8193124
+ * @summary Test the clhsdb 'jdis' command
+ * @requires vm.hasSA
+ * @library /test/lib
+ * @run main/othervm ClhsdbJdis
+ */
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 
 import jdk.test.lib.apps.LingeredApp;
-
-/*
- * @test
- * @bug 8193124
- * @summary Test the clhsdb 'jdis' command
- * @library /test/lib
- * @run main/othervm ClhsdbJdis
- */
+import jtreg.SkippedException;
 
 public class ClhsdbJdis {
 
@@ -57,33 +59,36 @@ public class ClhsdbJdis {
 
             // Output could be null if the test was skipped due to
             // attach permission issues.
-            if (output != null) {
-                String cmdStr = null;
-                String[] parts = output.split("LingeredApp.main");
-                String[] tokens = parts[1].split(" ");
-                for (String token : tokens) {
-                    if (token.contains("Method")) {
-                        String[] address = token.split("=");
-                        // address[1] represents the address of the Method
-                        cmdStr = "jdis " + address[1];
-                        cmds.add(cmdStr);
-                        break;
-                    }
-                }
-
-                Map<String, List<String>> expStrMap = new HashMap<>();
-                expStrMap.put(cmdStr, List.of(
-                        "public static void main(java.lang.String[])",
-                        "Holder Class",
-                        "public class jdk.test.lib.apps.LingeredApp @",
-                        "Bytecode",
-                        "line bci   bytecode",
-                        "Exception Table",
-                        "start bci end bci handler bci catch type",
-                        "Constant Pool of [public class jdk.test.lib.apps.LingeredApp @"));
-
-                test.run(theApp.getPid(), cmds, expStrMap, null);
+            if (output == null) {
+                throw new SkippedException("attach permission issues");
             }
+            String cmdStr = null;
+            String[] parts = output.split("LingeredApp.main");
+            String[] tokens = parts[1].split(" ");
+            for (String token : tokens) {
+                if (token.contains("Method")) {
+                    String[] address = token.split("=");
+                    // address[1] represents the address of the Method
+                    cmdStr = "jdis " + address[1];
+                    cmds.add(cmdStr);
+                    break;
+                }
+            }
+
+            Map<String, List<String>> expStrMap = new HashMap<>();
+            expStrMap.put(cmdStr, List.of(
+                    "public static void main(java.lang.String[])",
+                    "Holder Class",
+                    "public class jdk.test.lib.apps.LingeredApp @",
+                    "Bytecode",
+                    "line bci   bytecode",
+                    "Exception Table",
+                    "start bci end bci handler bci catch type",
+                    "Constant Pool of [public class jdk.test.lib.apps.LingeredApp @"));
+
+            test.run(theApp.getPid(), cmds, expStrMap, null);
+        } catch (SkippedException e) {
+            throw e;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {

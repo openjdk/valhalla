@@ -50,9 +50,8 @@ public class AssertSafepointCheckConsistency1 {
                   "-Xbootclasspath/a:.",
                   "-XX:+UnlockDiagnosticVMOptions",
                   "-XX:+WhiteBoxAPI",
-                  "-XX:-TransmitErrorReport",
                   "-XX:-CreateCoredumpOnCrash",
-                  "-Xmx32m",
+                  "-Xmx128m",
                   "AssertSafepointCheckConsistency1",
                   "test");
             OutputAnalyzer output = new OutputAnalyzer(pb.start());

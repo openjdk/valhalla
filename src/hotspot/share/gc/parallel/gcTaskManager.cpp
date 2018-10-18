@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@
 #include "memory/resourceArea.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 
 //
@@ -373,9 +373,9 @@ SynchronizedGCTaskQueue::~SynchronizedGCTaskQueue() {
 //
 GCTaskManager::GCTaskManager(uint workers) :
   _workers(workers),
+  _created_workers(0),
   _active_workers(0),
-  _idle_workers(0),
-  _created_workers(0) {
+  _idle_workers(0) {
   initialize();
 }
 
@@ -962,7 +962,7 @@ void WaitForBarrierGCTask::do_it(GCTaskManager* manager, uint which) {
   _wait_helper.notify();
 }
 
-WaitHelper::WaitHelper() : _should_wait(true), _monitor(MonitorSupply::reserve()) {
+WaitHelper::WaitHelper() : _monitor(MonitorSupply::reserve()), _should_wait(true) {
   if (TraceGCTaskManager) {
     tty->print_cr("[" INTPTR_FORMAT "]"
                   " WaitHelper::WaitHelper()"

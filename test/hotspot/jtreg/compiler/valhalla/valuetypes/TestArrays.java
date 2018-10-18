@@ -32,7 +32,7 @@ import java.util.Arrays;
  * @summary Test value type arrays
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestArrays.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestArrays.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -1451,5 +1451,145 @@ public class TestArrays extends ValueTypeTest {
         test63_helper(42, va, oa);
         Object[] result = test63(va, oa);
         verify(verif, result);
+    }
+
+    // Test default initialization of value type arrays: small array
+    @Test
+    public MyValue1[] test64() {
+        return new MyValue1[8];
+    }
+
+    @DontCompile
+    public void test64_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[8];
+        MyValue1[] var = test64();
+        for (int i = 0; i < 8; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Test default initialization of value type arrays: large array
+    @Test
+    public MyValue1[] test65() {
+        return new MyValue1[32];
+    }
+
+    @DontCompile
+    public void test65_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[32];
+        MyValue1[] var = test65();
+        for (int i = 0; i < 32; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Check init store elimination
+    @Test
+    public MyValue1[] test66(MyValue1 vt) {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = vt;
+        return va;
+    }
+
+    @DontCompile
+    public void test66_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyValue1[] va = test66(vt);
+        Asserts.assertEQ(va[0].hashPrimitive(), vt.hashPrimitive());
+    }
+
+    // Zeroing elimination and arraycopy
+    @Test
+    public MyValue1[] test67(MyValue1[] src) {
+        MyValue1[] dst = new MyValue1[16];
+        System.arraycopy(src, 0, dst, 0, 13);
+        return dst;
+    }
+
+    @DontCompile
+    public void test67_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[16];
+        MyValue1[] var = test67(va);
+        for (int i = 0; i < 16; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // A store with a default value can be eliminated
+    @Test
+    public MyValue1[] test68() {
+        MyValue1[] va = new MyValue1[2];
+        va[0] = va[1];
+        return va;
+    }
+
+    @DontCompile
+    public void test68_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1[] var = test68();
+        for (int i = 0; i < 2; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Requires individual stores to init array
+    @Test
+    public MyValue1[] test69(MyValue1 vt) {
+        MyValue1[] va = new MyValue1[4];
+        va[0] = vt;
+        va[3] = vt;
+        return va;
+    }
+
+    @DontCompile
+    public void test69_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyValue1[] va = new MyValue1[4];
+        va[0] = vt;
+        va[3] = vt;
+        MyValue1[] var = test69(vt);
+        for (int i = 0; i < va.length; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // A store with a default value can be eliminated: same as test68
+    // but store is farther away from allocation
+    @Test
+    public MyValue1[] test70(MyValue1[] other) {
+        other[1] = other[0];
+        MyValue1[] va = new MyValue1[2];
+        other[0] = va[1];
+        va[0] = va[1];
+        return va;
+    }
+
+    @DontCompile
+    public void test70_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1[] var = test70(va);
+        for (int i = 0; i < 2; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // EA needs to consider oop fields in flattened arrays
+    @Test
+    public void test71() {
+        int len = 10;
+        MyValue2[] src = new MyValue2[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsDontInline(rI, (i % 2) == 0);
+        }
+        System.arraycopy(src, 0, dst, 0, src.length);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    @DontCompile
+    public void test71_verifier(boolean warmup) {
+        test71();
     }
 }

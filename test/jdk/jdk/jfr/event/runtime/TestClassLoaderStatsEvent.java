@@ -39,9 +39,10 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
 
-/*
+/**
  * @test
  * @key jfr
+ * @requires vm.hasJFR
  * @library /test/lib /test/jdk
  * @build jdk.jfr.event.runtime.TestClasses
  * @run main/othervm jdk.jfr.event.runtime.TestClassLoaderStatsEvent
@@ -75,9 +76,9 @@ public class TestClassLoaderStatsEvent {
                 Events.assertField(event, "classCount").equal(1L);
                 Events.assertField(event, "chunkSize").above(1L);
                 Events.assertField(event, "blockSize").above(1L);
-                Events.assertField(event, "anonymousClassCount").equal(1L);
-                Events.assertField(event, "anonymousChunkSize").above(1L);
-                Events.assertField(event, "anonymousBlockSize").above(1L);
+                Events.assertField(event, "unsafeAnonymousClassCount").equal(1L);
+                Events.assertField(event, "unsafeAnonymousChunkSize").above(1L);
+                Events.assertField(event, "unsafeAnonymousBlockSize").above(1L);
                 isAnyFound = true;
             }
         }

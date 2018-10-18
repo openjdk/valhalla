@@ -25,7 +25,7 @@
 #include "precompiled.hpp"
 #include "jni.h"
 #include "classfile/classLoaderData.inline.hpp"
-#include "classfile/javaClasses.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
@@ -56,15 +56,33 @@ void ModuleEntry::set_location(Symbol* location) {
   }
 }
 
-bool ModuleEntry::is_non_jdk_module() {
-  ResourceMark rm;
+// Return true if the module's version should be displayed in error messages,
+// logging, etc.
+// Return false if the module's version is null, if it is unnamed, or if the
+// module is not an upgradeable module.
+// Detect if the module is not upgradeable by checking:
+//     1. Module location is "jrt:/java." and its loader is boot or platform
+//     2. Module location is "jrt:/jdk.", its loader is one of the builtin loaders
+//        and its version is the same as module java.base's version
+// The above check is imprecise but should work in almost all cases.
+bool ModuleEntry::should_show_version() {
+  if (version() == NULL || !is_named()) return false;
+
   if (location() != NULL) {
+    ResourceMark rm;
     const char* loc = location()->as_C_string();
-    if (strncmp(loc, "jrt:/java.", 10) != 0 && strncmp(loc, "jrt:/jdk.", 9) != 0) {
-      return true;
+    ClassLoaderData* cld = loader_data();
+
+    if ((cld->is_the_null_class_loader_data() || cld->is_platform_class_loader_data()) &&
+        (strncmp(loc, "jrt:/java.", 10) == 0)) {
+      return false;
+    }
+    if ((ModuleEntryTable::javabase_moduleEntry()->version()->fast_compare(version()) == 0) &&
+        cld->is_permanent_class_loader_data() && (strncmp(loc, "jrt:/jdk.", 9) == 0)) {
+      return false;
     }
   }
-  return false;
+  return true;
 }
 
 void ModuleEntry::set_version(Symbol* version) {
@@ -236,10 +254,17 @@ ModuleEntry* ModuleEntry::create_unnamed_module(ClassLoaderData* cld) {
   // The java.lang.Module for this loader's
   // corresponding unnamed module can be found in the java.lang.ClassLoader object.
   oop module = java_lang_ClassLoader::unnamedModule(cld->class_loader());
+
+  // Ensure that the unnamed module was correctly set when the class loader was constructed.
+  // Guarantee will cause a recognizable crash if the user code has circumvented calling the ClassLoader constructor.
+  ResourceMark rm;
+  guarantee(java_lang_Module::is_instance(module),
+            "The unnamed module for ClassLoader %s, is null or not an instance of java.lang.Module. The class loader has not been initialized correctly.",
+            cld->loader_name_and_id());
+
   ModuleEntry* unnamed_module = new_unnamed_module_entry(Handle(Thread::current(), module), cld);
 
-  // Store pointer to the ModuleEntry in the unnamed module's java.lang.Module
-  // object.
+  // Store pointer to the ModuleEntry in the unnamed module's java.lang.Module object.
   java_lang_Module::set_module_entry(module, unnamed_module);
 
   return unnamed_module;
@@ -362,7 +387,8 @@ ModuleEntry* ModuleEntryTable::new_entry(unsigned int hash, Handle module_handle
     entry->set_is_patched();
     if (log_is_enabled(Trace, module, patch)) {
       ResourceMark rm;
-      log_trace(module, patch)("Marked module %s as patched from --patch-module", name->as_C_string());
+      log_trace(module, patch)("Marked module %s as patched from --patch-module",
+                               name != NULL ? name->as_C_string() : UNNAMED_MODULE);
     }
   }
 
@@ -410,7 +436,7 @@ ModuleEntry* ModuleEntryTable::lookup_only(Symbol* name) {
 // Remove dead modules from all other alive modules' reads list.
 // This should only occur at class unloading.
 void ModuleEntryTable::purge_all_module_reads() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(Module_lock);
   for (int i = 0; i < table_size(); i++) {
     for (ModuleEntry* entry = bucket(i);
                       entry != NULL;
@@ -497,7 +523,7 @@ void ModuleEntry::print(outputStream* st) {
                p2i(this),
                name() == NULL ? UNNAMED_MODULE : name()->as_C_string(),
                p2i(module()),
-               loader_data()->loader_name(),
+               loader_data()->loader_name_and_id(),
                version() != NULL ? version()->as_C_string() : "NULL",
                location() != NULL ? location()->as_C_string() : "NULL",
                BOOL_TO_STR(!can_read_all_unnamed()), p2i(next()));

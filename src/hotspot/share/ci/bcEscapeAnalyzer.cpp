@@ -1466,8 +1466,8 @@ void BCEscapeAnalyzer::dump() {
 #endif
 
 BCEscapeAnalyzer::BCEscapeAnalyzer(ciMethod* method, BCEscapeAnalyzer* parent)
-    : _conservative(method == NULL || !EstimateArgEscape)
-    , _arena(CURRENT_ENV->arena())
+    : _arena(CURRENT_ENV->arena())
+    , _conservative(method == NULL || !EstimateArgEscape)
     , _method(method)
     , _methodData(method ? method->method_data() : NULL)
     , _arg_size(method ? method->arg_size() : 0)

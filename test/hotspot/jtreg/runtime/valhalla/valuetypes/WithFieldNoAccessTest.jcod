@@ -1,0 +1,656 @@
+/*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ *
+ */
+
+/*
+ * @test
+ * @bug 8210351
+ * @summary Check that IllegalAccessError exceptions get thrown if a class that
+ *          is not a nestmate of a value type tries to write to the value type's
+ *          final fields.
+ * @compile WithFieldNoAccessTest.jcod
+ * @run main/othervm -XX:+EnableValhalla WithFieldNoAccessTest
+ */
+
+// This test is based on the below Java program.  The only difference is that
+// the nestmate attributes have been removed.  So, value type WithFieldNoAccessTest
+// and WithFieldNoAccessTest$V are no longer nestmates.  This should cause
+// IllegalAccessError exceptions when WithFieldNoAccessTest tries to write, using
+// withfield, to value type WithFieldNoAccessTest$V's final fields.
+//
+// public class WithFieldNoAccessTest {
+//
+//  public static final value class V {
+//      public final char c;
+//      protected final long l;
+//      private final int i;
+//      V() {
+//          this.c = '0';
+//          this.l = 0;
+//          this.i = 0;
+//      }
+//
+//      public static V make(char c, long l, int i) {
+//          V v = V.default;
+//          v = __WithField(v.c, c);
+//          v = __WithField(v.l, l);
+//          v = __WithField(v.i, i);
+//          return v;
+//      }
+//  }
+//
+//  public static void main(String... args) throws Throwable {
+//      try {
+//          V v = __WithField(V.make('a', 5, 10).c, 'b');
+//          throw new RuntimeException("Failed to throw IllegalAccessError exception for final public field");
+//      } catch (java.lang.IllegalAccessError e) {
+//          if (!e.toString().contains("Update to non-static final field WithFieldNoAccessTest$V.c attempted")) {
+//              throw new RuntimeException("Unexpected IllegalAccessError: " + e.toString());
+//          }
+//      }
+//
+//      try {
+//          V v = __WithField(V.make('a', 5, 10).l, 25);
+//          throw new RuntimeException("Failed to throw IllegalAccessError exception for final protected field");
+//      } catch (java.lang.IllegalAccessError e) {
+//          if (!e.toString().contains("Update to non-static final field WithFieldNoAccessTest$V.l attempted")) {
+//              throw new RuntimeException("Unexpected IllegalAccessError: " +  e.toString());
+//          }
+//      }
+//
+//      try {
+//          V v = __WithField(V.make('a', 5, 10).i, 20);
+//          throw new RuntimeException("Failed to throw IllegalAccessError exception for final private field");
+//      } catch (java.lang.IllegalAccessError e) {
+//          if (!e.toString().contains("WithFieldNoAccessTest tried to access private field WithFieldNoAccessTest$V.i")) {
+//              throw new RuntimeException("Unexpected IllegalAccessError: " + e.toString());
+//          }
+//      }
+//  }
+// }
+//
+
+
+class WithFieldNoAccessTest$V {
+  0xCAFEBABE;
+  0; // minor version
+  56; // version
+  [68] { // Constant Pool
+    ; // first element is empty
+    Method #10 #40; // #1     at 0x0A
+    class #41; // #2     at 0x0F
+    Field #2 #42; // #3     at 0x12
+    Field #2 #43; // #4     at 0x17
+    Field #2 #44; // #5     at 0x1C
+    InvokeDynamic 0s #47; // #6     at 0x21
+    InvokeDynamic 0s #48; // #7     at 0x26
+    InvokeDynamic 0s #49; // #8     at 0x2B
+    InvokeDynamic 0s #50; // #9     at 0x30
+    class #51; // #10     at 0x35
+    Utf8 "c"; // #11     at 0x38
+    Utf8 "C"; // #12     at 0x3C
+    Utf8 "l"; // #13     at 0x40
+    Utf8 "J"; // #14     at 0x44
+    Utf8 "i"; // #15     at 0x48
+    Utf8 "I"; // #16     at 0x4C
+    Utf8 "<init>"; // #17     at 0x50
+    Utf8 "()V"; // #18     at 0x59
+    Utf8 "Code"; // #19     at 0x5F
+    Utf8 "LineNumberTable"; // #20     at 0x66
+    Utf8 "make"; // #21     at 0x78
+    Utf8 "V"; // #22     at 0x7F
+    Utf8 "InnerClasses"; // #23     at 0x83
+    Utf8 "ValueTypes"; // #24     at 0x92
+    Utf8 "(CJI)LWithFieldNoAccessTest$V;"; // #25     at 0x9F
+    Utf8 "hashCode"; // #26     at 0xC0
+    Utf8 "()I"; // #27     at 0xCB
+    Utf8 "equals"; // #28     at 0xD1
+    Utf8 "(Ljava/lang/Object;)Z"; // #29     at 0xDA
+    Utf8 "toString"; // #30     at 0xF2
+    Utf8 "()Ljava/lang/String;"; // #31     at 0xFD
+    Utf8 "longHashCode"; // #32     at 0x0114
+    Utf8 "()J"; // #33     at 0x0123
+    Utf8 "$makeValue$"; // #34     at 0x0129
+    Utf8 "()LWithFieldNoAccessTest$V;"; // #35     at 0x0137
+    Utf8 "SourceFile"; // #36     at 0x0155
+    Utf8 "WithFieldNoAccessTest.java"; // #37     at 0x0162
+    Utf8 "NestHost"; // #38     at 0x017F
+    class #52; // #39     at 0x018A
+    NameAndType #17 #18; // #40     at 0x018D
+    Utf8 "WithFieldNoAccessTest$V"; // #41     at 0x0192
+    NameAndType #11 #12; // #42     at 0x01AC
+    NameAndType #13 #14; // #43     at 0x01B1
+    NameAndType #15 #16; // #44     at 0x01B6
+    Utf8 "BootstrapMethods"; // #45     at 0x01BB
+    MethodHandle 6b #53; // #46     at 0x01CE
+    NameAndType #26 #54; // #47     at 0x01D2
+    NameAndType #28 #55; // #48     at 0x01D7
+    NameAndType #30 #56; // #49     at 0x01DC
+    NameAndType #32 #57; // #50     at 0x01E1
+    Utf8 "java/lang/Object"; // #51     at 0x01E6
+    Utf8 "WithFieldNoAccessTest"; // #52     at 0x01F9
+    Method #58 #59; // #53     at 0x0211
+    Utf8 "(Ljava/lang/Object;)I"; // #54     at 0x0216
+    Utf8 "(Ljava/lang/Object;Ljava/lang/Object;)Z"; // #55     at 0x022E
+    Utf8 "(Ljava/lang/Object;)Ljava/lang/String;"; // #56     at 0x0258
+    Utf8 "(Ljava/lang/Object;)J"; // #57     at 0x0281
+    class #60; // #58     at 0x0299
+    NameAndType #61 #64; // #59     at 0x029C
+    Utf8 "java/lang/invoke/ValueBootstrapMethods"; // #60     at 0x02A1
+    Utf8 "makeBootstrapMethod"; // #61     at 0x02CA
+    class #66; // #62     at 0x02E0
+    Utf8 "Lookup"; // #63     at 0x02E3
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"; // #64     at 0x02EC
+    class #67; // #65     at 0x0362
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #66     at 0x0365
+    Utf8 "java/lang/invoke/MethodHandles"; // #67     at 0x038D
+  } // Constant Pool
+
+  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  #2;// this_cpx
+  #10;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [3] { // fields
+    { // Member at 0x03B8
+      0x0011; // access
+      #11; // name_cpx
+      #12; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x03C0
+      0x0014; // access
+      #13; // name_cpx
+      #14; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x03C8
+      0x0012; // access
+      #15; // name_cpx
+      #16; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [7] { // methods
+    { // Member at 0x03D2
+      0x0000; // access
+      #17; // name_cpx
+      #18; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 29) { // Code at 0x03DA
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB70001B1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 6) { // LineNumberTable at 0x03F1
+              [1] { // LineNumberTable
+                0  7; //  at 0x03FD
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x03FD
+      0x0009; // access
+      #21; // name_cpx
+      #25; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 76) { // Code at 0x0405
+          4; // max_stack
+          5; // max_locals
+          Bytes[36]{
+            0xCB00023A041A1904;
+            0x5FCC00033A041F19;
+            0x045B57CC00043A04;
+            0x1D19045FCC00053A;
+            0x041904B0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 22) { // LineNumberTable at 0x043B
+              [5] { // LineNumberTable
+                0  14; //  at 0x0447
+                5  15; //  at 0x044B
+                14  16; //  at 0x044F
+                24  17; //  at 0x0453
+                33  18; //  at 0x0457
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0457
+      0x0011; // access
+      #26; // name_cpx
+      #27; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 31) { // Code at 0x045F
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00060000AC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 6) { // LineNumberTable at 0x0478
+              [1] { // LineNumberTable
+                0  3; //  at 0x0484
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0484
+      0x0011; // access
+      #28; // name_cpx
+      #29; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 32) { // Code at 0x048C
+          2; // max_stack
+          2; // max_locals
+          Bytes[8]{
+            0x2A2BBA00070000AC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 6) { // LineNumberTable at 0x04A6
+              [1] { // LineNumberTable
+                0  3; //  at 0x04B2
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x04B2
+      0x0011; // access
+      #30; // name_cpx
+      #31; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 31) { // Code at 0x04BA
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00080000B0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 6) { // LineNumberTable at 0x04D3
+              [1] { // LineNumberTable
+                0  3; //  at 0x04DF
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x04DF
+      0x0011; // access
+      #32; // name_cpx
+      #33; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 31) { // Code at 0x04E7
+          2; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00090000AD;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 6) { // LineNumberTable at 0x0500
+              [1] { // LineNumberTable
+                0  3; //  at 0x050C
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x050C
+      0x1008; // access
+      #34; // name_cpx
+      #35; // sig_cpx
+      [1] { // Attributes
+        Attr(#19, 69) { // Code at 0x0514
+          4; // max_stack
+          1; // max_locals
+          Bytes[29]{
+            0xCB00024B10302A5F;
+            0xCC00034B092A5B57;
+            0xCC00044B032A5FCC;
+            0x00054B2AB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#20, 22) { // LineNumberTable at 0x0543
+              [5] { // LineNumberTable
+                0  7; //  at 0x054F
+                4  8; //  at 0x0553
+                12  9; //  at 0x0557
+                20  10; //  at 0x055B
+                27  11; //  at 0x055F
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [4] { // Attributes
+    Attr(#36, 2) { // SourceFile at 0x0561
+      #37;
+    } // end SourceFile
+    ;
+    Attr(#23, 18) { // InnerClasses at 0x0571
+      [2] { // InnerClasses
+        #2 #39 #22 281; //  at 0x0581
+        #62 #65 #63 25; //  at 0x0589
+      }
+    } // end InnerClasses
+    ;
+    Attr(#45, 6) { // BootstrapMethods at 0x0589
+      [1] { // bootstrap_methods
+        {  //  bootstrap_method
+          #46; // bootstrap_method_ref
+          [0] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+      }
+    } // end BootstrapMethods
+    ;
+    Attr(#24, 4) { // ValueTypes at 0x0595
+      0x00010002;
+    } // end ValueTypes
+  } // Attributes
+} // end class WithFieldNoAccessTest$V
+
+
+class WithFieldNoAccessTest {
+  0xCAFEBABE;
+  0; // minor version
+  56; // version
+  [92] { // Constant Pool
+    ; // first element is empty
+    Method #23 #40; // #1     at 0x0A
+    long 0x0000000000000005;; // #2     at 0x0F
+    Method #24 #41; // #4     at 0x18
+    Field #24 #42; // #5     at 0x1D
+    class #43; // #6     at 0x22
+    String #44; // #7     at 0x25
+    Method #6 #45; // #8     at 0x28
+    class #46; // #9     at 0x2D
+    Method #9 #47; // #10     at 0x30
+    String #48; // #11     at 0x35
+    Method #49 #50; // #12     at 0x38
+    InvokeDynamic 0s #54; // #13     at 0x3D
+    long 0x0000000000000019;; // #14     at 0x42
+    Field #24 #55; // #16     at 0x4B
+    String #56; // #17     at 0x50
+    String #57; // #18     at 0x53
+    Field #24 #58; // #19     at 0x56
+    String #59; // #20     at 0x5B
+    String #60; // #21     at 0x5E
+    class #61; // #22     at 0x61
+    class #62; // #23     at 0x64
+    class #63; // #24     at 0x67
+    Utf8 "V"; // #25     at 0x6A
+    Utf8 "InnerClasses"; // #26     at 0x6E
+    Utf8 "ValueTypes"; // #27     at 0x7D
+    Utf8 "<init>"; // #28     at 0x8A
+    Utf8 "()V"; // #29     at 0x93
+    Utf8 "Code"; // #30     at 0x99
+    Utf8 "LineNumberTable"; // #31     at 0xA0
+    Utf8 "main"; // #32     at 0xB2
+    Utf8 "([Ljava/lang/String;)V"; // #33     at 0xB9
+    Utf8 "StackMapTable"; // #34     at 0xD2
+    Utf8 "Exceptions"; // #35     at 0xE2
+    class #64; // #36     at 0xEF
+    Utf8 "SourceFile"; // #37     at 0xF2
+    Utf8 "WithFieldNoAccessTest.java"; // #38     at 0xFF
+    Utf8 "NestMembers"; // #39     at 0x011C
+    NameAndType #28 #29; // #40     at 0x012A
+    NameAndType #65 #66; // #41     at 0x012F
+    NameAndType #67 #68; // #42     at 0x0134
+    Utf8 "java/lang/RuntimeException"; // #43     at 0x0139
+    Utf8 "Failed to throw IllegalAccessError exception for final public field"; // #44     at 0x0156
+    NameAndType #28 #69; // #45     at 0x019C
+    Utf8 "java/lang/IllegalAccessError"; // #46     at 0x01A1
+    NameAndType #70 #71; // #47     at 0x01C0
+    Utf8 "Update to non-static final field WithFieldNoAccessTest$V.c attempted"; // #48     at 0x01C5
+    class #72; // #49     at 0x020C
+    NameAndType #73 #74; // #50     at 0x020F
+    Utf8 "BootstrapMethods"; // #51     at 0x0214
+    MethodHandle 6b #75; // #52     at 0x0227
+    String #76; // #53     at 0x022B
+    NameAndType #77 #78; // #54     at 0x022E
+    NameAndType #79 #80; // #55     at 0x0233
+    Utf8 "Failed to throw IllegalAccessError exception for final protected field"; // #56     at 0x0238
+    Utf8 "Update to non-static final field WithFieldNoAccessTest$V.l attempted"; // #57     at 0x0281
+    NameAndType #81 #82; // #58     at 0x02C8
+    Utf8 "Failed to throw IllegalAccessError exception for final private field"; // #59     at 0x02CD
+    Utf8 "WithFieldNoAccessTest tried to access private field WithFieldNoAccessTest$V.i"; // #60     at 0x0314
+    Utf8 "WithFieldNoAccessTest"; // #61     at 0x0364
+    Utf8 "java/lang/Object"; // #62     at 0x037C
+    Utf8 "WithFieldNoAccessTest$V"; // #63     at 0x038F
+    Utf8 "java/lang/Throwable"; // #64     at 0x03A9
+    Utf8 "make"; // #65     at 0x03BF
+    Utf8 "(CJI)LWithFieldNoAccessTest$V;"; // #66     at 0x03C6
+    Utf8 "c"; // #67     at 0x03E7
+    Utf8 "C"; // #68     at 0x03EB
+    Utf8 "(Ljava/lang/String;)V"; // #69     at 0x03EF
+    Utf8 "toString"; // #70     at 0x0407
+    Utf8 "()Ljava/lang/String;"; // #71     at 0x0412
+    Utf8 "java/lang/String"; // #72     at 0x0429
+    Utf8 "contains"; // #73     at 0x043C
+    Utf8 "(Ljava/lang/CharSequence;)Z"; // #74     at 0x0447
+    Method #83 #84; // #75     at 0x0465
+    Utf8 "Unexpected IllegalAccessError: "; // #76     at 0x046A
+    Utf8 "makeConcatWithConstants"; // #77     at 0x048D
+    Utf8 "(Ljava/lang/String;)Ljava/lang/String;"; // #78     at 0x04A7
+    Utf8 "l"; // #79     at 0x04D0
+    Utf8 "J"; // #80     at 0x04D4
+    Utf8 "i"; // #81     at 0x04D8
+    Utf8 "I"; // #82     at 0x04DC
+    class #85; // #83     at 0x04E0
+    NameAndType #77 #88; // #84     at 0x04E3
+    Utf8 "java/lang/invoke/StringConcatFactory"; // #85     at 0x04E8
+    class #90; // #86     at 0x050F
+    Utf8 "Lookup"; // #87     at 0x0512
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"; // #88     at 0x051B
+    class #91; // #89     at 0x05B6
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #90     at 0x05B9
+    Utf8 "java/lang/invoke/MethodHandles"; // #91     at 0x05E1
+  } // Constant Pool
+
+  0x0021; // access [ ACC_PUBLIC ACC_SUPER ]
+  #22;// this_cpx
+  #23;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [0] { // fields
+  } // fields
+
+  [2] { // methods
+    { // Member at 0x060E
+      0x0001; // access
+      #28; // name_cpx
+      #29; // sig_cpx
+      [1] { // Attributes
+        Attr(#30, 29) { // Code at 0x0616
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB70001B1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#31, 6) { // LineNumberTable at 0x062D
+              [1] { // LineNumberTable
+                0  1; //  at 0x0639
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0639
+      0x0089; // access
+      #32; // name_cpx
+      #33; // sig_cpx
+      [2] { // Attributes
+        Attr(#30, 305) { // Code at 0x0641
+          6; // max_stack
+          2; // max_locals
+          Bytes[174]{
+            0x1062106114000210;
+            0x0AB800045FCC0005;
+            0x4CBB0006591207B7;
+            0x0008BF4C2BB6000A;
+            0x120BB6000C9A0014;
+            0xBB0006592BB6000A;
+            0xBA000D0000B70008;
+            0xBF14000E10611400;
+            0x02100AB800045B57;
+            0xCC00104CBB000659;
+            0x1211B70008BF4C2B;
+            0xB6000A1212B6000C;
+            0x9A0014BB0006592B;
+            0xB6000ABA000D0000;
+            0xB70008BF10141061;
+            0x140002100AB80004;
+            0x5FCC00134CBB0006;
+            0x591214B70008BF4C;
+            0x2BB6000A1215B600;
+            0x0C9A0014BB000659;
+            0x2BB6000ABA000D00;
+            0x00B70008BFB1;
+          };
+          [3] { // Traps
+            0 27 27 9; //  at 0x0707
+            57 86 86 9; //  at 0x070F
+            116 143 143 9; //  at 0x0717
+          } // end Traps
+          [2] { // Attributes
+            Attr(#31, 66) { // LineNumberTable at 0x0719
+              [16] { // LineNumberTable
+                0  24; //  at 0x0725
+                17  25; //  at 0x0729
+                27  26; //  at 0x072D
+                28  27; //  at 0x0731
+                40  28; //  at 0x0735
+                57  33; //  at 0x0739
+                76  34; //  at 0x073D
+                86  35; //  at 0x0741
+                87  36; //  at 0x0745
+                99  37; //  at 0x0749
+                116  42; //  at 0x074D
+                133  43; //  at 0x0751
+                143  44; //  at 0x0755
+                144  45; //  at 0x0759
+                156  46; //  at 0x075D
+                173  49; //  at 0x0761
+              }
+            } // end LineNumberTable
+            ;
+            Attr(#34, 17) { // StackMapTable at 0x0761
+              [6] { // 
+                91b, [1]z{7b,9}; // same_locals_1_stack_item_frame
+                29b; // same_frame
+                92b, [1]z{7b,9}; // same_locals_1_stack_item_frame
+                29b; // same_frame
+                90b, [1]z{7b,9}; // same_locals_1_stack_item_frame
+                29b; // same_frame
+              }
+            } // end StackMapTable
+          } // Attributes
+        } // end Code
+        ;
+        Attr(#35, 4) { // Exceptions at 0x0778
+          [1] { // Exceptions
+            #36; //  at 0x0782
+          }
+        } // end Exceptions
+      } // Attributes
+    } // Member
+  } // methods
+
+  [4] { // Attributes
+    Attr(#37, 2) { // SourceFile at 0x0784
+      #38;
+    } // end SourceFile
+    ;
+    Attr(#26, 18) { // InnerClasses at 0x0796
+      [2] { // InnerClasses
+        #24 #22 #25 281; //  at 0x07A6
+        #86 #89 #87 25; //  at 0x07AE
+      }
+    } // end InnerClasses
+    ;
+    Attr(#51, 8) { // BootstrapMethods at 0x07AE
+      [1] { // bootstrap_methods
+        {  //  bootstrap_method
+          #52; // bootstrap_method_ref
+          [1] { // bootstrap_arguments
+            #53; //  at 0x07BC
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+      }
+    } // end BootstrapMethods
+    ;
+    Attr(#27, 4) { // ValueTypes at 0x07BC
+      0x00010018;
+    } // end ValueTypes
+  } // Attributes
+} // end class WithFieldNoAccessTest

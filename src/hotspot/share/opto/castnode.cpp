@@ -525,7 +525,7 @@ Node* CheckCastPPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       region->init_req(2, ctl);
       mem_phi->init_req(2, kit.reset_memory());
       io_phi->init_req(2, kit.i_o());
-      res_phi->init_req(2, igvn->transform(res));
+      res_phi->init_req(2, res);
       ex_region->init_req(2, projs->catchall_catchproj);
       ex_mem_phi->init_req(2, projs->catchall_memproj);
       ex_io_phi->init_req(2, projs->catchall_ioproj);
@@ -652,8 +652,7 @@ const Type* CastP2XNode::Value(PhaseGVN* phase) const {
     return TypeX::make(bits);
   }
 
-  PhaseIterGVN* igvn = phase->is_IterGVN();
-  if (igvn != NULL && (t->is_zero_type() || !TypePtr::NULL_PTR->higher_equal(t))) {
+  if (t->is_zero_type() || !t->maybe_null()) {
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* u = fast_out(i);
       if (u->Opcode() == Op_OrL) {
@@ -661,7 +660,7 @@ const Type* CastP2XNode::Value(PhaseGVN* phase) const {
           Node* cmp = u->fast_out(j);
           if (cmp->Opcode() == Op_CmpL) {
             // Give CmpL a chance to get optimized
-            igvn->_worklist.push(cmp);
+            phase->record_for_igvn(cmp);
           }
         }
       }

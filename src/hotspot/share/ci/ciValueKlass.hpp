@@ -72,9 +72,10 @@ public:
 
   bool flatten_array() const;
   bool can_be_returned_as_fields() const;
-  bool is_bufferable() const;
+  bool is_scalarizable() const;
   int value_arg_slots();
   int default_value_offset() const;
+  ciInstance* default_value_instance() const;
   bool contains_oops() const;
 };
 

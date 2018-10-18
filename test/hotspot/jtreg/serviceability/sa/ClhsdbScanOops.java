@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,20 +21,22 @@
  * questions.
  */
 
+/**
+ * @test
+ * @bug 8192985
+ * @summary Test the clhsdb 'scanoops' command
+ * @requires vm.hasSA
+ * @library /test/lib
+ * @run main/othervm/timeout=1200 ClhsdbScanOops
+ */
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import jdk.test.lib.Utils;
 import jdk.test.lib.apps.LingeredApp;
-
-/*
- * @test
- * @bug 8192985
- * @summary Test the clhsdb 'scanoops' command
- * @library /test/lib
- * @run main/othervm/timeout=1200 ClhsdbScanOops
- */
+import jtreg.SkippedException;
 
 public class ClhsdbScanOops {
 
@@ -57,10 +59,8 @@ public class ClhsdbScanOops {
             String universeOutput = test.run(theApp.getPid(), cmds, null, null);
 
             if (universeOutput == null) {
-                // Output could be null due to attach permission issues
-                // and if we are skipping this.
                 LingeredApp.stopApp(theApp);
-                return;
+                throw new SkippedException("attach permission issues");
             }
 
             cmds = new ArrayList<String>();
@@ -96,6 +96,8 @@ public class ClhsdbScanOops {
             unExpStrMap.put(cmd, List.of("java/lang/Thread"));
 
             test.run(theApp.getPid(), cmds, expStrMap, unExpStrMap);
+        } catch (SkippedException e) {
+            throw e;
         } catch (Exception ex) {
             throw new RuntimeException("Test ERROR " + ex, ex);
         } finally {
@@ -105,12 +107,8 @@ public class ClhsdbScanOops {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Starting the ClhsdbScanOops test");
-        try {
-            testWithGcType("-XX:+UseParallelGC");
-            testWithGcType("-XX:+UseSerialGC");
-        } catch (Exception e) {
-            throw new Error("Test failed with " + e);
-        }
+        testWithGcType("-XX:+UseParallelGC");
+        testWithGcType("-XX:+UseSerialGC");
         System.out.println("Test PASSED");
     }
 }

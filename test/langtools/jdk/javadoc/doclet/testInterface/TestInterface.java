@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug      4682448 4947464 5029946 8025633 8026567 8035473 8139101 8175200
-             8186332 8186703 8182765
+             8186332 8186703 8182765 8187288
  * @summary  Verify that the public modifier does not show up in the
  *           documentation for public methods, as recommended by the JLS.
  *           If A implements I and B extends A, B should be in the list of
@@ -65,7 +65,7 @@ public class TestInterface extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/Interface.html", true,
-                "<pre>int&nbsp;method()</pre>",
+                "<pre class=\"methodSignature\">int&nbsp;method()</pre>",
                 "<pre>static final&nbsp;int field</pre>",
                 // Make sure known implementing class list is correct and omits type parameters.
                 "<dl>\n"
@@ -141,7 +141,7 @@ public class TestInterface extends JavadocTester {
                 + "</td>\n",
 
                 "<h4>staticMethod</h4>\n"
-                + "<pre>public static&nbsp;void&nbsp;staticMethod()</pre>\n"
+                + "<pre class=\"methodSignature\">public static&nbsp;void&nbsp;staticMethod()</pre>\n"
                 + "<div class=\"block\"><span class=\"descfrmTypeLabel\">"
                 + "Description copied from interface:&nbsp;<code>"
                 + "<a href=\"InterfaceWithStaticMembers.html#staticMethod()\">"
@@ -187,7 +187,7 @@ public class TestInterface extends JavadocTester {
                 + "</td>\n",
 
                 "<h4>staticMethod</h4>\n"
-                + "<pre>public static&nbsp;void&nbsp;staticMethod()</pre>\n"
+                + "<pre class=\"methodSignature\">public static&nbsp;void&nbsp;staticMethod()</pre>\n"
                 + "<div class=\"block\"><span class=\"descfrmTypeLabel\">"
                 + "Description copied from interface:&nbsp;<code>"
                 + "<a href=\"InterfaceWithStaticMembers.html#staticMethod--\">"
@@ -249,14 +249,14 @@ public class TestInterface extends JavadocTester {
             + "<a href=\"Spliterator.OfInt.html\" title=\"type parameter in Spliterator.OfInt\">"
             + "Integer</a>&gt;, <a href=\"Spliterator.OfPrimitive.html\" title=\"interface in pkg2\">"
             + "Spliterator.OfPrimitive</a>&lt;<a href=\"Spliterator.OfPrimitive.html\" "
-            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,<a href=\"Spliterator.OfPrimitive.html\" "
-            + "title=\"type parameter in Spliterator.OfPrimitive\">T_CONS</a>,"
+            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,&#8203;<a href=\"Spliterator.OfPrimitive.html\" "
+            + "title=\"type parameter in Spliterator.OfPrimitive\">T_CONS</a>,&#8203;"
             + "<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
             + "T_SPLITR</a> extends <a href=\"Spliterator.OfPrimitive.html\" title=\"interface in pkg2\">"
             + "Spliterator.OfPrimitive</a>&lt;<a href=\"Spliterator.OfPrimitive.html\" "
-            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,"
+            + "title=\"type parameter in Spliterator.OfPrimitive\">T</a>,&#8203;"
             + "<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
-            + "T_CONS</a>,<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
+            + "T_CONS</a>,&#8203;<a href=\"Spliterator.OfPrimitive.html\" title=\"type parameter in Spliterator.OfPrimitive\">"
             + "T_SPLITR</a>&gt;&gt;</code>");
     }
 }

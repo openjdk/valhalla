@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 6405536 6414980
  * @summary Basic consistency test for all curves using ECDSA and ECDH
  * @author Andreas Sterbenz
- * @library ..
+ * @library /test/lib ..
  * @modules jdk.crypto.cryptoki/sun.security.pkcs11.wrapper
  * @run main/othervm TestCurves
  * @run main/othervm TestCurves sm
@@ -51,20 +51,21 @@ public class TestCurves extends PKCS11Test {
     }
 
     @Override
-    public void main(Provider p) throws Exception {
+    protected boolean skipTest(Provider p) {
         if (p.getService("KeyAgreement", "ECDH") == null) {
             System.out.println("Not supported by provider, skipping");
-            return;
+            return true;
         }
 
-        if (isBadNSSVersion(p)) {
-            return;
+        if (isBadNSSVersion(p) || isBadSolarisSparc(p)) {
+            return true;
         }
 
-        if (isBadSolarisSparc(p)) {
-            return;
-        }
+        return false;
+    }
 
+    @Override
+    public void main(Provider p) throws Exception {
         // Check if this is sparc for later failure avoidance.
         boolean sparc = false;
         if (props.getProperty("os.arch").equals("sparcv9")) {

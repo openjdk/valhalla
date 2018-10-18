@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.replacements;
 
 import static jdk.vm.ci.code.MemoryBarriers.LOAD_STORE;
@@ -593,7 +595,7 @@ public class MonitorSnippets implements Snippets {
 
     public static void traceObject(boolean enabled, String action, Object object, boolean enter, OptionValues options) {
         if (doProfile(options)) {
-            DynamicCounterNode.counter(action, enter ? "number of monitor enters" : "number of monitor exits", 1, PROFILE_CONTEXT);
+            DynamicCounterNode.counter(enter ? "number of monitor enters" : "number of monitor exits", action, 1, PROFILE_CONTEXT);
         }
         if (enabled) {
             Log.print(action);

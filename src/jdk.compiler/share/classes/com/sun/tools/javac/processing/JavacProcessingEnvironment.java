@@ -243,15 +243,20 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
     }
 
     private Set<String> initPlatformAnnotations() {
-        Set<String> platformAnnotations = new HashSet<>();
-        platformAnnotations.add("java.lang.Deprecated");
-        platformAnnotations.add("java.lang.Override");
-        platformAnnotations.add("java.lang.SuppressWarnings");
-        platformAnnotations.add("java.lang.annotation.Documented");
-        platformAnnotations.add("java.lang.annotation.Inherited");
-        platformAnnotations.add("java.lang.annotation.Retention");
-        platformAnnotations.add("java.lang.annotation.Target");
-        return Collections.unmodifiableSet(platformAnnotations);
+        final String module_prefix =
+            Feature.MODULES.allowedInSource(source) ? "java.base/" : "";
+        return Set.of(module_prefix + "java.lang.Deprecated",
+                      module_prefix + "java.lang.FunctionalInterface",
+                      module_prefix + "java.lang.Override",
+                      module_prefix + "java.lang.SafeVarargs",
+                      module_prefix + "java.lang.SuppressWarnings",
+
+                      module_prefix + "java.lang.annotation.Documented",
+                      module_prefix + "java.lang.annotation.Inherited",
+                      module_prefix + "java.lang.annotation.Native",
+                      module_prefix + "java.lang.annotation.Repeatable",
+                      module_prefix + "java.lang.annotation.Retention",
+                      module_prefix + "java.lang.annotation.Target");
     }
 
     private void initProcessorLoader() {
@@ -1179,7 +1184,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         cs.reset();
                         cs.classfile = file;
                         cs.completer = initialCompleter;
-                        cs.owner.members().enter(cs); //XXX - OverwriteBetweenCompilations; syms.getClass is not sufficient anymore
+                        if (cs.owner.kind == PCK) {
+                            cs.owner.members().enter(cs); //XXX - OverwriteBetweenCompilations; syms.getClass is not sufficient anymore
+                        }
                     }
                     list = list.prepend(cs);
                 }
@@ -1268,6 +1275,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
             modules.newRound();
             types.newRound();
             annotate.newRound();
+            elementUtils.newRound();
 
             boolean foundError = false;
 
@@ -1282,7 +1290,9 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                 for (ClassSymbol cs : symtab.getAllClasses()) {
                     if (cs.classfile != null || cs.kind == ERR) {
                         cs.reset();
-                        cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
+                        if (cs.kind == ERR) {
+                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
+                        }
                         if (cs.isCompleted()) {
                             cs.completer = initialCompleter;
                         }

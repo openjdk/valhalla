@@ -30,6 +30,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/generateOopMap.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 
 // Computes a CPC map (new_index -> original_index) for constant pool entries
@@ -398,7 +399,9 @@ void Rewriter::scan_method(Method* method, bool reverse, bool* invokespecial_err
       }
     }
 
-    assert(bc_length != 0, "impossible bytecode length");
+    // Continuing with an invalid bytecode will fail in the loop below.
+    // So guarantee here.
+    guarantee(bc_length > 0, "Verifier should have caught this invalid bytecode");
 
     switch (c) {
       case Bytecodes::_lookupswitch   : {

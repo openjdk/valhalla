@@ -267,6 +267,13 @@ static Node* split_if(IfNode *iff, PhaseIterGVN *igvn) {
   Node* predicate_c = NULL;
   Node* predicate_x = NULL;
   bool counted_loop = r->is_CountedLoop();
+  if (counted_loop) {
+    // Ignore counted loops for now because the split-if logic does not work
+    // in all the cases (for example, with strip mined loops). Also, above
+    // checks only pass for already degraded loops without a tripcount phi
+    // and these are essentially dead and will go away during igvn.
+    return NULL;
+  }
 
   Node *region_c = new RegionNode(req_c + 1);
   Node *phi_c    = con1;
@@ -387,6 +394,7 @@ static Node* split_if(IfNode *iff, PhaseIterGVN *igvn) {
     } else {
       assert( 0, "do not know how to handle this guy" );
     }
+    guarantee(proj != NULL, "sanity");
 
     Node *proj_path_data, *proj_path_ctrl;
     if( proj->Opcode() == Op_IfTrue ) {
@@ -1490,7 +1498,8 @@ Node* IfNode::dominated_by(Node* prev_dom, PhaseIterGVN *igvn) {
   // be skipped. For example, range check predicate has two checks
   // for lower and upper bounds.
   ProjNode* unc_proj = proj_out(1 - prev_dom->as_Proj()->_con)->as_Proj();
-  if (unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_predicate) != NULL) {
+  if (unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_predicate) != NULL ||
+      unc_proj->is_uncommon_trap_proj(Deoptimization::Reason_profile_predicate) != NULL) {
     prev_dom = idom;
   }
 

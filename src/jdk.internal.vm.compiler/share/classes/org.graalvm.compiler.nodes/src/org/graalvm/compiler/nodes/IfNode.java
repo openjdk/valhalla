@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_1;
@@ -29,18 +31,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import jdk.internal.vm.compiler.collections.EconomicMap;
 import jdk.internal.vm.compiler.collections.Equivalence;
+import org.graalvm.compiler.bytecode.BytecodeDisassembler;
+import org.graalvm.compiler.bytecode.Bytecodes;
+import org.graalvm.compiler.bytecode.Bytes;
+import org.graalvm.compiler.bytecode.ResolvedJavaMethodBytecode;
 import org.graalvm.compiler.core.common.calc.Condition;
 import org.graalvm.compiler.core.common.type.IntegerStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.debug.CounterKey;
+import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
+import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
 import org.graalvm.compiler.graph.spi.Canonicalizable;
 import org.graalvm.compiler.graph.spi.Simplifiable;
@@ -67,6 +76,7 @@ import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.PrimitiveConstant;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
 
 /**
@@ -170,6 +180,60 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
         return super.verify();
     }
 
+    private boolean compareCallContext(NodeSourcePosition successorPosition) {
+        NodeSourcePosition position = getNodeSourcePosition();
+        NodeSourcePosition successor = successorPosition;
+        while (position != null) {
+            assertTrue(Objects.equals(position.getMethod(), successor.getMethod()), "method mismatch");
+            position = position.getCaller();
+            successor = successor.getCaller();
+        }
+        assertTrue(successor == null, "successor position has more methods");
+        return true;
+    }
+
+    @Override
+    public boolean verifySourcePosition() {
+        NodeSourcePosition sourcePosition = getNodeSourcePosition();
+        assertTrue(sourcePosition != null, "missing IfNode source position");
+
+        NodeSourcePosition trueSuccessorPosition = trueSuccessor.getNodeSourcePosition();
+        assertTrue(trueSuccessorPosition != null, "missing IfNode true successor source position");
+
+        NodeSourcePosition falseSuccessorPosition = falseSuccessor.getNodeSourcePosition();
+        assertTrue(falseSuccessorPosition != null, "missing IfNode false successor source position");
+
+        int bci = sourcePosition.getBCI();
+        ResolvedJavaMethod method = sourcePosition.getMethod();
+        int bytecode = BytecodeDisassembler.getBytecodeAt(method, bci);
+
+        if (!Bytecodes.isIfBytecode(bytecode)) {
+            return true;
+        }
+
+        byte[] code = (new ResolvedJavaMethodBytecode(method)).getCode();
+        int targetBCI = bci + Bytes.beS2(code, bci + 1);
+        int nextBCI = bci + Bytecodes.lengthOf(bytecode);
+
+        // At least one successor should have the correct BCI to indicate any possible negation that
+        // occurred after bytecode parsing
+        boolean matchingSuccessorFound = false;
+        if (trueSuccessorPosition.getBCI() == nextBCI || trueSuccessorPosition.getBCI() == targetBCI) {
+            assertTrue(compareCallContext(trueSuccessorPosition), "call context different from IfNode in trueSuccessor");
+            matchingSuccessorFound = true;
+        }
+
+        if (falseSuccessorPosition.getBCI() == nextBCI || falseSuccessorPosition.getBCI() == targetBCI) {
+            assertTrue(compareCallContext(falseSuccessorPosition), "call context different from IfNode in falseSuccessor");
+            matchingSuccessorFound = true;
+        }
+
+        assertTrue(matchingSuccessorFound, "no matching successor position found in IfNode");
+        assertTrue(trueSuccessorPosition.getBCI() != falseSuccessorPosition.getBCI(), "successor positions same in IfNode");
+
+        return true;
+    }
+
     public void eliminateNegation() {
         AbstractBeginNode oldTrueSuccessor = trueSuccessor;
         AbstractBeginNode oldFalseSuccessor = falseSuccessor;
@@ -249,6 +313,11 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
                     nextIf.setFalseSuccessor(intermediateBegin);
                     intermediateBegin.setNext(this);
                     this.setFalseSuccessor(bothFalseBegin);
+
+                    NodeSourcePosition intermediateBeginPosition = intermediateBegin.getNodeSourcePosition();
+                    intermediateBegin.setNodeSourcePosition(bothFalseBegin.getNodeSourcePosition());
+                    bothFalseBegin.setNodeSourcePosition(intermediateBeginPosition);
+
                     nextIf.setTrueSuccessorProbability(probabilityB);
                     if (probabilityB == 1.0) {
                         this.setTrueSuccessorProbability(0.0);
@@ -477,6 +546,7 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
      * @param tool
      * @return true if a replacement was done.
      */
+    @SuppressWarnings("try")
     private boolean checkForUnsignedCompare(SimplifierTool tool) {
         assert trueSuccessor().hasNoUsages() && falseSuccessor().hasNoUsages();
         if (condition() instanceof IntegerLessThanNode) {
@@ -516,18 +586,20 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
                         }
                     }
                     if (below != null) {
-                        ifNode2.setTrueSuccessor(null);
-                        ifNode2.setFalseSuccessor(null);
+                        try (DebugCloseable position = ifNode2.withNodeSourcePosition()) {
+                            ifNode2.setTrueSuccessor(null);
+                            ifNode2.setFalseSuccessor(null);
 
-                        IfNode newIfNode = graph().add(new IfNode(below, falseSucc, trueSucc, 1 - trueSuccessorProbability));
-                        // Remove the < 0 test.
-                        tool.deleteBranch(trueSuccessor);
-                        graph().removeSplit(this, falseSuccessor);
+                            IfNode newIfNode = graph().add(new IfNode(below, falseSucc, trueSucc, 1 - trueSuccessorProbability));
+                            // Remove the < 0 test.
+                            tool.deleteBranch(trueSuccessor);
+                            graph().removeSplit(this, falseSuccessor);
 
-                        // Replace the second test with the new one.
-                        ifNode2.predecessor().replaceFirstSuccessor(ifNode2, newIfNode);
-                        ifNode2.safeDelete();
-                        return true;
+                            // Replace the second test with the new one.
+                            ifNode2.predecessor().replaceFirstSuccessor(ifNode2, newIfNode);
+                            ifNode2.safeDelete();
+                            return true;
+                        }
                     }
                 }
             }
@@ -754,7 +826,21 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
         if (this.graph().hasValueProxies()) {
             if (trueSuccessor instanceof LoopExitNode && falseSuccessor instanceof LoopExitNode) {
                 assert ((LoopExitNode) trueSuccessor).loopBegin() == ((LoopExitNode) falseSuccessor).loopBegin();
-                assert trueSuccessor.usages().isEmpty() && falseSuccessor.usages().isEmpty();
+                /*
+                 * we can collapse all proxy nodes on one loop exit, the surviving one, which will
+                 * be the true successor
+                 */
+                if (falseSuccessor.anchored().isEmpty() && falseSuccessor.usages().isNotEmpty()) {
+                    for (Node n : falseSuccessor.usages().snapshot()) {
+                        assert n instanceof ProxyNode;
+                        ((ProxyNode) n).setProxyPoint((LoopExitNode) trueSuccessor);
+                    }
+                }
+                /*
+                 * The true successor (surviving loop exit) can have usages, namely proxy nodes, the
+                 * false successor however, must not have usages any more after the code above
+                 */
+                assert trueSuccessor.anchored().isEmpty() && falseSuccessor.usages().isEmpty();
                 return this.graph().addOrUnique(new ValueProxyNode(replacement, (LoopExitNode) trueSuccessor));
             }
         }
@@ -850,6 +936,7 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
      *
      * @param tool
      */
+    @SuppressWarnings("try")
     private boolean splitIfAtPhi(SimplifierTool tool) {
         if (graph().getGuardsStage().areFrameStatesAtSideEffects()) {
             // Disabled until we make sure we have no FrameState-less merges at this stage
@@ -918,12 +1005,16 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
             } else if (result != condition) {
                 // Build a new IfNode using the new condition
                 BeginNode trueBegin = graph().add(new BeginNode());
+                trueBegin.setNodeSourcePosition(trueSuccessor().getNodeSourcePosition());
                 BeginNode falseBegin = graph().add(new BeginNode());
+                falseBegin.setNodeSourcePosition(falseSuccessor().getNodeSourcePosition());
 
                 if (result.graph() == null) {
                     result = graph().addOrUniqueWithInputs(result);
+                    result.setNodeSourcePosition(condition.getNodeSourcePosition());
                 }
                 IfNode newIfNode = graph().add(new IfNode(result, trueBegin, falseBegin, trueSuccessorProbability));
+                newIfNode.setNodeSourcePosition(getNodeSourcePosition());
                 merge.removeEnd(end);
                 ((FixedWithNextNode) end.predecessor()).setNext(newIfNode);
 
@@ -1053,6 +1144,7 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
         }
     }
 
+    @SuppressWarnings("try")
     private MergeNode insertMerge(AbstractBeginNode begin) {
         MergeNode merge = graph().add(new MergeNode());
         if (!begin.anchored().isEmpty()) {
@@ -1066,9 +1158,11 @@ public final class IfNode extends ControlSplitNode implements Simplifiable, LIRL
         AbstractBeginNode theBegin = begin;
         if (begin instanceof LoopExitNode) {
             // Insert an extra begin to make it easier.
-            theBegin = graph().add(new BeginNode());
-            begin.replaceAtPredecessor(theBegin);
-            theBegin.setNext(begin);
+            try (DebugCloseable position = begin.withNodeSourcePosition()) {
+                theBegin = graph().add(new BeginNode());
+                begin.replaceAtPredecessor(theBegin);
+                theBegin.setNext(begin);
+            }
         }
         FixedNode next = theBegin.next();
         next.replaceAtPredecessor(merge);

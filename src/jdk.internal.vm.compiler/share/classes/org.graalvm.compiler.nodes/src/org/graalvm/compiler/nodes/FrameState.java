@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes;
 
 import static jdk.vm.ci.code.BytecodeFrame.getPlaceholderBciName;
@@ -235,7 +237,8 @@ public final class FrameState extends VirtualState implements IterableNodeType {
     }
 
     public void setOuterFrameState(FrameState x) {
-        assert x == null || (!x.isDeleted() && x.bci >= 0);
+        assert x == null || (!x.isDeleted() && x.bci >= 0) : "cannot set outer frame state of:\n" + toString(this) +
+                        "\nto:\n" + toString(x) + "\nisDeleted=" + x.isDeleted();
         updateUsages(this.outerFrameState, x);
         this.outerFrameState = x;
     }

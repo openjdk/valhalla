@@ -24,7 +24,7 @@
 /*
   @test
   @key headful
-  @bug 4980161 7158623
+  @bug 4980161 7158623 8204860 8208125
   @summary Setting focusable window state to false makes the maximized frame resizable
   @compile UnfocusableMaximizedFrameResizablity.java
   @run main UnfocusableMaximizedFrameResizablity
@@ -45,7 +45,7 @@ public class UnfocusableMaximizedFrameResizablity {
     private static Thread mainThread = null;
     private static int sleepTime = 300000;
 
-    private static void createAndShowFrame() {
+    private static void createAndShowFrame() throws Exception {
 
         //The MAXIMIZED_BOTH state is not supported by the toolkit. Nothing to test.
         if (!Toolkit.getDefaultToolkit().isFrameStateSupported(Frame.MAXIMIZED_BOTH)) {
@@ -98,7 +98,7 @@ public class UnfocusableMaximizedFrameResizablity {
         mainThread.interrupt();
     }
 
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String args[]) throws Exception {
 
         mainThread = Thread.currentThread();
 

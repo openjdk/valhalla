@@ -25,13 +25,14 @@
 #include "precompiled.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -64,9 +65,6 @@ VMEntryWrapper::~VMEntryWrapper() {
   }
   if (ZombieALot) {
     InterfaceSupport::zombieAll();
-  }
-  if (UnlinkSymbolsALot) {
-    InterfaceSupport::unlinkSymbols();
   }
   // do verification AFTER potential deoptimization
   if (VerifyStack) {
@@ -207,11 +205,6 @@ void InterfaceSupport::zombieAll() {
   zombieAllCounter++;
 }
 
-void InterfaceSupport::unlinkSymbols() {
-  VM_UnlinkSymbols op;
-  VMThread::execute(&op);
-}
-
 void InterfaceSupport::deoptimizeAll() {
   // This method is called by all threads when a thread make
   // transition to VM state (for example, runtime calls).
@@ -259,7 +252,6 @@ void InterfaceSupport::stress_derived_pointers() {
 
 void InterfaceSupport::verify_stack() {
   JavaThread* thread = JavaThread::current();
-  BufferedValuesDealiaser dealiaser(thread);
   ResourceMark rm(thread);
   // disabled because it throws warnings that oop maps should only be accessed
   // in VM thread or during debugging
@@ -282,7 +274,6 @@ void InterfaceSupport::verify_stack() {
 
 void InterfaceSupport::verify_last_frame() {
   JavaThread* thread = JavaThread::current();
-  BufferedValuesDealiaser dealiaser(thread);
   ResourceMark rm(thread);
   RegisterMap reg_map(thread);
   frame fr = thread->last_frame();

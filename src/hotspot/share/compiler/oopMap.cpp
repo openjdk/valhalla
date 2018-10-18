@@ -361,7 +361,6 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
 
   // We want coop and oop oop_types
   int mask = OopMapValue::oop_value | OopMapValue::narrowoop_value;
-  BufferedValuesDealiaser* dealiaser = NULL;
   {
     for (OopMapStream oms(map,mask); !oms.is_done(); oms.next()) {
       omv = oms.current();
@@ -382,9 +381,12 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           continue;
         }
 #ifdef ASSERT
-        if ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
-            (!Universe::heap()->is_in_or_null(*loc)
-                && !VTBuffer::is_in_vt_buffer(*loc))) {
+        // We can not verify the oop here if we are using ZGC, the oop
+        // will be bad in case we had a safepoint between a load and a
+        // load barrier.
+        if (!UseZGC &&
+            ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
+                (!Universe::heap()->is_in_or_null(*loc)))) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");
           // try to dump out some helpful debugging information
           trace_codeblob_maps(fr, reg_map);
@@ -393,19 +395,10 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           omv.reg()->print();
           tty->print_cr("loc = %p *loc = %p\n", loc, (address)*loc);
           // do the real assert.
-          assert(Universe::heap()->is_in_or_null(*loc) || VTBuffer::is_in_vt_buffer(*loc),
-                 "found non oop pointer");
+          assert(Universe::heap()->is_in_or_null(*loc), "found non oop pointer");
         }
 #endif // ASSERT
-        if (!VTBuffer::is_in_vt_buffer(*loc)) {
-          oop_fn->do_oop(loc);
-        } else {
-          assert((*loc)->is_value(), "Sanity check");
-          if (dealiaser == NULL) {
-            dealiaser = Thread::current()->buffered_values_dealiaser();
-          }
-          dealiaser->oops_do(oop_fn, *loc);
-        }
+        oop_fn->do_oop(loc);
       } else if ( omv.type() == OopMapValue::narrowoop_value ) {
         narrowOop *nl = (narrowOop*)loc;
 #ifndef VM_LITTLE_ENDIAN
@@ -579,14 +572,14 @@ bool OopMap::equals(const OopMap* other) const {
 
 const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) const {
   ImmutableOopMapPair* pairs = get_pairs();
-  ImmutableOopMapPair* last = NULL;
 
-  for (int i = 0; i < _count; ++i) {
+  int i;
+  for (i = 0; i < _count; ++i) {
     if (pairs[i].pc_offset() >= pc_offset) {
-      last = &pairs[i];
       break;
     }
   }
+  ImmutableOopMapPair* last = &pairs[i];
 
   assert(last->pc_offset() == pc_offset, "oopmap not found");
   return last->get_from(this);
@@ -612,7 +605,7 @@ int ImmutableOopMap::nr_of_bytes() const {
 }
 #endif
 
-ImmutableOopMapBuilder::ImmutableOopMapBuilder(const OopMapSet* set) : _set(set), _new_set(NULL), _empty(NULL), _last(NULL), _empty_offset(-1), _last_offset(-1), _offset(0), _required(-1) {
+ImmutableOopMapBuilder::ImmutableOopMapBuilder(const OopMapSet* set) : _set(set), _empty(NULL), _last(NULL), _empty_offset(-1), _last_offset(-1), _offset(0), _required(-1), _new_set(NULL) {
   _mapping = NEW_RESOURCE_ARRAY(Mapping, _set->size());
 }
 

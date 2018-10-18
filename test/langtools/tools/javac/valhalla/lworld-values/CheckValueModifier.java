@@ -5,19 +5,18 @@
  * @compile/fail/ref=CheckValueModifier.out -XDrawDiagnostics CheckValueModifier.java
  */
 
-/* Note: __ByValue as a modifier will be rejected by the parser if it features as a
+/* Note: value as a modifier will be rejected by the parser if it features as a
    modifier of a (a) catch parameter, (b) resource variable, (c) for loop's init section
    declarators and (d) formal parameters. We test here only for the other illegal places.
 
-   All uses of __ByValue below should trigger errors.
+   All uses of value below should trigger errors.
 */
 class CheckValueModifier {
-   __ByValue int x;
-   __ByValue int foo() {
-       __ByValue String local;
+   value int x;
+   value int foo() {
    }
-   __ByValue interface IFace {}
-   __ByValue @interface Annot {}
-   __ByValue enum Enum {}
-   __ByValue abstract class Inner {}
+   value interface IFace {}
+   value @interface Annot {}
+   value enum Enum {}
+   value abstract class Inner {}
 }

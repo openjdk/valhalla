@@ -27,9 +27,9 @@
 # It also contains test-suite configuration information.
 
 # The list of keywords supported in this test suite
-keys=cte_test jcmd nmt regression gc stress metaspace
+keys=cte_test jcmd nmt regression gc stress metaspace headful intermittent
 
-groups=TEST.groups
+groups=TEST.groups TEST.quick-groups
 
 # Source files for classes that will be used at the beginning of each test suite run,
 # to determine additional characteristics of the system for use with the @requires tag.
@@ -40,15 +40,21 @@ requires.extraPropDefns.vmOpts = -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
 requires.properties= \
     sun.arch.data.model \
     vm.simpleArch \
+    vm.bits \
     vm.flightRecorder \
     vm.gc.G1 \
     vm.gc.Serial \
     vm.gc.Parallel \
     vm.gc.ConcMarkSweep \
+    vm.gc.Epsilon \
+    vm.gc.Z \
     vm.jvmci \
     vm.emulatedClient \
     vm.cpu.features \
     vm.debug \
+    vm.hasSA \
+    vm.hasSAandCanAttach \
+    vm.hasJFR \
     vm.rtm.cpu \
     vm.rtm.os \
     vm.aot \
@@ -56,10 +62,12 @@ requires.properties= \
     vm.cds.custom.loaders \
     vm.cds.archived.java.heap \
     vm.graal.enabled \
+    vm.compiler1.enabled \
+    vm.compiler2.enabled \
     docker.support
 
 # Minimum jtreg version
-requiredVersion=4.2 b12
+requiredVersion=4.2 b13
 
 # Path to libraries in the topmost test directory. This is needed so @library
 # does not need ../../../ notation to reach them

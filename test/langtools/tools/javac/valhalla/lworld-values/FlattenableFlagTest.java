@@ -37,7 +37,7 @@ import java.nio.file.Paths;
 
 public class FlattenableFlagTest {
 
-    __ByValue static final class Value {
+    value static final class Value {
         final int xx = 10;
     }
 

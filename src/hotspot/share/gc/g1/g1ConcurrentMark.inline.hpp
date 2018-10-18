@@ -29,6 +29,7 @@
 #include "gc/g1/g1ConcurrentMark.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkObjArrayProcessor.inline.hpp"
+#include "gc/g1/g1OopClosures.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
 #include "gc/g1/g1RemSetTrackingPolicy.hpp"
@@ -51,7 +52,7 @@ inline bool G1CMSubjectToDiscoveryClosure::do_object_b(oop obj) {
     return false;
   }
   assert(_g1h->is_in_reserved(obj), "Trying to discover obj " PTR_FORMAT " not in heap", p2i(obj));
-  return _g1h->heap_region_containing(obj)->is_old_or_humongous();
+  return _g1h->heap_region_containing(obj)->is_old_or_humongous_or_archive();
 }
 
 inline bool G1ConcurrentMark::mark_in_next_bitmap(uint const worker_id, oop const obj, size_t const obj_size) {

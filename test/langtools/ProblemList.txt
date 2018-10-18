@@ -26,7 +26,6 @@
 ###########################################################################
 #
 # javadoc
-jdk/javadoc/tool/VerifyLocale.java                                              8149565    generic-all    -locale option issues
 jdk/javadoc/tool/enum/docComments/Main.java                                     8152313    generic-all    convert to doclet test framework
 jdk/javadoc/tool/enum/enumType/Main.java                                        8152313    generic-all    convert to doclet test framework
 jdk/javadoc/tool/varArgs/Main.java                                              8152313    generic-all    convert to doclet test framework
@@ -55,8 +54,12 @@ tools/javac/annotations/typeAnnotations/referenceinfos/Lambda.java              
 tools/javac/annotations/typeAnnotations/referenceinfos/NestedTypes.java         8057687    generic-all    emit correct byte code an attributes for type annotations
 tools/javac/warnings/suppress/TypeAnnotations.java                              8057683    generic-all    improve ordering of errors with type annotations
 tools/javac/modules/SourceInSymlinkTest.java                                    8180263    windows-all    fails when run on a subst drive
-tools/javac/options/release/ReleaseOptionUnsupported.java                       8193784    generic-all    temporary until support for --release 11 is worked out
 tools/javac/importscope/T8193717.java                                           8203925    generic-all    the test requires too much memory
+
+
+tools/javac/options/smokeTests/OptionSmokeTest.java                             8205493    generic-all    hard-coded release values in strings
+
+tools/javac/file/zip/8003512/LoadClassFromJava6CreatedJarTest.java              8206874    generic-all    test requires a JDK 6 environment to be useful
 
 ###########################################################################
 #
@@ -72,20 +75,12 @@ tools/javap/T6587786.java                                                       
 tools/sjavac/IncCompileFullyQualifiedRef.java                                   8152055    generic-all    Requires dependency code to deal with in-method dependencies.
 tools/sjavac/IncCompileWithChanges.java                                         8152055    generic-all    Requires dependency code to deal with in-method dependencies.
 
-tools/sjavac/ApiExtraction.java							8158002	   generic-all	  Requires investigation
-tools/sjavac/IgnoreSymbolFile.java						8158002	   generic-all	  Requires investigation
-tools/sjavac/ClasspathDependencies.java						8158002	   generic-all	  Requires investigation
+tools/sjavac/ApiExtraction.java                                                 8158002    generic-all    Requires investigation
+tools/sjavac/IgnoreSymbolFile.java                                              8158002    generic-all    Requires investigation
+tools/sjavac/ClasspathDependencies.java                                         8158002    generic-all    Requires investigation
 
 
 ###########################################################################
 #
-# jdeps 
-
-tools/jdeprscan/tests/jdk/jdeprscan/TestNotFound.java       8193784    generic-all        temporary until support for --release 11 is worked out
-###########################################################################
-#
-# Java EE Module Removal
-#
-tools/jdeprscan/tests/jdk/jdeprscan/TestRelease.java                  8194308    generic-all  Java EE Module Removal
-tools/jdeprscan/tests/jdk/jdeprscan/TestNotFound.java                 8194308    generic-all  Java EE Module Removal
+# jdeps
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/align.hpp"
 
 G1CollectedHeap* G1AllocRegion::_g1h = NULL;
@@ -251,10 +251,12 @@ void G1AllocRegion::trace(const char* str, size_t min_word_size, size_t desired_
 
 G1AllocRegion::G1AllocRegion(const char* name,
                              bool bot_updates)
-  : _name(name), _bot_updates(bot_updates),
-    _alloc_region(NULL), _count(0),
-    _used_bytes_before(0) { }
-
+  : _alloc_region(NULL),
+    _count(0),
+    _used_bytes_before(0),
+    _bot_updates(bot_updates),
+    _name(name)
+ { }
 
 HeapRegion* MutatorAllocRegion::allocate_new_region(size_t word_size,
                                                     bool force) {

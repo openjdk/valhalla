@@ -27,7 +27,7 @@
  * @test
  * @summary Check that value types have their super types wired to be j.l.Object
  *
- * @compile Point.java
+ * @compile -XDallowWithFieldOperator Point.java
  * @compile CheckSuperCompileOnly.java
  */
 

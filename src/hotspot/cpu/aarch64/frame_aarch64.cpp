@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -71,9 +71,20 @@ bool frame::safe_for_sender(JavaThread *thread) {
     return false;
   }
 
-  // unextended sp must be within the stack and above or equal sp
-  bool unextended_sp_safe = (unextended_sp < thread->stack_base()) &&
-                            (unextended_sp >= sp);
+  // When we are running interpreted code the machine stack pointer, SP, is
+  // set low enough so that the Java expression stack can grow and shrink
+  // without ever exceeding the machine stack bounds.  So, ESP >= SP.
+
+  // When we call out of an interpreted method, SP is incremented so that
+  // the space between SP and ESP is removed.  The SP saved in the callee's
+  // frame is the SP *before* this increment.  So, when we walk a stack of
+  // interpreter frames the sender's SP saved in a frame might be less than
+  // the SP at the point of call.
+
+  // So unextended sp must be within the stack but we need not to check
+  // that unextended sp >= sp
+
+  bool unextended_sp_safe = (unextended_sp < thread->stack_base());
 
   if (!unextended_sp_safe) {
     return false;
@@ -528,7 +539,7 @@ bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
   Method* m = *interpreter_frame_method_addr();
 
   // validate the method we'd find in this potential sender
-  if (!m->is_valid_method()) return false;
+  if (!Method::is_valid_method(m)) return false;
 
   // stack frames shouldn't be much larger than max_stack elements
   // this test requires the use of unextended_sp which is the sp as seen by

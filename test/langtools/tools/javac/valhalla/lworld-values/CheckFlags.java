@@ -27,7 +27,7 @@
  * @test
  * @summary Check value flag in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile Point.java
+ * @compile -XDallowWithFieldOperator Point.java
  * @run main CheckFlags
  */
 

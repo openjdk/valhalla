@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @test ValueTypeDensity
  * @summary Heap density test for ValueTypes
  * @library /test/lib
- * @compile -XDenableValueTypes ValueTypeDensity.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator ValueTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+ValueArrayFlatten
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -66,7 +66,7 @@ public class ValueTypeDensity {
 
     interface LocalDateTime extends LocalDate, LocalTime {}
 
-    static final __ByValue class LocalDateValue implements LocalDate {
+    static final value class LocalDateValue implements LocalDate {
         final int   year;
         final short month;
         final short day;
@@ -82,7 +82,7 @@ public class ValueTypeDensity {
         public short getDay()   { return day; }
 
         public static LocalDateValue create(int year, short month, short day) {
-            LocalDateValue localDate = __MakeDefault LocalDateValue();
+            LocalDateValue localDate = LocalDateValue.default;
             localDate = __WithField(localDate.year, year);
             localDate = __WithField(localDate.month, month);
             localDate = __WithField(localDate.day, day);
@@ -90,7 +90,7 @@ public class ValueTypeDensity {
         }
     }
 
-    static final __ByValue class LocalTimeValue implements LocalTime {
+    static final value class LocalTimeValue implements LocalTime {
         final byte hour;
         final byte minute;
         final byte second;
@@ -109,7 +109,7 @@ public class ValueTypeDensity {
         public int getNano()    { return nano; }
 
         public static LocalTimeValue create(byte hour, byte minute, byte second, int nano) {
-            LocalTimeValue localTime = __MakeDefault LocalTimeValue();
+            LocalTimeValue localTime = LocalTimeValue.default;
             localTime = __WithField(localTime.hour, hour);
             localTime = __WithField(localTime.minute, minute);
             localTime = __WithField(localTime.second, second);
@@ -118,7 +118,7 @@ public class ValueTypeDensity {
         }
     }
 
-    static final __ByValue class LocalDateTimeValue implements LocalDateTime {
+    static final value class LocalDateTimeValue implements LocalDateTime {
         final LocalDateValue date;
         final LocalTimeValue time;
 
@@ -138,7 +138,7 @@ public class ValueTypeDensity {
         public int getNano()    { return time.nano; }
 
         public static LocalDateTimeValue create(LocalDateValue date, LocalTimeValue time) {
-            LocalDateTimeValue localDateTime = __MakeDefault LocalDateTimeValue();
+            LocalDateTimeValue localDateTime = LocalDateTimeValue.default;
             localDateTime = __WithField(localDateTime.date, date);
             localDateTime = __WithField(localDateTime.time, time);
             return localDateTime;

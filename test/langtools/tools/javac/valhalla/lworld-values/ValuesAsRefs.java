@@ -29,16 +29,17 @@
  */
 import java.util.ArrayList;
 
-public final __ByValue class ValuesAsRefs {
+public final value class ValuesAsRefs {
 
     final ArrayList<? extends ValuesAsRefs> ao = null; // values can be wildcard bounds.
 
-    final __ByValue class I implements java.io.Serializable {
+    final value class I implements java.io.Serializable {
         final int y = 42;
     }
 
     void foo() {
-        I i = this.__MakeDefault I();  // values can be enclosing instances.
+        I i = this.new I();  // values can be enclosing instances.
+        i = ValuesAsRefs.I.default;
         Object o = (I & java.io.Serializable) i; // values can be used in intersection casts
     }
     <T> void goo() {

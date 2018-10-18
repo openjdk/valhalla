@@ -35,11 +35,11 @@ import com.sun.tools.classfile.*;
 
 public final class CheckDefaultFlattenable {
 
-    final __ByValue class X {
+    final value class X {
         final int x = 10;
     }
     @ValueBased
-    final __ByValue class Y {
+    final value class Y {
         final int x = 10;
     }
 

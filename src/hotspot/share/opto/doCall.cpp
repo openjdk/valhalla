@@ -511,28 +511,36 @@ void Parse::do_call() {
     speculative_receiver_type = receiver_type != NULL ? receiver_type->speculative_type() : NULL;
   }
 
-  // invoke-super-special
+  // Additional receiver subtype checks for interface calls via invokespecial or invokeinterface.
+  ciKlass* receiver_constraint = NULL;
   if (iter().cur_bc_raw() == Bytecodes::_invokespecial && !orig_callee->is_object_initializer()) {
     ciInstanceKlass* calling_klass = method()->holder();
     ciInstanceKlass* sender_klass =
-        calling_klass->is_anonymous() ? calling_klass->host_klass() :
-                                        calling_klass;
+        calling_klass->is_unsafe_anonymous() ? calling_klass->unsafe_anonymous_host() :
+                                               calling_klass;
     if (sender_klass->is_interface()) {
-      Node* receiver_node = stack(sp() - nargs);
-      Node* cls_node = makecon(TypeKlassPtr::make(sender_klass));
-      Node* bad_type_ctrl = NULL;
-      Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
-      if (bad_type_ctrl != NULL) {
-        PreserveJVMState pjvms(this);
-        set_control(bad_type_ctrl);
-        uncommon_trap(Deoptimization::Reason_class_check,
-                      Deoptimization::Action_none);
-      }
-      if (stopped()) {
-        return; // MUST uncommon-trap?
-      }
-      set_stack(sp() - nargs, casted_receiver);
+      receiver_constraint = sender_klass;
     }
+  } else if (iter().cur_bc_raw() == Bytecodes::_invokeinterface && orig_callee->is_private()) {
+    assert(holder->is_interface(), "How did we get a non-interface method here!");
+    receiver_constraint = holder;
+  }
+
+  if (receiver_constraint != NULL) {
+    Node* receiver_node = stack(sp() - nargs);
+    Node* cls_node = makecon(TypeKlassPtr::make(receiver_constraint));
+    Node* bad_type_ctrl = NULL;
+    Node* casted_receiver = gen_checkcast(receiver_node, cls_node, &bad_type_ctrl);
+    if (bad_type_ctrl != NULL) {
+      PreserveJVMState pjvms(this);
+      set_control(bad_type_ctrl);
+      uncommon_trap(Deoptimization::Reason_class_check,
+                    Deoptimization::Action_none);
+    }
+    if (stopped()) {
+      return; // MUST uncommon-trap?
+    }
+    set_stack(sp() - nargs, casted_receiver);
   }
 
   // Note:  It's OK to try to inline a virtual call.
@@ -639,18 +647,6 @@ void Parse::do_call() {
     ciType* rtype = cg->method()->return_type();
     ciType* ctype = declared_signature->return_type();
 
-    if (rtype->basic_type() == T_VALUETYPE) {
-      Node* retnode = peek();
-      if (!retnode->is_ValueType()) {
-        pop();
-        assert(!cg->is_inline(), "should have ValueTypeNode result");
-        ciValueKlass* vk = _gvn.type(retnode)->value_klass();
-        // We will deoptimize if the return value is null and then need to continue execution after the call
-        ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, retnode, vk, /* buffer_check */ false, /* null2default */ false, iter().next_bci());
-        push_node(T_VALUETYPE, vt);
-      }
-    }
-
     if (Bytecodes::has_optional_appendix(iter().cur_bc_raw()) || is_signature_polymorphic) {
       // Be careful here with return types.
       if (ctype != rtype) {
@@ -664,7 +660,7 @@ void Parse::do_call() {
         } else if (rt == T_INT || is_subword_type(rt)) {
           // Nothing.  These cases are handled in lambda form bytecode.
           assert(ct == T_INT || is_subword_type(ct), "must match: rt=%s, ct=%s", type2name(rt), type2name(ct));
-        } else if (rt == T_OBJECT || rt == T_ARRAY) {
+        } else if (rt == T_OBJECT || rt == T_ARRAY || rt == T_VALUETYPE) {
           assert(ct == T_OBJECT || ct == T_ARRAY || ct == T_VALUETYPE, "rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
@@ -675,22 +671,12 @@ void Parse::do_call() {
               // (See comments inside TypeTuple::make_range).
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
+            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
-              if (ct == T_VALUETYPE) {
-                // We will deoptimize if the return value is null and then need to continue execution after the call
-                cast_obj = ValueTypeNode::make_from_oop(this, cast_obj, ctype->as_value_klass(), /* buffer_check */ false, /* null2default */ false, iter().next_bci());
-              }
               push(cast_obj);
             }
           }
-        } else if (rt == T_VALUETYPE) {
-          assert(ct == T_OBJECT, "object expected but got ct=%s", type2name(ct));
-          ValueTypeNode* vt = pop()->as_ValueType();
-          vt = vt->allocate(this)->as_ValueType();
-          Node* vtptr = ValueTypePtrNode::make_from_value_type(_gvn, vt);
-          push(vtptr);
         } else {
           assert(rt == ct, "unexpected mismatch: rt=%s, ct=%s", type2name(rt), type2name(ct));
           // push a zero; it's better than getting an oop/int mismatch
@@ -709,6 +695,18 @@ void Parse::do_call() {
       // the accessing class).
       assert(!rtype->is_loaded() || !ctype->is_loaded() || rtype == ctype,
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
+    }
+
+    if (rtype->basic_type() == T_VALUETYPE && !peek()->is_ValueType()) {
+      // Deoptimize if the return value is null and then continue execution after the call
+      Node* retnode = pop();
+      assert(!gvn().type(retnode)->maybe_null() || !cg->method()->get_Method()->is_returning_vt(), "should never be null");
+      if (rtype->as_value_klass()->is_scalarizable()) {
+        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass(), /* null2default */ false, iter().next_bci());
+      } else if (gvn().type(retnode)->maybe_null()) {
+        retnode = filter_null(retnode, false, NULL, iter().next_bci());
+      }
+      push_node(T_VALUETYPE, retnode);
     }
 
     // If the return type of the method is not loaded, assert that the

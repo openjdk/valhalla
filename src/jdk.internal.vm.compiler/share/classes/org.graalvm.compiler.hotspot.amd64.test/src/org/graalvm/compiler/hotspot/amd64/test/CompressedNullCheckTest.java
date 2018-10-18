@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.amd64.test;
 
 import static org.graalvm.compiler.core.common.GraalOptions.OptImplicitNullChecks;
@@ -74,7 +76,7 @@ public class CompressedNullCheckTest extends HotSpotGraalCompilerTest {
 
     @Test
     public void implicit() {
-        testImplicit(new Integer(1));
+        testImplicit(Integer.valueOf(1));
     }
 
     @Test
@@ -84,7 +86,7 @@ public class CompressedNullCheckTest extends HotSpotGraalCompilerTest {
 
     @Test
     public void explicit() {
-        testExplicit(new Integer(1));
+        testExplicit(Integer.valueOf(1));
     }
 
     @Test

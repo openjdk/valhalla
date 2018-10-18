@@ -5,13 +5,13 @@
  * @compile/fail/ref=WithFieldNegativeTests.out -XDrawDiagnostics WithFieldNegativeTests.java
  */
 
-__ByValue final class A {
+value final class A {
     final int x = 10;
     static final int sx = 10;
 
-    __ByValue final class B {
+    value final class B {
 
-        final A a = __MakeDefault A();
+        final A a = A.default;
 
         void foo(A a) {
             a.x = 100;

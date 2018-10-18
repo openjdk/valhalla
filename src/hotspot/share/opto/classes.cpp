@@ -48,11 +48,17 @@
 #include "opto/subnode.hpp"
 #include "opto/valuetypenode.hpp"
 #include "opto/vectornode.hpp"
+#include "utilities/macros.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 // ----------------------------------------------------------------------------
 // Build a table of virtual functions to map from Nodes to dense integer
 // opcode names.
 int Node::Opcode() const { return Op_Node; }
 #define macro(x) int x##Node::Opcode() const { return Op_##x; }
+#define optionalmacro(x)
 #include "classes.hpp"
 #undef macro
+#undef optionalmacro

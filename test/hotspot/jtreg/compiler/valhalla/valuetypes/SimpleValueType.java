@@ -21,7 +21,7 @@
  * questions.
  */
 
-__ByValue final class SimpleValueType {
+value final class SimpleValueType {
     final int x;
 
     private SimpleValueType() {
@@ -29,7 +29,7 @@ __ByValue final class SimpleValueType {
     }
 
     static SimpleValueType create() {
-        return __MakeDefault SimpleValueType();
+        return SimpleValueType.default;
     }
 }
 

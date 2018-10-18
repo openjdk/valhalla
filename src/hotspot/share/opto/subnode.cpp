@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -744,7 +746,7 @@ bool CmpLNode::is_double_null_check(PhaseGVN* phase, Node*& a, Node*& b) const {
 const Type* CmpLNode::Value(PhaseGVN* phase) const {
   Node* a = NULL;
   Node* b = NULL;
-  if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(a)->maybe_null())) {
+  if (is_double_null_check(phase, a, b) && (!phase->type(a)->maybe_null() || !phase->type(b)->maybe_null())) {
     // One operand is never NULL, emit constant false
     return TypeInt::CC_GT;
   }
@@ -834,7 +836,7 @@ const Type* CmpULNode::sub(const Type* t1, const Type* t2) const {
 const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
   if (t1->isa_valuetype() || t2->isa_valuetype() ||
       ((t1->is_valuetypeptr() || t2->is_valuetypeptr()) &&
-      (!t1->is_ptr()->maybe_null() || !t2->is_ptr()->maybe_null()))) {
+      (!t1->maybe_null() || !t2->maybe_null()))) {
     // One operand is a value type and one operand is never null, fold to constant false
     return TypeInt::CC_GT;
   }
@@ -920,8 +922,13 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
 
 static inline Node* isa_java_mirror_load(PhaseGVN* phase, Node* n) {
   // Return the klass node for (indirect load from OopHandle)
-  //   LoadP(LoadP(AddP(foo:Klass, #java_mirror)))
+  //   LoadBarrier?(LoadP(LoadP(AddP(foo:Klass, #java_mirror))))
   //   or NULL if not matching.
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  if (bs->is_gc_barrier_node(n)) {
+    n = bs->step_over_gc_barrier(n);
+  }
+
   if (n->Opcode() != Op_LoadP) return NULL;
 
   const TypeInstPtr* tp = phase->type(n)->isa_instptr();
@@ -982,14 +989,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     Node* cmp = phase->C->optimize_acmp(phase, a, b);
     if (cmp != NULL) {
       return cmp;
-    }
-    if ( TypePtr::NULL_PTR->higher_equal(phase->type(a)) &&
-        !TypePtr::NULL_PTR->higher_equal(phase->type(b))) {
-      // Operand 'b' is never null, swap operands to avoid null check
-      Node* is_value = phase->C->load_is_value_bit(phase, b);
-      set_req(1, phase->transform(new AddPNode(b, b, is_value)));
-      set_req(2, a);
-      return this;
     }
   }
 
@@ -1103,7 +1102,7 @@ Node* CmpPNode::has_perturbed_operand() const {
       // RawPtr comparison
       return NULL;
     }
-    assert(EnableValhalla, "unexpected perturbed oop");
+    assert(EnableValhalla && UsePointerPerturbation, "unexpected perturbed oop");
     return in(1);
   }
   return NULL;

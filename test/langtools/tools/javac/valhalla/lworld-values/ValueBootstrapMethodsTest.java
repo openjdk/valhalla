@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test value bootstrap methods
+ * @compile -XDallowWithFieldOperator ValueBootstrapMethodsTest.java
  * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethodsTest
  */
 
@@ -33,7 +34,7 @@ import java.util.Objects;
 
 public class ValueBootstrapMethodsTest {
 
-    public static final __ByValue class Value {
+    public static final value class Value {
         private final int i;
         private final double d;
         private final String s;
@@ -45,7 +46,7 @@ public class ValueBootstrapMethodsTest {
             this.l = List.of();
         }
         public static Value make(int i, double d, String s, String... items) {
-            Value v = __MakeDefault Value();
+            Value v = Value.default;
             v = __WithField(v.i, i);
             v = __WithField(v.d, d);
             v = __WithField(v.s, s);

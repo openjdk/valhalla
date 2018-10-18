@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -159,6 +159,12 @@ class MethodAccessorGenerator extends AccessorGenerator {
         //     [CONSTANT_Class_info] for above
         //     [UTF-8] [Target class's name]
         //     [CONSTANT_Class_info] for above
+        // ^   [UTF-8] [Serialization: Class's name in which to invoke constructor]
+        // ^   [CONSTANT_Class_info] for above
+        //     [UTF-8] target method or constructor name
+        //     [UTF-8] target method or constructor signature
+        //     [CONSTANT_NameAndType_info] for above
+        //     [CONSTANT_Methodref_info or CONSTANT_InterfaceMethodref_info] for target method
         //     [UTF-8] descriptor for type of non-primitive parameter 1
         //     [CONSTANT_Class_info] for type of non-primitive parameter 1
         //     ...
@@ -167,12 +173,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
         //     [UTF-8] descriptor for declared value types if not present in CP
         //     [CONSTANT_Class_info] for declared value types if not present in CP
         //     ...
-        // ^   [UTF-8] [Serialization: Class's name in which to invoke constructor]
-        // ^   [CONSTANT_Class_info] for above
-        //     [UTF-8] target method or constructor name
-        //     [UTF-8] target method or constructor signature
-        //     [CONSTANT_NameAndType_info] for above
-        //     [CONSTANT_Methodref_info or CONSTANT_InterfaceMethodref_info] for target method
         //     [UTF-8] "invoke" or "newInstance"
         //     [UTF-8] invoke or newInstance descriptor
         // +   [UTF-8] "java/lang/Exception"
@@ -312,11 +312,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         }
         asm.emitConstantPoolClass(asm.cpi());
         superClass = asm.cpi();
-
-        // emit constant pool entries for declaring class, parameter types and return type
-        cpClassPool.emitConstantPoolEntries();
         targetClass = cpClassPool.cpIndex(declaringClass);
-
         short serializationTargetClassIdx = (short) 0;
         if (forSerialization) {
             asm.emitConstantPoolUTF8(getClassName(serializationTargetClass, false));
@@ -336,6 +332,10 @@ class MethodAccessorGenerator extends AccessorGenerator {
             }
         }
         targetMethodRef = asm.cpi();
+
+        // emit constant pool entries for parameter types and return type
+        cpClassPool.emitConstantPoolEntries();
+
         if (isConstructor) {
             asm.emitConstantPoolUTF8("newInstance");
         } else {
@@ -655,14 +655,10 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                     typeSizeInStackSlots(returnType));
             } else {
                 if (isInterface()) {
-                    if (isPrivate()) {
-                        cb.opc_invokespecial(targetMethodRef, count, 0);
-                    } else {
-                        cb.opc_invokeinterface(targetMethodRef,
-                                               count,
-                                               count,
-                                               typeSizeInStackSlots(returnType));
-                    }
+                    cb.opc_invokeinterface(targetMethodRef,
+                                           count,
+                                           count,
+                                           typeSizeInStackSlots(returnType));
                 } else {
                     cb.opc_invokevirtual(targetMethodRef,
                                          count,
@@ -845,7 +841,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
 
         void emitConstantPoolEntries() {
             for (Class<?> c : types) {
-                cpEntries.put(c, emitConstantPoolEntries(c));
+                cpEntries.computeIfAbsent(c, this::emitConstantPoolEntries);
             }
         }
 
@@ -860,7 +856,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         }
 
         short cpIndex(Class<?> c) {
-            return cpEntries.get(c);
+            return cpEntries.computeIfAbsent(c, this::emitConstantPoolEntries);
         }
 
         short[] declaredValueTypes() {

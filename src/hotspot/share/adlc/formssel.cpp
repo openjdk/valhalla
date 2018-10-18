@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -641,22 +641,6 @@ bool InstructForm::needs_anti_dependence_check(FormDict &globals) const {
 }
 
 
-bool InstructForm::is_wide_memory_kill(FormDict &globals) const {
-  if( _matrule == NULL ) return false;
-  if( !_matrule->_opType ) return false;
-
-  if( strcmp(_matrule->_opType,"MemBarRelease") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"MemBarAcquire") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"MemBarReleaseLock") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"MemBarAcquireLock") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"MemBarStoreStore") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"MemBarVolatile") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"StoreFence") == 0 ) return true;
-  if( strcmp(_matrule->_opType,"LoadFence") == 0 ) return true;
-
-  return false;
-}
-
 int InstructForm::memory_operand(FormDict &globals) const {
   // Machine independent loads must be checked for anti-dependences
   // Check if instruction has a USE of a memory operand class, or a def.
@@ -1171,6 +1155,9 @@ const char *InstructForm::mach_base_class(FormDict &globals)  const {
   }
   else if (is_ideal_nop()) {
     return "MachNopNode";
+  }
+  else if( is_ideal_membar()) {
+    return "MachMemBarNode";
   }
   else if (is_ideal_jump()) {
     return "MachJumpNode";
@@ -2283,6 +2270,9 @@ bool OperandForm::is_bound_register() const {
   if (strcmp(name, "RegD") == 0) size = 2;
   if (strcmp(name, "RegL") == 0) size = 2;
   if (strcmp(name, "RegN") == 0) size = 1;
+  if (strcmp(name, "VecX") == 0) size = 4;
+  if (strcmp(name, "VecY") == 0) size = 8;
+  if (strcmp(name, "VecZ") == 0) size = 16;
   if (strcmp(name, "RegP") == 0) size = globalAD->get_preproc_def("_LP64") ? 2 : 1;
   if (size == 0) {
     return false;
@@ -3510,6 +3500,7 @@ int MatchNode::needs_ideal_memory_edge(FormDict &globals) const {
     "ClearArray",
     "GetAndSetB", "GetAndSetS", "GetAndAddI", "GetAndSetI", "GetAndSetP",
     "GetAndAddB", "GetAndAddS", "GetAndAddL", "GetAndSetL", "GetAndSetN",
+    "LoadBarrierSlowReg", "LoadBarrierWeakSlowReg"
   };
   int cnt = sizeof(needs_ideal_memory_list)/sizeof(char*);
   if( strcmp(_opType,"PrefetchAllocation")==0 )
@@ -3631,7 +3622,7 @@ int MatchNode::cisc_spill_match(FormDict& globals, RegisterForm* registers, Matc
         && (is_load_from_memory(mRule2->_opType) == data_type) // reg vs. (load memory)
         && (name_left != NULL)       // NOT (load)
         && (name_right == NULL) ) {  // NOT (load memory foo)
-      const Form *form2_left = name_left ? globals[name_left] : NULL;
+      const Form *form2_left = globals[name_left];
       if( form2_left && form2_left->is_cisc_mem(globals) ) {
         cisc_spillable = Is_cisc_spillable;
         operand        = _name;
@@ -3642,7 +3633,7 @@ int MatchNode::cisc_spill_match(FormDict& globals, RegisterForm* registers, Matc
       }
     }
     // Detect reg vs memory
-    else if( form->is_cisc_reg(globals) && form2->is_cisc_mem(globals) ) {
+    else if (form->is_cisc_reg(globals) && form2 != NULL && form2->is_cisc_mem(globals)) {
       cisc_spillable = Is_cisc_spillable;
       operand        = _name;
       reg_type       = _result;
@@ -3707,8 +3698,12 @@ int  MatchRule::matchrule_cisc_spill_match(FormDict& globals, RegisterForm* regi
   }
 
   // Check right operands: recursive walk to identify reg->mem operand
-  if( (_rChild == NULL) && (mRule2->_rChild == NULL) ) {
-    right_spillable =  Maybe_cisc_spillable;
+  if (_rChild == NULL) {
+    if (mRule2->_rChild == NULL) {
+      right_spillable =  Maybe_cisc_spillable;
+    } else {
+      assert(0, "_rChild should not be NULL");
+    }
   } else {
     right_spillable = _rChild->cisc_spill_match(globals, registers, mRule2->_rChild, operand, reg_type);
   }
@@ -4109,7 +4104,8 @@ bool MatchRule::is_ideal_membar() const {
     !strcmp(_opType,"StoreFence") ||
     !strcmp(_opType,"MemBarVolatile") ||
     !strcmp(_opType,"MemBarCPUOrder") ||
-    !strcmp(_opType,"MemBarStoreStore");
+    !strcmp(_opType,"MemBarStoreStore") ||
+    !strcmp(_opType,"OnSpinWait");
 }
 
 bool MatchRule::is_ideal_loadPC() const {

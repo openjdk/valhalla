@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.options;
 
 import java.util.EnumSet;
@@ -29,13 +31,12 @@ import jdk.internal.vm.compiler.collections.EconomicMap;
 public class EnumOptionKey<T extends Enum<T>> extends OptionKey<T> {
     final Class<T> enumClass;
 
-    @SuppressWarnings("unchecked")
     public EnumOptionKey(T value) {
         super(value);
         if (value == null) {
             throw new IllegalArgumentException("Value must not be null");
         }
-        this.enumClass = (Class<T>) value.getClass();
+        this.enumClass = value.getDeclaringClass();
     }
 
     /**

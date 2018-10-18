@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.lir.profiling;
 
 import java.util.ArrayList;
@@ -49,7 +51,7 @@ public class MethodProfilingPhase extends PostAllocationOptimizationPhase {
         new Analyzer(target, lirGenRes.getCompilationUnitName(), lirGenRes.getLIR(), context.diagnosticLirGenTool).run();
     }
 
-    private class Analyzer {
+    private static class Analyzer {
         private final LIR lir;
         private final DiagnosticLIRGeneratorTool diagnosticLirGenTool;
         private final LIRInsertionBuffer buffer;

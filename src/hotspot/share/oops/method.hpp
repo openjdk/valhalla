@@ -105,6 +105,7 @@ class Method : public Metadata {
   // Entry point for calling from compiled code, to compiled code if it exists
   // or else the interpreter.
   volatile address _from_compiled_entry;        // Cache of: _code ? _code->entry_point() : _adapter->c2i_entry()
+  volatile address _from_compiled_value_entry;  // Cache of: _code ? _code->value_entry_point() : _adapter->c2i_entry()
   // The entry point for calling both from and to compiled code is
   // "_code->entry_point()".  Because of tiered compilation and de-opt, this
   // field can come and go.  It can transition from NULL to not-null at any
@@ -272,12 +273,6 @@ class Method : public Metadata {
   // max locals
   int  max_locals() const                        { return constMethod()->max_locals(); }
   void set_max_locals(int size)                  { constMethod()->set_max_locals(size); }
-
-  // value type buffering
-  void initialize_max_vt_buffer();
-  int max_vt_buffer() const                      { return _max_vt_buffer; }
-  void set_max_vt_buffer(int size)               { _max_vt_buffer = size; }
-
 
   int highest_comp_level() const;
   void set_highest_comp_level(int level);
@@ -585,6 +580,7 @@ class Method : public Metadata {
 #ifdef ASSERT
   ValueKlass* returned_value_type(Thread* thread) const;
 #endif
+  bool has_value_args() const;
 
   // Checked exceptions thrown by this method (resolved to mirrors)
   objArrayHandle resolved_checked_exceptions(TRAPS) { return resolved_checked_exceptions_impl(this, THREAD); }
@@ -694,6 +690,7 @@ class Method : public Metadata {
   static ByteSize const_offset()                 { return byte_offset_of(Method, _constMethod       ); }
   static ByteSize access_flags_offset()          { return byte_offset_of(Method, _access_flags      ); }
   static ByteSize from_compiled_offset()         { return byte_offset_of(Method, _from_compiled_entry); }
+  static ByteSize from_compiled_value_offset()   { return byte_offset_of(Method, _from_compiled_value_entry); }
   static ByteSize code_offset()                  { return byte_offset_of(Method, _code); }
   static ByteSize flags_offset()                 { return byte_offset_of(Method, _flags); }
   static ByteSize method_data_offset()           {
@@ -929,9 +926,6 @@ class Method : public Metadata {
     return method_holder()->lookup_osr_nmethod(this, bci, level, match_level);
   }
 
-  // Inline cache support
-  void cleanup_inline_caches();
-
   // Find if klass for method is loaded
   bool is_klass_loaded_by_klass_index(int klass_index) const;
   bool is_klass_loaded(int refinfo_index, bool must_be_resolved = false) const;
@@ -1012,7 +1006,7 @@ class Method : public Metadata {
 
   // Check for valid method pointer
   static bool has_method_vptr(const void* ptr);
-  bool is_valid_method() const;
+  static bool is_valid_method(const Method* m);
 
   // Verify
   void verify() { verify_on(tty); }

@@ -80,6 +80,7 @@ import com.sun.source.util.DocSourcePositions;
 import com.sun.source.util.DocTrees;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.model.JavacTypes;
+import jdk.javadoc.internal.doclets.formats.html.SearchIndexItem;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.CommentUtils.DocCommentDuo;
 import jdk.javadoc.internal.doclets.toolkit.Messages;
@@ -1015,9 +1016,9 @@ public class Utils {
     }
 
     /**
-     * Return true if this class is linkable and false if we can't link to the
-     * desired class.
-     * <br>
+     * Returns true if this class is linkable and false if we can't link to it.
+     *
+     * <p>
      * <b>NOTE:</b>  You can only link to external classes if they are public or
      * protected.
      *
@@ -1030,6 +1031,43 @@ public class Utils {
                 (isIncluded(typeElem) && configuration.isGeneratedDoc(typeElem))) ||
             (configuration.extern.isExternal(typeElem) &&
                 (isPublic(typeElem) || isProtected(typeElem)));
+    }
+
+    /**
+     * Returns true if an element is linkable in the context of a given type element.
+     *
+     * If the element is a type element, it delegates to {@link #isLinkable(TypeElement)}.
+     * Otherwise, the element is linkable if any of the following are true:
+     * <ul>
+     * <li>it is "included" (see {@link jdk.javadoc.doclet})
+     * <li>it is inherited from an undocumented supertype
+     * <li>it is a public or protected member of an external API
+     * </ul>
+     *
+     * @param typeElem the type element
+     * @param elem the element
+     * @return whether or not the element is linkable
+     */
+    public boolean isLinkable(TypeElement typeElem, Element elem) {
+        if (isTypeElement(elem)) {
+            return isLinkable((TypeElement) elem); // defer to existing behavior
+        }
+
+        if (isIncluded(elem)) {
+            return true;
+        }
+
+        // Allow for the behavior that members of undocumented supertypes
+        // may be included in documented types
+        TypeElement enclElem = getEnclosingTypeElement(elem);
+        if (typeElem != enclElem && isSubclassOf(typeElem, enclElem)) {
+            return true;
+        }
+
+        // Allow for external members
+        return isLinkable(typeElem)
+                    && configuration.extern.isExternal(typeElem)
+                    && (isPublic(elem) || isProtected(elem));
     }
 
     /**
@@ -2077,6 +2115,48 @@ public class Utils {
                 }
             }.visit(e);
         }
+    }
+
+    /**
+     * Returns a Comparator for SearchIndexItems representing types. Items are
+     * compared by short name, or full string representation if names are equal.
+     *
+     * @return a Comparator
+     */
+    public Comparator<SearchIndexItem> makeTypeSearchIndexComparator() {
+        return (SearchIndexItem sii1, SearchIndexItem sii2) -> {
+            int result = compareStrings(sii1.getSimpleName(), sii2.getSimpleName());
+            if (result == 0) {
+                // TreeSet needs this to be consistent with equal so we do
+                // a plain comparison of string representations as fallback.
+                result = sii1.toString().compareTo(sii2.toString());
+            }
+            return result;
+        };
+    }
+
+    private Comparator<SearchIndexItem> genericSearchIndexComparator = null;
+    /**
+     * Returns a Comparator for SearchIndexItems representing modules, packages, or members.
+     * Items are compared by label (member name plus signature for members, package name for
+     * packages, and module name for modules). If labels are equal then full string
+     * representation is compared.
+     *
+     * @return a Comparator
+     */
+    public Comparator<SearchIndexItem> makeGenericSearchIndexComparator() {
+        if (genericSearchIndexComparator == null) {
+            genericSearchIndexComparator = (SearchIndexItem sii1, SearchIndexItem sii2) -> {
+                int result = compareStrings(sii1.getLabel(), sii2.getLabel());
+                if (result == 0) {
+                    // TreeSet needs this to be consistent with equal so we do
+                    // a plain comparison of string representations as fallback.
+                    result = sii1.toString().compareTo(sii2.toString());
+                }
+                return result;
+            };
+        }
+        return genericSearchIndexComparator;
     }
 
     public Iterable<TypeElement> getEnclosedTypeElements(PackageElement pkg) {

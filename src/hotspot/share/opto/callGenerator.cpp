@@ -162,11 +162,9 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
   }
   _call_node = call;  // Save the call node in case we need it later
   if (!is_static) {
-    if (!kit.argument(0)->is_ValueType()) {
-      // Make an explicit receiver null_check as part of this call.
-      // Since we share a map with the caller, his JVMS gets adjusted.
-      kit.null_check_receiver_before_call(method());
-    }
+    // Make an explicit receiver null_check as part of this call.
+    // Since we share a map with the caller, his JVMS gets adjusted.
+    kit.null_check_receiver_before_call(method());
     if (kit.stopped()) {
       // And dump it back to the caller, decorated with any exceptions:
       return kit.transfer_exceptions_into_jvms();
@@ -218,7 +216,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   // correctly, but may bail out in final_graph_reshaping, because
   // the call instruction will have a seemingly deficient out-count.
   // (The bailout says something misleading about an "infinite loop".)
-  if (kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
+  if (!receiver->is_ValueType() && kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
     assert(Bytecodes::is_invoke(kit.java_bc()), "%d: %s", kit.java_bc(), Bytecodes::name(kit.java_bc()));
     ciMethod* declared_method = kit.method()->get_method_at_bci(kit.bci());
     int arg_size = declared_method->signature()->arg_size_for_bc(kit.java_bc());
@@ -316,7 +314,7 @@ class LateInlineCallGenerator : public DirectCallGenerator {
 
  public:
   LateInlineCallGenerator(ciMethod* method, CallGenerator* inline_cg) :
-    DirectCallGenerator(method, true), _inline_cg(inline_cg), _unique_id(0) {}
+    DirectCallGenerator(method, true), _unique_id(0), _inline_cg(inline_cg) {}
 
   virtual bool is_late_inline() const { return true; }
 
@@ -500,43 +498,30 @@ void LateInlineCallGenerator::do_late_inline() {
   C->env()->notice_inlined_method(_inline_cg->method());
   C->set_inlining_progress(true);
 
-  if (return_type->is_valuetype()) {
-    const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
-    bool returned_as_fields = call->tf()->returns_value_type_as_fields();
-    if (result->is_ValueType()) {
-      ValueTypeNode* vt = result->as_ValueType();
-      if (!returned_as_fields) {
-        vt = vt->allocate(&kit)->as_ValueType();
-        result = ValueTypePtrNode::make_from_value_type(gvn, vt);
-      } else {
-        // Return of multiple values (the fields of a value type)
-        vt->replace_call_results(&kit, call, C);
-        if (gvn.type(vt->get_oop()) == TypePtr::NULL_PTR) {
-          result = vt->tagged_klass(gvn);
-        } else {
-          result = vt->get_oop();
-        }
-      }
-    } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
-      Node* cast = new CheckCastPPNode(NULL, result, vt_t);
-      gvn.record_for_igvn(cast);
-      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(&kit, gvn.transform(cast));
-      vtptr->replace_call_results(&kit, call, C);
-      result = cast;
+  // Handle value type returns
+  bool returned_as_fields = call->tf()->returns_value_type_as_fields();
+  if (result->is_ValueType()) {
+    ValueTypeNode* vt = result->as_ValueType();
+    if (!returned_as_fields) {
+      result = ValueTypePtrNode::make_from_value_type(&kit, vt);
     } else {
-      assert(result->is_top(), "what else?");
-      for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
-        ProjNode *pn = call->fast_out(i)->as_Proj();
-        uint con = pn->_con;
-        if (con >= TypeFunc::Parms) {
-          gvn.hash_delete(pn);
-          pn->set_req(0, C->top());
-          --i; --imax;
-        }
+      assert(false, "FIXME");
+      // Return of multiple values (the fields of a value type)
+      vt->replace_call_results(&kit, call, C);
+      if (gvn.type(vt->get_oop()) == TypePtr::NULL_PTR) {
+        result = vt->tagged_klass(gvn);
+      } else {
+        result = vt->get_oop();
       }
     }
-  } else if (result->is_ValueType()) {
-    result = result->isa_ValueType()->allocate(&kit)->get_oop();
+  } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
+    assert(false, "FIXME");
+    const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
+    Node* cast = new CheckCastPPNode(NULL, result, vt_t);
+    gvn.record_for_igvn(cast);
+    ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(&kit, gvn.transform(cast));
+    vtptr->replace_call_results(&kit, call, C);
+    result = cast;
   }
 
   kit.replace_call(call, result, true);
@@ -840,6 +825,28 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     return kit.transfer_exceptions_into_jvms();
   }
 
+  // Allocate value types if they are merged with objects (similar to Parse::merge_common())
+  uint tos = kit.jvms()->stkoff() + kit.sp();
+  uint limit = slow_map->req();
+  for (uint i = TypeFunc::Parms; i < limit; i++) {
+    Node* m = kit.map()->in(i);
+    Node* n = slow_map->in(i);
+    const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
+    if (m->is_ValueType() && !t->isa_valuetype()) {
+      // Allocate value type in fast path
+      m = ValueTypePtrNode::make_from_value_type(&kit, m->as_ValueType());
+      kit.map()->set_req(i, m);
+    }
+    if (n->is_ValueType() && !t->isa_valuetype()) {
+      // Allocate value type in slow path
+      PreserveJVMState pjvms(&kit);
+      kit.set_map(slow_map);
+      n = ValueTypePtrNode::make_from_value_type(&kit, n->as_ValueType());
+      kit.map()->set_req(i, n);
+      slow_map = kit.stop();
+    }
+  }
+
   // There are 2 branches and the replaced nodes are only valid on
   // one: restore the replaced nodes to what they were before the
   // branch.
@@ -863,8 +870,6 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
       mms.set_memory(gvn.transform(phi));
     }
   }
-  uint tos = kit.jvms()->stkoff() + kit.sp();
-  uint limit = slow_map->req();
   for (uint i = TypeFunc::Parms; i < limit; i++) {
     // Skip unused stack slots; fast forward to monoff();
     if (i == tos) {
@@ -920,7 +925,11 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   }
   if (sig_type->is_valuetypeptr() && !arg->is_ValueType()) {
     kit.inc_sp(nargs); // restore arguments
-    arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* buffer_check */ false, /* null2default */ false);
+    if (t->as_value_klass()->is_scalarizable()) {
+      arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* null2default */ false);
+    } else {
+      arg = kit.filter_null(arg);
+    }
     kit.dec_sp(nargs);
     kit.set_argument(arg_nb, arg);
   }
@@ -1027,7 +1036,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           speculative_receiver_type = (receiver_type != NULL) ? receiver_type->speculative_type() : NULL;
         }
         CallGenerator* cg = C->call_generator(target, vtable_index, call_does_dispatch, jvms,
-                                              true /* allow_inline */,
+                                              !StressMethodHandleLinkerInlining /* allow_inline */,
                                               PROB_ALWAYS,
                                               speculative_receiver_type,
                                               true,

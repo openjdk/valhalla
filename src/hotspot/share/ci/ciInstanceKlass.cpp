@@ -35,7 +35,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/valueKlass.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 
@@ -64,7 +64,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _nonstatic_field_size = ik->nonstatic_field_size();
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
-  _is_anonymous = ik->is_anonymous();
+  _is_unsafe_anonymous = ik->is_unsafe_anonymous();
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
   _vcc_klass = NULL;
@@ -76,13 +76,13 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   // InstanceKlass are created for both weak and strong metadata.  Ensuring this metadata
   // alive covers the cases where there are weak roots without performance cost.
   oop holder = ik->holder_phantom();
-  if (ik->is_anonymous()) {
+  if (ik->is_unsafe_anonymous()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
-    // VM anonymous classes alive (loader == NULL). Klass holder should be used instead.
-    // It is enough to record a ciObject, since cached elements are never removed
+    // VM unsafe anonymous classes alive (loader == NULL). Klass holder should
+    // be used instead. It is enough to record a ciObject, since cached elements are never removed
     // during ciObjectFactory lifetime. ciObjectFactory itself is created for
     // every compilation and lives for the whole duration of the compilation.
-    assert(holder != NULL, "holder of anonymous class is the mirror which is never null");
+    assert(holder != NULL, "holder of unsafe anonymous class is the mirror which is never null");
     (void)CURRENT_ENV->get_object(holder);
   }
 
@@ -126,7 +126,7 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
   _vcc_klass = NULL;
-  _is_anonymous = false;
+  _is_unsafe_anonymous = false;
   _loader = loader;
   _protection_domain = protection_domain;
   _is_shared = false;
@@ -421,29 +421,6 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
 }
 
 // ------------------------------------------------------------------
-// ciInstanceKlass::get_field_type_by_offset
-ciType* ciInstanceKlass::get_field_type_by_offset(int field_offset) {
-  ASSERT_IN_VM;
-  fieldDescriptor fd;
-  InstanceKlass* klass = get_instanceKlass();
-  // Important: We cannot get the field type via get_field_by_offset() because if the field
-  // is another value type, the offset would refer to the first field of that value type due
-  // to flattening. Instead, do a SystemDictionary lookup for the type of the declared field.
-  bool found = klass->find_field_from_offset(field_offset, false, &fd);
-  assert(found, "field not found");
-  BasicType field_type = fd.field_type();
-  if (is_java_primitive(field_type)) {
-    // Primitive type
-    return ciType::make(field_type);
-  } else {
-    // Do a SystemDictionary lookup for the type
-    ciEnv* env = CURRENT_ENV;
-    ciSymbol* signature = env->get_symbol(fd.signature());
-    return env->get_klass_by_name_impl(this, constantPoolHandle(), signature, false);
-  }
-}
-
-// ------------------------------------------------------------------
 // ciInstanceKlass::get_field_by_name
 ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static) {
   VM_ENTRY_MARK;
@@ -545,7 +522,8 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       // Value type fields are embedded
       int field_offset = fd.offset();
       // Get ValueKlass and adjust number of fields
-      ciValueKlass* vk = get_field_type_by_offset(field_offset)->as_value_klass();
+      Klass* k = get_instanceKlass()->get_value_field_klass(fd.index());
+      ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
       flen += vk->nof_nonstatic_fields() - 1;
       // Iterate over fields of the flattened value type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
@@ -639,6 +617,7 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
     // Go into the VM to fetch the implementor.
     {
       VM_ENTRY_MARK;
+      MutexLocker ml(Compile_lock);
       Klass* k = get_instanceKlass()->implementor();
       if (k != NULL) {
         if (k == get_instanceKlass()) {
@@ -657,12 +636,12 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
   return impl;
 }
 
-ciInstanceKlass* ciInstanceKlass::host_klass() {
+ciInstanceKlass* ciInstanceKlass::unsafe_anonymous_host() {
   assert(is_loaded(), "must be loaded");
-  if (is_anonymous()) {
+  if (is_unsafe_anonymous()) {
     VM_ENTRY_MARK
-    Klass* host_klass = get_instanceKlass()->host_klass();
-    return CURRENT_ENV->get_instance_klass(host_klass);
+    Klass* unsafe_anonymous_host = get_instanceKlass()->unsafe_anonymous_host();
+    return CURRENT_ENV->get_instance_klass(unsafe_anonymous_host);
   }
   return NULL;
 }

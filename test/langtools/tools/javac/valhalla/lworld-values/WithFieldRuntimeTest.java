@@ -24,10 +24,11 @@
 /**
  * @test
  * @summary Test withfield behavior at runtime.
+ * @compile -XDallowWithFieldOperator WithFieldRuntimeTest.java
  * @run main/othervm -XX:+EnableValhalla WithFieldRuntimeTest
  */
 
-public final __ByValue class WithFieldRuntimeTest {
+public final value class WithFieldRuntimeTest {
 
     final int x = 10;
 
@@ -40,7 +41,7 @@ public final __ByValue class WithFieldRuntimeTest {
     }
 
     public static void main(String [] args) {
-        WithFieldRuntimeTest x = __MakeDefault WithFieldRuntimeTest();
+        WithFieldRuntimeTest x = WithFieldRuntimeTest.default;
         foo(x);
     }
 }

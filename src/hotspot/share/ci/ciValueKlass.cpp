@@ -81,9 +81,9 @@ bool ciValueKlass::can_be_returned_as_fields() const {
   GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->can_be_returned_as_fields();)
 }
 
-// Can this value type be returned as multiple values?
-bool ciValueKlass::is_bufferable() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->is_bufferable();)
+// TODO
+bool ciValueKlass::is_scalarizable() const {
+  return ScalarizeValueTypes;
 }
 
 // When passing a value type's fields as arguments, count the number
@@ -103,6 +103,13 @@ int ciValueKlass::value_arg_slots() {
 // Offset of the default oop in the mirror
 int ciValueKlass::default_value_offset() const {
   GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->default_value_offset();)
+}
+
+ciInstance* ciValueKlass::default_value_instance() const {
+  GUARDED_VM_ENTRY(
+    oop default_value = ValueKlass::cast(get_Klass())->default_value();
+    return CURRENT_ENV->get_instance(default_value);
+  )
 }
 
 bool ciValueKlass::contains_oops() const {

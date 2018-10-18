@@ -222,7 +222,7 @@ void ConstantPool::initialize_unresolved_klasses(ClassLoaderData* loader_data, T
   allocate_resolved_klasses(loader_data, num_klasses, THREAD);
 }
 
-// Anonymous class support:
+// Unsafe anonymous class support:
 void ConstantPool::klass_at_put(int class_index, int name_index, int resolved_klass_index, Klass* k, Symbol* name) {
   assert(is_within_bounds(class_index), "index out of bounds");
   assert(is_within_bounds(name_index), "index out of bounds");
@@ -244,7 +244,7 @@ void ConstantPool::klass_at_put(int class_index, int name_index, int resolved_kl
   }
 }
 
-// Anonymous class support:
+// Unsafe anonymous class support:
 void ConstantPool::klass_at_put(int class_index, Klass* k) {
   assert(k != NULL, "must be valid klass");
   CPKlassSlot kslot = klass_slot_at(class_index);
@@ -297,6 +297,11 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
     }
 
     oop archived = MetaspaceShared::archive_heap_object(rr, THREAD);
+    // If the resolved references array is not archived (too large),
+    // the 'archived' object is NULL. No need to explicitly check
+    // the return value of archive_heap_object here. At runtime, the
+    // resolved references will be created using the normal process
+    // when there is no archived value.
     _cache->set_archived_references(archived);
     set_resolved_references(NULL);
   }
@@ -796,10 +801,14 @@ Symbol* ConstantPool::exception_message(const constantPoolHandle& this_cp, int w
 void ConstantPool::throw_resolution_error(const constantPoolHandle& this_cp, int which, TRAPS) {
   Symbol* message = NULL;
   Symbol* error = SystemDictionary::find_resolution_error(this_cp, which, &message);
-  assert(error != NULL && message != NULL, "checking");
+  assert(error != NULL, "checking");
   CLEAR_PENDING_EXCEPTION;
-  ResourceMark rm;
-  THROW_MSG(error, message->as_C_string());
+  if (message != NULL) {
+    ResourceMark rm;
+    THROW_MSG(error, message->as_C_string());
+  } else {
+    THROW(error);
+  }
 }
 
 // If resolution for Class, Dynamic constant, MethodHandle or MethodType fails, save the
@@ -837,6 +846,17 @@ void ConstantPool::save_and_throw_exception(const constantPoolHandle& this_cp, i
     // some other thread put this in error state
     throw_resolution_error(this_cp, which, CHECK);
   }
+}
+
+constantTag ConstantPool::constant_tag_at(int which) {
+  constantTag tag = tag_at(which);
+  if (tag.is_dynamic_constant() ||
+      tag.is_dynamic_constant_in_error()) {
+    // have to look at the signature for this one
+    Symbol* constant_type = uncached_signature_ref_at(which);
+    return constantTag::ofBasicType(FieldType::basic_type(constant_type));
+  }
+  return tag;
 }
 
 BasicType ConstantPool::basic_type_for_constant_at(int which) {
@@ -2511,9 +2531,9 @@ void ConstantPool::print_value_on(outputStream* st) const {
   if (has_preresolution()) st->print("/preresolution");
   if (operands() != NULL)  st->print("/operands[%d]", operands()->length());
   print_address_on(st);
-  st->print(" for ");
-  pool_holder()->print_value_on(st);
   if (pool_holder() != NULL) {
+    st->print(" for ");
+    pool_holder()->print_value_on(st);
     bool extra = (pool_holder()->constants() != this);
     if (extra)  st->print(" (extra)");
   }

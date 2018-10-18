@@ -34,6 +34,7 @@ import java.net.ProxySelector;
 import java.net.URLPermission;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -57,7 +58,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * and can be used to send multiple requests.
  *
  * <p> An {@code HttpClient} provides configuration information, and resource
- * sharing, for all requests send through it.
+ * sharing, for all requests sent through it.
  *
  * <p> A {@link BodyHandler BodyHandler} must be supplied for each {@link
  * HttpRequest} sent. The {@code BodyHandler} determines how to handle the
@@ -84,6 +85,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * <pre>{@code    HttpClient client = HttpClient.newBuilder()
  *        .version(Version.HTTP_1_1)
  *        .followRedirects(Redirect.NORMAL)
+ *        .connectTimeout(Duration.ofSeconds(20))
  *        .proxy(ProxySelector.of(new InetSocketAddress("proxy.example.com", 80)))
  *        .authenticator(Authenticator.getDefault())
  *        .build();
@@ -94,7 +96,7 @@ import jdk.internal.net.http.HttpClientBuilderImpl;
  * <p><b>Asynchronous Example</b>
  * <pre>{@code    HttpRequest request = HttpRequest.newBuilder()
  *        .uri(URI.create("https://foo.com/"))
- *        .timeout(Duration.ofMinutes(1))
+ *        .timeout(Duration.ofMinutes(2))
  *        .header("Content-Type", "application/json")
  *        .POST(BodyPublishers.ofFile(Paths.get("file.json")))
  *        .build();
@@ -197,6 +199,26 @@ public abstract class HttpClient {
         public Builder cookieHandler(CookieHandler cookieHandler);
 
         /**
+         * Sets the connect timeout duration for this client.
+         *
+         * <p> In the case where a new connection needs to be established, if
+         * the connection cannot be established within the given {@code
+         * duration}, then {@link HttpClient#send(HttpRequest,BodyHandler)
+         * HttpClient::send} throws an {@link HttpConnectTimeoutException}, or
+         * {@link HttpClient#sendAsync(HttpRequest,BodyHandler)
+         * HttpClient::sendAsync} completes exceptionally with an
+         * {@code HttpConnectTimeoutException}. If a new connection does not
+         * need to be established, for example if a connection can be reused
+         * from a previous request, then this timeout duration has no effect.
+         *
+         * @param duration the duration to allow the underlying connection to be
+         *                 established
+         * @return this builder
+         * @throws IllegalArgumentException if the duration is non-positive
+         */
+        public Builder connectTimeout(Duration duration);
+
+        /**
          * Sets an {@code SSLContext}.
          *
          * <p> If this method is not invoked prior to {@linkplain #build()
@@ -232,11 +254,10 @@ public abstract class HttpClient {
          *
          * <p> If this method is not invoked prior to {@linkplain #build()
          * building}, a default executor is created for each newly built {@code
-         * HttpClient}. The default executor uses a {@linkplain
-         * Executors#newCachedThreadPool(ThreadFactory) cached thread pool},
-         * with a custom thread factory.
+         * HttpClient}.
          *
-         * @implNote If a security manager has been installed, the thread
+         * @implNote The default executor uses a thread pool, with a custom
+         * thread factory. If a security manager has been installed, the thread
          * factory creates threads that run with an access control context that
          * has no permissions.
          *
@@ -346,6 +367,17 @@ public abstract class HttpClient {
     public abstract Optional<CookieHandler> cookieHandler();
 
     /**
+     * Returns an {@code Optional} containing the <i>connect timeout duration</i>
+     * for this client. If the {@linkplain Builder#connectTimeout(Duration)
+     * connect timeout duration} was not set in the client's builder, then the
+     * {@code Optional} is empty.
+     *
+     * @return an {@code Optional} containing this client's connect timeout
+     *         duration
+     */
+     public abstract Optional<Duration> connectTimeout();
+
+    /**
      * Returns the follow redirects policy for this client. The default value
      * for client's built by builders that do not specify a redirect policy is
      * {@link HttpClient.Redirect#NEVER NEVER}.
@@ -451,7 +483,7 @@ public abstract class HttpClient {
      * then the response, containing the  {@code 3XX} response code, is returned,
      * where it can be handled manually.
      *
-     * <p> {@code Redirect} policy is set via the {@linkplain
+     * <p> {@code Redirect} policy is set through the {@linkplain
      * HttpClient.Builder#followRedirects(Redirect) Builder.followRedirects}
      * method.
      *

@@ -31,6 +31,7 @@
 #include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/safepoint.hpp"
+#include "services/memoryUsage.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/events.hpp"
 #include "utilities/formatBuffer.hpp"
@@ -89,11 +90,13 @@ class GCHeapLog : public EventLogBase<GCMessage> {
 //     CMSHeap
 //   G1CollectedHeap
 //   ParallelScavengeHeap
+//   ZCollectedHeap
 //
 class CollectedHeap : public CHeapObj<mtInternal> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class IsGCActiveMark; // Block structured external access to _is_gc_active
+  friend class MemAllocator;
 
  private:
 #ifdef ASSERT
@@ -140,32 +143,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Reinitialize tlabs before resuming mutators.
   virtual void resize_all_tlabs();
 
-  // Allocate from the current thread's TLAB, with broken-out slow path.
-  inline static HeapWord* allocate_from_tlab(Klass* klass, Thread* thread, size_t size);
-  static HeapWord* allocate_from_tlab_slow(Klass* klass, Thread* thread, size_t size);
-
-  // Allocate an uninitialized block of the given size, or returns NULL if
-  // this is impossible.
-  inline static HeapWord* common_mem_allocate_noinit(Klass* klass, size_t size, TRAPS);
-
-  // Like allocate_init, but the block returned by a successful allocation
-  // is guaranteed initialized to zeros.
-  inline static HeapWord* common_mem_allocate_init(Klass* klass, size_t size, TRAPS);
-
-  // Helper functions for (VM) allocation.
-  inline static void post_allocation_setup_common(Klass* klass, HeapWord* obj);
-  inline static void post_allocation_setup_no_klass_install(Klass* klass,
-                                                            HeapWord* objPtr);
-
-  inline static void post_allocation_setup_obj(Klass* klass, HeapWord* obj, int size);
-
-  inline static void post_allocation_setup_array(Klass* klass,
-                                                 HeapWord* obj, int length);
-
-  inline static void post_allocation_setup_class(Klass* klass, HeapWord* obj, int size);
-
-  // Clears an allocated object.
-  inline static void init_obj(HeapWord* obj, size_t size);
+  // Raw memory allocation facilities
+  // The obj and array allocate methods are covers for these methods.
+  // mem_allocate() should never be
+  // called to allocate TLABs, only individual objects.
+  virtual HeapWord* mem_allocate(size_t size,
+                                 bool* gc_overhead_limit_was_exceeded) = 0;
 
   // Filler object utilities.
   static inline size_t filler_array_hdr_size();
@@ -184,8 +167,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void trace_heap(GCWhen::Type when, const GCTracer* tracer);
 
   // Verification functions
-  virtual void check_for_bad_heap_word_value(HeapWord* addr, size_t size)
-    PRODUCT_RETURN;
   virtual void check_for_non_bad_heap_word_value(HeapWord* addr, size_t size)
     PRODUCT_RETURN;
   debug_only(static void check_for_valid_allocation_state();)
@@ -196,7 +177,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     Serial,
     Parallel,
     CMS,
-    G1
+    G1,
+    Epsilon,
+    Z
   };
 
   static inline size_t filler_array_max_size() {
@@ -303,18 +286,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   }
   GCCause::Cause gc_cause() { return _gc_cause; }
 
-  // General obj/array allocation facilities.
-  inline static oop obj_allocate(Klass* klass, int size, TRAPS);
-  inline static oop array_allocate(Klass* klass, int size, int length, TRAPS);
-  inline static oop array_allocate_nozero(Klass* klass, int size, int length, TRAPS);
-  inline static oop class_allocate(Klass* klass, int size, TRAPS);
-
-  // Raw memory allocation facilities
-  // The obj and array allocate methods are covers for these methods.
-  // mem_allocate() should never be
-  // called to allocate TLABs, only individual objects.
-  virtual HeapWord* mem_allocate(size_t size,
-                                 bool* gc_overhead_limit_was_exceeded) = 0;
+  virtual oop obj_allocate(Klass* klass, int size, TRAPS);
+  virtual oop array_allocate(Klass* klass, int size, int length, bool do_zero, TRAPS);
+  virtual oop class_allocate(Klass* klass, int size, TRAPS);
 
   // Utilities for turning raw memory into filler objects.
   //
@@ -336,6 +310,8 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   static void fill_with_object(HeapWord* start, HeapWord* end, bool zap = true) {
     fill_with_object(start, pointer_delta(end, start), zap);
   }
+
+  virtual void fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap);
 
   // Return the address "addr" aligned by "alignment_in_bytes" if such
   // an address is below "end".  Return NULL otherwise.
@@ -448,6 +424,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Return the SoftRefPolicy for the heap;
   virtual SoftRefPolicy* soft_ref_policy() = 0;
 
+  virtual MemoryUsage memory_usage();
   virtual GrowableArray<GCMemoryManager*> memory_managers() = 0;
   virtual GrowableArray<MemoryPool*> memory_pools() = 0;
 

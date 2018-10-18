@@ -149,25 +149,16 @@ Node* Parse::array_store_check() {
   Node *idx = peek(1);
   Node *ary = peek(2);
 
-  const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
+  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
+  const Type* elemtype = ary_t->elem();
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
   bool is_value_array = elemtype->isa_valuetype() != NULL || (elemptr != NULL && elemptr->is_valuetypeptr());
-  bool can_be_value_array = is_value_array || (elemptr != NULL && (elemptr->can_be_value_type()));
 
   if (_gvn.type(obj) == TypePtr::NULL_PTR) {
     // There's never a type check on null values.
     // This cutout lets us avoid the uncommon_trap(Reason_array_check)
     // below, which turns into a performance liability if the
     // gen_checkcast folds up completely.
-    if (is_value_array) {
-      // Can not store null into a value type array
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      return obj;
-    } else if (can_be_value_array) {
-      // Throw exception if array is a value type array
-      gen_value_type_array_guard(ary, zerocon(T_OBJECT));
-      return obj;
-    }
     return obj;
   }
 
@@ -252,10 +243,6 @@ Node* Parse::array_store_check() {
     ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() :
                                                    elemptr->value_klass();
     a_e_klass = makecon(TypeKlassPtr::make(vk));
-  } else if (can_be_value_array && !obj->is_ValueType() && _gvn.type(obj)->is_oopptr()->can_be_value_type()) {
-    // We cannot statically determine if the array is a value type array
-    // and we also don't know if 'obj' is a value type. Emit runtime checks.
-    gen_value_type_array_guard(ary, obj, a_e_klass);
   }
 
   // Check (the hard way) and throw if not a subklass.
@@ -353,7 +340,7 @@ void Parse::do_defaultvalue() {
   emit_guard_for_new(vk);
   if (stopped()) return;
 
-  // Create and push a new default ValueTypeNode
+  // Always scalarize default value because it's not NULL by definition
   push(ValueTypeNode::make_default(_gvn, vk));
 }
 
@@ -364,18 +351,32 @@ void Parse::do_withfield() {
   assert(will_link, "withfield: typeflow responsibility");
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
-  Node* vt = pop();
-  assert(vt->is_ValueType(), "value type expected here");
+  ciValueKlass* holder_klass = field->holder()->as_value_klass();
+  Node* holder = pop();
 
-  ValueTypeNode* new_vt = vt->clone()->as_ValueType();
+  if (!holder->is_ValueType()) {
+    assert(!gvn().type(holder)->maybe_null(), "should never be null");
+    inc_sp(2);
+    holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
+    if (field->is_flattenable() && !val->is_ValueType() && gvn().type(val)->maybe_null()) {
+      assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+      return;
+    }
+    dec_sp(2);
+  }
+
+  // Clone the value type node and set the new field value
+  ValueTypeNode* new_vt = holder->clone()->as_ValueType();
   new_vt->set_oop(_gvn.zerocon(T_VALUETYPE));
-  int offset = field->offset();
-  uint i = 0;
-  for (; i < new_vt->field_count() && new_vt->field_offset(i) != offset; i++) {}
-  assert(i < new_vt->field_count(), "field not found");
-  new_vt->set_field_value(i, val);
+  gvn().set_type(new_vt, new_vt->bottom_type());
+  new_vt->set_field_value_by_offset(field->offset(), val);
 
-  push(_gvn.transform(new_vt));
+  if (holder_klass->is_scalarizable()) {
+    push(_gvn.transform(new_vt));
+  } else {
+    push(new_vt->allocate(this)->get_oop());
+  }
 }
 
 #ifndef PRODUCT

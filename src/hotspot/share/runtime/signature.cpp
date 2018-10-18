@@ -307,6 +307,12 @@ void SignatureStream::next_non_primitive(int t) {
       while (sig->byte_at(_end++) != ';');
       break;
     }
+    case 'Q': {
+      _type = T_VALUETYPEPTR;
+      Symbol* sig = _signature;
+      while (sig->byte_at(_end++) != ';');
+      break;
+    }
     case '[': {
       _type = T_ARRAY;
       Symbol* sig = _signature;

@@ -29,6 +29,7 @@
 #include "oops/oop.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/singleWriterSynchronizer.hpp"
 
 class Mutex;
 class outputStream;
@@ -73,7 +74,7 @@ class outputStream;
 
 class OopStorage : public CHeapObj<mtGC> {
 public:
-  OopStorage(const char* name, Mutex* allocate_mutex, Mutex* active_mutex);
+  OopStorage(const char* name, Mutex* allocation_mutex, Mutex* active_mutex);
   ~OopStorage();
 
   // These count and usage accessors are racy unless at a safepoint.
@@ -94,12 +95,12 @@ public:
     ALLOCATED_ENTRY
   };
 
-  // Locks _allocate_mutex.
+  // Locks _allocation_mutex.
   // precondition: ptr != NULL.
   EntryStatus allocation_status(const oop* ptr) const;
 
   // Allocates and returns a new entry.  Returns NULL if memory allocation
-  // failed.  Locks _allocate_mutex.
+  // failed.  Locks _allocation_mutex.
   // postcondition: *result == NULL.
   oop* allocate();
 
@@ -152,7 +153,7 @@ public:
 
   // Block cleanup functions are for the exclusive use of the GC.
   // Both stop deleting if there is an in-progress concurrent iteration.
-  // Concurrent deletion locks both the allocate_mutex and the active_mutex.
+  // Concurrent deletion locks both the _allocation_mutex and the _active_mutex.
   void delete_empty_blocks_safepoint();
   void delete_empty_blocks_concurrent();
 
@@ -172,21 +173,20 @@ public:
 NOT_AIX( private: )
   class Block;                  // Fixed-size array of oops, plus bookkeeping.
   class ActiveArray;            // Array of Blocks, plus bookkeeping.
-  class AllocateEntry;          // Provides AllocateList links in a Block.
+  class AllocationListEntry;    // Provides AllocationList links in a Block.
 
   // Doubly-linked list of Blocks.
-  class AllocateList {
+  class AllocationList {
     const Block* _head;
     const Block* _tail;
-    const AllocateEntry& (*_get_entry)(const Block& block);
 
     // Noncopyable.
-    AllocateList(const AllocateList&);
-    AllocateList& operator=(const AllocateList&);
+    AllocationList(const AllocationList&);
+    AllocationList& operator=(const AllocationList&);
 
   public:
-    AllocateList(const AllocateEntry& (*get_entry)(const Block& block));
-    ~AllocateList();
+    AllocationList();
+    ~AllocationList();
 
     Block* head();
     Block* tail();
@@ -207,14 +207,17 @@ NOT_AIX( private: )
 private:
   const char* _name;
   ActiveArray* _active_array;
-  AllocateList _allocate_list;
+  AllocationList _allocation_list;
   Block* volatile _deferred_updates;
 
-  Mutex* _allocate_mutex;
+  Mutex* _allocation_mutex;
   Mutex* _active_mutex;
 
   // Volatile for racy unlocked accesses.
   volatile size_t _allocation_count;
+
+  // Protection for _active_array.
+  mutable SingleWriterSynchronizer _protect_active;
 
   // mutable because this gets set even for const iteration.
   mutable bool _concurrent_iteration_active;

@@ -40,8 +40,8 @@ class ValueKlass: public InstanceKlass {
 
   // Constructor
   ValueKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type) {
-    _adr_valueklass_fixed_block = valueklass_static_bloc();
+    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type, InstanceKlass::ID) {
+    _adr_valueklass_fixed_block = valueklass_static_block();
     // Addresses used for value type calling convention
     *((Array<SigEntry>**)adr_extended_sig()) = NULL;
     *((Array<VMRegPair>**)adr_return_regs()) = NULL;
@@ -49,11 +49,10 @@ class ValueKlass: public InstanceKlass {
     *((address*)adr_unpack_handler()) = NULL;
     assert(pack_handler() == NULL, "pack handler not null");
     *((int*)adr_default_value_offset()) = 0;
-    assert(Klass::ptr_is_value_type(this), "Value type klass ptr encoding");
     set_prototype_header(markOopDesc::always_locked_prototype());
   }
 
-  ValueKlassFixedBlock* valueklass_static_bloc() const {
+  ValueKlassFixedBlock* valueklass_static_block() const {
     address adr_jf = adr_value_fields_klasses();
     if (adr_jf != NULL) {
       return (ValueKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
@@ -64,7 +63,7 @@ class ValueKlass: public InstanceKlass {
       return (ValueKlassFixedBlock*)(adr_fingerprint() + sizeof(u8));
     }
 
-    InstanceKlass** adr_host = adr_host_klass();
+    InstanceKlass** adr_host = adr_unsafe_anonymous_host();
     if (adr_host != NULL) {
       return (ValueKlassFixedBlock*)(adr_host + 1);
     }
@@ -83,7 +82,7 @@ class ValueKlass: public InstanceKlass {
   }
 
   address adr_return_regs() const {
-    ValueKlassFixedBlock* vkst = valueklass_static_bloc();
+    ValueKlassFixedBlock* vkst = valueklass_static_block();
     return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _return_regs));
   }
 
@@ -108,7 +107,7 @@ class ValueKlass: public InstanceKlass {
 
   address adr_default_value_offset() const {
     assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _default_value_offset));
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
   // static Klass* array_klass_impl(InstanceKlass* this_k, bool or_null, int n, TRAPS);
@@ -143,10 +142,6 @@ class ValueKlass: public InstanceKlass {
 
   // allocate_instance() allocates a stand alone value in the Java heap
   instanceOop allocate_instance(TRAPS);
-  // allocate_buffered_or_heap_instance() tries to allocate a value in the
-  // thread local value buffer, if allocation fails, it allocates it in the
-  // Java heap
-  instanceOop allocate_buffered_or_heap_instance(bool* in_heap, TRAPS);
 
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
   int raw_value_byte_size() const;
@@ -161,27 +156,6 @@ class ValueKlass: public InstanceKlass {
     oop o = (oop) (data - first_field_offset());
     assert(oopDesc::is_oop(o, false), "Not an oop");
     return o;
-  }
-
-  void set_if_bufferable() {
-    bool bufferable;
-
-    int size_in_heap_words = size_helper();
-    int base_offset = instanceOopDesc::base_offset_in_bytes();
-    size_t size_in_bytes = size_in_heap_words * HeapWordSize - base_offset;
-    bufferable = size_in_bytes <= BigValueTypeThreshold;
-    if (size_in_bytes > VTBufferChunk::max_alloc_size()) bufferable = false;
-    if (ValueTypesBufferMaxMemory == 0) bufferable = false;
-
-    if (bufferable) {
-      _extra_flags |= _extra_is_bufferable;
-    } else {
-      _extra_flags &= ~_extra_is_bufferable;
-    }
-  }
-
-  bool is_bufferable() const          {
-    return (_extra_flags & _extra_is_bufferable) != 0;
   }
 
   // Query if h/w provides atomic load/store
@@ -209,10 +183,10 @@ class ValueKlass: public InstanceKlass {
   void iterate_over_inside_oops(OopClosure* f, oop value);
 
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
 
-  template <bool nv, typename T, class OopClosureType>
+  template <typename T, class OopClosureType>
   inline void oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi);
 
   // calling convention support
@@ -226,7 +200,7 @@ class ValueKlass: public InstanceKlass {
   bool can_be_returned_as_fields() const;
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
-  oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, bool buffered, TRAPS);
+  oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
   static ValueKlass* returned_value_klass(const RegisterMap& reg_map);
 
   // pack and unpack handlers. Need to be loadable from generated code
@@ -242,8 +216,7 @@ class ValueKlass: public InstanceKlass {
   }
 
   static ByteSize default_value_offset_offset() {
-    fatal("Should be re-implemented using the ValueKlassStaticBlock indirection");
-    return in_ByteSize((InstanceKlass::header_size()+2) * wordSize);
+    return byte_offset_of(ValueKlassFixedBlock, _default_value_offset);
   }
 
   void set_default_value_offset(int offset) {

@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 
 #include "aot/aotLoader.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/filemap.hpp"
@@ -37,11 +38,13 @@
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/metaspaceTracer.hpp"
+#include "memory/universe.hpp"
 #include "runtime/init.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/formatBuffer.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 
@@ -59,7 +62,7 @@ static const char* space_type_name(Metaspace::MetaspaceType t) {
   switch (t) {
     case Metaspace::StandardMetaspaceType: s = "Standard"; break;
     case Metaspace::BootMetaspaceType: s = "Boot"; break;
-    case Metaspace::AnonymousMetaspaceType: s = "Anonymous"; break;
+    case Metaspace::UnsafeAnonymousMetaspaceType: s = "UnsafeAnonymous"; break;
     case Metaspace::ReflectionMetaspaceType: s = "Reflection"; break;
     default: ShouldNotReachHere();
   }
@@ -1257,7 +1260,9 @@ MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
       tty->print_cr("Please increase MaxMetaspaceSize (currently " SIZE_FORMAT " bytes).", MaxMetaspaceSize);
       vm_exit(1);
     }
-    report_metadata_oome(loader_data, word_size, type, mdtype, CHECK_NULL);
+    report_metadata_oome(loader_data, word_size, type, mdtype, THREAD);
+    assert(HAS_PENDING_EXCEPTION, "sanity");
+    return NULL;
   }
 
   // Zero initialize.
@@ -1270,7 +1275,7 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
   tracer()->report_metadata_oom(loader_data, word_size, type, mdtype);
 
   // If result is still null, we are out of memory.
-  Log(gc, metaspace, freelist) log;
+  Log(gc, metaspace, freelist, oom) log;
   if (log.is_info()) {
     log.info("Metaspace (%s) allocation failed for size " SIZE_FORMAT,
              is_class_space_allocation(mdtype) ? "class" : "data", word_size);
@@ -1359,8 +1364,8 @@ bool Metaspace::contains_non_shared(const void* ptr) {
 // ClassLoaderMetaspace
 
 ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType type)
-  : _lock(lock)
-  , _space_type(type)
+  : _space_type(type)
+  , _lock(lock)
   , _vsm(NULL)
   , _class_vsm(NULL)
 {

@@ -333,7 +333,7 @@ void print_statistics() {
     klassVtable::print_statistics();
     klassItable::print_statistics();
   }
-  if (VerifyOops) {
+  if (VerifyOops && Verbose) {
     tty->print_cr("+VerifyOops count: %d", StubRoutines::verify_oop_count());
   }
 
@@ -346,6 +346,7 @@ void print_statistics() {
 
   if (PrintSystemDictionaryAtExit) {
     ResourceMark rm;
+    MutexLocker mcld(ClassLoaderDataGraph_lock);
     SystemDictionary::print();
     ClassLoaderDataGraph::print();
   }
@@ -494,6 +495,7 @@ void before_exit(JavaThread* thread) {
     Universe::print_on(&ls_info);
     if (log.is_trace()) {
       LogStream ls_trace(log.trace());
+      MutexLocker mcld(ClassLoaderDataGraph_lock);
       ClassLoaderDataGraph::print_on(&ls_trace);
     }
   }
@@ -524,14 +526,9 @@ void before_exit(JavaThread* thread) {
   }
 
   if (VerifyStringTableAtExit) {
-    int fail_cnt = 0;
-    {
-      MutexLocker ml(StringTable_lock);
-      fail_cnt = StringTable::verify_and_compare_entries();
-    }
-
+    size_t fail_cnt = StringTable::verify_and_compare_entries();
     if (fail_cnt != 0) {
-      tty->print_cr("ERROR: fail_cnt=%d", fail_cnt);
+      tty->print_cr("ERROR: fail_cnt=" SIZE_FORMAT, fail_cnt);
       guarantee(fail_cnt == 0, "unexpected StringTable verification failures");
     }
   }

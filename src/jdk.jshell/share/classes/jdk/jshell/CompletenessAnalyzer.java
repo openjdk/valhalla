@@ -183,8 +183,6 @@ class CompletenessAnalyzer {
         ERROR(TokenKind.ERROR, XERRO),  //
         IDENTIFIER(TokenKind.IDENTIFIER, XEXPR1|XDECL1|XTERM),  //
         UNDERSCORE(TokenKind.UNDERSCORE, XERRO),  //  _
-        VALUE(TokenKind.VALUE, XEXPR1|XDECL1|XTERM),  //  "__ByValue"
-        VDEFAULT(TokenKind.VDEFAULT, XEXPR1|XDECL1|XTERM),  //  "__MakeDefault" a la __Make
         CLASS(TokenKind.CLASS, XEXPR|XDECL1|XBRACESNEEDED),  //  class decl (MAPPED: DOTCLASS)
         MONKEYS_AT(TokenKind.MONKEYS_AT, XEXPR|XDECL1),  //  @
         IMPORT(TokenKind.IMPORT, XDECL1|XSTART),  //  import -- consider declaration
@@ -226,6 +224,7 @@ class CompletenessAnalyzer {
         FLATTENABLE(TokenKind.FLATTENABLE, XDECL1),  //  __Flattenable
         NOTFLATTENED(TokenKind.NOTFLATTENED, XDECL1),  //  __NotFlattened
         VOLATILE(TokenKind.VOLATILE, XDECL1),  //  volatile
+        VALUE(TokenKind.VALUE, 0),
 
         // Declarations and type parameters (thus expressions)
         EXTENDS(TokenKind.EXTENDS, XEXPR|XDECL),  //  extends
@@ -251,7 +250,7 @@ class CompletenessAnalyzer {
         FOR(TokenKind.FOR, XSTMT1|XSTART),  //  for
         IF(TokenKind.IF, XSTMT1|XSTART),  //  if
         RETURN(TokenKind.RETURN, XSTMT1|XTERM|XSTART),  //  return
-        SWITCH(TokenKind.SWITCH, XSTMT1|XSTART),  //  switch
+        SWITCH(TokenKind.SWITCH, XSTMT1|XEXPR),  //  switch
         SYNCHRONIZED(TokenKind.SYNCHRONIZED, XSTMT1|XDECL),  //  synchronized
         THROW(TokenKind.THROW, XSTMT1|XSTART),  //  throw
         TRY(TokenKind.TRY, XSTMT1|XSTART),  //  try

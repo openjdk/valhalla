@@ -100,7 +100,7 @@ public class RSAKeyFactory extends KeyFactorySpi {
     private static void checkKeyAlgo(Key key, String expectedAlg)
             throws InvalidKeyException {
         String keyAlg = key.getAlgorithm();
-        if (!(keyAlg.equalsIgnoreCase(expectedAlg))) {
+        if (keyAlg == null || !(keyAlg.equalsIgnoreCase(expectedAlg))) {
             throw new InvalidKeyException("Expected a " + expectedAlg
                     + " key, but got " + keyAlg);
         }
@@ -114,14 +114,16 @@ public class RSAKeyFactory extends KeyFactorySpi {
      * Used by RSASignature and RSACipher.
      */
     public static RSAKey toRSAKey(Key key) throws InvalidKeyException {
+        if (key == null) {
+            throw new InvalidKeyException("Key must not be null");
+        }
         if ((key instanceof RSAPrivateKeyImpl) ||
             (key instanceof RSAPrivateCrtKeyImpl) ||
             (key instanceof RSAPublicKeyImpl)) {
             return (RSAKey)key;
         } else {
             try {
-                String keyAlgo = key.getAlgorithm();
-                KeyType type = KeyType.lookup(keyAlgo);
+                KeyType type = KeyType.lookup(key.getAlgorithm());
                 RSAKeyFactory kf = RSAKeyFactory.getInstance(type);
                 return (RSAKey) kf.engineTranslateKey(key);
             } catch (ProviderException e) {
@@ -265,8 +267,7 @@ public class RSAKeyFactory extends KeyFactorySpi {
                 throw new InvalidKeyException("Invalid key", e);
             }
         } else if ("X.509".equals(key.getFormat())) {
-            byte[] encoded = key.getEncoded();
-            RSAPublicKey translated = new RSAPublicKeyImpl(encoded);
+            RSAPublicKey translated = new RSAPublicKeyImpl(key.getEncoded());
             // ensure the key algorithm matches the current KeyFactory instance
             checkKeyAlgo(translated, type.keyAlgo());
             return translated;
@@ -310,8 +311,8 @@ public class RSAKeyFactory extends KeyFactorySpi {
                 throw new InvalidKeyException("Invalid key", e);
             }
         } else if ("PKCS#8".equals(key.getFormat())) {
-            byte[] encoded = key.getEncoded();
-            RSAPrivateKey translated = RSAPrivateCrtKeyImpl.newKey(encoded);
+            RSAPrivateKey translated =
+                RSAPrivateCrtKeyImpl.newKey(key.getEncoded());
             // ensure the key algorithm matches the current KeyFactory instance
             checkKeyAlgo(translated, type.keyAlgo());
             return translated;

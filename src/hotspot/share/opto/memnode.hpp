@@ -190,7 +190,7 @@ protected:
 public:
 
   LoadNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *rt, MemOrd mo, ControlDependency control_dependency)
-    : MemNode(c,mem,adr,at), _type(rt), _mo(mo), _control_dependency(control_dependency) {
+    : MemNode(c,mem,adr,at), _control_dependency(control_dependency), _mo(mo), _type(rt) {
     init_class_id(Class_Load);
   }
   inline bool is_unordered() const { return !is_acquire(); }
@@ -607,6 +607,8 @@ public:
 
   // have all possible loads of the value stored been optimized away?
   bool value_never_loaded(PhaseTransform *phase) const;
+
+  MemBarNode* trailing_membar() const;
 };
 
 //------------------------------StoreBNode-------------------------------------
@@ -816,6 +818,7 @@ public:
   virtual const class TypePtr *adr_type() const { return _adr_type; }  // returns bottom_type of address
 
   bool result_not_used() const;
+  MemBarNode* trailing_membar() const;
 };
 
 class LoadStoreConditionalNode : public LoadStoreNode {
@@ -1089,9 +1092,11 @@ public:
 class ClearArrayNode: public Node {
 private:
   bool _is_large;
+  bool _word_copy_only;
 public:
-  ClearArrayNode( Node *ctrl, Node *arymem, Node *word_cnt, Node *base, bool is_large)
-    : Node(ctrl,arymem,word_cnt,base), _is_large(is_large) {
+  ClearArrayNode( Node *ctrl, Node *arymem, Node *word_cnt, Node *base, Node* val, bool is_large)
+    : Node(ctrl, arymem, word_cnt, base, val), _is_large(is_large),
+      _word_copy_only(val->bottom_type()->isa_long() && (!val->bottom_type()->is_long()->is_con() || val->bottom_type()->is_long()->get_con() != 0)) {
     init_class_id(Class_ClearArray);
   }
   virtual int         Opcode() const;
@@ -1103,20 +1108,26 @@ public:
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual uint match_edge(uint idx) const;
   bool is_large() const { return _is_large; }
+  bool word_copy_only() const { return _word_copy_only; }
 
   // Clear the given area of an object or array.
   // The start offset must always be aligned mod BytesPerInt.
   // The end offset must always be aligned mod BytesPerLong.
   // Return the new memory.
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
+                            Node* val,
+                            Node* raw_val,
                             intptr_t start_offset,
                             intptr_t end_offset,
                             PhaseGVN* phase);
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
+                            Node* val,
+                            Node* raw_val,
                             intptr_t start_offset,
                             Node* end_offset,
                             PhaseGVN* phase);
   static Node* clear_memory(Node* control, Node* mem, Node* dest,
+                            Node* raw_val,
                             Node* start_offset,
                             Node* end_offset,
                             PhaseGVN* phase);
@@ -1142,6 +1153,20 @@ class MemBarNode: public MultiNode {
   // Memory type this node is serializing.  Usually either rawptr or bottom.
   const TypePtr* _adr_type;
 
+  // How is this membar related to a nearby memory access?
+  enum {
+    Standalone,
+    TrailingLoad,
+    TrailingStore,
+    LeadingStore,
+    TrailingLoadStore,
+    LeadingLoadStore
+  } _kind;
+
+#ifdef ASSERT
+  uint _pair_idx;
+#endif
+
 public:
   enum {
     Precedent = TypeFunc::Parms  // optional edge to force precedence
@@ -1159,6 +1184,24 @@ public:
   static MemBarNode* make(Compile* C, int opcode,
                           int alias_idx = Compile::AliasIdxBot,
                           Node* precedent = NULL);
+
+  MemBarNode* trailing_membar() const;
+  MemBarNode* leading_membar() const;
+
+  void set_trailing_load() { _kind = TrailingLoad; }
+  bool trailing_load() const { return _kind == TrailingLoad; }
+  bool trailing_store() const { return _kind == TrailingStore; }
+  bool leading_store() const { return _kind == LeadingStore; }
+  bool trailing_load_store() const { return _kind == TrailingLoadStore; }
+  bool leading_load_store() const { return _kind == LeadingLoadStore; }
+  bool trailing() const { return _kind == TrailingLoad || _kind == TrailingStore || _kind == TrailingLoadStore; }
+  bool leading() const { return _kind == LeadingStore || _kind == LeadingLoadStore; }
+  bool standalone() const { return _kind == Standalone; }
+
+  static void set_store_pair(MemBarNode* leading, MemBarNode* trailing);
+  static void set_load_store_pair(MemBarNode* leading, MemBarNode* trailing);
+
+  void remove(PhaseIterGVN *igvn);
 };
 
 // "Acquire" - no following ref can move before (but earlier refs can
@@ -1268,7 +1311,6 @@ class InitializeNode: public MemBarNode {
     Incomplete    = 0,
     Complete      = 1,
     WithArraycopy = 2,
-    UnknownValue  = 4
   };
   int _is_complete;
 
@@ -1306,20 +1348,12 @@ public:
   // An InitializeNode must completed before macro expansion is done.
   // Completion requires that the AllocateNode must be followed by
   // initialization of the new memory to zero, then to any initializers.
-  bool is_complete() { return (_is_complete & ~UnknownValue) != Incomplete; }
+  bool is_complete() { return _is_complete != Incomplete; }
   bool is_complete_with_arraycopy() { return (_is_complete & WithArraycopy) != 0; }
 
   // Mark complete.  (Must not yet be complete.)
   void set_complete(PhaseGVN* phase);
   void set_complete_with_arraycopy() { _is_complete = Complete | WithArraycopy; }
-
-  void set_unknown_value() { assert(_is_complete == Incomplete, "bad state"); _is_complete |= UnknownValue; }
-  bool is_unknown_value() {
-    assert((_is_complete & UnknownValue) == 0 || (_is_complete & ~UnknownValue) == Incomplete, "bad state");
-    return (_is_complete & UnknownValue) != 0;
-  }
-  void clear_unknown_value() { _is_complete &= ~UnknownValue; }
-
 
   bool does_not_escape() { return _does_not_escape; }
   void set_does_not_escape() { _does_not_escape = true; }

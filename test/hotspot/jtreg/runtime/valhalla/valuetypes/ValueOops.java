@@ -35,14 +35,16 @@ import jdk.experimental.value.MethodHandleBuilder;
 
 /**
  * @test ValueOops
+ * @requires vm.gc == null
+ * @requires vm.opt.ExplicitGCInvokesConcurrent != true
  * @summary Test embedding oops into Value types
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes Person.java
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers ValueOops.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
@@ -114,7 +116,7 @@ public class ValueOops {
         __Flattenable public Person otherPerson;
     }
 
-    static final __ByValue class Composition {
+    static final value class Composition {
         __Flattenable public final Person onePerson;
         __Flattenable public final Person otherPerson;
 
@@ -124,7 +126,7 @@ public class ValueOops {
         }
 
         public static Composition create(Person onePerson, Person otherPerson) {
-            Composition comp = __MakeDefault Composition();
+            Composition comp = Composition.default;
             comp = __WithField(comp.onePerson, onePerson);
             comp = __WithField(comp.otherPerson, otherPerson);
             return comp;
@@ -508,7 +510,7 @@ public class ValueOops {
 
     // Various field layouts...sanity testing, see MVTCombo testing for full-set
 
-    static final __ByValue class ObjectValue {
+    static final value class ObjectValue {
         final Object object;
 
         private ObjectValue(Object obj) {
@@ -542,7 +544,7 @@ public class ValueOops {
         String otherStuff;
     }
 
-    public static final __ByValue class FooValue {
+    public static final value class FooValue {
         public final int id;
         public final String name;
         public final String description;
@@ -558,7 +560,7 @@ public class ValueOops {
         }
 
         public static FooValue create(int id, String name, String description, long timestamp, String notes) {
-            FooValue f = __MakeDefault FooValue();
+            FooValue f = FooValue.default;
             f = __WithField(f.id, id);
             f = __WithField(f.name, name);
             f = __WithField(f.description, description);
@@ -640,7 +642,7 @@ public class ValueOops {
         String otherStuff;
     }
 
-    static final __ByValue class BarValue {
+    static final value class BarValue {
         __Flattenable final FooValue foo;
         final long extendedId;
         final String moreNotes;

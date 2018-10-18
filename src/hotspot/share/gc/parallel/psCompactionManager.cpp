@@ -141,7 +141,11 @@ void InstanceKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
   // everything else.
 
   ParCompactionManager::MarkAndPushClosure cl(cm);
-  InstanceKlass::oop_oop_iterate_oop_maps<true>(obj, &cl);
+  if (UseCompressedOops) {
+    InstanceKlass::oop_oop_iterate_oop_maps<narrowOop>(obj, &cl);
+  } else {
+    InstanceKlass::oop_oop_iterate_oop_maps<oop>(obj, &cl);
+  }
 }
 
 void InstanceMirrorKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
@@ -150,14 +154,14 @@ void InstanceMirrorKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* 
   // Follow the klass field in the mirror.
   Klass* klass = java_lang_Class::as_Klass(obj);
   if (klass != NULL) {
-    // An anonymous class doesn't have its own class loader, so the call
-    // to follow_klass will mark and push its java mirror instead of the
-    // class loader. When handling the java mirror for an anonymous class
-    // we need to make sure its class loader data is claimed, this is done
-    // by calling follow_class_loader explicitly. For non-anonymous classes
-    // the call to follow_class_loader is made when the class loader itself
-    // is handled.
-    if (klass->is_instance_klass() && InstanceKlass::cast(klass)->is_anonymous()) {
+    // An unsafe anonymous class doesn't have its own class loader,
+    // so the call to follow_klass will mark and push its java mirror instead of the
+    // class loader. When handling the java mirror for an unsafe anonymous
+    // class we need to make sure its class loader data is claimed, this is done
+    // by calling follow_class_loader explicitly. For non-anonymous classes the
+    // call to follow_class_loader is made when the class loader itself is handled.
+    if (klass->is_instance_klass() &&
+        InstanceKlass::cast(klass)->is_unsafe_anonymous()) {
       cm->follow_class_loader(klass->class_loader_data());
     } else {
       cm->follow_klass(klass);
@@ -170,7 +174,11 @@ void InstanceMirrorKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* 
   }
 
   ParCompactionManager::MarkAndPushClosure cl(cm);
-  oop_oop_iterate_statics<true>(obj, &cl);
+  if (UseCompressedOops) {
+    oop_oop_iterate_statics<narrowOop>(obj, &cl);
+  } else {
+    oop_oop_iterate_statics<oop>(obj, &cl);
+  }
 }
 
 void InstanceClassLoaderKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
@@ -235,9 +243,14 @@ void TypeArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
 void ValueArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
   assert(obj->is_valueArray(),"must be a value array");
   cm->follow_klass(this);
-  if (contains_oops()) { // CMH: parallel version (like objArrayTask) missing, treat as single obj for now
+
+  if (contains_oops()) {
     ParCompactionManager::MarkAndPushClosure cl(cm);
-    ValueArrayKlass::oop_oop_iterate_elements<true>(valueArrayOop(obj), &cl);
+    if (UseCompressedOops) { // CMH: treat as single object for now
+      oop_oop_iterate_elements<narrowOop>(valueArrayOop(obj), &cl);
+    } else {
+      oop_oop_iterate_elements<oop>(valueArrayOop(obj), &cl);
+    }
   }
 }
 

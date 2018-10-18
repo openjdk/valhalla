@@ -54,7 +54,9 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/referencePolicy.hpp"
+#include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/space.inline.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
@@ -74,7 +76,7 @@
 #include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/timer.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/memoryService.hpp"
@@ -298,7 +300,8 @@ void CMSCollector::ref_processor_init() {
                              _cmsGen->refs_discovery_is_mt(),        // mt discovery
                              MAX2(ConcGCThreads, ParallelGCThreads), // mt discovery degree
                              _cmsGen->refs_discovery_is_atomic(),    // discovery is not atomic
-                             &_is_alive_closure);                    // closure for liveness info
+                             &_is_alive_closure,                     // closure for liveness info
+                             false);                                 // disable adjusting number of processing threads
     // Initialize the _ref_processor field of CMSGen
     _cmsGen->set_ref_processor(_ref_processor);
 
@@ -446,57 +449,57 @@ bool CMSCollector::_foregroundGCShouldWait = false;
 CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
                            CardTableRS*                   ct,
                            ConcurrentMarkSweepPolicy*     cp):
+  _overflow_list(NULL),
+  _conc_workers(NULL),     // may be set later
+  _completed_initialization(false),
+  _collection_count_start(0),
+  _should_unload_classes(CMSClassUnloadingEnabled),
+  _concurrent_cycles_since_last_unload(0),
+  _roots_scanning_options(GenCollectedHeap::SO_None),
+  _verification_mark_bm(0, Mutex::leaf + 1, "CMS_verification_mark_bm_lock"),
+  _verifying(false),
+  _collector_policy(cp),
+  _inter_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
+  _intra_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
+  _gc_tracer_cm(new (ResourceObj::C_HEAP, mtGC) CMSTracer()),
+  _gc_timer_cm(new (ResourceObj::C_HEAP, mtGC) ConcurrentGCTimer()),
+  _cms_start_registered(false),
   _cmsGen(cmsGen),
   // Adjust span to cover old (cms) gen
   _span(cmsGen->reserved()),
   _ct(ct),
-  _span_based_discoverer(_span),
-  _ref_processor(NULL),    // will be set later
-  _conc_workers(NULL),     // may be set later
-  _abort_preclean(false),
-  _start_sampling(false),
-  _between_prologue_and_epilogue(false),
   _markBitMap(0, Mutex::leaf + 1, "CMS_markBitMap_lock"),
   _modUnionTable((CardTable::card_shift - LogHeapWordSize),
                  -1 /* lock-free */, "No_lock" /* dummy */),
-  _modUnionClosurePar(&_modUnionTable),
-  // Construct the is_alive_closure with _span & markBitMap
-  _is_alive_closure(_span, &_markBitMap),
   _restart_addr(NULL),
-  _overflow_list(NULL),
-  _stats(cmsGen),
-  _eden_chunk_lock(new Mutex(Mutex::leaf + 1, "CMS_eden_chunk_lock", true,
-                             //verify that this lock should be acquired with safepoint check.
-                             Monitor::_safepoint_check_sometimes)),
-  _eden_chunk_array(NULL),     // may be set in ctor body
-  _eden_chunk_capacity(0),     // -- ditto --
-  _eden_chunk_index(0),        // -- ditto --
-  _survivor_plab_array(NULL),  // -- ditto --
-  _survivor_chunk_array(NULL), // -- ditto --
-  _survivor_chunk_capacity(0), // -- ditto --
-  _survivor_chunk_index(0),    // -- ditto --
   _ser_pmc_preclean_ovflw(0),
-  _ser_kac_preclean_ovflw(0),
   _ser_pmc_remark_ovflw(0),
   _par_pmc_remark_ovflw(0),
+  _ser_kac_preclean_ovflw(0),
   _ser_kac_ovflw(0),
   _par_kac_ovflw(0),
 #ifndef PRODUCT
   _num_par_pushes(0),
 #endif
-  _collection_count_start(0),
-  _verifying(false),
-  _verification_mark_bm(0, Mutex::leaf + 1, "CMS_verification_mark_bm_lock"),
-  _completed_initialization(false),
-  _collector_policy(cp),
-  _should_unload_classes(CMSClassUnloadingEnabled),
-  _concurrent_cycles_since_last_unload(0),
-  _roots_scanning_options(GenCollectedHeap::SO_None),
-  _inter_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
-  _intra_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
-  _gc_tracer_cm(new (ResourceObj::C_HEAP, mtGC) CMSTracer()),
-  _gc_timer_cm(new (ResourceObj::C_HEAP, mtGC) ConcurrentGCTimer()),
-  _cms_start_registered(false)
+  _span_based_discoverer(_span),
+  _ref_processor(NULL),    // will be set later
+  // Construct the is_alive_closure with _span & markBitMap
+  _is_alive_closure(_span, &_markBitMap),
+  _modUnionClosurePar(&_modUnionTable),
+  _between_prologue_and_epilogue(false),
+  _abort_preclean(false),
+  _start_sampling(false),
+  _stats(cmsGen),
+  _eden_chunk_lock(new Mutex(Mutex::leaf + 1, "CMS_eden_chunk_lock", true,
+                             //verify that this lock should be acquired with safepoint check.
+                             Monitor::_safepoint_check_sometimes)),
+  _eden_chunk_array(NULL),     // may be set in ctor body
+  _eden_chunk_index(0),        // -- ditto --
+  _eden_chunk_capacity(0),     // -- ditto --
+  _survivor_chunk_array(NULL), // -- ditto --
+  _survivor_chunk_index(0),    // -- ditto --
+  _survivor_chunk_capacity(0), // -- ditto --
+  _survivor_plab_array(NULL)   // -- ditto --
 {
   // Now expand the span and allocate the collection support structures
   // (MUT, marking bit map etc.) to cover both generations subject to
@@ -570,7 +573,6 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
         log_warning(gc)("task_queues allocation failure.");
         return;
       }
-      _hash_seed = NEW_C_HEAP_ARRAY(int, num_queues, mtGC);
       typedef Padded<OopTaskQueue> PaddedOopTaskQueue;
       for (i = 0; i < num_queues; i++) {
         PaddedOopTaskQueue *q = new PaddedOopTaskQueue();
@@ -582,7 +584,6 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
       }
       for (i = 0; i < num_queues; i++) {
         _task_queues->queue(i)->initialize();
-        _hash_seed[i] = 17;  // copied from ParNew
       }
     }
   }
@@ -2464,7 +2465,7 @@ bool ConcurrentMarkSweepGeneration::no_allocs_since_save_marks() {
 }
 
 void
-ConcurrentMarkSweepGeneration::oop_iterate(ExtendedOopClosure* cl) {
+ConcurrentMarkSweepGeneration::oop_iterate(OopIterateClosure* cl) {
   if (freelistLock()->owned_by_self()) {
     Generation::oop_iterate(cl);
   } else {
@@ -2769,10 +2770,12 @@ class CMSParMarkTask : public AbstractGangTask {
  protected:
   CMSCollector*     _collector;
   uint              _n_workers;
+  OopStorage::ParState<false, false> _par_state_string;
   CMSParMarkTask(const char* name, CMSCollector* collector, uint n_workers) :
       AbstractGangTask(name),
       _collector(collector),
-      _n_workers(n_workers) {}
+      _n_workers(n_workers),
+      _par_state_string(StringTable::weak_storage()) {}
   // Work method in support of parallel rescan ... of young gen spaces
   void do_young_space_rescan(OopsInGenClosure* cl,
                              ContiguousSpace* space,
@@ -3034,11 +3037,12 @@ class CMSConcMarkingTask: public YieldingFlexibleGangTask {
                  OopTaskQueueSet* task_queues):
     YieldingFlexibleGangTask("Concurrent marking done multi-threaded"),
     _collector(collector),
+    _n_workers(0),
+    _result(true),
     _cms_space(cms_space),
-    _n_workers(0), _result(true),
+    _bit_map_lock(collector->bitMapLock()),
     _task_queues(task_queues),
-    _term(_n_workers, task_queues, _collector),
-    _bit_map_lock(collector->bitMapLock())
+    _term(_n_workers, task_queues, _collector)
   {
     _requested_size = _n_workers;
     _term.set_task(this);
@@ -3221,7 +3225,7 @@ void CMSConcMarkingTask::do_scan_and_mark(int i, CompactibleFreeListSpace* sp) {
   }
 
   size_t chunk_size = sp->marking_task_size();
-  while (!pst->is_task_claimed(/* reference */ nth_task)) {
+  while (pst->try_claim_task(/* reference */ nth_task)) {
     // Having claimed the nth task in this space,
     // compute the chunk that it corresponds to:
     MemRegion span = MemRegion(aligned_start + nth_task*chunk_size,
@@ -3300,7 +3304,7 @@ void CMSConcMarkingTask::do_scan_and_mark(int i, CompactibleFreeListSpace* sp) {
   pst->all_tasks_completed();
 }
 
-class ParConcMarkingClosure: public MetadataAwareOopClosure {
+class ParConcMarkingClosure: public MetadataVisitingOopIterateClosure {
  private:
   CMSCollector* _collector;
   CMSConcMarkingTask* _task;
@@ -3313,13 +3317,13 @@ class ParConcMarkingClosure: public MetadataAwareOopClosure {
  public:
   ParConcMarkingClosure(CMSCollector* collector, CMSConcMarkingTask* task, OopTaskQueue* work_queue,
                         CMSBitMap* bit_map, CMSMarkStack* overflow_stack):
-    MetadataAwareOopClosure(collector->ref_processor()),
+    MetadataVisitingOopIterateClosure(collector->ref_processor()),
     _collector(collector),
     _task(task),
     _span(collector->_span),
-    _work_queue(work_queue),
     _bit_map(bit_map),
-    _overflow_stack(overflow_stack)
+    _overflow_stack(overflow_stack),
+    _work_queue(work_queue)
   { }
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
@@ -3377,9 +3381,6 @@ void ParConcMarkingClosure::do_oop(oop obj) {
   }
 }
 
-void ParConcMarkingClosure::do_oop(oop* p)       { ParConcMarkingClosure::do_oop_work(p); }
-void ParConcMarkingClosure::do_oop(narrowOop* p) { ParConcMarkingClosure::do_oop_work(p); }
-
 void ParConcMarkingClosure::trim_queue(size_t max) {
   while (_work_queue->size() > max) {
     oop new_oop;
@@ -3414,7 +3415,6 @@ void CMSConcMarkingTask::do_work_steal(int i) {
   oop obj_to_scan;
   CMSBitMap* bm = &(_collector->_markBitMap);
   CMSMarkStack* ovflw = &(_collector->_markStack);
-  int* seed = _collector->hash_seed(i);
   ParConcMarkingClosure cl(_collector, this, work_q, bm, ovflw);
   while (true) {
     cl.trim_queue(0);
@@ -3424,7 +3424,7 @@ void CMSConcMarkingTask::do_work_steal(int i) {
       // overflow stack may already have been stolen from us.
       // assert(work_q->size() > 0, "Work from overflow stack");
       continue;
-    } else if (task_queues()->steal(i, seed, /* reference */ obj_to_scan)) {
+    } else if (task_queues()->steal(i, /* reference */ obj_to_scan)) {
       assert(oopDesc::is_oop(obj_to_scan), "Should be an oop");
       assert(bm->isMarked((HeapWord*)obj_to_scan), "Grey object");
       obj_to_scan->oop_iterate(&cl);
@@ -4060,9 +4060,9 @@ size_t CMSCollector::preclean_card_table(ConcurrentMarkSweepGeneration* old_gen,
 }
 
 class PrecleanCLDClosure : public CLDClosure {
-  MetadataAwareOopsInGenClosure* _cm_closure;
+  MetadataVisitingOopsInGenClosure* _cm_closure;
  public:
-  PrecleanCLDClosure(MetadataAwareOopsInGenClosure* oop_closure) : _cm_closure(oop_closure) {}
+  PrecleanCLDClosure(MetadataVisitingOopsInGenClosure* oop_closure) : _cm_closure(oop_closure) {}
   void do_cld(ClassLoaderData* cld) {
     if (cld->has_accumulated_modified_oops()) {
       cld->clear_accumulated_modified_oops();
@@ -4074,6 +4074,8 @@ class PrecleanCLDClosure : public CLDClosure {
 
 // The freelist lock is needed to prevent asserts, is it really needed?
 void CMSCollector::preclean_cld(MarkRefsIntoAndScanClosure* cl, Mutex* freelistLock) {
+  // Needed to walk CLDG
+  MutexLocker ml(ClassLoaderDataGraph_lock);
 
   cl->set_freelistLock(freelistLock);
 
@@ -4274,7 +4276,9 @@ void CMSParInitialMarkTask::work(uint worker_id) {
                           GenCollectedHeap::ScanningOption(_collector->CMSCollector::roots_scanning_options()),
                           _collector->should_unload_classes(),
                           &par_mri_cl,
-                          &cld_closure);
+                          &cld_closure,
+                          &_par_state_string);
+
   assert(_collector->should_unload_classes()
          || (_collector->CMSCollector::roots_scanning_options() & GenCollectedHeap::SO_AllCodeCache),
          "if we didn't scan the code cache, we have to be ready to drop nmethods with expired weak oops");
@@ -4321,7 +4325,7 @@ class CMSParRemarkTask: public CMSParMarkTask {
                                   ParMarkRefsIntoAndScanClosure* cl);
 
   // ... work stealing for the above
-  void do_work_steal(int i, ParMarkRefsIntoAndScanClosure* cl, int* seed);
+  void do_work_steal(int i, ParMarkRefsIntoAndScanClosure* cl);
 };
 
 class RemarkCLDClosure : public CLDClosure {
@@ -4403,7 +4407,8 @@ void CMSParRemarkTask::work(uint worker_id) {
                           GenCollectedHeap::ScanningOption(_collector->CMSCollector::roots_scanning_options()),
                           _collector->should_unload_classes(),
                           &par_mrias_cl,
-                          NULL);     // The dirty klasses will be handled below
+                          NULL,     // The dirty klasses will be handled below
+                          &_par_state_string);
 
   assert(_collector->should_unload_classes()
          || (_collector->CMSCollector::roots_scanning_options() & GenCollectedHeap::SO_AllCodeCache),
@@ -4421,7 +4426,7 @@ void CMSParRemarkTask::work(uint worker_id) {
     ResourceMark rm;
     GrowableArray<ClassLoaderData*>* array = ClassLoaderDataGraph::new_clds();
     for (int i = 0; i < array->length(); i++) {
-      par_mrias_cl.do_cld_nv(array->at(i));
+      Devirtualizer::do_cld(&par_mrias_cl, array->at(i));
     }
 
     // We don't need to keep track of new CLDs anymore.
@@ -4465,7 +4470,7 @@ void CMSParRemarkTask::work(uint worker_id) {
   // ---------- ... and drain overflow list.
   _timer.reset();
   _timer.start();
-  do_work_steal(worker_id, &par_mrias_cl, _collector->hash_seed(worker_id));
+  do_work_steal(worker_id, &par_mrias_cl);
   _timer.stop();
   log_trace(gc, task)("Finished work stealing in %dth thread: %3.3f sec", worker_id, _timer.seconds());
 }
@@ -4491,7 +4496,7 @@ CMSParMarkTask::do_young_space_rescan(
   if (n_tasks > 0) {
     assert(pst->valid(), "Uninitialized use?");
     HeapWord *start, *end;
-    while (!pst->is_task_claimed(/* reference */ nth_task)) {
+    while (pst->try_claim_task(/* reference */ nth_task)) {
       // We claimed task # nth_task; compute its boundaries.
       if (chunk_top == 0) {  // no samples were taken
         assert(nth_task == 0 && n_tasks == 1, "Can have only 1 eden task");
@@ -4577,7 +4582,7 @@ CMSParRemarkTask::do_dirty_card_rescan_tasks(
   assert(is_aligned(start_addr, alignment), "Check alignment");
   assert(is_aligned(chunk_size, alignment), "Check alignment");
 
-  while (!pst->is_task_claimed(/* reference */ nth_task)) {
+  while (pst->try_claim_task(/* reference */ nth_task)) {
     // Having claimed the nth_task, compute corresponding mem-region,
     // which is a-fortiori aligned correctly (i.e. at a MUT boundary).
     // The alignment restriction ensures that we do not need any
@@ -4614,8 +4619,7 @@ CMSParRemarkTask::do_dirty_card_rescan_tasks(
 
 // . see if we can share work_queues with ParNew? XXX
 void
-CMSParRemarkTask::do_work_steal(int i, ParMarkRefsIntoAndScanClosure* cl,
-                                int* seed) {
+CMSParRemarkTask::do_work_steal(int i, ParMarkRefsIntoAndScanClosure* cl) {
   OopTaskQueue* work_q = work_queue(i);
   NOT_PRODUCT(int num_steals = 0;)
   oop obj_to_scan;
@@ -4646,7 +4650,7 @@ CMSParRemarkTask::do_work_steal(int i, ParMarkRefsIntoAndScanClosure* cl,
     // Verify that we have no work before we resort to stealing
     assert(work_q->size() == 0, "Have work, shouldn't steal");
     // Try to steal from other queues that have work
-    if (task_queues()->steal(i, seed, /* reference */ obj_to_scan)) {
+    if (task_queues()->steal(i, /* reference */ obj_to_scan)) {
       NOT_PRODUCT(num_steals++;)
       assert(oopDesc::is_oop(obj_to_scan), "Oops, not an oop!");
       assert(bm->isMarked((HeapWord*)obj_to_scan), "Stole an unmarked oop?");
@@ -4962,7 +4966,7 @@ void CMSCollector::do_remark_non_parallel() {
     ResourceMark rm;
     GrowableArray<ClassLoaderData*>* array = ClassLoaderDataGraph::new_clds();
     for (int i = 0; i < array->length(); i++) {
-      mrias_cl.do_cld_nv(array->at(i));
+      Devirtualizer::do_cld(&mrias_cl, array->at(i));
     }
 
     // We don't need to keep track of new CLDs anymore.
@@ -5023,8 +5027,10 @@ public:
     AbstractGangTaskWOopQueues("Process referents by policy in parallel",
       task_queues,
       workers->active_workers()),
-    _task(task),
-    _collector(collector), _span(span), _mark_bit_map(mark_bit_map)
+    _collector(collector),
+    _mark_bit_map(mark_bit_map),
+    _span(span),
+    _task(task)
   {
     assert(_collector->_span.equals(_span) && !_span.is_empty(),
            "Inconsistency in _span");
@@ -5036,8 +5042,7 @@ public:
 
   void do_work_steal(int i,
                      CMSParDrainMarkingStackClosure* drain,
-                     CMSParKeepAliveClosure* keep_alive,
-                     int* seed);
+                     CMSParKeepAliveClosure* keep_alive);
 
   virtual void work(uint worker_id);
 };
@@ -5055,8 +5060,7 @@ void CMSRefProcTaskProxy::work(uint worker_id) {
   CMSIsAliveClosure is_alive_closure(_span, _mark_bit_map);
   _task.work(worker_id, is_alive_closure, par_keep_alive, par_drain_stack);
   if (_task.marks_oops_alive()) {
-    do_work_steal(worker_id, &par_drain_stack, &par_keep_alive,
-                  _collector->hash_seed(worker_id));
+    do_work_steal(worker_id, &par_drain_stack, &par_keep_alive);
   }
   assert(work_queue(worker_id)->size() == 0, "work_queue should be empty");
   assert(_collector->_overflow_list == NULL, "non-empty _overflow_list");
@@ -5065,8 +5069,8 @@ void CMSRefProcTaskProxy::work(uint worker_id) {
 CMSParKeepAliveClosure::CMSParKeepAliveClosure(CMSCollector* collector,
   MemRegion span, CMSBitMap* bit_map, OopTaskQueue* work_queue):
    _span(span),
-   _bit_map(bit_map),
    _work_queue(work_queue),
+   _bit_map(bit_map),
    _mark_and_push(collector, span, bit_map, work_queue),
    _low_water_mark(MIN2((work_queue->max_elems()/4),
                         ((uint)CMSWorkQueueDrainThreshold * ParallelGCThreads)))
@@ -5075,8 +5079,7 @@ CMSParKeepAliveClosure::CMSParKeepAliveClosure(CMSCollector* collector,
 // . see if we can share work_queues with ParNew? XXX
 void CMSRefProcTaskProxy::do_work_steal(int i,
   CMSParDrainMarkingStackClosure* drain,
-  CMSParKeepAliveClosure* keep_alive,
-  int* seed) {
+  CMSParKeepAliveClosure* keep_alive) {
   OopTaskQueue* work_q = work_queue(i);
   NOT_PRODUCT(int num_steals = 0;)
   oop obj_to_scan;
@@ -5105,7 +5108,7 @@ void CMSRefProcTaskProxy::do_work_steal(int i,
     // Verify that we have no work before we resort to stealing
     assert(work_q->size() == 0, "Have work, shouldn't steal");
     // Try to steal from other queues that have work
-    if (task_queues()->steal(i, seed, /* reference */ obj_to_scan)) {
+    if (task_queues()->steal(i, /* reference */ obj_to_scan)) {
       NOT_PRODUCT(num_steals++;)
       assert(oopDesc::is_oop(obj_to_scan), "Oops, not an oop!");
       assert(_mark_bit_map->isMarked((HeapWord*)obj_to_scan), "Stole an unmarked oop?");
@@ -5119,16 +5122,18 @@ void CMSRefProcTaskProxy::do_work_steal(int i,
   log_develop_trace(gc, task)("\t(%d: stole %d oops)", i, num_steals);
 }
 
-void CMSRefProcTaskExecutor::execute(ProcessTask& task)
-{
+void CMSRefProcTaskExecutor::execute(ProcessTask& task, uint ergo_workers) {
   CMSHeap* heap = CMSHeap::heap();
   WorkGang* workers = heap->workers();
   assert(workers != NULL, "Need parallel worker threads.");
+  assert(workers->active_workers() == ergo_workers,
+         "Ergonomically chosen workers (%u) must be equal to active workers (%u)",
+         ergo_workers, workers->active_workers());
   CMSRefProcTaskProxy rp_task(task, &_collector,
                               _collector.ref_processor_span(),
                               _collector.markBitMap(),
                               workers, _collector.task_queues());
-  workers->run_task(&rp_task);
+  workers->run_task(&rp_task, workers->active_workers());
 }
 
 void CMSCollector::refProcessingWork() {
@@ -5142,7 +5147,7 @@ void CMSCollector::refProcessingWork() {
   rp->setup_policy(false);
   verify_work_stacks_empty();
 
-  ReferenceProcessorPhaseTimes pt(_gc_timer_cm, rp->num_queues());
+  ReferenceProcessorPhaseTimes pt(_gc_timer_cm, rp->max_num_queues());
   {
     GCTraceTime(Debug, gc, phases) t("Reference Processing", _gc_timer_cm);
 
@@ -5602,8 +5607,8 @@ HeapWord* CMSCollector::next_card_start_after_block(HeapWord* addr) const {
 // bit vector itself. That is done by a separate call CMSBitMap::allocate()
 // further below.
 CMSBitMap::CMSBitMap(int shifter, int mutex_rank, const char* mutex_name):
-  _bm(),
   _shifter(shifter),
+  _bm(),
   _lock(mutex_rank >= 0 ? new Mutex(mutex_rank, mutex_name, true,
                                     Monitor::_safepoint_check_sometimes) : NULL)
 {
@@ -5793,9 +5798,6 @@ void MarkRefsIntoClosure::do_oop(oop obj) {
   }
 }
 
-void MarkRefsIntoClosure::do_oop(oop* p)       { MarkRefsIntoClosure::do_oop_work(p); }
-void MarkRefsIntoClosure::do_oop(narrowOop* p) { MarkRefsIntoClosure::do_oop_work(p); }
-
 ParMarkRefsIntoClosure::ParMarkRefsIntoClosure(
   MemRegion span, CMSBitMap* bitMap):
     _span(span),
@@ -5814,9 +5816,6 @@ void ParMarkRefsIntoClosure::do_oop(oop obj) {
     _bitMap->par_mark(addr);
   }
 }
-
-void ParMarkRefsIntoClosure::do_oop(oop* p)       { ParMarkRefsIntoClosure::do_oop_work(p); }
-void ParMarkRefsIntoClosure::do_oop(narrowOop* p) { ParMarkRefsIntoClosure::do_oop_work(p); }
 
 // A variant of the above, used for CMS marking verification.
 MarkRefsIntoVerifyClosure::MarkRefsIntoVerifyClosure(
@@ -5846,9 +5845,6 @@ void MarkRefsIntoVerifyClosure::do_oop(oop obj) {
   }
 }
 
-void MarkRefsIntoVerifyClosure::do_oop(oop* p)       { MarkRefsIntoVerifyClosure::do_oop_work(p); }
-void MarkRefsIntoVerifyClosure::do_oop(narrowOop* p) { MarkRefsIntoVerifyClosure::do_oop_work(p); }
-
 //////////////////////////////////////////////////
 // MarkRefsIntoAndScanClosure
 //////////////////////////////////////////////////
@@ -5861,15 +5857,15 @@ MarkRefsIntoAndScanClosure::MarkRefsIntoAndScanClosure(MemRegion span,
                                                        CMSCollector* collector,
                                                        bool should_yield,
                                                        bool concurrent_precleaning):
-  _collector(collector),
   _span(span),
   _bit_map(bit_map),
   _mark_stack(mark_stack),
   _pushAndMarkClosure(collector, span, rd, bit_map, mod_union_table,
                       mark_stack, concurrent_precleaning),
+  _collector(collector),
+  _freelistLock(NULL),
   _yield(should_yield),
-  _concurrent_precleaning(concurrent_precleaning),
-  _freelistLock(NULL)
+  _concurrent_precleaning(concurrent_precleaning)
 {
   // FIXME: Should initialize in base class constructor.
   assert(rd != NULL, "ref_discoverer shouldn't be NULL");
@@ -5922,9 +5918,6 @@ void MarkRefsIntoAndScanClosure::do_oop(oop obj) {
            "All preserved marks should have been restored above");
   }
 }
-
-void MarkRefsIntoAndScanClosure::do_oop(oop* p)       { MarkRefsIntoAndScanClosure::do_oop_work(p); }
-void MarkRefsIntoAndScanClosure::do_oop(narrowOop* p) { MarkRefsIntoAndScanClosure::do_oop_work(p); }
 
 void MarkRefsIntoAndScanClosure::do_yield_work() {
   assert(ConcurrentMarkSweepThread::cms_thread_has_cms_token(),
@@ -6005,9 +5998,6 @@ void ParMarkRefsIntoAndScanClosure::do_oop(oop obj) {
     }
   }
 }
-
-void ParMarkRefsIntoAndScanClosure::do_oop(oop* p)       { ParMarkRefsIntoAndScanClosure::do_oop_work(p); }
-void ParMarkRefsIntoAndScanClosure::do_oop(narrowOop* p) { ParMarkRefsIntoAndScanClosure::do_oop_work(p); }
 
 // This closure is used to rescan the marked objects on the dirty cards
 // in the mod union table and the card table proper.
@@ -6587,7 +6577,7 @@ PushAndMarkVerifyClosure::PushAndMarkVerifyClosure(
   CMSCollector* collector, MemRegion span,
   CMSBitMap* verification_bm, CMSBitMap* cms_bm,
   CMSMarkStack*  mark_stack):
-  MetadataAwareOopClosure(collector->ref_processor()),
+  MetadataVisitingOopIterateClosure(collector->ref_processor()),
   _collector(collector),
   _span(span),
   _verification_bm(verification_bm),
@@ -6644,7 +6634,7 @@ PushOrMarkClosure::PushOrMarkClosure(CMSCollector* collector,
                      MemRegion span,
                      CMSBitMap* bitMap, CMSMarkStack*  markStack,
                      HeapWord* finger, MarkFromRootsClosure* parent) :
-  MetadataAwareOopClosure(collector->ref_processor()),
+  MetadataVisitingOopIterateClosure(collector->ref_processor()),
   _collector(collector),
   _span(span),
   _bitMap(bitMap),
@@ -6661,7 +6651,7 @@ ParPushOrMarkClosure::ParPushOrMarkClosure(CMSCollector* collector,
                                            HeapWord* finger,
                                            HeapWord* volatile* global_finger_addr,
                                            ParMarkFromRootsClosure* parent) :
-  MetadataAwareOopClosure(collector->ref_processor()),
+  MetadataVisitingOopIterateClosure(collector->ref_processor()),
   _collector(collector),
   _whole_span(collector->_span),
   _span(span),
@@ -6742,9 +6732,6 @@ void PushOrMarkClosure::do_oop(oop obj) {
   }
 }
 
-void PushOrMarkClosure::do_oop(oop* p)       { PushOrMarkClosure::do_oop_work(p); }
-void PushOrMarkClosure::do_oop(narrowOop* p) { PushOrMarkClosure::do_oop_work(p); }
-
 void ParPushOrMarkClosure::do_oop(oop obj) {
   // Ignore mark word because we are running concurrent with mutators.
   assert(oopDesc::is_oop_or_null(obj, true), "Expected an oop or NULL at " PTR_FORMAT, p2i(obj));
@@ -6791,9 +6778,6 @@ void ParPushOrMarkClosure::do_oop(oop obj) {
   }
 }
 
-void ParPushOrMarkClosure::do_oop(oop* p)       { ParPushOrMarkClosure::do_oop_work(p); }
-void ParPushOrMarkClosure::do_oop(narrowOop* p) { ParPushOrMarkClosure::do_oop_work(p); }
-
 PushAndMarkClosure::PushAndMarkClosure(CMSCollector* collector,
                                        MemRegion span,
                                        ReferenceDiscoverer* rd,
@@ -6801,7 +6785,7 @@ PushAndMarkClosure::PushAndMarkClosure(CMSCollector* collector,
                                        CMSBitMap* mod_union_table,
                                        CMSMarkStack*  mark_stack,
                                        bool           concurrent_precleaning):
-  MetadataAwareOopClosure(rd),
+  MetadataVisitingOopIterateClosure(rd),
   _collector(collector),
   _span(span),
   _bit_map(bit_map),
@@ -6873,7 +6857,7 @@ ParPushAndMarkClosure::ParPushAndMarkClosure(CMSCollector* collector,
                                              ReferenceDiscoverer* rd,
                                              CMSBitMap* bit_map,
                                              OopTaskQueue* work_queue):
-  MetadataAwareOopClosure(rd),
+  MetadataVisitingOopIterateClosure(rd),
   _collector(collector),
   _span(span),
   _bit_map(bit_map),
@@ -6881,9 +6865,6 @@ ParPushAndMarkClosure::ParPushAndMarkClosure(CMSCollector* collector,
 {
   assert(ref_discoverer() != NULL, "ref_discoverer shouldn't be NULL");
 }
-
-void PushAndMarkClosure::do_oop(oop* p)       { PushAndMarkClosure::do_oop_work(p); }
-void PushAndMarkClosure::do_oop(narrowOop* p) { PushAndMarkClosure::do_oop_work(p); }
 
 // Grey object rescan during second checkpoint phase --
 // the parallel version.
@@ -6926,9 +6907,6 @@ void ParPushAndMarkClosure::do_oop(oop obj) {
     } // Else, some other thread got there first
   }
 }
-
-void ParPushAndMarkClosure::do_oop(oop* p)       { ParPushAndMarkClosure::do_oop_work(p); }
-void ParPushAndMarkClosure::do_oop(narrowOop* p) { ParPushAndMarkClosure::do_oop_work(p); }
 
 void CMSPrecleanRefsYieldClosure::do_yield_work() {
   Mutex* bml = _collector->bitMapLock();
@@ -6984,10 +6962,10 @@ SweepClosure::SweepClosure(CMSCollector* collector,
   _limit(_sp->sweep_limit()),
   _freelistLock(_sp->freelistLock()),
   _bitMap(bitMap),
-  _yield(should_yield),
   _inFreeRange(false),           // No free range at beginning of sweep
   _freeRangeInFreeLists(false),  // No free range at beginning of sweep
   _lastFreeRangeCoalesced(false),
+  _yield(should_yield),
   _freeFinger(g->used_region().start())
 {
   NOT_PRODUCT(
@@ -7541,15 +7519,14 @@ bool CMSIsAliveClosure::do_object_b(oop obj) {
          (!_span.contains(addr) || _bit_map->isMarked(addr));
 }
 
-
 CMSKeepAliveClosure::CMSKeepAliveClosure( CMSCollector* collector,
                       MemRegion span,
                       CMSBitMap* bit_map, CMSMarkStack* mark_stack,
                       bool cpc):
   _collector(collector),
   _span(span),
-  _bit_map(bit_map),
   _mark_stack(mark_stack),
+  _bit_map(bit_map),
   _concurrent_precleaning(cpc) {
   assert(!_span.is_empty(), "Empty span could spell trouble");
 }
@@ -7596,9 +7573,6 @@ void CMSKeepAliveClosure::do_oop(oop obj) {
   }
 }
 
-void CMSKeepAliveClosure::do_oop(oop* p)       { CMSKeepAliveClosure::do_oop_work(p); }
-void CMSKeepAliveClosure::do_oop(narrowOop* p) { CMSKeepAliveClosure::do_oop_work(p); }
-
 // CMSParKeepAliveClosure: a parallel version of the above.
 // The work queues are private to each closure (thread),
 // but (may be) available for stealing by other threads.
@@ -7618,9 +7592,6 @@ void CMSParKeepAliveClosure::do_oop(oop obj) {
     } // Else, another thread got there first
   }
 }
-
-void CMSParKeepAliveClosure::do_oop(oop* p)       { CMSParKeepAliveClosure::do_oop_work(p); }
-void CMSParKeepAliveClosure::do_oop(narrowOop* p) { CMSParKeepAliveClosure::do_oop_work(p); }
 
 void CMSParKeepAliveClosure::trim_queue(uint max) {
   while (_work_queue->size() > max) {
@@ -7643,8 +7614,8 @@ CMSInnerParMarkAndPushClosure::CMSInnerParMarkAndPushClosure(
                                 OopTaskQueue* work_queue):
   _collector(collector),
   _span(span),
-  _bit_map(bit_map),
-  _work_queue(work_queue) { }
+  _work_queue(work_queue),
+  _bit_map(bit_map) { }
 
 void CMSInnerParMarkAndPushClosure::do_oop(oop obj) {
   HeapWord* addr = (HeapWord*)obj;
@@ -7666,9 +7637,6 @@ void CMSInnerParMarkAndPushClosure::do_oop(oop obj) {
     } // Else another thread got there already
   }
 }
-
-void CMSInnerParMarkAndPushClosure::do_oop(oop* p)       { CMSInnerParMarkAndPushClosure::do_oop_work(p); }
-void CMSInnerParMarkAndPushClosure::do_oop(narrowOop* p) { CMSInnerParMarkAndPushClosure::do_oop_work(p); }
 
 //////////////////////////////////////////////////////////////////
 //  CMSExpansionCause                /////////////////////////////
@@ -8078,6 +8046,7 @@ TraceCMSMemoryManagerStats::TraceCMSMemoryManagerStats(CMSCollector::CollectorSt
     case CMSCollector::InitialMarking:
       initialize(manager /* GC manager */ ,
                  cause   /* cause of the GC */,
+                 true    /* allMemoryPoolsAffected */,
                  true    /* recordGCBeginTime */,
                  true    /* recordPreGCUsage */,
                  false   /* recordPeakUsage */,
@@ -8090,6 +8059,7 @@ TraceCMSMemoryManagerStats::TraceCMSMemoryManagerStats(CMSCollector::CollectorSt
     case CMSCollector::FinalMarking:
       initialize(manager /* GC manager */ ,
                  cause   /* cause of the GC */,
+                 true    /* allMemoryPoolsAffected */,
                  false   /* recordGCBeginTime */,
                  false   /* recordPreGCUsage */,
                  false   /* recordPeakUsage */,
@@ -8102,6 +8072,7 @@ TraceCMSMemoryManagerStats::TraceCMSMemoryManagerStats(CMSCollector::CollectorSt
     case CMSCollector::Sweeping:
       initialize(manager /* GC manager */ ,
                  cause   /* cause of the GC */,
+                 true    /* allMemoryPoolsAffected */,
                  false   /* recordGCBeginTime */,
                  false   /* recordPreGCUsage */,
                  true    /* recordPeakUsage */,

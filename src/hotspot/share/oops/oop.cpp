@@ -36,11 +36,7 @@
 bool always_do_update_barrier = false;
 
 void oopDesc::print_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print_cr("NULL");
-  } else {
-    klass()->oop_print_on(oop(this), st);
-  }
+  klass()->oop_print_on(oop(this), st);
 }
 
 void oopDesc::print_address_on(outputStream* st) const {
@@ -71,9 +67,7 @@ char* oopDesc::print_value_string() {
 
 void oopDesc::print_value_on(outputStream* st) const {
   oop obj = oop(this);
-  if (this == NULL) {
-    st->print("NULL");
-  } else if (java_lang_String::is_instance(obj)) {
+  if (java_lang_String::is_instance(obj)) {
     java_lang_String::print(obj, st);
     print_address_on(st);
   } else {
@@ -82,15 +76,15 @@ void oopDesc::print_value_on(outputStream* st) const {
 }
 
 
-void oopDesc::verify_on(outputStream* st) {
-  if (this != NULL) {
-    klass()->oop_verify_on(this, st);
+void oopDesc::verify_on(outputStream* st, oopDesc* oop_desc) {
+  if (oop_desc != NULL) {
+    oop_desc->klass()->oop_verify_on(oop_desc, st);
   }
 }
 
 
-void oopDesc::verify() {
-  verify_on(tty);
+void oopDesc::verify(oopDesc* oop_desc) {
+  verify_on(tty, oop_desc);
 }
 
 intptr_t oopDesc::slow_identity_hash() {
@@ -120,10 +114,7 @@ unsigned int oopDesc::new_hash(juint seed) {
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (!Universe::heap()->is_oop(obj)) {
-    assert(obj->klass()->is_value(), "Only value type can be outside of the Java heap");
-    VTBufferChunk* chunk = VTBufferChunk::chunk(obj);
-    assert(chunk->is_valid(), "if not in the heap, should a buffered VT");
-    if (!VTBuffer::is_in_vt_buffer(obj)) return false;
+    return false;
   }
 
   // Header verification: the mark is typically non-NULL. If we're
@@ -136,8 +127,7 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (obj->mark_raw() != NULL) {
     return true;
   }
-  return !SafepointSynchronize::is_at_safepoint()
-    || (obj->klass()->is_value() && VTBuffer::is_in_vt_buffer(obj)) ;
+  return !SafepointSynchronize::is_at_safepoint() ;
 }
 
 // used only for asserts and guarantees
@@ -189,6 +179,7 @@ void oopDesc::address_field_put(int offset, address value)            { HeapAcce
 void oopDesc::release_address_field_put(int offset, address value)    { HeapAccess<MO_RELEASE>::store_at(as_oop(), offset, value); }
 
 Metadata* oopDesc::metadata_field(int offset) const                   { return HeapAccess<>::load_at(as_oop(), offset); }
+Metadata* oopDesc::metadata_field_raw(int offset) const               { return RawAccess<>::load_at(as_oop(), offset); }
 void oopDesc::metadata_field_put(int offset, Metadata* value)         { HeapAccess<>::store_at(as_oop(), offset, value); }
 
 Metadata* oopDesc::metadata_field_acquire(int offset) const           { return HeapAccess<MO_ACQUIRE>::load_at(as_oop(), offset); }

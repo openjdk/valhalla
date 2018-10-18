@@ -23,7 +23,7 @@
 
 package runtime.valhalla.valuetypes;
 
-public final __ByValue class IntValue {
+public final value class IntValue {
     final int val;
 
     IntValue() {
@@ -33,7 +33,7 @@ public final __ByValue class IntValue {
     public int getInt() { return val; }
 
     public static IntValue create(int val) {
-        IntValue iv = __MakeDefault IntValue();
+        IntValue iv = IntValue.default;
         iv.val = val;
         return iv;
     }

@@ -78,7 +78,7 @@ class nmethod : public CompiledMethod {
   // That is, installed code other than a "default"
   // HotSpotNMethod causes nmethod unloading.
   // This field is ignored once _jvmci_installed_code is NULL.
-  bool _jvmci_installed_code_triggers_unloading;
+  bool _jvmci_installed_code_triggers_invalidation;
 #endif
 
   // To support simple linked-list chaining of nmethods:
@@ -90,6 +90,7 @@ class nmethod : public CompiledMethod {
   // offsets for entry points
   address _entry_point;                      // entry point with class check
   address _verified_entry_point;             // entry point without class check
+  address _verified_value_entry_point;       // value type entry point without class check
   address _osr_entry_point;                  // entry point for on stack replacement
 
   // Offsets for different nmethod parts
@@ -314,6 +315,7 @@ class nmethod : public CompiledMethod {
   // entry points
   address entry_point() const                     { return _entry_point;             } // normal entry point
   address verified_entry_point() const            { return _verified_entry_point;    } // if klass is correct
+  address verified_value_entry_point() const      { return _verified_value_entry_point; } // pass value type args as oops
 
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }
@@ -456,7 +458,7 @@ public:
   // Copies the value of the name field in the InstalledCode
   // object (if any) associated with this nmethod into buf.
   // Returns the value of buf if it was updated otherwise NULL.
-  char* jvmci_installed_code_name(char* buf, size_t buflen);
+  char* jvmci_installed_code_name(char* buf, size_t buflen) const;
 
   // Updates the state of the InstalledCode (if any) associated with
   // this nmethod based on the current value of _state.
@@ -484,18 +486,18 @@ public:
 #endif
 
  protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive, bool unloading_occurred);
+  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive);
 #if INCLUDE_JVMCI
-  // See comment for _jvmci_installed_code_triggers_unloading field.
+  // See comment for _jvmci_installed_code_triggers_invalidation field.
   // Returns whether this nmethod was unloaded.
-  virtual bool do_unloading_jvmci(bool unloading_occurred);
+  virtual bool do_unloading_jvmci();
 #endif
 
  private:
-  bool do_unloading_scopes(BoolObjectClosure* is_alive, bool unloading_occurred);
+  bool do_unloading_scopes(BoolObjectClosure* is_alive);
   //  Unload a nmethod if the *root object is dead.
-  bool can_unload(BoolObjectClosure* is_alive, oop* root, bool unloading_occurred);
-  bool unload_if_dead_at(RelocIterator *iter_at_oop, BoolObjectClosure* is_alive, bool unloading_occurred);
+  bool can_unload(BoolObjectClosure* is_alive, oop* root);
+  bool unload_if_dead_at(RelocIterator *iter_at_oop, BoolObjectClosure* is_alive);
 
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
@@ -555,7 +557,7 @@ public:
   // Logging
   void log_identity(xmlStream* log) const;
   void log_new_nmethod() const;
-  void log_state_change() const;
+  void log_state_change(oop cause = NULL) const;
 
   // Prints block-level comments, including nmethod specific block labels:
   virtual void print_block_comment(outputStream* stream, address block_begin) const {

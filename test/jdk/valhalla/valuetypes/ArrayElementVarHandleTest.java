@@ -25,8 +25,10 @@
 /*
  * @test
  * @summary test VarHandle on value array
- * @build Point Line MutablePath
- * @compile -XDallowFlattenabilityModifiers MixedValues.java NonFlattenValue.java
+ * @compile -XDallowWithFieldOperator Point.java
+ * @compile -XDallowWithFieldOperator Line.java
+ * @compile -XDallowWithFieldOperator MutablePath.java
+ * @compile -XDallowFlattenabilityModifiers -XDallowWithFieldOperator MixedValues.java NonFlattenValue.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+ValueArrayFlatten ArrayElementVarHandleTest
  * @run testng/othervm -XX:+EnableValhalla -XX:-ValueArrayFlatten ArrayElementVarHandleTest
  */

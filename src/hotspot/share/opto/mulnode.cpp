@@ -47,7 +47,7 @@ uint MulNode::hash() const {
 //------------------------------Identity---------------------------------------
 // Multiplying a one preserves the other argument
 Node* MulNode::Identity(PhaseGVN* phase) {
-  register const Type *one = mul_id();  // The multiplicative identity
+  const Type *one = mul_id();  // The multiplicative identity
   if( phase->type( in(1) )->higher_equal( one ) ) return in(2);
   if( phase->type( in(2) )->higher_equal( one ) ) return in(1);
 
@@ -594,6 +594,13 @@ Node* AndLNode::Identity(PhaseGVN* phase) {
         jlong mask = max_julong >> shift;
         if( (mask&con) == mask )  // If AND is useless, skip it
           return usr;
+      }
+    }
+
+    if (con == markOopDesc::always_locked_pattern) {
+      assert(EnableValhalla, "should only be used for value types");
+      if (in(1)->is_Load() && phase->type(in(1)->in(MemNode::Address))->is_valuetypeptr()) {
+        return in(2); // Obj is known to be a value type
       }
     }
   }

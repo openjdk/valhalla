@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.bytecode;
 
 import static org.graalvm.compiler.bytecode.Bytecodes.Flags.ASSOCIATIVE;
@@ -836,5 +838,28 @@ public class Bytecodes {
         Bytecodes.flagsArray[opcode] = flags;
 
         assert !isConditionalBranch(opcode) || isBranch(opcode) : "a conditional branch must also be a branch";
+    }
+
+    public static boolean isIfBytecode(int bytecode) {
+        switch (bytecode) {
+            case IFEQ:
+            case IFNE:
+            case IFLT:
+            case IFGE:
+            case IFGT:
+            case IFLE:
+            case IF_ICMPEQ:
+            case IF_ICMPNE:
+            case IF_ICMPLT:
+            case IF_ICMPGE:
+            case IF_ICMPGT:
+            case IF_ICMPLE:
+            case IF_ACMPEQ:
+            case IF_ACMPNE:
+            case IFNULL:
+            case IFNONNULL:
+                return true;
+        }
+        return false;
     }
 }

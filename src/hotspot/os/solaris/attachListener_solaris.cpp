@@ -213,16 +213,12 @@ static int check_credentials() {
     return -1; // unable to get them, deny
   }
 
-  // get our euid/eguid (probably could cache these)
-  uid_t euid = geteuid();
-  gid_t egid = getegid();
-
   // get euid/egid from ucred_free
   uid_t ucred_euid = ucred_geteuid(cred_info);
   gid_t ucred_egid = ucred_getegid(cred_info);
 
   // check that the effective uid/gid matches
-  if (ucred_euid == euid && ucred_egid == egid) {
+  if (os::Posix::matches_effective_uid_and_gid_or_root(ucred_euid, ucred_egid)) {
     ret =  0;  // allow
   }
 
@@ -298,12 +294,17 @@ extern "C" {
     int return_fd = -1;
     SolarisAttachOperation* op = NULL;
 
-    // no listener
+    // wait up to 10 seconds for listener to be up and running
     jint res = 0;
-    if (!AttachListener::is_initialized()) {
-      // how did we get here?
-      debug_only(warning("door_call when not enabled"));
-      res = (jint)SolarisAttachListener::ATTACH_ERROR_INTERNAL;
+    int sleep_count = 0;
+    while (!AttachListener::is_initialized()) {
+      sleep(1); // 1 second
+      sleep_count++;
+      if (sleep_count > 10) { // try for 10 seconds
+        debug_only(warning("door_call when not enabled"));
+        res = (jint)SolarisAttachListener::ATTACH_ERROR_INTERNAL;
+        break;
+      }
     }
 
     // check client credentials
@@ -664,8 +665,8 @@ bool AttachListener::is_init_trigger() {
   }
   if (ret == 0) {
     // simple check to avoid starting the attach mechanism when
-    // a bogus user creates the file
-    if (st.st_uid == geteuid()) {
+    // a bogus non-root user creates the file
+    if (os::Posix::matches_effective_uid_or_root(st.st_uid)) {
       init();
       log_trace(attach)("Attach triggered by %s", fn);
       return true;

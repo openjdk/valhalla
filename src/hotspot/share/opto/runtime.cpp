@@ -50,6 +50,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -399,9 +400,9 @@ JRT_ENTRY(void, OptoRuntime::multianewarrayN_C(Klass* elem_type, arrayOopDesc* d
   ResourceMark rm;
   jint len = dims->length();
   assert(len > 0, "Dimensions array should contain data");
-  jint *j_dims = typeArrayOop(dims)->int_at_addr(0);
   jint *c_dims = NEW_RESOURCE_ARRAY(jint, len);
-  Copy::conjoint_jints_atomic(j_dims, c_dims, len);
+  ArrayAccess<>::arraycopy_to_native<>(dims, typeArrayOopDesc::element_offset<jint>(0),
+                                       c_dims, len);
 
   Handle holder(THREAD, elem_type->klass_holder()); // keep the klass alive
   oop obj = ArrayKlass::cast(elem_type)->multi_allocate(len, c_dims, THREAD);
@@ -1129,6 +1130,27 @@ const TypeFunc* OptoRuntime::ghash_processBlocks_Type() {
     const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
     return TypeFunc::make(domain, range);
 }
+// Base64 encode function
+const TypeFunc* OptoRuntime::base64_encodeBlock_Type() {
+  int argcnt = 6;
+
+  const Type** fields = TypeTuple::fields(argcnt);
+  int argp = TypeFunc::Parms;
+  fields[argp++] = TypePtr::NOTNULL;    // src array
+  fields[argp++] = TypeInt::INT;        // offset
+  fields[argp++] = TypeInt::INT;        // length
+  fields[argp++] = TypePtr::NOTNULL;    // dest array
+  fields[argp++] = TypeInt::INT;       // dp
+  fields[argp++] = TypeInt::BOOL;       // isURL
+  assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+argcnt, fields);
+
+  // result type needed
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms + 0] = NULL; // void
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
+  return TypeFunc::make(domain, range);
+}
 
 //------------- Interpreter state access for on stack replacement
 const TypeFunc* OptoRuntime::osr_end_Type() {
@@ -1593,7 +1615,12 @@ NamedCounter* OptoRuntime::new_named_counter(JVMState* youngest_jvms, NamedCount
     }
     int bci = jvms->bci();
     if (bci < 0) bci = 0;
-    st.print("%s.%s@%d", m->holder()->name()->as_utf8(), m->name()->as_utf8(), bci);
+    if (m != NULL) {
+      st.print("%s.%s", m->holder()->name()->as_utf8(), m->name()->as_utf8());
+    } else {
+      st.print("no method");
+    }
+    st.print("@%d", bci);
     // To print linenumbers instead of bci use: m->line_number_from_bci(bci)
   }
   NamedCounter* c;
@@ -1690,6 +1717,72 @@ const TypeFunc *OptoRuntime::pack_value_type_Type() {
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL;
 
   const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1,fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+JRT_LEAF(void, OptoRuntime::load_unknown_value(valueArrayOopDesc* array, int index, instanceOopDesc* buffer))
+{
+  Klass* klass = array->klass();
+  assert(klass->is_valueArray_klass(), "expected value array oop");
+
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+  void* src = array->value_at_addr(index, vaklass->layout_helper());
+  vklass->value_store(src, vklass->data_for_oop(buffer),
+                        vaklass->element_byte_size(), true, false);
+}
+JRT_END
+
+const TypeFunc *OptoRuntime::load_unknown_value_Type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(3);
+  // We don't know the number of returned values and their
+  // types. Assume all registers available to the return convention
+  // are used.
+  fields[TypeFunc::Parms] = TypeOopPtr::NOTNULL;
+  fields[TypeFunc::Parms+1] = TypeInt::POS;
+  fields[TypeFunc::Parms+2] = TypeInstPtr::NOTNULL;
+
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(0);
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+JRT_LEAF(void, OptoRuntime::store_unknown_value(instanceOopDesc* buffer, valueArrayOopDesc* array, int index))
+{
+  assert(buffer != NULL, "can't store null into flat array");
+  Klass* klass = array->klass();
+  assert(klass->is_valueArray_klass(), "expected value array");
+  assert(ArrayKlass::cast(klass)->element_klass() == buffer->klass(), "Store type incorrect");
+
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+  const int lh = vaklass->layout_helper();
+  vklass->value_store(vklass->data_for_oop(buffer), array->value_at_addr(index, lh),
+                      vaklass->element_byte_size(), true, false);
+}
+JRT_END
+
+const TypeFunc *OptoRuntime::store_unknown_value_Type() {
+  // create input type (domain)
+  const Type **fields = TypeTuple::fields(3);
+  // We don't know the number of returned values and their
+  // types. Assume all registers available to the return convention
+  // are used.
+  fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
+  fields[TypeFunc::Parms+1] = TypeOopPtr::NOTNULL;
+  fields[TypeFunc::Parms+2] = TypeInt::POS;
+
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(0);
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
 
   return TypeFunc::make(domain, range);
 }

@@ -21,6 +21,8 @@
  * questions.
  */
 
+
+
 package jdk.tools.jaotc.binformat;
 
 import static org.graalvm.compiler.hotspot.meta.HotSpotAOTProfilingPlugin.Options.TieredAOT;
@@ -137,22 +139,23 @@ public final class BinaryContainer implements SymbolTable {
      */
     private static final HashMap<String, String> functionNamesToAOTSymbols = new HashMap<>();
 
+    //@formatter:off
     private static final String[][] map = {
-//@formatter:off
-        {"CompilerToVM::Data::SharedRuntime_deopt_blob_unpack",        "_aot_deopt_blob_unpack"},
-        {"CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap", "_aot_deopt_blob_uncommon_trap"},
-        {"CompilerToVM::Data::SharedRuntime_ic_miss_stub",             "_aot_ic_miss_stub"},
-        {"CompilerToVM::Data::SharedRuntime_handle_wrong_method_stub", "_aot_handle_wrong_method_stub"},
-        {"SharedRuntime::exception_handler_for_return_address",        "_aot_exception_handler_for_return_address"},
-        {"SharedRuntime::register_finalizer",                          "_aot_register_finalizer"},
-        {"SharedRuntime::OSR_migration_end",                           "_aot_OSR_migration_end"},
-        {"CompilerRuntime::resolve_dynamic_invoke",                    "_aot_resolve_dynamic_invoke"},
-        {"CompilerRuntime::resolve_string_by_symbol",                  "_aot_resolve_string_by_symbol"},
-        {"CompilerRuntime::resolve_klass_by_symbol",                   "_aot_resolve_klass_by_symbol"},
-        {"CompilerRuntime::resolve_method_by_symbol_and_load_counters","_aot_resolve_method_by_symbol_and_load_counters"},
-        {"CompilerRuntime::initialize_klass_by_symbol",                "_aot_initialize_klass_by_symbol"},
-        {"CompilerRuntime::invocation_event",                          "_aot_invocation_event"},
-        {"CompilerRuntime::backedge_event",                            "_aot_backedge_event"},
+        {"CompilerToVM::Data::SharedRuntime_deopt_blob_unpack",         "_aot_deopt_blob_unpack"},
+        {"CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap",  "_aot_deopt_blob_uncommon_trap"},
+        {"CompilerToVM::Data::SharedRuntime_ic_miss_stub",              "_aot_ic_miss_stub"},
+        {"CompilerToVM::Data::SharedRuntime_handle_wrong_method_stub",  "_aot_handle_wrong_method_stub"},
+        {"SharedRuntime::exception_handler_for_return_address",         "_aot_exception_handler_for_return_address"},
+        {"SharedRuntime::register_finalizer",                           "_aot_register_finalizer"},
+        {"SharedRuntime::OSR_migration_end",                            "_aot_OSR_migration_end"},
+        {"SharedRuntime::enable_stack_reserved_zone",                   "_aot_enable_stack_reserved_zone"},
+        {"CompilerRuntime::resolve_dynamic_invoke",                     "_aot_resolve_dynamic_invoke"},
+        {"CompilerRuntime::resolve_string_by_symbol",                   "_aot_resolve_string_by_symbol"},
+        {"CompilerRuntime::resolve_klass_by_symbol",                    "_aot_resolve_klass_by_symbol"},
+        {"CompilerRuntime::resolve_method_by_symbol_and_load_counters", "_aot_resolve_method_by_symbol_and_load_counters"},
+        {"CompilerRuntime::initialize_klass_by_symbol",                 "_aot_initialize_klass_by_symbol"},
+        {"CompilerRuntime::invocation_event",                           "_aot_invocation_event"},
+        {"CompilerRuntime::backedge_event",                             "_aot_backedge_event"},
 
         {"CompilerToVM::Data::dpow", "_aot_shared_runtime_dpow"},
         {"CompilerToVM::Data::dexp", "_aot_shared_runtime_dexp"},
@@ -213,6 +216,7 @@ public final class BinaryContainer implements SymbolTable {
 
         {"StubRoutines::_counterMode_AESCrypt", "_aot_stub_routines_counterMode_AESCrypt" },
         {"StubRoutines::_ghash_processBlocks", "_aot_stub_routines_ghash_processBlocks" },
+        {"StubRoutines::_base64_encodeBlock", "_aot_stub_routines_base64_encodeBlock" },
         {"StubRoutines::_crc32c_table_addr", "_aot_stub_routines_crc32c_table_addr" },
         {"StubRoutines::_updateBytesCRC32C", "_aot_stub_routines_updateBytesCRC32C" },
         {"StubRoutines::_updateBytesAdler32", "_aot_stub_routines_updateBytesAdler32" },
@@ -254,8 +258,8 @@ public final class BinaryContainer implements SymbolTable {
 
         {"JVMCIRuntime::vm_error", "_aot_jvmci_runtime_vm_error"},
         {"JVMCIRuntime::new_array", "_aot_jvmci_runtime_new_array"}
-        //@formatter:on
     };
+    //@formatter:on
 
     static {
         for (String[] entry : map) {
@@ -270,7 +274,7 @@ public final class BinaryContainer implements SymbolTable {
      *
      * @param graalOptions
      */
-    public BinaryContainer(OptionValues graalOptions, GraalHotSpotVMConfig graalHotSpotVMConfig, GraphBuilderConfiguration graphBuilderConfig, String jvmVersion) {
+    public BinaryContainer(OptionValues graalOptions, GraalHotSpotVMConfig graalHotSpotVMConfig, GraphBuilderConfiguration graphBuilderConfig, int gc, String jvmVersion) {
         this.graalOptions = graalOptions;
 
         this.codeSegmentSize = graalHotSpotVMConfig.codeSegmentSize;
@@ -314,16 +318,16 @@ public final class BinaryContainer implements SymbolTable {
 
         addGlobalSymbols();
 
-        recordConfiguration(graalHotSpotVMConfig, graphBuilderConfig);
+        recordConfiguration(graalHotSpotVMConfig, graphBuilderConfig, gc);
     }
 
-    private void recordConfiguration(GraalHotSpotVMConfig graalHotSpotVMConfig, GraphBuilderConfiguration graphBuilderConfig) {
+    private void recordConfiguration(GraalHotSpotVMConfig graalHotSpotVMConfig, GraphBuilderConfiguration graphBuilderConfig, int gc) {
+        // @Checkstyle: stop
         // @formatter:off
         boolean[] booleanFlags = { graalHotSpotVMConfig.cAssertions, // Debug VM
                                    graalHotSpotVMConfig.useCompressedOops,
                                    graalHotSpotVMConfig.useCompressedClassPointers,
                                    graalHotSpotVMConfig.compactFields,
-                                   graalHotSpotVMConfig.useG1GC,
                                    graalHotSpotVMConfig.useTLAB,
                                    graalHotSpotVMConfig.useBiasedLocking,
                                    TieredAOT.getValue(graalOptions),
@@ -339,8 +343,10 @@ public final class BinaryContainer implements SymbolTable {
                                    graalHotSpotVMConfig.fieldsAllocationStyle,
                                    1 << graalHotSpotVMConfig.logMinObjAlignment(),
                                    graalHotSpotVMConfig.codeSegmentSize,
+                                   gc
         };
         // @formatter:on
+        // @Checkstyle: resume
 
         byte[] booleanFlagsAsBytes = flagsToByteArray(booleanFlags);
         int size0 = configContainer.getByteStreamSize();
@@ -445,7 +451,6 @@ public final class BinaryContainer implements SymbolTable {
         return threadLocalHandshakes;
     }
 
-
     /**
      * Gets the global AOT symbol associated with the function name.
      *
@@ -540,8 +545,9 @@ public final class BinaryContainer implements SymbolTable {
                     JPECoffRelocObject pecoffobj = new JPECoffRelocObject(this, outputFileName);
                     pecoffobj.createPECoffRelocObject(relocationTable, symbolTable.values());
                     break;
-                } else
+                } else {
                     throw new InternalError("Unsupported platform: " + osName);
+                }
         }
     }
 
@@ -551,6 +557,7 @@ public final class BinaryContainer implements SymbolTable {
      *
      * @param symInfo symbol information to be added
      */
+    @Override
     public void addSymbol(Symbol symInfo) {
         if (symInfo.getName().startsWith("got.") && !(symInfo instanceof GotSymbol)) {
             throw new InternalError("adding got. without being GotSymbol");
@@ -576,7 +583,8 @@ public final class BinaryContainer implements SymbolTable {
      * @param info relocation information to be added
      */
     public void addRelocation(Relocation info) {
-        // System.out.println("# Relocation [" + info.getSymbol() + "] [" + info.getOffset() + "] [" +
+        // System.out.println("# Relocation [" + info.getSymbol() + "] [" + info.getOffset() + "] ["
+        // +
         // info.getSection().getContainerName() + "] [" + info.getSymbol().getName() + "] [" +
         // info.getSymbol().getOffset() + " @ " + info.getSymbol().getSection().getContainerName() +
         // "]");

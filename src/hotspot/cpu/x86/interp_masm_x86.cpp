@@ -27,7 +27,6 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
-#include "memory/vtBuffer.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markOop.hpp"
 #include "oops/methodData.hpp"
@@ -1124,43 +1123,6 @@ void InterpreterMacroAssembler::remove_activation(
     bind(no_reserved_zone_enabling);
   }
 
-  if (ValueTypesBufferMaxMemory > 0) {
-    // Code below is taking care of recycling TLVB memory, no safepoint should
-    // occur between this point and the end of the remove_activation() method
-    Label vtbuffer_slow, vtbuffer_done, no_buffered_value_returned;
-    const Register thread1 = NOT_LP64(rcx) LP64_ONLY(r15_thread);
-    const uintptr_t chunk_mask = VTBufferChunk::chunk_mask();
-    NOT_LP64(get_thread(thread1));
-    cmpptr(Address(thread1, JavaThread::return_buffered_value_offset()), (intptr_t)NULL_WORD);
-    jcc(Assembler::equal, no_buffered_value_returned);
-    movptr(rbx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
-    call_VM_leaf(CAST_FROM_FN_PTR(address,
-                                  InterpreterRuntime::return_value_step2), rax, rbx);
-    NOT_LP64(get_thread(thread1));
-    get_vm_result(rax, thread1);
-    jmp(vtbuffer_done);
-    bind(no_buffered_value_returned);
-    movptr(rbx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
-    NOT_LP64(get_thread(thread1));
-    movptr(rcx, Address(thread1, JavaThread::vt_alloc_ptr_offset()));
-    cmpptr(rbx, rcx);
-    jcc(Assembler::equal, vtbuffer_done);
-    andptr(rbx, chunk_mask);
-    andptr(rcx, chunk_mask);
-    cmpptr(rbx, rcx);
-    jcc(Assembler::notEqual, vtbuffer_slow);
-    movptr(rbx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
-    movptr(Address(thread1, JavaThread::vt_alloc_ptr_offset()), rbx);
-    jmp(vtbuffer_done);
-    bind(vtbuffer_slow);
-    push(state);
-    movptr(rbx, Address(rbp, frame::interpreter_frame_vt_alloc_ptr_offset * wordSize));
-    call_VM_leaf(CAST_FROM_FN_PTR(address,
-                                  InterpreterRuntime::recycle_vtbuffer), rbx);
-    pop(state);
-    bind(vtbuffer_done);
-  }
-
   // remove activation
   // get sender sp
   movptr(rbx,
@@ -1501,10 +1463,10 @@ void InterpreterMacroAssembler::increment_mdp_data_at(Register mdp_in,
 void InterpreterMacroAssembler::set_mdp_flag_at(Register mdp_in,
                                                 int flag_byte_constant) {
   assert(ProfileInterpreter, "must be profiling interpreter");
-  int header_offset = in_bytes(DataLayout::header_offset());
-  int header_bits = DataLayout::flag_mask_to_header_mask(flag_byte_constant);
+  int header_offset = in_bytes(DataLayout::flags_offset());
+  int header_bits = flag_byte_constant;
   // Set the flag
-  orl(Address(mdp_in, header_offset), header_bits);
+  orb(Address(mdp_in, header_offset), header_bits);
 }
 
 
@@ -2032,7 +1994,9 @@ void InterpreterMacroAssembler::increment_mask_and_jump(Address counter_addr,
   incrementl(scratch, increment);
   movl(counter_addr, scratch);
   andl(scratch, mask);
-  jcc(cond, *where);
+  if (where != NULL) {
+    jcc(cond, *where);
+  }
 }
 
 void InterpreterMacroAssembler::notify_method_entry() {

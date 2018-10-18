@@ -34,7 +34,7 @@ import static jdk.test.lib.Asserts.*;
  * @test ValueTypeArray
  * @summary Plain array test for Value Types
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
@@ -193,7 +193,7 @@ public class ValueTypeArray {
         assertEquals(x, 0, "Bad Point Value");
     }
 
-    static final __ByValue class MyInt implements Comparable<MyInt> {
+    static final value class MyInt implements Comparable<MyInt> {
         final int value;
 
         private MyInt() { value = 0; }
@@ -208,7 +208,7 @@ public class ValueTypeArray {
         }
 
         public static MyInt create(int v) {
-            MyInt mi = __MakeDefault MyInt();
+            MyInt mi = MyInt.default;
             mi = __WithField(mi.value, v);
             return mi;
         }
@@ -222,7 +222,7 @@ public class ValueTypeArray {
         default String hi() { return "Hi"; }
     }
 
-    static final __ByValue class MyOtherInt implements SomeSecondaryType {
+    static final value class MyOtherInt implements SomeSecondaryType {
         final int value;
         private MyOtherInt() { value = 0; }
     }
@@ -355,7 +355,7 @@ public class ValueTypeArray {
         } catch (ArrayStoreException ase) {}
     }
 
-    static final __ByValue class MyPoint {
+    static final value class MyPoint {
         final __Flattenable MyInt x;
         final               MyInt y;
 
@@ -371,12 +371,12 @@ public class ValueTypeArray {
             return false;
         }
         static MyPoint create(int x) {
-            MyPoint mp = __MakeDefault MyPoint();
+            MyPoint mp = MyPoint.default;
             mp = __WithField(mp.x, MyInt.create(x));
             return mp;
         }
         static MyPoint create(int x, int y) {
-            MyPoint mp = __MakeDefault MyPoint();
+            MyPoint mp = MyPoint.default;
             mp = __WithField(mp.x, MyInt.create(x));
             mp = __WithField(mp.y, MyInt.create(y));
             return mp;

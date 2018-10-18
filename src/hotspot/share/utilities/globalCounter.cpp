@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "utilities/globalCounter.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vmThread.hpp"
@@ -61,10 +61,17 @@ void GlobalCounter::write_synchronize() {
   // Atomic::add must provide fence since we have storeload dependency.
   volatile uintx gbl_cnt = Atomic::add((uintx)COUNTER_INCREMENT, &_global_counter._counter,
                                        memory_order_conservative);
+  // Handle bootstrap
+  if (Threads::number_of_threads() == 0) {
+    return;
+  }
+
   // Do all RCU threads.
   CounterThreadCheck ctc(gbl_cnt);
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {
     ctc.do_thread(thread);
   }
-  ctc.do_thread(VMThread::vm_thread());
+  for (NonJavaThread::Iterator njti; !njti.end(); njti.step()) {
+    ctc.do_thread(njti.current());
+  }
 }

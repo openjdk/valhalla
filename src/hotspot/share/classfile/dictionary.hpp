@@ -74,7 +74,7 @@ public:
 
   void classes_do(void f(InstanceKlass*));
   void classes_do(void f(InstanceKlass*, TRAPS), TRAPS);
-  void all_entries_do(void f(InstanceKlass*, ClassLoaderData*));
+  void all_entries_do(KlassClosure* closure);
   void classes_do(MetaspaceClosure* it);
 
   void unlink();
@@ -182,7 +182,7 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
     for (ProtectionDomainEntry* current = pd_set(); // accessed at a safepoint
                                 current != NULL;
                                 current = current->_next) {
-      current->_pd_cache->object_no_keepalive()->verify();
+      oopDesc::verify(current->_pd_cache->object_no_keepalive());
     }
   }
 

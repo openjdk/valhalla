@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,11 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "memory/iterator.inline.hpp"
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspaceClosure.hpp"
+#include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
@@ -45,14 +47,15 @@
 #include "oops/valueArrayOop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/mutexLocker.hpp"
+#include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
 #include "oops/valueArrayKlass.hpp"
 
 // Allocation...
 
-ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name) {
+ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
   assert(element_klass->is_value(), "Expected Value");
 
   set_element_klass(ValueKlass::cast(element_klass));
@@ -154,7 +157,7 @@ void ValueArrayKlass::initialize(TRAPS) {
 }
 
 // Oops allocation...
-oop ValueArrayKlass::allocate(int length, bool do_zero, TRAPS) {
+valueArrayOop ValueArrayKlass::allocate(int length, TRAPS) {
   if (length < 0) {
     THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
   }
@@ -164,12 +167,8 @@ oop ValueArrayKlass::allocate(int length, bool do_zero, TRAPS) {
     THROW_OOP_0(Universe::out_of_memory_error_array_size());
   }
 
-  size_t size = valueArrayOopDesc::object_size(layout_helper(), length);
-  if (do_zero) {
-    return CollectedHeap::array_allocate(this, (int)size, length, CHECK_NULL);
-  } else {
-    return CollectedHeap::array_allocate_nozero(this, (int)size, length, CHECK_NULL);
-  }
+  int size = valueArrayOopDesc::object_size(layout_helper(), length);
+  return (valueArrayOop) Universe::heap()->array_allocate(this, size, length, true, THREAD);
 }
 
 
@@ -177,7 +176,7 @@ oop ValueArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
   // For valueArrays this is only called for the last dimension
   assert(rank == 1, "just checking");
   int length = *last_size;
-  return allocate(length, true, THREAD);
+  return allocate(length, THREAD);
 }
 
 jint ValueArrayKlass::array_layout_helper(ValueKlass* vk) {
@@ -383,7 +382,7 @@ bool ValueArrayKlass::can_be_primary_super_slow() const {
 }
 
 GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_slots,
-                                                                 Array<Klass*>* transitive_interfaces) {
+                                                                 Array<InstanceKlass*>* transitive_interfaces) {
   assert(transitive_interfaces == NULL, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
@@ -484,15 +483,20 @@ void ValueArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
 }
 
 // Verification
+class VerifyElementClosure: public BasicOopIterateClosure {
+ public:
+  virtual void do_oop(oop* p)       { VerifyOopClosure::verify_oop.do_oop(p); }
+  virtual void do_oop(narrowOop* p) { VerifyOopClosure::verify_oop.do_oop(p); }
+};
 
 void ValueArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_valueArray(), "must be valueArray");
 
-  if (element_klass()->contains_oops()) {
+  if (contains_oops()) {
     valueArrayOop va = valueArrayOop(obj);
-    NoHeaderExtendedOopClosure wrapClosure(&VerifyOopClosure::verify_oop);
-    va->oop_iterate(&wrapClosure);
+    VerifyElementClosure ec;
+    va->oop_iterate(&ec);
   }
 }
 

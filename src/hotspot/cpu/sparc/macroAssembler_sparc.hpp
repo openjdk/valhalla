@@ -659,7 +659,7 @@ class MacroAssembler : public Assembler {
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
-  void pd_patch_instruction(address branch, address target);
+  void pd_patch_instruction(address branch, address target, const char* file, int line);
 
   // sethi Macro handles optimizations and relocations
 private:
@@ -1303,7 +1303,7 @@ public:
   // Stack overflow checking
 
   // Note: this clobbers G3_scratch
-  inline void bang_stack_with_offset(int offset);
+  void bang_stack_with_offset(int offset);
 
   // Writes to stack successive pages until offset reached to check for
   // stack overflow + shadow pages.  Clobbers tsp and scratch registers.

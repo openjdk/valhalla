@@ -22,7 +22,7 @@
  */
 package runtime.valhalla.valuetypes;
 
-public __ByValue final class Point {
+public value final class Point {
     final int x;
     final int y;
 
@@ -51,7 +51,7 @@ public __ByValue final class Point {
     }
 
     public static Point createPoint(int x, int y) {
-        Point p = __MakeDefault Point();
+        Point p = Point.default;
         p = __WithField(p.x, x);
         p = __WithField(p.y, y);
         return p;

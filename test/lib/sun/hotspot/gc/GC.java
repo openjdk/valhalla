@@ -31,12 +31,14 @@ import sun.hotspot.WhiteBox;
  */
 public enum GC {
     /*
-     * Enum values much match CollectedHeap::Name
+     * Enum values must match CollectedHeap::Name
      */
     Serial(1),
     Parallel(2),
     ConcMarkSweep(3),
-    G1(4);
+    G1(4),
+    Epsilon(5),
+    Z(6);
 
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
 
@@ -47,7 +49,7 @@ public enum GC {
     }
 
     /**
-     * @return true if this GC is supported by the VM
+     * @return true if this GC is supported by the VM, i.e., it is built into the VM.
      */
     public boolean isSupported() {
         return WB.isGCSupported(name);

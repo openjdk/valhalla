@@ -9,9 +9,9 @@
    cannot synchronize using the methods declared on jlO.
 */
 
-public final __ByValue class CheckSync {
+public final value class CheckSync {
 
-    final __ByValue class Val {
+    final value class Val {
         int x = 10;
         void foo() {
             // All calls below are bad.
@@ -25,7 +25,7 @@ public final __ByValue class CheckSync {
         }
     }
 
-    final Val val = __MakeDefault Val();
+    final Val val = Val.default;
 
     void test() throws InterruptedException {
         // All calls below are bad.

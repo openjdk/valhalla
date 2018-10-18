@@ -269,7 +269,7 @@
     <target name="idea" depends="-check-langtools.jdk.home">
         <mkdir dir=".idea"/>
         <copy todir=".idea" >
-            <fileset dir="${make.dir}/intellij">
+            <fileset dir="${make.dir}/intellij/template">
                <exclude name="**/src/**"/>
                <exclude name="**/utils/**"/>
             </fileset>
@@ -289,7 +289,7 @@
         <mkdir dir=".idea/classes"/>
         <javac source="${javac.build.source}"
                target="${javac.build.target}"
-               srcdir="${make.dir}/intellij/src"
+               srcdir="${make.dir}/intellij/template/src"
                destdir=".idea/classes"/>
     </target>
 

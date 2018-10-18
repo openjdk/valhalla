@@ -27,7 +27,7 @@ package runtime.valhalla.valuetypes;
  * @test Test8186715
  * @summary test return of buffered value passed in argument by caller
  * @library /test/lib
- * @compile -XDenableValueTypes Test8186715.java
+ * @compile -XDallowWithFieldOperator -XDenableValueTypes Test8186715.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
  */
@@ -43,7 +43,7 @@ public class Test8186715 {
     }
 }
 
-__ByValue final class MyValueType {
+value final class MyValueType {
     final int i;
     final int j;
 
@@ -53,7 +53,7 @@ __ByValue final class MyValueType {
     }
 
     static MyValueType testDefault() {
-        return __MakeDefault MyValueType();
+        return MyValueType.default;
     }
 
     static MyValueType testBranchArg1(boolean flag, MyValueType v1) {

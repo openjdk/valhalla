@@ -47,18 +47,8 @@ void PrivilegedElement::initialize(vframeStream* vfst, oop context, PrivilegedEl
 
 void PrivilegedElement::oops_do(OopClosure* f) {
   PrivilegedElement *cur = this;
-  BufferedValuesDealiaser* dealiaser = NULL;
   do {
-    if (!VTBuffer::is_in_vt_buffer(cur->_privileged_context)) {
-      f->do_oop((oop*) &cur->_privileged_context);
-    } else {
-      if (dealiaser == NULL) {
-        dealiaser = Thread::current()->buffered_values_dealiaser();
-      }
-      oop value = *(oop*) &cur->_privileged_context;
-      assert(value->is_value(), "Sanity check");
-      dealiaser->oops_do(f, value);
-    }
+    f->do_oop((oop*) &cur->_privileged_context);
     cur = cur->_next;
   } while(cur != NULL);
 }

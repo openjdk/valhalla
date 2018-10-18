@@ -29,7 +29,7 @@
  * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:CompileOnly=TestUnloadedValueTypeArray::test TestUnloadedValueTypeArray
  */
 
-__ByValue final class MyValue {
+value final class MyValue {
     final int foo;
 
     private MyValue() {

@@ -1006,19 +1006,19 @@ void ArchDesc::declare_pipe_classes(FILE *fp_hpp) {
   fprintf(fp_hpp, "           enum machPipelineStages * const stage,\n");
   fprintf(fp_hpp, "           uint                    * const cycles,\n");
   fprintf(fp_hpp, "           Pipeline_Use                    resource_use)\n");
-  fprintf(fp_hpp, "  : _write_stage(write_stage)\n");
-  fprintf(fp_hpp, "  , _read_stage_count(count)\n");
-  fprintf(fp_hpp, "  , _has_fixed_latency(has_fixed_latency)\n");
+  fprintf(fp_hpp, "  : _read_stage_count(count)\n");
+  fprintf(fp_hpp, "  , _write_stage(write_stage)\n");
   fprintf(fp_hpp, "  , _fixed_latency(fixed_latency)\n");
-  fprintf(fp_hpp, "  , _read_stages(dst)\n");
-  fprintf(fp_hpp, "  , _resource_stage(stage)\n");
-  fprintf(fp_hpp, "  , _resource_cycles(cycles)\n");
-  fprintf(fp_hpp, "  , _resource_use(resource_use)\n");
   fprintf(fp_hpp, "  , _instruction_count(instruction_count)\n");
+  fprintf(fp_hpp, "  , _has_fixed_latency(has_fixed_latency)\n");
   fprintf(fp_hpp, "  , _has_branch_delay(has_branch_delay)\n");
   fprintf(fp_hpp, "  , _has_multiple_bundles(has_multiple_bundles)\n");
   fprintf(fp_hpp, "  , _force_serialization(force_serialization)\n");
   fprintf(fp_hpp, "  , _may_have_no_code(may_have_no_code)\n");
+  fprintf(fp_hpp, "  , _read_stages(dst)\n");
+  fprintf(fp_hpp, "  , _resource_stage(stage)\n");
+  fprintf(fp_hpp, "  , _resource_cycles(cycles)\n");
+  fprintf(fp_hpp, "  , _resource_use(resource_use)\n");
   fprintf(fp_hpp, "  {};\n");
   fprintf(fp_hpp, "\n");
   fprintf(fp_hpp, "  uint writeStage() const {\n");
@@ -2002,10 +2002,6 @@ void ArchDesc::declareClasses(FILE *fp) {
 
     // Analyze machine instructions that either USE or DEF memory.
     int memory_operand = instr->memory_operand(_globalNames);
-    // Some guys kill all of memory
-    if ( instr->is_wide_memory_kill(_globalNames) ) {
-      memory_operand = InstructForm::MANY_MEMORY_OPERANDS;
-    }
     if ( memory_operand != InstructForm::NO_MEMORY_OPERAND ) {
       if( memory_operand == InstructForm::MANY_MEMORY_OPERANDS ) {
         fprintf(fp,"  virtual const TypePtr *adr_type() const;\n");

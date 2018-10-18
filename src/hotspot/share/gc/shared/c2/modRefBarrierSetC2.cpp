@@ -37,12 +37,12 @@ Node* ModRefBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val
   const TypePtr* adr_type = access.addr().type();
   Node* adr = access.addr().node();
 
-  bool on_array = (decorators & IN_HEAP_ARRAY) != 0;
+  bool is_array = (decorators & IS_ARRAY) != 0;
   bool anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  bool on_heap = (decorators & IN_HEAP) != 0;
-  bool use_precise = on_array || anonymous;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool use_precise = is_array || anonymous;
 
-  if (!access.is_oop() || (!on_heap && !anonymous)) {
+  if (!access.is_oop() || (!in_heap && !anonymous)) {
     return BarrierSetC2::store_at_resolved(access, val);
   }
 

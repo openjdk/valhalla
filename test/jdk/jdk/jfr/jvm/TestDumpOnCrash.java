@@ -36,10 +36,11 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-/*
+/**
  * @test
  * @key jfr
  * @summary Verifies that data associated with a running recording can be evacuated to an hs_err_pidXXX.jfr when the VM crashes
+ * @requires vm.hasJFR
  *
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -68,7 +69,6 @@ public class TestDumpOnCrash {
             ProcessTools.createJavaProcessBuilder(true,
                 "-Xmx64m",
                 "-Xint",
-                "-XX:-TransmitErrorReport",
                 "-XX:-CreateCoredumpOnCrash",
                 "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
                 "-XX:StartFlightRecording=dumponexit=true",

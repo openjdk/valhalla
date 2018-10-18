@@ -412,6 +412,9 @@ class os: AllStatic {
   static void    make_polling_page_unreadable();
   static void    make_polling_page_readable();
 
+  // Check if pointer points to readable memory (by 4-byte read access)
+  static bool    is_readable_pointer(const void* p);
+
   // Routines used to serialize the thread state without using membars
   static void    serialize_thread_states();
 
@@ -558,6 +561,9 @@ class os: AllStatic {
   static FILE* fopen(const char* path, const char* mode);
   static int close(int fd);
   static jlong lseek(int fd, jlong offset, int whence);
+  // This function, on Windows, canonicalizes a given path (see os_windows.cpp for details).
+  // On Posix, this function is a noop: it does not change anything and just returns
+  // the input pointer.
   static char* native_path(char *path);
   static int ftruncate(int fd, jlong length);
   static int fsync(int fd);
@@ -577,8 +583,7 @@ class os: AllStatic {
 
   // Reading directories.
   static DIR*           opendir(const char* dirname);
-  static int            readdir_buf_size(const char *path);
-  static struct dirent* readdir(DIR* dirp, dirent* dbuf);
+  static struct dirent* readdir(DIR* dirp);
   static int            closedir(DIR* dirp);
 
   // Dynamic library extension
@@ -892,7 +897,6 @@ class os: AllStatic {
   static int java_to_os_priority[CriticalPriority + 1];
   // Hint to the underlying OS that a task switch would not be good.
   // Void return because it's a hint and can fail.
-  static void hint_no_preempt();
   static const char* native_thread_creation_failed_msg() {
     return OS_NATIVE_THREAD_CREATION_FAILED_MSG;
   }

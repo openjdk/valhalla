@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
 
 /*
  * @test
- * @bug 4980882
+ * @bug 4980882 8207250
  * @summary SSLEngine should enforce setUseClientMode
  * @run main/othervm EngineEnforceUseClientMode
  * @author Brad R. Wetmore
@@ -107,10 +107,9 @@ public class EngineEnforceUseClientMode {
                 "wrap():  Didn't catch the exception properly");
         } catch (IllegalStateException e) {
             System.out.println("Caught the correct exception.");
-            ssle3.wrap(appOut1, oneToTwo);
             oneToTwo.flip();
             if (oneToTwo.hasRemaining()) {
-                throw new Exception("wrap1 generated data");
+                throw new Exception("wrap generated data");
             }
             oneToTwo.clear();
         }
@@ -122,12 +121,11 @@ public class EngineEnforceUseClientMode {
                 "unwrap():  Didn't catch the exception properly");
         } catch (IllegalStateException e) {
             System.out.println("Caught the correct exception.");
-            ssle4.wrap(appOut1, oneToTwo);
-            oneToTwo.flip();
-            if (oneToTwo.hasRemaining()) {
-                throw new Exception("wrap2 generated data");
+            appIn1.flip();
+            if (appIn1.hasRemaining()) {
+                throw new Exception("unwrap generated data");
             }
-            oneToTwo.clear();
+            appIn1.clear();
         }
 
         try {
@@ -137,12 +135,6 @@ public class EngineEnforceUseClientMode {
                 "unwrap():  Didn't catch the exception properly");
         } catch (IllegalStateException e) {
             System.out.println("Caught the correct exception.");
-            ssle5.wrap(appOut1, oneToTwo);
-            oneToTwo.flip();
-            if (oneToTwo.hasRemaining()) {
-                throw new Exception("wrap3 generated data");
-            }
-            oneToTwo.clear();
         }
 
         boolean dataDone = false;
@@ -198,14 +190,18 @@ public class EngineEnforceUseClientMode {
                 checkTransfer(appOut1, appIn2);
                 checkTransfer(appOut2, appIn1);
 
+                // Should not be able to set mode now, no matter if
+                // it is the same of different.
                 System.out.println("Try changing modes...");
-                try {
-                    ssle2.setUseClientMode(false);
-                    throw new RuntimeException(
-                        "setUseClientMode():  " +
-                        "Didn't catch the exception properly");
-                } catch (IllegalArgumentException e) {
-                    System.out.println("Caught the correct exception.");
+                for (boolean b : new Boolean[] {true, false}) {
+                    try {
+                        ssle2.setUseClientMode(b);
+                        throw new RuntimeException(
+                                "setUseClientMode(" + b + "):  " +
+                                        "Didn't catch the exception properly");
+                    } catch (IllegalArgumentException e) {
+                        System.out.println("Caught the correct exception.");
+                    }
                 }
 
                 return;
@@ -311,8 +307,10 @@ public class EngineEnforceUseClientMode {
             log("Data transferred cleanly");
         }
 
-        a.clear();
-        b.clear();
+        a.position(a.limit());
+        b.position(b.limit());
+        a.limit(a.capacity());
+        b.limit(b.capacity());
     }
 
     private static void log(String str) {

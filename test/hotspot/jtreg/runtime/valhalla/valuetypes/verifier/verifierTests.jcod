@@ -24,14 +24,14 @@
 
 // The jcod classes in this file were derived from this Java value type:
 //
-// final __ByValue class Value {
+// final value class Value {
 //     static final Value VT = makeValue(0x01234567);
 //     final int int_v;
 //     Value() {
 //         int_v = 1;
 //     }
 //     static Value makeValue(int x) {
-//         Value v = __MakeDefault Value();
+//         Value v = Value.default;
 //         v = __WithField(v.int_v, x);
 //         return v;
 //     }

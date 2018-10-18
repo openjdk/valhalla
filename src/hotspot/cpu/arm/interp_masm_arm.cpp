@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.inline.hpp"
@@ -301,8 +302,9 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(
   // Add in the index
   // convert from field index to resolved_references() index and from
   // word index to byte offset. Since this is a java object, it can be compressed
-  add(cache, cache, AsmOperand(index, lsl, LogBytesPerHeapOop));
-  load_heap_oop(result, Address(cache, arrayOopDesc::base_offset_in_bytes(T_OBJECT)));
+  logical_shift_left(index, index, LogBytesPerHeapOop);
+  add(index, index, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
+  load_heap_oop(result, Address(cache, index));
 }
 
 void InterpreterMacroAssembler::load_resolved_klass_at_offset(

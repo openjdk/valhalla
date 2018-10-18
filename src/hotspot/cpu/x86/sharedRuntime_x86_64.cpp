@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "code/icBuffer.hpp"
 #include "code/nativeInst.hpp"
 #include "code/vtableStubs.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
@@ -982,7 +983,7 @@ static void gen_i2c_adapter_helper(MacroAssembler* masm,
     }
     if (r_1->is_stack()) {
       // Convert stack slot to an SP offset (+ wordSize to account for return address)
-      int st_off = reg_pair.first()->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+      int st_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
       __ movq(Address(rsp, st_off), dst);
     }
   } else {
@@ -1024,24 +1025,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // clean up the stack pointer changes performed by the two adapters.
   // If this happens, control eventually transfers back to the compiled
   // caller, but with an uncorrected stack, causing delayed havoc.
-
-  /*
-  // TODO we currently check value type arguments for null at compiled method entry
-  Label value_arg_is_null;
-  bool has_null_check = false;
-  if (EnableValhalla) {
-    for (int i = 0; i < sig_extended.length(); i++) {
-      BasicType bt = sig_extended.at(i)._bt;
-      if (bt == T_VALUETYPEPTR) {
-        // Add null check for value type argument
-        int ld_off = (sig_extended.length() - i) * Interpreter::stackElementSize;
-        __ cmpptr(Address(rsp, ld_off), 0);
-        __ jcc(Assembler::equal, value_arg_is_null);
-        has_null_check = true;
-      }
-    }
-  }
-  */
 
   // Pick up the return address
   __ movptr(rax, Address(rsp, 0));
@@ -1106,7 +1089,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
-  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_offset())));
+  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI || UseAOT) {
@@ -1198,15 +1181,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // rax
   __ mov(rax, rbx);
   __ jmp(r11);
-
-  /*
-  if (has_null_check) {
-    __ bind(value_arg_is_null);
-    // TODO For now, we just call the interpreter if a value type argument is NULL
-    __ movptr(r11, Address(rbx, in_bytes(Method::interpreter_entry_offset())));
-    __ jmp(r11);
-  }
-  */
 }
 
 // ---------------------------------------------------------------
@@ -1263,43 +1237,42 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   __ flush();
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps);
 
-  // If value types are passed as fields, save the extended signature as symbol in
-  // the AdapterHandlerEntry to be used by nmethod::preserve_callee_argument_oops().
+  // If the method has value types arguments, save the extended signature as symbol in
+  // the AdapterHandlerEntry to be used for scalarization of value type arguments.
   Symbol* extended_signature = NULL;
-  if (ValueTypePassFieldsAsArgs) {
-    bool has_value_argument = false;
-    Thread* THREAD = Thread::current();
-    ResourceMark rm(THREAD);
-    int length = sig_extended.length();
-    char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
-    int idx = 0;
-    sig_str[idx++] = '(';
-    for (int index = 0; index < length; index++) {
-      BasicType bt = sig_extended.at(index)._bt;
-      if (bt == T_VALUETYPE) {
-        has_value_argument = true;
-      } else if (bt == T_VALUETYPEPTR) {
-        // non-flattened value type field
-        sig_str[idx++] = type2char(T_VALUETYPE);
+  bool has_value_argument = false;
+  Thread* THREAD = Thread::current();
+  ResourceMark rm(THREAD);
+  int length = sig_extended.length();
+  char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
+  int idx = 0;
+  sig_str[idx++] = '(';
+  for (int index = 0; index < length; index++) {
+    BasicType bt = sig_extended.at(index)._bt;
+    if (bt == T_VALUETYPE) {
+      has_value_argument = true;
+    } else if (bt == T_VALUETYPEPTR) {
+      has_value_argument = true;
+      // non-flattened value type field
+      sig_str[idx++] = type2char(T_VALUETYPE);
+      sig_str[idx++] = ';';
+    } else if (bt == T_VOID) {
+      // Ignore
+    } else {
+      if (bt == T_ARRAY) {
+        bt = T_OBJECT; // We don't know the element type, treat as Object
+      }
+      sig_str[idx++] = type2char(bt);
+      if (bt == T_OBJECT) {
         sig_str[idx++] = ';';
-      } else if (bt == T_VOID) {
-        // Ignore
-      } else {
-        if (bt == T_ARRAY) {
-          bt = T_OBJECT; // We don't know the element type, treat as Object
-        }
-        sig_str[idx++] = type2char(bt);
-        if (bt == T_OBJECT) {
-          sig_str[idx++] = ';';
-        }
       }
     }
-    sig_str[idx++] = ')';
-    sig_str[idx++] = '\0';
-    if (has_value_argument) {
-      // Extended signature is only required if a value type argument is passed
-      extended_signature = SymbolTable::new_permanent_symbol(sig_str, THREAD);
-    }
+  }
+  sig_str[idx++] = ')';
+  sig_str[idx++] = '\0';
+  if (has_value_argument) {
+    // Extended signature is only required if a value type argument is passed
+    extended_signature = SymbolTable::new_permanent_symbol(sig_str, THREAD);
   }
 
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, extended_signature);
@@ -1766,6 +1739,64 @@ static void save_or_restore_arguments(MacroAssembler* masm,
   }
 }
 
+// Pin object, return pinned object or null in rax
+static void gen_pin_object(MacroAssembler* masm,
+                           VMRegPair reg) {
+  __ block_comment("gen_pin_object {");
+
+  // rax always contains oop, either incoming or
+  // pinned.
+  Register tmp_reg = rax;
+
+  Label is_null;
+  VMRegPair tmp;
+  VMRegPair in_reg = reg;
+
+  tmp.set_ptr(tmp_reg->as_VMReg());
+  if (reg.first()->is_stack()) {
+    // Load the arg up from the stack
+    move_ptr(masm, reg, tmp);
+    reg = tmp;
+  } else {
+    __ movptr(rax, reg.first()->as_Register());
+  }
+  __ testptr(reg.first()->as_Register(), reg.first()->as_Register());
+  __ jccb(Assembler::equal, is_null);
+
+  if (reg.first()->as_Register() != c_rarg1) {
+    __ movptr(c_rarg1, reg.first()->as_Register());
+  }
+
+  __ call_VM_leaf(
+    CAST_FROM_FN_PTR(address, SharedRuntime::pin_object),
+    r15_thread, c_rarg1);
+
+  __ bind(is_null);
+  __ block_comment("} gen_pin_object");
+}
+
+// Unpin object
+static void gen_unpin_object(MacroAssembler* masm,
+                             VMRegPair reg) {
+  __ block_comment("gen_unpin_object {");
+  Label is_null;
+
+  if (reg.first()->is_stack()) {
+    __ movptr(c_rarg1, Address(rbp, reg2offset_in(reg.first())));
+  } else if (reg.first()->as_Register() != c_rarg1) {
+    __ movptr(c_rarg1, reg.first()->as_Register());
+  }
+
+  __ testptr(c_rarg1, c_rarg1);
+  __ jccb(Assembler::equal, is_null);
+
+  __ call_VM_leaf(
+    CAST_FROM_FN_PTR(address, SharedRuntime::unpin_object),
+    r15_thread, c_rarg1);
+
+  __ bind(is_null);
+  __ block_comment("} gen_unpin_object");
+}
 
 // Check GCLocker::needs_gc and enter the runtime if it's true.  This
 // keeps a new JNI critical region from starting until a GC has been
@@ -1906,12 +1937,12 @@ class ComputeMoveOrder: public StackObj {
    public:
     MoveOperation(int src_index, VMRegPair src, int dst_index, VMRegPair dst):
       _src(src)
-    , _src_index(src_index)
     , _dst(dst)
+    , _src_index(src_index)
     , _dst_index(dst_index)
+    , _processed(false)
     , _next(NULL)
-    , _prev(NULL)
-    , _processed(false) {
+    , _prev(NULL) {
     }
 
     VMRegPair src() const              { return _src; }
@@ -2461,7 +2492,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   const Register oop_handle_reg = r14;
 
-  if (is_critical_native) {
+  if (is_critical_native && !Universe::heap()->supports_object_pinning()) {
     check_needs_gc_for_critical_native(masm, stack_slots, total_c_args, total_in_args,
                                        oop_handle_offset, oop_maps, in_regs, in_sig_bt);
   }
@@ -2518,6 +2549,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // the incoming and outgoing registers are offset upwards and for
   // critical natives they are offset down.
   GrowableArray<int> arg_order(2 * total_in_args);
+  // Inbound arguments that need to be pinned for critical natives
+  GrowableArray<int> pinned_args(total_in_args);
+  // Current stack slot for storing register based array argument
+  int pinned_slot = oop_handle_offset;
+
   VMRegPair tmp_vmreg;
   tmp_vmreg.set2(rbx->as_VMReg());
 
@@ -2565,6 +2601,23 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     switch (in_sig_bt[i]) {
       case T_ARRAY:
         if (is_critical_native) {
+          // pin before unpack
+          if (Universe::heap()->supports_object_pinning()) {
+            save_args(masm, total_c_args, 0, out_regs);
+            gen_pin_object(masm, in_regs[i]);
+            pinned_args.append(i);
+            restore_args(masm, total_c_args, 0, out_regs);
+
+            // rax has pinned array
+            VMRegPair result_reg;
+            result_reg.set_ptr(rax->as_VMReg());
+            move_ptr(masm, result_reg, in_regs[i]);
+            if (!in_regs[i].first()->is_stack()) {
+              assert(pinned_slot <= stack_slots, "overflow");
+              move_ptr(masm, result_reg, VMRegImpl::stack2reg(pinned_slot));
+              pinned_slot += VMRegImpl::slots_per_word;
+            }
+          }
           unpack_array_argument(masm, in_regs[i], in_elem_bt[i], out_regs[c_arg + 1], out_regs[c_arg]);
           c_arg++;
 #ifdef ASSERT
@@ -2701,6 +2754,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ movptr(obj_reg, Address(oop_handle_reg, 0));
 
+    __ resolve(IS_NOT_NULL, obj_reg);
     if (UseBiasedLocking) {
       __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, lock_done, &slow_path_lock);
     }
@@ -2783,6 +2837,24 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   case T_VOID: break;
   case T_LONG: break;
   default       : ShouldNotReachHere();
+  }
+
+  // unpin pinned arguments
+  pinned_slot = oop_handle_offset;
+  if (pinned_args.length() > 0) {
+    // save return value that may be overwritten otherwise.
+    save_native_result(masm, ret_type, stack_slots);
+    for (int index = 0; index < pinned_args.length(); index ++) {
+      int i = pinned_args.at(index);
+      assert(pinned_slot <= stack_slots, "overflow");
+      if (!in_regs[i].first()->is_stack()) {
+        int offset = pinned_slot * VMRegImpl::stack_slot_size;
+        __ movq(in_regs[i].first()->as_Register(), Address(rsp, offset));
+        pinned_slot += VMRegImpl::slots_per_word;
+      }
+      gen_unpin_object(masm, in_regs[i]);
+    }
+    restore_native_result(masm, ret_type, stack_slots);
   }
 
   // Switch thread to "native transition" state before reading the synchronization state.
@@ -2872,6 +2944,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     // Get locked oop from the handle we passed to jni
     __ movptr(obj_reg, Address(oop_handle_reg, 0));
+    __ resolve(IS_NOT_NULL, obj_reg);
 
     Label done;
 

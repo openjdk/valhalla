@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.phases.common;
 
 import org.graalvm.compiler.core.common.cfg.Loop;
@@ -86,6 +88,7 @@ public class GuardLoweringPhase extends BasePhase<MidTierContext> {
             try (DebugCloseable position = guard.withNodeSourcePosition()) {
                 StructuredGraph graph = guard.graph();
                 AbstractBeginNode fastPath = graph.add(new BeginNode());
+                fastPath.setNodeSourcePosition(guard.getNoDeoptSuccessorPosition());
                 @SuppressWarnings("deprecation")
                 int debugId = useGuardIdAsDebugId ? guard.getId() : DeoptimizeNode.DEFAULT_DEBUG_ID;
                 DeoptimizeNode deopt = graph.add(new DeoptimizeNode(guard.getAction(), guard.getReason(), debugId, guard.getSpeculation(), null));

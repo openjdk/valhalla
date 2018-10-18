@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.replacements.test;
 
 import java.util.ArrayList;
@@ -39,6 +41,13 @@ public abstract class StringIndexOfTestBase extends GraalCompilerTest {
     public static Collection<Object[]> data() {
         ArrayList<Object[]> tests = new ArrayList<>();
         String[] targets = new String[]{"foobar", "foo", "bar"};
+        String[] utf16targets = new String[]{"grga " + ((char) 0x10D) + "varak", "grga", ((char) 0x10D) + "varak"};
+        addTargets(tests, targets);
+        addTargets(tests, utf16targets);
+        return tests;
+    }
+
+    private static void addTargets(ArrayList<Object[]> tests, String[] targets) {
         for (String source : targets) {
             for (String target : targets) {
                 tests.add(new Object[]{source, target});
@@ -58,7 +67,6 @@ public abstract class StringIndexOfTestBase extends GraalCompilerTest {
                 tests.add(new Object[]{s.substring(0, s.length() - 1) + s, s});
             }
         }
-        return tests;
     }
 
     public int testStringIndexOf(String a, String b) {

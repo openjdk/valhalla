@@ -47,7 +47,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.hpp"
@@ -727,7 +727,8 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         ResourceMark rm(THREAD);
         LogStream ls(lt);
         current_frame.print_on(&ls);
-        lt.print("offset = %d,  opcode = %s", bci, Bytecodes::name(opcode));
+        lt.print("offset = %d,  opcode = %s", bci,
+                 opcode == Bytecodes::_illegal ? "illegal" : Bytecodes::name(opcode));
       }
 
       // Make sure wide instruction is in correct format
@@ -1742,7 +1743,8 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_monitorexit : {
           VerificationType ref = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
-          if (!ref.is_null() && _klass->is_declared_value_type(ref.name())) {
+          if (!ref.is_null() && !ref.is_uninitialized() &&
+             _klass->is_declared_value_type(ref.name())) {
             verify_error(ErrorContext::bad_code(bci),
               "Illegal use of value type as operand for monitorenter or monitorexit instruction");
             return;
@@ -2349,7 +2351,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       // stack_object_type and target_class_type must be identical references.
       if (!stack_object_type.is_reference() ||
           !stack_object_type.equals(target_class_type) ||
-          !_klass->is_declared_value_type(target_class_type.name())) {
+          !_klass->is_declared_value_type(cp->klass_ref_index_at(index))) {
         verify_error(ErrorContext::bad_value_type(bci,
             current_frame->stack_top_ctx(),
             TypeOrigin::cp(index, target_class_type)),
@@ -2391,7 +2393,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
         return;
       }
       if (_method->name() != vmSymbols::object_initializer_name() &&
-          _klass->is_declared_value_type(target_class_type.name())) {
+          _klass->is_declared_value_type(cp->klass_ref_index_at(index))) {
         verify_error(ErrorContext::bad_code(bci),
           "Field for putfield cannot be a member of a value type");
         return;
@@ -2758,10 +2760,10 @@ bool ClassVerifier::is_same_or_direct_interface(
     VerificationType klass_type,
     VerificationType ref_class_type) {
   if (ref_class_type.equals(klass_type)) return true;
-  Array<Klass*>* local_interfaces = klass->local_interfaces();
+  Array<InstanceKlass*>* local_interfaces = klass->local_interfaces();
   if (local_interfaces != NULL) {
     for (int x = 0; x < local_interfaces->length(); x++) {
-      Klass* k = local_interfaces->at(x);
+      InstanceKlass* k = local_interfaces->at(x);
       assert (k != NULL && k->is_interface(), "invalid interface");
       if (ref_class_type.equals(VerificationType::reference_type(k->name()))) {
         return true;
@@ -2903,20 +2905,20 @@ void ClassVerifier::verify_invoke_instructions(
                   current_class()->super()->name()))) {
     bool subtype = false;
     bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
-    if (!current_class()->is_anonymous()) {
+    if (!current_class()->is_unsafe_anonymous()) {
       subtype = ref_class_type.is_assignable_from(
                  current_type(), this, false, CHECK_VERIFY(this));
     } else {
-      VerificationType host_klass_type =
-                        VerificationType::reference_type(current_class()->host_klass()->name());
-      subtype = ref_class_type.is_assignable_from(host_klass_type, this, false, CHECK_VERIFY(this));
+      VerificationType unsafe_anonymous_host_type =
+                        VerificationType::reference_type(current_class()->unsafe_anonymous_host()->name());
+      subtype = ref_class_type.is_assignable_from(unsafe_anonymous_host_type, this, false, CHECK_VERIFY(this));
 
       // If invokespecial of IMR, need to recheck for same or
       // direct interface relative to the host class
       have_imr_indirect = (have_imr_indirect &&
                            !is_same_or_direct_interface(
-                             current_class()->host_klass(),
-                             host_klass_type, ref_class_type));
+                             current_class()->unsafe_anonymous_host(),
+                             unsafe_anonymous_host_type, ref_class_type));
     }
     if (!subtype) {
       verify_error(ErrorContext::bad_code(bci),
@@ -2946,15 +2948,15 @@ void ClassVerifier::verify_invoke_instructions(
     } else {   // other methods
       // Ensures that target class is assignable to method class.
       if (opcode == Bytecodes::_invokespecial) {
-        if (!current_class()->is_anonymous()) {
+        if (!current_class()->is_unsafe_anonymous()) {
           current_frame->pop_stack(current_type(), CHECK_VERIFY(this));
         } else {
           // anonymous class invokespecial calls: check if the
-          // objectref is a subtype of the host_klass of the current class
-          // to allow an anonymous class to reference methods in the host_klass
+          // objectref is a subtype of the unsafe_anonymous_host of the current class
+          // to allow an anonymous class to reference methods in the unsafe_anonymous_host
           VerificationType top = current_frame->pop_stack(CHECK_VERIFY(this));
           VerificationType hosttype =
-            VerificationType::reference_type(current_class()->host_klass()->name());
+            VerificationType::reference_type(current_class()->unsafe_anonymous_host()->name());
           bool subtype = hosttype.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
             verify_error( ErrorContext::bad_type(current_frame->offset(),

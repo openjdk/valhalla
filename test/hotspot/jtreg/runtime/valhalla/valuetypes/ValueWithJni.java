@@ -25,10 +25,11 @@ package runtime.valhalla.valuetypes;
 
 /* @test
  * @summary test JNI functions with values
+ * @compile -XDallowWithFieldOperator ValueWithJni.java
  * @run main/othervm/native -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  * @run main/othervm/native -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  */
-public __ByValue final class ValueWithJni {
+public value final class ValueWithJni {
 
     static {
         System.loadLibrary("ValueWithJni");
@@ -45,7 +46,7 @@ public __ByValue final class ValueWithJni {
     public native void doJniMonitorExit();
 
     public static ValueWithJni createValueWithJni(int x) {
-        ValueWithJni v = __MakeDefault ValueWithJni();
+        ValueWithJni v = ValueWithJni.default;
         v = __WithField(v.x, x);
         return v;
     }

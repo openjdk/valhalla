@@ -105,10 +105,6 @@ public class ClassReader {
      */
     public boolean readAllOfClassFile = false;
 
-    /** Switch: allow simplified varargs.
-     */
-    boolean allowSimplifiedVarargs;
-
     /** Switch: allow modules.
      */
     boolean allowModules;
@@ -284,7 +280,6 @@ public class ClassReader {
 
         Source source = Source.instance(context);
         preview = Preview.instance(context);
-        allowSimplifiedVarargs = Feature.SIMPLIFIED_VARARGS.allowedInSource(source);
         allowModules     = Feature.MODULES.allowedInSource(source);
         allowValueTypes = Feature.VALUE_TYPES.allowedInSource(source);
         saveParameterNames = options.isSet(PARAMETERS);
@@ -551,6 +546,9 @@ public class ClassReader {
         int index =  poolIdx[i];
         int len = getChar(index + 1);
         int start = index + 3;
+        if (buf[start] == 'Q' && buf[start + len - 1] == ';') {
+            return enterClass(names.fromUtf(internalize(buf, start + 1, len - 2)));
+        }
         Assert.check(buf[start] == '[' || buf[start + len - 1] != ';');
         // by the above assertion, the following test can be
         // simplified to (buf[start] == '[')
@@ -745,6 +743,7 @@ public class ClassReader {
         case 'J':
             sigp++;
             return syms.longType;
+        case 'Q':
         case 'L':
             {
                 // int oldsigp = sigp;
@@ -806,7 +805,7 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L')
+        if (signature[sigp] != 'L' && signature[sigp] != 'Q') 
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
         sigp++;

@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.jvm;
 
-import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Scope.LookupKind;
 import com.sun.tools.javac.code.Scope.WriteableScope;
@@ -202,13 +201,11 @@ public class TransValues extends TreeTranslator {
                 final Name name = TreeInfo.name(call.meth);
                 MethodSymbol symbol = (MethodSymbol)TreeInfo.symbol(call.meth);
                 if (names._super.equals(name)) { // "initial" constructor.
-                    // Synthesize code to allocate factory "product" via: V $this = __MakeDefault V();
+                    // Synthesize code to allocate factory "product" via: V $this = V.default;
                     Assert.check(symbol.owner == syms.objectType.tsym);
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
-                    MethodSymbol ctor = getDefaultConstructor(currentClass.sym);
-                    JCNewClass newClass = (JCNewClass) make.Create(ctor, List.nil(), CreationMode.DEFAULT_VALUE);
-                    newClass.constructorType = ctor.type;
-                    rhs = newClass;
+                    final JCExpression type = make.Type(currentClass.type);
+                    rhs = make.Select(type, new VarSymbol(Flags.STATIC, names._default, currentClass.type, currentClass.sym));
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.$makeValue$(args);
                     Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
@@ -349,7 +346,7 @@ public class TransValues extends TreeTranslator {
     // Translate a reference style instance creation attempt on a value type to a static factory call.
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (tree.creationMode == CreationMode.NEW && types.isValue(tree.clazz.type)) {
+        if (types.isValue(tree.clazz.type)) {
             tree.encl = translate(tree.encl);
             tree.args = translate(tree.args);
             Assert.check(tree.def == null);

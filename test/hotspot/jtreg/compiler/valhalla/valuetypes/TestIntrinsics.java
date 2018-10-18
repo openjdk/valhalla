@@ -35,7 +35,7 @@ import jdk.internal.misc.Unsafe;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestIntrinsics.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -141,18 +141,19 @@ public class TestIntrinsics extends ValueTypeTest {
 
     // Test default value type array creation via reflection
     @Test()
-    public void test7(Class<?> componentType, int len, long hash) {
+    public Object[] test7(Class<?> componentType, int len) {
         Object[] va = (Object[])Array.newInstance(componentType, len);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
-        }
+        return va;
     }
 
     @DontCompile
     public void test7_verifier(boolean warmup) {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
-        test7(MyValue1.class, len, hash);
+        Object[] va = test7(MyValue1.class, len);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
+        }
     }
 
     // Class.isInstance
@@ -391,7 +392,7 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Test copyOf intrinsic with allocated value type in it's debug information
-    __ByValue final class Test25Value {
+    value final class Test25Value {
         final int x;
         public Test25Value() {
             this.x = 42;
@@ -411,5 +412,44 @@ public class TestIntrinsics extends ValueTypeTest {
     public void test25_verifier(boolean warmup) {
         Test25Value vt = new Test25Value();
         test25(vt);
+    }
+
+    @Test
+    public Object test26() {
+        Class<?>[] ca = new Class<?>[1];
+        for (int i = 0; i < 1; ++i) {
+          // Folds during loop opts
+          ca[i] = MyValue1.class;
+        }
+        return Array.newInstance(ca[0], 1);
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        Object[] res = (Object[])test26();
+        Asserts.assertEQ(((MyValue1)res[0]).hashPrimitive(), MyValue1.createDefaultInline().hashPrimitive());
+    }
+
+    // Load non-flattenable value type field with unsafe
+    __NotFlattened MyValue1 test27_vt = MyValue1.createWithFieldsInline(rI, rL);
+    private static final long TEST27_OFFSET;
+    static {
+        try {
+            Field field = TestIntrinsics.class.getDeclaredField("test27_vt");
+            TEST27_OFFSET = U.objectFieldOffset(field);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test()
+    public MyValue1 test27() {
+        return (MyValue1)U.getObject(this, TEST27_OFFSET);
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        MyValue1 res = test27();
+        Asserts.assertEQ(res.hash(), test24_vt.hash());
     }
 }

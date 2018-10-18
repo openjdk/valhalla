@@ -20,11 +20,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.nodes.java;
 
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_8;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_8;
 
+import org.graalvm.compiler.core.common.calc.CanonicalCondition;
 import org.graalvm.compiler.core.common.type.ObjectStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
@@ -33,10 +36,17 @@ import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.spi.Canonicalizable;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
+import org.graalvm.compiler.graph.spi.Simplifiable;
+import org.graalvm.compiler.graph.spi.SimplifierTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodes.ConstantNode;
+import org.graalvm.compiler.nodes.FixedGuardNode;
+import org.graalvm.compiler.nodes.FixedWithNextNode;
+import org.graalvm.compiler.nodes.LogicNode;
 import org.graalvm.compiler.nodes.NodeView;
 import org.graalvm.compiler.nodes.ValueNode;
+import org.graalvm.compiler.nodes.calc.CompareNode;
+import org.graalvm.compiler.nodes.extended.GuardingNode;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.type.StampTool;
@@ -45,6 +55,8 @@ import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
 
 import jdk.vm.ci.meta.Assumptions;
 import jdk.vm.ci.meta.ConstantReflectionProvider;
+import jdk.vm.ci.meta.DeoptimizationAction;
+import jdk.vm.ci.meta.DeoptimizationReason;
 import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.MetaAccessProvider;
@@ -54,7 +66,7 @@ import jdk.vm.ci.meta.ResolvedJavaType;
  * The {@code LoadIndexedNode} represents a read from an element of an array.
  */
 @NodeInfo(cycles = CYCLES_8, size = SIZE_8)
-public class LoadIndexedNode extends AccessIndexedNode implements Virtualizable, Canonicalizable {
+public class LoadIndexedNode extends AccessIndexedNode implements Virtualizable, Canonicalizable, Simplifiable {
 
     public static final NodeClass<LoadIndexedNode> TYPE = NodeClass.create(LoadIndexedNode.class);
 
@@ -65,20 +77,21 @@ public class LoadIndexedNode extends AccessIndexedNode implements Virtualizable,
      * @param index the instruction producing the index
      * @param elementKind the element type
      */
-    public LoadIndexedNode(Assumptions assumptions, ValueNode array, ValueNode index, JavaKind elementKind) {
-        this(TYPE, createStamp(assumptions, array, elementKind), array, index, elementKind);
+    public LoadIndexedNode(Assumptions assumptions, ValueNode array, ValueNode index, GuardingNode boundsCheck, JavaKind elementKind) {
+        this(TYPE, createStamp(assumptions, array, elementKind), array, index, boundsCheck, elementKind);
     }
 
-    public static ValueNode create(Assumptions assumptions, ValueNode array, ValueNode index, JavaKind elementKind, MetaAccessProvider metaAccess, ConstantReflectionProvider constantReflection) {
+    public static ValueNode create(Assumptions assumptions, ValueNode array, ValueNode index, GuardingNode boundsCheck, JavaKind elementKind, MetaAccessProvider metaAccess,
+                    ConstantReflectionProvider constantReflection) {
         ValueNode constant = tryConstantFold(array, index, metaAccess, constantReflection);
         if (constant != null) {
             return constant;
         }
-        return new LoadIndexedNode(assumptions, array, index, elementKind);
+        return new LoadIndexedNode(assumptions, array, index, boundsCheck, elementKind);
     }
 
-    protected LoadIndexedNode(NodeClass<? extends LoadIndexedNode> c, Stamp stamp, ValueNode array, ValueNode index, JavaKind elementKind) {
-        super(c, stamp, array, index, elementKind);
+    protected LoadIndexedNode(NodeClass<? extends LoadIndexedNode> c, Stamp stamp, ValueNode array, ValueNode index, GuardingNode boundsCheck, JavaKind elementKind) {
+        super(c, stamp, array, index, boundsCheck, elementKind);
     }
 
     private static Stamp createStamp(Assumptions assumptions, ValueNode array, JavaKind kind) {
@@ -132,6 +145,30 @@ public class LoadIndexedNode extends AccessIndexedNode implements Virtualizable,
             return constant;
         }
         return this;
+    }
+
+    @Override
+    public void simplify(SimplifierTool tool) {
+        if (tool.allUsagesAvailable() && hasNoUsages()) {
+            NodeView view = NodeView.from(tool);
+            ValueNode arrayLength = ArrayLengthNode.create(array, tool.getConstantReflection());
+            LogicNode boundsCheck = CompareNode.createCompareNode(CanonicalCondition.BT, index, arrayLength, tool.getConstantReflection(), view);
+            if (boundsCheck.isTautology()) {
+                return;
+            }
+            if (graph().getGuardsStage().allowsGuardInsertion()) {
+                if (!arrayLength.isAlive()) {
+                    arrayLength = graph().addOrUniqueWithInputs(arrayLength);
+                    if (arrayLength instanceof FixedWithNextNode) {
+                        FixedWithNextNode fixedArrayLength = (FixedWithNextNode) arrayLength;
+                        graph().addBeforeFixed(this, fixedArrayLength);
+                    }
+                }
+                boundsCheck = graph().addOrUniqueWithInputs(boundsCheck);
+                FixedGuardNode fixedGuard = new FixedGuardNode(boundsCheck, DeoptimizationReason.BoundsCheckException, DeoptimizationAction.InvalidateReprofile, false, getNodeSourcePosition());
+                graph().replaceFixedWithFixed(this, graph().add(fixedGuard));
+            }
+        }
     }
 
     private static ValueNode tryConstantFold(ValueNode array, ValueNode index, MetaAccessProvider metaAccess, ConstantReflectionProvider constantReflection) {

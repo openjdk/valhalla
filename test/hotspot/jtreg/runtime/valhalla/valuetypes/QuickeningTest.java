@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test QuickeningTest
  * @summary Test quickening of getfield and putfield applied to value fields
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers Point.java JumboValue.java QuickeningTest.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java QuickeningTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.QuickeningTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.QuickeningTest
  */
@@ -57,7 +57,7 @@ public class QuickeningTest {
         public void setFj2(JumboValue j) { fj2 = j; }
     }
 
-    static final __ByValue class Value {
+    static final value class Value {
         final __NotFlattened Point nfp;       /* Not flattenable value field */
         final __Flattenable Point fp;         /* Flattenable and flattened value field */
         final __Flattenable JumboValue fj;    /* Flattenable not flattene value field */
@@ -69,7 +69,7 @@ public class QuickeningTest {
         }
 
         public static Value create() {
-            return __MakeDefault Value();
+            return Value.default;
         }
     }
 

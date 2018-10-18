@@ -122,7 +122,7 @@ define_pd_global(bool, ValueTypeReturnedAsFields, LP64_ONLY(false) NOT_LP64(fals
   product(bool, UseStoreImmI16, true,                                       \
           "Use store immediate 16-bits value instruction on x86")           \
                                                                             \
-  product(intx, UseAVX, 3,                                                  \
+  product(intx, UseAVX, 2,                                                  \
           "Highest supported AVX instructions set on x86/x64")              \
           range(0, 99)                                                      \
                                                                             \
@@ -152,6 +152,9 @@ define_pd_global(bool, ValueTypeReturnedAsFields, LP64_ONLY(false) NOT_LP64(fals
                                                                             \
   product(bool, UseUnalignedLoadStores, false,                              \
           "Use SSE2 MOVDQU instruction for Arraycopy")                      \
+                                                                            \
+  product(bool, UseXMMForObjInit, false,                                    \
+          "Use XMM/YMM MOVDQU instruction for Object Initialization")       \
                                                                             \
   product(bool, UseFastStosb, false,                                        \
           "Use fast-string operation for zeroing: rep stosb")               \

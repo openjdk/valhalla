@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,11 @@ package com.sun.tools.javac.tree;
 
 import java.util.Iterator;
 
+import com.sun.source.tree.CaseTree.CaseKind;
 import com.sun.source.tree.ModuleTree.ModuleKind;
-import com.sun.source.tree.NewClassTree.CreationMode;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute.UnresolvedClass;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.util.*;
@@ -279,8 +280,15 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public JCCase Case(JCExpression pat, List<JCStatement> stats) {
-        JCCase tree = new JCCase(pat, stats);
+    public JCCase Case(@SuppressWarnings("removal") CaseKind caseKind, List<JCExpression> pats,
+                       List<JCStatement> stats, JCTree body) {
+        JCCase tree = new JCCase(caseKind, pats, stats, body);
+        tree.pos = pos;
+        return tree;
+    }
+
+    public JCSwitchExpression SwitchExpression(JCExpression selector, List<JCCase> cases) {
+        JCSwitchExpression tree = new JCSwitchExpression(selector, cases);
         tree.pos = pos;
         return tree;
     }
@@ -331,7 +339,7 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public JCBreak Break(Name label) {
+    public JCBreak Break(JCExpression label) {
         JCBreak tree = new JCBreak(label, null);
         tree.pos = pos;
         return tree;
@@ -376,19 +384,7 @@ public class TreeMaker implements JCTree.Factory {
                              List<JCExpression> args,
                              JCClassDecl def)
     {
-        JCNewClass tree = new JCNewClass(encl, typeargs, clazz, args, def, CreationMode.NEW);
-        tree.pos = pos;
-        return tree;
-    }
-
-    public JCNewClass NewClass(JCExpression encl,
-                               List<JCExpression> typeargs,
-                               JCExpression clazz,
-                               List<JCExpression> args,
-                               JCClassDecl def,
-                               CreationMode creationMode)
-    {
-        JCNewClass tree = new JCNewClass(encl, typeargs, clazz, args, def, creationMode);
+        JCNewClass tree = new JCNewClass(encl, typeargs, clazz, args, def);
         tree.pos = pos;
         return tree;
     }
@@ -617,7 +613,7 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public LetExpr LetExpr(List<JCVariableDecl> defs, JCExpression expr) {
+    public LetExpr LetExpr(List<JCStatement> defs, JCExpression expr) {
         LetExpr tree = new LetExpr(defs, expr);
         tree.pos = pos;
         return tree;
@@ -739,14 +735,8 @@ public class TreeMaker implements JCTree.Factory {
     /** Create a method invocation from a method tree and a list of argument trees.
      */
     public JCExpression Create(Symbol ctor, List<JCExpression> args) {
-        return Create(ctor, args, CreationMode.NEW);
-    }
-
-    /** Create a method invocation from a method tree and a list of argument trees.
-     */
-    public JCExpression Create(Symbol ctor, List<JCExpression> args, CreationMode creationMode) {
         Type t = ctor.owner.erasure(types);
-        JCNewClass newclass = NewClass(null, null, Type(t), args, null, creationMode);
+        JCNewClass newclass = NewClass(null, null, Type(t), args, null);
         newclass.constructor = ctor;
         newclass.setType(t);
         return newclass;
@@ -897,7 +887,11 @@ public class TreeMaker implements JCTree.Factory {
             result = QualIdent(e.value);
         }
         public void visitError(Attribute.Error e) {
-            result = Erroneous();
+            if (e instanceof UnresolvedClass) {
+                result = ClassLiteral(((UnresolvedClass) e).classType).setType(syms.classType);
+            } else {
+                result = Erroneous();
+            }
         }
         public void visitCompound(Attribute.Compound compound) {
             if (compound instanceof Attribute.TypeCompound) {

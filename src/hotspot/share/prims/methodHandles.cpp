@@ -39,6 +39,7 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/compilationPolicy.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -219,7 +220,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
   assert(info.resolved_appendix().is_null(), "only normal methods here");
   methodHandle m = info.resolved_method();
   assert(m.not_null(), "null method handle");
-  Klass* m_klass = m->method_holder();
+  InstanceKlass* m_klass = m->method_holder();
   assert(m_klass != NULL, "null holder for method handle");
   int flags = (jushort)( m->access_flags().as_short() & JVM_RECOGNIZED_METHOD_MODIFIERS );
   int vmindex = Method::invalid_vtable_index;
@@ -238,7 +239,12 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
             vmindex);
        m->access_flags().print_on(tty);
        if (!m->is_abstract()) {
-         tty->print("default");
+         if (!m->is_private()) {
+           tty->print("default");
+         }
+         else {
+           tty->print("private-intf");
+         }
        }
        tty->cr();
     }
@@ -252,7 +258,8 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
       // This is a vtable call to an interface method (abstract "miranda method" or default method).
       // The vtable index is meaningless without a class (not interface) receiver type, so get one.
       // (LinkResolver should help us figure this out.)
-      Klass* m_klass_non_interface = info.resolved_klass();
+      assert(info.resolved_klass()->is_instance_klass(), "subtype of interface must be an instance klass");
+      InstanceKlass* m_klass_non_interface = InstanceKlass::cast(info.resolved_klass());
       if (m_klass_non_interface->is_interface()) {
         m_klass_non_interface = SystemDictionary::Object_klass();
 #ifdef ASSERT
@@ -292,6 +299,9 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
     } else if (m->is_initializer()) {
       flags |= IS_CONSTRUCTOR | (JVM_REF_invokeSpecial << REFERENCE_KIND_SHIFT);
     } else {
+      // "special" reflects that this is a direct call, not that it
+      // necessarily originates from an invokespecial. We can also do
+      // direct calls for private and/or final non-static methods.
       flags |= IS_METHOD      | (JVM_REF_invokeSpecial << REFERENCE_KIND_SHIFT);
     }
     break;
@@ -489,6 +499,24 @@ vmIntrinsics::ID MethodHandles::signature_polymorphic_name_id(Klass* klass, Symb
   return vmIntrinsics::_none;
 }
 
+// Returns true if method is signature polymorphic and public
+bool MethodHandles::is_signature_polymorphic_public_name(Klass* klass, Symbol* name) {
+  if (is_signature_polymorphic_name(klass, name)) {
+    InstanceKlass* iklass = InstanceKlass::cast(klass);
+    int me;
+    int ms = iklass->find_method_by_name(name, &me);
+    assert(ms != -1, "");
+    for (; ms < me; ms++) {
+      Method* m = iklass->methods()->at(ms);
+      int required = JVM_ACC_NATIVE | JVM_ACC_VARARGS | JVM_ACC_PUBLIC;
+      int flags = m->access_flags().as_int();
+      if ((flags & required) == required && ArgumentCount(m->signature()).size() == 1) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 // convert the external string or reflective type to an internal signature
 Symbol* MethodHandles::lookup_signature(oop type_str, bool intern_if_not_found, TRAPS) {
@@ -739,7 +767,7 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
 
   vmIntrinsics::ID mh_invoke_id = vmIntrinsics::_none;
   if ((flags & ALL_KINDS) == IS_METHOD &&
-      (defc == SystemDictionary::MethodHandle_klass()) &&
+      (defc == SystemDictionary::MethodHandle_klass() || defc == SystemDictionary::VarHandle_klass()) &&
       (ref_kind == JVM_REF_invokeVirtual ||
        ref_kind == JVM_REF_invokeSpecial ||
        // static invocation mode is required for _linkToVirtual, etc.:

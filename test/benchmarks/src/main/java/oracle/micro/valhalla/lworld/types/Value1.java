@@ -2,7 +2,7 @@ package oracle.micro.valhalla.lworld.types;
 
 import oracle.micro.valhalla.types.PNumber;
 
-__ByValue public final class Value1 implements PNumber {
+value public final class Value1 implements PNumber {
 
     public final int f0;
 
@@ -11,7 +11,7 @@ __ByValue public final class Value1 implements PNumber {
     }
 
     public static Value1 of(int f0) {
-        Value1 v = __MakeDefault Value1();
+        Value1 v = Value1.default;
         v = __WithField(v.f0, f0);
         return v;
     }

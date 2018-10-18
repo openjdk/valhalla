@@ -28,6 +28,7 @@
 #include "gc/g1/g1HotCardCache.hpp"
 #include "gc/g1/g1ParScanThreadState.inline.hpp"
 #include "gc/g1/g1StringDedup.hpp"
+#include "gc/shared/gcTimer.hpp"
 #include "gc/shared/workerDataArray.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "logging/log.hpp"
@@ -42,7 +43,8 @@ G1GCPhaseTimes::G1GCPhaseTimes(STWGCTimer* gc_timer, uint max_gc_threads) :
   _max_gc_threads(max_gc_threads),
   _gc_start_counter(0),
   _gc_pause_time_ms(0.0),
-  _ref_phase_times((GCTimer*)gc_timer, max_gc_threads)
+  _ref_phase_times(gc_timer, max_gc_threads),
+  _weak_phase_times(max_gc_threads)
 {
   assert(max_gc_threads > 0, "Must have some GC threads");
 
@@ -129,7 +131,6 @@ void G1GCPhaseTimes::reset() {
   _cur_clear_ct_time_ms = 0.0;
   _cur_expand_heap_time_ms = 0.0;
   _cur_ref_proc_time_ms = 0.0;
-  _cur_weak_ref_proc_time_ms = 0.0;
   _cur_collection_start_sec = 0.0;
   _root_region_scan_wait_time_ms = 0.0;
   _external_accounted_time_ms = 0.0;
@@ -157,6 +158,7 @@ void G1GCPhaseTimes::reset() {
   }
 
   _ref_phase_times.reset();
+  _weak_phase_times.reset();
 }
 
 void G1GCPhaseTimes::note_gc_start() {
@@ -381,7 +383,7 @@ double G1GCPhaseTimes::print_post_evacuate_collection_set() const {
                         _cur_collection_code_root_fixup_time_ms +
                         _recorded_preserve_cm_referents_time_ms +
                         _cur_ref_proc_time_ms +
-                        _cur_weak_ref_proc_time_ms +
+                        (_weak_phase_times.total_time_sec() * MILLIUNITS) +
                         _cur_clear_ct_time_ms +
                         _recorded_merge_pss_time_ms +
                         _cur_strong_code_root_purge_time_ms +
@@ -399,8 +401,7 @@ double G1GCPhaseTimes::print_post_evacuate_collection_set() const {
 
   debug_time_for_reference("Reference Processing", _cur_ref_proc_time_ms);
   _ref_phase_times.print_all_references(2, false);
-
-  debug_time("Weak Processing", _cur_weak_ref_proc_time_ms);
+  _weak_phase_times.log_print(2);
 
   if (G1StringDedup::is_enabled()) {
     debug_time("String Dedup Fixup", _cur_string_dedup_fixup_time_ms);
@@ -468,19 +469,28 @@ G1EvacPhaseWithTrimTimeTracker::G1EvacPhaseWithTrimTimeTracker(G1ParScanThreadSt
   _pss(pss),
   _start(Ticks::now()),
   _total_time(total_time),
-  _trim_time(trim_time) {
+  _trim_time(trim_time),
+  _stopped(false) {
 
   assert(_pss->trim_ticks().value() == 0, "Possibly remaining trim ticks left over from previous use");
 }
 
 G1EvacPhaseWithTrimTimeTracker::~G1EvacPhaseWithTrimTimeTracker() {
+  if (!_stopped) {
+    stop();
+  }
+}
+
+void G1EvacPhaseWithTrimTimeTracker::stop() {
+  assert(!_stopped, "Should only be called once");
   _total_time += (Ticks::now() - _start) - _pss->trim_ticks();
   _trim_time += _pss->trim_ticks();
   _pss->reset_trim_ticks();
+  _stopped = true;
 }
 
 G1GCParPhaseTimesTracker::G1GCParPhaseTimesTracker(G1GCPhaseTimes* phase_times, G1GCPhaseTimes::GCParPhases phase, uint worker_id) :
-    _phase_times(phase_times), _phase(phase), _worker_id(worker_id) {
+  _start_time(), _phase(phase), _phase_times(phase_times), _worker_id(worker_id) {
   if (_phase_times != NULL) {
     _start_time = Ticks::now();
   }
@@ -504,6 +514,8 @@ G1EvacPhaseTimesTracker::G1EvacPhaseTimesTracker(G1GCPhaseTimes* phase_times,
 
 G1EvacPhaseTimesTracker::~G1EvacPhaseTimesTracker() {
   if (_phase_times != NULL) {
+    // Explicitly stop the trim tracker since it's not yet destructed.
+    _trim_tracker.stop();
     // Exclude trim time by increasing the start time.
     _start_time += _trim_time;
     _phase_times->record_or_add_objcopy_time_secs(_worker_id, _trim_time.seconds());

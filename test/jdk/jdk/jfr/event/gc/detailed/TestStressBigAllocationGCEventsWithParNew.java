@@ -24,9 +24,10 @@
  */
 package jdk.jfr.event.gc.detailed;
 
-/*
+/**
  * @test
- * @requires vm.gc == "null"
+ * @requires vm.hasJFR
+ * @requires vm.gc == "null" & !vm.graal.enabled
  * @library /test/lib /test/jdk
  * @run main/othervm -XX:+UseConcMarkSweepGC -Xmx256m jdk.jfr.event.gc.detailed.TestStressBigAllocationGCEventsWithParNew 1048576
  */

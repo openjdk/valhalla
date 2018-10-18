@@ -188,12 +188,13 @@ public:
   virtual Node* atomic_xchg_at(C2AtomicAccess& access, Node* new_val, const Type* value_type) const;
   virtual Node* atomic_add_at(C2AtomicAccess& access, Node* new_val, const Type* value_type) const;
 
-  virtual void clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const;
+  virtual void clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const;
 
   // These are general helper methods used by C2
   virtual bool array_copy_requires_gc_barriers(BasicType type) const { return false; }
 
   // Support for GC barriers emitted during parsing
+  virtual bool has_load_barriers() const { return false; }
   virtual bool is_gc_barrier_node(Node* node) const { return false; }
   virtual Node* step_over_gc_barrier(Node* c) const { return c; }
 

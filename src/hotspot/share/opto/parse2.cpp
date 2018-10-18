@@ -63,34 +63,101 @@ void Parse::array_load(BasicType bt) {
 
   // Handle value type arrays
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
+  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (elemtype->isa_valuetype() != NULL) {
     // Load from flattened value type array
     ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
-    ValueTypeNode* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
+    Node* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
   } else if (elemptr != NULL && elemptr->is_valuetypeptr()) {
     // Load from non-flattened value type array (elements can never be null)
     bt = T_VALUETYPE;
     assert(elemptr->meet(TypePtr::NULL_PTR) != elemptr, "value type array elements should never be null");
-  } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type()) {
+  } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
+             !ary_t->klass_is_exact()) {
     // Cannot statically determine if array is flattened, emit runtime check
-    gen_flattened_array_guard(ary, 2);
+    IdealKit ideal(this);
+    IdealVariable res(ideal);
+    ideal.declarations_done();
+    Node* kls = load_object_klass(ary);
+    Node* tag = load_lh_array_tag(kls);
+    ideal.if_then(tag, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value)); {
+      // non flattened
+      sync_kit(ideal);
+      const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+      elemtype = ary_t->elem()->make_oopptr();
+      Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
+                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+      ideal.sync_kit(this);
+      ideal.set(res, ld);
+    } ideal.else_(); {
+      // flattened
+      sync_kit(ideal);
+      Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
+      Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
+      Node* obj_size  = NULL;
+      kill_dead_locals();
+      inc_sp(2);
+      Node* alloc_obj = new_instance(elem_klass, NULL, &obj_size, /*deoptimize_on_exception=*/true);
+      dec_sp(2);
+
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
+      assert(alloc->maybe_set_complete(&_gvn), "");
+      alloc->initialization()->set_complete_with_arraycopy();
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      // Unknown value type so might have reference fields
+      if (!bs->array_copy_requires_gc_barriers(T_OBJECT)) {
+        int base_off = sizeof(instanceOopDesc);
+        Node* dst_base = basic_plus_adr(alloc_obj, base_off);
+        Node* countx = obj_size;
+        countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
+        countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
+
+        assert(Klass::_lh_log2_element_size_shift == 0, "use shift in place");
+        Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
+        Node* elem_shift = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
+        uint header = arrayOopDesc::base_offset_in_bytes(T_VALUETYPE);
+        Node* base  = basic_plus_adr(ary, header);
+        idx = Compile::conv_I2X_index(&_gvn, idx, TypeInt::POS, control());
+        Node* scale = _gvn.transform(new LShiftXNode(idx, elem_shift));
+        Node* adr = basic_plus_adr(ary, base, scale);
+
+        access_clone(control(), adr, dst_base, countx, false);
+      } else {
+        ideal.sync_kit(this);
+        ideal.make_leaf_call(OptoRuntime::load_unknown_value_Type(),
+                             CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_value),
+                             "load_unknown_value",
+                             ary, idx, alloc_obj);
+        sync_kit(ideal);
+      }
+
+      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+
+      ideal.sync_kit(this);
+      ideal.set(res, alloc_obj);
+    } ideal.end_if();
+    sync_kit(ideal);
+    push_node(bt, ideal.value(res));
+    return;
   }
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
   } else if (bt == T_OBJECT) {
-    elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
+    elemtype = ary_t->elem()->make_oopptr();
   }
 
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
-                            IN_HEAP | IN_HEAP_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+                            IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   if (bt == T_VALUETYPE) {
     // Loading a non-flattened (but flattenable) value type from an array
-    assert(!gvn().type(ld)->is_ptr()->maybe_null(), "value type array elements should never be null");
-    ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
+    assert(!gvn().type(ld)->maybe_null(), "value type array elements should never be null");
+    if (elemptr->value_klass()->is_scalarizable()) {
+      ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
+    }
   }
 
   push_node(bt, ld);
@@ -111,52 +178,102 @@ void Parse::array_store(BasicType bt) {
   Node* idx = pop();        // Index in the array
   Node* ary = pop();        // The array itself
 
+  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (bt == T_OBJECT) {
     const TypeOopPtr* elemptr = elemtype->make_oopptr();
+    const Type* val_t = _gvn.type(val);
     if (elemtype->isa_valuetype() != NULL) {
       // Store to flattened value type array
+      val_t = _gvn.type(cast_val);
+      if (!cast_val->is_ValueType()) {
+        if (val_t->maybe_null()) {
+          // Can not store null into a value type array
+          assert(val_t == TypePtr::NULL_PTR, "Anything other than null?");
+          inc_sp(3);
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+          return;
+        }
+        assert(!val_t->maybe_null(), "should never be null");
+        cast_val = ValueTypeNode::make_from_oop(this, cast_val, elemtype->is_valuetype()->value_klass());
+      }
       cast_val->as_ValueType()->store_flattened(this, ary, adr);
       return;
     } else if (elemptr->is_valuetypeptr()) {
       // Store to non-flattened value type array
-    } else if (ValueArrayFlatten && elemptr->can_be_value_type() && val->is_ValueType()) {
-      IdealKit ideal(this);
-      Node* kls = load_object_klass(ary);
-      Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-      Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
-      layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-      ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value)); {
-        // non flattened
+      val_t = _gvn.type(cast_val);
+      if (!cast_val->is_ValueType() && val_t->maybe_null()) {
+        // Can not store null into a value type array
+        assert(val_t == TypePtr::NULL_PTR, "Anything other than null?");
+        inc_sp(3);
+        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+        return;
+      }
+    } else if (elemptr->can_be_value_type() && !ary_t->klass_is_exact() &&
+               (val->is_ValueType() || val_t == TypePtr::NULL_PTR || val_t->is_oopptr()->can_be_value_type())) {
+      if (ValueArrayFlatten) {
+        IdealKit ideal(this);
+        Node* kls = load_object_klass(ary);
+        Node* layout_val = load_lh_array_tag(kls);
+        ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value)); {
+          // non flattened
+          sync_kit(ideal);
+
+          if (!val->is_ValueType() && TypePtr::NULL_PTR->higher_equal(val_t)) {
+            gen_value_type_array_guard(ary, val, 3);
+          }
+
+          const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+          elemtype = ary_t->elem()->make_oopptr();
+          access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          ideal.sync_kit(this);
+        } ideal.else_(); {
+          // flattened
+          // Object/interface array must be flattened, cast it
+          if (val->is_ValueType()) {
+            sync_kit(ideal);
+            const TypeValueType* vt = _gvn.type(val)->is_valuetype();
+            ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
+            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+            ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
+            adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
+            val->as_ValueType()->store_flattened(this, ary, adr);
+            ideal.sync_kit(this);
+          } else {
+            if (TypePtr::NULL_PTR->higher_equal(val_t)) {
+              sync_kit(ideal);
+              inc_sp(3);
+              val = filter_null(val);
+              dec_sp(3);
+              ideal.sync_kit(this);
+            }
+
+            if (!ideal.ctrl()->is_top()) {
+              ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
+                                   CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),
+                                   "store_unknown_value",
+                                   val, ary, idx);
+            }
+          }
+        } ideal.end_if();
         sync_kit(ideal);
-        const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-        elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
-        access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IN_HEAP_ARRAY);
-        ideal.sync_kit(this);
-      } ideal.else_(); {
-        // flattened
-        sync_kit(ideal);
-        // Object/interface array must be flattened, cast it
-        const TypeValueType* vt = _gvn.type(val)->is_valuetype();
-        ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
-        const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-        ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-        adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
-        val->as_ValueType()->store_flattened(this, ary, adr);
-        ideal.sync_kit(this);
-      } ideal.end_if();
-      sync_kit(ideal);
-      return;
+        return;
+      } else {
+        if (!val->is_ValueType() && TypePtr::NULL_PTR->higher_equal(val_t)) {
+          gen_value_type_array_guard(ary, val, 3);
+        }
+      }
     }
   }
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
   } else if (bt == T_OBJECT) {
-    elemtype = _gvn.type(ary)->is_aryptr()->elem()->make_oopptr();
+    elemtype = ary_t->elem()->make_oopptr();
   }
 
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-  access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IN_HEAP_ARRAY);
+
+  access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }
 
 
@@ -1547,7 +1664,7 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
     } else {                    // Path is live.
       // Update method data
       profile_taken_branch(target_bci);
-      adjust_map_after_if(btest, c, prob, branch_block, next_block);
+      adjust_map_after_if(btest, c, prob, branch_block);
       if (!stopped()) {
         merge(target_bci);
       }
@@ -1567,13 +1684,12 @@ void Parse::do_ifnull(BoolTest::mask btest, Node *c) {
   } else  {                     // Path is live.
     // Update method data
     profile_not_taken_branch();
-    adjust_map_after_if(BoolTest(btest).negate(), c, 1.0-prob,
-                        next_block, branch_block);
+    adjust_map_after_if(BoolTest(btest).negate(), c, 1.0-prob, next_block);
   }
 }
 
 //------------------------------------do_if------------------------------------
-void Parse::do_if(BoolTest::mask btest, Node* c) {
+void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_taken) {
   int target_bci = iter().get_dest();
 
   Block* branch_block = successor_for_bci(target_bci);
@@ -1662,16 +1778,24 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
     set_control(taken_branch);
 
     if (stopped()) {
-      if (C->eliminate_boxing()) {
-        // Mark the successor block as parsed
+      if (C->eliminate_boxing() && !new_path) {
+        // Mark the successor block as parsed (if we haven't created a new path)
         branch_block->next_path_num();
       }
     } else {
       // Update method data
       profile_taken_branch(target_bci);
-      adjust_map_after_if(taken_btest, c, prob, branch_block, next_block);
+      adjust_map_after_if(taken_btest, c, prob, branch_block);
       if (!stopped()) {
-        merge(target_bci);
+        if (new_path) {
+          // Merge by using a new path
+          merge_new_path(target_bci);
+        } else if (ctrl_taken != NULL) {
+          // Don't merge but save taken branch to be wired by caller
+          *ctrl_taken = control();
+        } else {
+          merge(target_bci);
+        }
       }
     }
   }
@@ -1680,16 +1804,122 @@ void Parse::do_if(BoolTest::mask btest, Node* c) {
   set_control(untaken_branch);
 
   // Branch not taken.
-  if (stopped()) {
+  if (stopped() && ctrl_taken == NULL) {
     if (C->eliminate_boxing()) {
-      // Mark the successor block as parsed
+      // Mark the successor block as parsed (if caller does not re-wire control flow)
       next_block->next_path_num();
     }
   } else {
     // Update method data
     profile_not_taken_branch();
-    adjust_map_after_if(untaken_btest, c, untaken_prob,
-                        next_block, branch_block);
+    adjust_map_after_if(untaken_btest, c, untaken_prob, next_block);
+  }
+}
+
+void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
+  // In the case were both operands might be value types, we need to
+  // use the new acmp implementation. Otherwise, i.e. if one operand
+  // is not a value type, we can use the old acmp implementation.
+  Node* cmp = C->optimize_acmp(&_gvn, a, b);
+  if (cmp != NULL) {
+    // Use optimized/old acmp
+    cmp = optimize_cmp_with_klass(_gvn.transform(cmp));
+    do_if(btest, cmp);
+    return;
+  }
+
+  Node* ctrl = NULL;
+  bool safe_for_replace = true;
+  if (!UsePointerPerturbation) {
+    // Emit old acmp before new acmp for quick a != b check
+    cmp = CmpP(a, b);
+    cmp = optimize_cmp_with_klass(_gvn.transform(cmp));
+    if (btest == BoolTest::ne) {
+      do_if(btest, cmp, true);
+      if (stopped()) {
+        return; // Never equal
+      }
+    } else if (btest == BoolTest::eq) {
+      Node* is_equal = NULL;
+      {
+        PreserveJVMState pjvms(this);
+        do_if(btest, cmp, false, &is_equal);
+        if (!stopped()) {
+          // Not equal, skip valuetype check
+          ctrl = new RegionNode(3);
+          ctrl->init_req(1, control());
+          _gvn.set_type(ctrl, Type::CONTROL);
+          record_for_igvn(ctrl);
+          safe_for_replace = false;
+        }
+      }
+      if (is_equal == NULL) {
+        assert(ctrl != NULL, "no control left");
+        set_control(_gvn.transform(ctrl));
+        return; // Never equal
+      }
+      set_control(is_equal);
+    }
+  }
+
+  // Null check operand before loading the is_value bit
+  bool speculate = false;
+  if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(b))) {
+    // Operand 'b' is never null, swap operands to avoid null check
+    swap(a, b);
+  } else if (!too_many_traps(Deoptimization::Reason_speculate_null_check)) {
+    // Speculate on non-nullness of one operand
+    if (!_gvn.type(a)->speculative_maybe_null()) {
+      speculate = true;
+    } else if (!_gvn.type(b)->speculative_maybe_null()) {
+      speculate = true;
+      swap(a, b);
+    }
+  }
+  inc_sp(2);
+  Node* null_ctl = top();
+  Node* not_null_a = null_check_oop(a, &null_ctl, speculate, safe_for_replace, speculate);
+  assert(!stopped(), "operand is always null");
+  dec_sp(2);
+  Node* region = new RegionNode(2);
+  Node* is_value = new PhiNode(region, TypeX_X);
+  if (null_ctl != top()) {
+    assert(!speculate, "should never be null");
+    region->add_req(null_ctl);
+    is_value->add_req(_gvn.MakeConX(0));
+  }
+
+  Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
+  if (UsePointerPerturbation) {
+    Node* mark_addr = basic_plus_adr(not_null_a, oopDesc::mark_offset_in_bytes());
+    Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    Node* not_mark = _gvn.transform(new XorXNode(mark, _gvn.MakeConX(-1)));
+    Node* andn = _gvn.transform(new AndXNode(not_mark, value_mask));
+    Node* neg_if_value = _gvn.transform(new SubXNode(andn, _gvn.MakeConX(1)));
+    is_value->init_req(1, _gvn.transform(new RShiftXNode(neg_if_value, _gvn.intcon(63))));
+  } else {
+    is_value->init_req(1, is_always_locked(not_null_a));
+  }
+  region->init_req(1, control());
+
+  set_control(_gvn.transform(region));
+  is_value = _gvn.transform(is_value);
+
+  if (UsePointerPerturbation) {
+    // Perturbe oop if operand is a value type to make comparison fail
+    Node* pert = _gvn.transform(new AddPNode(a, a, is_value));
+    cmp = _gvn.transform(new CmpPNode(pert, b));
+  } else {
+    // Check for a value type because we already know that operands are equal
+    cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
+    btest = (btest == BoolTest::eq) ? BoolTest::ne : BoolTest::eq;
+  }
+  cmp = optimize_cmp_with_klass(cmp);
+  do_if(btest, cmp);
+
+  if (ctrl != NULL) {
+    ctrl->init_req(2, control());
+    set_control(_gvn.transform(ctrl));
   }
 }
 
@@ -1701,16 +1931,33 @@ bool Parse::path_is_suitable_for_uncommon_trap(float prob) const {
   return (seems_never_taken(prob) && seems_stable_comparison());
 }
 
+void Parse::maybe_add_predicate_after_if(Block* path) {
+  if (path->is_SEL_head() && path->preds_parsed() == 0) {
+    // Add predicates at bci of if dominating the loop so traps can be
+    // recorded on the if's profile data
+    int bc_depth = repush_if_args();
+    add_predicate();
+    dec_sp(bc_depth);
+    path->set_has_predicates();
+  }
+}
+
+
 //----------------------------adjust_map_after_if------------------------------
 // Adjust the JVM state to reflect the result of taking this path.
 // Basically, it means inspecting the CmpNode controlling this
 // branch, seeing how it constrains a tested value, and then
 // deciding if it's worth our while to encode this constraint
 // as graph nodes in the current abstract interpretation map.
-void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
-                                Block* path, Block* other_path) {
-  if (stopped() || !c->is_Cmp() || btest == BoolTest::illegal)
+void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob, Block* path) {
+  if (!c->is_Cmp()) {
+    maybe_add_predicate_after_if(path);
+    return;
+  }
+
+  if (stopped() || btest == BoolTest::illegal) {
     return;                             // nothing to do
+  }
 
   bool is_fallthrough = (path == successor_for_bci(iter().next_bci()));
 
@@ -1742,10 +1989,13 @@ void Parse::adjust_map_after_if(BoolTest::mask btest, Node* c, float prob,
       have_con = false;
     }
   }
-  if (!have_con)                        // remaining adjustments need a con
+  if (!have_con) {                        // remaining adjustments need a con
+    maybe_add_predicate_after_if(path);
     return;
+  }
 
   sharpen_type_after_if(btest, con, tcon, val, tval);
+  maybe_add_predicate_after_if(path);
 }
 
 
@@ -1909,6 +2159,10 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
         inc_sp(2);
         obj = maybe_cast_profiled_obj(obj, k);
         dec_sp(2);
+        if (obj->is_ValueType()) {
+          assert(obj->as_ValueType()->is_allocated(&_gvn), "must be allocated");
+          obj = obj->as_ValueType()->get_oop();
+        }
         // Make the CmpP use the casted obj
         addp = basic_plus_adr(obj, addp->in(AddPNode::Offset));
         load_klass = load_klass->clone();
@@ -2785,9 +3039,7 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();
-    c = _gvn.transform(acmp(a, b));
-    c = optimize_cmp_with_klass(c);
-    do_if(btest, c);
+    do_acmp(btest, a, b);
     break;
 
   case Bytecodes::_ifeq: btest = BoolTest::eq; goto handle_ifxx;

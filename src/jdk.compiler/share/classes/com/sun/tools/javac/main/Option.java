@@ -41,6 +41,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -181,7 +182,48 @@ public enum Option {
 
     SOURCE_PATH("--source-path -sourcepath", "opt.arg.path", "opt.sourcepath", STANDARD, FILEMANAGER),
 
-    MODULE_SOURCE_PATH("--module-source-path", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER),
+    MODULE_SOURCE_PATH("--module-source-path", "opt.arg.mspath", "opt.modulesourcepath", STANDARD, FILEMANAGER) {
+        // The deferred filemanager diagnostics mechanism assumes a single value per option,
+        // but --module-source-path-module can be used multiple times, once in the old form
+        // and once per module in the new form.  Therefore we compose an overall value for the
+        // option containing the individual values given on the command line, separated by NULL.
+        // The standard file manager code knows to split apart the NULL-separated components.
+        @Override
+        public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
+            if (arg.isEmpty()) {
+                throw helper.newInvalidValueException(Errors.NoValueForOption(option));
+            }
+            Pattern moduleSpecificForm = getPattern();
+            String prev = helper.get(MODULE_SOURCE_PATH);
+            if (prev == null) {
+                super.process(helper, option, arg);
+            } else  if (moduleSpecificForm.matcher(arg).matches()) {
+                String argModule = arg.substring(0, arg.indexOf('='));
+                boolean isRepeated = Arrays.stream(prev.split("\0"))
+                        .filter(s -> moduleSpecificForm.matcher(s).matches())
+                        .map(s -> s.substring(0, s.indexOf('=')))
+                        .anyMatch(s -> s.equals(argModule));
+                if (isRepeated) {
+                    throw helper.newInvalidValueException(Errors.RepeatedValueForModuleSourcePath(argModule));
+                } else {
+                    super.process(helper, option, prev + '\0' + arg);
+                }
+            } else {
+                boolean isPresent = Arrays.stream(prev.split("\0"))
+                        .anyMatch(s -> !moduleSpecificForm.matcher(s).matches());
+                if (isPresent) {
+                    throw helper.newInvalidValueException(Errors.MultipleValuesForModuleSourcePath);
+                } else {
+                    super.process(helper, option, prev + '\0' + arg);
+                }
+            }
+        }
+
+        @Override
+        public Pattern getPattern() {
+            return Pattern.compile("([\\p{Alnum}$_.]+)=(.*)");
+        }
+    },
 
     MODULE_PATH("--module-path -p", "opt.arg.path", "opt.modulepath", STANDARD, FILEMANAGER),
 
@@ -193,7 +235,7 @@ public enum Option {
         // The deferred filemanager diagnostics mechanism assumes a single value per option,
         // but --patch-module can be used multiple times, once per module. Therefore we compose
         // a value for the option containing the last value specified for each module, and separate
-        // the the module=path pairs by an invalid path character, NULL.
+        // the module=path pairs by an invalid path character, NULL.
         // The standard file manager code knows to split apart the NULL-separated components.
         @Override
         public void process(OptionHelper helper, String option, String arg) throws InvalidValueException {
@@ -295,6 +337,16 @@ public enum Option {
             }
             super.process(helper, option, operand);
         }
+
+        @Override
+        protected void help(Log log) {
+            StringJoiner sj = new StringJoiner(", ");
+            for(Source source :  Source.values()) {
+                if (source.isSupported())
+                    sj.add(source.name);
+            }
+            super.help(log, log.localize(PrefixKind.JAVAC, descrKey, sj.toString()));
+        }
     },
 
     TARGET("-target", "opt.arg.release", "opt.target", STANDARD, BASIC) {
@@ -305,6 +357,16 @@ public enum Option {
                 throw helper.newInvalidValueException(Errors.InvalidTarget(operand));
             }
             super.process(helper, option, operand);
+        }
+
+        @Override
+        protected void help(Log log) {
+            StringJoiner sj = new StringJoiner(", ");
+            for(Target target :  Target.values()) {
+                if (target.isSupported())
+                    sj.add(target.name);
+            }
+            super.help(log, log.localize(PrefixKind.JAVAC, descrKey, sj.toString()));
         }
     },
 
@@ -317,7 +379,7 @@ public enum Option {
                                                  .flatMap(provider -> StreamSupport.stream(provider.getSupportedPlatformNames()
                                                                                                    .spliterator(),
                                                                                            false))
-                                                 .collect(Collectors.toCollection(TreeSet :: new));
+                                                 .collect(Collectors.toCollection(LinkedHashSet :: new));
 
             StringBuilder targets = new StringBuilder();
             String delim = "";

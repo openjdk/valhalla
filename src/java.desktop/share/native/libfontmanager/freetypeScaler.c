@@ -45,7 +45,7 @@
 #define  FloatToFTFixed(f) (FT_Fixed)((f) * (float)(ftFixed1))
 #define  FTFixedToFloat(x) ((x) / (float)(ftFixed1))
 #define  FT26Dot6ToFloat(x)  ((x) / ((float) (1<<6)))
-#define  ROUND(x) ((int) (x+0.5))
+#define  FT26Dot6ToInt(x) (((int)(x)) >> 6)
 
 typedef struct {
     /* Important note:
@@ -364,6 +364,19 @@ Java_sun_font_FreetypeFontScaler_createScalerContextNative(
     context->doBold = (boldness != 1.0);
     context->doItalize = (italic != 0);
 
+    /* freetype is very keen to use embedded bitmaps, even if it knows
+     * there is a rotation or you asked for antialiasing.
+     * In the rendering path we will check useSBits and disable
+     * bitmaps unless it is set. And here we set it only if none
+     * of the conditions invalidate using it.
+     * Note that we allow embedded bitmaps for the LCD case.
+     */
+    if ((aa != TEXT_AA_ON) && (fm != TEXT_FM_ON) &&
+        !context->doBold && !context->doItalize &&
+        (context->transform.yx == 0) && (context->transform.xy == 0))
+    {
+        context->useSbits = 1;
+    }
     return ptr_to_jlong(context);
 }
 
@@ -685,9 +698,8 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
         return ptr_to_jlong(getNullGlyphImage());
     }
 
-    /* if algorithmic styling is required then we do not request bitmap */
-    if (context->doBold || context->doItalize) {
-        renderFlags =  FT_LOAD_DEFAULT;
+    if (!context->useSbits) {
+        renderFlags |= FT_LOAD_NO_BITMAP;
     }
 
     /* NB: in case of non identity transform
@@ -765,12 +777,12 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     } else {
         if (!ftglyph->advance.y) {
             glyphInfo->advanceX =
-                (float) ROUND(FT26Dot6ToFloat(ftglyph->advance.x));
+                (float) FT26Dot6ToInt(ftglyph->advance.x);
             glyphInfo->advanceY = 0;
         } else if (!ftglyph->advance.x) {
             glyphInfo->advanceX = 0;
             glyphInfo->advanceY =
-                (float) ROUND(FT26Dot6ToFloat(-ftglyph->advance.y));
+                (float) FT26Dot6ToInt(-ftglyph->advance.y);
         } else {
             glyphInfo->advanceX = FT26Dot6ToFloat(ftglyph->advance.x);
             glyphInfo->advanceY = FT26Dot6ToFloat(-ftglyph->advance.y);

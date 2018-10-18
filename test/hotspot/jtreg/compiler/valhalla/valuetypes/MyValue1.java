@@ -23,7 +23,7 @@
 
 package compiler.valhalla.valuetypes;
 
-__ByValue public final class MyValue1 implements MyInterface {
+value public final class MyValue1 implements MyInterface {
     static int s;
     static final long sf = ValueTypeTest.rL;
     final int x;
@@ -55,7 +55,7 @@ __ByValue public final class MyValue1 implements MyInterface {
 
     @ForceInline
     static MyValue1 createDefaultInline() {
-        return __MakeDefault MyValue1();
+        return MyValue1.default;
     }
 
     @DontInline

@@ -329,8 +329,8 @@ public:
                 // A plain safepoint advertises no memory effects (NULL):
                 const TypePtr* adr_type = NULL)
     : MultiNode( edges ),
-      _jvms(jvms),
       _oop_map(NULL),
+      _jvms(jvms),
       _adr_type(adr_type)
   {
     init_class_id(Class_SafePoint);
@@ -683,10 +683,10 @@ public:
   const int       _bci;         // Byte Code Index of call byte code
   CallJavaNode(const TypeFunc* tf , address addr, ciMethod* method, int bci)
     : CallNode(tf, addr, TypePtr::BOTTOM),
-      _method(method), _bci(bci),
       _optimized_virtual(false),
       _method_handle_invoke(false),
-      _override_symbolic_info(false)
+      _override_symbolic_info(false),
+      _method(method), _bci(bci)
   {
     init_class_id(Class_CallJava);
   }
@@ -868,6 +868,8 @@ public:
     InitialTest,                      // slow-path test (may be constant)
     ALength,                          // array length (or TOP if none)
     ValueNode,
+    DefaultValue,                     // default value in case of non flattened value array
+    RawDefaultValue,                  // same as above but as raw machine word
     ParmLimit
   };
 
@@ -878,6 +880,8 @@ public:
     fields[InitialTest] = TypeInt::BOOL;
     fields[ALength]     = t;  // length (can be a bad length)
     fields[ValueNode]   = Type::BOTTOM;
+    fields[DefaultValue] = TypeInstPtr::NOTNULL;
+    fields[RawDefaultValue] = TypeX_X;
 
     const TypeTuple *domain = TypeTuple::make(ParmLimit, fields);
 
@@ -898,7 +902,8 @@ public:
 
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
-               Node *size, Node *klass_node, Node *initial_test, ValueTypeBaseNode* value_node = NULL);
+               Node *size, Node *klass_node, Node *initial_test,
+               ValueTypeBaseNode* value_node = NULL);
   // Expansion modifies the JVMState, so we need to clone it
   virtual void  clone_jvms(Compile* C) {
     if (jvms() != NULL) {
@@ -979,13 +984,15 @@ class AllocateArrayNode : public AllocateNode {
 public:
   AllocateArrayNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
                     Node* size, Node* klass_node, Node* initial_test,
-                    Node* count_val
+                    Node* count_val, Node* default_value, Node* raw_default_value
                     )
     : AllocateNode(C, atype, ctrl, mem, abio, size, klass_node,
                    initial_test)
   {
     init_class_id(Class_AllocateArray);
     set_req(AllocateNode::ALength,        count_val);
+    init_req(AllocateNode::DefaultValue,  default_value);
+    init_req(AllocateNode::RawDefaultValue, raw_default_value);
   }
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);

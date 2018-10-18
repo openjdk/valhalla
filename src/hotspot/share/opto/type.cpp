@@ -266,7 +266,12 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_VALUETYPE:
-    return TypeValueType::make(type->as_value_klass());
+    if (type->as_value_klass()->is_scalarizable()) {
+      return TypeValueType::make(type->as_value_klass());
+    } else {
+      // Value types cannot be null
+      return TypeOopPtr::make_from_klass(type->as_klass())->join_speculative(TypePtr::NOTNULL);
+    }
 
   default:
     // make sure we did not mix up the cases:
@@ -306,17 +311,16 @@ const Type* Type::make_from_constant(ciConstant constant, bool require_constant,
         ciObject* oop_constant = constant.as_object();
         if (oop_constant->is_null_object()) {
           con_type = Type::get_zero_type(T_OBJECT);
-        } else if (require_constant || oop_constant->should_be_constant()) {
+        } else {
+          guarantee(require_constant || oop_constant->should_be_constant(), "con_type must get computed");
           con_type = TypeOopPtr::make_from_constant(oop_constant, require_constant);
-          if (con_type != NULL) {
-            if (Compile::current()->eliminate_boxing() && is_autobox_cache) {
-              con_type = con_type->is_aryptr()->cast_to_autobox_cache(true);
-            }
-            if (stable_dimension > 0) {
-              assert(FoldStableValues, "sanity");
-              assert(!con_type->is_zero_type(), "default value for stable field");
-              con_type = con_type->is_aryptr()->cast_to_stable(true, stable_dimension);
-            }
+          if (Compile::current()->eliminate_boxing() && is_autobox_cache) {
+            con_type = con_type->is_aryptr()->cast_to_autobox_cache(true);
+          }
+          if (stable_dimension > 0) {
+            assert(FoldStableValues, "sanity");
+            assert(!con_type->is_zero_type(), "default value for stable field");
+            con_type = con_type->is_aryptr()->cast_to_stable(true, stable_dimension);
           }
         }
         if (is_narrow_oop) {
@@ -2070,9 +2074,8 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
         ciValueKlass* vk = (ciValueKlass*)type;
         collect_value_fields(vk, field_array, pos);
       } else {
-        // Value types arguments cannot be NULL
-        //field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
-        field_array[pos++] = get_const_type(type);
+        // Value type arguments cannot be NULL
+        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
       }
       break;
     }

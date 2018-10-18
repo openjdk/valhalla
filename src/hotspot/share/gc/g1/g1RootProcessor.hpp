@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_GC_G1_G1ROOTPROCESSOR_HPP
 #define SHARE_VM_GC_G1_G1ROOTPROCESSOR_HPP
 
+#include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
@@ -49,6 +50,7 @@ class G1RootProcessor : public StackObj {
   G1CollectedHeap* _g1h;
   SubTasksDone _process_strong_tasks;
   StrongRootsScope _srs;
+  OopStorage::ParState<false, false> _par_state_string;
 
   // Used to implement the Thread work barrier.
   Monitor _lock;
@@ -66,7 +68,6 @@ class G1RootProcessor : public StackObj {
     G1RP_PS_aot_oops_do,
     G1RP_PS_filter_satb_buffers,
     G1RP_PS_refProcessor_oops_do,
-    G1RP_PS_weakProcessor_oops_do,
     // Leave this one last.
     G1RP_PS_NumElements
   };
@@ -119,10 +120,6 @@ public:
   void process_all_roots_no_string_table(OopClosure* oops,
                                          CLDClosure* clds,
                                          CodeBlobClosure* blobs);
-
-  // Apply closure to weak roots in the system. Used during the adjust phase
-  // for the Full GC.
-  void process_full_gc_weak_roots(OopClosure* oops);
 
   // Number of worker threads used by the root processor.
   uint n_workers() const;

@@ -48,7 +48,6 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "memory/universe.hpp"
-#include "memory/vtBuffer.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -84,16 +83,8 @@
 #include "utilities/preserveException.hpp"
 
 // Known objects
-Klass* Universe::_boolArrayKlassObj                 = NULL;
-Klass* Universe::_byteArrayKlassObj                 = NULL;
-Klass* Universe::_charArrayKlassObj                 = NULL;
-Klass* Universe::_intArrayKlassObj                  = NULL;
-Klass* Universe::_shortArrayKlassObj                = NULL;
-Klass* Universe::_longArrayKlassObj                 = NULL;
-Klass* Universe::_singleArrayKlassObj               = NULL;
-Klass* Universe::_doubleArrayKlassObj               = NULL;
-Klass* Universe::_typeArrayKlassObjs[T_VOID+1]      = { NULL /*, NULL...*/ };
-Klass* Universe::_objectArrayKlassObj               = NULL;
+Klass* Universe::_typeArrayKlassObjs[T_LONG+1]        = { NULL /*, NULL...*/ };
+Klass* Universe::_objectArrayKlassObj                 = NULL;
 oop Universe::_int_mirror                             = NULL;
 oop Universe::_float_mirror                           = NULL;
 oop Universe::_double_mirror                          = NULL;
@@ -136,6 +127,7 @@ oop Universe::_reference_pending_list                 = NULL;
 Array<int>* Universe::_the_empty_int_array            = NULL;
 Array<u2>* Universe::_the_empty_short_array           = NULL;
 Array<Klass*>* Universe::_the_empty_klass_array     = NULL;
+Array<InstanceKlass*>* Universe::_the_empty_instance_klass_array  = NULL;
 Array<Method*>* Universe::_the_empty_method_array   = NULL;
 
 // These variables are guarded by FullGCALot_lock.
@@ -164,20 +156,19 @@ NarrowPtrStruct Universe::_narrow_klass = { NULL, 0, true };
 address Universe::_narrow_ptrs_base;
 uint64_t Universe::_narrow_klass_range = (uint64_t(max_juint)+1);
 
-int Universe::_oop_metadata_valuetype_mask = KlassPtrValueTypeMask;
-
 void Universe::basic_type_classes_do(void f(Klass*)) {
-  f(boolArrayKlassObj());
-  f(byteArrayKlassObj());
-  f(charArrayKlassObj());
-  f(intArrayKlassObj());
-  f(shortArrayKlassObj());
-  f(longArrayKlassObj());
-  f(singleArrayKlassObj());
-  f(doubleArrayKlassObj());
+  for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
+    f(_typeArrayKlassObjs[i]);
+  }
 }
 
-void Universe::oops_do(OopClosure* f, bool do_all) {
+void Universe::basic_type_classes_do(KlassClosure *closure) {
+  for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
+    closure->do_klass(_typeArrayKlassObjs[i]);
+  }
+}
+
+void Universe::oops_do(OopClosure* f) {
 
   f->do_oop((oop*) &_int_mirror);
   f->do_oop((oop*) &_float_mirror);
@@ -221,15 +212,7 @@ void LatestMethodCache::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
-  it->push(&_boolArrayKlassObj);
-  it->push(&_byteArrayKlassObj);
-  it->push(&_charArrayKlassObj);
-  it->push(&_intArrayKlassObj);
-  it->push(&_shortArrayKlassObj);
-  it->push(&_longArrayKlassObj);
-  it->push(&_singleArrayKlassObj);
-  it->push(&_doubleArrayKlassObj);
-  for (int i = 0; i < T_VOID+1; i++) {
+  for (int i = 0; i < T_LONG+1; i++) {
     it->push(&_typeArrayKlassObjs[i]);
   }
   it->push(&_objectArrayKlassObj);
@@ -237,6 +220,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_the_empty_int_array);
   it->push(&_the_empty_short_array);
   it->push(&_the_empty_klass_array);
+  it->push(&_the_empty_instance_klass_array);
   it->push(&_the_empty_method_array);
   it->push(&_the_array_interfaces_array);
 
@@ -248,29 +232,13 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 // Serialize metadata and pointers to primitive type mirrors in and out of CDS archive
-void Universe::serialize(SerializeClosure* f, bool do_all) {
+void Universe::serialize(SerializeClosure* f) {
 
-  f->do_ptr((void**)&_boolArrayKlassObj);
-  f->do_ptr((void**)&_byteArrayKlassObj);
-  f->do_ptr((void**)&_charArrayKlassObj);
-  f->do_ptr((void**)&_intArrayKlassObj);
-  f->do_ptr((void**)&_shortArrayKlassObj);
-  f->do_ptr((void**)&_longArrayKlassObj);
-  f->do_ptr((void**)&_singleArrayKlassObj);
-  f->do_ptr((void**)&_doubleArrayKlassObj);
-  f->do_ptr((void**)&_objectArrayKlassObj);
-
-  {
-    for (int i = 0; i < T_VOID+1; i++) {
-      if (_typeArrayKlassObjs[i] != NULL) {
-        assert(i >= T_BOOLEAN, "checking");
-        f->do_ptr((void**)&_typeArrayKlassObjs[i]);
-      } else if (do_all) {
-        f->do_ptr((void**)&_typeArrayKlassObjs[i]);
-      }
-    }
+  for (int i = 0; i < T_LONG+1; i++) {
+    f->do_ptr((void**)&_typeArrayKlassObjs[i]);
   }
 
+  f->do_ptr((void**)&_objectArrayKlassObj);
 #if INCLUDE_CDS_JAVA_HEAP
   // The mirrors are NULL if MetaspaceShared::is_heap_object_archiving_allowed
   // is false.
@@ -290,6 +258,7 @@ void Universe::serialize(SerializeClosure* f, bool do_all) {
   f->do_ptr((void**)&_the_empty_short_array);
   f->do_ptr((void**)&_the_empty_method_array);
   f->do_ptr((void**)&_the_empty_klass_array);
+  f->do_ptr((void**)&_the_empty_instance_klass_array);
   _finalizer_register_cache->serialize(f);
   _loader_addClass_cache->serialize(f);
   _pd_implies_cache->serialize(f);
@@ -332,31 +301,18 @@ void Universe::genesis(TRAPS) {
       compute_base_vtable_size();
 
       if (!UseSharedSpaces) {
-        _boolArrayKlassObj      = TypeArrayKlass::create_klass(T_BOOLEAN, sizeof(jboolean), CHECK);
-        _charArrayKlassObj      = TypeArrayKlass::create_klass(T_CHAR,    sizeof(jchar),    CHECK);
-        _singleArrayKlassObj    = TypeArrayKlass::create_klass(T_FLOAT,   sizeof(jfloat),   CHECK);
-        _doubleArrayKlassObj    = TypeArrayKlass::create_klass(T_DOUBLE,  sizeof(jdouble),  CHECK);
-        _byteArrayKlassObj      = TypeArrayKlass::create_klass(T_BYTE,    sizeof(jbyte),    CHECK);
-        _shortArrayKlassObj     = TypeArrayKlass::create_klass(T_SHORT,   sizeof(jshort),   CHECK);
-        _intArrayKlassObj       = TypeArrayKlass::create_klass(T_INT,     sizeof(jint),     CHECK);
-        _longArrayKlassObj      = TypeArrayKlass::create_klass(T_LONG,    sizeof(jlong),    CHECK);
-
-        _typeArrayKlassObjs[T_BOOLEAN] = _boolArrayKlassObj;
-        _typeArrayKlassObjs[T_CHAR]    = _charArrayKlassObj;
-        _typeArrayKlassObjs[T_FLOAT]   = _singleArrayKlassObj;
-        _typeArrayKlassObjs[T_DOUBLE]  = _doubleArrayKlassObj;
-        _typeArrayKlassObjs[T_BYTE]    = _byteArrayKlassObj;
-        _typeArrayKlassObjs[T_SHORT]   = _shortArrayKlassObj;
-        _typeArrayKlassObjs[T_INT]     = _intArrayKlassObj;
-        _typeArrayKlassObjs[T_LONG]    = _longArrayKlassObj;
+        for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
+          _typeArrayKlassObjs[i] = TypeArrayKlass::create_klass((BasicType)i, CHECK);
+        }
 
         ClassLoaderData* null_cld = ClassLoaderData::the_null_class_loader_data();
 
-        _the_array_interfaces_array = MetadataFactory::new_array<Klass*>(null_cld, 2, NULL, CHECK);
-        _the_empty_int_array        = MetadataFactory::new_array<int>(null_cld, 0, CHECK);
-        _the_empty_short_array      = MetadataFactory::new_array<u2>(null_cld, 0, CHECK);
-        _the_empty_method_array     = MetadataFactory::new_array<Method*>(null_cld, 0, CHECK);
-        _the_empty_klass_array      = MetadataFactory::new_array<Klass*>(null_cld, 0, CHECK);
+        _the_array_interfaces_array     = MetadataFactory::new_array<Klass*>(null_cld, 2, NULL, CHECK);
+        _the_empty_int_array            = MetadataFactory::new_array<int>(null_cld, 0, CHECK);
+        _the_empty_short_array          = MetadataFactory::new_array<u2>(null_cld, 0, CHECK);
+        _the_empty_method_array         = MetadataFactory::new_array<Method*>(null_cld, 0, CHECK);
+        _the_empty_klass_array          = MetadataFactory::new_array<Klass*>(null_cld, 0, CHECK);
+        _the_empty_instance_klass_array = MetadataFactory::new_array<InstanceKlass*>(null_cld, 0, CHECK);
       }
     }
 
@@ -387,7 +343,7 @@ void Universe::genesis(TRAPS) {
 
     initialize_basic_type_klass(boolArrayKlassObj(), CHECK);
     initialize_basic_type_klass(charArrayKlassObj(), CHECK);
-    initialize_basic_type_klass(singleArrayKlassObj(), CHECK);
+    initialize_basic_type_klass(floatArrayKlassObj(), CHECK);
     initialize_basic_type_klass(doubleArrayKlassObj(), CHECK);
     initialize_basic_type_klass(byteArrayKlassObj(), CHECK);
     initialize_basic_type_klass(shortArrayKlassObj(), CHECK);
@@ -516,8 +472,11 @@ void Universe::fixup_mirrors(TRAPS) {
   // that the number of objects allocated at this point is very small.
   assert(SystemDictionary::Class_klass_loaded(), "java.lang.Class should be loaded");
   HandleMark hm(THREAD);
-  // Cache the start of the static fields
-  InstanceMirrorKlass::init_offset_of_static_fields();
+
+  if (!UseSharedSpaces) {
+    // Cache the start of the static fields
+    InstanceMirrorKlass::init_offset_of_static_fields();
+  }
 
   GrowableArray <Klass*>* list = java_lang_Class::fixup_mirror_list();
   int list_length = list->length();
@@ -586,6 +545,7 @@ void initialize_itable_for_klass(InstanceKlass* k, TRAPS) {
 
 
 void Universe::reinitialize_itables(TRAPS) {
+  MutexLocker mcld(ClassLoaderDataGraph_lock);
   ClassLoaderDataGraph::dictionary_classes_do(initialize_itable_for_klass, CHECK);
 }
 
@@ -690,7 +650,6 @@ jint universe_init() {
   SystemDictionary::initialize_oop_storage();
 
   Metaspace::global_initialize();
-  VTBuffer::init();
   // Initialize performance counters for metaspaces
   MetaspaceCounters::initialize_performance_counters();
   CompressedClassSpaceCounters::initialize_performance_counters();

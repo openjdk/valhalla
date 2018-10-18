@@ -41,10 +41,11 @@
 #include "oops/valueArrayOop.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/reflection.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
@@ -342,12 +343,11 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   ValueKlass* vk = ValueKlass::cast(k);
   assert_and_log_unsafe_value_type_access(p, offset, vk);
   Handle p_h(THREAD, p);
-  bool in_heap;
-  oop v = vk->allocate_buffered_or_heap_instance(&in_heap, CHECK_NULL); // allocate instance
+  oop v = vk->allocate_instance(CHECK_NULL); // allocate instance
   vk->initialize(CHECK_NULL); // If field is a default value, value class might not be initialized yet
   vk->value_store(((char*)(oopDesc*)p_h()) + offset,
                   vk->data_for_oop(v),
-                  in_heap, true);                  
+                  true, true);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
@@ -857,8 +857,8 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
   // caller responsible to free it:
   *temp_alloc = class_bytes;
 
-  jbyte* array_base = typeArrayOop(JNIHandles::resolve_non_null(data))->byte_at_addr(0);
-  Copy::conjoint_jbytes(array_base, class_bytes, length);
+  ArrayAccess<>::arraycopy_to_native(arrayOop(JNIHandles::resolve_non_null(data)), typeArrayOopDesc::element_offset<jbyte>(0),
+                                     reinterpret_cast<jbyte*>(class_bytes), length);
 
   objArrayHandle cp_patches_h;
   if (cp_patches_jh != NULL) {
@@ -871,8 +871,8 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
 
   // Make sure it's the real host class, not another anonymous class.
   while (host_klass != NULL && host_klass->is_instance_klass() &&
-         InstanceKlass::cast(host_klass)->is_anonymous()) {
-    host_klass = InstanceKlass::cast(host_klass)->host_klass();
+         InstanceKlass::cast(host_klass)->is_unsafe_anonymous()) {
+    host_klass = InstanceKlass::cast(host_klass)->unsafe_anonymous_host();
   }
 
   // Primitive types have NULL Klass* fields in their java.lang.Class instances.

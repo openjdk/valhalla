@@ -38,6 +38,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -99,25 +100,9 @@ int ValueKlass::raw_value_byte_size() const {
 instanceOop ValueKlass::allocate_instance(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
-  instanceOop oop = (instanceOop)CollectedHeap::obj_allocate(this, size, CHECK_NULL);
+  instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
   assert(oop->mark()->is_always_locked(), "Unlocked value type");
   return oop;
-}
-
-instanceOop ValueKlass::allocate_buffered_or_heap_instance(bool* in_heap, TRAPS) {
-  assert(THREAD->is_Java_thread(), "Only Java threads can call this method");
-
-  instanceOop value = NULL;
-  if (is_bufferable()) {
-    value = (instanceOop)VTBuffer::allocate_value(this, CHECK_NULL);
-    *in_heap = false;
-  }
-  if (value == NULL) {
-    log_info(valuetypes)("Value buffering failed, allocating in the Java heap");
-    value = allocate_instance(CHECK_NULL);
-    *in_heap = true;
-  }
-  return value;
 }
 
 bool ValueKlass::is_atomic() {
@@ -470,15 +455,9 @@ void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>
 
 // Fields are in registers. Create an instance of the value type and
 // initialize it with the values of the fields.
-oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, bool buffered, TRAPS) {
-  bool ignored = false;
-  oop new_vt = NULL;
-  if (buffered) {
-    new_vt = allocate_buffered_or_heap_instance(&ignored, CHECK_NULL);
-  } else {
-    new_vt = allocate_instance(CHECK_NULL);
-  }
+oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS) {
 
+  oop new_vt = allocate_instance(CHECK_NULL);
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
 
@@ -582,7 +561,7 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
 #ifdef ASSERT
   // Oop is not tagged, must be a valid oop
   if (VerifyOops) {
-    oop((HeapWord*)ptr)->verify();
+    oopDesc::verify(oop((HeapWord*)ptr));
   }
 #endif
   return NULL;

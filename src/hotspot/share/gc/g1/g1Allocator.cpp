@@ -37,9 +37,10 @@ G1Allocator::G1Allocator(G1CollectedHeap* heap) :
   _g1h(heap),
   _survivor_is_full(false),
   _old_is_full(false),
-  _retained_old_gc_alloc_region(NULL),
+  _mutator_alloc_region(),
   _survivor_gc_alloc_region(heap->alloc_buffer_stats(InCSetState::Young)),
-  _old_gc_alloc_region(heap->alloc_buffer_stats(InCSetState::Old)) {
+  _old_gc_alloc_region(heap->alloc_buffer_stats(InCSetState::Old)),
+  _retained_old_gc_alloc_region(NULL) {
 }
 
 void G1Allocator::init_mutator_alloc_region() {
@@ -360,7 +361,7 @@ bool G1ArchiveAllocator::alloc_new_region() {
     hr->set_closed_archive();
   }
   _g1h->g1_policy()->remset_tracker()->update_at_allocate(hr);
-  _g1h->old_set_add(hr);
+  _g1h->archive_set_add(hr);
   _g1h->hr_printer()->alloc(hr);
   _allocated_regions.append(hr);
   _allocation_region = hr;

@@ -377,6 +377,8 @@ class GraphKit : public Phase {
     return null_check_common(value, type, true, NULL, _gvn.type(value)->speculative_always_null());
   }
 
+  Node* filter_null(Node* value, bool null2default = false, ciValueKlass* vk = NULL, int trap_bci = -1);
+
   // Check if value is null and abort if it is
   Node* must_be_not_null(Node* value, bool do_replace_in_map);
 
@@ -591,11 +593,16 @@ class GraphKit : public Phase {
                         bool deoptimize_on_exception = false);
 
   Node* access_load_at(Node* obj,   // containing obj
-                       Node* adr,   // actual adress to store val at
+                       Node* adr,   // actual adress to load val at
                        const TypePtr* adr_type,
                        const Type* val_type,
                        BasicType bt,
                        DecoratorSet decorators);
+
+  Node* access_load(Node* adr,   // actual adress to load val at
+                    const Type* val_type,
+                    BasicType bt,
+                    DecoratorSet decorators);
 
   Node* access_atomic_cmpxchg_val_at(Node* ctl,
                                      Node* obj,
@@ -639,7 +646,7 @@ class GraphKit : public Phase {
                              BasicType bt,
                              DecoratorSet decorators);
 
-  void access_clone(Node* ctl, Node* src, Node* dst, Node* size, bool is_array);
+  void access_clone(Node* ctl, Node* src_base, Node* dst_base, Node* countx, bool is_array);
 
   // Return addressing for an array element.
   Node* array_element_address(Node* ary, Node* idx, BasicType elembt,
@@ -674,6 +681,9 @@ class GraphKit : public Phase {
   // callee (with all arguments still on the stack).
   Node* null_check_receiver_before_call(ciMethod* callee) {
     assert(!callee->is_static(), "must be a virtual method");
+    if (argument(0)->is_ValueType()) {
+      return argument(0);
+    }
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
     // Use callsite signature always.
     ciMethod* declared_method = method()->get_method_at_bci(bci());
@@ -697,7 +707,7 @@ class GraphKit : public Phase {
   // Finish up a java call that was started by set_edges_for_java_call.
   // Call add_exception on any throw arising from the call.
   // Return the call result (transformed).
-  Node* set_results_for_java_call(CallJavaNode* call, bool separate_io_proj = false);
+  Node* set_results_for_java_call(CallJavaNode* call, bool separate_io_proj = false, bool deoptimize = false);
 
   // Similar to set_edges_for_java_call, but simplified for runtime calls.
   void  set_predefined_output_for_runtime_call(Node* call) {
@@ -823,9 +833,12 @@ class GraphKit : public Phase {
   Node* gen_checkcast( Node *subobj, Node* superkls,
                        Node* *failure_control = NULL );
 
+  Node* is_always_locked(Node* obj);
+  Node* gen_value_type_test(Node* kls);
   void gen_value_type_guard(Node* obj, int nargs = 0);
-  void gen_value_type_array_guard(Node* ary, Node* obj, Node* elem_klass = NULL);
-  void gen_flattened_array_guard(Node* ary, int nargs = 0);
+  void gen_value_type_array_guard(Node* ary, Node* obj, int nargs);
+  Node* load_lh_array_tag(Node* kls);
+  Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
 
   Node* gen_subtype_check(Node* subklass, Node* superklass) {
     MergeMemNode* mem = merged_memory();
@@ -855,8 +868,6 @@ class GraphKit : public Phase {
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);
-  // Initialize a non-flattened value type array with default oops
-  void initialize_value_type_array(Node* array, Node* length, ciValueKlass* vk, int nargs);
 
   // java.lang.String helpers
   Node* load_String_length(Node* ctrl, Node* str);
@@ -895,7 +906,7 @@ class GraphKit : public Phase {
   // Produce new array node of stable type
   Node* cast_array_to_stable(Node* ary, const TypeAryPtr* ary_type);
 
-  Node* acmp(Node* a, Node* b);
+  Node* load_mirror_from_klass(Node* klass);
 };
 
 // Helper class to support building of control flow branches. Upon

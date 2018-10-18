@@ -48,6 +48,7 @@ import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.comp.CompileStates.CompileState;
+import com.sun.tools.javac.tree.JCTree.JCBreak;
 
 /** This pass translates Generic Java to conventional Java.
  *
@@ -476,11 +477,11 @@ public class TransTypes extends TreeTranslator {
         result = tree;
     }
 
-    JCTree currentMethod = null;
+    Type returnType = null;
     public void visitMethodDef(JCMethodDecl tree) {
-        JCTree previousMethod = currentMethod;
+        Type prevRetType = returnType;
         try {
-            currentMethod = tree;
+            returnType = erasure(tree.type).getReturnType();
             tree.restype = translate(tree.restype, null);
             tree.typarams = List.nil();
             tree.params = translateVarDefs(tree.params);
@@ -490,7 +491,7 @@ public class TransTypes extends TreeTranslator {
             tree.type = erasure(tree.type);
             result = tree;
         } finally {
-            currentMethod = previousMethod;
+            returnType = prevRetType;
         }
     }
 
@@ -540,11 +541,11 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitLambda(JCLambda tree) {
-        JCTree prevMethod = currentMethod;
+        Type prevRetType = returnType;
         try {
-            currentMethod = null;
+            returnType = erasure(tree.getDescriptorType(types)).getReturnType();
             tree.params = translate(tree.params);
-            tree.body = translate(tree.body, tree.body.type==null? null : erasure(tree.body.type));
+            tree.body = translate(tree.body, tree.body.type == null || returnType.hasTag(VOID) ? null : returnType);
             if (!tree.type.isIntersection()) {
                 tree.type = erasure(tree.type);
             } else {
@@ -553,7 +554,7 @@ public class TransTypes extends TreeTranslator {
             result = tree;
         }
         finally {
-            currentMethod = prevMethod;
+            returnType = prevRetType;
         }
     }
 
@@ -568,9 +569,20 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitCase(JCCase tree) {
-        tree.pat = translate(tree.pat, null);
+        tree.pats = translate(tree.pats, null);
         tree.stats = translate(tree.stats);
         result = tree;
+    }
+
+    public void visitSwitchExpression(JCSwitchExpression tree) {
+        Type selsuper = types.supertype(tree.selector.type);
+        boolean enumSwitch = selsuper != null &&
+            selsuper.tsym == syms.enumSym;
+        Type target = enumSwitch ? erasure(tree.selector.type) : syms.intType;
+        tree.selector = translate(tree.selector, target);
+        tree.cases = translate(tree.cases);
+        tree.type = erasure(tree.type);
+        result = retype(tree, tree.type, pt);
     }
 
     public void visitSynchronized(JCSynchronized tree) {
@@ -608,7 +620,18 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitReturn(JCReturn tree) {
-        tree.expr = translate(tree.expr, currentMethod != null ? types.erasure(currentMethod.type).getReturnType() : null);
+        if (!returnType.hasTag(VOID))
+            tree.expr = translate(tree.expr, returnType);
+        result = tree;
+    }
+
+    @Override
+    public void visitBreak(JCBreak tree) {
+        if (tree.isValueBreak()) {
+            tree.value = translate(tree.value, erasure(tree.value.type));
+            tree.value.type = erasure(tree.value.type);
+            tree.value = retype(tree.value, tree.value.type, pt);
+        }
         result = tree;
     }
 

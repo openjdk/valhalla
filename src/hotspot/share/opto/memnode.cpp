@@ -25,6 +25,8 @@
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -45,7 +47,11 @@
 #include "opto/valuetypenode.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 // Portions of code courtesy of Clifford Click
 
@@ -367,10 +373,10 @@ Node *MemNode::Ideal_common(PhaseGVN *phase, bool can_reshape) {
 
   if (mem != old_mem) {
     set_req(MemNode::Memory, mem);
-    if (can_reshape && old_mem->outcnt() == 0) {
-        igvn->_worklist.push(old_mem);
+    if (can_reshape && old_mem->outcnt() == 0 && igvn != NULL) {
+      igvn->_worklist.push(old_mem);
     }
-    if (phase->type( mem ) == Type::TOP) return NodeSentinel;
+    if (phase->type(mem) == Type::TOP) return NodeSentinel;
     return this;
   }
 
@@ -515,8 +521,7 @@ Node* LoadNode::find_previous_arraycopy(PhaseTransform* phase, Node* ld_alloc, N
       if (ac->is_clonebasic()) {
         intptr_t offset;
         AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest), phase, offset);
-        assert(alloc != NULL && (!ReduceBulkZeroing || alloc->initialization()->is_complete_with_arraycopy()), "broken allocation");
-        if (alloc == ld_alloc) {
+        if (alloc != NULL && alloc == ld_alloc) {
           return ac;
         }
       }
@@ -825,7 +830,7 @@ Node *LoadNode::make(PhaseGVN& gvn, Node *ctl, Node *mem, Node *adr, const TypeP
     }
     break;
   default:
-    // ShouldNotReachHere(); ???
+    ShouldNotReachHere();
     break;
   }
   assert(load != NULL, "LoadNode should have been created");
@@ -894,6 +899,14 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (bottom_type()->make_oopptr() != NULL) {
+      return NULL;
+    }
+  }
+#endif
+
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   AllocateNode* ld_alloc = AllocateNode::Ideal_allocation(ld_adr, phase, ld_off);
@@ -1051,6 +1064,11 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
       // can create new nodes.  Think of it as lazily manifesting
       // virtually pre-existing constants.)
       assert(memory_type() != T_VALUETYPE, "should not be used for value types");
+      Node* default_value = ld_alloc->in(AllocateNode::DefaultValue);
+      if (default_value != NULL) {
+        return default_value;
+      }
+      assert(ld_alloc->in(AllocateNode::RawDefaultValue) == NULL, "default value may not be null");
       return phase->zerocon(memory_type());
     }
 
@@ -1605,7 +1623,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Is there a dominating load that loads the same value?  Leave
   // anything that is not a load of a field/array element (like
   // barriers etc.) alone
-  if (in(0) != NULL && adr_type() != TypeRawPtr::BOTTOM && can_reshape) {
+  if (in(0) != NULL && !adr_type()->isa_rawptr() && can_reshape) {
     for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
       Node *use = mem->fast_out(i);
       if (use != this &&
@@ -1780,6 +1798,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     assert( off != Type::OffsetBot ||
             // arrays can be cast to Objects
             tp->is_oopptr()->klass()->is_java_lang_Object() ||
+            tp->is_oopptr()->klass() == ciEnv::current()->Class_klass() ||
             // unsafe field access may not have a constant offset
             C->has_unsafe_access(),
             "Field accesses must be precise" );
@@ -1789,7 +1808,17 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != NULL && const_oop->is_instance()) {
-      const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), memory_type());
+      BasicType bt = memory_type();
+      ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
+      if (mirror_type != NULL && mirror_type->is_valuetype()) {
+        ciValueKlass* vk = mirror_type->as_value_klass();
+        if (off == vk->default_value_offset()) {
+          // Loading a special hidden field that contains the oop of the default value type
+          const Type* const_oop = TypeInstPtr::make(vk->default_value_instance());
+          return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
+        }
+      }
+      const Type* con_type = Type::make_constant_from_field(const_oop->as_instance(), off, is_unsigned(), bt);
       if (con_type != NULL) {
         return con_type;
       }
@@ -1804,21 +1833,37 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             Opcode() == Op_LoadKlass,
             "Field accesses must be precise" );
     // For klass/static loads, we expect the _type to be precise
-  } else if (tp->base() == Type::RawPtr && adr->is_Load() && off == 0) {
-    /* With mirrors being an indirect in the Klass*
-     * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
-     * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
-     *
-     * So check the type and klass of the node before the LoadP.
-     */
-    Node* adr2 = adr->in(MemNode::Address);
-    const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
-    if (tkls != NULL && !StressReflectiveCode) {
-      ciKlass* klass = tkls->klass();
-      if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
-        assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-        assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
-        return TypeInstPtr::make(klass->java_mirror());
+  } else if (tp->base() == Type::RawPtr && !StressReflectiveCode) {
+    if (adr->is_Load() && off == 0) {
+      /* With mirrors being an indirect in the Klass*
+       * the VM is now using two loads. LoadKlass(LoadP(LoadP(Klass, mirror_offset), zero_offset))
+       * The LoadP from the Klass has a RawPtr type (see LibraryCallKit::load_mirror_from_klass).
+       *
+       * So check the type and klass of the node before the LoadP.
+       */
+      Node* adr2 = adr->in(MemNode::Address);
+      const TypeKlassPtr* tkls = phase->type(adr2)->isa_klassptr();
+      if (tkls != NULL) {
+        ciKlass* klass = tkls->klass();
+        if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact() && tkls->offset() == in_bytes(Klass::java_mirror_offset())) {
+          assert(adr->Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+          assert(Opcode() == Op_LoadP, "must load an oop from _java_mirror");
+          return TypeInstPtr::make(klass->java_mirror());
+        }
+      }
+    } else {
+      // Check for a load of the default value offset from the ValueKlassFixedBlock:
+      // LoadI(LoadP(value_klass, adr_valueklass_fixed_block_offset), default_value_offset_offset)
+      intptr_t offset = 0;
+      Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
+      if (base != NULL && base->is_Load() && offset == in_bytes(ValueKlass::default_value_offset_offset())) {
+        const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
+        if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->isa_valuetype() &&
+            tkls->offset() == in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())) {
+          assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
+          assert(Opcode() == Op_LoadI, "must load an int from fixed block");
+          return TypeInt::make(tkls->klass()->as_value_klass()->default_value_offset());
+        }
       }
     }
   }
@@ -2232,6 +2277,12 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   const TypeOopPtr* toop = phase->type(adr)->isa_oopptr();
   if (toop == NULL)     return this;
 
+  // Step over potential GC barrier for OopHandle resolve
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  if (bs->is_gc_barrier_node(base)) {
+    base = bs->step_over_gc_barrier(base);
+  }
+
   // We can fetch the klass directly through an AllocateNode.
   // This works even if the klass is not constant (clone or newArray).
   if (offset == oopDesc::klass_offset_in_bytes()) {
@@ -2249,10 +2300,6 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   // mirror go completely dead.  (Current exception:  Class
   // mirrors may appear in debug info, but we could clean them out by
   // introducing a new debug info operator for Klass.java_mirror).
-  //
-  // If the code pattern requires a barrier for
-  //   mirror = ((OopHandle)mirror)->resolve();
-  // this won't match.
 
   if (toop->isa_instptr() && toop->klass() == phase->C->env()->Class_klass()
       && offset == java_lang_Class::klass_offset_in_bytes()) {
@@ -2482,6 +2529,7 @@ Node *StoreNode::Ideal(PhaseGVN *phase, bool can_reshape) {
              phase->C->get_alias_index(adr_type()) == Compile::AliasIdxRaw ||
              (Opcode() == Op_StoreL && st->Opcode() == Op_StoreI) || // expanded ClearArrayNode
              (Opcode() == Op_StoreI && st->Opcode() == Op_StoreL) || // initialization by arraycopy
+             (Opcode() == Op_StoreL && st->Opcode() == Op_StoreN) ||
              (is_mismatched_access() || st->as_Store()->is_mismatched_access()),
              "no mismatched stores, except on raw memory: %s %s", NodeClassNames[Opcode()], NodeClassNames[st->Opcode()]);
 
@@ -2545,45 +2593,72 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
   Node* adr = in(MemNode::Address);
   Node* val = in(MemNode::ValueIn);
 
+  Node* result = this;
+
   // Load then Store?  Then the Store is useless
   if (val->is_Load() &&
       val->in(MemNode::Address)->eqv_uncast(adr) &&
       val->in(MemNode::Memory )->eqv_uncast(mem) &&
       val->as_Load()->store_Opcode() == Opcode()) {
-    return mem;
+    result = mem;
   }
 
   // Two stores in a row of the same value?
-  if (mem->is_Store() &&
+  if (result == this &&
+      mem->is_Store() &&
       mem->in(MemNode::Address)->eqv_uncast(adr) &&
       mem->in(MemNode::ValueIn)->eqv_uncast(val) &&
       mem->Opcode() == Opcode()) {
-    return mem;
+    result = mem;
   }
 
   // Store of zero anywhere into a freshly-allocated object?
   // Then the store is useless.
   // (It must already have been captured by the InitializeNode.)
-  if (ReduceFieldZeroing && phase->type(val)->is_zero_type()) {
+  if (result == this && ReduceFieldZeroing) {
     // a newly allocated object is already all-zeroes everywhere
-    if (mem->is_Proj() && mem->in(0)->is_Allocate()) {
-      return mem;
+    if (mem->is_Proj() && mem->in(0)->is_Allocate() &&
+        (phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == val)) {
+      assert(!phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == NULL, "storing null to value array is forbidden");
+      result = mem;
     }
 
-    // the store may also apply to zero-bits in an earlier object
-    Node* prev_mem = find_previous_store(phase);
-    // Steps (a), (b):  Walk past independent stores to find an exact match.
-    if (prev_mem != NULL) {
-      Node* prev_val = can_see_stored_value(prev_mem, phase);
-      if (prev_val != NULL && phase->eqv(prev_val, val)) {
-        // prev_val and val might differ by a cast; it would be good
-        // to keep the more informative of the two.
-        return mem;
+    if (result == this) {
+      // the store may also apply to zero-bits in an earlier object
+      Node* prev_mem = find_previous_store(phase);
+      // Steps (a), (b):  Walk past independent stores to find an exact match.
+      if (prev_mem != NULL) {
+        Node* prev_val = can_see_stored_value(prev_mem, phase);
+        if (prev_val != NULL && phase->eqv(prev_val, val)) {
+          // prev_val and val might differ by a cast; it would be good
+          // to keep the more informative of the two.
+          if (phase->type(val)->is_zero_type()) {
+            result = mem;
+          } else if (prev_mem->is_Proj() && prev_mem->in(0)->is_Initialize()) {
+            InitializeNode* init = prev_mem->in(0)->as_Initialize();
+            AllocateNode* alloc = init->allocation();
+            if (alloc != NULL && alloc->in(AllocateNode::DefaultValue) == val) {
+              result = mem;
+            }
+          }
+        }
       }
     }
   }
 
-  return this;
+  if (result != this && phase->is_IterGVN() != NULL) {
+    MemBarNode* trailing = trailing_membar();
+    if (trailing != NULL) {
+#ifdef ASSERT
+      const TypeOopPtr* t_oop = phase->type(in(Address))->isa_oopptr();
+      assert(t_oop == NULL || t_oop->is_known_instance_field(), "only for non escaping objects");
+#endif
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      trailing->remove(igvn);
+    }
+  }
+
+  return result;
 }
 
 //------------------------------match_edge-------------------------------------
@@ -2660,6 +2735,33 @@ bool StoreNode::value_never_loaded( PhaseTransform *phase) const {
   }
   return true;
 }
+
+MemBarNode* StoreNode::trailing_membar() const {
+  if (is_release()) {
+    MemBarNode* trailing_mb = NULL;
+    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+      Node* u = fast_out(i);
+      if (u->is_MemBar()) {
+        if (u->as_MemBar()->trailing_store()) {
+          assert(u->Opcode() == Op_MemBarVolatile, "");
+          assert(trailing_mb == NULL, "only one");
+          trailing_mb = u->as_MemBar();
+#ifdef ASSERT
+          Node* leading = u->as_MemBar()->leading_membar();
+          assert(leading->Opcode() == Op_MemBarRelease, "incorrect membar");
+          assert(leading->as_MemBar()->leading_store(), "incorrect membar pair");
+          assert(leading->as_MemBar()->trailing_membar() == u, "incorrect membar pair");
+#endif
+        } else {
+          assert(u->as_MemBar()->standalone(), "");
+        }
+      }
+    }
+    return trailing_mb;
+  }
+  return NULL;
+}
+
 
 //=============================================================================
 //------------------------------Ideal------------------------------------------
@@ -2773,6 +2875,30 @@ bool LoadStoreNode::result_not_used() const {
   return true;
 }
 
+MemBarNode* LoadStoreNode::trailing_membar() const {
+  MemBarNode* trailing = NULL;
+  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+    Node* u = fast_out(i);
+    if (u->is_MemBar()) {
+      if (u->as_MemBar()->trailing_load_store()) {
+        assert(u->Opcode() == Op_MemBarAcquire, "");
+        assert(trailing == NULL, "only one");
+        trailing = u->as_MemBar();
+#ifdef ASSERT
+        Node* leading = trailing->leading_membar();
+        assert(support_IRIW_for_not_multiple_copy_atomic_cpu || leading->Opcode() == Op_MemBarRelease, "incorrect membar");
+        assert(leading->as_MemBar()->leading_load_store(), "incorrect membar pair");
+        assert(leading->as_MemBar()->trailing_membar() == trailing, "incorrect membar pair");
+#endif
+      } else {
+        assert(u->as_MemBar()->standalone(), "wrong barrier kind");
+      }
+    }
+  }
+
+  return trailing;
+}
+
 uint LoadStoreNode::size_of() const { return sizeof(*this); }
 
 //=============================================================================
@@ -2822,7 +2948,7 @@ Node *ClearArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Length too long; communicate this to matchers and assemblers.
   // Assemblers are responsible to produce fast hardware clears for it.
   if (size > InitArrayShortSize) {
-    return new ClearArrayNode(in(0), in(1), in(2), in(3), true);
+    return new ClearArrayNode(in(0), in(1), in(2), in(3), in(4), true);
   }
   Node *mem = in(1);
   if( phase->type(mem)==Type::TOP ) return NULL;
@@ -2837,14 +2963,14 @@ Node *ClearArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( adr->Opcode() != Op_AddP ) Unimplemented();
   Node *base = adr->in(1);
 
-  Node *zero = phase->makecon(TypeLong::ZERO);
+  Node *val = in(4);
   Node *off  = phase->MakeConX(BytesPerLong);
-  mem = new StoreLNode(in(0),mem,adr,atp,zero,MemNode::unordered,false);
+  mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   count--;
   while( count-- ) {
     mem = phase->transform(mem);
     adr = phase->transform(new AddPNode(base,adr,off));
-    mem = new StoreLNode(in(0),mem,adr,atp,zero,MemNode::unordered,false);
+    mem = new StoreLNode(in(0), mem, adr, atp, val, MemNode::unordered, false);
   }
   return mem;
 }
@@ -2878,6 +3004,8 @@ bool ClearArrayNode::step_through(Node** np, uint instance_id, PhaseTransform* p
 //----------------------------clear_memory-------------------------------------
 // Generate code to initialize object storage to zero.
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
+                                   Node* val,
+                                   Node* raw_val,
                                    intptr_t start_offset,
                                    Node* end_offset,
                                    PhaseGVN* phase) {
@@ -2888,17 +3016,24 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
     Node* adr = new AddPNode(dest, dest, phase->MakeConX(offset));
     adr = phase->transform(adr);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
-    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    if (val != NULL) {
+      assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
+      mem = new StoreNNode(ctl, mem, adr, atp, val, MemNode::unordered);
+    } else {
+      assert(raw_val == NULL, "val may not be null");
+      mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    }
     mem = phase->transform(mem);
     offset += BytesPerInt;
   }
   assert((offset % unit) == 0, "");
 
   // Initialize the remaining stuff, if any, with a ClearArray.
-  return clear_memory(ctl, mem, dest, phase->MakeConX(offset), end_offset, phase);
+  return clear_memory(ctl, mem, dest, raw_val, phase->MakeConX(offset), end_offset, phase);
 }
 
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
+                                   Node* raw_val,
                                    Node* start_offset,
                                    Node* end_offset,
                                    PhaseGVN* phase) {
@@ -2921,11 +3056,16 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
   // Bulk clear double-words
   Node* zsize = phase->transform(new SubXNode(zend, zbase) );
   Node* adr = phase->transform(new AddPNode(dest, dest, start_offset) );
-  mem = new ClearArrayNode(ctl, mem, zsize, adr, false);
+  if (raw_val == NULL) {
+    raw_val = phase->MakeConX(0);
+  }
+  mem = new ClearArrayNode(ctl, mem, zsize, adr, raw_val, false);
   return phase->transform(mem);
 }
 
 Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
+                                   Node* val,
+                                   Node* raw_val,
                                    intptr_t start_offset,
                                    intptr_t end_offset,
                                    PhaseGVN* phase) {
@@ -2940,14 +3080,20 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
     done_offset -= BytesPerInt;
   }
   if (done_offset > start_offset) {
-    mem = clear_memory(ctl, mem, dest,
+    mem = clear_memory(ctl, mem, dest, val, raw_val,
                        start_offset, phase->MakeConX(done_offset), phase);
   }
   if (done_offset < end_offset) { // emit the final 32-bit store
     Node* adr = new AddPNode(dest, dest, phase->MakeConX(done_offset));
     adr = phase->transform(adr);
     const TypePtr* atp = TypeRawPtr::BOTTOM;
-    mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    if (val != NULL) {
+      assert(phase->type(val)->isa_narrowoop(), "should be narrow oop");
+      mem = new StoreNNode(ctl, mem, adr, atp, val, MemNode::unordered);
+    } else {
+      assert(raw_val == NULL, "val may not be null");
+      mem = StoreNode::make(*phase, ctl, mem, adr, atp, phase->zerocon(T_INT), T_INT, MemNode::unordered);
+    }
     mem = phase->transform(mem);
     done_offset += BytesPerInt;
   }
@@ -2958,7 +3104,10 @@ Node* ClearArrayNode::clear_memory(Node* ctl, Node* mem, Node* dest,
 //=============================================================================
 MemBarNode::MemBarNode(Compile* C, int alias_idx, Node* precedent)
   : MultiNode(TypeFunc::Parms + (precedent == NULL? 0: 1)),
-    _adr_type(C->get_adr_type(alias_idx))
+    _adr_type(C->get_adr_type(alias_idx)), _kind(Standalone)
+#ifdef ASSERT
+  , _pair_idx(0)
+#endif
 {
   init_class_id(Class_MemBar);
   Node* top = C->top();
@@ -2993,6 +3142,21 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
   }
 }
 
+void MemBarNode::remove(PhaseIterGVN *igvn) {
+  if (outcnt() != 2) {
+    return;
+  }
+  if (trailing_store() || trailing_load_store()) {
+    MemBarNode* leading = leading_membar();
+    if (leading != NULL) {
+      assert(leading->trailing_membar() == this, "inconsistent leading/trailing membars");
+      leading->remove(igvn);
+    }
+  }
+  igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
+  igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+}
+
 //------------------------------Ideal------------------------------------------
 // Return a node which is more "ideal" than the current node.  Strip out
 // control copies
@@ -3002,6 +3166,16 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(0) && in(0)->is_top()) {
     return NULL;
   }
+
+#if INCLUDE_ZGC
+  if (UseZGC) {
+    if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
+      Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
+      set_req(MemBarNode::Precedent, load_node);
+      return this;
+    }
+  }
+#endif
 
   bool progress = false;
   // Eliminate volatile MemBars for scalar replaced objects.
@@ -3049,8 +3223,7 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     if (eliminate) {
       // Replace MemBar projections by its inputs.
       PhaseIterGVN* igvn = phase->is_IterGVN();
-      igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
-      igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+      remove(igvn);
       // Must return either the original node (now dead) or a new node
       // (Do not return a top here, since that would break the uniqueness of top.)
       return new ConINode(TypeInt::ZERO);
@@ -3077,6 +3250,98 @@ Node *MemBarNode::match(const ProjNode *proj, const Matcher *m, const RegMask* m
   }
   ShouldNotReachHere();
   return NULL;
+}
+
+void MemBarNode::set_store_pair(MemBarNode* leading, MemBarNode* trailing) {
+  trailing->_kind = TrailingStore;
+  leading->_kind = LeadingStore;
+#ifdef ASSERT
+  trailing->_pair_idx = leading->_idx;
+  leading->_pair_idx = leading->_idx;
+#endif
+}
+
+void MemBarNode::set_load_store_pair(MemBarNode* leading, MemBarNode* trailing) {
+  trailing->_kind = TrailingLoadStore;
+  leading->_kind = LeadingLoadStore;
+#ifdef ASSERT
+  trailing->_pair_idx = leading->_idx;
+  leading->_pair_idx = leading->_idx;
+#endif
+}
+
+MemBarNode* MemBarNode::trailing_membar() const {
+  Node* trailing = (Node*)this;
+  VectorSet seen(Thread::current()->resource_area());
+  while (!trailing->is_MemBar() || !trailing->as_MemBar()->trailing()) {
+    if (seen.test_set(trailing->_idx)) {
+      // Dying subgraph?
+      return NULL;
+    }
+    for (DUIterator_Fast jmax, j = trailing->fast_outs(jmax); j < jmax; j++) {
+      Node* next = trailing->fast_out(j);
+      if (next != trailing && next->is_CFG()) {
+        trailing = next;
+        break;
+      }
+    }
+  }
+  MemBarNode* mb = trailing->as_MemBar();
+  assert((mb->_kind == TrailingStore && _kind == LeadingStore) ||
+         (mb->_kind == TrailingLoadStore && _kind == LeadingLoadStore), "bad trailing membar");
+  assert(mb->_pair_idx == _pair_idx, "bad trailing membar");
+  return mb;
+}
+
+MemBarNode* MemBarNode::leading_membar() const {
+  VectorSet seen(Thread::current()->resource_area());
+  Node* leading = in(0);
+  while (leading != NULL && (!leading->is_MemBar() || !leading->as_MemBar()->leading())) {
+    if (seen.test_set(leading->_idx)) {
+      // Dying subgraph?
+      return NULL;
+    }
+    if (leading->is_Region()) {
+      leading = leading->in(1);
+    } else {
+      leading = leading->in(0);
+    }
+  }
+#ifdef ASSERT
+  Unique_Node_List wq;
+  wq.push((Node*)this);
+  uint found = 0;
+  for (uint i = 0; i < wq.size(); i++) {
+    Node* n = wq.at(i);
+    if (n->is_Region()) {
+      for (uint j = 1; j < n->req(); j++) {
+        Node* in = n->in(j);
+        if (in != NULL && !in->is_top()) {
+          wq.push(in);
+        }
+      }
+    } else {
+      if (n->is_MemBar() && n->as_MemBar()->leading()) {
+        assert(n == leading, "consistency check failed");
+        found++;
+      } else {
+        Node* in = n->in(0);
+        if (in != NULL && !in->is_top()) {
+          wq.push(in);
+        }
+      }
+    }
+  }
+  assert(found == 1 || (found == 0 && leading == NULL), "consistency check failed");
+#endif
+  if (leading == NULL) {
+    return NULL;
+  }
+  MemBarNode* mb = leading->as_MemBar();
+  assert((mb->_kind == LeadingStore && _kind == TrailingStore) ||
+         (mb->_kind == LeadingLoadStore && _kind == TrailingLoadStore), "bad leading membar");
+  assert(mb->_pair_idx == _pair_idx, "bad leading membar");
+  return mb;
 }
 
 //===========================InitializeNode====================================
@@ -3172,8 +3437,8 @@ Node *MemBarNode::match(const ProjNode *proj, const Matcher *m, const RegMask* m
 
 //---------------------------InitializeNode------------------------------------
 InitializeNode::InitializeNode(Compile* C, int adr_type, Node* rawoop)
-  : _is_complete(Incomplete), _does_not_escape(false),
-    MemBarNode(C, adr_type, rawoop)
+  : MemBarNode(C, adr_type, rawoop),
+    _is_complete(Incomplete), _does_not_escape(false)
 {
   init_class_id(Class_Initialize);
 
@@ -3210,7 +3475,6 @@ bool InitializeNode::is_non_zero() {
 
 void InitializeNode::set_complete(PhaseGVN* phase) {
   assert(!is_complete(), "caller responsibility");
-  assert(!is_unknown_value(), "unsupported");
   _is_complete = Complete;
 
   // After this node is complete, it contains a bunch of
@@ -3226,7 +3490,7 @@ void InitializeNode::set_complete(PhaseGVN* phase) {
 // return false if the init contains any stores already
 bool AllocateNode::maybe_set_complete(PhaseGVN* phase) {
   InitializeNode* init = initialization();
-  if (init == NULL || init->is_complete() || init->is_unknown_value()) {
+  if (init == NULL || init->is_complete()) {
     return false;
   }
   init->remove_extra_zeroes();
@@ -3971,6 +4235,8 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
         // Do some incremental zeroing on rawmem, in parallel with inits.
         zeroes_done = align_down(zeroes_done, BytesPerInt);
         rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
+                                              allocation()->in(AllocateNode::DefaultValue),
+                                              allocation()->in(AllocateNode::RawDefaultValue),
                                               zeroes_done, zeroes_needed,
                                               phase);
         zeroes_done = zeroes_needed;
@@ -4030,6 +4296,8 @@ Node* InitializeNode::complete_stores(Node* rawctl, Node* rawmem, Node* rawptr,
     }
     if (zeroes_done < size_limit) {
       rawmem = ClearArrayNode::clear_memory(rawctl, rawmem, rawptr,
+                                            allocation()->in(AllocateNode::DefaultValue),
+                                            allocation()->in(AllocateNode::RawDefaultValue),
                                             zeroes_done, size_in_bytes, phase);
     }
   }

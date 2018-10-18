@@ -141,7 +141,7 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
   __ verify_oop(method_temp);
   __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes())), temp2);
   __ verify_oop(method_temp);
-  __ ldr(method_temp, Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())));
+  __ access_load_at(T_ADDRESS, IN_HEAP, method_temp, Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())), noreg, noreg);
 
   if (VerifyMethodHandles && !for_compiler_entry) {
     // make sure recv is already on stack
@@ -152,7 +152,7 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
     // assert(sizeof(u2) == sizeof(Method::_size_of_parameters), "");
     Label L;
     __ ldr(rscratch1, __ argument_address(temp2, -1));
-    __ cmp(recv, rscratch1);
+    __ cmpoop(recv, rscratch1);
     __ br(Assembler::EQ, L);
     __ ldr(r0, __ argument_address(temp2, -1));
     __ hlt(0);
@@ -196,7 +196,7 @@ address MethodHandles::generate_method_handle_interpreter_entry(MacroAssembler* 
     Label L;
     BLOCK_COMMENT("verify_intrinsic_id {");
     __ ldrh(rscratch1, Address(rmethod, Method::intrinsic_id_offset_in_bytes()));
-    __ cmp(rscratch1, (int) iid);
+    __ subs(zr, rscratch1, (int) iid);
     __ br(Assembler::EQ, L);
     if (iid == vmIntrinsics::_linkToVirtual ||
         iid == vmIntrinsics::_linkToSpecial) {
@@ -340,7 +340,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
         verify_ref_kind(_masm, JVM_REF_invokeSpecial, member_reg, temp3);
       }
       __ load_heap_oop(rmethod, member_vmtarget);
-      __ ldr(rmethod, vmtarget_method);
+      __ access_load_at(T_ADDRESS, IN_HEAP, rmethod, vmtarget_method, noreg, noreg);
       break;
 
     case vmIntrinsics::_linkToStatic:
@@ -348,7 +348,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
         verify_ref_kind(_masm, JVM_REF_invokeStatic, member_reg, temp3);
       }
       __ load_heap_oop(rmethod, member_vmtarget);
-      __ ldr(rmethod, vmtarget_method);
+      __ access_load_at(T_ADDRESS, IN_HEAP, rmethod, vmtarget_method, noreg, noreg);
       break;
 
     case vmIntrinsics::_linkToVirtual:
@@ -362,7 +362,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
 
       // pick out the vtable index from the MemberName, and then we can discard it:
       Register temp2_index = temp2;
-      __ ldr(temp2_index, member_vmindex);
+      __ access_load_at(T_ADDRESS, IN_HEAP, temp2_index, member_vmindex, noreg, noreg);
 
       if (VerifyMethodHandles) {
         Label L_index_ok;
@@ -394,7 +394,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       __ verify_klass_ptr(temp3_intf);
 
       Register rindex = rmethod;
-      __ ldr(rindex, member_vmindex);
+      __ access_load_at(T_ADDRESS, IN_HEAP, rindex, member_vmindex, noreg, noreg);
       if (VerifyMethodHandles) {
         Label L;
         __ cmpw(rindex, 0U);

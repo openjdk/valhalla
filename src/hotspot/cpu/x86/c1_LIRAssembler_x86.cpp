@@ -1346,7 +1346,11 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ decode_heap_oop(dest->as_register());
     }
 #endif
-    __ verify_oop(dest->as_register());
+
+    // Load barrier has not yet been applied, so ZGC can't verify the oop here
+    if (!UseZGC) {
+      __ verify_oop(dest->as_register());
+    }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {
@@ -1678,9 +1682,9 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
     // Object is null; update MDO and exit
     Register mdo  = klass_RInfo;
     __ mov_metadata(mdo, md->constant_encoding());
-    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-    int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-    __ orl(data_addr, header_bits);
+    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+    int header_bits = BitData::null_seen_byte_constant();
+    __ orb(data_addr, header_bits);
     __ jmp(*obj_is_null);
     __ bind(not_null);
   } else {
@@ -1824,9 +1828,9 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
       // Object is null; update MDO and exit
       Register mdo  = klass_RInfo;
       __ mov_metadata(mdo, md->constant_encoding());
-      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::header_offset()));
-      int header_bits = DataLayout::flag_mask_to_header_mask(BitData::null_seen_byte_constant());
-      __ orl(data_addr, header_bits);
+      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+      int header_bits = BitData::null_seen_byte_constant();
+      __ orb(data_addr, header_bits);
       __ jmp(done);
       __ bind(not_null);
     } else {
@@ -3034,6 +3038,9 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register length  = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
 
+  __ resolve(ACCESS_READ, src);
+  __ resolve(ACCESS_WRITE, dst);
+
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
@@ -3472,6 +3479,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
       scratch = op->scratch_opr()->as_register();
     }
     assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
+    __ resolve(ACCESS_READ | ACCESS_WRITE, obj);
     // add debug info for NullPointerException only if one is possible
     int null_check_offset = __ lock_object(hdr, obj, lock, scratch, *op->stub()->entry());
     if (op->info() != NULL) {
@@ -3597,7 +3605,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
     }
   } else {
     __ testptr(tmp, tmp);
-    __ jccb(Assembler::notZero, update);
+    __ jcc(Assembler::notZero, update);
     __ stop("unexpect null obj");
 #endif
   }
@@ -3612,7 +3620,7 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
       __ push(tmp);
       __ mov_metadata(tmp, exact_klass->constant_encoding());
       __ cmpptr(tmp, Address(rsp, 0));
-      __ jccb(Assembler::equal, ok);
+      __ jcc(Assembler::equal, ok);
       __ stop("exact klass and actual klass differ");
       __ bind(ok);
       __ pop(tmp);

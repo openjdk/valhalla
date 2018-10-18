@@ -69,13 +69,15 @@ public class XDHKeyAgreement extends KeyAgreementSpi {
 
         initImpl(key);
 
-        // the private key parameters must match params
-        XECParameters xecParams = XECParameters.get(
-            InvalidAlgorithmParameterException::new, params);
-        if (!xecParams.oidEquals(this.ops.getParameters())) {
-            throw new InvalidKeyException(
-                "Incorrect private key parameters"
-            );
+        // the private key parameters must match params, if present
+        if (params != null) {
+            XECParameters xecParams = XECParameters.get(
+                InvalidAlgorithmParameterException::new, params);
+            if (!xecParams.oidEquals(this.ops.getParameters())) {
+                throw new InvalidKeyException(
+                    "Incorrect private key parameters"
+                );
+            }
         }
     }
 
@@ -171,7 +173,9 @@ public class XDHKeyAgreement extends KeyAgreementSpi {
             throw new IllegalStateException("Not initialized correctly");
         }
 
-        return secret.clone();
+        byte[] result = secret;
+        secret = null;
+        return result;
     }
 
     @Override
@@ -182,14 +186,15 @@ public class XDHKeyAgreement extends KeyAgreementSpi {
             throw new IllegalStateException("Not initialized correctly");
         }
         int secretLen = this.secret.length;
-        if (offset + secretLen > sharedSecret.length) {
+        if (secretLen > sharedSecret.length - offset) {
             throw new ShortBufferException("Need " + secretLen
                 + " bytes, only " + (sharedSecret.length - offset)
                 + " available");
         }
 
         System.arraycopy(this.secret, 0, sharedSecret, offset, secretLen);
-        return secret.length;
+        secret = null;
+        return secretLen;
     }
 
     @Override

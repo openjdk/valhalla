@@ -71,24 +71,29 @@ void Compile::Output() {
   const StartNode *start = entry->head()->as_Start();
 
   // Replace StartNode with prolog
-  MachPrologNode *prolog = new MachPrologNode();
+  Label verified_entry;
+  MachPrologNode* prolog = new MachPrologNode(&verified_entry);
   entry->map_node(prolog, 0);
   _cfg->map_node_to_block(prolog, entry);
   _cfg->unmap_node_from_block(start); // start is no longer in any block
 
   // Virtual methods need an unverified entry point
-
-  if( is_osr_compilation() ) {
-    if( PoisonOSREntry ) {
+  bool has_value_args = _method != NULL && _method->get_Method()->has_value_args();
+  if (is_osr_compilation()) {
+    if (PoisonOSREntry) {
       // TODO: Should use a ShouldNotReachHereNode...
       _cfg->insert( broot, 0, new MachBreakpointNode() );
     }
   } else {
-    if( _method && !_method->flags().is_static() ) {
+    if (_method && !_method->flags().is_static()) {
       // Insert unvalidated entry point
-      _cfg->insert( broot, 0, new MachUEPNode() );
+      _cfg->insert(broot, 0, new MachUEPNode());
     }
-
+    if (has_value_args) {
+      // Insert value type entry point
+      assert(EnableValhalla, "Value types should be enabled");
+      _cfg->insert(broot, 0, new MachVVEPNode(&verified_entry));
+    }
   }
 
   // Break before main entry point
@@ -122,6 +127,18 @@ void Compile::Output() {
 
   if (cb == NULL || failing()) {
     return;
+  }
+
+  if (!is_osr_compilation() && has_value_args) {
+    // We added an entry point for value types,
+    // compute offset of "normal" entry point
+    _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, 0);
+    uint entry_offset = -1; // will be patched later
+    if (!_method->flags().is_static()) {
+      MachVVEPNode* vvep = (MachVVEPNode*)broot->get_node(0);
+      entry_offset = vvep->size(_regalloc);
+    }
+    _code_offsets.set_value(CodeOffsets::Entry, entry_offset);
   }
 
   ScheduleAndBundle();
@@ -1432,7 +1449,7 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
       // See if this instruction has a delay slot
       if (valid_bundle_info(n) && node_bundling(n)->use_unconditional_delay()) {
-        assert(delay_slot != NULL, "expecting delay slot node");
+        guarantee(delay_slot != NULL, "expecting delay slot node");
 
         // Back up 1 instruction
         cb->set_insts_end(cb->insts_end() - Pipeline::instr_unit_size());
@@ -1680,14 +1697,14 @@ Scheduling::Scheduling(Arena *arena, Compile &compile)
   : _arena(arena),
     _cfg(compile.cfg()),
     _regalloc(compile.regalloc()),
-    _reg_node(arena),
-    _bundle_instr_count(0),
-    _bundle_cycle_number(0),
     _scheduled(arena),
     _available(arena),
+    _reg_node(arena),
+    _pinch_free_list(arena),
     _next_node(NULL),
-    _bundle_use(0, 0, resource_count, &_bundle_use_elements[0]),
-    _pinch_free_list(arena)
+    _bundle_instr_count(0),
+    _bundle_cycle_number(0),
+    _bundle_use(0, 0, resource_count, &_bundle_use_elements[0])
 #ifndef PRODUCT
   , _branches(0)
   , _unconditional_delays(0)

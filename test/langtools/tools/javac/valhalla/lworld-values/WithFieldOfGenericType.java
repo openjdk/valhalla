@@ -25,15 +25,15 @@
  * @test
  * @bug 8205686
  * @summary __WithField seems to have trouble if the value type is a generic type.
- * @compile -XDrawDiagnostics -XDdev WithFieldOfGenericType.java
+ * @compile -XDrawDiagnostics -XDdev -XDallowWithFieldOperator WithFieldOfGenericType.java
  * @run main/othervm -XX:+EnableValhalla WithFieldOfGenericType
  */
 
-public final __ByValue class WithFieldOfGenericType<E> {
+public final value class WithFieldOfGenericType<E> {
   private final boolean value;
 
   public static <E> WithFieldOfGenericType<E> create() {
-    WithFieldOfGenericType<E> bug = __MakeDefault WithFieldOfGenericType<E>();
+    WithFieldOfGenericType<E> bug = WithFieldOfGenericType.default;
     bug = __WithField(bug.value, true);
     return bug;
   }

@@ -24,7 +24,7 @@
  */
 
 #include "precompiled.hpp"
-#include "asm/macroAssembler.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
@@ -331,16 +331,16 @@ void TemplateTable::ldc(bool wide)
   __ ldarb(r3, r3);
 
   // unresolved class - get the resolved class
-  __ cmp(r3, JVM_CONSTANT_UnresolvedClass);
+  __ cmp(r3, (u1)JVM_CONSTANT_UnresolvedClass);
   __ br(Assembler::EQ, call_ldc);
 
   // unresolved class in error state - call into runtime to throw the error
   // from the first resolution attempt
-  __ cmp(r3, JVM_CONSTANT_UnresolvedClassInError);
+  __ cmp(r3, (u1)JVM_CONSTANT_UnresolvedClassInError);
   __ br(Assembler::EQ, call_ldc);
 
   // resolved class - need to call vm to get java mirror of the class
-  __ cmp(r3, JVM_CONSTANT_Class);
+  __ cmp(r3, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::NE, notClass);
 
   __ bind(call_ldc);
@@ -351,7 +351,7 @@ void TemplateTable::ldc(bool wide)
   __ b(Done);
 
   __ bind(notClass);
-  __ cmp(r3, JVM_CONSTANT_Float);
+  __ cmp(r3, (u1)JVM_CONSTANT_Float);
   __ br(Assembler::NE, notFloat);
   // ftos
   __ adds(r1, r2, r1, Assembler::LSL, 3);
@@ -361,7 +361,7 @@ void TemplateTable::ldc(bool wide)
 
   __ bind(notFloat);
 
-  __ cmp(r3, JVM_CONSTANT_Integer);
+  __ cmp(r3, (u1)JVM_CONSTANT_Integer);
   __ br(Assembler::NE, notInt);
 
   // itos
@@ -760,8 +760,8 @@ void TemplateTable::iaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1, Address(r0, r1, Address::uxtw(2)));
-  __ ldrw(r0, Address(r1, arrayOopDesc::base_offset_in_bytes(T_INT)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_INT) >> 2);
+  __ access_load_at(T_INT, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(2)), noreg, noreg);
 }
 
 void TemplateTable::laload()
@@ -772,8 +772,8 @@ void TemplateTable::laload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1, Address(r0, r1, Address::uxtw(3)));
-  __ ldr(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_LONG)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_LONG) >> 3);
+  __ access_load_at(T_LONG, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(3)), noreg, noreg);
 }
 
 void TemplateTable::faload()
@@ -784,8 +784,8 @@ void TemplateTable::faload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::uxtw(2)));
-  __ ldrs(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_FLOAT) >> 2);
+  __ access_load_at(T_FLOAT, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(2)), noreg, noreg);
 }
 
 void TemplateTable::daload()
@@ -796,8 +796,8 @@ void TemplateTable::daload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::uxtw(3)));
-  __ ldrd(v0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_DOUBLE) >> 3);
+  __ access_load_at(T_DOUBLE, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(3)), noreg, noreg);
 }
 
 void TemplateTable::aaload()
@@ -808,12 +808,11 @@ void TemplateTable::aaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  int s = (UseCompressedOops ? 2 : 3);
-  __ lea(r1, Address(r0, r1, Address::uxtw(s)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
   do_oop_load(_masm,
-              Address(r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT)),
+              Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)),
               r0,
-              IN_HEAP | IN_HEAP_ARRAY);
+              IS_ARRAY);
 }
 
 void TemplateTable::baload()
@@ -824,8 +823,8 @@ void TemplateTable::baload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::uxtw(0)));
-  __ load_signed_byte(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_BYTE)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_BYTE) >> 0);
+  __ access_load_at(T_BYTE, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(0)), noreg, noreg);
 }
 
 void TemplateTable::caload()
@@ -836,8 +835,8 @@ void TemplateTable::caload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
-  __ load_unsigned_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_CHAR)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_CHAR) >> 1);
+  __ access_load_at(T_CHAR, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(1)), noreg, noreg);
 }
 
 // iload followed by caload frequent pair
@@ -853,8 +852,8 @@ void TemplateTable::fast_icaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
-  __ load_unsigned_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_CHAR)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_CHAR) >> 1);
+  __ access_load_at(T_CHAR, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(1)), noreg, noreg);
 }
 
 void TemplateTable::saload()
@@ -865,8 +864,8 @@ void TemplateTable::saload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  __ lea(r1,  Address(r0, r1, Address::uxtw(1)));
-  __ load_signed_short(r0, Address(r1,  arrayOopDesc::base_offset_in_bytes(T_SHORT)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_SHORT) >> 1);
+  __ access_load_at(T_SHORT, IN_HEAP | IS_ARRAY, r0, Address(r0, r1, Address::uxtw(1)), noreg, noreg);
 }
 
 void TemplateTable::iload(int n)
@@ -1059,9 +1058,8 @@ void TemplateTable::iastore() {
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::uxtw(2)));
-  __ strw(r0, Address(rscratch1,
-                      arrayOopDesc::base_offset_in_bytes(T_INT)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_INT) >> 2);
+  __ access_store_at(T_INT, IN_HEAP | IS_ARRAY, Address(r3, r1, Address::uxtw(2)), r0, noreg, noreg);
 }
 
 void TemplateTable::lastore() {
@@ -1072,9 +1070,8 @@ void TemplateTable::lastore() {
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::uxtw(3)));
-  __ str(r0, Address(rscratch1,
-                      arrayOopDesc::base_offset_in_bytes(T_LONG)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_LONG) >> 3);
+  __ access_store_at(T_LONG, IN_HEAP | IS_ARRAY, Address(r3, r1, Address::uxtw(3)), r0, noreg, noreg);
 }
 
 void TemplateTable::fastore() {
@@ -1085,9 +1082,8 @@ void TemplateTable::fastore() {
   // r1:  index
   // r3:  array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::uxtw(2)));
-  __ strs(v0, Address(rscratch1,
-                      arrayOopDesc::base_offset_in_bytes(T_FLOAT)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_FLOAT) >> 2);
+  __ access_store_at(T_FLOAT, IN_HEAP | IS_ARRAY, Address(r3, r1, Address::uxtw(2)), noreg /* ftos */, noreg, noreg);
 }
 
 void TemplateTable::dastore() {
@@ -1098,9 +1094,8 @@ void TemplateTable::dastore() {
   // r1:  index
   // r3:  array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::uxtw(3)));
-  __ strd(v0, Address(rscratch1,
-                      arrayOopDesc::base_offset_in_bytes(T_DOUBLE)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_DOUBLE) >> 3);
+  __ access_store_at(T_DOUBLE, IN_HEAP | IS_ARRAY, Address(r3, r1, Address::uxtw(3)), noreg /* dtos */, noreg, noreg);
 }
 
 void TemplateTable::aastore() {
@@ -1111,10 +1106,10 @@ void TemplateTable::aastore() {
   __ ldr(r2, at_tos_p1()); // index
   __ ldr(r3, at_tos_p2()); // array
 
-  Address element_address(r4, arrayOopDesc::base_offset_in_bytes(T_OBJECT));
+  Address element_address(r3, r4, Address::uxtw(LogBytesPerHeapOop));
 
   index_check(r3, r2);     // kills r1
-  __ lea(r4, Address(r3, r2, Address::uxtw(UseCompressedOops? 2 : 3)));
+  __ add(r4, r2, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
 
   // do array store check - check for NULL value first
   __ cbz(r0, is_null);
@@ -1141,7 +1136,7 @@ void TemplateTable::aastore() {
   // Get the value we will store
   __ ldr(r0, at_tos());
   // Now store using the appropriate barrier
-  do_oop_store(_masm, element_address, r0, IN_HEAP | IN_HEAP_ARRAY);
+  do_oop_store(_masm, element_address, r0, IS_ARRAY);
   __ b(done);
 
   // Have a NULL in r0, r3=array, r2=index.  Store NULL at ary[idx]
@@ -1149,7 +1144,7 @@ void TemplateTable::aastore() {
   __ profile_null_seen(r2);
 
   // Store a NULL
-  do_oop_store(_masm, element_address, noreg, IN_HEAP | IN_HEAP_ARRAY);
+  do_oop_store(_masm, element_address, noreg, IS_ARRAY);
 
   // Pop stack arguments
   __ bind(done);
@@ -1176,9 +1171,8 @@ void TemplateTable::bastore()
   __ andw(r0, r0, 1);  // if it is a T_BOOLEAN array, mask the stored value to 0/1
   __ bind(L_skip);
 
-  __ lea(rscratch1, Address(r3, r1, Address::uxtw(0)));
-  __ strb(r0, Address(rscratch1,
-                      arrayOopDesc::base_offset_in_bytes(T_BYTE)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_BYTE) >> 0);
+  __ access_store_at(T_BYTE, IN_HEAP | IS_ARRAY, Address(r3, r1, Address::uxtw(0)), r0, noreg, noreg);
 }
 
 void TemplateTable::castore()
@@ -1190,9 +1184,8 @@ void TemplateTable::castore()
   // r1: index
   // r3: array
   index_check(r3, r1); // prefer index in r1
-  __ lea(rscratch1, Address(r3, r1, Address::uxtw(1)));
-  __ strh(r0, Address(rscratch1,
-                      arrayOopDesc::base_offset_in_bytes(T_CHAR)));
+  __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_CHAR) >> 1);
+  __ access_store_at(T_CHAR, IN_HEAP | IS_ARRAY, Address(r3, r1, Address::uxtw(1)), r0, noreg, noreg);
 }
 
 void TemplateTable::sastore()
@@ -2034,7 +2027,7 @@ void TemplateTable::if_acmp(Condition cc)
   // assume branch is more often taken than not (loops use backward branches)
   Label not_taken;
   __ pop_ptr(r1);
-  __ cmp(r1, r0);
+  __ cmpoop(r1, r0);
   __ br(j_not(cc), not_taken);
   branch(false, false);
   __ bind(not_taken);
@@ -2340,7 +2333,7 @@ void TemplateTable::resolve_cache_and_index(int byte_no,
 
   assert(byte_no == f1_byte || byte_no == f2_byte, "byte_no out of range");
   __ get_cache_and_index_and_bytecode_at_bcp(Rcache, index, temp, byte_no, 1, index_size);
-  __ cmp(temp, (int) code);  // have we resolved this bytecode?
+  __ subs(zr, temp, (int) code);  // have we resolved this bytecode?
   __ br(Assembler::EQ, resolved);
 
   // resolve first time through
@@ -2513,7 +2506,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   if (is_static) rc = may_not_rewrite;
 
   // btos
-  __ load_signed_byte(r0, field);
+  __ access_load_at(T_BYTE, IN_HEAP, r0, field, noreg, noreg);
   __ push(btos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2522,11 +2515,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notByte);
-  __ cmp(flags, ztos);
+  __ cmp(flags, (u1)ztos);
   __ br(Assembler::NE, notBool);
 
   // ztos (same code as btos)
-  __ ldrsb(r0, field);
+  __ access_load_at(T_BOOLEAN, IN_HEAP, r0, field, noreg, noreg);
   __ push(ztos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2536,7 +2529,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notBool);
-  __ cmp(flags, atos);
+  __ cmp(flags, (u1)atos);
   __ br(Assembler::NE, notObj);
   // atos
   do_oop_load(_masm, field, r0, IN_HEAP);
@@ -2547,10 +2540,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notObj);
-  __ cmp(flags, itos);
+  __ cmp(flags, (u1)itos);
   __ br(Assembler::NE, notInt);
   // itos
-  __ ldrw(r0, field);
+  __ access_load_at(T_INT, IN_HEAP, r0, field, noreg, noreg);
   __ push(itos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2559,10 +2552,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notInt);
-  __ cmp(flags, ctos);
+  __ cmp(flags, (u1)ctos);
   __ br(Assembler::NE, notChar);
   // ctos
-  __ load_unsigned_short(r0, field);
+  __ access_load_at(T_CHAR, IN_HEAP, r0, field, noreg, noreg);
   __ push(ctos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2571,10 +2564,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notChar);
-  __ cmp(flags, stos);
+  __ cmp(flags, (u1)stos);
   __ br(Assembler::NE, notShort);
   // stos
-  __ load_signed_short(r0, field);
+  __ access_load_at(T_SHORT, IN_HEAP, r0, field, noreg, noreg);
   __ push(stos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2583,10 +2576,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notShort);
-  __ cmp(flags, ltos);
+  __ cmp(flags, (u1)ltos);
   __ br(Assembler::NE, notLong);
   // ltos
-  __ ldr(r0, field);
+  __ access_load_at(T_LONG, IN_HEAP, r0, field, noreg, noreg);
   __ push(ltos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2595,10 +2588,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ b(Done);
 
   __ bind(notLong);
-  __ cmp(flags, ftos);
+  __ cmp(flags, (u1)ftos);
   __ br(Assembler::NE, notFloat);
   // ftos
-  __ ldrs(v0, field);
+  __ access_load_at(T_FLOAT, IN_HEAP, noreg /* ftos */, field, noreg, noreg);
   __ push(ftos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2608,11 +2601,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   __ bind(notFloat);
 #ifdef ASSERT
-  __ cmp(flags, dtos);
+  __ cmp(flags, (u1)dtos);
   __ br(Assembler::NE, notDouble);
 #endif
   // dtos
-  __ ldrd(v0, field);
+  __ access_load_at(T_DOUBLE, IN_HEAP, noreg /* ftos */, field, noreg, noreg);
   __ push(dtos);
   // Rewrite bytecode to be faster
   if (rc == may_rewrite) {
@@ -2750,7 +2743,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   {
     __ pop(btos);
     if (!is_static) pop_and_check_object(obj);
-    __ strb(r0, field);
+    __ access_store_at(T_BYTE, IN_HEAP, field, r0, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_bputfield, bc, r1, true, byte_no);
     }
@@ -2758,15 +2751,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notByte);
-  __ cmp(flags, ztos);
+  __ cmp(flags, (u1)ztos);
   __ br(Assembler::NE, notBool);
 
   // ztos
   {
     __ pop(ztos);
     if (!is_static) pop_and_check_object(obj);
-    __ andw(r0, r0, 0x1);
-    __ strb(r0, field);
+    __ access_store_at(T_BOOLEAN, IN_HEAP, field, r0, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_zputfield, bc, r1, true, byte_no);
     }
@@ -2774,7 +2766,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notBool);
-  __ cmp(flags, atos);
+  __ cmp(flags, (u1)atos);
   __ br(Assembler::NE, notObj);
 
   // atos
@@ -2790,14 +2782,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notObj);
-  __ cmp(flags, itos);
+  __ cmp(flags, (u1)itos);
   __ br(Assembler::NE, notInt);
 
   // itos
   {
     __ pop(itos);
     if (!is_static) pop_and_check_object(obj);
-    __ strw(r0, field);
+    __ access_store_at(T_INT, IN_HEAP, field, r0, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_iputfield, bc, r1, true, byte_no);
     }
@@ -2805,14 +2797,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notInt);
-  __ cmp(flags, ctos);
+  __ cmp(flags, (u1)ctos);
   __ br(Assembler::NE, notChar);
 
   // ctos
   {
     __ pop(ctos);
     if (!is_static) pop_and_check_object(obj);
-    __ strh(r0, field);
+    __ access_store_at(T_CHAR, IN_HEAP, field, r0, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_cputfield, bc, r1, true, byte_no);
     }
@@ -2820,14 +2812,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notChar);
-  __ cmp(flags, stos);
+  __ cmp(flags, (u1)stos);
   __ br(Assembler::NE, notShort);
 
   // stos
   {
     __ pop(stos);
     if (!is_static) pop_and_check_object(obj);
-    __ strh(r0, field);
+    __ access_store_at(T_SHORT, IN_HEAP, field, r0, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_sputfield, bc, r1, true, byte_no);
     }
@@ -2835,14 +2827,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notShort);
-  __ cmp(flags, ltos);
+  __ cmp(flags, (u1)ltos);
   __ br(Assembler::NE, notLong);
 
   // ltos
   {
     __ pop(ltos);
     if (!is_static) pop_and_check_object(obj);
-    __ str(r0, field);
+    __ access_store_at(T_LONG, IN_HEAP, field, r0, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_lputfield, bc, r1, true, byte_no);
     }
@@ -2850,14 +2842,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   }
 
   __ bind(notLong);
-  __ cmp(flags, ftos);
+  __ cmp(flags, (u1)ftos);
   __ br(Assembler::NE, notFloat);
 
   // ftos
   {
     __ pop(ftos);
     if (!is_static) pop_and_check_object(obj);
-    __ strs(v0, field);
+    __ access_store_at(T_FLOAT, IN_HEAP, field, noreg /* ftos */, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_fputfield, bc, r1, true, byte_no);
     }
@@ -2866,7 +2858,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   __ bind(notFloat);
 #ifdef ASSERT
-  __ cmp(flags, dtos);
+  __ cmp(flags, (u1)dtos);
   __ br(Assembler::NE, notDouble);
 #endif
 
@@ -2874,7 +2866,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   {
     __ pop(dtos);
     if (!is_static) pop_and_check_object(obj);
-    __ strd(v0, field);
+    __ access_store_at(T_DOUBLE, IN_HEAP, field, noreg /* dtos */, noreg, noreg);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_dputfield, bc, r1, true, byte_no);
     }
@@ -3005,27 +2997,28 @@ void TemplateTable::fast_storefield(TosState state)
     do_oop_store(_masm, field, r0, IN_HEAP);
     break;
   case Bytecodes::_fast_lputfield:
-    __ str(r0, field);
+    __ access_store_at(T_LONG, IN_HEAP, field, r0, noreg, noreg);
     break;
   case Bytecodes::_fast_iputfield:
-    __ strw(r0, field);
+    __ access_store_at(T_INT, IN_HEAP, field, r0, noreg, noreg);
     break;
   case Bytecodes::_fast_zputfield:
-    __ andw(r0, r0, 0x1);  // boolean is true if LSB is 1
-    // fall through to bputfield
+    __ access_store_at(T_BOOLEAN, IN_HEAP, field, r0, noreg, noreg);
+    break;
   case Bytecodes::_fast_bputfield:
-    __ strb(r0, field);
+    __ access_store_at(T_BYTE, IN_HEAP, field, r0, noreg, noreg);
     break;
   case Bytecodes::_fast_sputfield:
-    // fall through
+    __ access_store_at(T_SHORT, IN_HEAP, field, r0, noreg, noreg);
+    break;
   case Bytecodes::_fast_cputfield:
-    __ strh(r0, field);
+    __ access_store_at(T_CHAR, IN_HEAP, field, r0, noreg, noreg);
     break;
   case Bytecodes::_fast_fputfield:
-    __ strs(v0, field);
+    __ access_store_at(T_FLOAT, IN_HEAP, field, noreg /* ftos */, noreg, noreg);
     break;
   case Bytecodes::_fast_dputfield:
-    __ strd(v0, field);
+    __ access_store_at(T_DOUBLE, IN_HEAP, field, noreg /* dtos */, noreg, noreg);
     break;
   default:
     ShouldNotReachHere();
@@ -3098,25 +3091,25 @@ void TemplateTable::fast_accessfield(TosState state)
     __ verify_oop(r0);
     break;
   case Bytecodes::_fast_lgetfield:
-    __ ldr(r0, field);
+    __ access_load_at(T_LONG, IN_HEAP, r0, field, noreg, noreg);
     break;
   case Bytecodes::_fast_igetfield:
-    __ ldrw(r0, field);
+    __ access_load_at(T_INT, IN_HEAP, r0, field, noreg, noreg);
     break;
   case Bytecodes::_fast_bgetfield:
-    __ load_signed_byte(r0, field);
+    __ access_load_at(T_BYTE, IN_HEAP, r0, field, noreg, noreg);
     break;
   case Bytecodes::_fast_sgetfield:
-    __ load_signed_short(r0, field);
+    __ access_load_at(T_SHORT, IN_HEAP, r0, field, noreg, noreg);
     break;
   case Bytecodes::_fast_cgetfield:
-    __ load_unsigned_short(r0, field);
+    __ access_load_at(T_CHAR, IN_HEAP, r0, field, noreg, noreg);
     break;
   case Bytecodes::_fast_fgetfield:
-    __ ldrs(v0, field);
+    __ access_load_at(T_FLOAT, IN_HEAP, noreg /* ftos */, field, noreg, noreg);
     break;
   case Bytecodes::_fast_dgetfield:
-    __ ldrd(v0, field);
+    __ access_load_at(T_DOUBLE, IN_HEAP, noreg /* dtos */, field, noreg, noreg);
     break;
   default:
     ShouldNotReachHere();
@@ -3161,14 +3154,14 @@ void TemplateTable::fast_xaccess(TosState state)
   __ null_check(r0);
   switch (state) {
   case itos:
-    __ ldrw(r0, Address(r0, r1, Address::lsl(0)));
+    __ access_load_at(T_INT, IN_HEAP, r0, Address(r0, r1, Address::lsl(0)), noreg, noreg);
     break;
   case atos:
     do_oop_load(_masm, Address(r0, r1, Address::lsl(0)), r0, IN_HEAP);
     __ verify_oop(r0);
     break;
   case ftos:
-    __ ldrs(v0, Address(r0, r1, Address::lsl(0)));
+    __ access_load_at(T_FLOAT, IN_HEAP, noreg /* ftos */, Address(r0, r1, Address::lsl(0)), noreg, noreg);
     break;
   default:
     ShouldNotReachHere();
@@ -3369,22 +3362,45 @@ void TemplateTable::invokeinterface(int byte_no) {
   // r2: receiver
   // r3: flags
 
+  // First check for Object case, then private interface method,
+  // then regular interface method.
+
   // Special case of invokeinterface called for virtual method of
-  // java.lang.Object.  See cpCacheOop.cpp for details.
-  // This code isn't produced by javac, but could be produced by
-  // another compliant java compiler.
-  Label notMethod;
-  __ tbz(r3, ConstantPoolCacheEntry::is_forced_virtual_shift, notMethod);
+  // java.lang.Object.  See cpCache.cpp for details.
+  Label notObjectMethod;
+  __ tbz(r3, ConstantPoolCacheEntry::is_forced_virtual_shift, notObjectMethod);
 
   invokevirtual_helper(rmethod, r2, r3);
-  __ bind(notMethod);
+  __ bind(notObjectMethod);
+
+  Label no_such_interface;
+
+  // Check for private method invocation - indicated by vfinal
+  Label notVFinal;
+  __ tbz(r3, ConstantPoolCacheEntry::is_vfinal_shift, notVFinal);
+
+  // Get receiver klass into r3 - also a null check
+  __ null_check(r2, oopDesc::klass_offset_in_bytes());
+  __ load_klass(r3, r2);
+
+  Label subtype;
+  __ check_klass_subtype(r3, r0, r4, subtype);
+  // If we get here the typecheck failed
+  __ b(no_such_interface);
+  __ bind(subtype);
+
+  __ profile_final_call(r0);
+  __ profile_arguments_type(r0, rmethod, r4, true);
+  __ jump_from_interpreted(rmethod, r0);
+
+  __ bind(notVFinal);
 
   // Get receiver klass into r3 - also a null check
   __ restore_locals();
   __ null_check(r2, oopDesc::klass_offset_in_bytes());
   __ load_klass(r3, r2);
 
-  Label no_such_interface, no_such_method;
+  Label no_such_method;
 
   // Preserve method for throw_AbstractMethodErrorVerbose.
   __ mov(r16, rmethod);
@@ -3518,7 +3534,7 @@ void TemplateTable::_new() {
   __ lea(rscratch1, Address(r0, r3, Address::lsl(0)));
   __ lea(rscratch1, Address(rscratch1, tags_offset));
   __ ldarb(rscratch1, rscratch1);
-  __ cmp(rscratch1, JVM_CONSTANT_Class);
+  __ cmp(rscratch1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::NE, slow_case);
 
   // get InstanceKlass
@@ -3527,7 +3543,7 @@ void TemplateTable::_new() {
   // make sure klass is initialized & doesn't have finalizer
   // make sure klass is fully initialized
   __ ldrb(rscratch1, Address(r4, InstanceKlass::init_state_offset()));
-  __ cmp(rscratch1, InstanceKlass::fully_initialized);
+  __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
   __ br(Assembler::NE, slow_case);
 
   // get instance_size in InstanceKlass (scaled to a count of bytes)
@@ -3569,7 +3585,6 @@ void TemplateTable::_new() {
     // r3: instance size in bytes
     if (allow_shared_alloc) {
       __ eden_allocate(r0, r3, 0, r10, slow_case);
-      __ incr_allocated_bytes(rthread, r3, 0, rscratch1);
     }
   }
 
@@ -3668,7 +3683,7 @@ void TemplateTable::checkcast()
   __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
   __ lea(r1, Address(rscratch1, r19));
   __ ldarb(r1, r1);
-  __ cmp(r1, JVM_CONSTANT_Class);
+  __ cmp(r1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::EQ, quicked);
 
   __ push(atos); // save receiver for result, and for GC
@@ -3722,7 +3737,7 @@ void TemplateTable::instanceof() {
   __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
   __ lea(r1, Address(rscratch1, r19));
   __ ldarb(r1, r1);
-  __ cmp(r1, JVM_CONSTANT_Class);
+  __ cmp(r1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::EQ, quicked);
 
   __ push(atos); // save receiver for result, and for GC
@@ -3825,6 +3840,8 @@ void TemplateTable::monitorenter()
   // check for NULL object
   __ null_check(r0);
 
+  __ resolve(IS_NOT_NULL, r0);
+
   const Address monitor_block_top(
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
@@ -3923,6 +3940,8 @@ void TemplateTable::monitorexit()
 
   // check for NULL object
   __ null_check(r0);
+
+  __ resolve(IS_NOT_NULL, r0);
 
   const Address monitor_block_top(
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);

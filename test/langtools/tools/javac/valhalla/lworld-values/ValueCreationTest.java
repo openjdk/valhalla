@@ -25,7 +25,7 @@
  * @test
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile ValueCreationTest.java
+ * @compile -XDallowWithFieldOperator ValueCreationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla ValueCreationTest
  * @modules jdk.compiler
  */
@@ -36,7 +36,7 @@ import java.nio.file.Paths;
 
 public class ValueCreationTest {
 
-    __ByValue
+    value
     static final class Point {
 
         final int x;
@@ -48,7 +48,7 @@ public class ValueCreationTest {
         }
 
         static Point makePoint(int x, int y) {
-           Point p = __MakeDefault Point();
+           Point p = Point.default;
            p = __WithField(p.x, x);
            return __WithField(p.y, y);
         }

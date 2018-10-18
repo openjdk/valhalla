@@ -5,7 +5,7 @@
  */
 
 public class CheckMultiDimensionalArrayStore {
-    __ByValue final class V {
+    value final class V {
         final int x = 10;
         class Y {
             V [][][] va = new V[][][] {{{ null }}};

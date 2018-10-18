@@ -26,7 +26,9 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetAssembler.hpp"
+#include "gc/g1/g1BarrierSetRuntime.hpp"
 #include "gc/g1/g1CardTable.hpp"
+#include "gc/g1/g1SATBMarkQueueSet.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "interpreter/interp_masm.hpp"
@@ -42,7 +44,7 @@
 
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count) {
-  bool dest_uninitialized = (decorators & AS_DEST_NOT_INITIALIZED) != 0;
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
   // With G1, don't generate the call if we statically know that the target in uninitialized
   if (!dest_uninitialized) {
     Register tmp = O5;
@@ -68,8 +70,8 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
     }
     __ mov(addr->after_save(), O0);
     // Get the count into O1
-    address slowpath = UseCompressedOops ? CAST_FROM_FN_PTR(address, G1BarrierSet::write_ref_array_pre_narrow_oop_entry)
-                                         : CAST_FROM_FN_PTR(address, G1BarrierSet::write_ref_array_pre_oop_entry);
+    address slowpath = UseCompressedOops ? CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_narrow_oop_entry)
+                                         : CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_oop_entry);
     __ call(slowpath);
     __ delayed()->mov(count->after_save(), O1);
     if (addr->is_global()) {
@@ -90,7 +92,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
   // Get some new fresh output registers.
   __ save_frame(0);
   __ mov(addr->after_save(), O0);
-  __ call(CAST_FROM_FN_PTR(address, G1BarrierSet::write_ref_array_post_entry));
+  __ call(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry));
   __ delayed()->mov(count->after_save(), O1);
   __ restore();
 }
@@ -159,7 +161,7 @@ static void generate_satb_log_enqueue(bool with_frame) {
 
   address handle_zero =
     CAST_FROM_FN_PTR(address,
-                     &SATBMarkQueueSet::handle_zero_index_for_thread);
+                     &G1SATBMarkQueueSet::handle_zero_index_for_thread);
   // This should be rare enough that we can afford to save all the
   // scratch registers that the calling context might be using.
   __ mov(G1_scratch, L0);
@@ -368,12 +370,10 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Register
 
   G1BarrierSet* bs = barrier_set_cast<G1BarrierSet>(BarrierSet::barrier_set());
 
-  if (G1RSBarrierRegionFilter) {
-    __ xor3(store_addr, new_val, tmp);
-    __ srlx(tmp, HeapRegion::LogOfHRGrainBytes, tmp);
+  __ xor3(store_addr, new_val, tmp);
+  __ srlx(tmp, HeapRegion::LogOfHRGrainBytes, tmp);
 
-    __ cmp_and_brx_short(tmp, G0, Assembler::equal, Assembler::pt, filtered);
-  }
+  __ cmp_and_brx_short(tmp, G0, Assembler::equal, Assembler::pt, filtered);
 
   // If the "store_addr" register is an "in" or "local" register, move it to
   // a scratch reg so we can pass it as an argument.
@@ -401,15 +401,16 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Register
 void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Register val, Address dst, Register tmp) {
   bool in_heap = (decorators & IN_HEAP) != 0;
-  bool in_concurrent_root = (decorators & IN_CONCURRENT_ROOT) != 0;
+  bool as_normal = (decorators & AS_NORMAL) != 0;
+  assert((decorators & IS_DEST_UNINITIALIZED) == 0, "unsupported");
 
-  bool needs_pre_barrier = in_heap || in_concurrent_root;
+  bool needs_pre_barrier = as_normal;
   // No need for post barrier if storing NULL
   bool needs_post_barrier = val != G0 && in_heap;
 
-  bool on_array = (decorators & IN_HEAP_ARRAY) != 0;
+  bool is_array = (decorators & IS_ARRAY) != 0;
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  bool precise = on_array || on_anonymous;
+  bool precise = is_array || on_anonymous;
 
   Register index = dst.has_index() ? dst.index() : noreg;
   int disp = dst.has_disp() ? dst.disp() : 0;
@@ -606,8 +607,8 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
 
   __ call_VM_leaf(L7_thread_cache,
                   CAST_FROM_FN_PTR(address,
-                                   SATBMarkQueueSet::handle_zero_index_for_thread),
-                                   G2_thread);
+                                   G1SATBMarkQueueSet::handle_zero_index_for_thread),
+                  G2_thread);
 
   __ restore_live_registers(true);
 
@@ -694,7 +695,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ call_VM_leaf(L7_thread_cache,
                   CAST_FROM_FN_PTR(address,
                                    DirtyCardQueueSet::handle_zero_index_for_thread),
-                                   G2_thread);
+                  G2_thread);
 
   __ restore_live_registers(true);
 

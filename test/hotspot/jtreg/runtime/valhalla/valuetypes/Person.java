@@ -23,7 +23,7 @@
 
 package runtime.valhalla.valuetypes;
 
-public final __ByValue class Person {
+public final value class Person {
 
     final int    id;
     final String firstName;
@@ -44,7 +44,7 @@ public final __ByValue class Person {
     }
 
     static Person create(int id, String firstName, String lastName) {
-        Person p = __MakeDefault Person();
+        Person p = Person.default;
         p = __WithField(p.id, id);
         p = __WithField(p.firstName, firstName);
         p = __WithField(p.lastName, lastName);

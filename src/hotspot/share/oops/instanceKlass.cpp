@@ -38,7 +38,6 @@
 #include "code/dependencyContext.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
-#include "gc/shared/specialized_oop_closures.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "interpreter/rewriter.hpp"
 #include "jvmtifiles/jvmti.h"
@@ -68,11 +67,11 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "prims/methodComparator.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/fieldDescriptor.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/thread.inline.hpp"
 #include "services/classLoadingService.hpp"
 #include "services/threadService.hpp"
@@ -82,6 +81,10 @@
 #ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
 #endif
+#if INCLUDE_JFR
+#include "jfr/jfrEvents.hpp"
+#endif
+
 
 #ifdef DTRACE_ENABLED
 
@@ -146,13 +149,205 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
+// called to verify that k is a member of this nest
+bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
+  if (_nest_members == NULL || _nest_members == Universe::the_empty_short_array()) {
+    if (log_is_enabled(Trace, class, nestmates)) {
+      ResourceMark rm(THREAD);
+      log_trace(class, nestmates)("Checked nest membership of %s in non-nest-host class %s",
+                                  k->external_name(), this->external_name());
+    }
+    return false;
+  }
+
+  if (log_is_enabled(Trace, class, nestmates)) {
+    ResourceMark rm(THREAD);
+    log_trace(class, nestmates)("Checking nest membership of %s in %s",
+                                k->external_name(), this->external_name());
+  }
+
+  // Check names first and if they match then check actual klass. This avoids
+  // resolving anything unnecessarily.
+  for (int i = 0; i < _nest_members->length(); i++) {
+    int cp_index = _nest_members->at(i);
+    Symbol* name = _constants->klass_name_at(cp_index);
+    if (name == k->name()) {
+      log_trace(class, nestmates)("- Found it at nest_members[%d] => cp[%d]", i, cp_index);
+
+      // names match so check actual klass - this may trigger class loading if
+      // it doesn't match (but that should be impossible)
+      Klass* k2 = _constants->klass_at(cp_index, CHECK_false);
+      if (k2 == k) {
+        log_trace(class, nestmates)("- class is listed as a nest member");
+        return true;
+      } else {
+        // same name but different klass!
+        log_trace(class, nestmates)(" - klass comparison failed!");
+        // can't have different classes for the same name, so we're done
+        return false;
+      }
+    }
+  }
+  log_trace(class, nestmates)("- class is NOT a nest member!");
+  return false;
+}
+
+// Return nest-host class, resolving, validating and saving it if needed.
+// In cases where this is called from a thread that can not do classloading
+// (such as a native JIT thread) then we simply return NULL, which in turn
+// causes the access check to return false. Such code will retry the access
+// from a more suitable environment later.
+InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
+  InstanceKlass* nest_host_k = _nest_host;
+  if (nest_host_k == NULL) {
+    // need to resolve and save our nest-host class. This could be attempted
+    // concurrently but as the result is idempotent and we don't use the class
+    // then we do not need any synchronization beyond what is implicitly used
+    // during class loading.
+    if (_nest_host_index != 0) { // we have a real nest_host
+      // Before trying to resolve check if we're in a suitable context
+      if (!THREAD->can_call_java() && !_constants->tag_at(_nest_host_index).is_klass()) {
+        if (log_is_enabled(Trace, class, nestmates)) {
+          ResourceMark rm(THREAD);
+          log_trace(class, nestmates)("Rejected resolution of nest-host of %s in unsuitable thread",
+                                      this->external_name());
+        }
+        return NULL;
+      }
+
+      if (log_is_enabled(Trace, class, nestmates)) {
+        ResourceMark rm(THREAD);
+        log_trace(class, nestmates)("Resolving nest-host of %s using cp entry for %s",
+                                    this->external_name(),
+                                    _constants->klass_name_at(_nest_host_index)->as_C_string());
+      }
+
+      Klass* k = _constants->klass_at(_nest_host_index, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        Handle exc_h = Handle(THREAD, PENDING_EXCEPTION);
+        if (exc_h->is_a(SystemDictionary::NoClassDefFoundError_klass())) {
+          // throw a new CDNFE with the original as its cause, and a clear msg
+          ResourceMark rm(THREAD);
+          char buf[200];
+          CLEAR_PENDING_EXCEPTION;
+          jio_snprintf(buf, sizeof(buf),
+                       "Unable to load nest-host class (%s) of %s",
+                       _constants->klass_name_at(_nest_host_index)->as_C_string(),
+                       this->external_name());
+          log_trace(class, nestmates)("%s - NoClassDefFoundError", buf);
+          THROW_MSG_CAUSE_NULL(vmSymbols::java_lang_NoClassDefFoundError(), buf, exc_h);
+        }
+        // All other exceptions pass through (OOME, StackOverflowError, LinkageErrors etc).
+        return NULL;
+      }
+
+      // A valid nest-host is an instance class in the current package that lists this
+      // class as a nest member. If any of these conditions are not met we post the
+      // requested exception type (if any) and return NULL
+
+      const char* error = NULL;
+
+      // JVMS 5.4.4 indicates package check comes first
+      if (is_same_class_package(k)) {
+
+        // Now check actual membership. We can't be a member if our "host" is
+        // not an instance class.
+        if (k->is_instance_klass()) {
+          nest_host_k = InstanceKlass::cast(k);
+
+          bool is_member = nest_host_k->has_nest_member(this, CHECK_NULL);
+          if (is_member) {
+            // save resolved nest-host value
+            _nest_host = nest_host_k;
+
+            if (log_is_enabled(Trace, class, nestmates)) {
+              ResourceMark rm(THREAD);
+              log_trace(class, nestmates)("Resolved nest-host of %s to %s",
+                                          this->external_name(), k->external_name());
+            }
+            return nest_host_k;
+          }
+        }
+        error = "current type is not listed as a nest member";
+      } else {
+        error = "types are in different packages";
+      }
+
+      if (log_is_enabled(Trace, class, nestmates)) {
+        ResourceMark rm(THREAD);
+        log_trace(class, nestmates)("Type %s is not a nest member of resolved type %s: %s",
+                                    this->external_name(),
+                                    k->external_name(),
+                                    error);
+      }
+
+      if (validationException != NULL) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(THREAD_AND_LOCATION,
+                           validationException,
+                           "Type %s is not a nest member of %s: %s",
+                           this->external_name(),
+                           k->external_name(),
+                           error
+                           );
+      }
+      return NULL;
+    } else {
+      if (log_is_enabled(Trace, class, nestmates)) {
+        ResourceMark rm(THREAD);
+        log_trace(class, nestmates)("Type %s is not part of a nest: setting nest-host to self",
+                                    this->external_name());
+      }
+      // save resolved nest-host value
+      return (_nest_host = this);
+    }
+  }
+  return nest_host_k;
+}
+
+// check if 'this' and k are nestmates (same nest_host), or k is our nest_host,
+// or we are k's nest_host - all of which is covered by comparing the two
+// resolved_nest_hosts
+bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
+
+  assert(this != k, "this should be handled by higher-level code");
+
+  // Per JVMS 5.4.4 we first resolve and validate the current class, then
+  // the target class k. Resolution exceptions will be passed on by upper
+  // layers. IncompatibleClassChangeErrors from membership validation failures
+  // will also be passed through.
+
+  Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+  InstanceKlass* cur_host = nest_host(icce, CHECK_false);
+  if (cur_host == NULL) {
+    return false;
+  }
+
+  Klass* k_nest_host = k->nest_host(icce, CHECK_false);
+  if (k_nest_host == NULL) {
+    return false;
+  }
+
+  bool access = (cur_host == k_nest_host);
+
+  if (log_is_enabled(Trace, class, nestmates)) {
+    ResourceMark rm(THREAD);
+    log_trace(class, nestmates)("Class %s does %shave nestmate access to %s",
+                                this->external_name(),
+                                access ? "" : "NOT ",
+                                k->external_name());
+  }
+
+  return access;
+}
+
 InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
   const int size = InstanceKlass::size(parser.vtable_size(),
                                        parser.itable_size(),
                                        nonstatic_oop_map_size(parser.total_oop_map_count()),
                                        parser.is_interface(),
-                                       parser.is_anonymous(),
-                                       should_store_fingerprint(parser.is_anonymous()),
+                                       parser.is_unsafe_anonymous(),
+                                       should_store_fingerprint(parser.is_unsafe_anonymous()),
                                        parser.has_flattenable_fields() ? parser.java_fields_count() : 0,
                                        parser.is_value_type());
 
@@ -173,7 +368,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
       ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
     } else if (parser.is_value_type()) {
       // value type
-      ik = new (loader_data, size, true, THREAD) ValueKlass(parser);
+      ik = new (loader_data, size, THREAD) ValueKlass(parser);
     } else {
       // normal
       ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
@@ -244,17 +439,21 @@ Array<int>* InstanceKlass::create_new_default_vtable_indices(int len, TRAPS) {
   return vtable_indices;
 }
 
-InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind) :
+InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, KlassID id) :
+  Klass(id),
+  _nest_members(NULL),
+  _nest_host_index(0),
+  _nest_host(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
-  _reference_type(parser.reference_type()),
   _extra_flags(0),
+  _reference_type(parser.reference_type()),
   _adr_valueklass_fixed_block(NULL) {
     set_vtable_length(parser.vtable_size());
     set_kind(kind);
     set_access_flags(parser.access_flags());
-    set_is_anonymous(parser.is_anonymous());
+    set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
     set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
     if (parser.has_flattenable_fields()) {
@@ -285,24 +484,24 @@ void InstanceKlass::deallocate_methods(ClassLoaderData* loader_data,
 
 void InstanceKlass::deallocate_interfaces(ClassLoaderData* loader_data,
                                           const Klass* super_klass,
-                                          Array<Klass*>* local_interfaces,
-                                          Array<Klass*>* transitive_interfaces) {
+                                          Array<InstanceKlass*>* local_interfaces,
+                                          Array<InstanceKlass*>* transitive_interfaces) {
   // Only deallocate transitive interfaces if not empty, same as super class
   // or same as local interfaces.  See code in parseClassFile.
-  Array<Klass*>* ti = transitive_interfaces;
-  if (ti != Universe::the_empty_klass_array() && ti != local_interfaces) {
+  Array<InstanceKlass*>* ti = transitive_interfaces;
+  if (ti != Universe::the_empty_instance_klass_array() && ti != local_interfaces) {
     // check that the interfaces don't come from super class
-    Array<Klass*>* sti = (super_klass == NULL) ? NULL :
+    Array<InstanceKlass*>* sti = (super_klass == NULL) ? NULL :
                     InstanceKlass::cast(super_klass)->transitive_interfaces();
     if (ti != sti && ti != NULL && !ti->is_shared()) {
-      MetadataFactory::free_array<Klass*>(loader_data, ti);
+      MetadataFactory::free_array<InstanceKlass*>(loader_data, ti);
     }
   }
 
   // local interfaces can be empty
-  if (local_interfaces != Universe::the_empty_klass_array() &&
+  if (local_interfaces != Universe::the_empty_instance_klass_array() &&
       local_interfaces != NULL && !local_interfaces->is_shared()) {
-    MetadataFactory::free_array<Klass*>(loader_data, local_interfaces);
+    MetadataFactory::free_array<InstanceKlass*>(loader_data, local_interfaces);
   }
 }
 
@@ -363,7 +562,8 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   // interfaces.
   if (secondary_supers() != NULL &&
       secondary_supers() != Universe::the_empty_klass_array() &&
-      secondary_supers() != transitive_interfaces() &&
+      // see comments in compute_secondary_supers about the following cast
+      (address)(secondary_supers()) != (address)(transitive_interfaces()) &&
       !secondary_supers()->is_shared()) {
     MetadataFactory::free_array<Klass*>(loader_data, secondary_supers());
   }
@@ -397,6 +597,13 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_array<jushort>(loader_data, inner_classes());
   }
   set_inner_classes(NULL);
+
+  if (nest_members() != NULL &&
+      nest_members() != Universe::the_empty_short_array() &&
+      !nest_members()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, nest_members());
+  }
+  set_nest_members(NULL);
 
   if (value_types() != NULL && !value_types()->is_shared()) {
     MetadataFactory::free_array<ValueTypes>(loader_data, value_types());
@@ -599,10 +806,10 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
   }
 
   // link all interfaces implemented by this class before linking this class
-  Array<Klass*>* interfaces = local_interfaces();
+  Array<InstanceKlass*>* interfaces = local_interfaces();
   int num_interfaces = interfaces->length();
   for (int index = 0; index < num_interfaces; index++) {
-    InstanceKlass* interk = InstanceKlass::cast(interfaces->at(index));
+    InstanceKlass* interk = interfaces->at(index);
     interk->link_class_impl(throw_verifyerror, CHECK_false);
   }
 
@@ -727,7 +934,6 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
       ClassLoaderData * loader_data = class_loader_data();
       if (!(is_shared() &&
             loader_data->is_the_null_class_loader_data())) {
-        ResourceMark rm(THREAD);
         vtable().initialize_vtable(true, CHECK_false);
         itable().initialize_itable(true, CHECK_false);
       }
@@ -749,7 +955,6 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
   }
   return true;
 }
-
 
 // Rewrite the byte codes of all of the methods of a class.
 // The rewriter must be called exactly once. Rewriting must happen after
@@ -781,8 +986,7 @@ void InstanceKlass::link_methods(TRAPS) {
 void InstanceKlass::initialize_super_interfaces(TRAPS) {
   assert (has_nonstatic_concrete_methods(), "caller should have checked this");
   for (int i = 0; i < local_interfaces()->length(); ++i) {
-    Klass* iface = local_interfaces()->at(i);
-    InstanceKlass* ik = InstanceKlass::cast(iface);
+    InstanceKlass* ik = local_interfaces()->at(i);
 
     // Initialization is depth first search ie. we start with top of the inheritance tree
     // has_nonstatic_concrete_methods drives searching superinterfaces since it
@@ -971,6 +1175,38 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
   }
 }
 
+Klass* InstanceKlass::implementor() const {
+  assert_locked_or_safepoint(Compile_lock);
+  Klass** k = adr_implementor();
+  if (k == NULL) {
+    return NULL;
+  } else {
+    return *k;
+  }
+}
+
+void InstanceKlass::set_implementor(Klass* k) {
+  assert_lock_strong(Compile_lock);
+  assert(is_interface(), "not interface");
+  Klass** addr = adr_implementor();
+  assert(addr != NULL, "null addr");
+  if (addr != NULL) {
+    *addr = k;
+  }
+}
+
+int  InstanceKlass::nof_implementors() const {
+  assert_lock_strong(Compile_lock);
+  Klass* k = implementor();
+  if (k == NULL) {
+    return 0;
+  } else if (k != this) {
+    return 1;
+  } else {
+    return 2;
+  }
+}
+
 // The embedded _implementor field can only record one implementor.
 // When there are more than one implementors, the _implementor field
 // is set to the interface Klass* itself. Following are the possible
@@ -981,7 +1217,7 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
 //
 // The _implementor field only exists for interfaces.
 void InstanceKlass::add_implementor(Klass* k) {
-  assert(Compile_lock->owned_by_self(), "");
+  assert_lock_strong(Compile_lock);
   assert(is_interface(), "not interface");
   // Filter out my subinterfaces.
   // (Note: Interfaces are never on the subklass list.)
@@ -1037,18 +1273,21 @@ bool InstanceKlass::can_be_primary_super_slow() const {
 }
 
 GrowableArray<Klass*>* InstanceKlass::compute_secondary_supers(int num_extra_slots,
-                                                               Array<Klass*>* transitive_interfaces) {
+                                                               Array<InstanceKlass*>* transitive_interfaces) {
   // The secondaries are the implemented interfaces.
-  Array<Klass*>* interfaces = transitive_interfaces;
+  Array<InstanceKlass*>* interfaces = transitive_interfaces;
   int num_secondaries = num_extra_slots + interfaces->length();
   if (num_secondaries == 0) {
     // Must share this for correct bootstrapping!
     set_secondary_supers(Universe::the_empty_klass_array());
     return NULL;
   } else if (num_extra_slots == 0) {
-    // The secondary super list is exactly the same as the transitive interfaces.
+    // The secondary super list is exactly the same as the transitive interfaces, so
+    // let's use it instead of making a copy.
     // Redefine classes has to be careful not to delete this!
-    set_secondary_supers(interfaces);
+    // We need the cast because Array<Klass*> is NOT a supertype of Array<InstanceKlass*>,
+    // (but it's safe to do here because we won't write into _secondary_supers from this point on).
+    set_secondary_supers((Array<Klass*>*)(address)interfaces);
     return NULL;
   } else {
     // Copy transitive interfaces to a temporary growable array to be constructed
@@ -1103,8 +1342,8 @@ objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
   }
   int size = objArrayOopDesc::object_size(length);
   Klass* ak = array_klass(n, CHECK_NULL);
-  objArrayOop o =
-    (objArrayOop)CollectedHeap::array_allocate(ak, size, length, CHECK_NULL);
+  objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
+                                                                /* do_zero */ true, CHECK_NULL);
   return o;
 }
 
@@ -1129,7 +1368,7 @@ instanceOop InstanceKlass::allocate_instance(TRAPS) {
 
   instanceOop i;
 
-  i = (instanceOop)CollectedHeap::obj_allocate(this, size, CHECK_NULL);
+  i = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
   if (has_finalizer_flag && !RegisterFinalizersAtInit) {
     i = register_finalizer(i, CHECK_NULL);
   }
@@ -1477,13 +1716,14 @@ Method* InstanceKlass::find_method_impl(const Symbol* name,
 // and skips over static methods
 Method* InstanceKlass::find_instance_method(const Array<Method*>* methods,
                                             const Symbol* name,
-                                            const Symbol* signature) {
+                                            const Symbol* signature,
+                                            PrivateLookupMode private_mode) {
   Method* const meth = InstanceKlass::find_method_impl(methods,
                                                  name,
                                                  signature,
                                                  find_overpass,
                                                  skip_static,
-                                                 find_private);
+                                                 private_mode);
   assert(((meth == NULL) || !meth->is_static()),
     "find_instance_method should have skipped statics");
   return meth;
@@ -1491,8 +1731,10 @@ Method* InstanceKlass::find_instance_method(const Array<Method*>* methods,
 
 // find_instance_method looks up the name/signature in the local methods array
 // and skips over static methods
-Method* InstanceKlass::find_instance_method(const Symbol* name, const Symbol* signature) const {
-  return InstanceKlass::find_instance_method(methods(), name, signature);
+Method* InstanceKlass::find_instance_method(const Symbol* name,
+                                            const Symbol* signature,
+                                            PrivateLookupMode private_mode) const {
+  return InstanceKlass::find_instance_method(methods(), name, signature, private_mode);
 }
 
 // Find looks up the name/signature in the local methods array
@@ -1593,7 +1835,7 @@ int InstanceKlass::find_method_index(const Array<Method*>* methods,
     // Do linear search to find matching signature.  First, quick check
     // for common case, ignoring overpasses if requested.
     if (method_matches(m, signature, skipping_overpass, skipping_static, skipping_private)) {
-          return hit;
+      return hit;
     }
 
     // search downwards through overloaded methods
@@ -1649,10 +1891,12 @@ int InstanceKlass::find_method_by_name(const Array<Method*>* methods,
 }
 
 // uncached_lookup_method searches both the local class methods array and all
-// superclasses methods arrays, skipping any overpass methods in superclasses.
+// superclasses methods arrays, skipping any overpass methods in superclasses,
+// and possibly skipping private methods.
 Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
                                               const Symbol* signature,
-                                              OverpassLookupMode overpass_mode) const {
+                                              OverpassLookupMode overpass_mode,
+                                              PrivateLookupMode private_mode) const {
   OverpassLookupMode overpass_local_mode = overpass_mode;
   const Klass* klass = this;
   while (klass != NULL) {
@@ -1660,7 +1904,7 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
                                                                         signature,
                                                                         overpass_local_mode,
                                                                         find_static,
-                                                                        find_private);
+                                                                        private_mode);
     if (method != NULL) {
       return method;
     }
@@ -1706,11 +1950,11 @@ Method* InstanceKlass::lookup_method_in_ordered_interfaces(Symbol* name,
 Method* InstanceKlass::lookup_method_in_all_interfaces(Symbol* name,
                                                        Symbol* signature,
                                                        DefaultsLookupMode defaults_mode) const {
-  Array<Klass*>* all_ifs = transitive_interfaces();
+  Array<InstanceKlass*>* all_ifs = transitive_interfaces();
   int num_ifs = all_ifs->length();
   InstanceKlass *ik = NULL;
   for (int i = 0; i < num_ifs; i++) {
-    ik = InstanceKlass::cast(all_ifs->at(i));
+    ik = all_ifs->at(i);
     Method* m = ik->lookup_method(name, signature);
     if (m != NULL && m->is_public() && !m->is_static() &&
         ((defaults_mode != skip_defaults) || !m->is_default_method())) {
@@ -2057,11 +2301,11 @@ bool InstanceKlass::supers_have_passed_fingerprint_checks() {
     return false;
   }
 
-  Array<Klass*>* local_interfaces = this->local_interfaces();
+  Array<InstanceKlass*>* local_interfaces = this->local_interfaces();
   if (local_interfaces != NULL) {
     int length = local_interfaces->length();
     for (int i = 0; i < length; i++) {
-      InstanceKlass* intf = InstanceKlass::cast(local_interfaces->at(i));
+      InstanceKlass* intf = local_interfaces->at(i);
       if (!intf->has_passed_fingerprint_check()) {
         ResourceMark rm;
         log_trace(class, fingerprint)("%s : interface %s not fingerprinted", external_name(), intf->external_name());
@@ -2073,7 +2317,7 @@ bool InstanceKlass::supers_have_passed_fingerprint_checks() {
   return true;
 }
 
-bool InstanceKlass::should_store_fingerprint(bool is_anonymous) {
+bool InstanceKlass::should_store_fingerprint(bool is_unsafe_anonymous) {
 #if INCLUDE_AOT
   // We store the fingerprint into the InstanceKlass only in the following 2 cases:
   if (CalculateClassFingerprint) {
@@ -2084,8 +2328,8 @@ bool InstanceKlass::should_store_fingerprint(bool is_anonymous) {
     // (2) We are running -Xshare:dump to create a shared archive
     return true;
   }
-  if (UseAOT && is_anonymous) {
-    // (3) We are using AOT code from a shared library and see an anonymous class
+  if (UseAOT && is_unsafe_anonymous) {
+    // (3) We are using AOT code from a shared library and see an unsafe anonymous class
     return true;
   }
 #endif
@@ -2162,6 +2406,8 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
       }
     }
   }
+
+  it->push(&_nest_members);
 }
 
 void InstanceKlass::remove_unshareable_info() {
@@ -2180,7 +2426,10 @@ void InstanceKlass::remove_unshareable_info() {
   if (is_linked()) {
     unlink_class();
   }
-  init_implementor();
+  {
+    MutexLocker ml(Compile_lock);
+    init_implementor();
+  }
 
   constants()->remove_unshareable_info();
 
@@ -2205,10 +2454,12 @@ void InstanceKlass::remove_unshareable_info() {
   guarantee(_previous_versions == NULL, "must be");
 #endif
 
- _init_thread = NULL;
- _methods_jmethod_ids = NULL;
- _jni_ids = NULL;
- _oop_map_cache = NULL;
+  _init_thread = NULL;
+  _methods_jmethod_ids = NULL;
+  _jni_ids = NULL;
+  _oop_map_cache = NULL;
+  // clear _nest_host to ensure re-load at runtime
+  _nest_host = NULL;
 }
 
 void InstanceKlass::remove_java_mirror() {
@@ -2236,7 +2487,6 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
     // point to old or obsolete entries.  RedefineClasses doesn't fix up
     // vtables in the shared system dictionary, only the main one.
     // It also redefines the itable too so fix that too.
-    ResourceMark rm(THREAD);
     vtable().initialize_vtable(false, CHECK);
     itable().initialize_itable(false, CHECK);
   }
@@ -2265,10 +2515,10 @@ bool InstanceKlass::check_sharing_error_state() {
       }
     }
     if (!bad) {
-      Array<Klass*>* interfaces = transitive_interfaces();
+      Array<InstanceKlass*>* interfaces = transitive_interfaces();
       for (int i = 0; i < interfaces->length(); i++) {
-        Klass* iface = interfaces->at(i);
-        if (InstanceKlass::cast(iface)->is_in_error_state()) {
+        InstanceKlass* iface = interfaces->at(i);
+        if (iface->is_in_error_state()) {
           bad = true;
           break;
         }
@@ -2297,6 +2547,14 @@ void InstanceKlass::notify_unload_class(InstanceKlass* ik) {
 
   // notify ClassLoadingService of class unload
   ClassLoadingService::notify_class_unloaded(ik);
+
+#if INCLUDE_JFR
+  assert(ik != NULL, "invariant");
+  EventClassUnload event;
+  event.set_unloadedClass(ik);
+  event.set_definingClassLoader(ik->class_loader_data());
+  event.commit();
+#endif
 }
 
 void InstanceKlass::release_C_heap_structures(InstanceKlass* ik) {
@@ -2389,8 +2647,8 @@ const char* InstanceKlass::signature_name() const {
   int hash_len = 0;
   char hash_buf[40];
 
-  // If this is an anonymous class, append a hash to make the name unique
-  if (is_anonymous()) {
+  // If this is an unsafe anonymous class, append a hash to make the name unique
+  if (is_unsafe_anonymous()) {
     intptr_t hash = (java_mirror() != NULL) ? java_mirror()->identity_hash() : 0;
     jio_snprintf(hash_buf, sizeof(hash_buf), "/" UINTX_FORMAT, (uintx)hash);
     hash_len = (int)strlen(hash_buf);
@@ -2441,21 +2699,25 @@ Symbol* InstanceKlass::package_from_name(const Symbol* name, TRAPS) {
 }
 
 ModuleEntry* InstanceKlass::module() const {
+  // For an unsafe anonymous class return the host class' module
+  if (is_unsafe_anonymous()) {
+    assert(unsafe_anonymous_host() != NULL, "unsafe anonymous class must have a host class");
+    return unsafe_anonymous_host()->module();
+  }
+
+  // Class is in a named package
   if (!in_unnamed_package()) {
     return _package_entry->module();
   }
-  const Klass* host = host_klass();
-  if (host == NULL) {
-    return class_loader_data()->unnamed_module();
-  }
-  return host->class_loader_data()->unnamed_module();
+
+  // Class is in an unnamed package, return its loader's unnamed module
+  return class_loader_data()->unnamed_module();
 }
 
 void InstanceKlass::set_package(ClassLoaderData* loader_data, TRAPS) {
 
   // ensure java/ packages only loaded by boot or platform builtin loaders
-  Handle class_loader(THREAD, loader_data->class_loader());
-  check_prohibited_package(name(), class_loader, CHECK);
+  check_prohibited_package(name(), loader_data, CHECK);
 
   TempNewSymbol pkg_name = package_from_name(name(), CHECK);
 
@@ -2485,7 +2747,7 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, TRAPS) {
 
       // A package should have been successfully created
       assert(_package_entry != NULL, "Package entry for class %s not found, loader %s",
-             name()->as_C_string(), loader_data->loader_name());
+             name()->as_C_string(), loader_data->loader_name_and_id());
     }
 
     if (log_is_enabled(Debug, module)) {
@@ -2494,14 +2756,14 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, TRAPS) {
       log_trace(module)("Setting package: class: %s, package: %s, loader: %s, module: %s",
                         external_name(),
                         pkg_name->as_C_string(),
-                        loader_data->loader_name(),
+                        loader_data->loader_name_and_id(),
                         (m->is_named() ? m->name()->as_C_string() : UNNAMED_MODULE));
     }
   } else {
     ResourceMark rm;
     log_trace(module)("Setting package: class: %s, package: unnamed, loader: %s, module: %s",
                       external_name(),
-                      (loader_data != NULL) ? loader_data->loader_name() : "NULL",
+                      (loader_data != NULL) ? loader_data->loader_name_and_id() : "NULL",
                       UNNAMED_MODULE);
   }
 }
@@ -2597,10 +2859,10 @@ bool InstanceKlass::is_override(const methodHandle& super_method, Handle targetc
 
 // Only boot and platform class loaders can define classes in "java/" packages.
 void InstanceKlass::check_prohibited_package(Symbol* class_name,
-                                             Handle class_loader,
+                                             ClassLoaderData* loader_data,
                                              TRAPS) {
-  if (!class_loader.is_null() &&
-      !SystemDictionary::is_platform_class_loader(class_loader()) &&
+  if (!loader_data->is_boot_class_loader_data() &&
+      !loader_data->is_platform_class_loader_data() &&
       class_name != NULL) {
     ResourceMark rm(THREAD);
     char* name = class_name->as_C_string();
@@ -2608,7 +2870,7 @@ void InstanceKlass::check_prohibited_package(Symbol* class_name,
       TempNewSymbol pkg_name = InstanceKlass::package_from_name(class_name, CHECK);
       assert(pkg_name != NULL, "Error in parsing package name starting with 'java/'");
       name = pkg_name->as_C_string();
-      const char* class_loader_name = SystemDictionary::loader_name(class_loader());
+      const char* class_loader_name = loader_data->loader_name_and_id();
       StringUtils::replace_no_expand(name, "/", ".");
       const char* msg_text1 = "Class loader (instance of): ";
       const char* msg_text2 = " tried to load prohibited package name: ";
@@ -2696,7 +2958,7 @@ InstanceKlass* InstanceKlass::compute_enclosing_class(bool* inner_is_member, TRA
       *inner_is_member = true;
     }
     if (NULL == outer_klass) {
-      // It may be anonymous; try for that.
+      // It may be unsafe anonymous; try for that.
       int encl_method_class_idx = enclosing_method_class_index();
       if (encl_method_class_idx != 0) {
         Klass* ok = i_cp->klass_at(encl_method_class_idx, CHECK_NULL);
@@ -2767,7 +3029,17 @@ Method* InstanceKlass::method_at_itable(Klass* holder, int index, TRAPS) {
     // If the interface isn't implemented by the receiver class,
     // the VM should throw IncompatibleClassChangeError.
     if (cnt >= nof_interfaces) {
-      THROW_NULL(vmSymbols::java_lang_IncompatibleClassChangeError());
+      ResourceMark rm(THREAD);
+      stringStream ss;
+      bool same_module = (module() == holder->module());
+      ss.print("Receiver class %s does not implement "
+               "the interface %s defining the method to be called "
+               "(%s%s%s)",
+               external_name(), holder->external_name(),
+               (same_module) ? joint_in_module_of_loader(holder) : class_in_module_of_loader(),
+               (same_module) ? "" : "; ",
+               (same_module) ? "" : holder->class_in_module_of_loader());
+      THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
     }
 
     Klass* ik = ioe->interface_klass();
@@ -3019,7 +3291,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"misc flags:        0x%x", _misc_flags);                        st->cr();
   st->print(BULLET"state:             "); st->print_cr("%s", state_names[_init_state]);
   st->print(BULLET"name:              "); name()->print_value_on(st);             st->cr();
-  st->print(BULLET"super:             "); super()->print_value_on_maybe_null(st); st->cr();
+  st->print(BULLET"super:             "); Metadata::print_value_on_maybe_null(st, super()); st->cr();
   st->print(BULLET"sub:               ");
   Klass* sub = subklass();
   int n;
@@ -3033,6 +3305,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->cr();
 
   if (is_interface()) {
+    MutexLocker ml(Compile_lock);
     st->print_cr(BULLET"nof implementors:  %d", nof_implementors());
     if (nof_implementors() == 1) {
       st->print_cr(BULLET"implementor:    ");
@@ -3042,7 +3315,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     }
   }
 
-  st->print(BULLET"arrays:            "); array_klasses()->print_value_on_maybe_null(st); st->cr();
+  st->print(BULLET"arrays:            "); Metadata::print_value_on_maybe_null(st, array_klasses()); st->cr();
   st->print(BULLET"methods:           "); print_array_on(st, methods());
   st->print(BULLET"method ordering:   "); print_array_on(st, method_ordering());
   st->print(BULLET"default_methods:   "); print_array_on(st, default_methods());
@@ -3057,7 +3330,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     class_loader_data()->print_value_on(st);
     st->cr();
   }
-  st->print(BULLET"host class:        "); host_klass()->print_value_on_maybe_null(st); st->cr();
+  st->print(BULLET"unsafe anonymous host class:        "); Metadata::print_value_on_maybe_null(st, unsafe_anonymous_host()); st->cr();
   if (source_file_name() != NULL) {
     st->print(BULLET"source file:       ");
     source_file_name()->print_value_on(st);
@@ -3092,7 +3365,14 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->cr();
   }
   st->print(BULLET"inner classes:     "); inner_classes()->print_value_on(st);     st->cr();
-  st->print(BULLET"java mirror:       "); java_mirror()->print_value_on(st);       st->cr();
+  st->print(BULLET"nest members:     "); nest_members()->print_value_on(st);     st->cr();
+  if (java_mirror() != NULL) {
+    st->print(BULLET"java mirror:       ");
+    java_mirror()->print_value_on(st);
+    st->cr();
+  } else {
+    st->print_cr(BULLET"java mirror:       NULL");
+  }
   st->print(BULLET"vtable length      %d  (start addr: " INTPTR_FORMAT ")", vtable_length(), p2i(start_of_vtable())); st->cr();
   if (vtable_length() > 0 && (Verbose || WizardMode))  print_vtable(start_of_vtable(), vtable_length(), st);
   st->print(BULLET"itable length      %d (start addr: " INTPTR_FORMAT ")", itable_length(), p2i(start_of_itable())); st->cr();
@@ -3163,11 +3443,11 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
     st->cr();
     Klass* mirrored_klass = java_lang_Class::as_Klass(obj);
     st->print(BULLET"fake entry for mirror: ");
-    mirrored_klass->print_value_on_maybe_null(st);
+    Metadata::print_value_on_maybe_null(st, mirrored_klass);
     st->cr();
     Klass* array_klass = java_lang_Class::array_klass_acquire(obj);
     st->print(BULLET"fake entry for array: ");
-    array_klass->print_value_on_maybe_null(st);
+    Metadata::print_value_on_maybe_null(st, array_klass);
     st->cr();
     st->print_cr(BULLET"fake entry for oop_size: %d", java_lang_Class::oop_size(obj));
     st->print_cr(BULLET"fake entry for static_oop_field_count: %d", java_lang_Class::static_oop_field_count(obj));
@@ -3180,6 +3460,12 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
     java_lang_invoke_MethodType::print_signature(obj, st);
     st->cr();
   }
+}
+
+bool InstanceKlass::verify_itable_index(int i) {
+  int method_count = klassItable::method_count_for_interface(this);
+  assert(i >= 0 && i < method_count, "index out of bounds");
+  return true;
 }
 
 #endif //PRODUCT
@@ -3447,6 +3733,7 @@ void InstanceKlass::collect_statistics(KlassSizeStats *sz) const {
   n += (sz->_transitive_interfaces_bytes = sz->count_array(transitive_interfaces()));
   n += (sz->_fields_bytes                = sz->count_array(fields()));
   n += (sz->_inner_classes_bytes         = sz->count_array(inner_classes()));
+  n += (sz->_nest_members_bytes          = sz->count_array(nest_members()));
   sz->_ro_bytes += n;
 
   const ConstantPool* cp = constants();
@@ -3474,7 +3761,7 @@ void InstanceKlass::collect_statistics(KlassSizeStats *sz) const {
 
 // Verification
 
-class VerifyFieldClosure: public OopClosure {
+class VerifyFieldClosure: public BasicOopIterateClosure {
  protected:
   template <class T> void do_oop_work(T* p) {
     oop obj = RawAccess<>::oop_load(p);
@@ -3527,29 +3814,23 @@ void InstanceKlass::verify_on(outputStream* st) {
     guarantee(sib->super() == super, "siblings should have same superklass");
   }
 
-  // Verify implementor fields
-  Klass* im = implementor();
-  if (im != NULL) {
-    guarantee(is_interface(), "only interfaces should have implementor set");
-    guarantee(im->is_klass(), "should be klass");
-    guarantee(!im->is_interface() || im == this,
-      "implementors cannot be interfaces");
-  }
+  // Verify implementor fields requires the Compile_lock, but this is sometimes
+  // called inside a safepoint, so don't verify.
 
   // Verify local interfaces
   if (local_interfaces()) {
-    Array<Klass*>* local_interfaces = this->local_interfaces();
+    Array<InstanceKlass*>* local_interfaces = this->local_interfaces();
     for (int j = 0; j < local_interfaces->length(); j++) {
-      Klass* e = local_interfaces->at(j);
+      InstanceKlass* e = local_interfaces->at(j);
       guarantee(e->is_klass() && e->is_interface(), "invalid local interface");
     }
   }
 
   // Verify transitive interfaces
   if (transitive_interfaces() != NULL) {
-    Array<Klass*>* transitive_interfaces = this->transitive_interfaces();
+    Array<InstanceKlass*>* transitive_interfaces = this->transitive_interfaces();
     for (int j = 0; j < transitive_interfaces->length(); j++) {
-      Klass* e = transitive_interfaces->at(j);
+      InstanceKlass* e = transitive_interfaces->at(j);
       guarantee(e->is_klass() && e->is_interface(), "invalid transitive interface");
     }
   }
@@ -3613,16 +3894,16 @@ void InstanceKlass::verify_on(outputStream* st) {
   if (constants() != NULL) {
     guarantee(constants()->is_constantPool(), "should be constant pool");
   }
-  const Klass* host = host_klass();
-  if (host != NULL) {
-    guarantee(host->is_klass(), "should be klass");
+  const Klass* anonymous_host = unsafe_anonymous_host();
+  if (anonymous_host != NULL) {
+    guarantee(anonymous_host->is_klass(), "should be klass");
   }
 }
 
 void InstanceKlass::oop_verify_on(oop obj, outputStream* st) {
   Klass::oop_verify_on(obj, st);
   VerifyFieldClosure blk;
-  obj->oop_iterate_no_header(&blk);
+  obj->oop_iterate(&blk);
 }
 
 
@@ -3674,10 +3955,6 @@ void JNIid::verify(Klass* holder) {
   }
 }
 
-oop InstanceKlass::holder_phantom() const {
-  return class_loader_data()->holder_phantom();
-}
-
 #ifdef ASSERT
 void InstanceKlass::set_init_state(ClassState state) {
   bool good_state = is_shared() ? (_init_state <= state)
@@ -3700,7 +3977,7 @@ bool InstanceKlass::_has_previous_versions = false;
 // unloading only. Also resets the flag to false. purge_previous_version
 // will set the flag to true if there are any left, i.e., if there's any
 // work to do for next time. This is to avoid the expensive code cache
-// walk in CLDG::do_unloading().
+// walk in CLDG::clean_deallocate_lists().
 bool InstanceKlass::has_previous_versions_and_reset() {
   bool ret = _has_previous_versions;
   log_trace(redefine, class, iklass, purge)("Class unloading: has_previous_versions = %s",

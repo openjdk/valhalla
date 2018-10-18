@@ -21,7 +21,7 @@
  * questions.
  */
 
-public __ByValue class Point {
+public value class Point {
     static final Object STATIC_FIELD = new Object();
     public int x;
     public int y;
@@ -30,7 +30,7 @@ public __ByValue class Point {
         y = 20;
     }
     public static Point makePoint(int x, int y) {
-        Point p = __MakeDefault Point();
+        Point p = Point.default;
         p = __WithField(p.x, x);
         p = __WithField(p.y, y);
         return p;

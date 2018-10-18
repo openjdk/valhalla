@@ -23,12 +23,11 @@
 package oracle.micro.valhalla.baseline.arraysum;
 
 import oracle.micro.valhalla.ArraysumBase;
-import oracle.micro.valhalla.BigDataSize;
-import oracle.micro.valhalla.SmallDataSize;
 import oracle.micro.valhalla.baseline.types.Box1;
-import org.openjdk.jmh.annotations.*;
-
-import java.util.concurrent.TimeUnit;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 
 public class Arraysum1 extends ArraysumBase {
 

@@ -27,7 +27,6 @@ package jdk.internal.net.http;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -109,9 +108,20 @@ abstract class HttpConnection implements Closeable {
         return client;
     }
 
-    //public abstract void connect() throws IOException, InterruptedException;
+    /**
+     * Initiates the connect phase.
+     *
+     * Returns a CompletableFuture that completes when the underlying
+     * TCP connection has been established or an error occurs.
+     */
+    public abstract CompletableFuture<Void> connectAsync(Exchange<?> exchange);
 
-    public abstract CompletableFuture<Void> connectAsync();
+    /**
+     * Finishes the connection phase.
+     *
+     * Returns a CompletableFuture that completes when any additional,
+     * type specific, setup has been done. Must be called after connectAsync. */
+    public abstract CompletableFuture<Void> finishConnect();
 
     /** Tells whether, or not, this connection is connected to its destination. */
     abstract boolean connected();
@@ -250,7 +260,7 @@ abstract class HttpConnection implements Closeable {
      * @param request
      * @return
      */
-    BiPredicate<String,List<String>> headerFilter(HttpRequestImpl request) {
+    BiPredicate<String,String> headerFilter(HttpRequestImpl request) {
         if (isTunnel()) {
             // talking to a server through a proxy tunnel
             // don't send proxy-* headers to a plain server
@@ -280,12 +290,12 @@ abstract class HttpConnection implements Closeable {
     // start with "proxy-"
     private static HttpHeaders proxyTunnelHeaders(HttpRequestImpl request) {
         Map<String, List<String>> combined = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        combined.putAll(request.getSystemHeaders().map());
+        combined.putAll(request.getSystemHeadersBuilder().map());
         combined.putAll(request.headers().map()); // let user override system
 
         // keep only proxy-* - and also strip authorization headers
         // for disabled schemes
-        return ImmutableHeaders.of(combined, Utils.PROXY_TUNNEL_FILTER);
+        return HttpHeaders.of(combined, Utils.PROXY_TUNNEL_FILTER);
     }
 
     /* Returns either a plain HTTP connection or a plain tunnelling connection

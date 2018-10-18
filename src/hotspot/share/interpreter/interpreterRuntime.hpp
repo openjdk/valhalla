@@ -74,14 +74,6 @@ class InterpreterRuntime: AllStatic {
   static void    write_flattened_value(JavaThread* thread, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_flattened_field(JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
 
-  // Value Buffers support
-  static void    recycle_vtbuffer(void *alloc_ptr);
-  static void    recycle_buffered_values(JavaThread* thread);
-  static void    return_value(JavaThread* thread, oopDesc* obj);
-  static void    return_value_step2(oopDesc* obj, void* alloc_ptr);
-  static void    fix_frame_vt_alloc_ptr(JavaThread* thread);
-  static void    value_heap_copy(JavaThread* thread, oopDesc* value);
-
   static void value_array_load(JavaThread* thread, arrayOopDesc* array, int index);
   static void value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index);
 

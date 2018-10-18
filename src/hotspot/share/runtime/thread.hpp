@@ -29,7 +29,6 @@
 #include "gc/shared/gcThreadLocalData.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
 #include "memory/allocation.hpp"
-#include "memory/vtBuffer.hpp"
 #include "oops/oop.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/frame.hpp"
@@ -43,7 +42,9 @@
 #include "runtime/park.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/threadHeapSampler.hpp"
 #include "runtime/threadLocalStorage.hpp"
+#include "runtime/threadStatisticalInfo.hpp"
 #include "runtime/unhandledOops.hpp"
 #include "utilities/align.hpp"
 #include "utilities/exceptions.hpp"
@@ -62,7 +63,6 @@ class ThreadsList;
 class ThreadsSMRSupport;
 
 class JvmtiThreadState;
-class JvmtiGetLoadedClassesClosure;
 class ThreadStatistics;
 class ConcurrentLocksDump;
 class ParkEvent;
@@ -93,15 +93,21 @@ class WorkerThread;
 
 // Class hierarchy
 // - Thread
-//   - NamedThread
-//     - VMThread
-//     - ConcurrentGCThread
-//     - WorkerThread
-//       - GangWorker
-//       - GCTaskThread
 //   - JavaThread
 //     - various subclasses eg CompilerThread, ServiceThread
-//   - WatcherThread
+//   - NonJavaThread
+//     - NamedThread
+//       - VMThread
+//       - ConcurrentGCThread
+//       - WorkerThread
+//         - GangWorker
+//         - GCTaskThread
+//     - WatcherThread
+//     - JfrThreadSampler
+//
+// All Thread subclasses must be either JavaThread or NonJavaThread.
+// This means !t->is_Java_thread() iff t is a NonJavaThread, or t is
+// a partially constructed/destroyed Thread.
 
 class Thread: public ThreadShadow {
   friend class VMStructs;
@@ -339,6 +345,9 @@ class Thread: public ThreadShadow {
   ThreadLocalAllocBuffer _tlab;                 // Thread-local eden
   jlong _allocated_bytes;                       // Cumulative number of bytes allocated on
                                                 // the Java heap
+  ThreadHeapSampler _heap_sampler;              // For use when sampling the memory.
+
+  ThreadStatisticalInfo _statistical_info;      // Statistics about the thread
 
   JFR_ONLY(DEFINE_THREAD_LOCAL_FIELD_JFR;)      // Thread-local data for jfr
 
@@ -374,19 +383,10 @@ class Thread: public ThreadShadow {
     is_definitely_current_thread = true
   };
 
- private:
-  friend class BufferedValuesDealiaser;
-
-  BufferedValuesDealiaser* _buffered_values_dealiaser;
  public:
-  BufferedValuesDealiaser* buffered_values_dealiaser() {
-    assert(Thread::current() == this, "Should only be accessed locally");
-    return _buffered_values_dealiaser;
-  }
-
   // Constructor
   Thread();
-  virtual ~Thread();
+  virtual ~Thread() = 0;        // Thread is abstract.
 
   // Manage Thread::current()
   void initialize_thread_current();
@@ -528,6 +528,10 @@ class Thread: public ThreadShadow {
   void incr_allocated_bytes(jlong size) { _allocated_bytes += size; }
   inline jlong cooked_allocated_bytes();
 
+  ThreadHeapSampler& heap_sampler()     { return _heap_sampler; }
+
+  ThreadStatisticalInfo& statistical_info() { return _statistical_info; }
+
   JFR_ONLY(DEFINE_THREAD_LOCAL_ACCESSOR_JFR;)
 
   bool is_trace_suspend()               { return (_suspend_flags & _trace_flag) != 0; }
@@ -645,7 +649,8 @@ protected:
   void    set_lgrp_id(int value) { _lgrp_id = value; }
 
   // Printing
-  virtual void print_on(outputStream* st) const;
+  void print_on(outputStream* st, bool print_extended_info) const;
+  virtual void print_on(outputStream* st) const { print_on(st, false); }
   void print() const { print_on(tty); }
   virtual void print_on_error(outputStream* st, char* buf, int buflen) const;
   void print_value_on(outputStream* st) const;
@@ -727,8 +732,6 @@ protected:
   jint _hashStateX;                           // thread-specific hashCode generator state
   jint _hashStateY;
   jint _hashStateZ;
-  void * _schedctl;
-
 
   volatile jint rng[4];                      // RNG for spin loop
 
@@ -767,9 +770,47 @@ inline Thread* Thread::current_or_null_safe() {
   return NULL;
 }
 
+class NonJavaThread: public Thread {
+  friend class VMStructs;
+
+  NonJavaThread* volatile _next;
+
+  class List;
+  static List _the_list;
+
+ public:
+  NonJavaThread();
+  ~NonJavaThread();
+
+  class Iterator;
+};
+
+// Provides iteration over the list of NonJavaThreads.  Because list
+// management occurs in the NonJavaThread constructor and destructor,
+// entries in the list may not be fully constructed instances of a
+// derived class.  Threads created after an iterator is constructed
+// will not be visited by the iterator.  The scope of an iterator is a
+// critical section; there must be no safepoint checks in that scope.
+class NonJavaThread::Iterator : public StackObj {
+  uint _protect_enter;
+  NonJavaThread* _current;
+
+  // Noncopyable.
+  Iterator(const Iterator&);
+  Iterator& operator=(const Iterator&);
+
+public:
+  Iterator();
+  ~Iterator();
+
+  bool end() const { return _current == NULL; }
+  NonJavaThread* current() const { return _current; }
+  void step();
+};
+
 // Name support for threads.  non-JavaThread subclasses with multiple
 // uniquely named instances should derive from this.
-class NamedThread: public Thread {
+class NamedThread: public NonJavaThread {
   friend class VMStructs;
   enum {
     max_name_len = 64
@@ -814,7 +855,7 @@ class WorkerThread: public NamedThread {
 };
 
 // A single WatcherThread is used for simulating timer interrupts.
-class WatcherThread: public Thread {
+class WatcherThread: public NonJavaThread {
   friend class VMStructs;
  public:
   virtual void run();
@@ -1020,9 +1061,9 @@ class JavaThread: public Thread {
   // Guard for re-entrant call to JVMCIRuntime::adjust_comp_level
   bool      _adjusting_comp_level;
 
-  // An object that JVMCI compiled code can use to further describe and
+  // An id of a speculation that JVMCI compiled code can use to further describe and
   // uniquely identify the  speculative optimization guarded by the uncommon trap
-  oop       _pending_failed_speculation;
+  long       _pending_failed_speculation;
 
   // These fields are mutually exclusive in terms of live ranges.
   union {
@@ -1077,19 +1118,6 @@ class JavaThread: public Thread {
   // _frames_to_pop_failed_realloc frames, the ones that reference
   // failed reallocations.
   int _frames_to_pop_failed_realloc;
-
-  // Buffered value types support
-  void* _vt_alloc_ptr;
-  void* _vt_alloc_limit;
-  VTBufferChunk* _local_free_chunk;
-  VTBuffer::Mark _current_vtbuffer_mark;
-  // Next 4 fields are used to monitor VT buffer memory consumption
-  // We may want to not support them in PRODUCT builds
-  jint _vtchunk_in_use;
-  jint _vtchunk_max;
-  jint _vtchunk_total_returned;
-  jint _vtchunk_total_failed;
-  jlong _vtchunk_total_memory_buffered;
 
 #ifndef PRODUCT
   int _jmp_ring_index;
@@ -1223,6 +1251,7 @@ class JavaThread: public Thread {
   bool do_not_unlock_if_synchronized()             { return _do_not_unlock_if_synchronized; }
   void set_do_not_unlock_if_synchronized(bool val) { _do_not_unlock_if_synchronized = val; }
 
+  inline void set_polling_page_release(void* poll_value);
   inline void set_polling_page(void* poll_value);
   inline volatile void* get_polling_page();
 
@@ -1445,13 +1474,13 @@ class JavaThread: public Thread {
 
 #if INCLUDE_JVMCI
   int  pending_deoptimization() const             { return _pending_deoptimization; }
-  oop  pending_failed_speculation() const         { return _pending_failed_speculation; }
+  long  pending_failed_speculation() const         { return _pending_failed_speculation; }
   bool adjusting_comp_level() const               { return _adjusting_comp_level; }
   void set_adjusting_comp_level(bool b)           { _adjusting_comp_level = b; }
   bool has_pending_monitorenter() const           { return _pending_monitorenter; }
   void set_pending_monitorenter(bool b)           { _pending_monitorenter = b; }
   void set_pending_deoptimization(int reason)     { _pending_deoptimization = reason; }
-  void set_pending_failed_speculation(oop failed_speculation) { _pending_failed_speculation = failed_speculation; }
+  void set_pending_failed_speculation(long failed_speculation) { _pending_failed_speculation = failed_speculation; }
   void set_pending_transfer_to_interpreter(bool b) { _pending_transfer_to_interpreter = b; }
   void set_jvmci_alternate_call_target(address a) { assert(_jvmci._alternate_call_target == NULL, "must be"); _jvmci._alternate_call_target = a; }
   void set_jvmci_implicit_exception_pc(address a) { assert(_jvmci._implicit_exception_pc == NULL, "must be"); _jvmci._implicit_exception_pc = a; }
@@ -1785,13 +1814,13 @@ class JavaThread: public Thread {
 
   // Misc. operations
   char* name() const { return (char*)get_thread_name(); }
-  void print_on(outputStream* st) const;
+  void print_on(outputStream* st, bool print_extended_info) const;
+  void print_on(outputStream* st) const { print_on(st, false); }
   void print_value();
   void print_thread_state_on(outputStream*) const      PRODUCT_RETURN;
   void print_thread_state() const                      PRODUCT_RETURN;
   void print_on_error(outputStream* st, char* buf, int buflen) const;
   void print_name_on_error(outputStream* st, char* buf, int buflen) const;
-  void print_vt_buffer_stats_on(outputStream* st) const;
   void verify();
   const char* get_thread_name() const;
  private:
@@ -1876,8 +1905,6 @@ class JavaThread: public Thread {
   // the specified JavaThread is exiting.
   JvmtiThreadState *jvmti_thread_state() const                                   { return _jvmti_thread_state; }
   static ByteSize jvmti_thread_state_offset()                                    { return byte_offset_of(JavaThread, _jvmti_thread_state); }
-  void set_jvmti_get_loaded_classes_closure(JvmtiGetLoadedClassesClosure* value) { _jvmti_get_loaded_classes_closure = value; }
-  JvmtiGetLoadedClassesClosure* get_jvmti_get_loaded_classes_closure() const     { return _jvmti_get_loaded_classes_closure; }
 
   // JVMTI PopFrame support
   // Setting and clearing popframe_condition
@@ -1929,7 +1956,6 @@ class JavaThread: public Thread {
 
  private:
   JvmtiThreadState *_jvmti_thread_state;
-  JvmtiGetLoadedClassesClosure* _jvmti_get_loaded_classes_closure;
 
   // Used by the interpreter in fullspeed mode for frame pop, method
   // entry, method exit and single stepping support. This field is
@@ -1975,39 +2001,6 @@ class JavaThread: public Thread {
   static inline void set_stack_size_at_create(size_t value) {
     _stack_size_at_create = value;
   }
-
-  void* vt_alloc_ptr() const { return _vt_alloc_ptr; }
-  void set_vt_alloc_ptr(void* ptr) { _vt_alloc_ptr = ptr; }
-  void* vt_alloc_limit() const { return _vt_alloc_limit; }
-  void set_vt_alloc_limit(void* ptr) { _vt_alloc_limit = ptr; }
-  VTBufferChunk* local_free_chunk() const { return _local_free_chunk; }
-  void set_local_free_chunk(VTBufferChunk* chunk) { _local_free_chunk = chunk; }
-  VTBufferChunk* current_chunk() {
-    if (_vt_alloc_ptr == NULL) return NULL;
-    VTBufferChunk* chunk = VTBufferChunk::chunk(_vt_alloc_ptr);
-    assert(chunk->owner() == this, "Sanity check");
-    return chunk;
-    // return _vt_alloc_ptr == NULL ? NULL : VTBufferChunk::chunk(_vt_alloc_ptr);
-  }
-  VTBuffer::Mark current_vtbuffer_mark() const { return _current_vtbuffer_mark; }
-  void set_current_vtbuffer_mark(VTBuffer::Mark m) { _current_vtbuffer_mark = m ; }
-
-  void increment_vtchunk_in_use() {
-    _vtchunk_in_use++;
-    if (_vtchunk_in_use > _vtchunk_max) _vtchunk_max = _vtchunk_in_use;
-  }
-  void decrement_vtchunk_in_use() { _vtchunk_in_use--; }
-  jint vtchunk_in_use() const { return _vtchunk_in_use; }
-  jint vtchunk_max() const { return _vtchunk_max; }
-  void increment_vtchunk_returned() { _vtchunk_total_returned++; }
-  jint vtchunk_total_returned() const { return _vtchunk_total_returned; }
-  void increment_vtchunk_failed() { _vtchunk_total_failed++; }
-  jint vtchunk_total_failed() const { return _vtchunk_total_failed; }
-  void increment_vtchunk_total_memory_buffered(jlong size) { _vtchunk_total_memory_buffered += size; }
-  jlong vtchunk_total_memory_buffered() const { return _vtchunk_total_memory_buffered; }
-
-  static ByteSize vt_alloc_ptr_offset() { return byte_offset_of(JavaThread, _vt_alloc_ptr); }
-
 
   // Machine dependent stuff
 #include OS_CPU_HEADER(thread)
@@ -2160,6 +2153,7 @@ class Threads: AllStatic {
   static int         _thread_claim_parity;
 #ifdef ASSERT
   static bool        _vm_complete;
+  static size_t      _threads_before_barrier_set;
 #endif
 
   static void initialize_java_lang_classes(JavaThread* main_thread, TRAPS);
@@ -2229,20 +2223,27 @@ class Threads: AllStatic {
 
 #ifdef ASSERT
   static bool is_vm_complete() { return _vm_complete; }
-#endif
+
+  static size_t threads_before_barrier_set() {
+    return _threads_before_barrier_set;
+  }
+
+  static void inc_threads_before_barrier_set() {
+    ++_threads_before_barrier_set;
+  }
+#endif // ASSERT
 
   // Verification
   static void verify();
-  static void print_on(outputStream* st, bool print_stacks, bool internal_format, bool print_concurrent_locks);
+  static void print_on(outputStream* st, bool print_stacks, bool internal_format, bool print_concurrent_locks, bool print_extended_info);
   static void print(bool print_stacks, bool internal_format) {
     // this function is only used by debug.cpp
-    print_on(tty, print_stacks, internal_format, false /* no concurrent lock printed */);
+    print_on(tty, print_stacks, internal_format, false /* no concurrent lock printed */, false /* simple format */);
   }
   static void print_on_error(outputStream* st, Thread* current, char* buf, int buflen);
   static void print_on_error(Thread* this_thread, outputStream* st, Thread* current, char* buf,
                              int buflen, bool* found_current);
   static void print_threads_compiling(outputStream* st, char* buf, int buflen);
-  static void print_vt_buffer_stats_on(outputStream* st);
 
   // Get Java threads that are waiting to enter a monitor.
   static GrowableArray<JavaThread*>* get_pending_threads(ThreadsList * t_list,

@@ -32,7 +32,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes ObjectMethods.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator ObjectMethods.java
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
  * @run main/othervm -Xint -XX:+EnableValhalla -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
  * @run main/othervm -Xint -XX:+EnableValhalla -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
@@ -210,11 +210,11 @@ public class ObjectMethods {
         }
     }
 
-    static final __ByValue class MyInt {
+    static final value class MyInt {
         final int value;
         private MyInt() { value = 0; }
         public static MyInt create(int v) {
-            MyInt mi = __MakeDefault MyInt();
+            MyInt mi = MyInt.default;
             mi = __WithField(mi.value, v);
             return mi;
         }

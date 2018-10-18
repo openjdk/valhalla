@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot;
 
 import static jdk.vm.ci.common.InitTimer.timer;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import jdk.internal.vm.compiler.collections.EconomicMap;
+import org.graalvm.compiler.core.common.SuppressFBWarnings;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.TTY;
 import org.graalvm.compiler.lir.phases.LIRPhase;
@@ -101,6 +104,13 @@ public abstract class CompilerConfigurationFactory implements Comparable<Compile
         return new DefaultBackendMap(name);
     }
 
+    /**
+     * Returns a name that should uniquely identify this compiler configuration.
+     */
+    public final String getName() {
+        return name;
+    }
+
     public interface BackendMap {
         HotSpotBackendFactory getBackendFactory(Architecture arch);
     }
@@ -159,6 +169,7 @@ public abstract class CompilerConfigurationFactory implements Comparable<Compile
     /**
      * @return sorted list of {@link CompilerConfigurationFactory}s
      */
+    @SuppressFBWarnings(value = "DLS_DEAD_LOCAL_STORE", justification = "false positive on dead store to `candidates`")
     private static List<CompilerConfigurationFactory> getAllCandidates() {
         List<CompilerConfigurationFactory> candidates = new ArrayList<>();
         for (CompilerConfigurationFactory candidate : GraalServices.load(CompilerConfigurationFactory.class)) {

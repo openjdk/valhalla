@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test ValueTypeCreation
  * @summary Value Type creation test
  * @library /test/lib
- * @compile  -XDenableValueTypes -XDallowFlattenabilityModifiers ValueTypeCreation.java Point.java Long8Value.java Person.java
+ * @compile  -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueTypeCreation.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  */
@@ -73,7 +73,7 @@ public class ValueTypeCreation {
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
-    static final __ByValue class StaticSelf {
+    static final value class StaticSelf {
 
         static __NotFlattened final StaticSelf DEFAULT = create(0);
         final int f1;
@@ -82,7 +82,7 @@ public class ValueTypeCreation {
         public String toString() { return "StaticSelf f1=" + f1; }
 
         static StaticSelf create(int f1) {
-            StaticSelf s = __MakeDefault StaticSelf();
+            StaticSelf s = StaticSelf.default;
             s = __WithField(s.f1, f1);
             return s;
         }

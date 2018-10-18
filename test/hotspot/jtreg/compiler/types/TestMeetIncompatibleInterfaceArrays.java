@@ -25,6 +25,7 @@
  * @test
  * @bug 8141551
  * @summary C2 can not handle returns with inccompatible interface arrays
+ * @requires vm.opt.final.TieredCompilation
  * @requires vm.compMode == "Xmixed" & vm.flavor == "server"
  * @modules java.base/jdk.internal.org.objectweb.asm
  *          java.base/jdk.internal.misc
@@ -361,6 +362,12 @@ public class TestMeetIncompatibleInterfaceArrays extends ClassLoader {
                 for (int j = 0; j < 3; j++) {
                     System.out.println((j + 1) + ". invokation of " + baseClassName + i + "ASM.test() [::" +
                                        r.getName() + "() should be '" + tier[pass][j] + "' compiled]");
+
+                    // Skip Profiling compilation (C1) when Tiered is disabled.
+                    boolean profile = (level[pass][j] == CompilerWhiteBoxTest.COMP_LEVEL_FULL_PROFILE);
+                    if (profile && CompilerWhiteBoxTest.skipOnTieredCompilation(false)) {
+                        continue;
+                    }
 
                     WB.enqueueMethodForCompilation(r, level[pass][j]);
 

@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @compile -XDallowWithFieldOperator Value.java
  * @run testng/othervm -Diters=10    -XX:+EnableValhalla -Xint                   VarHandleTestAccessBoolean
  * @run testng/othervm -Diters=20000 -XX:+EnableValhalla -XX:TieredStopAtLevel=1 VarHandleTestAccessBoolean
  * @run testng/othervm -Diters=20000 -XX:+EnableValhalla                         VarHandleTestAccessBoolean

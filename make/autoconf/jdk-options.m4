@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -126,10 +126,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_OPEN_OR_CUSTOM],
   else
     AC_MSG_ERROR([Invalid value for --enable-openjdk-only: $enable_openjdk_only])
   fi
-
-  # custom-make-dir is deprecated. Please use your custom-hook.m4 to override
-  # the IncludeCustomExtension macro.
-  BASIC_DEPRECATED_ARG_WITH(custom-make-dir)
 ])
 
 AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
@@ -349,16 +345,6 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
   else
     AC_MSG_ERROR([Allowed native debug symbols are: none, internal, external, zipped])
   fi
-
-  # --enable-debug-symbols is deprecated.
-  # Please use --with-native-debug-symbols=[internal,external,zipped] .
-  BASIC_DEPRECATED_ARG_ENABLE(debug-symbols, debug_symbols,
-        [Please use --with-native-debug-symbols=[[internal,external,zipped]] .])
-
-  # --enable-zip-debug-info is deprecated.
-  # Please use --with-native-debug-symbols=zipped .
-  BASIC_DEPRECATED_ARG_ENABLE(zip-debug-info, zip_debug_info,
-                              [Please use --with-native-debug-symbols=zipped .])
 
   AC_SUBST(COMPILE_WITH_DEBUG_SYMBOLS)
   AC_SUBST(COPY_DEBUG_SYMBOLS)
@@ -581,4 +567,52 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
   fi
 
   AC_SUBST(ENABLE_GENERATE_CLASSLIST)
+])
+
+################################################################################
+#
+# Optionally filter resource translations
+#
+AC_DEFUN([JDKOPT_EXCLUDE_TRANSLATIONS],
+[
+  AC_ARG_WITH([exclude-translations], [AS_HELP_STRING([--with-exclude-translations],
+      [a comma separated list of locales to exclude translations for. Default is
+      to include all translations present in the source.])])
+
+  EXCLUDE_TRANSLATIONS=""
+  AC_MSG_CHECKING([if any translations should be excluded])
+  if test "x$with_exclude_translations" != "x"; then
+    EXCLUDE_TRANSLATIONS="${with_exclude_translations//,/ }"
+    AC_MSG_RESULT([yes: $EXCLUDE_TRANSLATIONS])
+  else
+    AC_MSG_RESULT([no])
+  fi
+
+  AC_SUBST(EXCLUDE_TRANSLATIONS)
+])
+
+################################################################################
+#
+# Optionally disable man pages
+#
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
+[
+  AC_ARG_ENABLE([manpages], [AS_HELP_STRING([--disable-manpages],
+      [Set to disable building of man pages @<:@enabled@:>@])])
+
+  BUILD_MANPAGES="true"
+  AC_MSG_CHECKING([if man pages should be built])
+  if test "x$enable_manpages" = "x"; then
+    AC_MSG_RESULT([yes])
+  elif test "x$enable_manpages" = "xyes"; then
+    AC_MSG_RESULT([yes, forced])
+  elif test "x$enable_manpages" = "xno"; then
+    AC_MSG_RESULT([no, forced])
+    BUILD_MANPAGES="false"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([--enable-manpages can only yes/no or empty])
+  fi
+
+  AC_SUBST(BUILD_MANPAGES)
 ])

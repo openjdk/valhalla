@@ -1285,9 +1285,10 @@ void LIRGenerator::do_getClass(Intrinsic* x) {
   // FIXME T_ADDRESS should actually be T_METADATA but it can't because the
   // meaning of these two is mixed up (see JDK-8026837).
   __ move(new LIR_Address(rcvr.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), temp, info);
-  __ move_wide(new LIR_Address(temp, in_bytes(Klass::java_mirror_offset()), T_ADDRESS), result);
+  __ move_wide(new LIR_Address(temp, in_bytes(Klass::java_mirror_offset()), T_ADDRESS), temp);
   // mirror = ((OopHandle)mirror)->resolve();
-  __ move_wide(new LIR_Address(result, T_OBJECT), result);
+  access_load(IN_NATIVE, T_OBJECT,
+              LIR_OprFact::address(new LIR_Address(temp, T_OBJECT)), result);
 }
 
 // java.lang.Class::isPrimitive()
@@ -1602,7 +1603,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
-  DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
   if (x->check_boolean()) {
     decorators |= C1_MASK_BOOLEAN;
   }
@@ -1614,7 +1615,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
 void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
                                   LIRItem& base, LIR_Opr offset, LIR_Opr result,
                                   CodeEmitInfo* patch_info, CodeEmitInfo* load_emit_info) {
-  decorators |= C1_READ_ACCESS;
+  decorators |= ACCESS_READ;
   LIRAccess access(this, decorators, base, offset, type, patch_info, load_emit_info);
   if (access.is_raw()) {
     _barrier_set->BarrierSetC1::load_at(access, result);
@@ -1623,10 +1624,22 @@ void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
   }
 }
 
+void LIRGenerator::access_load(DecoratorSet decorators, BasicType type,
+                               LIR_Opr addr, LIR_Opr result) {
+  decorators |= ACCESS_READ;
+  LIRAccess access(this, decorators, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, type);
+  access.set_resolved_addr(addr);
+  if (access.is_raw()) {
+    _barrier_set->BarrierSetC1::load(access, result);
+  } else {
+    _barrier_set->load(access, result);
+  }
+}
+
 void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
                                    LIRItem& base, LIR_Opr offset, LIR_Opr value,
                                    CodeEmitInfo* patch_info, CodeEmitInfo* store_emit_info) {
-  decorators |= C1_WRITE_ACCESS;
+  decorators |= ACCESS_WRITE;
   LIRAccess access(this, decorators, base, offset, type, patch_info, store_emit_info);
   if (access.is_raw()) {
     _barrier_set->BarrierSetC1::store_at(access, value);
@@ -1637,9 +1650,9 @@ void LIRGenerator::access_store_at(DecoratorSet decorators, BasicType type,
 
 LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicType type,
                                                LIRItem& base, LIRItem& offset, LIRItem& cmp_value, LIRItem& new_value) {
+  decorators |= ACCESS_READ;
+  decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= C1_READ_ACCESS;
-  decorators |= C1_WRITE_ACCESS;
   decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
@@ -1651,9 +1664,9 @@ LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicTyp
 
 LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType type,
                                             LIRItem& base, LIRItem& offset, LIRItem& value) {
+  decorators |= ACCESS_READ;
+  decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= C1_READ_ACCESS;
-  decorators |= C1_WRITE_ACCESS;
   decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
@@ -1665,9 +1678,9 @@ LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType t
 
 LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType type,
                                            LIRItem& base, LIRItem& offset, LIRItem& value) {
+  decorators |= ACCESS_READ;
+  decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= C1_READ_ACCESS;
-  decorators |= C1_WRITE_ACCESS;
   decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
@@ -1675,6 +1688,15 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
   } else {
     return _barrier_set->atomic_add_at(access, value);
   }
+}
+
+LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
+  // Use stronger ACCESS_WRITE|ACCESS_READ by default.
+  if ((decorators & (ACCESS_READ | ACCESS_WRITE)) == 0) {
+    decorators |= ACCESS_READ | ACCESS_WRITE;
+  }
+
+  return _barrier_set->resolve(this, decorators, obj);
 }
 
 void LIRGenerator::do_LoadField(LoadField* x) {
@@ -1754,11 +1776,12 @@ void LIRGenerator::do_NIOCheckIndex(Intrinsic* x) {
   if (GenerateRangeChecks) {
     CodeEmitInfo* info = state_for(x);
     CodeStub* stub = new RangeCheckStub(info, index.result());
+    LIR_Opr buf_obj = access_resolve(IS_NOT_NULL | ACCESS_READ, buf.result());
     if (index.result()->is_constant()) {
-      cmp_mem_int(lir_cond_belowEqual, buf.result(), java_nio_Buffer::limit_offset(), index.result()->as_jint(), info);
+      cmp_mem_int(lir_cond_belowEqual, buf_obj, java_nio_Buffer::limit_offset(), index.result()->as_jint(), info);
       __ branch(lir_cond_belowEqual, T_INT, stub);
     } else {
-      cmp_reg_mem(lir_cond_aboveEqual, index.result(), buf.result(),
+      cmp_reg_mem(lir_cond_aboveEqual, index.result(), buf_obj,
                   java_nio_Buffer::limit_offset(), T_INT, info);
       __ branch(lir_cond_aboveEqual, T_INT, stub);
     }
@@ -1847,7 +1870,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  DecoratorSet decorators = IN_HEAP | IN_HEAP_ARRAY;
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
 
   LIR_Opr result = rlock_result(x, x->elt_type());
   access_load_at(decorators, x->elt_type(),
@@ -2311,7 +2334,9 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
   if (compilation()->env()->comp_level() == CompLevel_full_profile && UseSwitchProfiling) {
     ciMethod* method = x->state()->scope()->method();
     ciMethodData* md = method->method_data_or_null();
+    assert(md != NULL, "Sanity");
     ciProfileData* data = md->bci_to_data(x->state()->bci());
+    assert(data != NULL, "must have profiling data");
     assert(data->is_MultiBranchData(), "bad profile data?");
     int default_count_offset = md->byte_offset_of_slot(data, MultiBranchData::default_count_offset());
     LIR_Opr md_reg = new_register(T_METADATA);
@@ -2367,7 +2392,9 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
   if (compilation()->env()->comp_level() == CompLevel_full_profile && UseSwitchProfiling) {
     ciMethod* method = x->state()->scope()->method();
     ciMethodData* md = method->method_data_or_null();
+    assert(md != NULL, "Sanity");
     ciProfileData* data = md->bci_to_data(x->state()->bci());
+    assert(data != NULL, "must have profiling data");
     assert(data->is_MultiBranchData(), "bad profile data?");
     int default_count_offset = md->byte_offset_of_slot(data, MultiBranchData::default_count_offset());
     LIR_Opr md_reg = new_register(T_METADATA);
@@ -2952,7 +2979,10 @@ void LIRGenerator::do_getEventWriter(Intrinsic* x) {
   __ move_wide(jobj_addr, result);
   __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
   __ branch(lir_cond_equal, T_OBJECT, L_end->label());
-  __ move_wide(new LIR_Address(result, T_OBJECT), result);
+
+  LIR_Opr jobj = new_register(T_OBJECT);
+  __ move(result, jobj);
+  access_load(IN_NATIVE, T_OBJECT, LIR_OprFact::address(new LIR_Address(jobj, T_OBJECT)), result);
 
   __ branch_destination(L_end->label());
 }
@@ -3076,6 +3106,7 @@ void LIRGenerator::profile_arguments(ProfileCall* x) {
   if (compilation()->profile_arguments()) {
     int bci = x->bci_of_invoke();
     ciMethodData* md = x->method()->method_data_or_null();
+    assert(md != NULL, "Sanity");
     ciProfileData* data = md->bci_to_data(bci);
     if (data != NULL) {
       if ((data->is_CallTypeData() && data->as_CallTypeData()->has_arguments()) ||
@@ -3187,7 +3218,7 @@ void LIRGenerator::profile_parameters_at_call(ProfileCall* x) {
 void LIRGenerator::do_ProfileCall(ProfileCall* x) {
   // Need recv in a temporary register so it interferes with the other temporaries
   LIR_Opr recv = LIR_OprFact::illegalOpr;
-  LIR_Opr mdo = new_register(T_OBJECT);
+  LIR_Opr mdo = new_register(T_METADATA);
   // tmp is used to hold the counters on SPARC
   LIR_Opr tmp = new_pointer_register();
 
@@ -3212,6 +3243,7 @@ void LIRGenerator::do_ProfileCall(ProfileCall* x) {
 void LIRGenerator::do_ProfileReturnType(ProfileReturnType* x) {
   int bci = x->bci_of_invoke();
   ciMethodData* md = x->method()->method_data_or_null();
+  assert(md != NULL, "Sanity");
   ciProfileData* data = md->bci_to_data(bci);
   if (data != NULL) {
     assert(data->is_CallTypeData() || data->is_VirtualCallTypeData(), "wrong profile data type");
@@ -3245,7 +3277,7 @@ void LIRGenerator::do_ProfileInvoke(ProfileInvoke* x) {
     int freq_log = Tier23InlineeNotifyFreqLog;
     double scale;
     if (_method->has_option_value("CompileThresholdScaling", scale)) {
-      freq_log = Arguments::scaled_freq_log(freq_log, scale);
+      freq_log = CompilerConfig::scaled_freq_log(freq_log, scale);
     }
     increment_event_counter_impl(info, x->inlinee(), LIR_OprFact::intConst(InvocationCounter::count_increment), right_n_bits(freq_log), InvocationEntryBci, false, true);
   }
@@ -3279,7 +3311,7 @@ void LIRGenerator::increment_event_counter(CodeEmitInfo* info, LIR_Opr step, int
   // Increment the appropriate invocation/backedge counter and notify the runtime.
   double scale;
   if (_method->has_option_value("CompileThresholdScaling", scale)) {
-    freq_log = Arguments::scaled_freq_log(freq_log, scale);
+    freq_log = CompilerConfig::scaled_freq_log(freq_log, scale);
   }
   increment_event_counter_impl(info, info->scope()->method(), step, right_n_bits(freq_log), bci, backedge, true);
 }

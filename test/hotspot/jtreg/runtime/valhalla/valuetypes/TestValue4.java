@@ -30,7 +30,7 @@ final class ContainerValue4 {
     TestValue4[] valueArray;
 }
 
-public __ByValue final class TestValue4 {
+public value final class TestValue4 {
 
     static __NotFlattened TestValue4 staticValue = getInstance();
 
@@ -57,7 +57,7 @@ public __ByValue final class TestValue4 {
     }
 
     public static TestValue4 create(int i) {
-        TestValue4 v = __MakeDefault TestValue4();
+        TestValue4 v = TestValue4.default;
         v = __WithField(v.i, i);
         v = __WithField(v.val, Integer.valueOf(i).toString());
         ByteBuffer bf = ByteBuffer.allocate(8);

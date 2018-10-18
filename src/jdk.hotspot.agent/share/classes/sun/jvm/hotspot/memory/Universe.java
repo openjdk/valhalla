@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,27 @@
 
 package sun.jvm.hotspot.memory;
 
-import java.io.*;
-import java.util.*;
-import sun.jvm.hotspot.debugger.*;
+import java.io.PrintStream;
+import java.util.Observable;
+import java.util.Observer;
+
+import sun.jvm.hotspot.debugger.Address;
+import sun.jvm.hotspot.debugger.OopHandle;
 import sun.jvm.hotspot.gc.cms.CMSHeap;
-import sun.jvm.hotspot.gc.serial.SerialHeap;
-import sun.jvm.hotspot.gc.shared.*;
+import sun.jvm.hotspot.gc.epsilon.EpsilonHeap;
 import sun.jvm.hotspot.gc.g1.G1CollectedHeap;
-import sun.jvm.hotspot.gc.parallel.*;
-import sun.jvm.hotspot.oops.*;
-import sun.jvm.hotspot.types.*;
-import sun.jvm.hotspot.runtime.*;
+import sun.jvm.hotspot.gc.parallel.ParallelScavengeHeap;
+import sun.jvm.hotspot.gc.serial.SerialHeap;
+import sun.jvm.hotspot.gc.shared.CollectedHeap;
+import sun.jvm.hotspot.gc.z.ZCollectedHeap;
+import sun.jvm.hotspot.oops.Oop;
+import sun.jvm.hotspot.runtime.BasicType;
+import sun.jvm.hotspot.runtime.VM;
+import sun.jvm.hotspot.runtime.VirtualConstructor;
+import sun.jvm.hotspot.types.AddressField;
+import sun.jvm.hotspot.types.CIntegerField;
+import sun.jvm.hotspot.types.Type;
+import sun.jvm.hotspot.types.TypeDataBase;
 
 
 public class Universe {
@@ -42,16 +52,6 @@ public class Universe {
   private static VirtualConstructor heapConstructor;
   private static sun.jvm.hotspot.types.OopField mainThreadGroupField;
   private static sun.jvm.hotspot.types.OopField systemThreadGroupField;
-
-  // single dimensional primitive array klasses
-  private static sun.jvm.hotspot.types.AddressField boolArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField byteArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField charArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField intArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField shortArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField longArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField singleArrayKlassField;
-  private static sun.jvm.hotspot.types.AddressField doubleArrayKlassField;
 
   private static AddressField narrowOopBaseField;
   private static CIntegerField narrowOopShiftField;
@@ -72,28 +72,37 @@ public class Universe {
       });
   }
 
+  private static boolean typeExists(TypeDataBase db, String type) {
+      try {
+          db.lookupType(type);
+      } catch (RuntimeException e) {
+          return false;
+      }
+      return true;
+  }
+
+  private static void addHeapTypeIfInDB(TypeDataBase db, Class heapClass) {
+      String heapName = heapClass.getSimpleName();
+      if (typeExists(db, heapName)) {
+          heapConstructor.addMapping(heapName, heapClass);
+      }
+  }
+
   private static synchronized void initialize(TypeDataBase db) {
     Type type = db.lookupType("Universe");
 
     collectedHeapField = type.getAddressField("_collectedHeap");
 
     heapConstructor = new VirtualConstructor(db);
-    heapConstructor.addMapping("CMSHeap", CMSHeap.class);
-    heapConstructor.addMapping("SerialHeap", SerialHeap.class);
-    heapConstructor.addMapping("ParallelScavengeHeap", ParallelScavengeHeap.class);
-    heapConstructor.addMapping("G1CollectedHeap", G1CollectedHeap.class);
+    addHeapTypeIfInDB(db, CMSHeap.class);
+    addHeapTypeIfInDB(db, SerialHeap.class);
+    addHeapTypeIfInDB(db, ParallelScavengeHeap.class);
+    addHeapTypeIfInDB(db, G1CollectedHeap.class);
+    addHeapTypeIfInDB(db, EpsilonHeap.class);
+    addHeapTypeIfInDB(db, ZCollectedHeap.class);
 
     mainThreadGroupField   = type.getOopField("_main_thread_group");
     systemThreadGroupField = type.getOopField("_system_thread_group");
-
-    boolArrayKlassField      = type.getAddressField("_boolArrayKlassObj");
-    byteArrayKlassField      = type.getAddressField("_byteArrayKlassObj");
-    charArrayKlassField      = type.getAddressField("_charArrayKlassObj");
-    intArrayKlassField       = type.getAddressField("_intArrayKlassObj");
-    shortArrayKlassField     = type.getAddressField("_shortArrayKlassObj");
-    longArrayKlassField      = type.getAddressField("_longArrayKlassObj");
-    singleArrayKlassField    = type.getAddressField("_singleArrayKlassObj");
-    doubleArrayKlassField    = type.getAddressField("_doubleArrayKlassObj");
 
     narrowOopBaseField = type.getAddressField("_narrow_oop._base");
     narrowOopShiftField = type.getCIntegerField("_narrow_oop._shift");

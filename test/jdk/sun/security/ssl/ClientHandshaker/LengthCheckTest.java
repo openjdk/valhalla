@@ -74,7 +74,7 @@ import java.security.*;
 import java.nio.*;
 import java.util.List;
 import java.util.ArrayList;
-import sun.security.ssl.ProtocolVersion;
+import java.util.Iterator;
 
 public class LengthCheckTest {
 
@@ -155,6 +155,7 @@ public class LengthCheckTest {
     private static final int TLS_ALERT_UNEXPECTED_MSG = 0x0A;
     private static final int TLS_ALERT_HANDSHAKE_FAILURE = 0x28;
     private static final int TLS_ALERT_INTERNAL_ERROR = 0x50;
+    private static final int TLS_ALERT_ILLEGAL_PARAMETER = 0x2F;
 
     public interface HandshakeTest {
         void execTest() throws Exception;
@@ -203,7 +204,11 @@ public class LengthCheckTest {
 
                 // Now send each ByteBuffer (each being a complete
                 // TLS record) into the client-side unwrap.
-                for (ByteBuffer bBuf : recList) {
+                // for (ByteBuffer bBuf : recList) {
+
+                Iterator<ByteBuffer> iter = recList.iterator();
+                while (!gotException && (iter.hasNext())) {
+                    ByteBuffer bBuf = iter.next();
                     dumpByteBuffer("SERVER-TO-CLIENT", bBuf);
                     try {
                         clientResult = clientEngine.unwrap(bBuf, clientIn);
@@ -232,8 +237,8 @@ public class LengthCheckTest {
             // was thrown and the proper action (a TLS alert) was
             // sent back to the server.
             if (gotException == false ||
-                !isTlsMessage(cTOs, TLS_RECTYPE_ALERT, TLS_ALERT_LVL_FATAL,
-                        TLS_ALERT_UNEXPECTED_MSG)) {
+                    !isTlsMessage(cTOs, TLS_RECTYPE_ALERT, TLS_ALERT_LVL_FATAL,
+                            TLS_ALERT_ILLEGAL_PARAMETER)) {
                 throw new SSLException(
                     "Client failed to throw Alert:fatal:internal_error");
             }
@@ -253,21 +258,19 @@ public class LengthCheckTest {
             ByteBuffer evilClientHello = createEvilClientHello(64);
             dumpByteBuffer("CLIENT-TO-SERVER", evilClientHello);
 
-            try {
-                // Server consumes Client Hello
-                serverResult = serverEngine.unwrap(evilClientHello, serverIn);
-                log("server unwrap: ", serverResult);
-                runDelegatedTasks(serverResult, serverEngine);
-                evilClientHello.compact();
+            // Server consumes Client Hello
+            serverResult = serverEngine.unwrap(evilClientHello, serverIn);
+            log("server unwrap: ", serverResult);
+            runDelegatedTasks(serverResult, serverEngine);
+            evilClientHello.compact();
 
-                // Under normal circumstances this should be a ServerHello
-                // But should throw an exception instead due to the invalid
-                // session ID.
+            // Under normal circumstances this should be a ServerHello
+            // But should throw an exception instead due to the invalid
+            // session ID.
+            try {
                 serverResult = serverEngine.wrap(serverOut, sTOc);
                 log("server wrap: ", serverResult);
                 runDelegatedTasks(serverResult, serverEngine);
-                sTOc.flip();
-                dumpByteBuffer("SERVER-TO-CLIENT", sTOc);
             } catch (SSLProtocolException ssle) {
                 log("Received expected SSLProtocolException: " + ssle);
                 gotException = true;
@@ -284,8 +287,8 @@ public class LengthCheckTest {
             // was thrown and the proper action (a TLS alert) was
             // sent back to the client.
             if (gotException == false ||
-                !isTlsMessage(sTOc, TLS_RECTYPE_ALERT, TLS_ALERT_LVL_FATAL,
-                        TLS_ALERT_UNEXPECTED_MSG)) {
+                    !isTlsMessage(sTOc, TLS_RECTYPE_ALERT, TLS_ALERT_LVL_FATAL,
+                        TLS_ALERT_ILLEGAL_PARAMETER)) {
                 throw new SSLException(
                     "Server failed to throw Alert:fatal:internal_error");
             }
@@ -783,10 +786,9 @@ public class LengthCheckTest {
             int ver_major = Byte.toUnsignedInt(bBuf.get());
             int ver_minor = Byte.toUnsignedInt(bBuf.get());
             int recLen = Short.toUnsignedInt(bBuf.getShort());
-            ProtocolVersion pv = ProtocolVersion.valueOf(ver_major, ver_minor);
 
             log("===== " + header + " (" + tlsRecType(type) + " / " +
-                pv + " / " + bufLen + " bytes) =====");
+                ver_major + "." + ver_minor + " / " + bufLen + " bytes) =====");
             bBuf.reset();
             for (int i = 0; i < bufLen; i++) {
                 if (i != 0 && i % 16 == 0) {

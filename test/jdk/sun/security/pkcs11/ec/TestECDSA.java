@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 6405536 8042967
  * @summary basic test of SHA1withECDSA and NONEwithECDSA signing/verifying
  * @author Andreas Sterbenz
- * @library ..
+ * @library /test/lib ..
  * @library ../../../../java/security/testlibrary
  * @key randomness
  * @modules jdk.crypto.cryptoki
@@ -120,21 +120,22 @@ public class TestECDSA extends PKCS11Test {
     }
 
     @Override
-    public void main(Provider provider) throws Exception {
-        long start = System.currentTimeMillis();
-
+    protected boolean skipTest(Provider provider) {
         if (provider.getService("Signature", "SHA1withECDSA") == null) {
             System.out.println("ECDSA not supported, skipping");
-            return;
+            return true;
         }
 
-        if (isBadNSSVersion(provider)) {
-            return;
+        if (isBadNSSVersion(provider) || isBadSolarisSparc(provider)) {
+            return true;
         }
 
-        if (isBadSolarisSparc(provider)) {
-            return;
-        }
+        return false;
+    }
+
+    @Override
+    public void main(Provider provider) throws Exception {
+        long start = System.currentTimeMillis();
 
         /*
          * PKCS11Test.main will remove this provider if needed

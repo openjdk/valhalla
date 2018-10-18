@@ -544,6 +544,11 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   if (mem != NULL) {
     if (mem == start_mem || mem == alloc_mem) {
       // hit a sentinel, return appropriate 0 value
+      Node* default_value = alloc->in(AllocateNode::DefaultValue);
+      if (default_value != NULL) {
+        return default_value;
+      }
+      assert(alloc->in(AllocateNode::RawDefaultValue) == NULL, "default value may not be null");
       return _igvn.zerocon(ft);
     } else if (mem->is_Store()) {
       return mem->in(MemNode::ValueIn);
@@ -776,6 +781,13 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       assert(klass->is_array_klass() && nfields >= 0, "must be an array klass.");
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
+      if (elem_type->is_valuetype()) {
+        ciValueKlass* vk = elem_type->as_value_klass();
+        if (!vk->flatten_array()) {
+          assert(basic_elem_type == T_VALUETYPE, "unexpected element basic type");
+          basic_elem_type = T_OBJECT;
+        }
+      }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
       if (klass->is_value_array_klass()) {
@@ -1335,51 +1347,6 @@ void PhaseMacroExpand::expand_allocate_common(
   Node *slow_region = NULL;
   Node *toobig_false = ctrl;
 
-  if (!always_slow && (alloc->initialization() == NULL || alloc->initialization()->is_unknown_value())) {
-    const TypeOopPtr* ary_type = _igvn.type(klass_node)->is_klassptr()->as_instance_type();
-    const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
-
-    ciKlass* elem_klass = NULL;
-    if (ary_ptr != NULL && ary_ptr->klass() != NULL) {
-      elem_klass = ary_ptr->klass()->as_array_klass()->element_klass();
-    }
-
-    if (elem_klass == NULL || (elem_klass->is_java_lang_Object() && !ary_ptr->klass_is_exact()) || elem_klass->is_valuetype()) {
-      // If it's an array of values we must go to the slow path so it is
-      // correctly initialized with default values.
-      Node* fast_region = new RegionNode(3);
-      Node* not_obj_array = ctrl;
-      Node* obj_array = generate_object_array_guard(&not_obj_array, mem, klass_node, NULL);
-
-      fast_region->init_req(1, not_obj_array);
-      slow_region = new RegionNode(1);
-      Node* k_adr = basic_plus_adr(klass_node, klass_node, in_bytes(ArrayKlass::element_klass_offset()));
-      Node* elem_klass = LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS);
-      transform_later(elem_klass);
-      Node* flags = make_load(NULL, mem, elem_klass, in_bytes(Klass::access_flags_offset()), TypeInt::INT, T_INT);
-      Node* is_value_elem = new AndINode(flags, intcon(JVM_ACC_VALUE));
-      transform_later(is_value_elem);
-      Node* cmp = new CmpINode(is_value_elem, _igvn.intcon(0));
-      transform_later(cmp);
-      Node* bol = new BoolNode(cmp, BoolTest::ne);
-      transform_later(bol);
-      IfNode* value_array_iff = new IfNode(obj_array, bol, PROB_MIN, COUNT_UNKNOWN);
-      transform_later(value_array_iff);
-      Node* value_array = new IfTrueNode(value_array_iff);
-      transform_later(value_array);
-      slow_region->add_req(value_array);
-      Node* not_value_array = new IfFalseNode(value_array_iff);
-      transform_later(not_value_array);
-      fast_region->init_req(2, not_value_array);
-      transform_later(fast_region);
-      ctrl = fast_region;
-    }
-    InitializeNode* init = alloc->initialization();
-    if (init != NULL) {
-      init->clear_unknown_value();
-    }
-  }
-
   assert (initial_slow_test == NULL || !always_slow, "arguments must be consistent");
   // generate the initial test if necessary
   if (initial_slow_test != NULL ) {
@@ -1851,6 +1818,8 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
     // within an Allocate, and then (maybe or maybe not) clear some more later.
     if (!(UseTLAB && ZeroTLAB)) {
       rawmem = ClearArrayNode::clear_memory(control, rawmem, object,
+                                            alloc->in(AllocateNode::DefaultValue),
+                                            alloc->in(AllocateNode::RawDefaultValue),
                                             header_size, size_in_bytes,
                                             &_igvn);
     }
@@ -2255,6 +2224,7 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
 
   Node* mem  = alock->in(TypeFunc::Memory);
   Node* ctrl = alock->in(TypeFunc::Control);
+  guarantee(ctrl != NULL, "missing control projection, cannot replace_node() with NULL");
 
   extract_call_projections(alock);
   // There are 2 projections from the lock.  The lock node will
@@ -2289,8 +2259,7 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   }
 
   // Seach for MemBarReleaseLock node and delete it also.
-  if (alock->is_Unlock() && ctrl != NULL && ctrl->is_Proj() &&
-      ctrl->in(0)->is_MemBar()) {
+  if (alock->is_Unlock() && ctrl->is_Proj() && ctrl->in(0)->is_MemBar()) {
     MemBarNode* membar = ctrl->in(0)->as_MemBar();
     assert(membar->Opcode() == Op_MemBarReleaseLock &&
            mem->is_Proj() && membar == mem->in(0), "");
@@ -2734,7 +2703,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(slowpath_false);
   Node* rawmem = new StorePNode(slowpath_false, mem, top_adr, TypeRawPtr::BOTTOM, new_top, MemNode::unordered);
   transform_later(rawmem);
-  Node* mark_node = mark_node = makecon(TypeRawPtr::make((address)markOopDesc::always_locked_prototype()));
+  Node* mark_node = makecon(TypeRawPtr::make((address)markOopDesc::always_locked_prototype()));
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   if (UseCompressedClassPointers) {
@@ -2885,7 +2854,9 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         assert(n->Opcode() == Op_LoopLimit ||
                n->Opcode() == Op_Opaque1   ||
                n->Opcode() == Op_Opaque2   ||
-               n->Opcode() == Op_Opaque3, "unknown node type in macro list");
+               n->Opcode() == Op_Opaque3   ||
+               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n),
+               "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
@@ -2970,7 +2941,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   while (macro_idx >= 0) {
     Node * n = C->macro_node(macro_idx);
     assert(n->is_macro(), "only macro nodes expected here");
-    if (_igvn.type(n) == Type::TOP || n->in(0)->is_top() ) {
+    if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
     } else if (n->is_ArrayCopy()){
@@ -2988,7 +2959,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     int macro_count = C->macro_count();
     Node * n = C->macro_node(macro_count-1);
     assert(n->is_macro(), "only macro nodes expected here");
-    if (_igvn.type(n) == Type::TOP || n->in(0)->is_top() ) {
+    if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
       continue;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,46 +25,94 @@
 
 package sun.swing;
 
-import java.lang.reflect.*;
-import java.awt.*;
-import static java.awt.RenderingHints.*;
-import java.awt.event.*;
-import java.awt.font.*;
-import java.awt.geom.Rectangle2D;
+import java.awt.AWTEvent;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.FocusTraversalPolicy;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GraphicsConfiguration;
+import java.awt.GraphicsEnvironment;
+import java.awt.Point;
+import java.awt.PrintGraphics;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.Toolkit;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseEvent;
+import java.awt.font.FontRenderContext;
+import java.awt.font.GlyphVector;
+import java.awt.font.LineBreakMeasurer;
+import java.awt.font.TextAttribute;
+import java.awt.font.TextHitInfo;
+import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
-import static java.awt.geom.AffineTransform.TYPE_FLIP;
-import static java.awt.geom.AffineTransform.TYPE_MASK_SCALE;
-import static java.awt.geom.AffineTransform.TYPE_TRANSLATION;
+import java.awt.geom.Rectangle2D;
 import java.awt.print.PrinterGraphics;
-import java.text.BreakIterator;
-import java.text.CharacterIterator;
-import java.text.AttributedCharacterIterator;
-import java.text.AttributedString;
-
-import javax.swing.*;
-import javax.swing.event.TreeModelEvent;
-import javax.swing.text.Highlighter;
-import javax.swing.text.JTextComponent;
-import javax.swing.text.DefaultHighlighter;
-import javax.swing.text.DefaultCaret;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumnModel;
-import javax.swing.tree.TreeModel;
-import javax.swing.tree.TreePath;
-
-import sun.print.ProxyPrintGraphics;
-import sun.awt.*;
-import java.io.*;
+import java.beans.PropertyChangeEvent;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.*;
-import sun.font.FontDesignMetrics;
-import sun.font.FontUtilities;
-import sun.java2d.SunGraphicsEnvironment;
-
+import java.text.AttributedCharacterIterator;
+import java.text.AttributedString;
+import java.text.BreakIterator;
+import java.text.CharacterIterator;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
+
+import javax.swing.JComponent;
+import javax.swing.JList;
+import javax.swing.JTable;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
+import javax.swing.UIDefaults;
+import javax.swing.UIManager;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumnModel;
+import javax.swing.text.DefaultCaret;
+import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
+import javax.swing.text.JTextComponent;
+import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreePath;
+
+import sun.awt.AWTAccessor;
+import sun.awt.AWTPermissions;
+import sun.awt.AppContext;
+import sun.awt.SunToolkit;
+import sun.font.FontDesignMetrics;
+import sun.font.FontUtilities;
+import sun.java2d.SunGraphicsEnvironment;
+import sun.print.ProxyPrintGraphics;
+
+import static java.awt.RenderingHints.KEY_TEXT_ANTIALIASING;
+import static java.awt.RenderingHints.KEY_TEXT_LCD_CONTRAST;
+import static java.awt.RenderingHints.VALUE_FRACTIONALMETRICS_DEFAULT;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_DEFAULT;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HBGR;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_LCD_HRGB;
+import static java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
+import static java.awt.geom.AffineTransform.TYPE_FLIP;
+import static java.awt.geom.AffineTransform.TYPE_MASK_SCALE;
+import static java.awt.geom.AffineTransform.TYPE_TRANSLATION;
 
 /**
  * A collection of utility methods for Swing.
@@ -2138,6 +2186,15 @@ public class SwingUtilities2 {
         return -1;
     }
 
+    /**
+     * Sets the InputEvent.ALT_GRAPH mask on any modifier passed to the function
+     * @param modifier the modifier passed
+     * @return the modifier retiurned with ALT_GRAPH flag set
+     */
+    public static int setAltGraphMask(int modifier) {
+        return (modifier | InputEvent.ALT_GRAPH_DOWN_MASK);
+    }
+
     @SuppressWarnings("deprecation")
     public static int getSystemMnemonicKeyMask() {
         Toolkit toolkit = Toolkit.getDefaultToolkit();
@@ -2241,38 +2298,45 @@ public class SwingUtilities2 {
     }
 
     /**
-     *
-     * Returns the graphics configuration which bounds contain the given
-     * point
-     *
-     * @param current the default configuration which is checked in the first place
-     * @param x the x coordinate of the given point
-     * @param y the y coordinate of the given point
-     * @return the graphics configuration
-     */
-    public static GraphicsConfiguration getGraphicsConfigurationAtPoint(GraphicsConfiguration current, double x, double y) {
-
-        if (current.getBounds().contains(x, y)) {
-            return current;
-        }
-
-        GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        GraphicsDevice[] devices = env.getScreenDevices();
-
-        for (GraphicsDevice device : devices) {
-            GraphicsConfiguration config = device.getDefaultConfiguration();
-            if (config.getBounds().contains(x, y)) {
-                return config;
-            }
-        }
-
-        return current;
-    }
-
-    /**
      * Used to listen to "blit" repaints in RepaintManager.
      */
     public interface RepaintListener {
         void repaintPerformed(JComponent c, int x, int y, int w, int h);
+    }
+
+    /**
+     * Returns whether or not the scale used by {@code GraphicsConfiguration}
+     * was changed.
+     *
+     * @param  ev a {@code PropertyChangeEvent}
+     * @return whether or not the scale was changed
+     * @since 11
+     */
+    public static boolean isScaleChanged(final PropertyChangeEvent ev) {
+        return isScaleChanged(ev.getPropertyName(), ev.getOldValue(),
+                              ev.getNewValue());
+    }
+
+    /**
+     * Returns whether or not the scale used by {@code GraphicsConfiguration}
+     * was changed.
+     *
+     * @param  name the name of the property
+     * @param  oldValue the old value of the property
+     * @param  newValue the new value of the property
+     * @return whether or not the scale was changed
+     * @since 11
+     */
+    public static boolean isScaleChanged(final String name,
+                                         final Object oldValue,
+                                         final Object newValue) {
+        if (oldValue == newValue || !"graphicsConfiguration".equals(name)) {
+            return false;
+        }
+        var newGC = (GraphicsConfiguration) oldValue;
+        var oldGC = (GraphicsConfiguration) newValue;
+        var newTx = newGC != null ? newGC.getDefaultTransform() : null;
+        var oldTx = oldGC != null ? oldGC.getDefaultTransform() : null;
+        return !Objects.equals(newTx, oldTx);
     }
 }

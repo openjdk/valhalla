@@ -26,6 +26,7 @@
  * @test
  * @summary test value bootstrap methods
  * @modules java.base/jdk.internal.org.objectweb.asm
+ * @compile -XDallowWithFieldOperator ValueBootstrapMethods.java
  * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethods
  */
 
@@ -78,7 +79,7 @@ public class ValueBootstrapMethods {
         }
     }
 
-    public static final __ByValue class Value {
+    public static final value class Value {
         private final int i;
         private final double d;
         private final String s;
@@ -90,7 +91,7 @@ public class ValueBootstrapMethods {
             this.l = List.of();
         }
         public static Value make(int i, double d, String s, String... items) {
-            Value v = __MakeDefault Value();
+            Value v = Value.default;
             v = __WithField(v.i, i);
             v = __WithField(v.d, d);
             v = __WithField(v.s, s);

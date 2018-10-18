@@ -29,6 +29,8 @@
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetAssembler.hpp"
+#include "gc/g1/g1BarrierSetRuntime.hpp"
+#include "gc/g1/g1SATBMarkQueueSet.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "interpreter/interp_masm.hpp"
@@ -45,7 +47,7 @@
 
 void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                             Register addr, Register count) {
-  bool dest_uninitialized = (decorators & AS_DEST_NOT_INITIALIZED) != 0;
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
   // With G1, don't generate the call if we statically know that the target is uninitialized.
   if (!dest_uninitialized) {
@@ -66,9 +68,9 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
     RegisterSaver::save_live_registers(masm, RegisterSaver::arg_registers); // Creates frame.
 
     if (UseCompressedOops) {
-      __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSet::write_ref_array_pre_narrow_oop_entry), addr, count);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_narrow_oop_entry), addr, count);
     } else {
-      __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSet::write_ref_array_pre_oop_entry), addr, count);
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_oop_entry), addr, count);
     }
 
     RegisterSaver::restore_live_registers(masm, RegisterSaver::arg_registers);
@@ -79,7 +81,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
 
 void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                              Register addr, Register count, bool do_return) {
-  address entry_point = CAST_FROM_FN_PTR(address, G1BarrierSet::write_ref_array_post_entry);
+  address entry_point = CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry);
   if (!do_return) {
     assert_different_registers(addr,  Z_R0_scratch);  // would be destroyed by push_frame()
     assert_different_registers(count, Z_R0_scratch);  // would be destroyed by push_frame()
@@ -107,7 +109,7 @@ void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorator
   if (on_oop && on_reference) {
     // Generate the G1 pre-barrier code to log the value of
     // the referent field in an SATB buffer.
-    g1_write_barrier_pre(masm, decorators | OOP_NOT_NULL,
+    g1_write_barrier_pre(masm, decorators | IS_NOT_NULL,
                          NULL /* obj */,
                          dst  /* pre_val */,
                          noreg/* preserve */ ,
@@ -126,7 +128,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
                                                  bool            pre_val_needed // Save Rpre_val across runtime call, caller uses it.
                                                  ) {
 
-  bool not_null  = (decorators & OOP_NOT_NULL) != 0,
+  bool not_null  = (decorators & IS_NOT_NULL) != 0,
        preloaded = obj == NULL;
 
   const Register Robj = obj ? obj->base() : noreg,
@@ -234,7 +236,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
   __ push_frame_abi160(0); // Will use Z_R0 as tmp.
 
   // Rpre_val may be destroyed by push_frame().
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_pre), Rpre_save, Z_thread);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry), Rpre_save, Z_thread);
 
   __ pop_frame();
   __ restore_return_pc();
@@ -259,7 +261,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm, Decorator
 
 void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, DecoratorSet decorators, Register Rstore_addr, Register Rnew_val,
                                                   Register Rtmp1, Register Rtmp2, Register Rtmp3) {
-  bool not_null = (decorators & OOP_NOT_NULL) != 0;
+  bool not_null = (decorators & IS_NOT_NULL) != 0;
 
   assert_different_registers(Rstore_addr, Rnew_val, Rtmp1, Rtmp2); // Most probably, Rnew_val == Rtmp3.
 
@@ -272,16 +274,14 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
 
   // Does store cross heap regions?
   // It does if the two addresses specify different grain addresses.
-  if (G1RSBarrierRegionFilter) {
-    if (VM_Version::has_DistinctOpnds()) {
-      __ z_xgrk(Rtmp1, Rstore_addr, Rnew_val);
-    } else {
-      __ z_lgr(Rtmp1, Rstore_addr);
-      __ z_xgr(Rtmp1, Rnew_val);
-    }
-    __ z_srag(Rtmp1, Rtmp1, HeapRegion::LogOfHRGrainBytes);
-    __ z_bre(filtered);
+  if (VM_Version::has_DistinctOpnds()) {
+    __ z_xgrk(Rtmp1, Rstore_addr, Rnew_val);
+  } else {
+    __ z_lgr(Rtmp1, Rstore_addr);
+    __ z_xgr(Rtmp1, Rnew_val);
   }
+  __ z_srag(Rtmp1, Rtmp1, HeapRegion::LogOfHRGrainBytes);
+  __ z_bre(filtered);
 
   // Crosses regions, storing NULL?
   if (not_null) {
@@ -359,7 +359,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
   }
 
   // Save the live input values.
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::g1_wb_post), Rcard_addr, Z_thread);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), Rcard_addr, Z_thread);
 
   if (needs_frame) {
     __ pop_frame();
@@ -373,9 +373,9 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
 
 void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          const Address& dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
-  bool on_array = (decorators & IN_HEAP_ARRAY) != 0;
+  bool is_array = (decorators & IS_ARRAY) != 0;
   bool on_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  bool precise = on_array || on_anonymous;
+  bool precise = is_array || on_anonymous;
   // Load and record the previous value.
   g1_write_barrier_pre(masm, decorators, &dst, tmp3, val, tmp1, tmp2, false);
 
@@ -404,7 +404,7 @@ void G1BarrierSetAssembler::resolve_jobject(MacroAssembler* masm, Register value
   __ z_tmll(tmp1, JNIHandles::weak_tag_mask); // Test for jweak tag.
   __ z_braz(Lnot_weak);
   __ verify_oop(value);
-  DecoratorSet decorators = IN_ROOT | ON_PHANTOM_OOP_REF;
+  DecoratorSet decorators = IN_NATIVE | ON_PHANTOM_OOP_REF;
   g1_write_barrier_pre(masm, decorators, (const Address*)NULL, value, noreg, tmp1, tmp2, true);
   __ bind(Lnot_weak);
   __ verify_oop(value);
@@ -521,7 +521,7 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ bind(refill);
   save_volatile_registers(sasm);
   __ z_lgr(tmp, pre_val); // save pre_val
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, SATBMarkQueueSet::handle_zero_index_for_thread),
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1SATBMarkQueueSet::handle_zero_index_for_thread),
                   Z_thread);
   __ z_lgr(pre_val, tmp); // restore pre_val
   restore_volatile_registers(sasm);

@@ -32,7 +32,7 @@
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
 #include "gc/shared/taskqueue.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 
 G1EvacStats* G1CollectedHeap::alloc_buffer_stats(InCSetState dest) {
   switch (dest.value()) {
@@ -90,6 +90,10 @@ inline void G1CollectedHeap::old_set_add(HeapRegion* hr) {
 
 inline void G1CollectedHeap::old_set_remove(HeapRegion* hr) {
   _old_set.remove(hr);
+}
+
+inline void G1CollectedHeap::archive_set_add(HeapRegion* hr) {
+  _archive_set.add(hr);
 }
 
 // It dirties the cards that cover the block so that the post

@@ -29,20 +29,20 @@ import jdk.test.lib.Asserts;
  * @test VWithFieldTest
  * @summary vwithfield bytecode test
  * @library /test/lib
- * @compile -XDenableValueTypes Point.java
- * @compile -XDenableValueTypes VWithFieldTest.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator Point.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator VWithFieldTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.VWithFieldTest
  */
 
 public class VWithFieldTest {
 
-    static __ByValue final class Point {
+    static value final class Point {
         final private int x;
         final private int y;
 
         static Point make(int x, int y) {
-            Point p = __MakeDefault Point();
+            Point p = Point.default;
             Asserts.assertEquals(p.x, 0, "invalid x default value");
             Asserts.assertEquals(p.y, 0, "invalid y default value");
             p = __WithField(p.x, x);

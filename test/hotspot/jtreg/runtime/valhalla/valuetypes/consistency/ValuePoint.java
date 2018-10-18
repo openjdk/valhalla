@@ -22,7 +22,7 @@
  */
 
 // Point is a Value Type.
-__ByValue final class Point {
+value final class Point {
     final int x;
     final int y;
 
@@ -35,7 +35,7 @@ __ByValue final class Point {
     public int getY() { return y; }
 
     public static Point createPoint() {
-        Point p = __MakeDefault Point();
+        Point p = Point.default;
         return p;
     }
 }

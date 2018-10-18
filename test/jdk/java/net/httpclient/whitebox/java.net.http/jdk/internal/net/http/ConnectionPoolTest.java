@@ -31,6 +31,8 @@ import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -67,14 +69,24 @@ public class ConnectionPoolTest {
     }
 
     public static void main(String[] args) throws Exception {
-        testCacheCleaners();
+        if (args.length == 0) {
+            args = new String[] {"testCacheCleaners"};
+        }
+        for (String arg : args) {
+            if ("testCacheCleaners".equals(arg)) {
+                testCacheCleaners();
+            } else if ("testPoolSize".equals(arg)) {
+                assert args.length == 1 : "testPoolSize should be run in its own VM";
+                testPoolSize();
+            }
+        }
     }
 
     public static void testCacheCleaners() throws Exception {
         ConnectionPool pool = new ConnectionPool(666);
         HttpClient client = new HttpClientStub(pool);
         InetSocketAddress proxy = InetSocketAddress.createUnresolved("bar", 80);
-        System.out.println("Adding 10 connections to pool");
+        System.out.println("Adding 20 connections to pool");
         Random random = new Random();
 
         final int count = 20;
@@ -146,6 +158,74 @@ public class ConnectionPoolTest {
         }
     }
 
+    public static void testPoolSize() throws Exception {
+        final int MAX_POOL_SIZE = 10;
+        System.setProperty("jdk.httpclient.connectionPoolSize",
+                String.valueOf(MAX_POOL_SIZE));
+        ConnectionPool pool = new ConnectionPool(666);
+        HttpClient client = new HttpClientStub(pool);
+        InetSocketAddress proxy = InetSocketAddress.createUnresolved("bar", 80);
+        System.out.println("Adding 20 connections to pool");
+        Random random = new Random();
+
+        final int count = 20;
+        Instant now = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+        int[] keepAlives = new int[count];
+        HttpConnectionStub[] connections = new HttpConnectionStub[count];
+        long purge = pool.purgeExpiredConnectionsAndReturnNextDeadline(now);
+        long expected = 0;
+        if (purge != expected) {
+            throw new RuntimeException("Bad purge delay: " + purge
+                    + ", expected " + expected);
+        }
+        expected = Long.MAX_VALUE;
+        int previous = 0;
+        for (int i=0; i<count; i++) {
+            InetSocketAddress addr = InetSocketAddress.createUnresolved("foo"+i, 80);
+            keepAlives[i] = random.nextInt(10) * 10  + 5 + previous;
+            previous = keepAlives[i];
+            connections[i] = new HttpConnectionStub(client, addr, proxy, true);
+            System.out.println("Adding connection: " + now
+                    + " keepAlive: " + keepAlives[i]
+                    + " /" + connections[i]);
+            pool.returnToPool(connections[i], now, keepAlives[i]);
+            if (i < MAX_POOL_SIZE) {
+                expected = Math.min(expected, keepAlives[i] * 1000);
+            } else {
+                expected = keepAlives[i-MAX_POOL_SIZE+1] * 1000;
+                if (pool.contains(connections[i-MAX_POOL_SIZE])) {
+                    throw new RuntimeException("Connection[" + i + "]/"
+                            + connections[i] + " should have been removed");
+                }
+            }
+            purge = pool.purgeExpiredConnectionsAndReturnNextDeadline(now);
+            if (purge != expected) {
+                throw new RuntimeException("Bad purge delay for " + i + ": "
+                        + purge + ", expected " + expected);
+            }
+        }
+
+        long opened = java.util.stream.Stream.of(connections)
+                .filter(HttpConnectionStub::connected).count();
+        if (opened != MAX_POOL_SIZE) {
+            throw new RuntimeException("Opened: expected "
+                    + count + " got " + opened);
+        }
+        for (int i=0 ; i<count; i++) {
+            boolean closed = (i < count - MAX_POOL_SIZE);
+            if (connections[i].closed != closed) {
+                throw new RuntimeException("connection[" + i + "] should be "
+                        + (closed ? "closed" : "opened"));
+            }
+            if (pool.contains(connections[i]) == closed) {
+                throw new RuntimeException("Connection[" + i + "]/"
+                        + connections[i] + " should "
+                        + (closed ? "" : "not ")
+                        + "have been removed");
+            }
+        }
+    }
+
     static <T> T error() {
         throw new InternalError("Should not reach here: wrong test assumptions!");
     }
@@ -205,7 +285,8 @@ public class ConnectionPoolTest {
 
         // All these throw errors
         @Override public HttpPublisher publisher() {return error();}
-        @Override public CompletableFuture<Void> connectAsync() {return error();}
+        @Override public CompletableFuture<Void> connectAsync(Exchange<?> e) {return error();}
+        @Override public CompletableFuture<Void> finishConnect() {return error();}
         @Override SocketChannel channel() {return error();}
         @Override
         FlowTube getConnectionFlow() {return flow;}
@@ -217,6 +298,7 @@ public class ConnectionPoolTest {
         }
         final ConnectionPool pool;
         @Override public Optional<CookieHandler> cookieHandler() {return error();}
+        @Override public Optional<Duration> connectTimeout() {return error();}
         @Override public HttpClient.Redirect followRedirects() {return error();}
         @Override public Optional<ProxySelector> proxy() {return error();}
         @Override public SSLContext sslContext() {return error();}

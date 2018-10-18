@@ -26,7 +26,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutex.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/thread.inline.hpp"
@@ -348,9 +348,7 @@ int Monitor::TrySpin(Thread * const Self) {
 
   int Probes  = 0;
   int Delay   = 0;
-  int Steps   = 0;
-  int SpinMax = NativeMonitorSpinLimit;
-  int flgs    = NativeMonitorFlags;
+  int SpinMax = 20;
   for (;;) {
     intptr_t v = _LockWord.FullWord;
     if ((v & _LBIT) == 0) {
@@ -360,9 +358,7 @@ int Monitor::TrySpin(Thread * const Self) {
       continue;
     }
 
-    if ((flgs & 8) == 0) {
-      SpinPause();
-    }
+    SpinPause();
 
     // Periodically increase Delay -- variable Delay form
     // conceptually: delay *= 1 + 1/Exponent
@@ -374,13 +370,6 @@ int Monitor::TrySpin(Thread * const Self) {
       // CONSIDER: Delay += 1 + (Delay/4); Delay &= 0x7FF ;
     }
 
-    if (flgs & 2) continue;
-
-    // Consider checking _owner's schedctl state, if OFFPROC abort spin.
-    // If the owner is OFFPROC then it's unlike that the lock will be dropped
-    // in a timely fashion, which suggests that spinning would not be fruitful
-    // or profitable.
-
     // Stall for "Delay" time units - iterations in the current implementation.
     // Avoid generating coherency traffic while stalled.
     // Possible ways to delay:
@@ -390,12 +379,11 @@ int Monitor::TrySpin(Thread * const Self) {
     // spin loop.  N1 and brethren write-around the L1$ over the xbar into the L2$.
     // Furthermore, they don't have a W$ like traditional SPARC processors.
     // We currently use a Marsaglia Shift-Xor RNG loop.
-    Steps += Delay;
     if (Self != NULL) {
       jint rv = Self->rng[0];
       for (int k = Delay; --k >= 0;) {
         rv = MarsagliaXORV(rv);
-        if ((flgs & 4) == 0 && SafepointMechanism::poll(Self)) return 0;
+        if (SafepointMechanism::poll(Self)) return 0;
       }
       Self->rng[0] = rv;
     } else {
@@ -406,10 +394,6 @@ int Monitor::TrySpin(Thread * const Self) {
 
 static int ParkCommon(ParkEvent * ev, jlong timo) {
   // Diagnostic support - periodically unwedge blocked threads
-  intx nmt = NativeMonitorTimeout;
-  if (nmt > 0 && (nmt < timo || timo <= 0)) {
-    timo = nmt;
-  }
   int err = OS_OK;
   if (0 == timo) {
     ev->park();
@@ -466,11 +450,6 @@ void Monitor::ILock(Thread * Self) {
   ESelf->reset();
   OrderAccess::fence();
 
-  // Optional optimization ... try barging on the inner lock
-  if ((NativeMonitorFlags & 32) && Atomic::replace_if_null(ESelf, &_OnDeck)) {
-    goto OnDeck_LOOP;
-  }
-
   if (AcquireOrPush(ESelf)) goto Exeunt;
 
   // At any given time there is at most one ondeck thread.
@@ -484,7 +463,6 @@ void Monitor::ILock(Thread * Self) {
 
   // Self is now in the OnDeck position and will remain so until it
   // manages to acquire the lock.
- OnDeck_LOOP:
   for (;;) {
     assert(_OnDeck == ESelf, "invariant");
     if (TrySpin(Self)) break;
@@ -570,7 +548,6 @@ void Monitor::IUnlock(bool RelaxAssert) {
   // Only the holder of OnDeck can manipulate EntryList or detach the RATs from cxq.
   // Avoid ABA - allow multiple concurrent producers (enqueue via push-CAS)
   // but only one concurrent consumer (detacher of RATs).
-  // Consider protecting this critical section with schedctl on Solaris.
   // Unlike a normal lock, however, the exiting thread "locks" OnDeck,
   // picks a successor and marks that thread as OnDeck.  That successor
   // thread will then clear OnDeck once it eventually acquires the outer lock.
@@ -706,11 +683,6 @@ bool Monitor::notify() {
     nfy->Notified = 1;
   }
   Thread::muxRelease(_WaitLock);
-  if (nfy != NULL && (NativeMonitorFlags & 16)) {
-    // Experimental code ... light up the wakee in the hope that this thread (the owner)
-    // will drop the lock just about the time the wakee comes ONPROC.
-    nfy->unpark();
-  }
   assert(ILocked(), "invariant");
   return true;
 }
@@ -794,7 +766,7 @@ int Monitor::IWait(Thread * Self, jlong timo) {
   for (;;) {
     if (ESelf->Notified) break;
     int err = ParkCommon(ESelf, timo);
-    if (err == OS_TIMEOUT || (NativeMonitorFlags & 1)) break;
+    if (err == OS_TIMEOUT) break;
   }
 
   // Prepare for reentry - if necessary, remove ESelf from WaitSet

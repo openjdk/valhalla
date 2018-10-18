@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.hotspot.management;
 
 import static java.lang.Thread.currentThread;
@@ -28,7 +30,7 @@ import java.lang.management.ManagementFactory;
 import java.util.List;
 
 import org.graalvm.compiler.serviceprovider.ServiceProvider;
-import org.graalvm.compiler.serviceprovider.GraalServices.JMXService;
+import org.graalvm.compiler.serviceprovider.JMXService;
 
 import com.sun.management.ThreadMXBean;
 

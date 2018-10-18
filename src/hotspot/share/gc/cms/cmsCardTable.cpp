@@ -34,7 +34,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/orderAccess.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/vmThread.hpp"
 
 CMSCardTable::CMSCardTable(MemRegion whole_heap) :
@@ -79,7 +79,7 @@ non_clean_card_iterate_parallel_work(Space* sp, MemRegion mr,
   pst->set_n_tasks(n_strides);
 
   uint stride = 0;
-  while (!pst->is_task_claimed(/* reference */ stride)) {
+  while (pst->try_claim_task(/* reference */ stride)) {
     process_stride(sp, mr, stride, n_strides,
                    cl, ct,
                    lowest_non_clean,

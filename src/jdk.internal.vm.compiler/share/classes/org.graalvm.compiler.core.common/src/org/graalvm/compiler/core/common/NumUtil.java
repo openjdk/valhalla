@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+
 package org.graalvm.compiler.core.common;
 
 // JaCoCo Exclude
@@ -106,6 +108,11 @@ public class NumUtil {
     public static short safeToShort(int v) {
         assert isShort(v);
         return (short) v;
+    }
+
+    public static int safeToInt(long v) {
+        assert isInt(v);
+        return (int) v;
     }
 
     public static int roundUp(int number, int mod) {

@@ -25,19 +25,20 @@
  * @test
  * @bug 8206147
  * @summary WithField operation on a private inner field should be enclosed in a suitable accessor method.
+ * @compile -XDallowWithFieldOperator WithFieldAccessorTest.java
  * @run main/othervm -XX:+EnableValhalla WithFieldAccessorTest
  */
 
 public class WithFieldAccessorTest {
 
-    public static final __ByValue class V {
+    public static final value class V {
         private final int i;
         V() {
             this.i = 0;
         }
 
         public static V make(int i) {
-            V v = __MakeDefault V();
+            V v = V.default;
             v = __WithField(v.i, i);
             return v;
         }

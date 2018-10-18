@@ -29,12 +29,12 @@
 
 void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                   Register dst, Address src, Register tmp1, Register tmp2, Register tmp3) {
-  bool on_heap = (decorators & IN_HEAP) != 0;
-  bool on_root = (decorators & IN_ROOT) != 0;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
-    if (on_heap) {
+    if (in_heap) {
 #ifdef AARCH64
       if (UseCompressedOops) {
         __ ldr_w(dst, src);
@@ -45,11 +45,48 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
         __ ldr(dst, src);
       }
     } else {
-      assert(on_root, "why else?");
+      assert(in_native, "why else?");
       __ ldr(dst, src);
     }
     break;
   }
+  case T_BOOLEAN: __ ldrb      (dst, src); break;
+  case T_BYTE:    __ ldrsb     (dst, src); break;
+  case T_CHAR:    __ ldrh      (dst, src); break;
+  case T_SHORT:   __ ldrsh     (dst, src); break;
+  case T_INT:     __ ldr_s32   (dst, src); break;
+  case T_ADDRESS: __ ldr       (dst, src); break;
+  case T_LONG:
+#ifdef AARCH64
+    __ ldr                     (dst, src); break;
+#else
+    assert(dst == noreg, "only to ltos");
+    __ add                     (src.index(), src.index(), src.base());
+    __ ldmia                   (src.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+#endif // AARCH64
+    break;
+#ifdef __SOFTFP__
+  case T_FLOAT:
+    assert(dst == noreg, "only to ftos");
+    __ ldr                     (R0_tos, src);
+    break;
+  case T_DOUBLE:
+    assert(dst == noreg, "only to dtos");
+    __ add                     (src.index(), src.index(), src.base());
+    __ ldmia                   (src.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+    break;
+#else
+  case T_FLOAT:
+    assert(dst == noreg, "only to ftos");
+    __ add(src.index(), src.index(), src.base());
+    __ ldr_float               (S0_tos, src.index());
+    break;
+  case T_DOUBLE:
+    assert(dst == noreg, "only to dtos");
+    __ add                     (src.index(), src.index(), src.base());
+    __ ldr_double              (D0_tos, src.index());
+    break;
+#endif
   default: Unimplemented();
   }
 
@@ -57,12 +94,12 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
 
 void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                    Address obj, Register val, Register tmp1, Register tmp2, Register tmp3, bool is_null) {
-  bool on_heap = (decorators & IN_HEAP) != 0;
-  bool on_root = (decorators & IN_ROOT) != 0;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool in_native = (decorators & IN_NATIVE) != 0;
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
-    if (on_heap) {
+    if (in_heap) {
 #ifdef AARCH64
       if (UseCompressedOops) {
         assert(!dst.uses(src), "not enough registers");
@@ -73,14 +110,54 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
       } else
 #endif // AARCH64
       {
-        __ str(val, obj);
+      __ str(val, obj);
       }
     } else {
-      assert(on_root, "why else?");
+      assert(in_native, "why else?");
       __ str(val, obj);
     }
     break;
   }
+  case T_BOOLEAN:
+    __ and_32(val, val, 1);
+    __ strb(val, obj);
+    break;
+  case T_BYTE:    __ strb      (val, obj); break;
+  case T_CHAR:    __ strh      (val, obj); break;
+  case T_SHORT:   __ strh      (val, obj); break;
+  case T_INT:     __ str       (val, obj); break;
+  case T_ADDRESS: __ str       (val, obj); break;
+  case T_LONG:
+#ifdef AARCH64
+    __ str                     (val, obj); break;
+#else // AARCH64
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ stmia                   (obj.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+#endif // AARCH64
+    break;
+#ifdef __SOFTFP__
+  case T_FLOAT:
+    assert(val == noreg, "only tos");
+    __ str (R0_tos,  obj);
+    break;
+  case T_DOUBLE:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ stmia                   (obj.index(), RegisterSet(R0_tos_lo) | RegisterSet(R1_tos_hi));
+    break;
+#else
+  case T_FLOAT:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ str_float               (S0_tos,  obj.index());
+    break;
+  case T_DOUBLE:
+    assert(val == noreg, "only tos");
+    __ add                     (obj.index(), obj.index(), obj.base());
+    __ str_double              (D0_tos,  obj.index());
+    break;
+#endif
   default: Unimplemented();
   }
 }

@@ -29,20 +29,20 @@ import jdk.test.lib.Asserts;
  * @test VDefaultTest
  * @summary vdefault bytecode test
  * @library /test/lib
- * @compile -XDenableValueTypes Point.java
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers VDefaultTest.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator Point.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers VDefaultTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
  */
 
 public class VDefaultTest {
 
-    static __ByValue final class Point {
+    static value final class Point {
         final int x;
         final int y;
 
         static Point make() {
-            Point p = __MakeDefault Point();
+            Point p = Point.default;
             return p;
         }
 
@@ -52,7 +52,7 @@ public class VDefaultTest {
         }
     }
 
-    static __ByValue final class Value {
+    static value final class Value {
         final char c;
         final byte b;
         final short s;
@@ -63,7 +63,7 @@ public class VDefaultTest {
         __Flattenable final Point p;
 
         static Value make() {
-            Value p = __MakeDefault Value();
+            Value p = Value.default;
             return p;
         }
 
