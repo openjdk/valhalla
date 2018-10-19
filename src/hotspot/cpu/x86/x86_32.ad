@@ -619,7 +619,7 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   int framesize = C->frame_size_in_bytes();
   int bangsize = C->bang_size_in_bytes();
 
-  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, C->in_24_bit_fp_mode());
+  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, C->in_24_bit_fp_mode(), C->stub_function() != NULL);
 
   C->set_frame_complete(cbuf.insts_size());
 
@@ -2087,8 +2087,7 @@ encode %{
   %}
 
   enc_class lock_prefix( ) %{
-    if( os::is_MP() )
-      emit_opcode(cbuf,0xF0);         // [Lock]
+    emit_opcode(cbuf,0xF0);         // [Lock]
   %}
 
   // Cmp-xchg long value.
@@ -2102,8 +2101,7 @@ encode %{
     emit_opcode(cbuf,0x87);
     emit_opcode(cbuf,0xD9);
     // [Lock]
-    if( os::is_MP() )
-      emit_opcode(cbuf,0xF0);
+    emit_opcode(cbuf,0xF0);
     // CMPXCHG8 [Eptr]
     emit_opcode(cbuf,0x0F);
     emit_opcode(cbuf,0xC7);
@@ -2115,8 +2113,7 @@ encode %{
 
   enc_class enc_cmpxchg(eSIRegP mem_ptr) %{
     // [Lock]
-    if( os::is_MP() )
-      emit_opcode(cbuf,0xF0);
+    emit_opcode(cbuf,0xF0);
 
     // CMPXCHG [Eptr]
     emit_opcode(cbuf,0x0F);
@@ -2126,8 +2123,7 @@ encode %{
 
   enc_class enc_cmpxchgb(eSIRegP mem_ptr) %{
     // [Lock]
-    if( os::is_MP() )
-      emit_opcode(cbuf,0xF0);
+    emit_opcode(cbuf,0xF0);
 
     // CMPXCHGB [Eptr]
     emit_opcode(cbuf,0x0F);
@@ -2137,8 +2133,7 @@ encode %{
 
   enc_class enc_cmpxchgw(eSIRegP mem_ptr) %{
     // [Lock]
-    if( os::is_MP() )
-      emit_opcode(cbuf,0xF0);
+    emit_opcode(cbuf,0xF0);
 
     // 16-bit mode
     emit_opcode(cbuf, 0x66);
@@ -4101,6 +4096,15 @@ operand regF() %{
   interface(REG_INTER);
 %}
 
+// Float register operands
+operand vlRegF() %{
+   constraint(ALLOC_IN_RC(float_reg_vl));
+   match(RegF);
+
+   format %{ %}
+   interface(REG_INTER);
+%}
+
 // XMM Double register operands
 operand regD() %{
   predicate( UseSSE>=2 );
@@ -4110,9 +4114,26 @@ operand regD() %{
   interface(REG_INTER);
 %}
 
+// Double register operands
+operand vlRegD() %{
+   constraint(ALLOC_IN_RC(double_reg_vl));
+   match(RegD);
+
+   format %{ %}
+   interface(REG_INTER);
+%}
+
 // Vectors : note, we use legacy registers to avoid extra (unneeded in 32-bit VM)
 // runtime code generation via reg_class_dynamic.
 operand vecS() %{
+  constraint(ALLOC_IN_RC(vectors_reg_legacy));
+  match(VecS);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand legVecS() %{
   constraint(ALLOC_IN_RC(vectors_reg_legacy));
   match(VecS);
 
@@ -4128,6 +4149,14 @@ operand vecD() %{
   interface(REG_INTER);
 %}
 
+operand legVecD() %{
+  constraint(ALLOC_IN_RC(vectord_reg_legacy));
+  match(VecD);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 operand vecX() %{
   constraint(ALLOC_IN_RC(vectorx_reg_legacy));
   match(VecX);
@@ -4136,7 +4165,23 @@ operand vecX() %{
   interface(REG_INTER);
 %}
 
+operand legVecX() %{
+  constraint(ALLOC_IN_RC(vectorx_reg_legacy));
+  match(VecX);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 operand vecY() %{
+  constraint(ALLOC_IN_RC(vectory_reg_legacy));
+  match(VecY);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand legVecY() %{
   constraint(ALLOC_IN_RC(vectory_reg_legacy));
   match(VecY);
 
@@ -6515,6 +6560,26 @@ instruct storeD(memory mem, regD src) %{
   ins_pipe( pipe_slow );
 %}
 
+// Load Double
+instruct MoveD2VL(vlRegD dst, regD src) %{
+  match(Set dst src);
+  format %{ "movsd $dst,$src\t! load double (8 bytes)" %}
+  ins_encode %{
+    __ movdbl($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
+%}
+
+// Load Double
+instruct MoveVL2D(regD dst, vlRegD src) %{
+  match(Set dst src);
+  format %{ "movsd $dst,$src\t! load double (8 bytes)" %}
+  ins_encode %{
+    __ movdbl($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
+%}
+
 // Store XMM register to memory (single-precision floating point)
 // MOVSS instruction
 instruct storeF(memory mem, regF src) %{
@@ -6526,6 +6591,26 @@ instruct storeF(memory mem, regF src) %{
     __ movflt($mem$$Address, $src$$XMMRegister);
   %}
   ins_pipe( pipe_slow );
+%}
+
+// Load Float
+instruct MoveF2VL(vlRegF dst, regF src) %{
+  match(Set dst src);
+  format %{ "movss $dst,$src\t! load float (4 bytes)" %}
+  ins_encode %{
+    __ movflt($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
+%}
+
+// Load Float
+instruct MoveVL2F(regF dst, vlRegF src) %{
+  match(Set dst src);
+  format %{ "movss $dst,$src\t! load float (4 bytes)" %}
+  ins_encode %{
+    __ movflt($dst$$XMMRegister, $src$$XMMRegister);
+  %}
+  ins_pipe( fpu_reg_reg );
 %}
 
 // Store Float
@@ -6674,11 +6759,7 @@ instruct membar_volatile(eFlagsReg cr) %{
 
   format %{
     $$template
-    if (os::is_MP()) {
-      $$emit$$"LOCK ADDL [ESP + #0], 0\t! membar_volatile"
-    } else {
-      $$emit$$"MEMBAR-volatile ! (empty encoding)"
-    }
+    $$emit$$"LOCK ADDL [ESP + #0], 0\t! membar_volatile"
   %}
   ins_encode %{
     __ membar(Assembler::StoreLoad);
@@ -7283,8 +7364,7 @@ instruct storeLConditional( memory mem, eADXRegL oldval, eBCXRegL newval, eFlags
     //       rcx as the high order word of the new value to store but
     //       our register encoding uses rbx.
     __ xchgl(as_Register(EBX_enc), as_Register(ECX_enc));
-    if( os::is_MP() )
-      __ lock();
+    __ lock();
     __ cmpxchg8($mem$$Address);
     __ xchgl(as_Register(EBX_enc), as_Register(ECX_enc));
   %}
@@ -7409,7 +7489,7 @@ instruct xaddB_no_res( memory mem, Universe dummy, immI add, eFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDB  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addb($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7421,7 +7501,7 @@ instruct xaddB( memory mem, xRegI newval, eFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDB  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddb($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7433,7 +7513,7 @@ instruct xaddS_no_res( memory mem, Universe dummy, immI add, eFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDS  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addw($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7444,7 +7524,7 @@ instruct xaddS( memory mem, rRegI newval, eFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDS  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddw($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7456,7 +7536,7 @@ instruct xaddI_no_res( memory mem, Universe dummy, immI add, eFlagsReg cr) %{
   effect(KILL cr);
   format %{ "ADDL  [$mem],$add" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ addl($mem$$Address, $add$$constant);
   %}
   ins_pipe( pipe_cmpxchg );
@@ -7467,7 +7547,7 @@ instruct xaddI( memory mem, rRegI newval, eFlagsReg cr) %{
   effect(KILL cr);
   format %{ "XADDL  [$mem],$newval" %}
   ins_encode %{
-    if (os::is_MP()) { __ lock(); }
+    __ lock();
     __ xaddl($mem$$Address, $newval$$Register);
   %}
   ins_pipe( pipe_cmpxchg );

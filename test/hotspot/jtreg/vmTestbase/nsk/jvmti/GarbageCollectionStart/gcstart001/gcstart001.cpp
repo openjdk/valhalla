@@ -52,8 +52,9 @@ GarbageCollectionStart(jvmtiEnv *jvmti_env) {
 
     if (gcstart != (gcfinish+1)) {
         result = STATUS_FAILED;
-        NSK_COMPLAIN2("TEST FAILED: GarbageCollectionStart event has no a matched pair GarbageCollectionFinish:\n\
-\t%d GarbageCollectionStart events\t%d GarbageCollectionFinish events\n\n",
+        NSK_COMPLAIN2(
+            "TEST FAILED: GarbageCollectionStart event has no a matched pair GarbageCollectionFinish:\n"
+            "\t%d GarbageCollectionStart events\t%d GarbageCollectionFinish events\n\n",
             gcstart, gcfinish);
     }
     else
@@ -68,8 +69,9 @@ GarbageCollectionFinish(jvmtiEnv *jvmti_env) {
 
     if (gcstart != gcfinish) {
         result = STATUS_FAILED;
-        NSK_COMPLAIN2("TEST FAILED: GarbageCollectionFinish event has no a matched pair GarbageCollectionStart:\n\
-\t%d GarbageCollectionStart events\t%d GarbageCollectionFinish events\n\n",
+        NSK_COMPLAIN2(
+            "TEST FAILED: GarbageCollectionFinish event has no a matched pair GarbageCollectionStart:\n"
+            "\t%d GarbageCollectionStart events\t%d GarbageCollectionFinish events\n\n",
             gcstart, gcfinish);
     }
     else
@@ -81,8 +83,9 @@ VMDeath(jvmtiEnv *jvmti_env, JNIEnv *env) {
     NSK_DISPLAY0("VMDeath event received\n");
 
     if (gcstart != gcfinish || result == STATUS_FAILED) {
-        NSK_COMPLAIN2("TEST FAILED: some GarbageCollectionFinish events have no a matched pair GarbageCollectionStart:\n\
-\t%d GarbageCollectionStart events\t%d GarbageCollectionFinish events\n\n",
+        NSK_COMPLAIN2(
+            "TEST FAILED: some GarbageCollectionFinish events have no a matched pair GarbageCollectionStart:\n"
+            "\t%d GarbageCollectionStart events\t%d GarbageCollectionFinish events\n\n",
             gcstart, gcfinish);
 
         exit(95 + STATUS_FAILED);
@@ -117,12 +120,10 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     /* add capability to generate compiled method events */
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_generate_garbage_collection_events = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps)))
         return JNI_ERR;
 
     if (!caps.can_generate_garbage_collection_events)
@@ -134,19 +135,15 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     callbacks.VMDeath = &VMDeath;
     callbacks.GarbageCollectionStart = &GarbageCollectionStart;
     callbacks.GarbageCollectionFinish = &GarbageCollectionFinish;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks,
-            jvmti, &callbacks, sizeof(callbacks))))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks))))
         return JNI_ERR;
 
     NSK_DISPLAY0("setting event callbacks done\nenabling JVMTI events ...\n");
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL)))
         return JNI_ERR;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL)))
         return JNI_ERR;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_FINISH, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_FINISH, NULL)))
         return JNI_ERR;
     NSK_DISPLAY0("enabling the events done\n\n");
 

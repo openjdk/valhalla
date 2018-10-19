@@ -244,7 +244,7 @@ class LibraryCallKit : public GraphKit {
   Node* generate_min_max(vmIntrinsics::ID id, Node* x, Node* y);
   // This returns Type::AnyPtr, RawPtr, or OopPtr.
   int classify_unsafe_addr(Node* &base, Node* &offset, BasicType type);
-  Node* make_unsafe_address(Node*& base, Node* offset, BasicType type = T_ILLEGAL, bool can_cast = false);
+  Node* make_unsafe_address(Node*& base, Node* offset, DecoratorSet decorators, BasicType type = T_ILLEGAL, bool can_cast = false);
 
   typedef enum { Relaxed, Opaque, Volatile, Acquire, Release } AccessKind;
   DecoratorSet mo_decorator_for_access_kind(AccessKind kind);
@@ -543,10 +543,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_notify:
   case vmIntrinsics::_notifyAll:
-    if (ObjectMonitor::Knob_InlineNotify) {
-      return inline_notify(intrinsic_id());
-    }
-    return false;
+    return inline_notify(intrinsic_id());
 
   case vmIntrinsics::_addExactI:                return inline_math_addExactI(false /* add */);
   case vmIntrinsics::_addExactL:                return inline_math_addExactL(false /* add */);
@@ -1684,7 +1681,7 @@ bool LibraryCallKit::inline_string_getCharsU() {
 
   if (!stopped()) {
     src = access_resolve(src, ACCESS_READ);
-    dst = access_resolve(dst, ACCESS_READ);
+    dst = access_resolve(dst, ACCESS_WRITE);
 
     // Calculate starting addresses.
     Node* src_start = array_element_address(src, src_begin, T_BYTE);
@@ -1761,11 +1758,9 @@ bool LibraryCallKit::inline_string_char_access(bool is_store) {
     return false;
   }
   if (is_store) {
-    (void) store_to_memory(control(), adr, ch, T_CHAR, TypeAryPtr::BYTES, MemNode::unordered,
-                           false, false, true /* mismatched */);
+    access_store_at(value, adr, TypeAryPtr::BYTES, ch, TypeInt::CHAR, T_CHAR, IN_HEAP | MO_UNORDERED | C2_MISMATCHED);
   } else {
-    ch = make_load(control(), adr, TypeInt::CHAR, T_CHAR, TypeAryPtr::BYTES, MemNode::unordered,
-                   LoadNode::DependsOnlyOnTest, false, false, true /* mismatched */);
+    ch = access_load_at(value, adr, TypeAryPtr::BYTES, TypeInt::CHAR, T_CHAR, IN_HEAP | MO_UNORDERED | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD);
     set_result(ch);
   }
   return true;
@@ -2193,7 +2188,7 @@ LibraryCallKit::classify_unsafe_addr(Node* &base, Node* &offset, BasicType type)
   }
 }
 
-inline Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, BasicType type, bool can_cast) {
+inline Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, DecoratorSet decorators, BasicType type, bool can_cast) {
   Node* uncasted_base = base;
   int kind = classify_unsafe_addr(uncasted_base, offset, type);
   if (kind == Type::RawPtr) {
@@ -2222,6 +2217,7 @@ inline Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, Basi
     }
     // We don't know if it's an on heap or off heap access. Fall back
     // to raw memory access.
+    base = access_resolve(base, decorators);
     Node* raw = _gvn.transform(new CheckCastPPNode(control(), base, TypeRawPtr::BOTTOM));
     return basic_plus_adr(top(), raw, offset);
   } else {
@@ -2388,7 +2384,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
          "fieldOffset must be byte-scaled");
   // 32-bit machines ignore the high half!
   offset = ConvL2X(offset);
-  adr = make_unsafe_address(base, offset, type, kind == Relaxed);
+  adr = make_unsafe_address(base, offset, is_store ? ACCESS_WRITE : ACCESS_READ, type, kind == Relaxed);
 
   if (_gvn.type(base)->isa_ptr() != TypePtr::NULL_PTR) {
     heap_base_oop = base;
@@ -2514,7 +2510,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = ConvL2X(val);
       val = gvn().transform(new CastX2PNode(val));
     }
-    access_store_at(control(), heap_base_oop, adr, adr_type, val, value_type, type, decorators);
+    access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
   }
 
   return true;
@@ -2672,7 +2668,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   assert(Unsafe_field_offset_to_byte_offset(11) == 11, "fieldOffset must be byte-scaled");
   // 32-bit machines ignore the high half of long offsets
   offset = ConvL2X(offset);
-  Node* adr = make_unsafe_address(base, offset, type, false);
+  Node* adr = make_unsafe_address(base, offset, ACCESS_WRITE | ACCESS_READ, type, false);
   const TypePtr *adr_type = _gvn.type(adr)->isa_ptr();
 
   Compile::AliasType* alias_type = C->alias_type(adr_type);
@@ -2733,24 +2729,24 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   Node* result = NULL;
   switch (kind) {
     case LS_cmp_exchange: {
-      result = access_atomic_cmpxchg_val_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_cmpxchg_val_at(base, adr, adr_type, alias_idx,
                                             oldval, newval, value_type, type, decorators);
       break;
     }
     case LS_cmp_swap_weak:
       decorators |= C2_WEAK_CMPXCHG;
     case LS_cmp_swap: {
-      result = access_atomic_cmpxchg_bool_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_cmpxchg_bool_at(base, adr, adr_type, alias_idx,
                                              oldval, newval, value_type, type, decorators);
       break;
     }
     case LS_get_set: {
-      result = access_atomic_xchg_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_xchg_at(base, adr, adr_type, alias_idx,
                                      newval, value_type, type, decorators);
       break;
     }
     case LS_get_add: {
-      result = access_atomic_add_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_add_at(base, adr, adr_type, alias_idx,
                                     newval, value_type, type, decorators);
       break;
     }
@@ -2967,6 +2963,11 @@ bool LibraryCallKit::inline_native_isInterrupted() {
   Node* rec_thr = argument(0);
   Node* tls_ptr = NULL;
   Node* cur_thr = generate_current_thread(tls_ptr);
+
+  // Resolve oops to stable for CmpP below.
+  cur_thr = access_resolve(cur_thr, 0);
+  rec_thr = access_resolve(rec_thr, 0);
+
   Node* cmp_thr = _gvn.transform(new CmpPNode(cur_thr, rec_thr));
   Node* bol_thr = _gvn.transform(new BoolNode(cmp_thr, BoolTest::ne));
 
@@ -3400,6 +3401,10 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* kls = LoadKlassNode::make(_gvn, NULL, immutable_memory(), p, adr_type, kls_type);
     klasses[which_arg] = _gvn.transform(kls);
   }
+
+  // Resolve oops to stable for CmpP below.
+  args[0] = access_resolve(args[0], 0);
+  args[1] = access_resolve(args[1], 0);
 
   // Having loaded both klasses, test each for null.
   bool never_see_null = !too_many_traps(Deoptimization::Reason_null_check);
@@ -4178,8 +4183,10 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
 
-  Node* src = make_unsafe_address(src_ptr, src_off);
-  Node* dst = make_unsafe_address(dst_ptr, dst_off);
+  src_ptr = access_resolve(src_ptr, ACCESS_READ);
+  dst_ptr = access_resolve(dst_ptr, ACCESS_WRITE);
+  Node* src = make_unsafe_address(src_ptr, src_off, ACCESS_READ);
+  Node* dst = make_unsafe_address(dst_ptr, dst_off, ACCESS_WRITE);
 
   // Conservatively insert a memory barrier on all memory slices.
   // Do not let writes of the copy source or destination float below the copy.
@@ -4223,7 +4230,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   // TODO: generate fields copies for small objects instead.
   Node* size = _gvn.transform(obj_size);
 
-  access_clone(control(), obj, alloc_obj, size, is_array);
+  access_clone(obj, alloc_obj, size, is_array);
 
   // Do not let reads from the cloned object float above the arraycopy.
   if (alloc != NULL) {
@@ -4323,7 +4330,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      if (bs->array_copy_requires_gc_barriers(T_OBJECT)) {
+      if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
         // If it is an oop array, it requires very special treatment,
         // because gc barriers are required when accessing the array.
         Node* is_obja = generate_objArray_guard(obj_klass, (RegionNode*)NULL);
@@ -5334,8 +5341,10 @@ bool LibraryCallKit::inline_vectorizedMismatch() {
   Node* call;
   jvms()->set_should_reexecute(true);
 
-  Node* obja_adr = make_unsafe_address(obja, aoffset);
-  Node* objb_adr = make_unsafe_address(objb, boffset);
+  obja = access_resolve(obja, ACCESS_READ);
+  objb = access_resolve(objb, ACCESS_READ);
+  Node* obja_adr = make_unsafe_address(obja, aoffset, ACCESS_READ);
+  Node* objb_adr = make_unsafe_address(objb, boffset, ACCESS_READ);
 
   call = make_runtime_call(RC_LEAF,
     OptoRuntime::vectorizedMismatch_Type(),
@@ -6116,6 +6125,10 @@ Node* LibraryCallKit::inline_cipherBlockChaining_AESCrypt_predicate(bool decrypt
 
   src = must_be_not_null(src, true);
   dest = must_be_not_null(dest, true);
+
+  // Resolve oops to stable for CmpP below.
+  src = access_resolve(src, 0);
+  dest = access_resolve(dest, 0);
 
   ciInstanceKlass* instklass_AESCrypt = klass_AESCrypt->as_instance_klass();
 

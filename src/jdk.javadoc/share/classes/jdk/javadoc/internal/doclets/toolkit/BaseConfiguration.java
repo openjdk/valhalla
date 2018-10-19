@@ -295,6 +295,11 @@ public abstract class BaseConfiguration {
      // A list of pairs containing urls and package list
     private final List<Pair<String, String>> linkOfflineList = new ArrayList<>();
 
+    /**
+     * Flag to enable/disable use of module directories when generating docs for modules
+     * Default: on (module directories are enabled).
+     */
+    public boolean useModuleDirectories = true;
 
     public boolean dumpOnError = false;
 
@@ -393,6 +398,10 @@ public abstract class BaseConfiguration {
         this.docEnv = docEnv;
         // Utils needs docEnv, safe to init now.
         utils = new Utils(this);
+
+        if (!javafx) {
+            javafx = isJavaFXMode();
+        }
 
         // Once docEnv and Utils have been initialized, others should be safe.
         cmtUtils = new CommentUtils(this);
@@ -740,6 +749,13 @@ public abstract class BaseConfiguration {
                         return true;
                     }
                 },
+                new XOption(resources, "--no-module-directories") {
+                    @Override
+                    public boolean process(String option, List<String> args) {
+                        useModuleDirectories = false;
+                        return true;
+                    }
+                }
         };
         Set<Doclet.Option> set = new TreeSet<>();
         set.addAll(Arrays.asList(options));
@@ -1334,5 +1350,20 @@ public abstract class BaseConfiguration {
 
     public synchronized VisibleMemberTable getVisibleMemberTable(TypeElement te) {
         return visibleMemberCache.getVisibleMemberTable(te);
+    }
+
+    /**
+     * Determines if JavaFX is available in the compilation environment.
+     * @return true if JavaFX is available
+     */
+    public boolean isJavaFXMode() {
+        TypeElement observable = utils.elementUtils.getTypeElement("javafx.beans.Observable");
+        if (observable != null) {
+            ModuleElement javafxModule = utils.elementUtils.getModuleOf(observable);
+            if (javafxModule == null || javafxModule.isUnnamed() || javafxModule.getQualifiedName().contentEquals("javafx.base")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

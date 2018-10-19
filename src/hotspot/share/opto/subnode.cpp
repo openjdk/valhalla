@@ -1252,6 +1252,24 @@ void BoolTest::dump_on(outputStream *st) const {
   st->print("%s", msg[_test]);
 }
 
+// Returns the logical AND of two tests (or 'never' if both tests can never be true).
+// For example, a test for 'le' followed by a test for 'lt' is equivalent with 'lt'.
+BoolTest::mask BoolTest::merge(BoolTest other) const {
+  const mask res[illegal+1][illegal+1] = {
+    // eq,      gt,      of,      lt,      ne,      le,      nof,     ge,      never,   illegal
+      {eq,      never,   illegal, never,   never,   eq,      illegal, eq,      never,   illegal},  // eq
+      {never,   gt,      illegal, never,   gt,      never,   illegal, gt,      never,   illegal},  // gt
+      {illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, never,   illegal},  // of
+      {never,   never,   illegal, lt,      lt,      lt,      illegal, never,   never,   illegal},  // lt
+      {never,   gt,      illegal, lt,      ne,      lt,      illegal, gt,      never,   illegal},  // ne
+      {eq,      never,   illegal, lt,      lt,      le,      illegal, eq,      never,   illegal},  // le
+      {illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, never,   illegal},  // nof
+      {eq,      gt,      illegal, never,   gt,      eq,      illegal, ge,      never,   illegal},  // ge
+      {never,   never,   never,   never,   never,   never,   never,   never,   never,   illegal},  // never
+      {illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal, illegal}}; // illegal
+  return res[_test][other._test];
+}
+
 //=============================================================================
 uint BoolNode::hash() const { return (Node::hash() << 3)|(_test._test+1); }
 uint BoolNode::size_of() const { return sizeof(BoolNode); }
@@ -1520,6 +1538,37 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     const TypeInt* cmp1_in2 = phase->type(cmp1->in(2))->is_int();
     Node *ncmp = phase->transform( new CmpINode(cmp1->in(1),phase->intcon(-cmp1_in2->_hi)));
     return new BoolNode( ncmp, _test._test );
+  }
+
+  // Change "bool eq/ne (cmp (phi (X -X) 0))" into "bool eq/ne (cmp X 0)"
+  // since zero check of conditional negation of an integer is equal to
+  // zero check of the integer directly.
+  if ((_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      (cop == Op_CmpI) &&
+      (cmp2_type == TypeInt::ZERO) &&
+      (cmp1_op == Op_Phi)) {
+    // There should be a diamond phi with true path at index 1 or 2
+    PhiNode *phi = cmp1->as_Phi();
+    int idx_true = phi->is_diamond_phi();
+    if (idx_true != 0) {
+      // True input is in(idx_true) while false input is in(3 - idx_true)
+      Node *tin = phi->in(idx_true);
+      Node *fin = phi->in(3 - idx_true);
+      if ((tin->Opcode() == Op_SubI) &&
+          (phase->type(tin->in(1)) == TypeInt::ZERO) &&
+          (tin->in(2) == fin)) {
+        // Found conditional negation at true path, create a new CmpINode without that
+        Node *ncmp = phase->transform(new CmpINode(fin, cmp2));
+        return new BoolNode(ncmp, _test._test);
+      }
+      if ((fin->Opcode() == Op_SubI) &&
+          (phase->type(fin->in(1)) == TypeInt::ZERO) &&
+          (fin->in(2) == tin)) {
+        // Found conditional negation at false path, create a new CmpINode without that
+        Node *ncmp = phase->transform(new CmpINode(tin, cmp2));
+        return new BoolNode(ncmp, _test._test);
+      }
+    }
   }
 
   // Change (-A vs 0) into (A vs 0) by commuting the test.  Disallow in the

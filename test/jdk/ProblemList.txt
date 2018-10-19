@@ -102,7 +102,7 @@
 #  1. Make sure test passes on all platforms with samevm, or mark it othervm
 #  2. Make sure test passes on all platforms when run with it's entire group
 #  3. Make sure both VMs are tested, -server and -client, if possible
-#  4. Use a tool like JPRT or something to verify these results
+#  4. Use your favorite build and test system to verify these results
 #  5. Delete lines in this file, include the changes with your test changes
 #
 # You may need to repeat your testing 2 or even 3 times to verify good
@@ -128,7 +128,6 @@ java/awt/FileDialog/FileDialogIconTest/FileDialogIconTest.java 8160558 windows-a
 java/awt/FileDialog/8003399/bug8003399.java 8198334 windows-all
 java/awt/event/MouseWheelEvent/InfiniteRecursion/InfiniteRecursion.java 8060176 windows-all,macosx-all
 java/awt/event/MouseWheelEvent/InfiniteRecursion/InfiniteRecursion_1.java 8060176 windows-all,macosx-all
-java/awt/dnd/BadSerializaionTest/BadSerializationTest.java 8039082 generic-all
 java/awt/dnd/MissingEventsOnModalDialog/MissingEventsOnModalDialogTest.java 8164464 linux-all,macosx-all
 java/awt/dnd/URIListBetweenJVMsTest/URIListBetweenJVMsTest.html 8171510 macosx-all
 javax/swing/dnd/7171812/bug7171812.java 8041447 macosx-all
@@ -509,6 +508,8 @@ java/beans/XMLEncoder/Test6570354.java 8015593 macosx-all
 # jdk_lang
 
 java/lang/StringCoding/CheckEncodings.sh                        7008363 generic-all
+java/lang/ProcessBuilder/PipelineTest.java                      8211844 aix-ppc64
+java/lang/ProcessHandle/InfoTest.java                           8211847 aix-ppc64
 
 ############################################################################
 
@@ -516,8 +517,6 @@ java/lang/StringCoding/CheckEncodings.sh                        7008363 generic-
 
 java/lang/instrument/RedefineBigClass.sh                        8065756 generic-all
 java/lang/instrument/RetransformBigClass.sh                     8065756 generic-all
-
-java/lang/instrument/BootClassPath/BootClassPathTest.sh         8072130 macosx-all
 
 java/lang/management/MemoryMXBean/Pending.java                  8158837 generic-all
 java/lang/management/MemoryMXBean/PendingAllGC.sh               8158837 generic-all
@@ -559,8 +558,7 @@ java/net/MulticastSocket/SetGetNetworkInterfaceTest.java        8207404 aix-all
 
 java/net/DatagramSocket/SendDatagramToBadAddress.java           7143960 macosx-all
 
-java/net/Socket/LingerTest.java                                 8208690 generic-all
-sun/net/www/http/HttpClient/MultiThreadTest.java                8208690 generic-all
+java/net/ServerSocket/AcceptInheritHandle.java                  8211854 aix-ppc64
 
 ############################################################################
 
@@ -570,13 +568,16 @@ java/nio/Buffer/EqualsCompareTest.java                          8193917 solaris-
 
 java/nio/channels/DatagramChannel/ChangingAddress.java          7141822 macosx-all
 
+java/nio/channels/AsynchronousSocketChannel/StressLoopback.java 8211851 aix-ppc64
+
 java/nio/channels/Selector/Wakeup.java                          6963118 windows-all
-java/nio/channels/Selector/RacyDeregister.java                  8201765 windows-all
 
 java/nio/file/WatchService/Basic.java                           7158947 solaris-all Solaris 11
 java/nio/file/WatchService/MayFlies.java                        7158947 solaris-all Solaris 11
 java/nio/file/WatchService/LotsOfCancels.java                   8188039 solaris-all Solaris 11
 java/nio/file/WatchService/LotsOfEvents.java                    7158947 solaris-all Solaris 11
+
+sun/nio/cs/OLD/TestIBMDB.java                                   8211841 aix-ppc64
 
 ############################################################################
 
@@ -682,6 +683,7 @@ sun/security/pkcs11/tls/TestLeadingZeroesP11.java               8204203 windows-
 sun/security/pkcs11/tls/TestMasterSecret.java                   8204203 windows-all
 sun/security/pkcs11/tls/TestPRF.java                            8204203 windows-all
 sun/security/pkcs11/tls/TestPremaster.java                      8204203 windows-all
+sun/security/tools/keytool/NssTest.java                         8204203 windows-all
 
 ############################################################################
 
@@ -689,7 +691,6 @@ sun/security/pkcs11/tls/TestPremaster.java                      8204203 windows-
 javax/sound/sampled/DirectAudio/bug6372428.java                      8055097 generic-all
 javax/sound/sampled/Clip/bug5070081.java                             8055097 generic-all
 javax/sound/sampled/DataLine/LongFramePosition.java                  8055097 generic-all
-javax/sound/sampled/Clip/AutoCloseTimeCheck.java                     8207150 generic-all
 
 javax/sound/sampled/Clip/Drain/ClipDrain.java          7062792 generic-all
 
@@ -834,8 +835,6 @@ tools/pack200/CommandLineTests.java                             8059906 generic-
 
 # jdk_jdi
 
-com/sun/jdi/BasicJDWPConnectionTest.java                        8195703 generic-all
-
 com/sun/jdi/RepStep.java                                        8043571 generic-all
 
 com/sun/jdi/sde/SourceDebugExtensionTest.java                   8158066 windows-all
@@ -859,7 +858,7 @@ com/sun/jdi/NashornPopFrameTest.java                            8187143 generic-
 # svc_tools
 
 sun/tools/jstat/jstatClassloadOutput1.sh                        8173942 generic-all
-sun/tools/jhsdb/BasicLauncherTest.java                          8193639 solaris-all
+sun/tools/jhsdb/BasicLauncherTest.java                          8193639,8211767 solaris-all,linux-ppc64,linux-ppc64le
 sun/tools/jhsdb/HeapDumpTest.java                               8193639 solaris-all
 
 

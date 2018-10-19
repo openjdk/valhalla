@@ -507,9 +507,6 @@ public:
                                        ClassLoaderData* loader_data,
                                        TRAPS);
  public:
-  // tell if two classes have the same enclosing class (at package level)
-  bool is_same_package_member(const Klass* class2, TRAPS) const;
-
   // initialization state
   bool is_loaded() const                   { return _init_state >= loaded; }
   bool is_linked() const                   { return _init_state >= linked; }
@@ -542,7 +539,6 @@ public:
   void initialize(TRAPS);
   void link_class(TRAPS);
   bool link_class_or_fail(TRAPS); // returns false on failure
-  void unlink_class();
   void rewrite_class(TRAPS);
   void link_methods(TRAPS);
   Method* class_initializer() const;
@@ -1180,22 +1176,12 @@ public:
   bool on_stack() const { return _constants->on_stack(); }
 
   // callbacks for actions during class unloading
-  static void notify_unload_class(InstanceKlass* ik);
+  static void unload_class(InstanceKlass* ik);
   static void release_C_heap_structures(InstanceKlass* ik);
 
   // Naming
   const char* signature_name() const;
   static Symbol* package_from_name(const Symbol* name, TRAPS);
-
-  // GC specific object visitors
-  //
-#if INCLUDE_PARALLELGC
-  // Parallel Scavenge
-  void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
-  // Parallel Compact
-  void oop_pc_follow_contents(oop obj, ParCompactionManager* cm);
-  void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
-#endif
 
   // Oop fields (and metadata) iterators
   //
@@ -1209,7 +1195,7 @@ public:
 
   // Iterate over all oop fields and metadata.
   template <typename T, class OopClosureType>
-  inline int oop_oop_iterate(oop obj, OopClosureType* closure);
+  inline void oop_oop_iterate(oop obj, OopClosureType* closure);
 
   // Iterate over all oop fields in one oop map.
   template <typename T, class OopClosureType>
@@ -1219,7 +1205,7 @@ public:
   // Reverse iteration
   // Iterate over all oop fields and metadata.
   template <typename T, class OopClosureType>
-  inline int oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
+  inline void oop_oop_iterate_reverse(oop obj, OopClosureType* closure);
 
  private:
   // Iterate over all oop fields in the oop maps.
@@ -1239,7 +1225,7 @@ public:
 
   // Iterate over all oop fields and metadata.
   template <typename T, class OopClosureType>
-  inline int oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
+  inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
  private:
   // Iterate over all oop fields in one oop map.

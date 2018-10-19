@@ -104,7 +104,7 @@ void Parse::array_store(BasicType bt) {
 
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
 
-  access_store_at(control(), array, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+  access_store_at(array, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }
 
 
@@ -1346,7 +1346,7 @@ float Parse::dynamic_branch_prediction(float &cnt, BoolTest::mask btest, Node* t
     if (prob <= PROB_MIN)  prob_str = (prob == PROB_MIN) ? "min" : "never";
     char prob_str_buf[30];
     if (prob_str == NULL) {
-      sprintf(prob_str_buf, "%g", prob);
+      jio_snprintf(prob_str_buf, sizeof(prob_str_buf), "%20.2f", prob);
       prob_str = prob_str_buf;
     }
     C->log()->elem("branch target_bci='%d' taken='%d' not_taken='%d' cnt='%f' prob='%s'",
@@ -2747,8 +2747,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = pop();
-    b = pop();
+    a = access_resolve(pop(), 0);
+    b = access_resolve(pop(), 0);
     c = _gvn.transform( new CmpPNode(b, a) );
     c = optimize_cmp_with_klass(c);
     do_if(btest, c);
@@ -2854,7 +2854,7 @@ void Parse::do_one_bytecode() {
   IdealGraphPrinter *printer = C->printer();
   if (printer && printer->should_print(1)) {
     char buffer[256];
-    sprintf(buffer, "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
     printer->print_method(buffer, 4);

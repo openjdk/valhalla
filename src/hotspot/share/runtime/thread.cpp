@@ -851,11 +851,9 @@ void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   f->do_oop((oop*)&_pending_exception);
   handle_area()->oops_do(f);
 
-  if (MonitorInUseLists) {
-    // When using thread local monitor lists, we scan them here,
-    // and the remaining global monitors in ObjectSynchronizer::oops_do().
-    ObjectSynchronizer::thread_local_used_oops_do(this, f);
-  }
+  // We scan thread local monitor lists here, and the remaining global
+  // monitors in ObjectSynchronizer::oops_do().
+  ObjectSynchronizer::thread_local_used_oops_do(this, f);
 }
 
 void Thread::metadata_handles_do(void f(Metadata*)) {
@@ -1549,6 +1547,7 @@ void JavaThread::initialize() {
   _pending_failed_speculation = 0;
   _pending_transfer_to_interpreter = false;
   _adjusting_comp_level = false;
+  _in_retryable_allocation = false;
   _jvmci._alternate_call_target = NULL;
   assert(_jvmci._implicit_exception_pc == NULL, "must be");
   if (JVMCICounterSize > 0) {
@@ -1953,13 +1952,9 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   // between JNI-acquired and regular Java monitors. We can only see
   // regular Java monitors here if monitor enter-exit matching is broken.
   //
-  // Optionally release any monitors for regular JavaThread exits. This
-  // is provided as a work around for any bugs in monitor enter-exit
-  // matching. This can be expensive so it is not enabled by default.
-  //
   // ensure_join() ignores IllegalThreadStateExceptions, and so does
   // ObjectSynchronizer::release_monitors_owned_by_thread().
-  if (exit_type == jni_detach || ObjectMonitor::Knob_ExitRelease) {
+  if (exit_type == jni_detach) {
     // Sanity check even though JNI DetachCurrentThread() would have
     // returned JNI_ERR if there was a Java frame. JavaThread exit
     // should be done executing Java code by the time we get here.
@@ -4217,10 +4212,10 @@ void JavaThread::invoke_shutdown_hooks() {
 //     <-- do not use anything that could get blocked by Safepoint -->
 //   + Disable tracing at JNI/JVM barriers
 //   + Set _vm_exited flag for threads that are still running native code
-//   + Delete this thread
 //   + Call exit_globals()
 //      > deletes tty
 //      > deletes PerfMemory resources
+//   + Delete this thread
 //   + Return to caller
 
 bool Threads::destroy_vm() {
@@ -4296,6 +4291,9 @@ bool Threads::destroy_vm() {
 
   notify_vm_shutdown();
 
+  // exit_globals() will delete tty
+  exit_globals();
+
   // We are after VM_Exit::set_vm_exited() so we can't call
   // thread->smr_delete() or we will block on the Threads_lock.
   // Deleting the shutdown thread here is safe because another
@@ -4308,9 +4306,6 @@ bool Threads::destroy_vm() {
     FREE_C_HEAP_ARRAY(jlong, JavaThread::_jvmci_old_thread_counters);
   }
 #endif
-
-  // exit_globals() will delete tty
-  exit_globals();
 
   LogConfiguration::finalize();
 
@@ -4574,9 +4569,9 @@ void Threads::print_on(outputStream* st, bool print_stacks,
   st->print_raw_cr(os::local_time_string(buf, sizeof(buf)));
 
   st->print_cr("Full thread dump %s (%s %s):",
-               Abstract_VM_Version::vm_name(),
-               Abstract_VM_Version::vm_release(),
-               Abstract_VM_Version::vm_info_string());
+               VM_Version::vm_name(),
+               VM_Version::vm_release(),
+               VM_Version::vm_info_string());
   st->cr();
 
 #if INCLUDE_SERVICES

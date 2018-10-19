@@ -26,6 +26,7 @@
 #include "precompiled.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/classLoaderData.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -79,7 +80,7 @@ void Symbol::operator delete(void *p) {
 bool Symbol::starts_with(const char* prefix, int len) const {
   if (len > utf8_length()) return false;
   while (len-- > 0) {
-    if (prefix[len] != (char) byte_at(len))
+    if (prefix[len] != char_at(len))
       return false;
   }
   assert(len == -1, "we should be at the beginning");
@@ -117,7 +118,7 @@ char* Symbol::as_C_string(char* buf, int size) const {
   if (size > 0) {
     int len = MIN2(size - 1, utf8_length());
     for (int i = 0; i < len; i++) {
-      buf[i] = byte_at(i);
+      buf[i] = char_at(i);
     }
     buf[len] = '\0';
   }
@@ -293,28 +294,36 @@ void Symbol::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Symbol::print_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print_cr("NULL");
-  } else {
-    st->print("Symbol: '");
-    print_symbol_on(st);
-    st->print("'");
-    st->print(" count %d", refcount());
-  }
+  st->print("Symbol: '");
+  print_symbol_on(st);
+  st->print("'");
+  st->print(" count %d", refcount());
 }
 
 // The print_value functions are present in all builds, to support the
 // disassembler and error reporting.
 void Symbol::print_value_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print("NULL");
-  } else {
-    st->print("'");
-    for (int i = 0; i < utf8_length(); i++) {
-      st->print("%c", byte_at(i));
-    }
-    st->print("'");
+  st->print("'");
+  for (int i = 0; i < utf8_length(); i++) {
+    st->print("%c", char_at(i));
   }
+  st->print("'");
+}
+
+bool Symbol::is_valid(Symbol* s) {
+  if (!is_aligned(s, sizeof(MetaWord))) return false;
+  if ((size_t)s < os::min_page_size()) return false;
+
+  if (!os::is_readable_range(s, s + 1)) return false;
+
+  // Symbols are not allocated in Java heap.
+  if (Universe::heap()->is_in_reserved(s)) return false;
+
+  int len = s->utf8_length();
+  if (len < 0) return false;
+
+  jbyte* bytes = (jbyte*) s->bytes();
+  return os::is_readable_range(bytes, bytes + len);
 }
 
 // SymbolTable prints this in its statistics

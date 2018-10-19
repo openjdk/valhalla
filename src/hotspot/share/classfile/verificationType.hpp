@@ -207,7 +207,7 @@ class VerificationType {
   bool is_check() const { return (_u._data & TypeQuery) == TypeQuery; }
 
   bool is_x_array(char sig) const {
-    return is_null() || (is_array() && (name()->byte_at(1) == sig));
+    return is_null() || (is_array() && (name()->char_at(1) == sig));
   }
   bool is_int_array() const { return is_x_array('I'); }
   bool is_byte_array() const { return is_x_array('B'); }
@@ -223,10 +223,10 @@ class VerificationType {
     { return is_object_array() || is_array_array(); }
   bool is_object() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 1 &&
-              name()->byte_at(0) != '['); }
+              name()->char_at(0) != '['); }
   bool is_array() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 2 &&
-              name()->byte_at(0) == '['); }
+              name()->char_at(0) == '['); }
   bool is_uninitialized() const
     { return ((_u._data & Uninitialized) == Uninitialized); }
   bool is_uninitialized_this() const
@@ -312,7 +312,7 @@ class VerificationType {
         case Short:
           return false;
         default:
-          return is_assignable_from(from, context, from_field_is_protected, CHECK_false);
+          return is_assignable_from(from, context, from_field_is_protected, THREAD);
       }
     }
   }
@@ -322,7 +322,7 @@ class VerificationType {
   int dimensions() const {
     assert(is_array(), "Must be an array");
     int index = 0;
-    while (name()->byte_at(index) == '[') index++;
+    while (name()->char_at(index) == '[') index++;
     return index;
   }
 

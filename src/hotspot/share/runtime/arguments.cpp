@@ -106,6 +106,9 @@ char*  Arguments::SharedArchivePath             = NULL;
 AgentLibraryList Arguments::_libraryList;
 AgentLibraryList Arguments::_agentList;
 
+// These are not set by the JDK's built-in launchers, but they can be set by
+// programs that embed the JVM using JNI_CreateJavaVM. See comments around
+// JavaVMOption in jni.h.
 abort_hook_t     Arguments::_abort_hook         = NULL;
 exit_hook_t      Arguments::_exit_hook          = NULL;
 vfprintf_hook_t  Arguments::_vfprintf_hook      = NULL;
@@ -526,8 +529,6 @@ static SpecialFlag const special_jvm_flags[] = {
   // --- Non-alias flags - sorted by obsolete_in then expired_in:
   { "MaxGCMinorPauseMillis",        JDK_Version::jdk(8), JDK_Version::undefined(), JDK_Version::undefined() },
   { "UseConcMarkSweepGC",           JDK_Version::jdk(9), JDK_Version::undefined(), JDK_Version::undefined() },
-  { "AssumeMP",                     JDK_Version::jdk(10),JDK_Version::undefined(), JDK_Version::undefined() },
-  { "MonitorInUseLists",            JDK_Version::jdk(10),JDK_Version::undefined(), JDK_Version::undefined() },
   { "MaxRAMFraction",               JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "MinRAMFraction",               JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "InitialRAMFraction",           JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -540,33 +541,16 @@ static SpecialFlag const special_jvm_flags[] = {
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "CreateMinidumpOnCrash",        JDK_Version::jdk(9),  JDK_Version::undefined(), JDK_Version::undefined() },
-  { "MustCallLoadClassInternal",    JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "UnsyncloadClass",              JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "TLABStats",                    JDK_Version::jdk(12), JDK_Version::undefined(), JDK_Version::undefined() },
 
   // -------------- Obsolete Flags - sorted by expired_in --------------
-  { "CheckAssertionStatusDirectives",JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "PrintMallocFree",               JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "PrintMalloc",                   JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "ShowSafepointMsgs",             JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "FastTLABRefill",                JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "SafepointSpinBeforeYield",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "CheckEndorsedAndExtDirs",       JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "DeferThrSuspendLoopCount",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "DeferPollingPageLoopCount",     JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "TraceScavenge",                 JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "PermSize",                      JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "MaxPermSize",                   JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "SharedReadWriteSize",           JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedReadOnlySize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscDataSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscCodeSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
-  { "UseUTCFileTimestamp",           JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "InlineNotify",                  JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "EnableTracing",                 JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "UseLockedTracing",              JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "NativeMonitorTimeout",          JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "NativeMonitorSpinLimit",        JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "NativeMonitorFlags",            JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "AssumeMP",                      JDK_Version::jdk(10),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "UnlinkSymbolsALot",             JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "AllowNonVirtualCalls",          JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "PrintSafepointStatistics",      JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
@@ -577,6 +561,8 @@ static SpecialFlag const special_jvm_flags[] = {
   { "EmitSync",                      JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "SyncVerbose",                   JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "SyncFlags",                     JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "SyncKnobs",                     JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "MonitorInUseLists",             JDK_Version::jdk(10),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   { "dep > obs",                    JDK_Version::jdk(9), JDK_Version::jdk(8), JDK_Version::undefined() },
@@ -3467,21 +3453,27 @@ void Arguments::set_shared_spaces_flags() {
 
 // Sharing support
 // Construct the path to the archive
+char* Arguments::get_default_shared_archive_path() {
+  char *default_archive_path;
+  char jvm_path[JVM_MAXPATHLEN];
+  os::jvm_path(jvm_path, sizeof(jvm_path));
+  char *end = strrchr(jvm_path, *os::file_separator());
+  if (end != NULL) *end = '\0';
+  size_t jvm_path_len = strlen(jvm_path);
+  size_t file_sep_len = strlen(os::file_separator());
+  const size_t len = jvm_path_len + file_sep_len + 20;
+  default_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
+  if (default_archive_path != NULL) {
+    jio_snprintf(default_archive_path, len, "%s%sclasses.jsa",
+      jvm_path, os::file_separator());
+  }
+  return default_archive_path;
+}
+
 static char* get_shared_archive_path() {
   char *shared_archive_path;
   if (SharedArchiveFile == NULL) {
-    char jvm_path[JVM_MAXPATHLEN];
-    os::jvm_path(jvm_path, sizeof(jvm_path));
-    char *end = strrchr(jvm_path, *os::file_separator());
-    if (end != NULL) *end = '\0';
-    size_t jvm_path_len = strlen(jvm_path);
-    size_t file_sep_len = strlen(os::file_separator());
-    const size_t len = jvm_path_len + file_sep_len + 20;
-    shared_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
-    if (shared_archive_path != NULL) {
-      jio_snprintf(shared_archive_path, len, "%s%sclasses.jsa",
-        jvm_path, os::file_separator());
-    }
+    shared_archive_path = Arguments::get_default_shared_archive_path();
   } else {
     shared_archive_path = os::strdup_check_oom(SharedArchiveFile, mtArguments);
   }
@@ -3847,6 +3839,10 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
 
 #if defined(_ALLBSD_SOURCE) || defined(AIX)  // UseLargePages is not yet supported on BSD and AIX.
   UNSUPPORTED_OPTION(UseLargePages);
+#endif
+
+#if defined(AIX)
+  UNSUPPORTED_OPTION(AllocateHeapAt);
 #endif
 
   ArgumentsExt::report_unsupported_options();

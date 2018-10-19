@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -104,7 +105,7 @@ class JvmtiTagHashmapEntry : public CHeapObj<mtInternal> {
   }
 
   inline bool equals(oop object) {
-    return object == object_peek();
+    return oopDesc::equals(object, object_peek());
   }
 
   inline JvmtiTagHashmapEntry* next() const        { return _next; }
@@ -185,6 +186,7 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
 
     // shift right to get better distribution (as these bits will be zero
     // with aligned addresses)
+    key = Access<>::resolve(key);
     unsigned int addr = (unsigned int)(cast_from_oop<intptr_t>(key));
 #ifdef _LP64
     return (addr >> 3) % size;
@@ -852,7 +854,7 @@ ClassFieldMap* ClassFieldMap::create_map_of_static_fields(Klass* k) {
     if (!fld.access_flags().is_static()) {
       continue;
     }
-    field_map->add(max_field_index - index, fld.signature()->byte_at(0), fld.offset());
+    field_map->add(max_field_index - index, fld.signature()->char_at(0), fld.offset());
   }
   return field_map;
 }
@@ -878,7 +880,7 @@ ClassFieldMap* ClassFieldMap::create_map_of_instance_fields(oop obj) {
     if (fld.access_flags().is_static()) {
       continue;
     }
-    field_map->add(max_field_index - index, fld.signature()->byte_at(0), fld.offset());
+    field_map->add(max_field_index - index, fld.signature()->char_at(0), fld.offset());
   }
 
   return field_map;

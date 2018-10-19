@@ -2340,7 +2340,7 @@ void nmethod::print_recorded_oops() {
   for (int i = 0; i < oops_count(); i++) {
     oop o = oop_at(i);
     tty->print("#%3d: " INTPTR_FORMAT " ", i, p2i(o));
-    if (o == (oop)Universe::non_oop_word()) {
+    if (o == Universe::non_oop_word()) {
       tty->print("non-oop word");
     } else {
       if (o != NULL) {
@@ -2748,9 +2748,7 @@ public:
   virtual void verify() const {
     // make sure code pattern is actually a call imm32 instruction
     _call->verify();
-    if (os::is_MP()) {
-      _call->verify_alignment();
-    }
+    _call->verify_alignment();
   }
 
   virtual void verify_resolve_call(address dest) const {

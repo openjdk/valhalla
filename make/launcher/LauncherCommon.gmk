@@ -36,9 +36,7 @@ ifeq ($(TOOLCHAIN_TYPE), gcc)
   LAUNCHER_CFLAGS += -fvisibility=hidden
   LDFLAGS_JDKEXE += -Wl,--exclude-libs,ALL
 else ifeq ($(TOOLCHAIN_TYPE), clang)
-  ifneq ($(OPENJDK_TARGET_OS), macosx)
-    LAUNCHER_CFLAGS += -fvisibility=hidden
-  endif
+  LAUNCHER_CFLAGS += -fvisibility=hidden
 else ifeq ($(TOOLCHAIN_TYPE), solstudio)
   LAUNCHER_CFLAGS += -xldscope=hidden
 else ifeq ($(TOOLCHAIN_TYPE), xlc)
@@ -137,7 +135,7 @@ define SetupBuildLauncherBody
     $1_LIBS += -lz
   endif
 
-  $1_WINDOWS_JLI_LIB := $(SUPPORT_OUTPUTDIR)/native/java.base/libjli/jli.lib
+  $1_WINDOWS_JLI_LIB := $(call FindStaticLib, java.base, jli, /libjli)
 
   $$(eval $$(call SetupJdkExecutable, BUILD_LAUNCHER_$1, \
       NAME := $1, \
@@ -152,6 +150,7 @@ define SetupBuildLauncherBody
       CFLAGS_linux := -fPIC, \
       CFLAGS_solaris := -KPIC -DHAVE_GETHRTIME, \
       CFLAGS_windows := $$($1_CFLAGS_windows), \
+      DISABLED_WARNINGS_gcc := unused-function, \
       LDFLAGS := $$(LDFLAGS_JDKEXE) \
           $$(call SET_EXECUTABLE_ORIGIN) \
           $$($1_LDFLAGS), \
@@ -182,11 +181,11 @@ define SetupBuildLauncherBody
   TARGETS += $$($1)
 
   ifeq ($(OPENJDK_TARGET_OS), aix)
-    $$(BUILD_LAUNCHER_$1): $(SUPPORT_OUTPUTDIR)/native/java.base/libjli_static.a
+    $$(BUILD_LAUNCHER_$1): $(call FindStaticLib, java.base, jli_static)
   endif
 
   ifeq ($(OPENJDK_TARGET_OS), windows)
-    $$(BUILD_LAUNCHER_$1): $(SUPPORT_OUTPUTDIR)/native/java.base/libjava/java.lib \
+    $$(BUILD_LAUNCHER_$1): $(call FindStaticLib, java.base, java, /libjava) \
         $$($1_WINDOWS_JLI_LIB)
   endif
 endef

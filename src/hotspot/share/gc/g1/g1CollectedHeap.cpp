@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/metadataOnStackMark.hpp"
 #include "classfile/stringTable.hpp"
 #include "code/codeCache.hpp"
@@ -79,7 +80,6 @@
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
-#include "memory/metaspaceShared.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -826,7 +826,7 @@ void G1CollectedHeap::dealloc_archive_regions(MemRegion* ranges, size_t count) {
 
 oop G1CollectedHeap::materialize_archived_object(oop obj) {
   assert(obj != NULL, "archived obj is NULL");
-  assert(MetaspaceShared::is_archive_object(obj), "must be archived object");
+  assert(G1ArchiveAllocator::is_archived_object(obj), "must be archived object");
 
   // Loading an archived object makes it strongly reachable. If it is
   // loaded during concurrent marking, it must be enqueued to the SATB
@@ -1047,6 +1047,9 @@ void G1CollectedHeap::prepare_heap_for_mutators() {
 
   // Rebuild the strong code root lists for each region
   rebuild_strong_code_roots();
+
+  // Purge code root memory
+  purge_code_root_memory();
 
   // Start a new incremental collection set for the next pause
   start_new_collection_set();
@@ -3169,18 +3172,24 @@ void G1CollectedHeap::preserve_mark_during_evac_failure(uint worker_id, oop obj,
 }
 
 bool G1ParEvacuateFollowersClosure::offer_termination() {
+  EventGCPhaseParallel event;
   G1ParScanThreadState* const pss = par_scan_state();
   start_term_time();
   const bool res = terminator()->offer_termination();
   end_term_time();
+  event.commit(GCId::current(), pss->worker_id(), G1GCPhaseTimes::phase_name(G1GCPhaseTimes::Termination));
   return res;
 }
 
 void G1ParEvacuateFollowersClosure::do_void() {
+  EventGCPhaseParallel event;
   G1ParScanThreadState* const pss = par_scan_state();
   pss->trim_queue();
+  event.commit(GCId::current(), pss->worker_id(), G1GCPhaseTimes::phase_name(G1GCPhaseTimes::ObjCopy));
   do {
+    EventGCPhaseParallel event;
     pss->steal_and_trim_queue(queues());
+    event.commit(GCId::current(), pss->worker_id(), G1GCPhaseTimes::phase_name(G1GCPhaseTimes::ObjCopy));
   } while (!offer_termination());
 }
 
@@ -4050,6 +4059,7 @@ public:
         break;
       }
 
+      EventGCPhaseParallel event;
       double start_time = os::elapsedTime();
 
       end = MIN2(end, _num_work_items);
@@ -4064,9 +4074,11 @@ public:
         if (is_young) {
           young_time += time_taken;
           has_young_time = true;
+          event.commit(GCId::current(), worker_id, G1GCPhaseTimes::phase_name(G1GCPhaseTimes::YoungFreeCSet));
         } else {
           non_young_time += time_taken;
           has_non_young_time = true;
+          event.commit(GCId::current(), worker_id, G1GCPhaseTimes::phase_name(G1GCPhaseTimes::NonYoungFreeCSet));
         }
         start_time = end_time;
       }

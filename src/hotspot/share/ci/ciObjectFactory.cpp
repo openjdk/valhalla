@@ -157,8 +157,8 @@ void ciObjectFactory::init_shared_objects() {
   ciEnv::_null_object_instance = new (_arena) ciNullObject();
   init_ident_of(ciEnv::_null_object_instance);
 
-#define WK_KLASS_DEFN(name, ignore_s, opt)                              \
-  if (SystemDictionary::name() != NULL) \
+#define WK_KLASS_DEFN(name, ignore_s)                              \
+  if (SystemDictionary::name##_is_loaded()) \
     ciEnv::_##name = get_metadata(SystemDictionary::name())->as_instance_klass();
 
   WK_KLASSES_DO(WK_KLASS_DEFN)
@@ -466,7 +466,7 @@ ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
 
   // Two cases: this is an unloaded ObjArrayKlass or an
   // unloaded InstanceKlass.  Deal with both.
-  if (name->byte_at(0) == '[') {
+  if (name->char_at(0) == '[') {
     // Decompose the name.'
     FieldArrayInfo fd;
     BasicType element_type = FieldType::get_array_info(name->get_symbol(),

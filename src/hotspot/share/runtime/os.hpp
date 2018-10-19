@@ -226,8 +226,9 @@ class os: AllStatic {
     // the bootstrap routine for the stub generator needs to check
     // the processor count directly and leave the bootstrap routine
     // in place until called after initialization has ocurred.
-    return AssumeMP || (_processor_count != 1);
+    return (_processor_count != 1);
   }
+
   static julong available_memory();
   static julong physical_memory();
   static bool has_allocatable_memory_limit(julong* limit);
@@ -301,6 +302,9 @@ class os: AllStatic {
     // The _page_sizes array is sorted in descending order.
     return _page_sizes[0];
   }
+
+  // Return a lower bound for page sizes. Also works before os::init completed.
+  static size_t min_page_size() { return 4 * K; }
 
   // Methods for tracing page sizes returned by the above method.
   // The region_{min,max}_size parameters should be the values
@@ -414,6 +418,7 @@ class os: AllStatic {
 
   // Check if pointer points to readable memory (by 4-byte read access)
   static bool    is_readable_pointer(const void* p);
+  static bool    is_readable_range(const void* from, const void* to);
 
   // Routines used to serialize the thread state without using membars
   static void    serialize_thread_states();
@@ -538,7 +543,7 @@ class os: AllStatic {
   static char* do_you_want_to_debug(const char* message);
 
   // run cmd in a separate process and return its exit code; or -1 on failures
-  static int fork_and_exec(char *cmd);
+  static int fork_and_exec(char *cmd, bool use_vfork_if_available = false);
 
   // Call ::exit() on all platforms but Windows
   static void exit(int num);

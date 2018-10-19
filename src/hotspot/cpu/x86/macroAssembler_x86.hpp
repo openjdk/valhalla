@@ -156,9 +156,11 @@ class MacroAssembler: public Assembler {
   void incrementq(Register reg, int value = 1);
   void incrementq(Address dst, int value = 1);
 
+#ifdef COMPILER2
   // special instructions for EVEX
   void setvectmask(Register dst, Register src);
   void restorevectmask();
+#endif
 
   // Support optimal SSE move instructions.
   void movflt(XMMRegister dst, XMMRegister src) {
@@ -481,10 +483,6 @@ class MacroAssembler: public Assembler {
   // Store double value to 'address'. If UseSSE >= 2, the value is stored
   // from register xmm0. Otherwise, the value is stored from the FPU stack.
   void store_double(Address dst);
-
-  // Save/restore ZMM (512bit) register on stack.
-  void push_zmm(XMMRegister reg);
-  void pop_zmm(XMMRegister reg);
 
   // pushes double TOS element of FPU stack on CPU stack; pops from FPU stack
   void push_fTOS();
@@ -1214,9 +1212,11 @@ public:
   void vpand(XMMRegister dst, XMMRegister nds, Address src, int vector_len) { Assembler::vpand(dst, nds, src, vector_len); }
   void vpand(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len);
 
-  void vpbroadcastw(XMMRegister dst, XMMRegister src);
+  void vpbroadcastw(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastw(XMMRegister dst, Address src, int vector_len) { Assembler::vpbroadcastw(dst, src, vector_len); }
 
   void vpcmpeqb(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+
   void vpcmpeqw(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   void vpmovzxbw(XMMRegister dst, Address src, int vector_len);
@@ -1588,7 +1588,7 @@ public:
   void movl2ptr(Register dst, Register src) { LP64_ONLY(movslq(dst, src)) NOT_LP64(if (dst != src) movl(dst, src)); }
 
   // C2 compiled method's prolog code.
-  void verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b);
+  void verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b, bool is_stub);
 
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop

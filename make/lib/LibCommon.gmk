@@ -46,11 +46,9 @@ ifeq ($(TOOLCHAIN_TYPE), gcc)
   LDFLAGS_JDKLIB += -Wl,--exclude-libs,ALL
   EXPORT_ALL_SYMBOLS := -fvisibility=default
 else ifeq ($(TOOLCHAIN_TYPE), clang)
-  ifneq ($(OPENJDK_TARGET_OS), macosx)
-    CFLAGS_JDKLIB += -fvisibility=hidden
-    CXXFLAGS_JDKLIB += -fvisibility=hidden
-    EXPORT_ALL_SYMBOLS := -fvisibility=default
-  endif
+  CFLAGS_JDKLIB += -fvisibility=hidden
+  CXXFLAGS_JDKLIB += -fvisibility=hidden
+  EXPORT_ALL_SYMBOLS := -fvisibility=default
 else ifeq ($(TOOLCHAIN_TYPE), solstudio)
   CFLAGS_JDKLIB += -xldscope=hidden
   CXXFLAGS_JDKLIB += -xldscope=hidden
@@ -62,24 +60,6 @@ else ifeq ($(TOOLCHAIN_TYPE), xlc)
     EXPORT_ALL_SYMBOLS := -qvisibility=default
   endif
 endif
-
-################################################################################
-# Find a library
-# Param 1 - module name
-# Param 2 - library name
-# Param 3 - optional subdir for library
-FindLib = \
-    $(call FindLibDirForModule, \
-        $(strip $1))$(strip $3)/$(LIBRARY_PREFIX)$(strip $2)$(SHARED_LIBRARY_SUFFIX)
-
-################################################################################
-# Find a static library
-# Param 1 - module name
-# Param 2 - library name
-# Param 3 - optional subdir for library
-FindStaticLib = \
-    $(addprefix $(SUPPORT_OUTPUTDIR)/native/, \
-        $(strip $1)$(strip $3)/$(LIBRARY_PREFIX)$(strip $2)$(STATIC_LIBRARY_SUFFIX))
 
 # Put the libraries here.
 INSTALL_LIBRARIES_HERE := $(call FindLibDirForModule, $(MODULE))

@@ -91,9 +91,7 @@ Java_nsk_jvmti_scenarios_allocation_AP02_ap02t001_throwException( JNIEnv* jni,
                                                                   jclass exception_cls ) {
     jint result;
 
-    result = NSK_CPP_STUB3(ThrowNew, jni,
-                                     exception_cls,
-                                     "Got expected exception thrown from native code" );
+    result = jni->ThrowNew(exception_cls, "Got expected exception thrown from native code" );
     if (result != 0) {
         NSK_COMPLAIN1("throwException: Unable to throw exception in native code: %d\n\n", result );
         nsk_jvmti_setFailStatus();
@@ -105,21 +103,20 @@ Java_nsk_jvmti_scenarios_allocation_AP02_ap02t001_throwException( JNIEnv* jni,
 static void runIterations (jvmtiEnv* jvmti, jclass testedClass, jint exp_count) {
     NSK_DISPLAY0("Calling IterateOverInstancesOfClass with filter JVMTI_HEAP_OBJECT_EITHER\n");
     obj_count = 0;
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(IterateOverInstancesOfClass,
-                              jvmti,
-                              testedClass,
-                              JVMTI_HEAP_OBJECT_EITHER,
-                              heapObjectCallback,
-                              &user_data))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateOverInstancesOfClass(testedClass,
+                                                             JVMTI_HEAP_OBJECT_EITHER,
+                                                             heapObjectCallback,
+                                                             &user_data))) {
         nsk_jvmti_setFailStatus();
         return;
     }
 
     if (obj_count != exp_count) {
         nsk_jvmti_setFailStatus();
-        NSK_COMPLAIN3("IterateOverInstancesOfClass found unexpected number of %s objects: %d\n\t\
-expected number: %d\n\n", TESTED_CLASS, obj_count, exp_count);
+        NSK_COMPLAIN3(
+            "IterateOverInstancesOfClass found unexpected number of %s objects: %d\n"
+            "\texpected number: %d\n\n",
+            TESTED_CLASS, obj_count, exp_count);
     } else {
         NSK_DISPLAY2("Number of %s objects IterateOverInstancesOfClass has found: %d\n\n", TESTED_CLASS,
             obj_count);
@@ -128,39 +125,37 @@ expected number: %d\n\n", TESTED_CLASS, obj_count, exp_count);
     NSK_DISPLAY0("Calling IterateOverHeap with filter JVMTI_HEAP_OBJECT_EITHER\n");
     obj_count = 0;
     if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB4(IterateOverHeap,
-                              jvmti,
-                              JVMTI_HEAP_OBJECT_EITHER,
-                              heapObjectCallback,
-                              &user_data))) {
+            jvmti->IterateOverHeap(JVMTI_HEAP_OBJECT_EITHER, heapObjectCallback, &user_data))) {
         nsk_jvmti_setFailStatus();
         return;
     }
 
     if (obj_count != exp_count) {
         nsk_jvmti_setFailStatus();
-        NSK_COMPLAIN3("IterateOverHeap found unexpected number of %s objects: %d\n\t\
-expected number: %d\n\n", TESTED_CLASS, obj_count, exp_count);
+        NSK_COMPLAIN3(
+            "IterateOverHeap found unexpected number of %s objects: %d\n"
+            "\texpected number: %d\n\n",
+            TESTED_CLASS, obj_count, exp_count);
     } else {
         NSK_DISPLAY2("Number of %s objects IterateOverHeap has found: %d\n\n", TESTED_CLASS, obj_count);
     }
 
     NSK_DISPLAY0("Calling IterateOverReachableObjects\n");
     obj_count = 0;
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(IterateOverReachableObjects, jvmti,
-                                                       NULL /*heapRootCallback*/,
-                                                       stackReferenceCallback,
-                                                       NULL /*objectReferenceCallback*/,
-                                                       &user_data))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateOverReachableObjects(NULL /*heapRootCallback*/,
+                                                             stackReferenceCallback,
+                                                             NULL /*objectReferenceCallback*/,
+                                                             &user_data))) {
         nsk_jvmti_setFailStatus();
         return;
     }
 
     if (obj_count != exp_count) {
         nsk_jvmti_setFailStatus();
-        NSK_COMPLAIN3("IterateOverReachableObjects found unexpected number of %s objects: %d\n\t\
-expected number: %d\n\n", TESTED_CLASS, obj_count, exp_count);
+        NSK_COMPLAIN3(
+            "IterateOverReachableObjects found unexpected number of %s objects: %d\n"
+            "\texpected number: %d\n\n",
+            TESTED_CLASS, obj_count, exp_count);
     } else {
         NSK_DISPLAY2("Number of %s objects IterateOverReachableObjects has found: %d\n\n", TESTED_CLASS,
             obj_count);
@@ -183,15 +178,11 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         return;
     }
 
-    if (!NSK_JNI_VERIFY(jni, (testedClass = (jclass)
-            NSK_CPP_STUB2(NewGlobalRef, jni, testedClass)) != NULL))
+    if (!NSK_JNI_VERIFY(jni, (testedClass = (jclass)jni->NewGlobalRef(testedClass)) != NULL))
         return;
 
     NSK_DISPLAY0("Set tag for tested class\n\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(SetTag, jvmti,
-                                  testedClass,
-                                  TESTED_CLASS_TAG ))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetTag(testedClass, TESTED_CLASS_TAG))) {
         nsk_jvmti_setFailStatus();
         return;
     }
@@ -206,7 +197,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
     runIterations (jvmti, testedClass, 2);
 
-    NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, testedClass));
+    NSK_TRACE(jni->DeleteGlobalRef(testedClass));
 
     NSK_DISPLAY0("Let debugee to finish\n");
     if (!NSK_VERIFY(nsk_jvmti_resumeSync()))
@@ -236,12 +227,10 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_tag_objects = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps)))
         return JNI_ERR;
 
     if (!caps.can_tag_objects)
