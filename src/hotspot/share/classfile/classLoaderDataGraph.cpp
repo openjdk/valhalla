@@ -179,7 +179,7 @@ bool ClassLoaderDataGraph::_metaspace_oom = false;
 
 // Add a new class loader data node to the list.  Assign the newly created
 // ClassLoaderData into the java/lang/ClassLoader object as a hidden field
-ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_unsafe_anonymous) {
+ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_shortlived) {
 
   assert_lock_strong(ClassLoaderDataGraph_lock);
 
@@ -187,7 +187,7 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_unsaf
 
   // First check if another thread beat us to creating the CLD and installing
   // it into the loader while we were waiting for the lock.
-  if (!is_unsafe_anonymous && loader.not_null()) {
+  if (!is_shortlived && loader.not_null()) {
     cld = java_lang_ClassLoader::loader_data_acquire(loader());
     if (cld != NULL) {
       return cld;
@@ -199,14 +199,14 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_unsaf
   // loader oop in all collections, particularly young collections.
   NoSafepointVerifier no_safepoints;
 
-  cld = new ClassLoaderData(loader, is_unsafe_anonymous);
+  cld = new ClassLoaderData(loader, is_shortlived);
 
   // First install the new CLD to the Graph.
   cld->set_next(_head);
   _head = cld;
 
   // Next associate with the class_loader.
-  if (!is_unsafe_anonymous) {
+  if (!is_shortlived) {
     // Use OrderAccess, since readers need to get the loader_data only after
     // it's added to the Graph
     java_lang_ClassLoader::release_set_loader_data(loader(), cld);
@@ -224,9 +224,9 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_unsaf
   return cld;
 }
 
-ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool is_unsafe_anonymous) {
+ClassLoaderData* ClassLoaderDataGraph::add(Handle loader, bool is_shortlived) {
   MutexLocker ml(ClassLoaderDataGraph_lock);
-  ClassLoaderData* loader_data = add_to_graph(loader, is_unsafe_anonymous);
+  ClassLoaderData* loader_data = add_to_graph(loader, is_shortlived);
   return loader_data;
 }
 

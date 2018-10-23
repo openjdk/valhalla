@@ -1216,6 +1216,13 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
         private static MethodHandle makeInjectedInvoker(Class<?> hostClass) {
             try {
+                /* ## TODO
+                 * The invoker class defined to the same class loader as the lookup class
+                 * but in an unnamed package so that the class bytes can be cached and
+                 * reused for any @CSM.
+                 *
+                 * @CSM must be public and exported if called by any module.
+                 */
                 Class<?> invokerClass = UNSAFE.defineAnonymousClass(hostClass, INJECTED_INVOKER_TEMPLATE, null);
                 assert checkInjectedInvoker(hostClass, invokerClass);
                 return IMPL_LOOKUP.findStatic(invokerClass, "invoke_V", INVOKER_MT);
@@ -1846,7 +1853,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                         .generateInvokersHolderClassBytes(className,
                                 invokerMethodTypes, callSiteMethodTypes);
             }
-
         });
     }
 

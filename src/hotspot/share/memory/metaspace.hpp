@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,8 +103,8 @@ class Metaspace : public AllStatic {
     ZeroMetaspaceType = 0,
     StandardMetaspaceType = ZeroMetaspaceType,
     BootMetaspaceType = StandardMetaspaceType + 1,
-    UnsafeAnonymousMetaspaceType = BootMetaspaceType + 1,
-    ReflectionMetaspaceType = UnsafeAnonymousMetaspaceType + 1,
+    ShortLivedMetaspaceType = BootMetaspaceType + 1,
+    ReflectionMetaspaceType = ShortLivedMetaspaceType + 1,
     MetaspaceTypeCount
   };
 
@@ -242,7 +242,7 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
 
   // Initialize the first chunk for a Metaspace.  Used for
   // special cases such as the boot class loader, reflection
-  // class loader and anonymous class loader.
+  // class loader and nonfindable class loader.
   void initialize_first_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
   metaspace::Metachunk* get_initialization_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
 
@@ -396,7 +396,7 @@ public:
     rf_show_loaders                 = (1 << 0),
     // Breaks report down by chunk type (small, medium, ...).
     rf_break_down_by_chunktype      = (1 << 1),
-    // Breaks report down by space type (anonymous, reflection, ...).
+    // Breaks report down by space type (nonfindable, reflection, ...).
     rf_break_down_by_spacetype      = (1 << 2),
     // Print details about the underlying virtual spaces.
     rf_show_vslist                  = (1 << 3),

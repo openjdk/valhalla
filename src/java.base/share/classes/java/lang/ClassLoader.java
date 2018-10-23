@@ -1117,6 +1117,27 @@ public abstract class ClassLoader {
                                         int off, int len, ProtectionDomain pd,
                                         String source);
 
+    /**
+     * Defines a class of the given flags via Lookup.defineClass.
+     *
+     * @param loader the defining loader
+     * @param lookup nest host of the Class to be defined
+     * @param name the binary name or {@code null} if not findable
+     * @param b class bytes
+     * @param off the start offset in {@code b} of the class bytes
+     * @param len the length of the class bytes
+     * @param pd protection domain
+     * @param flags flags
+     * @param classData class data
+     */
+    static native Class<?> defineClass0(ClassLoader loader,
+                                        Class<?> lookup,
+                                        String name,
+                                        byte[] b, int off, int len,
+                                        ProtectionDomain pd,
+                                        int flags,
+                                        Object classData);
+
     // true if the name is null or has the potential to be a valid binary name
     private boolean checkName(String name) {
         if ((name == null) || (name.length() == 0))

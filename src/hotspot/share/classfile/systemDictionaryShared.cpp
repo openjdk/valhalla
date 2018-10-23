@@ -581,7 +581,7 @@ InstanceKlass* SystemDictionaryShared::lookup_from_stream(const Symbol* class_na
   if (shared_dictionary() == NULL) {
     return NULL;
   }
-  if (class_name == NULL) {  // don't do this for anonymous classes
+  if (class_name == NULL) {  // don't do this for nonfindable and unsafe anonymous classes
     return NULL;
   }
   if (class_loader.is_null() ||
@@ -754,11 +754,11 @@ bool SystemDictionaryShared::add_verification_constraint(InstanceKlass* k, Symbo
          Symbol* from_name, bool from_field_is_protected, bool from_is_array, bool from_is_object) {
   assert(DumpSharedSpaces, "called at dump time only");
 
-  // Skip unsafe anonymous classes, which are not archived as they are not in
-  // dictionary (see assert_no_unsafe_anonymous_classes_in_dictionaries() in
+  // Skip nonfindable and unsafe anonymous classes, which are not archived as they
+  // are not in dictionary (see assert_no_nonfindable_classes_in_dictionaries() in
   // VM_PopulateDumpSharedSpace::doit()).
-  if (k->class_loader_data()->is_unsafe_anonymous()) {
-    return true; // unsafe anonymous classes are not archived, skip
+  if (k->is_nonfindable()) {
+    return true; // nonfindable and unsafe anonymous classes are not archived, skip
   }
 
   SharedDictionaryEntry* entry = ((SharedDictionary*)(k->class_loader_data()->dictionary()))->find_entry_for(k);

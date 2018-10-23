@@ -386,6 +386,21 @@ JVM_DefineClassWithSource(JNIEnv *env, const char *name, jobject loader,
                           const char *source);
 
 /*
+ * Define a class with the specified lookup class.
+ *  lookup:  Lookup class
+ *  name:    the name of the class
+ *  loader:  defining class loader
+ *  buf:     class bytes
+ *  len:     length of class bytes
+ *  pd:      protection domain
+ *  flags:   properties of the class
+ *  classData: private static pre-initialized field; may be null
+ */
+JNIEXPORT jclass JNICALL
+JVM_LookupDefineClass(JNIEnv *env, jclass lookup, const char *name, jobject loader,
+                      const jbyte *buf, jsize len, jobject pd, int flags, jobject classData);
+
+/*
  * Module support funcions
  */
 

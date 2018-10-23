@@ -281,8 +281,10 @@ public:
                         class_loader,
                         protection_domain,
                         st,
-                        NULL, // unsafe_anonymous_host
-                        NULL, // cp_patches
+                        NULL,  // unsafe_anonymous_host
+                        NULL,  // cp_patches
+                        false, // is_nonfindable
+                        false, // is_weaknonfindable
                         THREAD);
   }
   static InstanceKlass* parse_stream(Symbol* class_name,
@@ -291,6 +293,8 @@ public:
                                      ClassFileStream* st,
                                      const InstanceKlass* unsafe_anonymous_host,
                                      GrowableArray<Handle>* cp_patches,
+                                     const bool is_nonfindable,
+                                     const bool is_weaknonfindable,
                                      TRAPS);
 
   // Resolve from stream (called by jni_DefineClass and JVM_DefineClass)

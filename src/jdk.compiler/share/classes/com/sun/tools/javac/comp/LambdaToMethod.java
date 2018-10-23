@@ -1262,8 +1262,6 @@ public class LambdaToMethod extends TreeTranslator {
         } else {
             if (refSym.isStatic()) {
                 return ClassFile.REF_invokeStatic;
-            } else if ((refSym.flags() & PRIVATE) != 0) {
-                return ClassFile.REF_invokeSpecial;
             } else if (refSym.enclClass().isInterface()) {
                 return ClassFile.REF_invokeInterface;
             } else {
@@ -2337,17 +2335,6 @@ public class LambdaToMethod extends TreeTranslator {
                 return tree.ownerAccessible;
             }
 
-            /**
-             * The VM does not support access across nested classes (8010319).
-             * Were that ever to change, this should be removed.
-             */
-            boolean isPrivateInOtherClass() {
-                return  (tree.sym.flags() & PRIVATE) != 0 &&
-                        !types.isSameType(
-                              types.erasure(tree.sym.enclClass().asType()),
-                              types.erasure(owner.enclClass().asType()));
-            }
-
             boolean isProtectedInSuperClassOfEnclosingClassInOtherPackage() {
                 return ((tree.sym.flags() & PROTECTED) != 0 &&
                         tree.sym.packge() != owner.packge() &&
@@ -2386,7 +2373,6 @@ public class LambdaToMethod extends TreeTranslator {
                         isSuper ||
                         needsVarArgsConversion() ||
                         isArrayOp() ||
-                        isPrivateInOtherClass() ||
                         isProtectedInSuperClassOfEnclosingClassInOtherPackage() ||
                         !receiverAccessible() ||
                         (tree.getMode() == ReferenceMode.NEW &&

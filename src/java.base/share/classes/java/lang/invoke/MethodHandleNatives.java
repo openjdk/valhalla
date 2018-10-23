@@ -136,6 +136,15 @@ class MethodHandleNatives {
             REF_newInvokeSpecial        = 8,
             REF_invokeInterface         = 9,
             REF_LIMIT                  = 10;
+
+        /**
+         * Flags for Lookup.ClassProperty
+         */
+        static final int
+            NESTMATE_CLASS            = 0x00000001,
+            NONFINDABLE_CLASS         = 0x00000002,
+            WEAK_CLASS                = 0x00000004,
+            ACCESS_VM_ANNOTATIONS     = 0x00100000;
     }
 
     static boolean refKindIsValid(int refKind) {

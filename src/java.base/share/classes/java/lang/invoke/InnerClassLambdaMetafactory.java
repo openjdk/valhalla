@@ -32,6 +32,7 @@ import sun.security.action.GetPropertyAction;
 
 import java.io.FilePermission;
 import java.io.Serializable;
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Constructor;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -40,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.PropertyPermission;
 import java.util.Set;
 
+import static java.lang.invoke.MethodHandles.Lookup.*;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 /**
@@ -316,8 +318,13 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             // createDirectories may need it
             new PropertyPermission("user.dir", "read"));
         }
-
-        return UNSAFE.defineAnonymousClass(targetClass, classBytes, null);
+        try {
+            Lookup lookup = MethodHandles.privateLookupIn(targetClass, IMPL_LOOKUP);
+            // this class is linked at the indy callsite.  No need to be weak class
+            return lookup.defineClassWithNoCheck(classBytes, HIDDEN_NESTMATE);
+        } catch (ReflectiveOperationException e) {
+            throw new LambdaConversionException(e);
+        }
     }
 
     /**

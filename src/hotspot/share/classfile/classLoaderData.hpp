@@ -116,17 +116,17 @@ class ClassLoaderData : public CHeapObj<mtClass> {
                                     // classes in the class loader are allocated.
   Mutex* _metaspace_lock;  // Locks the metaspace for allocations and setup.
   bool _unloading;         // true if this class loader goes away
-  bool _is_unsafe_anonymous; // CLD is dedicated to one class and that class determines the CLDs lifecycle.
-                             // For example, an unsafe anonymous class.
+  bool _is_shortlived;     // CLD is dedicated to one class and that class determines the CLDs lifecycle.
+                           // For example, a weak nonfindable or an unsafe anonymous class.
 
   // Remembered sets support for the oops in the class loader data.
   bool _modified_oops;             // Card Table Equivalent (YC/CMS support)
   bool _accumulated_modified_oops; // Mod Union Equivalent (CMS support)
 
   s2 _keep_alive;          // if this CLD is kept alive.
-                           // Used for unsafe anonymous classes and the boot class
-                           // loader. _keep_alive does not need to be volatile or
-                           // atomic since there is one unique CLD per unsafe anonymous class.
+                           // Used for weak nonfindable classes, unsafe anonymous classes and the
+                           // boot class loader. _keep_alive does not need to be volatile or
+                           // atomic since there is one unique CLD per weak nonfindable or unsafe anonymous class.
 
   volatile int _claim; // non-zero if claimed, for example during GC traces.
                        // To avoid applying oop closure more than once.
@@ -161,7 +161,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void set_next(ClassLoaderData* next) { _next = next; }
   ClassLoaderData* next() const        { return _next; }
 
-  ClassLoaderData(Handle h_class_loader, bool is_unsafe_anonymous);
+  ClassLoaderData(Handle h_class_loader, bool is_shortlived);
   ~ClassLoaderData();
 
   // The CLD are not placed in the Heap, so the Card Table or
@@ -229,7 +229,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   Mutex* metaspace_lock() const { return _metaspace_lock; }
 
-  bool is_unsafe_anonymous() const { return _is_unsafe_anonymous; }
+  bool is_shortlived() const { return _is_shortlived; }
 
   static void init_null_class_loader_data();
 
@@ -238,15 +238,15 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   }
 
   // Returns true if this class loader data is for the system class loader.
-  // (Note that the class loader data may be unsafe anonymous.)
+  // (Note that the class loader data may be for an weak nonfindable or unsafe anonymous class)
   bool is_system_class_loader_data() const;
 
   // Returns true if this class loader data is for the platform class loader.
-  // (Note that the class loader data may be unsafe anonymous.)
+  // (Note that the class loader data may be for an weak nonfindable or unsafe anonymous class)
   bool is_platform_class_loader_data() const;
 
   // Returns true if this class loader data is for the boot class loader.
-  // (Note that the class loader data may be unsafe anonymous.)
+  // (Note that the class loader data may be for an weak nonfindable unsafe anonymous class)
   inline bool is_boot_class_loader_data() const;
 
   bool is_builtin_class_loader_data() const;
@@ -267,7 +267,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     return _unloading;
   }
 
-  // Used to refcount an unsafe anonymous class's CLD in order to
+  // Used to refcount an weak nonfindable or unsafe anonymous class's CLD in order to
   // indicate their aliveness.
   void inc_keep_alive();
   void dec_keep_alive();
@@ -307,7 +307,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   static ClassLoaderData* class_loader_data(oop loader);
   static ClassLoaderData* class_loader_data_or_null(oop loader);
-  static ClassLoaderData* unsafe_anonymous_class_loader_data(Handle loader);
+  static ClassLoaderData* shortlived_class_loader_data(Handle loader);
 
   // Returns Klass* of associated class loader, or NULL if associated loader is 'bootstrap'.
   // Also works if unloading.

@@ -298,8 +298,9 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            name,
                                                            loader_data,
                                                            protection_domain,
-                                                           NULL, // unsafe_anonymous_host
-                                                           NULL, // cp_patches
+                                                           NULL,  // unsafe_anonymous_host
+                                                           NULL,  // cp_patches
+                                                           false, // is_nonfindable
                                                            THREAD);
 
   if (HAS_PENDING_EXCEPTION) {

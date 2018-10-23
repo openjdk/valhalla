@@ -63,6 +63,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
   _is_unsafe_anonymous = ik->is_unsafe_anonymous();
+  _is_nonfindable = ik->is_nonfindable();
   _nonstatic_fields = NULL; // initialized lazily by compute_nonstatic_fields:
   _has_injected_fields = -1;
   _implementor = NULL; // we will fill these lazily
@@ -72,14 +73,14 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   // by the GC but need to be strong roots if reachable from a current compilation.
   // InstanceKlass are created for both weak and strong metadata.  Ensuring this metadata
   // alive covers the cases where there are weak roots without performance cost.
-  oop holder = ik->holder_phantom();
-  if (ik->is_unsafe_anonymous()) {
+  if (ik->class_loader_data()->is_shortlived()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
-    // VM unsafe anonymous classes alive (loader == NULL). Klass holder should
+    // VM weak nonfindable and unsafe anonymous classes alive (loader == NULL). Klass holder should
     // be used instead. It is enough to record a ciObject, since cached elements are never removed
     // during ciObjectFactory lifetime. ciObjectFactory itself is created for
     // every compilation and lives for the whole duration of the compilation.
-    assert(holder != NULL, "holder of unsafe anonymous class is the mirror which is never null");
+    oop holder = ik->holder_phantom();
+    assert(holder != NULL, "holder of nonfindable or unsafe anonymous class is the mirror which is never null");
     (void)CURRENT_ENV->get_object(holder);
   }
 
@@ -123,6 +124,7 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _nonstatic_fields = NULL;
   _has_injected_fields = -1;
   _is_unsafe_anonymous = false;
+  _is_nonfindable = false;
   _loader = loader;
   _protection_domain = protection_domain;
   _is_shared = false;

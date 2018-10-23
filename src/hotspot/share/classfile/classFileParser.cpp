@@ -2091,7 +2091,7 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
   // Privileged code can use all annotations.  Other code silently drops some.
   const bool privileged = loader_data->is_the_null_class_loader_data() ||
                           loader_data->is_platform_class_loader_data() ||
-                          loader_data->is_unsafe_anonymous();
+                          loader_data->is_shortlived();
   switch (sid) {
     case vmSymbols::VM_SYMBOL_ENUM_NAME(reflect_CallerSensitive_signature): {
       if (_location != _in_method)  break;  // only allow for methods
@@ -5591,11 +5591,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   ik->set_this_class_index(_this_class_index);
 
-  if (is_unsafe_anonymous()) {
+  if (_is_nonfindable || is_unsafe_anonymous()) {
     // _this_class_index is a CONSTANT_Class entry that refers to this
-    // anonymous class itself. If this class needs to refer to its own methods or
-    // fields, it would use a CONSTANT_MethodRef, etc, which would reference
-    // _this_class_index. However, because this class is anonymous (it's
+    // nonfindable or anonymous class itself. If this class needs to refer to its own
+    // methods or fields, it would use a CONSTANT_MethodRef, etc, which would reference
+    // _this_class_index. However, because this class is nonfindable or anonymous (it's
     // not stored in SystemDictionary), _this_class_index cannot be resolved
     // with ConstantPool::klass_at_impl, which does a SystemDictionary lookup.
     // Therefore, we must eagerly resolve _this_class_index now.
@@ -5617,6 +5617,10 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   Handle clh = Handle(THREAD, java_lang_ClassLoader::non_reflection_class_loader(cl));
   ClassLoaderData* cld = ClassLoaderData::class_loader_data_or_null(clh());
   ik->set_package(cld, CHECK);
+  // Obtain this_klass' module entry
+  ModuleEntry* module_entry = ik->module();
+  assert(module_entry != NULL, "module_entry should always be set");
+
 
   const Array<Method*>* const methods = ik->methods();
   assert(methods != NULL, "invariant");
@@ -5671,10 +5675,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   if (ik->is_interface() && _major_version < JAVA_8_VERSION) {
     check_illegal_static_method(ik, CHECK);
   }
-
-  // Obtain this_klass' module entry
-  ModuleEntry* module_entry = ik->module();
-  assert(module_entry != NULL, "module_entry should always be set");
 
   // Obtain java.lang.Module
   Handle module_handle(THREAD, module_entry->module());
@@ -5827,6 +5827,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  Handle protection_domain,
                                  const InstanceKlass* unsafe_anonymous_host,
                                  GrowableArray<Handle>* cp_patches,
+                                 bool is_nonfindable,
                                  Publicity pub_level,
                                  TRAPS) :
   _stream(stream),
@@ -5834,6 +5835,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _loader_data(loader_data),
   _unsafe_anonymous_host(unsafe_anonymous_host),
   _cp_patches(cp_patches),
+  _is_nonfindable(is_nonfindable),
   _num_patched_klasses(0),
   _max_num_patched_klasses(0),
   _orig_cp_size(0),
@@ -6166,9 +6168,10 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
         warning("DumpLoadedClassList and CDS are not supported in exploded build");
         DumpLoadedClassList = NULL;
       } else if (SystemDictionaryShared::is_sharing_possible(_loader_data) &&
+                 !_is_nonfindable &&
                  _unsafe_anonymous_host == NULL) {
         // Only dump the classes that can be stored into CDS archive.
-        // Unsafe anonymous classes such as generated LambdaForm classes are also not included.
+        // Nonfindable and unsafe anonymous classes such as generated LambdaForm classes are also not included.
         oop class_loader = _loader_data->class_loader();
         ResourceMark rm(THREAD);
         bool skip = false;

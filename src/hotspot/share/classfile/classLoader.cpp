@@ -1399,8 +1399,9 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                            name,
                                                            loader_data,
                                                            protection_domain,
-                                                           NULL, // unsafe_anonymous_host
-                                                           NULL, // cp_patches
+                                                           NULL,  // unsafe_anonymous_host
+                                                           NULL,  // cp_patches
+                                                           false, // is_nonfindable
                                                            THREAD);
   if (HAS_PENDING_EXCEPTION) {
     if (DumpSharedSpaces) {
@@ -1442,8 +1443,8 @@ void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream
   assert(DumpSharedSpaces, "sanity");
   assert(stream != NULL, "sanity");
 
-  if (ik->is_unsafe_anonymous()) {
-    // We do not archive unsafe anonymous classes.
+  if (ik->is_nonfindable() || ik->is_unsafe_anonymous()) {
+    // We do not archive nonfindable or unsafe anonymous classes.
     return;
   }
 

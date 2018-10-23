@@ -235,7 +235,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(InstanceKlass,               _static_oop_field_count,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _nonstatic_oop_map_size,                       int)                                   \
   nonstatic_field(InstanceKlass,               _is_marked_dependent,                          bool)                                  \
-  nonstatic_field(InstanceKlass,               _misc_flags,                                   u2)                                    \
+  nonstatic_field(InstanceKlass,               _misc_flags,                                   u4)                                    \
   nonstatic_field(InstanceKlass,               _minor_version,                                u2)                                    \
   nonstatic_field(InstanceKlass,               _major_version,                                u2)                                    \
   nonstatic_field(InstanceKlass,               _init_state,                                   u1)                                    \
@@ -509,7 +509,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ClassLoaderData,             _class_loader,                                 OopHandle)                             \
   nonstatic_field(ClassLoaderData,             _next,                                         ClassLoaderData*)                      \
   volatile_nonstatic_field(ClassLoaderData,    _klasses,                                      Klass*)                                \
-  nonstatic_field(ClassLoaderData,             _is_unsafe_anonymous,                          bool)                                  \
+  nonstatic_field(ClassLoaderData,             _is_shortlived,                                bool)                                  \
   volatile_nonstatic_field(ClassLoaderData,    _dictionary,                                   Dictionary*)                           \
                                                                                                                                      \
      static_field(ClassLoaderDataGraph,        _head,                                         ClassLoaderData*)                      \
@@ -2270,6 +2270,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_constant(InstanceKlass::_misc_is_shared_boot_class)             \
   declare_constant(InstanceKlass::_misc_is_shared_platform_class)         \
   declare_constant(InstanceKlass::_misc_is_shared_app_class)              \
+  declare_constant(InstanceKlass::_misc_is_nonfindable)                   \
                                                                           \
   /*********************************/                                     \
   /* Symbol* - symbol max length */                                       \

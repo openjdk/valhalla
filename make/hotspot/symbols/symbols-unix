@@ -151,6 +151,7 @@ JVM_IsThreadAlive
 JVM_IsVMGeneratedMethodIx
 JVM_LatestUserDefinedLoader
 JVM_LoadLibrary
+JVM_LookupDefineClass
 JVM_MaxMemory
 JVM_MaxObjectInspectionAge
 JVM_MonitorNotify

@@ -26,6 +26,7 @@
 package java.lang;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandles;
 import java.lang.module.ModuleReader;
 import java.lang.ref.SoftReference;
 import java.io.IOException;
@@ -305,7 +306,10 @@ public final class Class<T> implements java.io.Serializable,
      * @exception LinkageError if the linkage fails
      * @exception ExceptionInInitializerError if the initialization provoked
      *            by this method fails
-     * @exception ClassNotFoundException if the class cannot be located
+     * @exception ClassNotFoundException if the class cannot be located, or
+     *            the class is {@linkplain #isHidden() hidden}
+     *
+     * @see Class#isHidden
      */
     @CallerSensitive
     public static Class<?> forName(String className)
@@ -364,7 +368,8 @@ public final class Class<T> implements java.io.Serializable,
      * @exception ExceptionInInitializerError if the initialization provoked
      *            by this method fails
      * @exception ClassNotFoundException if the class cannot be located by
-     *            the specified class loader
+     *            the specified class loader, or
+     *            the class is {@linkplain #isHidden() hidden}
      * @exception SecurityException
      *            if a security manager is present, and the {@code loader} is
      *            {@code null}, and the caller's class loader is not
@@ -373,6 +378,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see       java.lang.Class#forName(String)
      * @see       java.lang.ClassLoader
+     * @see       java.lang.Class#isHidden
      * @since     1.2
      */
     @CallerSensitive
@@ -430,7 +436,8 @@ public final class Class<T> implements java.io.Serializable,
      * @param  name     The <a href="ClassLoader.html#name">binary name</a>
      *                  of the class
      * @return {@code Class} object of the given name defined in the given module;
-     *         {@code null} if not found.
+     *         {@code null} if not found or the class is defined in
+     *         the given module but {@linkplain #isHidden() hidden}
      *
      * @throws NullPointerException if the given module or name is {@code null}
      *
@@ -446,6 +453,7 @@ public final class Class<T> implements java.io.Serializable,
      *         in a module.</li>
      *         </ul>
      *
+     * @see       java.lang.Class#isHidden
      * @since 9
      * @spec JPMS
      */
@@ -846,6 +854,12 @@ public final class Class<T> implements java.io.Serializable,
 
     // set by VM
     private transient Module module;
+
+    // set by VM (to be revisited if needed)
+    // for static nestmate, set to non-null when the first time Class::getNestHost is called
+    // for dynamic nestmate, set to non-null when it's defined and this keeps the host alive
+    // (the host may be temporary)
+    private transient Class<?> nestHost;
 
     // Initialized in JVM not by private constructor
     // This field is filtered from reflection access, i.e. getDeclaredField
@@ -2784,6 +2798,11 @@ public final class Class<T> implements java.io.Serializable,
         if (sm != null) {
             sm.checkPermission(SecurityConstants.GET_PD_PERMISSION);
         }
+        return protectionDomain();
+    }
+
+    // package-private
+    java.security.ProtectionDomain protectionDomain() {
         java.security.ProtectionDomain pd = getProtectionDomain0();
         if (pd == null) {
             if (allPermDomain == null) {
@@ -2797,7 +2816,6 @@ public final class Class<T> implements java.io.Serializable,
         }
         return pd;
     }
-
 
     /**
      * Returns the ProtectionDomain of this class.
@@ -3888,6 +3906,10 @@ public final class Class<T> implements java.io.Serializable,
      * {@code NestMembers} attribute (JVMS 4.7.29).
      * A {@code class} file of version 54.0 or lower does not use these
      * attributes.
+     * A class defined at runtime in a nest via
+     * {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])}
+     * must not have the {@code NestHost} attribute and is not enumerated
+     * in the {@code NestMembers} attribute of the class file of the nest host.
      *
      * @return the nest host of this class or interface
      *
@@ -3979,6 +4001,17 @@ public final class Class<T> implements java.io.Serializable,
      * interface records itself as a member of that same nest. Any exceptions
      * that occur during this validation are rethrown by this method.
      *
+     * <p>This method does not return the
+     * {@linkplain MethodHandles.Lookup.ClassProperty#NESTMATE nest members}
+     * defined dynamically via
+     * {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)}.
+     *
+     * @apiNote
+     * Reflection API presents the static view of this class. The dynamic
+     * nestmates are not listed in the {@code NestMembers} attribute.
+     * We can revisit this in the future if there is a need to find
+     * all dynamically defined nest members.
+     *
      * @return an array of all classes and interfaces in the same nest as
      * this class
      *
@@ -3995,6 +4028,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 11
      * @see #getNestHost()
+     * @see MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {
@@ -4015,5 +4049,34 @@ public final class Class<T> implements java.io.Serializable,
             }
         }
         return members;
+    }
+
+    /**
+     * Returns {@code true} if this class is hidden from being referenced
+     * by other classes; otherwise, {@code false}.
+     *
+     * <p> A <em>hidden class</em> is a class that cannot be referenced
+     * by other classes and cannot be loaded by its name.
+     * <p> A hidden class can be defined via
+     * {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])
+     * Lookup.defineClass} with
+     * {@link MethodHandles.Lookup.ClassProperty#HIDDEN HIDDEN} property.
+     *
+     * <p> If this class is hidden then it cannot be found via its name.
+     * For example, {@code Class.forName(this.getName())} cannot find this class
+     * and {@code ClassNotFoundException} will be thrown.
+     *
+     * <p> If this class is an array class and its component class is hidden,
+     * then this array class is also hidden.
+     *
+     * @return {@code true} if this class is hidden;
+     * otherwise {@code false}.
+     *
+     * @since 12
+     * @see MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])
+     */
+    public boolean isHidden() {
+        // TODO: replace this with VM support
+        return ReflectUtil.isVMAnonymousClass(this);
     }
 }

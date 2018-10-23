@@ -74,6 +74,7 @@ class KlassFactory : AllStatic {
                                            Handle protection_domain,
                                            const InstanceKlass* unsafe_anonymous_host,
                                            GrowableArray<Handle>* cp_patches,
+                                           bool is_nonfindable,
                                            TRAPS);
  public:
   static InstanceKlass* check_shared_class_file_load_hook(

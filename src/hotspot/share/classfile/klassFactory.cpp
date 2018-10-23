@@ -99,8 +99,9 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
                              class_name,
                              loader_data,
                              protection_domain,
-                             NULL,
-                             NULL,
+                             NULL,  // unsafe_anonymous_host
+                             NULL,  // cp_patches
+                             false, // is_nonfindable
                              ClassFileParser::BROADCAST, // publicity level
                              CHECK_NULL);
       InstanceKlass* new_ik = parser.create_instance_klass(true /* changed_by_loadhook */,
@@ -185,6 +186,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                                                 Handle protection_domain,
                                                 const InstanceKlass* unsafe_anonymous_host,
                                                 GrowableArray<Handle>* cp_patches,
+                                                bool is_nonfindable,
                                                 TRAPS) {
   assert(stream != NULL, "invariant");
   assert(loader_data != NULL, "invariant");
@@ -200,8 +202,8 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
   // increment counter
   THREAD->statistical_info().incr_define_class_count();
 
-  // Skip this processing for VM anonymous classes
-  if (unsafe_anonymous_host == NULL) {
+  // Skip this processing for VM nonfindable or anonymous classes
+  if (is_nonfindable || (unsafe_anonymous_host == NULL)) {
     stream = check_class_file_load_hook(stream,
                                         name,
                                         loader_data,
@@ -216,6 +218,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                          protection_domain,
                          unsafe_anonymous_host,
                          cp_patches,
+                         is_nonfindable,
                          ClassFileParser::BROADCAST, // publicity level
                          CHECK_NULL);
 

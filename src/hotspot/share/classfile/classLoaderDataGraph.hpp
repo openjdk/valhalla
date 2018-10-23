@@ -60,8 +60,8 @@ class ClassLoaderDataGraph : public AllStatic {
   static volatile size_t  _num_instance_classes;
   static volatile size_t  _num_array_classes;
 
-  static ClassLoaderData* add_to_graph(Handle class_loader, bool is_unsafe_anonymous);
-  static ClassLoaderData* add(Handle class_loader, bool is_unsafe_anonymous);
+  static ClassLoaderData* add_to_graph(Handle class_loader, bool is_shortlived);
+  static ClassLoaderData* add(Handle class_loader, bool is_shortlived);
 
  public:
   static ClassLoaderData* find_or_create(Handle class_loader);
@@ -77,7 +77,7 @@ class ClassLoaderDataGraph : public AllStatic {
   // Walking classes through the ClassLoaderDataGraph include array classes.  It also includes
   // classes that are allocated but not loaded, classes that have errors, and scratch classes
   // for redefinition.  These classes are removed during the next class unloading.
-  // Walking the ClassLoaderDataGraph also includes unsafe anonymous classes.
+  // Walking the ClassLoaderDataGraph also includes nonfindable and unsafe anonymous classes.
   static void classes_do(KlassClosure* klass_closure);
   static void classes_do(void f(Klass* const));
   static void methods_do(void f(Method*));

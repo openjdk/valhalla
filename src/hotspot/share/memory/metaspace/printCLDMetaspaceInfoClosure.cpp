@@ -78,7 +78,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
     _out->print(UINTX_FORMAT_W(4) ": ", _num_loaders);
 
     // Print "CLD for [<loader name>,] instance of <loader class name>"
-    // or    "CLD for <anonymous class>, loaded by [<loader name>,] instance of <loader class name>"
+    // or    "CLD for <weak nonfindable class>, loaded by [<loader name>,] instance of <loader class name>"
 
     ResourceMark rm;
     const char* name = NULL;
@@ -102,8 +102,12 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
       _out->print(" (unloading)");
     }
     _out->print(":");
-    if (cld->is_unsafe_anonymous()) {
-      _out->print(" <anonymous class>, loaded by");
+    if (cld->is_shortlived()) {
+      if (InstanceKlass::cast(k)->is_unsafe_anonymous()) {
+        _out->print(" <unsafe anonymous class>, loaded by");
+      } else { 
+        _out->print(" <weak nonfindable class>, loaded by");
+      }
     }
     if (name != NULL) {
       _out->print(" \"%s\"", name);

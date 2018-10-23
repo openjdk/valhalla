@@ -77,7 +77,7 @@ static traceid package_id(KlassPtr klass) {
 
 static traceid cld_id(CldPtr cld) {
   assert(cld != NULL, "invariant");
-  return cld->is_unsafe_anonymous() ? 0 : TRACE_ID(cld);
+  return cld->is_shortlived() ? 0 : TRACE_ID(cld);
 }
 
 static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
@@ -92,7 +92,7 @@ static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
   }
   CldPtr cld = k->class_loader_data();
   assert(cld != NULL, "invariant");
-  if (!cld->is_unsafe_anonymous()) {
+  if (!cld->is_shortlived()) {
     tag_leakp_artifact(cld, class_unload);
   }
 }
@@ -230,7 +230,7 @@ typedef JfrArtifactWriterHost<ModuleWriterImpl, TYPE_MODULE> ModuleWriter;
 int write__artifact__classloader(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, const void* c) {
   assert(c != NULL, "invariant");
   CldPtr cld = (CldPtr)c;
-  assert(!cld->is_unsafe_anonymous(), "invariant");
+  assert(!cld->is_shortlived(), "invariant");
   const traceid cld_id = TRACE_ID(cld);
   // class loader type
   const Klass* class_loader_klass = cld->class_loader_klass();
@@ -358,7 +358,7 @@ class KlassSymbolWriterImpl {
       }
       CldPtr cld = klass->class_loader_data();
       assert(cld != NULL, "invariant");
-      if (!cld->is_unsafe_anonymous()) {
+      if (!cld->is_shortlived()) {
         count += class_loader_symbols(cld);
       }
       if (_method_used_predicate(klass)) {
@@ -432,7 +432,7 @@ int KlassSymbolWriterImpl<Predicate>::module_symbols(ModPtr module) {
 template <template <typename> class Predicate>
 int KlassSymbolWriterImpl<Predicate>::class_loader_symbols(CldPtr cld) {
   assert(cld != NULL, "invariant");
-  assert(!cld->is_unsafe_anonymous(), "invariant");
+  assert(!cld->is_shortlived(), "invariant");
   int count = 0;
   // class loader type
   const Klass* class_loader_klass = cld->class_loader_klass();
@@ -696,7 +696,7 @@ class CldFieldSelector {
   static TypePtr select(KlassPtr klass) {
     assert(klass != NULL, "invariant");
     CldPtr cld = klass->class_loader_data();
-    return cld->is_unsafe_anonymous() ? NULL : cld;
+    return cld->is_shortlived() ? NULL : cld;
   }
 };
 
@@ -922,7 +922,7 @@ class CLDCallback : public CLDClosure {
   CLDCallback(bool class_unload) : _class_unload(class_unload) {}
   void do_cld(ClassLoaderData* cld) {
      assert(cld != NULL, "invariant");
-    if (cld->is_unsafe_anonymous()) {
+    if (cld->is_shortlived()) {
       return;
     }
     if (_class_unload) {

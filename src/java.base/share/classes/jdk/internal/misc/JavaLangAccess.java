@@ -148,6 +148,14 @@ public interface JavaLangAccess {
     Class<?> defineClass(ClassLoader cl, String name, byte[] b, ProtectionDomain pd, String source);
 
     /**
+     * Defines a class with the given name to a class loader with
+     * the given flags and class data.
+     *
+     * @see java.lang.invoke.MethodHandles.Lookup#defineClass
+     */
+    Class<?> defineClass(ClassLoader cl, Class<?> lookup, String name, byte[] b, ProtectionDomain pd, int flags, Object classData);
+
+    /**
      * Returns a class loaded by the bootstrap class loader.
      */
     Class<?> findBootstrapClassOrNull(ClassLoader cl, String name);
@@ -305,6 +313,11 @@ public interface JavaLangAccess {
      * @throws IllegalArgumentException for malformed surrogates
      */
     byte[] getBytesUTF8NoRepl(String s);
+
+    /**
+     * Get protection domain of the given Class
+     */
+    ProtectionDomain protectionDomain(Class<?> c);
 
     /**
      * Set the cause of Throwable

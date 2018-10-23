@@ -62,7 +62,7 @@ void MetaspaceTracer::send_allocation_failure_event(ClassLoaderData *cld,
   E event;
   if (event.should_commit()) {
     event.set_classLoader(cld);
-    if (cld->is_unsafe_anonymous()) {
+    if (cld->is_shortlived()) {
       event.set_unsafeAnonymousClassLoader(true);
     } else {
       event.set_unsafeAnonymousClassLoader(false);

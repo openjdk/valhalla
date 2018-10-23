@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
+import static java.lang.invoke.MethodHandles.Lookup.*;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 /**
@@ -1122,8 +1123,7 @@ public final class StringConcatFactory {
 
             byte[] classBytes = cw.toByteArray();
             try {
-                Class<?> hostClass = lookup.lookupClass();
-                Class<?> innerClass = UNSAFE.defineAnonymousClass(hostClass, classBytes, null);
+                Class<?> innerClass = lookup.defineClassWithNoCheck(classBytes, HIDDEN_NESTMATE);
                 UNSAFE.ensureClassInitialized(innerClass);
                 dumpIfEnabled(innerClass.getName(), classBytes);
                 return Lookup.IMPL_LOOKUP.findStatic(innerClass, METHOD_NAME, args);

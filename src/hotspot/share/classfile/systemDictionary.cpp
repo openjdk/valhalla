@@ -987,24 +987,37 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
 
 // Note: this method is much like resolve_from_stream, but
 // does not publish the classes via the SystemDictionary.
-// Handles unsafe_DefineAnonymousClass and redefineclasses
-// RedefinedClasses do not add to the class hierarchy
+// Handles Lookup.defineClass nonfindable, unsafe_DefineAnonymousClass
+// and redefineclasses. RedefinedClasses do not add to the class hierarchy.
 InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               Handle class_loader,
                                               Handle protection_domain,
                                               ClassFileStream* st,
                                               const InstanceKlass* unsafe_anonymous_host,
                                               GrowableArray<Handle>* cp_patches,
+                                              const bool is_nonfindable,
+                                              const bool is_weaknonfindable,
                                               TRAPS) {
 
   EventClassLoad class_load_start_event;
 
   ClassLoaderData* loader_data;
+ 
   if (unsafe_anonymous_host != NULL) {
-    // Create a new CLD for an unsafe anonymous class, that uses the same class loader
-    // as the unsafe_anonymous_host
+    // - for unsafe anonymous class: create a new short-lived CLD that uses the same
+    //                               class loader as the unsafe_anonymous_host.
     guarantee(oopDesc::equals(unsafe_anonymous_host->class_loader(), class_loader()), "should be the same");
-    loader_data = ClassLoaderData::unsafe_anonymous_class_loader_data(class_loader);
+    loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
+  } else if (is_nonfindable) {
+    // - for weak nonfindable class: create a new short-lived CLD whose loader is
+    //                               the Lookup class' loader.
+    // - for nonfindable class: add the class to the Lookup class' loader's CLD. 
+    if (is_weaknonfindable) {
+      loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
+    } else {
+      // This nonfindable class goes into the regular CLD pool for this loader.
+      loader_data = register_loader(class_loader);
+    }
   } else {
     loader_data = ClassLoaderData::class_loader_data(class_loader());
   }
@@ -1023,12 +1036,15 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                                       protection_domain,
                                                       unsafe_anonymous_host,
                                                       cp_patches,
+                                                      is_nonfindable,
                                                       CHECK_NULL);
 
-  if (unsafe_anonymous_host != NULL && k != NULL) {
-    // Unsafe anonymous classes must update ClassLoaderData holder (was unsafe_anonymous_host loader)
+  if ((is_nonfindable || (unsafe_anonymous_host != NULL)) && k != NULL) {
+    // Weak nonfindable and unsafe anonymous classes must update ClassLoaderData holder
     // so that they can be unloaded when the mirror is no longer referenced.
-    k->class_loader_data()->initialize_holder(Handle(THREAD, k->java_mirror()));
+    if (is_weaknonfindable || (unsafe_anonymous_host != NULL)) {
+      k->class_loader_data()->initialize_holder(Handle(THREAD, k->java_mirror()));
+    }
 
     {
       MutexLocker mu_r(Compile_lock, THREAD);
@@ -1049,7 +1065,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
       k->constants()->patch_resolved_references(cp_patches);
     }
 
-    // If it's anonymous, initialize it now, since nobody else will.
+    // Initialize it now, since nobody else will.
     k->eager_initialize(CHECK_NULL);
 
     // notify jvmti
@@ -1120,8 +1136,9 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          class_name,
                                          loader_data,
                                          protection_domain,
-                                         NULL, // unsafe_anonymous_host
-                                         NULL, // cp_patches
+                                         NULL,  // unsafe_anonymous_host
+                                         NULL,  // cp_patches
+                                         false, // is_nonfindable
                                          CHECK_NULL);
   }
 
@@ -3021,7 +3038,7 @@ class CombineDictionariesClosure : public CLDClosure {
       _master_dictionary(master_dictionary) {}
     void do_cld(ClassLoaderData* cld) {
       ResourceMark rm;
-      if (cld->is_unsafe_anonymous()) {
+      if (cld->is_shortlived()) {
         return;
       }
       if (cld->is_system_class_loader_data() || cld->is_platform_class_loader_data()) {

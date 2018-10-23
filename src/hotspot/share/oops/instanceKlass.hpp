@@ -237,12 +237,13 @@ class InstanceKlass: public Klass {
     _misc_is_shared_boot_class                = 1 << 12, // defining class loader is boot class loader
     _misc_is_shared_platform_class            = 1 << 13, // defining class loader is platform class loader
     _misc_is_shared_app_class                 = 1 << 14, // defining class loader is app class loader
-    _misc_has_resolved_methods                = 1 << 15  // resolved methods table entries added for this class
+    _misc_has_resolved_methods                = 1 << 15, // resolved methods table entries added for this class
+    _misc_is_nonfindable                      = 1 << 16  // is a non findable class, not stored in the SystemDictionary.
   };
   u2 loader_type_bits() {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
   }
-  u2              _misc_flags;
+  u4              _misc_flags;
   u2              _minor_version;        // minor version number of class file
   u2              _major_version;        // major version number of class file
   Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recusive initialization)
@@ -457,6 +458,8 @@ class InstanceKlass: public Klass {
   // nest-host index
   jushort nest_host_index() const { return _nest_host_index; }
   void set_nest_host_index(u2 i)  { _nest_host_index = i; }
+  void set_nest_host(InstanceKlass* host) { assert(_nest_host == NULL, "nest host already set"); _nest_host = host; }
+  InstanceKlass* raw_nest_host() const { return _nest_host; }
 
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host
@@ -676,10 +679,21 @@ public:
     }
   }
 
+  bool is_nonfindable() const                {
+    return (_misc_flags & _misc_is_nonfindable) != 0;
+  }
+  void set_is_nonfindable(bool value)        {
+    if (value) {
+      _misc_flags |= _misc_is_nonfindable;
+    } else {
+      _misc_flags &= ~_misc_is_nonfindable;
+    }
+  }
+
   // Oop that keeps the metadata for this class from being unloaded
   // in places where the metadata is stored in other places, like nmethods
   oop klass_holder() const {
-    return (is_unsafe_anonymous()) ? java_mirror() : class_loader();
+    return (class_loader_data()->is_shortlived()) ? java_mirror() : class_loader();
   }
 
   bool is_contended() const                {
@@ -773,8 +787,8 @@ public:
   }
   bool supers_have_passed_fingerprint_checks();
 
-  static bool should_store_fingerprint(bool is_unsafe_anonymous);
-  bool should_store_fingerprint() const { return should_store_fingerprint(is_unsafe_anonymous()); }
+  static bool should_store_fingerprint(bool is_nonfindable);
+  bool should_store_fingerprint() const { return should_store_fingerprint(is_nonfindable() || is_unsafe_anonymous()); }
   bool has_stored_fingerprint() const;
   uint64_t get_stored_fingerprint() const;
   void store_fingerprint(uint64_t fingerprint);
@@ -1056,20 +1070,20 @@ public:
 
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
-                  bool is_interface, bool is_unsafe_anonymous, bool has_stored_fingerprint) {
+                  bool is_interface, bool is_nonfindable, bool has_stored_fingerprint) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
            (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (is_unsafe_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
+           (is_nonfindable ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
                                                nonstatic_oop_map_size(),
                                                is_interface(),
-                                               is_unsafe_anonymous(),
+                                               (is_nonfindable() || is_unsafe_anonymous()),
                                                has_stored_fingerprint());
   }
 #if INCLUDE_SERVICES

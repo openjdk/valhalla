@@ -819,6 +819,8 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
                                                 &st,
                                                 InstanceKlass::cast(host_klass),
                                                 cp_patches,
+                                                false, // is_nonfindable
+                                                false, // is_weak
                                                 CHECK_NULL);
   if (anonk == NULL) {
     return NULL;
