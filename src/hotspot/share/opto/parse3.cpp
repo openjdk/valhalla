@@ -230,12 +230,12 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
-    if (bt == T_VALUETYPE) {
-      // Load a non-flattened value type from memory
+    if (flattenable) {
+      // Load a non-flattened but flattenable value type from memory
       if (field_klass->as_value_klass()->is_scalarizable()) {
-        ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass(), /* null2default */ flattenable, iter().next_bci());
-      } else if (gvn().type(ld)->maybe_null()){
-        ld = filter_null(ld, flattenable, field_klass->as_value_klass(), iter().next_bci());
+        ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass());
+      } else {
+        ld = null2default(ld, field_klass->as_value_klass());
       }
     }
   }
@@ -296,20 +296,20 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       field_type = Type::BOTTOM;
     }
   }
-  if (field->is_flattenable() && !val->is_ValueType() && gvn().type(val)->maybe_null()) {
-    // We can see a null constant here
-    assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-    push(null());
-    uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-    assert(stopped(), "dead path");
-    return;
-  } else if (field->is_flattened()) {
+
+  if (field->is_flattenable() && !val->is_ValueType()) {
+    inc_sp(1);
+    val = null_check(val);
+    dec_sp(1);
+    if (stopped()) return;
+  }
+
+  if (field->is_flattened()) {
+    // Store flattened value type to a non-static field
     if (!val->is_ValueType()) {
       assert(!gvn().type(val)->maybe_null(), "should never be null");
       val = ValueTypeNode::make_from_oop(this, val, field->type()->as_value_klass());
     }
-    // Store flattened value type to a non-static field
-    assert(bt == T_VALUETYPE, "flattening is only supported for value type fields");
     val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
   } else {
     access_store_at(control(), obj, adr, adr_type, val, field_type, bt, decorators);

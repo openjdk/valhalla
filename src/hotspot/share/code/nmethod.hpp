@@ -90,7 +90,6 @@ class nmethod : public CompiledMethod {
   // offsets for entry points
   address _entry_point;                      // entry point with class check
   address _verified_entry_point;             // entry point without class check
-  address _verified_value_entry_point;       // value type entry point without class check
   address _osr_entry_point;                  // entry point for on stack replacement
 
   // Offsets for different nmethod parts
@@ -315,7 +314,6 @@ class nmethod : public CompiledMethod {
   // entry points
   address entry_point() const                     { return _entry_point;             } // normal entry point
   address verified_entry_point() const            { return _verified_entry_point;    } // if klass is correct
-  address verified_value_entry_point() const      { return _verified_value_entry_point; } // pass value type args as oops
 
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }

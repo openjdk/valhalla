@@ -184,29 +184,23 @@ void Parse::array_store(BasicType bt) {
     const Type* val_t = _gvn.type(val);
     if (elemtype->isa_valuetype() != NULL) {
       // Store to flattened value type array
-      val_t = _gvn.type(cast_val);
       if (!cast_val->is_ValueType()) {
-        if (val_t->maybe_null()) {
-          // Can not store null into a value type array
-          assert(val_t == TypePtr::NULL_PTR, "Anything other than null?");
-          inc_sp(3);
-          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-          return;
-        }
-        assert(!val_t->maybe_null(), "should never be null");
+        inc_sp(3);
+        cast_val = null_check(cast_val);
+        if (stopped()) return;
+        dec_sp(3);
         cast_val = ValueTypeNode::make_from_oop(this, cast_val, elemtype->is_valuetype()->value_klass());
       }
       cast_val->as_ValueType()->store_flattened(this, ary, adr);
       return;
     } else if (elemptr->is_valuetypeptr()) {
       // Store to non-flattened value type array
-      val_t = _gvn.type(cast_val);
-      if (!cast_val->is_ValueType() && val_t->maybe_null()) {
+      if (!cast_val->is_ValueType()) {
         // Can not store null into a value type array
-        assert(val_t == TypePtr::NULL_PTR, "Anything other than null?");
         inc_sp(3);
-        uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-        return;
+        cast_val = null_check(cast_val);
+        if (stopped()) return;
+        dec_sp(3);
       }
     } else if (elemptr->can_be_value_type() && !ary_t->klass_is_exact() &&
                (val->is_ValueType() || val_t == TypePtr::NULL_PTR || val_t->is_oopptr()->can_be_value_type())) {
@@ -241,12 +235,17 @@ void Parse::array_store(BasicType bt) {
           } else {
             if (TypePtr::NULL_PTR->higher_equal(val_t)) {
               sync_kit(ideal);
-              inc_sp(3);
-              val = filter_null(val);
-              dec_sp(3);
+              Node* null_ctl = top();
+              val = null_check_oop(val, &null_ctl);
+              if (null_ctl != top()) {
+                PreserveJVMState pjvms(this);
+                inc_sp(3);
+                set_control(null_ctl);
+                uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+                dec_sp(3);
+              }
               ideal.sync_kit(this);
             }
-
             if (!ideal.ctrl()->is_top()) {
               ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
                                    CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),

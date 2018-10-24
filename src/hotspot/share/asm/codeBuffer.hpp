@@ -42,7 +42,6 @@ class CodeOffsets: public StackObj {
 public:
   enum Entries { Entry,
                  Verified_Entry,
-                 Verified_Value_Entry,
                  Frame_Complete, // Offset in the code where the frame setup is (for forte stackwalks) is complete
                  OSR_Entry,
                  Exceptions,     // Offset where exception handler lives
@@ -63,7 +62,6 @@ public:
   CodeOffsets() {
     _values[Entry         ] = 0;
     _values[Verified_Entry] = 0;
-    _values[Verified_Value_Entry] = -1;
     _values[Frame_Complete] = frame_never_safe;
     _values[OSR_Entry     ] = 0;
     _values[Exceptions    ] = -1;

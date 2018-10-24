@@ -265,13 +265,15 @@ const Type* Type::get_typeflow_type(ciType* type) {
     assert(type->is_return_address(), "");
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
-  case T_VALUETYPE:
-    if (type->as_value_klass()->is_scalarizable()) {
-      return TypeValueType::make(type->as_value_klass());
+  case T_VALUETYPE: {
+    bool is_never_null = type->is_never_null();
+    ciValueKlass* vk = type->unwrap()->as_value_klass();
+    if (vk->is_scalarizable() && is_never_null) {
+      return TypeValueType::make(vk);
     } else {
-      // Value types cannot be null
-      return TypeOopPtr::make_from_klass(type->as_klass())->join_speculative(TypePtr::NOTNULL);
+      return TypeOopPtr::make_from_klass(vk)->join_speculative(is_never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
     }
+  }
 
   default:
     // make sure we did not mix up the cases:
@@ -1940,13 +1942,12 @@ static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uin
 
 //------------------------------make-------------------------------------------
 // Make a TypeTuple from the range of a method signature
-const TypeTuple *TypeTuple::make_range(ciMethod* method, bool ret_vt_fields) {
-  ciSignature* sig = method->signature();
+const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   ciType* return_type = sig->return_type();
-  return make_range(method, return_type, ret_vt_fields);
+  return make_range(return_type, sig->returns_never_null(), ret_vt_fields);
 }
 
-const TypeTuple *TypeTuple::make_range(ciMethod* method, ciType* return_type, bool ret_vt_fields) {
+const TypeTuple *TypeTuple::make_range(ciType* return_type, bool never_null, bool ret_vt_fields) {
   uint arg_cnt = 0;
   if (ret_vt_fields) {
     ret_vt_fields = return_type->is_valuetype() && ((ciValueKlass*)return_type)->can_be_returned_as_fields();
@@ -1986,15 +1987,7 @@ const TypeTuple *TypeTuple::make_range(ciMethod* method, ciType* return_type, bo
       pos++;
       collect_value_fields(vk, field_array, pos);
     } else {
-      if (method->get_Method()->is_returning_vt()) {
-        // A NULL ValueType cannot be returned to compiled code. The 'areturn' bytecode
-        // handler will deoptimize its caller if it is about to return a NULL ValueType.
-        field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
-      } else {
-        // We're calling a legacy class's method that is returning a VT but doesn't know about it, so
-        // it won't do the deoptimization at 'areturn'.
-        field_array[TypeFunc::Parms] = get_const_type(return_type);
-      }
+      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
     }
     break;
   case T_VOID:
@@ -2074,8 +2067,7 @@ const TypeTuple *TypeTuple::make_domain(ciInstanceKlass* recv, ciSignature* sig,
         ciValueKlass* vk = (ciValueKlass*)type;
         collect_value_fields(vk, field_array, pos);
       } else {
-        // Value type arguments cannot be NULL
-        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
+        field_array[pos++] = get_const_type(type)->join_speculative(sig->is_never_null_at(i) ? TypePtr::NOTNULL : TypePtr::BOTTOM);
       }
       break;
     }
@@ -5621,8 +5613,8 @@ const TypeFunc *TypeFunc::make(ciMethod* method) {
     domain_sig = TypeTuple::make_domain(method->holder(), method->signature(), false);
     domain_cc = TypeTuple::make_domain(method->holder(), method->signature(), ValueTypePassFieldsAsArgs);
   }
-  const TypeTuple *range_sig = TypeTuple::make_range(method, false);
-  const TypeTuple *range_cc = TypeTuple::make_range(method, ValueTypeReturnedAsFields);
+  const TypeTuple *range_sig = TypeTuple::make_range(method->signature(), false);
+  const TypeTuple *range_cc = TypeTuple::make_range(method->signature(), ValueTypeReturnedAsFields);
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
   C->set_last_tf(method, tf);  // fill cache
   return tf;

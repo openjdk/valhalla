@@ -610,13 +610,10 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     Node* parm = map()->in(i);
     const Type* t = _gvn.type(parm);
     if (!ValueTypePassFieldsAsArgs) {
-      if (t->is_valuetypeptr()) {
+      if (t->is_valuetypeptr() && t->value_klass()->is_scalarizable() && !t->maybe_null()) {
         // Create ValueTypeNode from the oop and replace the parameter
-        assert(!t->maybe_null(), "value type arguments should never be null");
-        if (t->value_klass()->is_scalarizable()) {
-          Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass());
-          map()->replace_edge(parm, vt);
-        }
+        Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass());
+        map()->replace_edge(parm, vt);
       }
     } else {
       assert(false, "FIXME");
@@ -826,9 +823,8 @@ void Parse::build_exits() {
       ret_type = TypeOopPtr::BOTTOM;
     }
     if ((_caller->has_method() || tf()->returns_value_type_as_fields()) &&
-        ret_type->is_valuetypeptr() && ret_type->value_klass()->is_scalarizable()) {
-      // When inlining or with multiple return values: return value
-      // type as ValueTypeNode not as oop
+        ret_type->is_valuetypeptr() && ret_type->value_klass()->is_scalarizable() && !ret_type->maybe_null()) {
+      // Scalarize value type return when inlining or with multiple return values
       ret_type = TypeValueType::make(ret_type->value_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
@@ -1744,13 +1740,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Allocate value type in src block to be able to merge it with oop in target block
           map()->set_req(j, ValueTypePtrNode::make_from_value_type(this, n->as_ValueType(), true));
         }
-        if ((t->isa_valuetype() || t->is_valuetypeptr()) && !n->is_ValueType() && gvn().type(n)->maybe_null()) {
-          assert(n->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-          assert(stopped(), "should be a dead path now");
-          set_parse_bci(old_bci);
-          return;
-        }
+        assert(!t->isa_valuetype() || n->is_ValueType(), "inconsistent typeflow info");
       }
     }
   }
@@ -2360,8 +2350,8 @@ void Parse::return_current(Node* value) {
   if (value != NULL) {
     Node* phi = _exits.argument(0);
     const TypeOopPtr* tr = phi->bottom_type()->isa_oopptr();
-    if (value->is_ValueType() && (!_caller->has_method() || (tr && tr->is_valuetypeptr()))) {
-      // Value type is returned as oop, make sure it's allocated
+    if (value->is_ValueType() && !_caller->has_method()) {
+      // Value type is returned as oop from root method, make sure it's allocated
       value = value->as_ValueType()->allocate(this)->get_oop();
     } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
@@ -2374,13 +2364,6 @@ void Parse::return_current(Node* value) {
         }
         value = _gvn.transform(new CheckCastPPNode(0, value, tr));
       }
-    } else if ((phi->bottom_type()->isa_valuetype() || phi->bottom_type()->is_valuetypeptr())
-               && !value->is_ValueType() && gvn().type(value)->maybe_null()) {
-      assert(value->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-      inc_sp(1);
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      dec_sp(1);
-      return;
     } else {
       // Handle returns of oop-arrays to an arrays-of-interface return
       const TypeInstPtr* phi_tip;

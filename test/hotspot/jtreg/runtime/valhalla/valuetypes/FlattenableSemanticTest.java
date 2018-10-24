@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
  * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java
  * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers FlattenableSemanticTest.java
  * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+EnableValhalla runtime.valhalla.valuetypes.FlattenableSemanticTest
- * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 -XX:+NullableValueTypes runtime.valhalla.valuetypes.FlattenableSemanticTest
  * // debug: -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError
  */
 public class FlattenableSemanticTest {

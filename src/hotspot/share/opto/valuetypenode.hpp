@@ -85,7 +85,7 @@ public:
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, bool deoptimize_on_exception = false) const;
   // Initialize the value type by loading its field values from memory
-  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, int trap_bci = -1);
+  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
 
   // Allocates the value type (if not yet allocated)
   ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false);
@@ -121,7 +121,7 @@ public:
   // Create with default field values
   static ValueTypeNode* make_default(PhaseGVN& gvn, ciValueKlass* vk);
   // Create and initialize by loading the field values from an oop
-  static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk, bool null2default = true, int trap_bci = -1);
+  static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk);
   // Create and initialize by loading the field values from a flattened field or array
   static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
@@ -160,8 +160,6 @@ private:
 public:
   // Create and initialize with the values of a ValueTypeNode
   static ValueTypePtrNode* make_from_value_type(GraphKit* kit, ValueTypeNode* vt, bool deoptimize_on_exception = false);
-  // Create and initialize with the result values of a call
-  static ValueTypePtrNode* make_from_call(GraphKit* kit, ciValueKlass* vk, CallNode* call);
   // Create and initialize by loading the field values from an oop
   static ValueTypePtrNode* make_from_oop(GraphKit* kit, Node* oop);
 

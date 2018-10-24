@@ -1664,55 +1664,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
-  if (type()->is_valuetypeptr() && can_reshape) {
-    // If the Phi merges the result from a mix of constant and non
-    // constant method handles, only some of its inputs are
-    // ValueTypePtr nodes and we can't push the ValueTypePtr node down
-    // to remove the need for allocations. This if fixed by transforming:
-    //
-    // (Phi ValueTypePtr#1 Node#2) to (Phi ValueTypePtr#1 CheckCastPP#2)
-    //
-    // Then pushing the CheckCastPP up through Phis until it reaches
-    // the non constant method handle call. The type of the return
-    // value is then known from the type of the CheckCastPP. A
-    // ValueTypePtr can be created by adding projections to the call
-    // for all values being returned. See
-    // CheckCastPPNode::Ideal(). That ValueTypePtr node can then be
-    // pushed down through Phis.
-    const TypeInstPtr* ti = NULL;
-    for (uint i = 1; i < req(); i++) {
-      if (in(i) != NULL && in(i)->is_ValueTypePtr()) {
-        const TypeInstPtr* t = phase->type(in(i))->is_instptr();
-        t = t->cast_to_ptr_type(TypePtr::BotPTR)->is_instptr();
-        if (ti == NULL) {
-          ti = t;
-        } else {
-          assert(ti == t, "Phi should merge identical value types");
-        }
-      } else {
-        assert(in(i) == NULL || ti == NULL || phase->type(in(i))->higher_equal(ti) || phase->type(in(i)) == Type::TOP, "bad type");
-      }
-    }
-    if (ti != NULL) {
-      // One input is a value type. All inputs must have the same type.
-      bool progress = false;
-      PhaseIterGVN* igvn = phase->is_IterGVN();
-      for (uint i = 1; i < req(); i++) {
-        if (in(i) != NULL && !in(i)->is_Con() && !phase->type(in(i))->higher_equal(ti)) {
-          // Can't transform because CheckCastPPNode::Identity can
-          // push the cast up through another Phi and cause this same
-          // transformation to run again, indefinitely
-          Node* cast = igvn->register_new_node_with_optimizer(new CheckCastPPNode(NULL, in(i), ti));
-          set_req(i, cast);
-          progress = true;
-        }
-      }
-      if (progress) {
-        return this;
-      }
-    }
-  }
-
   Node *top = phase->C->top();
   bool new_phi = (outcnt() == 0); // transforming new Phi
   // No change for igvn if new phi is not hooked

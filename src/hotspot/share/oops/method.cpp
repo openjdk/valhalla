@@ -1191,7 +1191,7 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
 
   OrderAccess::storestore();
   mh->_from_compiled_entry = code->verified_entry_point();
-  mh->_from_compiled_value_entry = mh->has_value_args() ? code->verified_value_entry_point() : code->verified_entry_point();
+  mh->_from_compiled_value_entry = code->verified_entry_point();
   OrderAccess::storestore();
   // Instantly compiled code can execute.
   if (!mh->is_method_handle_intrinsic())

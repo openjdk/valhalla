@@ -901,7 +901,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   int framesize = C->frame_size_in_bytes();
   int bangsize = C->bang_size_in_bytes();
 
-  __ bind(*_verified_entry);
   __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, false);
 
   C->set_frame_complete(cbuf.insts_size());
@@ -1567,28 +1566,6 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const
 {
   int offset = ra_->reg2offset(in_RegMask(0).find_first_elem());
   return (offset < 0x80) ? 5 : 8; // REX
-}
-
-//=============================================================================
-#ifndef PRODUCT
-void MachVVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
-{
-  st->print_cr("MachVVEPNode");
-}
-#endif
-
-void MachVVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
-{
-  // Add null checks for all value type args and then jump to
-  // the verified entry point (skipping the unverified entry).
-  MacroAssembler masm(&cbuf);
-  masm.null_check_value_args((Method*)ra_->C->method()->constant_encoding());
-  masm.jmp(*_verified_entry);
-}
-
-uint MachVVEPNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it the hard way
 }
 
 //=============================================================================

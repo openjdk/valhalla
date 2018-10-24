@@ -68,6 +68,9 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
         ciSymbol* klass_name = env->get_symbol(name);
         type = env->get_klass_by_name_impl(_accessing_klass, cpool, klass_name, false);
       }
+      if (type->is_valuetype() && !NullableValueTypes) {
+        type = new (arena) ciWrapper(type, /* never_null */ true);
+      }
     }
     _types->append(type);
     if (ss.at_return_type()) {
@@ -93,10 +96,19 @@ ciSignature::ciSignature(ciKlass* accessing_klass, ciSymbol* symbol, ciMethodTyp
   EXCEPTION_CONTEXT;
   Arena* arena = CURRENT_ENV->arena();
   _types = new (arena) GrowableArray<ciType*>(arena, _count + 1, 0, NULL);
+  ciType* type = NULL;
   for (int i = 0; i < _count; i++) {
-    _types->append(method_type->ptype_at(i));
+    type = method_type->ptype_at(i);
+    if (type->is_valuetype() && !NullableValueTypes) {
+      type = new (arena) ciWrapper(type, /* never_null */ true);
+    }
+    _types->append(type);
   }
-  _types->append(method_type->rtype());
+  type = method_type->rtype();
+  if (type->is_valuetype() && !NullableValueTypes) {
+    type = new (arena) ciWrapper(type, /* never_null */ true);
+  }
+  _types->append(type);
 }
 
 // ------------------------------------------------------------------
@@ -104,7 +116,7 @@ ciSignature::ciSignature(ciKlass* accessing_klass, ciSymbol* symbol, ciMethodTyp
 //
 // What is the return type of this signature?
 ciType* ciSignature::return_type() const {
-  return _types->at(_count);
+  return _types->at(_count)->unwrap();
 }
 
 // ------------------------------------------------------------------
@@ -115,7 +127,24 @@ ciType* ciSignature::return_type() const {
 ciType* ciSignature::type_at(int index) const {
   assert(index < _count, "out of bounds");
   // The first _klasses element holds the return klass.
-  return _types->at(index);
+  return _types->at(index)->unwrap();
+}
+
+// ------------------------------------------------------------------
+// ciSignature::return_never_null
+//
+// True if we statically know that the return value is never null.
+bool ciSignature::returns_never_null() const {
+  return _types->at(_count)->is_never_null();
+}
+
+// ------------------------------------------------------------------
+// ciSignature::never_null_at
+//
+// True if we statically know that the argument at 'index' is never null.
+bool ciSignature::is_never_null_at(int index) const {
+  assert(index < _count, "out of bounds");
+  return _types->at(index)->is_never_null();
 }
 
 // ------------------------------------------------------------------

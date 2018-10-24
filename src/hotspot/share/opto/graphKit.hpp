@@ -377,7 +377,7 @@ class GraphKit : public Phase {
     return null_check_common(value, type, true, NULL, _gvn.type(value)->speculative_always_null());
   }
 
-  Node* filter_null(Node* value, bool null2default = false, ciValueKlass* vk = NULL, int trap_bci = -1);
+  Node* null2default(Node* value, ciValueKlass* vk = NULL);
 
   // Check if value is null and abort if it is
   Node* must_be_not_null(Node* value, bool do_replace_in_map);

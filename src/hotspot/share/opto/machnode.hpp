@@ -463,22 +463,6 @@ public:
   int  constant_offset_unchecked() const;
 };
 
-//------------------------------MachVTEPNode-----------------------------------
-// Machine Verified Value Type Entry Point Node
-class MachVVEPNode : public MachIdealNode {
-public:
-  MachVVEPNode(Label* verified_entry) : _verified_entry(verified_entry) {}
-  virtual void emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const;
-  virtual uint size(PhaseRegAlloc* ra_) const;
-
-#ifndef PRODUCT
-  virtual const char* Name() const { return "Verified ValueType Entry-Point"; }
-  virtual void format(PhaseRegAlloc*, outputStream* st) const;
-#endif
-private:
-  Label* _verified_entry;
-};
-
 //------------------------------MachUEPNode-----------------------------------
 // Machine Unvalidated Entry Point Node
 class MachUEPNode : public MachIdealNode {
@@ -497,14 +481,11 @@ public:
 // Machine function Prolog Node
 class MachPrologNode : public MachIdealNode {
 public:
-  MachPrologNode(Label* verified_entry) : _verified_entry(verified_entry) {
-    init_class_id(Class_MachProlog);
-  }
+  MachPrologNode( ) {}
   virtual void emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const;
   virtual uint size(PhaseRegAlloc *ra_) const;
   virtual int reloc() const;
 
-  Label* _verified_entry;
 #ifndef PRODUCT
   virtual const char *Name() const { return "Prolog"; }
   virtual void format( PhaseRegAlloc *, outputStream *st ) const;

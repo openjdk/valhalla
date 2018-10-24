@@ -864,6 +864,8 @@ public:
   int next_pre_order()              { return _next_pre_order; }
   int inc_next_pre_order()          { return _next_pre_order++; }
 
+  ciType* mark_as_never_null(ciType* type);
+
 private:
   // A work list used during flow analysis.
   Block* _work_list;

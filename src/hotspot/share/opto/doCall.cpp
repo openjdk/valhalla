@@ -665,10 +665,8 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            if (ct == T_VALUETYPE && cg->method()->get_Method()->is_returning_vt()) {
-              // A NULL ValueType cannot be returned to compiled code. The 'areturn' bytecode
-              // handler will deoptimize its caller if it is about to return a NULL ValueType.
-              // (See comments inside TypeTuple::make_range).
+            if (declared_signature->returns_never_null()) {
+              assert(ct == T_VALUETYPE, "should be a value type");
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
             if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
@@ -698,13 +696,9 @@ void Parse::do_call() {
     }
 
     if (rtype->basic_type() == T_VALUETYPE && !peek()->is_ValueType()) {
-      // Deoptimize if the return value is null and then continue execution after the call
       Node* retnode = pop();
-      assert(!gvn().type(retnode)->maybe_null() || !cg->method()->get_Method()->is_returning_vt(), "should never be null");
-      if (rtype->as_value_klass()->is_scalarizable()) {
-        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass(), /* null2default */ false, iter().next_bci());
-      } else if (gvn().type(retnode)->maybe_null()) {
-        retnode = filter_null(retnode, false, NULL, iter().next_bci());
+      if (!gvn().type(retnode)->maybe_null() && rtype->as_value_klass()->is_scalarizable()) {
+        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass());
       }
       push_node(T_VALUETYPE, retnode);
     }

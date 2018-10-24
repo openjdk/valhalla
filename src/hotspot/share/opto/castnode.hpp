@@ -114,7 +114,6 @@ class CheckCastPPNode: public ConstraintCastNode {
 
   virtual Node* Identity(PhaseGVN* phase);
   virtual const Type* Value(PhaseGVN* phase) const;
-  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
   virtual int   Opcode() const;
   virtual uint  ideal_reg() const { return Op_RegP; }
   bool depends_only_on_test() const { return !type()->isa_rawptr() && ConstraintCastNode::depends_only_on_test(); }

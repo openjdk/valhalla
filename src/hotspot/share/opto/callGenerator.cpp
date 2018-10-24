@@ -923,14 +923,9 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
     kit.set_argument(arg_nb, arg);
   }
-  if (sig_type->is_valuetypeptr() && !arg->is_ValueType()) {
-    kit.inc_sp(nargs); // restore arguments
-    if (t->as_value_klass()->is_scalarizable()) {
-      arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass(), /* null2default */ false);
-    } else {
-      arg = kit.filter_null(arg);
-    }
-    kit.dec_sp(nargs);
+  if (sig_type->is_valuetypeptr() && !arg->is_ValueType() &&
+      !kit.gvn().type(arg)->maybe_null() && t->as_value_klass()->is_scalarizable()) {
+    arg = ValueTypeNode::make_from_oop(&kit, arg, t->as_value_klass());
     kit.set_argument(arg_nb, arg);
   }
 }

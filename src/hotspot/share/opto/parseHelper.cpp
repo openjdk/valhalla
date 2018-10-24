@@ -355,15 +355,23 @@ void Parse::do_withfield() {
   Node* holder = pop();
 
   if (!holder->is_ValueType()) {
-    assert(!gvn().type(holder)->maybe_null(), "should never be null");
+    // Null check and scalarize value type holder
     inc_sp(2);
-    holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
-    if (field->is_flattenable() && !val->is_ValueType() && gvn().type(val)->maybe_null()) {
-      assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      return;
-    }
+    holder = null_check(holder);
     dec_sp(2);
+    if (stopped()) return;
+    holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
+  }
+  if (!val->is_ValueType() && field->is_flattenable()) {
+    // Null check and scalarize value type field value
+    inc_sp(2);
+    val = null_check(val);
+    dec_sp(2);
+    if (stopped()) return;
+    val = ValueTypeNode::make_from_oop(this, val, gvn().type(val)->value_klass());
+  } else if (val->is_ValueType() && !field->is_flattenable()) {
+    // Non-flattenable field should not be scalarized
+    val = ValueTypePtrNode::make_from_value_type(this, val->as_ValueType());
   }
 
   // Clone the value type node and set the new field value

@@ -866,9 +866,6 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
             if (!klass->is_value()) {
               THROW_(vmSymbols::java_lang_IncompatibleClassChangeError(), false);
             }
-            if (ss.at_return_type()) {
-              m->set_is_returning_vt();
-            }
           }
         }
       }

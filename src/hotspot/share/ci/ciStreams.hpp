@@ -305,6 +305,14 @@ public:
     }
   }
 
+  bool is_never_null() {
+    if (at_return_type()) {
+      return _sig->returns_never_null();
+    } else {
+      return _sig->is_never_null_at(_pos);
+    }
+  }
+
   // next klass in the signature
   ciKlass* next_klass() {
     ciKlass* sig_k;

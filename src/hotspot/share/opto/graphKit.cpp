@@ -1394,34 +1394,18 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   return value;
 }
 
-Node* GraphKit::filter_null(Node* value, bool null2default, ciValueKlass* vk, int trap_bci) {
+Node* GraphKit::null2default(Node* value, ciValueKlass* vk) {
   Node* null_ctl = top();
   value = null_check_oop(value, &null_ctl);
   if (!null_ctl->is_top()) {
-    if (null2default) {
-      // Return default value if oop is null
-      Node* region = new RegionNode(3);
-      region->init_req(1, control());
-      region->init_req(2, null_ctl);
-      value = PhiNode::make(region, value, TypeInstPtr::make(TypePtr::BotPTR, vk));
-      value->set_req(2, ValueTypeNode::default_oop(gvn(), vk));
-      set_control(gvn().transform(region));
-      value = gvn().transform(value);
-    } else {
-      // Deoptimize if oop is null
-      PreserveJVMState pjvms(this);
-      set_control(null_ctl);
-      int cur_bci = bci();
-      if (trap_bci != -1) {
-        // Put trap at different bytecode
-        push(null());
-        set_bci(trap_bci);
-      }
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      if (trap_bci != -1) {
-        set_bci(cur_bci);
-      }
-    }
+    // Return default value if oop is null
+    Node* region = new RegionNode(3);
+    region->init_req(1, control());
+    region->init_req(2, null_ctl);
+    value = PhiNode::make(region, value, TypeInstPtr::make(TypePtr::BotPTR, vk));
+    value->set_req(2, ValueTypeNode::default_oop(gvn(), vk));
+    set_control(gvn().transform(region));
+    value = gvn().transform(value);
   }
   return value;
 }
@@ -1823,14 +1807,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
         // Pass value type argument via oop to callee
         arg = vt->allocate(this)->get_oop();
       }
-    } else if (t->is_valuetypeptr() && !arg->is_ValueTypePtr() && gvn().type(arg)->maybe_null()) {
-      // Constant null passed for a value type argument
-      assert(arg->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-      ciMethod* declared_method = method()->get_method_at_bci(bci());
-      int arg_size = declared_method->signature()->arg_size_for_bc(java_bc());
-      inc_sp(arg_size); // restore arguments
-      uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-      return;
     }
     call->init_req(idx, arg);
     idx++;
@@ -2887,11 +2863,9 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   // recv_xtype, since now we know what the type will be.
   Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
   Node* res = _gvn.transform(cast);
-  if (recv_xtype->is_valuetypeptr()) {
-    assert(!gvn().type(res)->maybe_null(), "should never be null");
-    if (recv_xtype->value_klass()->is_scalarizable()) {
-      res = ValueTypeNode::make_from_oop(this, res, recv_xtype->value_klass());
-    }
+  if (recv_xtype->is_valuetypeptr() && recv_xtype->value_klass()->is_scalarizable()) {
+    assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
+    res = ValueTypeNode::make_from_oop(this, res, recv_xtype->value_klass());
   }
 
   (*casted_receiver) = res;
@@ -3194,12 +3168,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
         // to the type system as a speculative type.
         if (!is_value) {
           obj = record_profiled_receiver_for_speculation(obj);
-          if (toop->is_valuetypeptr()) {
-            if (toop->value_klass()->is_scalarizable()) {
-              obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass(), /* null2default */ false);
-            } else {
-              obj = filter_null(obj);
-            }
+          if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !NullableValueTypes) {
+            obj = null_check(obj);
+            obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
           }
         }
         return obj;
@@ -3242,8 +3213,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   Node* not_null_obj = NULL;
   if (is_value) {
     not_null_obj = obj;
-  } else if (toop->is_valuetypeptr()) {
-    not_null_obj = filter_null(obj);
+  } else if (toop->is_valuetypeptr() && !NullableValueTypes) {
+    not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
   }
@@ -3339,11 +3310,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
 
   if (!is_value) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_valuetypeptr()) {
-      assert(!gvn().type(res)->maybe_null(), "should never be null");
-      if (toop->value_klass()->is_scalarizable()) {
-        res = ValueTypeNode::make_from_oop(this, res, toop->value_klass());
-      }
+    if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !gvn().type(res)->maybe_null()) {
+      res = ValueTypeNode::make_from_oop(this, res, toop->value_klass());
     }
   }
   return res;
@@ -4388,12 +4356,10 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
                                                         /*is_unsigned_load=*/false);
   if (con_type != NULL) {
     Node* con = makecon(con_type);
-    if (field->layout_type() == T_VALUETYPE) {
+    if (field->layout_type() == T_VALUETYPE && field->type()->as_value_klass()->is_scalarizable()) {
       // Load value type from constant oop
       assert(!con_type->maybe_null(), "should never be null");
-      if (field->type()->as_value_klass()->is_scalarizable()) {
-        con = ValueTypeNode::make_from_oop(this, con, field->type()->as_value_klass());
-      }
+      con = ValueTypeNode::make_from_oop(this, con, field->type()->as_value_klass());
     }
     return con;
   }
