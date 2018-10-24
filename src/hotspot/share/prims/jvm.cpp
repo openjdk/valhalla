@@ -1052,8 +1052,8 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     if (log_is_enabled(Debug, class, nestmates)) {
       ModuleEntry* module = ik->module();
       const char * module_name = module->is_named() ? module->name()->as_C_string() : UNNAMED_MODULE;
-      log_debug(class, nestmates)("Dynamic nestmate: %s module %s nest_host %s is_nonfindable %s",
-                                  ik->external_name(), module_name, nest_host->external_name(),
+      log_debug(class, nestmates)("Dynamic nestmate: %s/%s nest_host %s is_nonfindable %s",
+                                  module_name, ik->external_name(), nest_host->external_name(),
                                   ik->is_nonfindable() ? "true" : "false");
     }
   }

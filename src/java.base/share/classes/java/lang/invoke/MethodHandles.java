@@ -1072,7 +1072,7 @@ public class MethodHandles {
             if (sm != null)
                 sm.checkPermission(new RuntimePermission("defineClass"));
 
-            return defineClassWithNoCheck(bytes, toClassPropertyFlags(properties));
+            return defineClassWithNoCheck(bytes, classPropertiesToFlags(properties));
         }
 
         /**
@@ -1126,7 +1126,6 @@ public class MethodHandles {
             Objects.requireNonNull(bytes);
             Objects.requireNonNull(classData);
 
-
             // Is it ever possible to create Lookup for int.class or Object[].class?
             assert !lookupClass.isPrimitive() && !lookupClass.isArray();
 
@@ -1151,17 +1150,19 @@ public class MethodHandles {
             if (sm != null)
                 sm.checkPermission(new RuntimePermission("defineClass"));
 
-            return defineClassWithNoCheck(bytes, toClassPropertyFlags(properties), classData);
+            return defineClassWithNoCheck(bytes, classPropertiesToFlags(properties), classData);
         }
 
-        private static int toClassPropertyFlags(Set<ClassProperty> props) {
+        private static int classPropertiesToFlags(Set<ClassProperty> props) {
+            if (props.isEmpty()) return 0;
+
             int flags = 0;
             for (ClassProperty cp : props) {
                 flags |= cp.flag;
-            }
-            // a weak class implies a hidden class
-            if (props.contains(WEAK)) {
-                flags |= HIDDEN.flag;
+                if (cp == WEAK) {
+                    // weak class property implies hidden
+                    flags |= HIDDEN.flag;
+                }
             }
             return flags;
         }
