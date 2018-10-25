@@ -370,7 +370,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test11_verifier(boolean warmup) throws Throwable {
-        if (!NullableValueTypes) return;
         test11(false);
         try {
             test11(true);
@@ -396,7 +395,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test12_verifier(boolean warmup) {
-        if (!NullableValueTypes) return;
         try {
             test12_cnt = 0;
             test12();
@@ -441,7 +439,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test13_verifier(boolean warmup) {
-        if (!NullableValueTypes) return;
         A b = new B();
         A c = new C();
         A d = new D();
@@ -508,7 +505,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test15_verifier(boolean warmup) {
-        if (!NullableValueTypes) return;
         test15();
     }
 
