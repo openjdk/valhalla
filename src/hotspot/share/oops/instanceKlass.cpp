@@ -2561,15 +2561,23 @@ ModuleEntry* InstanceKlass::module() const {
     return unsafe_anonymous_host()->module();
   }
 
-  if (is_nonfindable() && in_unnamed_package()) {
-    // For a nonfindable class defined to an unnamed package, the CLD
-    // will not have an unnamed module created for it.
+  if (is_nonfindable() &&
+      in_unnamed_package() &&
+      class_loader_data()->is_shortlived()) {
+    // For a weak nonfindable class defined to an unnamed package,
+    // the short-lived CLD will not have an unnamed module created for it.
     // Two choices to find the correct ModuleEntry:
     // 1. If nonfindable class is within a nest, use nest host's module
     // 2. Find the unnamed module off from the class loader
-    oop module = java_lang_ClassLoader::unnamedModule(class_loader_data()->class_loader());
-    assert(java_lang_Module::is_instance(module), "Not an instance of java.lang.Module");
-    return java_lang_Module::module_entry(module);
+    // For now option #2 is used since a nest host is not set until
+    // after the instance class is created in jvm_lookup_define_class().
+    if (class_loader_data()->is_boot_class_loader_data()) {
+      return ClassLoaderData::the_null_class_loader_data()->unnamed_module(); 
+    } else {
+      oop module = java_lang_ClassLoader::unnamedModule(class_loader_data()->class_loader());
+      assert(java_lang_Module::is_instance(module), "Not an instance of java.lang.Module");
+      return java_lang_Module::module_entry(module);
+    } 
   }
 
   // Class is in a named package
