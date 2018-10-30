@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.jvm;
 
+import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.tree.TreeInfo.PosKind;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -249,13 +250,22 @@ public class Gen extends JCTree.Visitor {
      *  return the reference's index.
      *  @param type   The type for which a reference is inserted.
      */
-    int makeRef(DiagnosticPosition pos, Type type) {
+    int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
         checkDimension(pos, type);
         if (type.isAnnotated()) {
-            return pool.put((Object)type);
+            return pool.put(emitQtype ? new UniqueType(type, types) : type);
         } else {
-            return pool.put(type.hasTag(CLASS) ? (Object)type.tsym : (Object)type);
+            return pool.put(type.hasTag(CLASS) ? emitQtype ? new UniqueType(type, types) : type.tsym : (Object)type);
         }
+    }
+
+    /** Insert a reference to given type in the constant pool,
+     *  checking for an array with too many dimensions;
+     *  return the reference's index.
+     *  @param type   The type for which a reference is inserted.
+     */
+    int makeRef(DiagnosticPosition pos, Type type) {
+        return makeRef(pos, type, false);
     }
 
     /** Check if the given type is an array with too many dimensions.
@@ -1902,7 +1912,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype), type);
+                code.emitAnewarray(makeRef(pos, elemtype, types.emitQtypes && types.isValue(elemtype)), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {

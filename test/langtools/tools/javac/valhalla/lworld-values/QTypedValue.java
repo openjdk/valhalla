@@ -22,12 +22,22 @@
  */
 
 value class QTypedValue {
-    QTypedValue [][][] x = null;
-    void foo(QTypedValue x) {
-        Object o = new QTypedValue[10];
-        o = new QTypedValue[10][10][10][10];
-        System.out.println(this.x);
-        foo(new QTypedValue());
-        QTypedValue[][][][] xx = (QTypedValue[][][][]) o;
+
+    QTypedValue [] f1 = new QTypedValue[10];
+    QTypedValue [] f2 = new QTypedValue[10];
+
+    QTypedValue [][][] f3 = new QTypedValue[10][10][];
+    QTypedValue [][][] f4 = new QTypedValue[10][10][];
+
+    void foo(QTypedValue x, int i) {
+        foo(new QTypedValue(), 10);
+        QTypedValue x1, x2, x4, x5, x6;
+        if (i == 0) {
+            int j = 0; double d = 0.0;
+            x1 = new QTypedValue();
+            if (j == 0)
+                return;
+            QTypedValue x9 = new QTypedValue();
+        }
     }
 }
