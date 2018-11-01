@@ -5504,7 +5504,9 @@ static void check_methods_for_intrinsics(const InstanceKlass* ik,
   }
 }
 
-InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, TRAPS) {
+InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
+                                                      InstanceKlass* dynamic_nest_host,
+                                                      TRAPS) {
   if (_klass != NULL) {
     return _klass;
   }
@@ -5512,7 +5514,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
   InstanceKlass* const ik =
     InstanceKlass::allocate_instance_klass(*this, CHECK_NULL);
 
-  fill_instance_klass(ik, changed_by_loadhook, CHECK_NULL);
+  fill_instance_klass(ik, changed_by_loadhook, dynamic_nest_host, CHECK_NULL);
 
   assert(_klass == ik, "invariant");
 
@@ -5532,7 +5534,10 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
   return ik;
 }
 
-void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loadhook, TRAPS) {
+void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
+                                          bool changed_by_loadhook,
+                                          InstanceKlass* dynamic_nest_host,
+                                          TRAPS) {
   assert(ik != NULL, "invariant");
 
   // Set name and CLD before adding to CLD
@@ -5567,6 +5572,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
   apply_parsed_class_metadata(ik, _java_fields_count, CHECK);
+
+  // can only set dynamic nest-host after static nest information is set
+  if (dynamic_nest_host != NULL) {
+    ik->set_nest_host(dynamic_nest_host, CHECK);
+  }
 
   // note that is not safe to use the fields in the parser from this point on
   assert(NULL == _cp, "invariant");

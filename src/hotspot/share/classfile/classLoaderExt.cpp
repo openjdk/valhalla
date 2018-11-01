@@ -301,6 +301,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            NULL,  // unsafe_anonymous_host
                                                            NULL,  // cp_patches
                                                            false, // is_nonfindable
+                                                           NULL,  // dynamic_nest_host
                                                            THREAD);
 
   if (HAS_PENDING_EXCEPTION) {

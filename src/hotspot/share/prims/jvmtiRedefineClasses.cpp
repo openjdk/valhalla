@@ -1167,6 +1167,7 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
                                                       the_class_loader,
                                                       protection_domain,
                                                       &st,
+                                                      NULL, // dynamic_nest_host
                                                       THREAD);
     // Clear class_being_redefined just to be sure.
     state->clear_class_being_redefined();

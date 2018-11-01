@@ -304,6 +304,52 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
   return nest_host_k;
 }
 
+
+// Dynamic nest member support: set this class's nest host to the given class.
+// This occurs as part of the class definition, as soon as the instanceKlass
+// has been created and doesn't require further resolution. The code:
+//    lookup().defineClass(bytes_for_X, NESTMATE);
+// results in:
+//    class_of_X.set_nest_host(lookup().lookupClass().getNestHost())
+// So we know that current class is "pristine" and its _nest_host must be NULL.
+// We also know the "host" is a valid nest-host in the same package so we can
+// assert some of those facts.
+void InstanceKlass::set_nest_host(InstanceKlass* host, TRAPS) {
+  assert(host != NULL, "NULL nest host specified");
+  assert(_nest_host == NULL, "current class has resolved nest-host");
+  assert((host->_nest_host == NULL && host->_nest_host_index == 0) ||
+         (host->_nest_host == host), "proposed host is not a valid nest-host");
+  // Can't assert this as package is not set yet:
+  // assert(is_same_class_package(host), "proposed host is in wrong package");
+
+  const char * error_msg = NULL;
+  // There are two validity checks that have to be made:
+  // 1. The current class must not expect a statically defined nest-host
+  if (_nest_host_index == 0) {
+    // 2. The current class can't itself be a nest-host
+    if (_nest_members == NULL ||
+        _nest_members == Universe::the_empty_short_array()) {
+      _nest_host = host;
+      return;
+    }
+    else {
+      error_msg = "the current class is already a nest-host";
+    }
+  }
+  else {
+    error_msg = "the current class is already a member of a nest";
+  }
+
+  ResourceMark rm(THREAD);
+  Exceptions::fthrow(THREAD_AND_LOCATION,
+                     vmSymbols::java_lang_ClassFormatError(),
+                     "Type %s can not be a dynamic nest member of %s: %s",
+                     this->external_name(),
+                     host->external_name(),
+                     error_msg
+                     );
+}
+
 // check if 'this' and k are nestmates (same nest_host), or k is our nest_host,
 // or we are k's nest_host - all of which is covered by comparing the two
 // resolved_nest_hosts

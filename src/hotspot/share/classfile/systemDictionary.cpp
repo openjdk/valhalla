@@ -997,12 +997,13 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               GrowableArray<Handle>* cp_patches,
                                               const bool is_nonfindable,
                                               const bool is_weaknonfindable,
+                                              InstanceKlass* dynamic_nest_host,
                                               TRAPS) {
 
   EventClassLoad class_load_start_event;
 
   ClassLoaderData* loader_data;
- 
+
   if (unsafe_anonymous_host != NULL) {
     // - for unsafe anonymous class: create a new short-lived CLD that uses the same
     //                               class loader as the unsafe_anonymous_host.
@@ -1011,7 +1012,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
   } else if (is_nonfindable) {
     // - for weak nonfindable class: create a new short-lived CLD whose loader is
     //                               the Lookup class' loader.
-    // - for nonfindable class: add the class to the Lookup class' loader's CLD. 
+    // - for nonfindable class: add the class to the Lookup class' loader's CLD.
     if (is_weaknonfindable) {
       loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
     } else {
@@ -1037,6 +1038,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                                       unsafe_anonymous_host,
                                                       cp_patches,
                                                       is_nonfindable,
+                                                      dynamic_nest_host,
                                                       CHECK_NULL);
 
   if ((is_nonfindable || (unsafe_anonymous_host != NULL)) && k != NULL) {
@@ -1092,6 +1094,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                                      Handle class_loader,
                                                      Handle protection_domain,
                                                      ClassFileStream* st,
+                                                     InstanceKlass* dynamic_nest_host,
                                                      TRAPS) {
 
   HandleMark hm(THREAD);
@@ -1139,6 +1142,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          NULL,  // unsafe_anonymous_host
                                          NULL,  // cp_patches
                                          false, // is_nonfindable
+                                         dynamic_nest_host,
                                          CHECK_NULL);
   }
 

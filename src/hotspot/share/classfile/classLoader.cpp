@@ -1402,6 +1402,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                            NULL,  // unsafe_anonymous_host
                                                            NULL,  // cp_patches
                                                            false, // is_nonfindable
+                                                           NULL,  // dynamic_nest_host
                                                            THREAD);
   if (HAS_PENDING_EXCEPTION) {
     if (DumpSharedSpaces) {

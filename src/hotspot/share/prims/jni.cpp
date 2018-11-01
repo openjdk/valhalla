@@ -353,6 +353,7 @@ JNI_ENTRY(jclass, jni_DefineClass(JNIEnv *env, const char *name, jobject loaderR
                                                    class_loader,
                                                    Handle(),
                                                    &st,
+                                                   NULL,  // dynamic_nest_host
                                                    CHECK_NULL);
 
   if (log_is_enabled(Debug, class, resolve) && k != NULL) {

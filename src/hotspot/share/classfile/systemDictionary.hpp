@@ -276,6 +276,7 @@ public:
                                      Handle class_loader,
                                      Handle protection_domain,
                                      ClassFileStream* st,
+                                     InstanceKlass* dynamic_nest_host,
                                      TRAPS) {
     return parse_stream(class_name,
                         class_loader,
@@ -285,6 +286,7 @@ public:
                         NULL,  // cp_patches
                         false, // is_nonfindable
                         false, // is_weaknonfindable
+                        dynamic_nest_host,
                         THREAD);
   }
   static InstanceKlass* parse_stream(Symbol* class_name,
@@ -295,6 +297,7 @@ public:
                                      GrowableArray<Handle>* cp_patches,
                                      const bool is_nonfindable,
                                      const bool is_weaknonfindable,
+                                     InstanceKlass* dynamic_nest_host,
                                      TRAPS);
 
   // Resolve from stream (called by jni_DefineClass and JVM_DefineClass)
@@ -302,6 +305,7 @@ public:
                                             Handle class_loader,
                                             Handle protection_domain,
                                             ClassFileStream* st,
+                                            InstanceKlass* dynamic_nest_host,
                                             TRAPS);
 
   // Lookup an already loaded class. If not found NULL is returned.

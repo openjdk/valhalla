@@ -458,8 +458,8 @@ class InstanceKlass: public Klass {
   // nest-host index
   jushort nest_host_index() const { return _nest_host_index; }
   void set_nest_host_index(u2 i)  { _nest_host_index = i; }
-  void set_nest_host(InstanceKlass* host) { assert(_nest_host == NULL, "nest host already set"); _nest_host = host; }
-  InstanceKlass* raw_nest_host() const { return _nest_host; }
+  // dynamic nest member support
+  void set_nest_host(InstanceKlass* host, TRAPS);
 
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host

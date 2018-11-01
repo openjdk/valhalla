@@ -932,6 +932,7 @@ static jclass jvm_define_class_common(JNIEnv *env, const char *name,
                                                    class_loader,
                                                    protection_domain,
                                                    &st,
+                                                   NULL,  // dynamic_nest_host
                                                    CHECK_NULL);
 
   if (log_is_enabled(Debug, class, resolve) && k != NULL) {
@@ -963,19 +964,20 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
   JavaThread* jt = (JavaThread*) THREAD;
   ResourceMark rm(THREAD);
 
-  const Klass* lookup_class = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(lookup));
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(lookup));
+  // Lookup class must be a non-null instance
+  if (k == NULL) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
+  }
+  assert(k->is_instance_klass(), "Lookup class must be an instance klass");
+  InstanceKlass* lookup_class = InstanceKlass::cast(k);
+
   jboolean is_nestmate = (flags & NESTMATE) == NESTMATE;
   jboolean is_nonfindable = (flags & NONFINDABLE_CLASS) == NONFINDABLE_CLASS;
   jboolean is_weak = (flags & WEAK_CLASS) == WEAK_CLASS;
   jboolean vm_annotations = (flags & ACCESS_VM_ANNOTATIONS) == ACCESS_VM_ANNOTATIONS;
 
-  // Lookup class must be a non-null instance
-  if (lookup_class == NULL) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
-  }
-  assert(lookup_class->is_instance_klass(), "Lookup class must be an instance klass");
-
-  // classData (constant pool patching replacement) is only applicable for nonfindable classes 
+  // classData (constant pool patching replacement) is only applicable for nonfindable classes
   if (classData != NULL && !is_nonfindable) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for nonfindable classes");
   }
@@ -1008,11 +1010,9 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     class_name = SymbolTable::new_symbol(name, str_len, CHECK_NULL);
   }
 
-  Klass* k;
-  const InstanceKlass* nest_host = InstanceKlass::cast(lookup_class);
   Handle class_loader (THREAD, JNIHandles::resolve(loader));
   Handle protection_domain (THREAD, JNIHandles::resolve(pd));
-  const char* source = is_nestmate ? nest_host->external_name() : "__JVM_LookupDefineClass__";
+  const char* source = is_nestmate ? lookup_class->external_name() : "__JVM_LookupDefineClass__";
   ClassFileStream st((u1*)buf, len, source, ClassFileStream::verify);
 
   if (!is_nonfindable) {
@@ -1020,6 +1020,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                               class_loader,
                                               protection_domain,
                                               &st,
+                                              is_nestmate ? lookup_class : NULL,
                                               CHECK_NULL);
 
     if (log_is_enabled(Debug, class, resolve) && k != NULL) {
@@ -1034,6 +1035,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                        NULL, // cp_patches
                                        is_nonfindable,
                                        true, // is_weak - workaround to allow access to VM annotations
+                                       is_nestmate ? lookup_class : NULL,
                                        CHECK_NULL);
     if (k == NULL) {
       THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a nonfindable class");
@@ -1045,17 +1047,15 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     InstanceKlass::cast(k)->class_loader_data()->dec_keep_alive();
   }
 
-  // set nest host
-  if (is_nestmate) {
+  if (is_nestmate && log_is_enabled(Debug, class, nestmates)) {
     InstanceKlass* ik = InstanceKlass::cast(k);
-    ik->set_nest_host((InstanceKlass*)nest_host);
-    if (log_is_enabled(Debug, class, nestmates)) {
-      ModuleEntry* module = ik->module();
-      const char * module_name = module->is_named() ? module->name()->as_C_string() : UNNAMED_MODULE;
-      log_debug(class, nestmates)("Dynamic nestmate: %s/%s nest_host %s is_nonfindable %s",
-                                  module_name, ik->external_name(), nest_host->external_name(),
-                                  ik->is_nonfindable() ? "true" : "false");
-    }
+    ModuleEntry* module = ik->module();
+    const char * module_name = module->is_named() ? module->name()->as_C_string() : UNNAMED_MODULE;
+    log_debug(class, nestmates)("Dynamic nestmate: %s/%s, nest_host %s, %s",
+                                module_name,
+                                ik->external_name(),
+                                lookup_class->external_name(),
+                                ik->is_nonfindable() ? "is non-findable" : "is findable");
   }
 
   return (jclass) JNIHandles::make_local(env, k->java_mirror());

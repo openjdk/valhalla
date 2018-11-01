@@ -104,8 +104,10 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
                              false, // is_nonfindable
                              ClassFileParser::BROADCAST, // publicity level
                              CHECK_NULL);
-      InstanceKlass* new_ik = parser.create_instance_klass(true /* changed_by_loadhook */,
+      InstanceKlass* new_ik = parser.create_instance_klass(true, // changed_by_loadhook
+                                                           NULL,  // dynamic_nest_host
                                                            CHECK_NULL);
+
       if (cached_class_file != NULL) {
         new_ik->set_cached_class_file(cached_class_file);
       }
@@ -187,6 +189,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                                                 const InstanceKlass* unsafe_anonymous_host,
                                                 GrowableArray<Handle>* cp_patches,
                                                 bool is_nonfindable,
+                                                InstanceKlass* dynamic_nest_host,
                                                 TRAPS) {
   assert(stream != NULL, "invariant");
   assert(loader_data != NULL, "invariant");
@@ -222,8 +225,8 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                          ClassFileParser::BROADCAST, // publicity level
                          CHECK_NULL);
 
-  InstanceKlass* result = parser.create_instance_klass(old_stream != stream, CHECK_NULL);
-  assert(result == parser.create_instance_klass(old_stream != stream, THREAD), "invariant");
+  InstanceKlass* result = parser.create_instance_klass(old_stream != stream, dynamic_nest_host, CHECK_NULL);
+  assert(result == parser.create_instance_klass(old_stream != stream, NULL, THREAD), "invariant");
 
   if (result == NULL) {
     return NULL;

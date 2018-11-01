@@ -711,22 +711,6 @@ bool Reflection::verify_member_access(const Klass* current_class,
     return true;
   }
 
-  /*
-   * Dynamic nestmate C attempts to access R where R's nest host is H.
-   * This is a temporary hack to allow C to access private R.m until
-   * properly resolved.
-   *
-   * e.g. jdk.internal.module.SystemModuleFinders$1$$Lambda$1/0x0000000800061040
-   * is a static nest member of jdk.internal.module.SystemModuleFinders
-   * but access jdk.internal.module.SystemModuleFinders$1.lambda$find$0
-   */
-  InstanceKlass* nest_host = InstanceKlass::cast((Klass*) current_class)->raw_nest_host();
-  if (access.is_private() && nest_host != NULL && nest_host != current_class) {
-    if (nest_host == InstanceKlass::cast(member_class)->raw_nest_host()) {
-      return true;
-    }
-  }
-
   // private access between different classes needs a nestmate check, but
   // not for unsafe anonymous classes - so check host_class
   if (access.is_private() && host_class == current_class) {
