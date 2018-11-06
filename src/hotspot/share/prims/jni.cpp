@@ -86,7 +86,6 @@
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/histogram.hpp"
-#include "utilities/internalVMTests.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
 #if INCLUDE_JVMCI
@@ -3978,9 +3977,6 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
     // Some platforms (like Win*) need a wrapper around these test
     // functions in order to properly handle error conditions.
     VMError::test_error_handler();
-    if (ExecuteInternalVMTests) {
-      InternalVMTests::run();
-    }
 #endif
 
     // Since this is not a JVM_ENTRY we have to set the thread state manually before leaving.
@@ -4133,6 +4129,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
   // be set in order for the Safepoint code to deal with it correctly.
   thread->set_thread_state(_thread_in_vm);
   thread->record_stack_base_and_size();
+  thread->register_thread_stack_with_NMT();
   thread->initialize_thread_current();
 
   if (!os::create_attached_thread(thread)) {

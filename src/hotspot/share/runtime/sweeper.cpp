@@ -387,13 +387,13 @@ void NMethodSweeper::force_sweep() {
  * Handle a safepoint request
  */
 void NMethodSweeper::handle_safepoint_request() {
-  if (SafepointSynchronize::is_synchronizing()) {
+  JavaThread* thread = JavaThread::current();
+  if (SafepointMechanism::poll(thread)) {
     if (PrintMethodFlushing && Verbose) {
       tty->print_cr("### Sweep at %d out of %d, yielding to safepoint", _seen, CodeCache::nmethod_count());
     }
     MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
-    JavaThread* thread = JavaThread::current();
     ThreadBlockInVM tbivm(thread);
     thread->java_suspend_self();
   }
@@ -673,8 +673,8 @@ void NMethodSweeper::release_compiled_method(CompiledMethod* nm) {
   // Clean up any CompiledICHolders
   {
     ResourceMark rm;
-    MutexLocker ml_patch(CompiledIC_lock);
     RelocIterator iter(nm);
+    CompiledICLocker ml(nm);
     while (iter.next()) {
       if (iter.type() == relocInfo::virtual_call_type) {
         CompiledIC::cleanup_call_site(iter.virtual_call_reloc(), nm);
@@ -701,8 +701,8 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
     // But still remember to clean-up inline caches for alive nmethods
     if (cm->is_alive()) {
       // Clean inline caches that point to zombie/non-entrant/unloaded nmethods
-      MutexLocker cl(CompiledIC_lock);
-      cm->cleanup_inline_caches();
+      CompiledICLocker ml(cm);
+      cm->cleanup_inline_caches(false);
       SWEEP(cm);
     }
     return result;
@@ -723,7 +723,7 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
       // Clear ICStubs to prevent back patching stubs of zombie or flushed
       // nmethods during the next safepoint (see ICStub::finalize).
       {
-        MutexLocker cl(CompiledIC_lock);
+        CompiledICLocker ml(cm);
         cm->clear_ic_stubs();
       }
       // Code cache state change is tracked in make_zombie()
@@ -747,8 +747,8 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
       }
     } else {
       // Still alive, clean up its inline caches
-      MutexLocker cl(CompiledIC_lock);
-      cm->cleanup_inline_caches();
+      CompiledICLocker ml(cm);
+      cm->cleanup_inline_caches(false);
       SWEEP(cm);
     }
   } else if (cm->is_unloaded()) {
@@ -757,8 +757,8 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
     {
       // Clean ICs of unloaded nmethods as well because they may reference other
       // unloaded nmethods that may be flushed earlier in the sweeper cycle.
-      MutexLocker cl(CompiledIC_lock);
-      cm->cleanup_inline_caches();
+      CompiledICLocker ml(cm);
+      cm->cleanup_inline_caches(false);
     }
     if (cm->is_osr_method()) {
       SWEEP(cm);
@@ -778,8 +778,8 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
       possibly_flush((nmethod*)cm);
     }
     // Clean inline caches that point to zombie/non-entrant/unloaded nmethods
-    MutexLocker cl(CompiledIC_lock);
-    cm->cleanup_inline_caches();
+    CompiledICLocker ml(cm);
+    cm->cleanup_inline_caches(false);
     SWEEP(cm);
   }
   return result;

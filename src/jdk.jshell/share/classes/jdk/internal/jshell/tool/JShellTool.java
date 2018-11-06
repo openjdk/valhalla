@@ -864,7 +864,7 @@ public class JShellTool implements MessageHandler {
      */
     @Override
     public void errormsg(String key, Object... args) {
-        error(messageFormat(key, args));
+        error("%s", messageFormat(key, args));
     }
 
     /**
@@ -2936,7 +2936,7 @@ public class JShellTool implements MessageHandler {
                         }
                         String tsrc = trimNewlines(an.source());
                         if (!failed && !currSrcs.contains(tsrc)) {
-                            failed = processSource(tsrc);
+                            failed = !processSource(tsrc);
                         }
                         nextSrcs.add(tsrc);
                         if (an.remaining().isEmpty()) {

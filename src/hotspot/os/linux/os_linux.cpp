@@ -649,6 +649,9 @@ bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
 
 // Thread start routine for all newly created threads
 static void *thread_native_entry(Thread *thread) {
+
+  thread->record_stack_base_and_size();
+
   // Try to randomize the cache line index of hot stack frames.
   // This helps when threads of the same stack traces evict each other's
   // cache lines. The threads can be either from the same JVM instance, or
@@ -695,19 +698,14 @@ static void *thread_native_entry(Thread *thread) {
   }
 
   // call one more level start routine
-  thread->run();
+  thread->call_run();
+
+  // Note: at this point the thread object may already have deleted itself.
+  // Prevent dereferencing it from here on out.
+  thread = NULL;
 
   log_info(os, thread)("Thread finished (tid: " UINTX_FORMAT ", pthread id: " UINTX_FORMAT ").",
     os::current_thread_id(), (uintx) pthread_self());
-
-  // If a thread has not deleted itself ("delete this") as part of its
-  // termination sequence, we have to ensure thread-local-storage is
-  // cleared before we actually terminate. No threads should ever be
-  // deleted asynchronously with respect to their termination.
-  if (Thread::current_or_null_safe() != NULL) {
-    assert(Thread::current_or_null_safe() == thread, "current thread is wrong");
-    thread->clear_thread_current();
-  }
 
   return 0;
 }
@@ -5958,14 +5956,6 @@ int os::compare_file_modified_times(const char* file1, const char* file2) {
 
 #ifndef PRODUCT
 
-#define test_log(...)              \
-  do {                             \
-    if (VerboseInternalVMTests) {  \
-      tty->print_cr(__VA_ARGS__);  \
-      tty->flush();                \
-    }                              \
-  } while (false)
-
 class TestReserveMemorySpecial : AllStatic {
  public:
   static void small_page_write(void* addr, size_t size) {
@@ -5981,8 +5971,6 @@ class TestReserveMemorySpecial : AllStatic {
     if (!UseHugeTLBFS) {
       return;
     }
-
-    test_log("test_reserve_memory_special_huge_tlbfs_only(" SIZE_FORMAT ")", size);
 
     char* addr = os::Linux::reserve_memory_special_huge_tlbfs_only(size, NULL, false);
 
@@ -6042,15 +6030,10 @@ class TestReserveMemorySpecial : AllStatic {
     ::munmap(mapping1, mapping_size);
 
     // Case 1
-    test_log("%s, req_addr NULL:", __FUNCTION__);
-    test_log("size            align           result");
-
     for (int i = 0; i < num_sizes; i++) {
       const size_t size = sizes[i];
       for (size_t alignment = ag; is_aligned(size, alignment); alignment *= 2) {
         char* p = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, NULL, false);
-        test_log(SIZE_FORMAT_HEX " " SIZE_FORMAT_HEX " ->  " PTR_FORMAT " %s",
-                 size, alignment, p2i(p), (p != NULL ? "" : "(failed)"));
         if (p != NULL) {
           assert(is_aligned(p, alignment), "must be");
           small_page_write(p, size);
@@ -6060,17 +6043,11 @@ class TestReserveMemorySpecial : AllStatic {
     }
 
     // Case 2
-    test_log("%s, req_addr non-NULL:", __FUNCTION__);
-    test_log("size            align           req_addr         result");
-
     for (int i = 0; i < num_sizes; i++) {
       const size_t size = sizes[i];
       for (size_t alignment = ag; is_aligned(size, alignment); alignment *= 2) {
         char* const req_addr = align_up(mapping1, alignment);
         char* p = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, req_addr, false);
-        test_log(SIZE_FORMAT_HEX " " SIZE_FORMAT_HEX " " PTR_FORMAT " ->  " PTR_FORMAT " %s",
-                 size, alignment, p2i(req_addr), p2i(p),
-                 ((p != NULL ? (p == req_addr ? "(exact match)" : "") : "(failed)")));
         if (p != NULL) {
           assert(p == req_addr, "must be");
           small_page_write(p, size);
@@ -6080,16 +6057,11 @@ class TestReserveMemorySpecial : AllStatic {
     }
 
     // Case 3
-    test_log("%s, req_addr non-NULL with preexisting mapping:", __FUNCTION__);
-    test_log("size            align           req_addr         result");
-
     for (int i = 0; i < num_sizes; i++) {
       const size_t size = sizes[i];
       for (size_t alignment = ag; is_aligned(size, alignment); alignment *= 2) {
         char* const req_addr = align_up(mapping2, alignment);
         char* p = os::Linux::reserve_memory_special_huge_tlbfs_mixed(size, alignment, req_addr, false);
-        test_log(SIZE_FORMAT_HEX " " SIZE_FORMAT_HEX " " PTR_FORMAT " ->  " PTR_FORMAT " %s",
-                 size, alignment, p2i(req_addr), p2i(p), ((p != NULL ? "" : "(failed)")));
         // as the area around req_addr contains already existing mappings, the API should always
         // return NULL (as per contract, it cannot return another address)
         assert(p == NULL, "must be");
@@ -6113,8 +6085,6 @@ class TestReserveMemorySpecial : AllStatic {
     if (!UseSHM) {
       return;
     }
-
-    test_log("test_reserve_memory_special_shm(" SIZE_FORMAT ", " SIZE_FORMAT ")", size, alignment);
 
     char* addr = os::Linux::reserve_memory_special_shm(size, alignment, NULL, false);
 

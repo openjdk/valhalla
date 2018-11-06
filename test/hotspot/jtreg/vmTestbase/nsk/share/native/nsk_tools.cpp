@@ -133,11 +133,11 @@ void nsk_lvcomplain(const char file[], int line,
     char msg_buf[1024];
     nsk_context.nComplains++;
     if (!nsk_context.verbose) {
-        if ( nsk_context.nComplains > NSK_MAX_COMPLAINS_NON_VERBOSE ) {
+        if (nsk_context.nComplains > NSK_MAX_COMPLAINS_NON_VERBOSE) {
             return;
         }
 
-        if ( nsk_context.nComplains == NSK_MAX_COMPLAINS_NON_VERBOSE ) {
+        if (nsk_context.nComplains == NSK_MAX_COMPLAINS_NON_VERBOSE) {
             nsk_printf("# ...\n"
                        "# ERROR: too many complains, giving up to save disk space (CR 6341460)\n"
                        "# Please rerun the test with -verbose option to listen to the entire song\n");
@@ -163,7 +163,7 @@ void nsk_lvcomplain(const char file[], int line,
       } else if (strlen(msg_buf2) != 0) {
         msg_buf2[strlen(msg_buf2)-1] = '\n'; // Make sure we have a newline char at the end.
       }
-      (void) nsk_printf("The following fake exception stacktrace is for failuire analysis. \n");
+      (void) nsk_printf("The following fake exception stacktrace is for failure analysis. \n");
       (void) nsk_printf("nsk.share.Fake_Exception_for_RULE_Creation: ");
       if (file != NULL) {
         (void) nsk_printf("(%s:%d) ", file_basename(file), line);

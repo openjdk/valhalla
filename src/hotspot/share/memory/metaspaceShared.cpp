@@ -86,8 +86,8 @@ size_t MetaspaceShared::_core_spaces_size = 0;
 //     md  - misc data (the c++ vtables)
 //     od  - optional data (original class files)
 //
-//     s0  - shared strings(closed archive heap space) #0
-//     s1  - shared strings(closed archive heap space) #1 (may be empty)
+//     ca0 - closed archive heap space #0
+//     ca1 - closed archive heap space #1 (may be empty)
 //     oa0 - open archive heap space #0
 //     oa1 - open archive heap space #1 (may be empty)
 //
@@ -198,7 +198,7 @@ public:
 
 
 DumpRegion _mc_region("mc"), _ro_region("ro"), _rw_region("rw"), _md_region("md"), _od_region("od");
-size_t _total_string_region_size = 0, _total_open_archive_region_size = 0;
+size_t _total_closed_archive_region_size = 0, _total_open_archive_region_size = 0;
 
 char* MetaspaceShared::misc_code_space_alloc(size_t num_bytes) {
   return _mc_region.allocate(num_bytes);
@@ -1274,9 +1274,8 @@ public:
     // NOTE: after this point, we shouldn't have any globals that can reach the old
     // objects.
 
-    // We cannot use any of the objects in the heap anymore (except for the objects
-    // in the CDS shared string regions) because their headers no longer point to
-    // valid Klasses.
+    // We cannot use any of the objects in the heap anymore (except for the
+    // shared strings) because their headers no longer point to valid Klasses.
   }
 
   static void iterate_roots(MetaspaceClosure* it) {
@@ -1491,11 +1490,11 @@ void VM_PopulateDumpSharedSpace::doit() {
     write_region(mapinfo, MetaspaceShared::md, &_md_region, /*read_only=*/false,/*allow_exec=*/false);
     write_region(mapinfo, MetaspaceShared::od, &_od_region, /*read_only=*/true, /*allow_exec=*/false);
 
-    _total_string_region_size = mapinfo->write_archive_heap_regions(
+    _total_closed_archive_region_size = mapinfo->write_archive_heap_regions(
                                         _closed_archive_heap_regions,
                                         _closed_archive_heap_oopmaps,
-                                        MetaspaceShared::first_string,
-                                        MetaspaceShared::max_strings);
+                                        MetaspaceShared::first_closed_archive_heap_region,
+                                        MetaspaceShared::max_closed_archive_heap_region);
     _total_open_archive_region_size = mapinfo->write_archive_heap_regions(
                                         _open_archive_heap_regions,
                                         _open_archive_heap_oopmaps,
@@ -1529,12 +1528,12 @@ void VM_PopulateDumpSharedSpace::print_region_stats() {
   const size_t total_reserved = _ro_region.reserved()  + _rw_region.reserved() +
                                 _mc_region.reserved()  + _md_region.reserved() +
                                 _od_region.reserved()  +
-                                _total_string_region_size +
+                                _total_closed_archive_region_size +
                                 _total_open_archive_region_size;
   const size_t total_bytes = _ro_region.used()  + _rw_region.used() +
                              _mc_region.used()  + _md_region.used() +
                              _od_region.used()  +
-                             _total_string_region_size +
+                             _total_closed_archive_region_size +
                              _total_open_archive_region_size;
   const double total_u_perc = percent_of(total_bytes, total_reserved);
 
@@ -1543,7 +1542,7 @@ void VM_PopulateDumpSharedSpace::print_region_stats() {
   _ro_region.print(total_reserved);
   _md_region.print(total_reserved);
   _od_region.print(total_reserved);
-  print_heap_region_stats(_closed_archive_heap_regions, "st", total_reserved);
+  print_heap_region_stats(_closed_archive_heap_regions, "ca", total_reserved);
   print_heap_region_stats(_open_archive_heap_regions, "oa", total_reserved);
 
   tty->print_cr("total    : " SIZE_FORMAT_W(9) " [100.0%% of total] out of " SIZE_FORMAT_W(9) " bytes [%5.1f%% used]",
@@ -1645,14 +1644,8 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
       ClassLoaderDataGraph::unlocked_loaded_classes_do(&check_closure);
     } while (check_closure.made_progress());
 
-    if (IgnoreUnverifiableClassesDuringDump) {
-      // This is useful when running JCK or SQE tests. You should not
-      // enable this when running real apps.
-      SystemDictionary::remove_classes_in_error_state();
-    } else {
-      tty->print_cr("Please remove the unverifiable classes from your class list and try again");
-      exit(1);
-    }
+    // Unverifiable classes will not be included in the CDS archive.
+    SystemDictionary::remove_classes_in_error_state();
   }
 }
 
@@ -1721,7 +1714,7 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
     tty->print_cr("Rewriting and linking classes: done");
 
     SystemDictionary::clear_invoke_method_table();
-    HeapShared::init_archivable_static_fields(THREAD);
+    HeapShared::init_subgraph_entry_fields(THREAD);
 
     VM_PopulateDumpSharedSpace op;
     VMThread::execute(&op);
@@ -1958,8 +1951,7 @@ bool MetaspaceShared::map_shared_spaces(FileMapInfo* mapinfo) {
     assert(ro_top == md_base, "must be");
     assert(md_top == od_base, "must be");
 
-    MetaspaceObj::_shared_metaspace_base = (void*)mc_base;
-    MetaspaceObj::_shared_metaspace_top  = (void*)od_top;
+    MetaspaceObj::set_shared_metaspace_range((void*)mc_base, (void*)od_top);
     return true;
   } else {
     // If there was a failure in mapping any of the spaces, unmap the ones

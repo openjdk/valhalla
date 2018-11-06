@@ -421,7 +421,7 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
     }
   }
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->eliminate_useless_gc_barriers(useful);
+  bs->eliminate_useless_gc_barriers(useful, this);
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
   remove_useless_late_inlines(&_boxing_late_inlines, useful);
@@ -544,9 +544,7 @@ void Compile::init_scratch_buffer_blob(int const_size) {
 
     ResourceMark rm;
     _scratch_const_size = const_size;
-    int locs_size = sizeof(relocInfo) * MAX_locs_size;
-    int slop = 2 * CodeSection::end_slop(); // space between sections
-    int size = (MAX_inst_size + MAX_stubs_size + _scratch_const_size + slop + locs_size);
+    int size = C2Compiler::initial_code_buffer_size(const_size);
     blob = BufferBlob::create("Compile::scratch_buffer", size);
     // Record the buffer blob for next time.
     set_scratch_buffer_blob(blob);

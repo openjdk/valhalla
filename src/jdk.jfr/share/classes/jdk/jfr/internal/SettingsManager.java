@@ -37,7 +37,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.StringJoiner;
 
-import jdk.jfr.Event;
 import jdk.jfr.internal.handlers.EventHandler;
 
 final class SettingsManager {
@@ -140,7 +139,7 @@ final class SettingsManager {
                 ec.disable();
             }
         } else {
-            if (LogTag.JFR_SETTING.shouldLog(LogLevel.INFO.level)) {
+            if (Logger.shouldLog(LogTag.JFR_SETTING, LogLevel.INFO)) {
                 Collections.sort(eventControls, (x,y) -> x.getEventType().getName().compareTo(y.getEventType().getName()));
             }
             for (EventControl ec : eventControls) {
@@ -152,9 +151,9 @@ final class SettingsManager {
         }
     }
 
-    public void updateRetransform(List<Class<? extends Event>> eventClasses) {
+    public void updateRetransform(List<Class<? extends jdk.internal.event.Event>> eventClasses) {
         List<Class<?>> classes = new ArrayList<>();
-        for(Class<? extends Event> eventClass: eventClasses) {
+        for(Class<? extends jdk.internal.event.Event> eventClass: eventClasses) {
             EventHandler eh = Utils.getHandler(eventClass);
             if (eh != null ) {
                 PlatformEventType eventType = eh.getPlatformEventType();
@@ -225,7 +224,7 @@ final class SettingsManager {
             if (values != null) {
                 control.apply(values);
                 String after = control.getLastValue();
-                if (LogTag.JFR_SETTING.shouldLog(LogLevel.INFO.level)) {
+                if (Logger.shouldLog(LogTag.JFR_SETTING, LogLevel.INFO)) {
                     if (Utils.isSettingVisible(control, ec.getEventType().hasEventHook())) {
                         if (values.size() > 1) {
                             StringJoiner sj = new StringJoiner(", ", "{", "}");
@@ -242,7 +241,7 @@ final class SettingsManager {
                 }
             } else {
                 control.setDefault();
-                if (LogTag.JFR_SETTING.shouldLog(LogLevel.INFO.level)) {
+                if (Logger.shouldLog(LogTag.JFR_SETTING, LogLevel.INFO)) {
                     String message = "  " + settingName + "=\"" + control.getLastValue() + "\"";
                     Logger.log(LogTag.JFR_SETTING, LogLevel.INFO, message);
                 }

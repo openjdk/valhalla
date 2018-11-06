@@ -420,6 +420,9 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo);
 
 // Thread start routine for all newly created threads
 static unsigned __stdcall thread_native_entry(Thread* thread) {
+
+  thread->record_stack_base_and_size();
+
   // Try to randomize the cache line index of hot stack frames.
   // This helps when threads of the same stack traces evict each other's
   // cache lines. The threads can be either from the same JVM instance, or
@@ -453,11 +456,14 @@ static unsigned __stdcall thread_native_entry(Thread* thread) {
   // by VM, so VM can generate error dump when an exception occurred in non-
   // Java thread (e.g. VM thread).
   __try {
-    thread->run();
+    thread->call_run();
   } __except(topLevelExceptionFilter(
                                      (_EXCEPTION_POINTERS*)_exception_info())) {
     // Nothing to do.
   }
+
+  // Note: at this point the thread object may already have deleted itself.
+  // Do not dereference it from here on out.
 
   log_info(os, thread)("Thread finished (tid: " UINTX_FORMAT ").", os::current_thread_id());
 
@@ -466,15 +472,6 @@ static unsigned __stdcall thread_native_entry(Thread* thread) {
   // which frees the CodeHeap containing the Atomic::add code
   if (thread != VMThread::vm_thread() && VMThread::vm_thread() != NULL) {
     Atomic::dec(&os::win32::_os_thread_count);
-  }
-
-  // If a thread has not deleted itself ("delete this") as part of its
-  // termination sequence, we have to ensure thread-local-storage is
-  // cleared before we actually terminate. No threads should ever be
-  // deleted asynchronously with respect to their termination.
-  if (Thread::current_or_null_safe() != NULL) {
-    assert(Thread::current_or_null_safe() == thread, "current thread is wrong");
-    thread->clear_thread_current();
   }
 
   // Thread must not return from exit_process_or_thread(), but if it does,
@@ -5560,12 +5557,8 @@ char* os::build_agent_function_name(const char *sym_name, const char *lib_name,
 // that is reported is when the test tries to allocate at a particular location but gets a
 // different valid one. A NULL return value at this point is not considered an error but may
 // be legitimate.
-// If -XX:+VerboseInternalVMTests is enabled, print some explanatory messages.
 void TestReserveMemorySpecial_test() {
   if (!UseLargePages) {
-    if (VerboseInternalVMTests) {
-      tty->print("Skipping test because large pages are disabled");
-    }
     return;
   }
   // save current value of globals
@@ -5579,10 +5572,6 @@ void TestReserveMemorySpecial_test() {
   const size_t large_allocation_size = os::large_page_size() * 4;
   char* result = os::reserve_memory_special(large_allocation_size, os::large_page_size(), NULL, false);
   if (result == NULL) {
-    if (VerboseInternalVMTests) {
-      tty->print("Failed to allocate control block with size " SIZE_FORMAT ". Skipping remainder of test.",
-                          large_allocation_size);
-    }
   } else {
     os::release_memory_special(result, large_allocation_size);
 
@@ -5592,10 +5581,6 @@ void TestReserveMemorySpecial_test() {
     char* expected_location = result + os::large_page_size();
     char* actual_location = os::reserve_memory_special(expected_allocation_size, os::large_page_size(), expected_location, false);
     if (actual_location == NULL) {
-      if (VerboseInternalVMTests) {
-        tty->print("Failed to allocate any memory at " PTR_FORMAT " size " SIZE_FORMAT ". Skipping remainder of test.",
-                            expected_location, large_allocation_size);
-      }
     } else {
       // release memory
       os::release_memory_special(actual_location, expected_allocation_size);

@@ -3023,7 +3023,7 @@ public abstract class ClassLoader {
         Class<?> k = ClassLoader.class;
         long offset;
         offset = unsafe.objectFieldOffset(k, name);
-        return unsafe.compareAndSetObject(this, offset, null, obj);
+        return unsafe.compareAndSetReference(this, offset, null, obj);
     }
 }
 
