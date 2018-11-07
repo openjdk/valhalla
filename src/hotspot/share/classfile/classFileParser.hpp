@@ -85,6 +85,7 @@ class ClassFileParser {
   const InstanceKlass* _unsafe_anonymous_host;
   GrowableArray<Handle>* _cp_patches; // overrides for CP entries
   const bool _is_nonfindable;
+  const bool _can_access_vm_annotations;
   int _num_patched_klasses;
   int _max_num_patched_klasses;
   int _orig_cp_size;
@@ -505,7 +506,8 @@ class ClassFileParser {
                   Handle protection_domain,
                   const InstanceKlass* unsafe_anonymous_host,
                   GrowableArray<Handle>* cp_patches,
-                  bool is_nonfindable,
+                  const bool is_nonfindable,
+                  const bool can_access_vm_annotations,
                   Publicity pub_level,
                   TRAPS);
 

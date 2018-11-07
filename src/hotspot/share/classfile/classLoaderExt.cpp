@@ -298,6 +298,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            NULL,  // unsafe_anonymous_host
                                                            NULL,  // cp_patches
                                                            false, // is_nonfindable
+                                                           false, // can_access_vm_annotations
                                                            NULL,  // dynamic_nest_host
                                                            THREAD);
 

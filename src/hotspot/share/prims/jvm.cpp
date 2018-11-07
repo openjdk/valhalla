@@ -1034,7 +1034,8 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                        NULL, // unsafe_anonymous_host
                                        NULL, // cp_patches
                                        is_nonfindable,
-                                       true, // is_weak - workaround to allow access to VM annotations
+                                       is_weak,
+                                       vm_annotations, 
                                        is_nestmate ? lookup_class : NULL,
                                        CHECK_NULL);
     if (k == NULL) {

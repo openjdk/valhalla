@@ -102,6 +102,7 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
                              NULL,  // unsafe_anonymous_host
                              NULL,  // cp_patches
                              false, // is_nonfindable
+                             false, // can_access_vm_annotations
                              ClassFileParser::BROADCAST, // publicity level
                              CHECK_NULL);
       InstanceKlass* new_ik = parser.create_instance_klass(true, // changed_by_loadhook
@@ -188,7 +189,8 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                                                 Handle protection_domain,
                                                 const InstanceKlass* unsafe_anonymous_host,
                                                 GrowableArray<Handle>* cp_patches,
-                                                bool is_nonfindable,
+                                                const bool is_nonfindable,
+                                                const bool can_access_vm_annotations,
                                                 InstanceKlass* dynamic_nest_host,
                                                 TRAPS) {
   assert(stream != NULL, "invariant");
@@ -222,6 +224,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                          unsafe_anonymous_host,
                          cp_patches,
                          is_nonfindable,
+                         can_access_vm_annotations,
                          ClassFileParser::BROADCAST, // publicity level
                          CHECK_NULL);
 

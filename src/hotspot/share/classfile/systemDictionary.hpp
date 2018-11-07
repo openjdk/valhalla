@@ -287,6 +287,7 @@ public:
                         NULL,  // cp_patches
                         false, // is_nonfindable
                         false, // is_weaknonfindable
+                        false, // can_access_vm_annotations
                         dynamic_nest_host,
                         THREAD);
   }
@@ -298,6 +299,7 @@ public:
                                      GrowableArray<Handle>* cp_patches,
                                      const bool is_nonfindable,
                                      const bool is_weaknonfindable,
+                                     const bool can_access_vm_annotations,
                                      InstanceKlass* dynamic_nest_host,
                                      TRAPS);
 

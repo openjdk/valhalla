@@ -74,7 +74,8 @@ class KlassFactory : AllStatic {
                                            Handle protection_domain,
                                            const InstanceKlass* unsafe_anonymous_host,
                                            GrowableArray<Handle>* cp_patches,
-                                           bool is_nonfindable,
+                                           const bool is_nonfindable,
+                                           const bool can_access_vm_annotations,
                                            InstanceKlass* dynamic_nest_host,
                                            TRAPS);
  public:

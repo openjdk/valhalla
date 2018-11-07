@@ -997,6 +997,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               GrowableArray<Handle>* cp_patches,
                                               const bool is_nonfindable,
                                               const bool is_weaknonfindable,
+                                              const bool can_access_vm_annotations,
                                               InstanceKlass* dynamic_nest_host,
                                               TRAPS) {
 
@@ -1038,6 +1039,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                                       unsafe_anonymous_host,
                                                       cp_patches,
                                                       is_nonfindable,
+                                                      can_access_vm_annotations,
                                                       dynamic_nest_host,
                                                       CHECK_NULL);
 
@@ -1142,6 +1144,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          NULL,  // unsafe_anonymous_host
                                          NULL,  // cp_patches
                                          false, // is_nonfindable
+                                         false, // can_access_vm_annotations
                                          dynamic_nest_host,
                                          CHECK_NULL);
   }

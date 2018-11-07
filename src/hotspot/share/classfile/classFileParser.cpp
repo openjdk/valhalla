@@ -1083,7 +1083,7 @@ public:
     assert((int)_annotation_LIMIT <= (int)sizeof(_annotations_present) * BitsPerByte, "");
   }
   // If this annotation name has an ID, report it (or _none).
-  ID annotation_index(const ClassLoaderData* loader_data, const Symbol* name);
+  ID annotation_index(const ClassLoaderData* loader_data, const Symbol* name, const bool can_access_vm_annotations);
   // Set the annotation name:
   void set_annotation(ID id) {
     assert((int)id >= 0 && (int)id < (int)_annotation_LIMIT, "oob");
@@ -1216,6 +1216,7 @@ static void parse_annotations(const ConstantPool* const cp,
                               const u1* buffer, int limit,
                               AnnotationCollector* coll,
                               ClassLoaderData* loader_data,
+                              const bool can_access_vm_annotations,
                               TRAPS) {
 
   assert(cp != NULL, "invariant");
@@ -1261,7 +1262,7 @@ static void parse_annotations(const ConstantPool* const cp,
     }
 
     // Here is where parsing particular annotations will take place.
-    AnnotationCollector::ID id = coll->annotation_index(loader_data, aname);
+    AnnotationCollector::ID id = coll->annotation_index(loader_data, aname, can_access_vm_annotations);
     if (AnnotationCollector::_unknown == id)  continue;
     coll->set_annotation(id);
 
@@ -1387,6 +1388,7 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
                           runtime_visible_annotations_length,
                           parsed_annotations,
                           _loader_data,
+                          _can_access_vm_annotations,
                           CHECK);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (attribute_name == vmSymbols::tag_runtime_invisible_annotations()) {
@@ -2086,12 +2088,14 @@ void ClassFileParser::throwIllegalSignature(const char* type,
 
 AnnotationCollector::ID
 AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
-                                      const Symbol* name) {
+                                      const Symbol* name,
+                                      const bool can_access_vm_annotations) {
   const vmSymbols::SID sid = vmSymbols::find_sid(name);
   // Privileged code can use all annotations.  Other code silently drops some.
   const bool privileged = loader_data->is_the_null_class_loader_data() ||
                           loader_data->is_platform_class_loader_data() ||
-                          loader_data->is_shortlived();
+                          loader_data->is_shortlived() ||
+                          can_access_vm_annotations;
   switch (sid) {
     case vmSymbols::VM_SYMBOL_ENUM_NAME(reflect_CallerSensitive_signature): {
       if (_location != _in_method)  break;  // only allow for methods
@@ -2710,6 +2714,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                           runtime_visible_annotations_length,
                           &parsed_annotations,
                           _loader_data,
+                          _can_access_vm_annotations,
                           CHECK_NULL);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (method_attribute_name == vmSymbols::tag_runtime_invisible_annotations()) {
@@ -3472,6 +3477,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
                           runtime_visible_annotations_length,
                           parsed_annotations,
                           _loader_data,
+                          _can_access_vm_annotations,
                           CHECK);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (tag == vmSymbols::tag_runtime_invisible_annotations()) {
@@ -5837,7 +5843,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  Handle protection_domain,
                                  const InstanceKlass* unsafe_anonymous_host,
                                  GrowableArray<Handle>* cp_patches,
-                                 bool is_nonfindable,
+                                 const bool is_nonfindable,
+                                 const bool can_access_vm_annotations,
                                  Publicity pub_level,
                                  TRAPS) :
   _stream(stream),
@@ -5846,6 +5853,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _unsafe_anonymous_host(unsafe_anonymous_host),
   _cp_patches(cp_patches),
   _is_nonfindable(is_nonfindable),
+  _can_access_vm_annotations(can_access_vm_annotations),
   _num_patched_klasses(0),
   _max_num_patched_klasses(0),
   _orig_cp_size(0),
