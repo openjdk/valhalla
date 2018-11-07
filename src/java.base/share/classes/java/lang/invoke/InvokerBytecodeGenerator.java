@@ -1027,7 +1027,7 @@ class InvokerBytecodeGenerator {
             return false;  // inner class of some sort
         if (cls.getClassLoader() != MethodHandle.class.getClassLoader())
             return false;  // not on BCP
-        if (ReflectUtil.isVMAnonymousClass(cls)) // FIXME: switch to supported API once it is added
+        if (cls.isHidden())
             return false;
         if (!isStaticallyInvocableType(member.getMethodOrFieldType()))
             return false;
@@ -1051,14 +1051,14 @@ class InvokerBytecodeGenerator {
         if (cls == Object.class)
             return true;
         if (MethodHandle.class.isAssignableFrom(cls)) {
-            assert(!ReflectUtil.isVMAnonymousClass(cls));
+            assert(!cls.isHidden());
             return true;
         }
         while (cls.isArray())
             cls = cls.getComponentType();
         if (cls.isPrimitive())
             return true;  // int[].class, for example
-        if (ReflectUtil.isVMAnonymousClass(cls)) // FIXME: switch to supported API once it is added
+        if (cls.isHidden())
             return false;
         // could use VerifyAccess.isClassAccessible but the following is a safe approximation
         if (cls.getClassLoader() != Object.class.getClassLoader())

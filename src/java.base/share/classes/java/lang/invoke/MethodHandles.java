@@ -1260,9 +1260,8 @@ public class MethodHandles {
             }
 
             if ((flags & NONFINDABLE_CLASS) != 0) {
-                // assign a new name
-                // cn = cn + "\\" + ++seq;
-                cn = null;
+                // ## TODO use '/' as in the name of the VM anonymous class.
+                cn = cn + '\\' + ++seq;
             }
 
             // invoke the class loader's defineClass method

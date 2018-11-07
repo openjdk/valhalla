@@ -6144,6 +6144,15 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                        CHECK);
   }
 
+  // For nonfindable classes, fix up the class name to the
+  // requested name.
+  if (_requested_name != NULL &&
+      _requested_name != _class_name &&
+      _is_nonfindable) {
+    _class_name = (Symbol*)_requested_name;
+    cp->symbol_at_put(cp->klass_name_index_at(_this_class_index), _class_name);
+  }
+
   // Checks if name in class file matches requested name
   if (_requested_name != NULL && _requested_name != _class_name) {
     ResourceMark rm(THREAD);

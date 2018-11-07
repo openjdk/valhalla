@@ -92,7 +92,7 @@ public class DefineClassWithClassData {
         Lookup lookup = MethodHandles.lookup();
         Class<?> c = lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T"), classData, NESTMATE, HIDDEN);
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
         assertEquals(classData, injectedData(c));
 
         // invoke int test(DefineClassWithClassData o)
@@ -110,7 +110,7 @@ public class DefineClassWithClassData {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
         Class<?> c = lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T"), classData, WEAK);
         assertTrue(c.getNestHost() == c);
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
     }
 
     @Test(expectedExceptions = IllegalAccessException.class)
@@ -126,7 +126,7 @@ public class DefineClassWithClassData {
             .defineClassWithClassData(classBytes, classData, NESTMATE, HIDDEN);
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
 
         // Teleport to a nestmate
         Lookup lookup =  MethodHandles.lookup().in(c);

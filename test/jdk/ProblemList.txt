@@ -511,6 +511,15 @@ java/lang/StringCoding/CheckEncodings.sh                        7008363 generic-
 java/lang/ProcessBuilder/PipelineTest.java                      8211844 aix-ppc64
 java/lang/ProcessHandle/InfoTest.java                           8211847 aix-ppc64
 
+# jdk_lang failures in nestmates branches
+
+java/lang/System/LoggerFinder/internal/BaseDefaultLoggerFinderTest/BaseDefaultLoggerFinderTest.java	8213402 generic-all
+java/lang/System/LoggerFinder/internal/BaseLoggerBridgeTest/BaseLoggerBridgeTest.java			8213402 generic-all
+java/lang/System/LoggerFinder/internal/BasePlatformLoggerTest/BasePlatformLoggerTest.java		8213402 generic-all
+java/lang/System/LoggerFinder/internal/LoggerBridgeTest/LoggerBridgeTest.java				8213402 generic-all
+java/lang/System/LoggerFinder/internal/LoggerFinderLoaderTest/LoggerFinderLoaderTest.java		8213402 generic-all
+java/lang/System/LoggerFinder/internal/PlatformLoggerBridgeTest/PlatformLoggerBridgeTest.java		8213402 generic-all
+
 ############################################################################
 
 # jdk_instrument

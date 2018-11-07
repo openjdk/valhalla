@@ -131,10 +131,10 @@ public class VerifyStackTrace {
         // test output in here (don't forget the final \n):
         private final String expected =
             "1: VerifyStackTrace.lambda$test$1(VerifyStackTrace.java:213)\n" +
-            "2: VerifyStackTrace$$Lambda$1/0x00000007c0089430.run(Unknown Source)\n" +
+            "2: VerifyStackTrace$$Lambda$1\\10.run(Unknown Source)\n" +
             "3: VerifyStackTrace$Handle.execute(VerifyStackTrace.java:149)\n" +
-            "4: java.base/java.lang.invoke.LambdaForm$DMH/0x00000007c008a830.invokeVirtual_LL_V(LambdaForm$DMH)\n" +
-            "5: java.base/java.lang.invoke.LambdaForm$MH/0x00000007c008a830.invoke_MT(LambdaForm$MH)\n" +
+            "4: java.base/java.lang.invoke.LambdaForm$DMH\\11.invokeVirtual_LL_V(LambdaForm$DMH)\n" +
+            "5: java.base/java.lang.invoke.LambdaForm$MH\\12.invoke_MT(LambdaForm$MH)\n" +
             "6: VerifyStackTrace$Handle.run(VerifyStackTrace.java:162)\n" +
             "7: VerifyStackTrace.invoke(VerifyStackTrace.java:192)\n" +
             "8: java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n" +
@@ -201,8 +201,8 @@ public class VerifyStackTrace {
             // out before comparing. We also erase the hash-like names of
             // synthetic frames introduced by lambdas & method handles
             return produced.replaceAll(":[1-9][0-9]*\\)", ":00)")
-                    .replaceAll("/0x[0-9a-f]+\\.run", "/xxxxxxxx.run")
-                    .replaceAll("/0x[0-9a-f]+\\.invoke", "/xxxxxxxx.invoke")
+                    .replaceAll("\\\\[0-9]+\\.run", "/xxxxxxxx.run")
+                    .replaceAll("\\\\[0-9]+\\.invoke", "/xxxxxxxx.invoke")
                     // LFs may or may not be pre-generated, making frames differ
                     .replaceAll("DirectMethodHandle\\$Holder", "LambdaForm\\$DMH")
                     .replaceAll("Invokers\\$Holder", "LambdaForm\\$MH")

@@ -103,7 +103,7 @@ public class DefineClassTest {
         Class<?> c = lookup.defineClass(bytes, NESTMATE, HIDDEN);
         System.out.println(c.getName());
         assertTrue(c.getNestHost() == DefineClassTest.class);
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
 
         // invoke int test(DefineClassTest o)
         int x = testInjectedClass(c);
@@ -121,7 +121,7 @@ public class DefineClassTest {
         Class<?> c = lookup.defineClass(bytes, WEAK);
         System.out.println(c.getName());
         assertTrue(c.getNestHost() == c);
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
     }
 
     @Test(expectedExceptions = IllegalAccessError.class)
@@ -129,7 +129,7 @@ public class DefineClassTest {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
         Class<?> c = lookup.defineClass(bytes, HIDDEN);
         assertTrue(c.getNestHost() == c);
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
 
         // fail to access DefineClassTest::privMethod method
         testInjectedClass(c);
@@ -145,7 +145,7 @@ public class DefineClassTest {
     public void teleportToNestmate() throws Throwable {
         Class<?> c = MethodHandles.lookup().defineClass(bytes, NESTMATE, HIDDEN);
         assertTrue(c.getNestHost() == DefineClassTest.class);
-        // assertTrue(c.isHidden());
+        assertTrue(c.isHidden());
 
         // Teleport to a nestmate
         Lookup lookup =  MethodHandles.lookup().in(c);

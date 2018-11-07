@@ -4087,7 +4087,15 @@ public final class Class<T> implements java.io.Serializable,
      * @see MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])
      */
     public boolean isHidden() {
-        // TODO: replace this with VM support
-        return ReflectUtil.isVMAnonymousClass(this);
+        return getName().indexOf('\\') > -1 || isVMAnonymousClass();
+    }
+
+    /**
+     * Checks if this {@code Class} is a VM-anonymous class
+     * as defined by {@link jdk.internal.misc.Unsafe#defineAnonymousClass}
+     * (not to be confused with a Java Language anonymous inner class).
+     */
+    private boolean isVMAnonymousClass() {
+        return getName().indexOf('/') > -1;
     }
 }

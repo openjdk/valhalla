@@ -202,7 +202,7 @@ public class ReflectionFactory {
             method = root;
         }
 
-        if (noInflation && !ReflectUtil.isVMAnonymousClass(method.getDeclaringClass())) {
+        if (noInflation && !method.getDeclaringClass().isHidden()) {
             return new MethodAccessorGenerator().
                 generateMethod(method.getDeclaringClass(),
                                method.getName(),
@@ -246,7 +246,7 @@ public class ReflectionFactory {
             return new BootstrapConstructorAccessorImpl(c);
         }
 
-        if (noInflation && !ReflectUtil.isVMAnonymousClass(c.getDeclaringClass())) {
+        if (noInflation && !c.getDeclaringClass().isHidden()) {
             return new MethodAccessorGenerator().
                 generateConstructor(c.getDeclaringClass(),
                                     c.getParameterTypes(),
