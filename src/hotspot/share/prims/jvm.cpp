@@ -970,12 +970,19 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
   }
   assert(k->is_instance_klass(), "Lookup class must be an instance klass");
-  InstanceKlass* lookup_class = InstanceKlass::cast(k);
 
   jboolean is_nestmate = (flags & NESTMATE) == NESTMATE;
   jboolean is_nonfindable = (flags & NONFINDABLE_CLASS) == NONFINDABLE_CLASS;
   jboolean is_weak = (flags & WEAK_CLASS) == WEAK_CLASS;
   jboolean vm_annotations = (flags & ACCESS_VM_ANNOTATIONS) == ACCESS_VM_ANNOTATIONS;
+
+  InstanceKlass* host_class = NULL;
+  if (is_nestmate) {
+    // we need to find the true nest-host of the lookup class,
+    // so any exceptions in nest validation must be thrown
+    Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+    host_class = InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
+  }
 
   // classData (constant pool patching replacement) is only applicable for nonfindable classes
   if (classData != NULL && !is_nonfindable) {
@@ -988,8 +995,13 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
   }
 
   if (log_is_enabled(Info, class, nestmates)) {
-    log_info(class, nestmates)("Lookup define class %s is_nestmate %d is_nonfindable %d is_weak %d vm annotations %d name %s",
-                                lookup_class->external_name(), is_nestmate, is_nonfindable, is_weak, vm_annotations, name);
+    log_info(class, nestmates)("LookupDefineClass: %s - %s%s, %s, %s, %s",
+                               name,
+                               is_nestmate ? "with dynamic nest-host " : "non-nestmate",
+                               is_nestmate ? host_class->external_name() : "",
+                               is_nonfindable ? "non-findable" : "findable",
+                               is_weak ? "weak" : "strong",
+                               vm_annotations ? "with vm annotations" : "without vm annotation");
   }
 
   // Since exceptions can be thrown, class initialization can take place
@@ -1012,7 +1024,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
 
   Handle class_loader (THREAD, JNIHandles::resolve(loader));
   Handle protection_domain (THREAD, JNIHandles::resolve(pd));
-  const char* source = is_nestmate ? lookup_class->external_name() : "__JVM_LookupDefineClass__";
+  const char* source = is_nestmate ? host_class->external_name() : "__JVM_LookupDefineClass__";
   ClassFileStream st((u1*)buf, len, source, ClassFileStream::verify);
 
   if (!is_nonfindable) {
@@ -1020,7 +1032,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                               class_loader,
                                               protection_domain,
                                               &st,
-                                              is_nestmate ? lookup_class : NULL,
+                                              host_class,
                                               CHECK_NULL);
 
     if (log_is_enabled(Debug, class, resolve) && k != NULL) {
@@ -1035,8 +1047,8 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                        NULL, // cp_patches
                                        is_nonfindable,
                                        is_weak,
-                                       vm_annotations, 
-                                       is_nestmate ? lookup_class : NULL,
+                                       vm_annotations,
+                                       host_class,
                                        CHECK_NULL);
     if (k == NULL) {
       THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a nonfindable class");
@@ -1055,7 +1067,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     log_debug(class, nestmates)("Dynamic nestmate: %s/%s, nest_host %s, %s",
                                 module_name,
                                 ik->external_name(),
-                                lookup_class->external_name(),
+                                host_class->external_name(),
                                 ik->is_nonfindable() ? "is non-findable" : "is findable");
   }
 
@@ -2102,7 +2114,8 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
              ResourceMark rm(THREAD);
              Exceptions::fthrow(THREAD_AND_LOCATION,
                                 icce,
-                                "Nest member %s in %s declares a different nest host of %s",
+                                "%s.getNestMembers: Nest member %s in %s declares a different nest host of %s",
+                                c->external_name(),
                                 k->external_name(),
                                 host->external_name(),
                                 nest_host_k->external_name()

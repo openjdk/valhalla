@@ -1253,12 +1253,6 @@ public class MethodHandles {
                 throw new IllegalArgumentException(cn + " not in same package as lookup class: " + lookupClass.getName());
             }
 
-            Class<?> host = lookupClass;
-            if ((flags & NESTMATE_CLASS) != 0) {
-                // cached in the Class object
-                host = lookupClass.getNestHost();
-            }
-
             if ((flags & NONFINDABLE_CLASS) != 0) {
                 // ## TODO use '/' as in the name of the VM anonymous class.
                 cn = cn + '\\' + ++seq;
@@ -1267,7 +1261,7 @@ public class MethodHandles {
             // invoke the class loader's defineClass method
             ClassLoader loader = lookupClass.getClassLoader();
             ProtectionDomain pd = (loader != null) ? lookupClassProtectionDomain() : null;
-            Class<?> clazz = JLA.defineClass(loader, host, cn, bytes, pd, flags, classData);
+            Class<?> clazz = JLA.defineClass(loader, lookupClass, cn, bytes, pd, flags, classData);
             assert clazz.getClassLoader() == lookupClass.getClassLoader()
                    && clazz.getPackageName().equals(lookupClass.getPackageName());
 
