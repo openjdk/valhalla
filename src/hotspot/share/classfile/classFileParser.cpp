@@ -6150,6 +6150,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
       _requested_name != _class_name &&
       _is_nonfindable) {
     _class_name = (Symbol*)_requested_name;
+    _class_name->increment_refcount();
     cp->symbol_at_put(cp->klass_name_index_at(_this_class_index), _class_name);
   }
 
