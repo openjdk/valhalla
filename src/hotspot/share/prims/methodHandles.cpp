@@ -1517,6 +1517,17 @@ JVM_ENTRY(void, MHN_clearCallSiteContext(JNIEnv* env, jobject igcls, jobject con
 }
 JVM_END
 
+/*
+ * Return the class data from the injected classData field of the given lookup class
+ */
+JVM_ENTRY(jobject, MHN_classData(JNIEnv *env, jobject igcls, jclass lookup))
+  if (lookup == NULL) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
+  }
+  oop mirror = JNIHandles::resolve_non_null(lookup);
+  return (jobject) JNIHandles::make_local(env, java_lang_Class::class_data(mirror));
+JVM_END
+
 /**
  * Throws a java/lang/UnsupportedOperationException unconditionally.
  * This is required by the specification of MethodHandle.invoke if
@@ -1575,7 +1586,8 @@ static JNINativeMethod MHN_methods[] = {
   {CC "clearCallSiteContext",      CC "(" CTX ")V",                          FN_PTR(MHN_clearCallSiteContext)},
   {CC "staticFieldOffset",         CC "(" MEM ")J",                          FN_PTR(MHN_staticFieldOffset)},
   {CC "staticFieldBase",           CC "(" MEM ")" OBJ,                        FN_PTR(MHN_staticFieldBase)},
-  {CC "getMemberVMInfo",           CC "(" MEM ")" OBJ,                        FN_PTR(MHN_getMemberVMInfo)}
+  {CC "getMemberVMInfo",           CC "(" MEM ")" OBJ,                       FN_PTR(MHN_getMemberVMInfo)},
+  {CC "classData",                 CC "(" CLS ")" OBJ,                       FN_PTR(MHN_classData)}
 };
 
 static JNINativeMethod MH_methods[] = {

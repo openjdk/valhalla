@@ -1212,7 +1212,7 @@ public class MethodHandles {
             }
 
             // should we allow clearing?  getAndClearClassData
-            return CLASS_DATA_MAP.get(lookupClass);
+            return MethodHandleNatives.classData(lookupClass);
         }
 
         // package-private
@@ -1265,11 +1265,6 @@ public class MethodHandles {
             assert clazz.getClassLoader() == lookupClass.getClassLoader()
                    && clazz.getPackageName().equals(lookupClass.getPackageName());
 
-            // ## TBD what if multiple threads defining this same class??
-            // may need VM to inject the classData in a Class itself at define class time
-            if (classData != null) {
-                CLASS_DATA_MAP.putIfAbsent(clazz, classData);
-            }
             return clazz;
         }
 
@@ -1285,9 +1280,6 @@ public class MethodHandles {
 
         // cached protection domain
         private volatile ProtectionDomain cachedProtectionDomain;
-
-        // don't see the need to use ClassValue
-        private static final WeakHashMap<Class<?>, Object> CLASS_DATA_MAP = new WeakHashMap<>();
 
         // Make sure outer class is initialized first.
         static { IMPL_NAMES.getClass(); }

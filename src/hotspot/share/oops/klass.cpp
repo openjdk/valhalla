@@ -562,7 +562,7 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
   // gotten an OOM later but keep the mirror if it was created.
   if (java_mirror() == NULL) {
     log_trace(cds, mirror)("Recreate mirror for %s", external_name());
-    java_lang_Class::create_mirror(this, loader, module_handle, protection_domain, CHECK);
+    java_lang_Class::create_mirror(this, loader, module_handle, protection_domain, Handle(), CHECK);
   }
 }
 

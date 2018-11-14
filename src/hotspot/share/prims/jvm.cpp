@@ -1039,6 +1039,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
       trace_class_resolution(k);
     }
   } else { //nonfindable
+    Handle classData_h(THREAD, JNIHandles::resolve(classData));
     k = SystemDictionary::parse_stream(class_name,
                                        class_loader,
                                        protection_domain,
@@ -1049,6 +1050,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                        is_weak,
                                        vm_annotations,
                                        host_class,
+                                       classData_h,
                                        CHECK_NULL);
     if (k == NULL) {
       THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a nonfindable class");

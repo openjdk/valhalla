@@ -999,6 +999,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               const bool is_weaknonfindable,
                                               const bool can_access_vm_annotations,
                                               InstanceKlass* dynamic_nest_host,
+                                              Handle classData,
                                               TRAPS) {
 
   EventClassLoad class_load_start_event;
@@ -1041,6 +1042,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                                       is_nonfindable,
                                                       can_access_vm_annotations,
                                                       dynamic_nest_host,
+                                                      classData,
                                                       CHECK_NULL);
 
   if ((is_nonfindable || (unsafe_anonymous_host != NULL)) && k != NULL) {
@@ -1070,6 +1072,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
     }
 
     // Initialize it now, since nobody else will.
+    // FIXME: why must we eager initialize? It should be initialized upon use.
     k->eager_initialize(CHECK_NULL);
 
     // notify jvmti
@@ -1146,6 +1149,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          false, // is_nonfindable
                                          false, // can_access_vm_annotations
                                          dynamic_nest_host,
+                                         Handle(), // classData
                                          CHECK_NULL);
   }
 

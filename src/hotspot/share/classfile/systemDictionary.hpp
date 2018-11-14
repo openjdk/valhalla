@@ -289,6 +289,7 @@ public:
                         false, // is_weaknonfindable
                         false, // can_access_vm_annotations
                         dynamic_nest_host,
+                        Handle(),  // classData
                         THREAD);
   }
   static InstanceKlass* parse_stream(Symbol* class_name,
@@ -301,6 +302,7 @@ public:
                                      const bool is_weaknonfindable,
                                      const bool can_access_vm_annotations,
                                      InstanceKlass* dynamic_nest_host,
+                                     Handle classData,
                                      TRAPS);
 
   // Resolve from stream (called by jni_DefineClass and JVM_DefineClass)

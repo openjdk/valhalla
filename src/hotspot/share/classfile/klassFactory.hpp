@@ -77,6 +77,7 @@ class KlassFactory : AllStatic {
                                            const bool is_nonfindable,
                                            const bool can_access_vm_annotations,
                                            InstanceKlass* dynamic_nest_host,
+                                           Handle classData,
                                            TRAPS);
  public:
   static InstanceKlass* check_shared_class_file_load_hook(

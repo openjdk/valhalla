@@ -823,6 +823,7 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
                                                 false, // is_weak
                                                 false, // can_access_vm_annotations
                                                 NULL,  // dynamic_nest_host 
+                                                Handle(), // classData
                                                 CHECK_NULL);
   if (anonk == NULL) {
     return NULL;

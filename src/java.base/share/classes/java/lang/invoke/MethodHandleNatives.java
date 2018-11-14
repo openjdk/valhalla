@@ -72,6 +72,9 @@ class MethodHandleNatives {
                                                  boolean resolve,
                                                  Object ifNotAvailable);
 
+    /// ClassData support
+    static native Object classData(Class<?> lookupClass);
+
     /** Represents a context to track nmethod dependencies on CallSite instance target. */
     static class CallSiteContext implements Runnable {
         //@Injected JVM_nmethodBucket* vmdependencies;

@@ -219,7 +219,8 @@ class java_lang_String : AllStatic {
   macro(java_lang_Class, oop_size,               int_signature,     false) \
   macro(java_lang_Class, static_oop_field_count, int_signature,     false) \
   macro(java_lang_Class, protection_domain,      object_signature,  false) \
-  macro(java_lang_Class, signers,                object_signature,  false)
+  macro(java_lang_Class, signers,                object_signature,  false) \
+  macro(java_lang_Class, classData,              object_signature,  false)
 
 class java_lang_Class : AllStatic {
   friend class VMStructs;
@@ -240,6 +241,7 @@ class java_lang_Class : AllStatic {
   static int _class_loader_offset;
   static int _module_offset;
   static int _component_mirror_offset;
+  static int _classData_offset;
 
   static bool offsets_computed;
   static int classRedefinedCount_offset;
@@ -251,7 +253,8 @@ class java_lang_Class : AllStatic {
   static void set_protection_domain(oop java_class, oop protection_domain);
   static void set_class_loader(oop java_class, oop class_loader);
   static void set_component_mirror(oop java_class, oop comp_mirror);
-  static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain, TRAPS);
+  static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain,
+                                       Handle classData, TRAPS);
   static void set_mirror_module_field(Klass* K, Handle mirror, Handle module, TRAPS);
  public:
   static void allocate_fixup_lists();
@@ -259,7 +262,7 @@ class java_lang_Class : AllStatic {
 
   // Instance creation
   static void create_mirror(Klass* k, Handle class_loader, Handle module,
-                            Handle protection_domain, TRAPS);
+                            Handle protection_domain, Handle classData, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
 
@@ -305,6 +308,8 @@ class java_lang_Class : AllStatic {
   static oop  component_mirror(oop java_class);
   static objArrayOop  signers(oop java_class);
   static void set_signers(oop java_class, objArrayOop signers);
+  static oop  class_data(oop java_class);
+  static void set_class_data(oop java_class, oop classData);
 
   static oop class_loader(oop java_class);
   static void set_module(oop java_class, oop module);

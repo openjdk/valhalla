@@ -300,6 +300,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            false, // is_nonfindable
                                                            false, // can_access_vm_annotations
                                                            NULL,  // dynamic_nest_host
+                                                           Handle(), // classData
                                                            THREAD);
 
   if (HAS_PENDING_EXCEPTION) {

@@ -5512,6 +5512,7 @@ static void check_methods_for_intrinsics(const InstanceKlass* ik,
 
 InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
                                                       InstanceKlass* dynamic_nest_host,
+                                                      Handle classData,
                                                       TRAPS) {
   if (_klass != NULL) {
     return _klass;
@@ -5520,7 +5521,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   InstanceKlass* const ik =
     InstanceKlass::allocate_instance_klass(*this, CHECK_NULL);
 
-  fill_instance_klass(ik, changed_by_loadhook, dynamic_nest_host, CHECK_NULL);
+  fill_instance_klass(ik, changed_by_loadhook, dynamic_nest_host, classData, CHECK_NULL);
 
   assert(_klass == ik, "invariant");
 
@@ -5543,6 +5544,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                           bool changed_by_loadhook,
                                           InstanceKlass* dynamic_nest_host,
+                                          Handle classData,
                                           TRAPS) {
   assert(ik != NULL, "invariant");
 
@@ -5701,6 +5703,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                  Handle(THREAD, _loader_data->class_loader()),
                                  module_handle,
                                  _protection_domain,
+                                 classData,
                                  CHECK);
 
   assert(_all_mirandas != NULL, "invariant");
@@ -6149,7 +6152,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_requested_name != NULL &&
       _requested_name != _class_name &&
       _is_nonfindable) {
-    _class_name = (Symbol*)_requested_name;
+      _class_name = (Symbol*)_requested_name;
     _class_name->increment_refcount();
     cp->symbol_at_put(cp->klass_name_index_at(_this_class_index), _class_name);
   }

@@ -1404,6 +1404,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                            false, // is_nonfindable
                                                            false, // can_access_vm_annotations
                                                            NULL,  // dynamic_nest_host
+                                                           Handle(), // classData
                                                            THREAD);
   if (HAS_PENDING_EXCEPTION) {
     if (DumpSharedSpaces) {
