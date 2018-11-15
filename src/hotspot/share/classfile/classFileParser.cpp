@@ -5851,7 +5851,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  Publicity pub_level,
                                  TRAPS) :
   _stream(stream),
-  _requested_name(name),
   _loader_data(loader_data),
   _unsafe_anonymous_host(unsafe_anonymous_host),
   _cp_patches(cp_patches),
@@ -6134,47 +6133,65 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   Symbol* const class_name_in_cp = cp->klass_name_at(_this_class_index);
   assert(class_name_in_cp != NULL, "class_name can't be null");
 
-  // Update _class_name which could be null previously
-  // to reflect the name in the constant pool
-  _class_name = class_name_in_cp;
-
   // Don't need to check whether this class name is legal or not.
   // It has been checked when constant pool is parsed.
   // However, make sure it is not an array type.
   if (_need_verify) {
-    guarantee_property(_class_name->char_at(0) != JVM_SIGNATURE_ARRAY,
+    guarantee_property(class_name_in_cp->char_at(0) != JVM_SIGNATURE_ARRAY,
                        "Bad class name in class file %s",
                        CHECK);
   }
 
-  // For nonfindable classes, fix up the class name to the
-  // requested name.
-  if (_requested_name != NULL &&
-      _requested_name != _class_name &&
-      _is_nonfindable) {
-      _class_name = (Symbol*)_requested_name;
-    _class_name->increment_refcount();
-    cp->symbol_at_put(cp->klass_name_index_at(_this_class_index), _class_name);
-  }
+#ifdef ASSERT
+  // Basic sanity checks
+  assert(!(_is_nonfindable && (_unsafe_anonymous_host != NULL)), "mutually exclusive variants");
 
-  // Checks if name in class file matches requested name
-  if (_requested_name != NULL && _requested_name != _class_name) {
-    ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_NoClassDefFoundError(),
-      "%s (wrong name: %s)",
-      _class_name->as_C_string(),
-      _requested_name != NULL ? _requested_name->as_C_string() : "NoName"
-    );
-    return;
-  }
-
-  // if this is an anonymous class fix up its name if it's in the unnamed
-  // package.  Otherwise, throw IAE if it is in a different package than
-  // its host class.
   if (_unsafe_anonymous_host != NULL) {
-    fix_unsafe_anonymous_class_name(CHECK);
+    assert(_class_name == vmSymbols::unknown_class_name(), "A named anonymous class???");
+  }
+  if (_is_nonfindable) {
+    assert(_class_name != vmSymbols::unknown_class_name(), "non-findable classes should have a special name");
+  }
+#endif
+
+  // Update the _class_name as needed depending on whether this is a named,
+  // un-named, nonfindable or unsafe-anonymous class.
+
+  if (_is_nonfindable) {
+    // Replace the CP name with given _class_name and bump its reference count
+    cp->symbol_at_put(cp->klass_name_index_at(_this_class_index), _class_name);
+    _class_name->increment_refcount();
+    class_name_in_cp->decrement_refcount(); // no longer in cp
+  } else {
+    // NOTE: !_is_nonfindable does not imply "findable" as it could be an old-style
+    //       "non-findable" unsafe-anonymous class
+
+    // If this is an anonymous class fix up its name if it is in the unnamed
+    // package.  Otherwise, throw IAE if it is in a different package than
+    // its host class.
+    if (_unsafe_anonymous_host != NULL) {
+      _class_name = class_name_in_cp;
+      fix_unsafe_anonymous_class_name(CHECK);
+    } else {
+      // Check if name in class file matches given name
+      if (_class_name != class_name_in_cp) {
+        if (_class_name != vmSymbols::unknown_class_name()) {
+          ResourceMark rm(THREAD);
+          Exceptions::fthrow(THREAD_AND_LOCATION,
+                             vmSymbols::java_lang_NoClassDefFoundError(),
+                             "%s (wrong name: %s)",
+                             class_name_in_cp->as_C_string(),
+                             _class_name->as_C_string()
+                             );
+          return;
+        } else {
+          // The class name was not known by the caller so we set it from
+          // the value in the CP.
+          _class_name = class_name_in_cp;
+        }
+      }
+      // else nothing do: the expected class name matches what is in the CP
+    }
   }
 
   // Verification prevents us from creating names with dots in them, this

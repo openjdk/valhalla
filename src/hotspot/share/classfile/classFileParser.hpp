@@ -79,7 +79,6 @@ class ClassFileParser {
   typedef void unsafe_u2;
 
   const ClassFileStream* _stream; // Actual input stream
-  const Symbol* _requested_name;
   Symbol* _class_name;
   mutable ClassLoaderData* _loader_data;
   const InstanceKlass* _unsafe_anonymous_host;
