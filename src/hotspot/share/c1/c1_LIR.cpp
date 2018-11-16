@@ -107,6 +107,7 @@ LIR_Address::Scale LIR_Address::scale(BasicType type) {
 char LIR_OprDesc::type_char(BasicType t) {
   switch (t) {
     case T_ARRAY:
+    case T_VALUETYPE:
       t = T_OBJECT;
     case T_BOOLEAN:
     case T_CHAR:
@@ -165,6 +166,7 @@ void LIR_OprDesc::validate_type() const {
     case T_OBJECT:
     case T_METADATA:
     case T_ARRAY:
+    case T_VALUETYPE:
       assert((kindfield == cpu_register || kindfield == stack_value) &&
              size_field() == single_size, "must match");
       break;

@@ -33,6 +33,7 @@
 #include "ci/ciArray.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -1198,6 +1199,21 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
+void LIRGenerator::do_NewValueTypeInstance  (NewValueTypeInstance* x) {
+  // Mapping to do_NewInstance (same code)
+  CodeEmitInfo* info = state_for(x, x->state());
+  x->set_to_object_type();
+  LIR_Opr reg = result_register_for(x->type());
+  new_instance(reg, x->klass(), x->is_unresolved(),
+             FrameMap::rcx_oop_opr,
+             FrameMap::rdi_oop_opr,
+             FrameMap::rsi_oop_opr,
+             LIR_OprFact::illegalOpr,
+             FrameMap::rdx_metadata_opr, info);
+  LIR_Opr result = rlock_result(x);
+  __ move(reg, result);
+
+}
 
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   CodeEmitInfo* info = state_for(x, x->state());

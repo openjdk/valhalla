@@ -33,6 +33,7 @@
 #include "ci/ciKlass.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
@@ -648,6 +649,17 @@ class MemoryBuffer: public CompilationResourceObj {
     }
   }
 
+  // Record this newly allocated object
+  void new_instance(NewValueTypeInstance* object) {
+    int index = _newobjects.length();
+    _newobjects.append(object);
+    if (_fields.at_grow(index, NULL) == NULL) {
+      _fields.at_put(index, new FieldBuffer());
+    } else {
+      _fields.at(index)->kill();
+    }
+  }
+
   void store_value(Value value) {
     int index = _newobjects.find(value);
     if (index != -1) {
@@ -979,7 +991,19 @@ void GraphBuilder::load_indexed(BasicType type) {
       (array->as_NewArray() && array->as_NewArray()->length() && array->as_NewArray()->length()->type()->is_constant())) {
     length = append(new ArrayLength(array, state_before));
   }
-  push(as_ValueType(type), append(new LoadIndexed(array, index, length, type, state_before)));
+
+  if (array->is_flattened_array()) {
+    ciType* array_type = array->declared_type();
+    ciValueKlass* elem_klass = array_type->as_value_array_klass()->element_klass()->as_value_klass();
+    NewValueTypeInstance* new_instance = new NewValueTypeInstance(elem_klass, state_before, false);
+    _memory->new_instance(new_instance);
+    apush(append_split(new_instance));
+    LoadIndexed* load_indexed = new LoadIndexed(array, index, length, type, state_before);
+    load_indexed->set_vt(new_instance);
+    append(load_indexed);
+  } else {
+    push(as_ValueType(type), append(new LoadIndexed(array, index, length, type, state_before)));
+  }
 }
 
 
@@ -1700,7 +1724,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       Value constant = NULL;
       obj = apop();
       ObjectType* obj_type = obj->type()->as_ObjectType();
-      if (field->is_constant() && obj_type->is_constant() && !PatchALot) {
+      if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
         ciObject* const_oop = obj_type->constant_value();
         if (!const_oop->is_null_object() && const_oop->is_loaded()) {
           ciConstant field_value = field->constant_value_of(const_oop);
@@ -1723,13 +1747,34 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (state_before == NULL) {
           state_before = copy_state_for_exception();
         }
-        LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
-        Value replacement = !needs_patching ? _memory->load(load) : load;
-        if (replacement != load) {
-          assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
-          push(type, replacement);
-        } else {
-          push(type, append(load));
+        // Pb with test below, is_flattened() can return true for fields that are not value types
+        // (initialization issue of ciField?)
+        if (!(field->type()->is_valuetype() && field->is_flattened())) {
+          LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
+          Value replacement = !needs_patching ? _memory->load(load) : load;
+          if (replacement != load) {
+            assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
+            push(type, replacement);
+          } else {
+            push(type, append(load));
+          }
+        } else { // flattened field, not optimized solution: re-instantiate the flattened value
+          ciValueKlass* value_klass = field->type()->as_value_klass();
+          int flattening_offset = field->offset() - value_klass->first_field_offset();
+          assert(field->type()->is_valuetype(), "Sanity check");
+          scope()->set_wrote_final();
+          scope()->set_wrote_fields();
+          NewValueTypeInstance* new_instance = new NewValueTypeInstance(value_klass, state_before, false);
+          _memory->new_instance(new_instance);
+          apush(append_split(new_instance));
+          for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+            ciField* inner_field = holder->nonstatic_field_at(i);
+            int off = inner_field->offset();
+            LoadField* load = new LoadField(obj, off + flattening_offset, inner_field, false, state_before, needs_patching);
+            Value replacement = append(load);
+            StoreField* store = new StoreField(new_instance, off, inner_field, replacement, false, state_before, needs_patching);
+            append(store);
+          }
         }
       }
       break;
@@ -1744,10 +1789,25 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
-      if (!needs_patching) store = _memory->store(store);
-      if (store != NULL) {
-        append(store);
+      // Pb with test below, is_flattened() can return true for fields that are not value types
+      // (initialization issue of ciField?) <---- FIXME
+      if (!(field->type()->is_valuetype() && field->is_flattened())) {
+        StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
+        if (!needs_patching) store = _memory->store(store);
+        if (store != NULL) {
+          append(store);
+        }
+      } else {
+        ciValueKlass* value_klass = field->type()->as_value_klass();
+        int flattening_offset = field->offset() - value_klass->first_field_offset();
+        for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+          ciField* inner_field = holder->nonstatic_field_at(i);
+          int off = inner_field->offset();
+          LoadField* load = new LoadField(val, off, inner_field, false, state_before, needs_patching);
+          Value replacement = append(load);
+          StoreField* store = new StoreField(obj, off + flattening_offset, inner_field, replacement, false, state_before, needs_patching);
+          append(store);
+        }
       }
       break;
     }
@@ -1757,6 +1817,57 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
   }
 }
 
+// Baseline version of withfield, allocate every time
+void GraphBuilder::withfield(int field_index)
+{
+  bool will_link;
+  ciField* field_modify = stream()->get_field(will_link);
+  ciInstanceKlass* holder = field_modify->holder();
+  assert(holder->is_valuetype(), "must be a value klass");
+  BasicType field_type = field_modify->type()->basic_type();
+  ValueType* type = as_ValueType(field_type);
+
+  // call will_link again to determine if the field is valid.
+  const bool needs_patching = !holder->is_loaded() ||
+                              !field_modify->will_link(method(), Bytecodes::_withfield) ||
+                              PatchALot;
+
+
+  scope()->set_wrote_final();
+  scope()->set_wrote_fields();
+
+  const int offset = !needs_patching ? field_modify->offset() : -1;
+  Value val = pop(type);
+  Value obj = apop();
+
+  ValueStack* state_before = copy_state_for_exception();
+
+  NewValueTypeInstance* new_instance = new NewValueTypeInstance(holder->as_value_klass(), state_before, false);
+  _memory->new_instance(new_instance);
+  apush(append_split(new_instance));
+
+  for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+    ciField* field = holder->nonstatic_field_at(i);
+    int off = field->offset();
+
+    if (field->offset() != offset) {
+      // Only load those fields who are not modified
+      LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
+      Value replacement = append(load);
+
+      StoreField* store = new StoreField(new_instance, off, field, replacement, false, state_before, needs_patching);
+      append(store);
+    }
+  }
+
+  // Field to modify
+  if (field_modify->type()->basic_type() == T_BOOLEAN) {
+    Value mask = append(new Constant(new IntConstant(1)));
+    val = append(new LogicOp(Bytecodes::_iand, val, mask));
+  }
+  StoreField* store = new StoreField(new_instance, offset, field_modify, val, false, state_before, needs_patching);
+  append(store);
+}
 
 Dependencies* GraphBuilder::dependency_recorder() const {
   assert(DeoptC1, "need debug information");
@@ -2144,11 +2255,22 @@ void GraphBuilder::new_instance(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
   assert(klass->is_instance_klass(), "must be an instance klass");
+  assert(!klass->is_valuetype(), "must not be a value klass");
   NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass());
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
 }
 
+void GraphBuilder::new_value_type_instance(int klass_index) {
+  ValueStack* state_before = copy_state_exhandling();
+  bool will_link;
+  ciKlass* klass = stream()->get_klass(will_link);
+  assert(klass->is_valuetype(), "must be a value klass");
+  NewValueTypeInstance* new_instance = new NewValueTypeInstance(klass->as_value_klass(),
+      state_before, stream()->is_unresolved_klass());
+  _memory->new_instance(new_instance);
+  apush(append_split(new_instance));
+}
 
 void GraphBuilder::new_type_array() {
   ValueStack* state_before = copy_state_exhandling();
@@ -2883,6 +3005,8 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
       case Bytecodes::_ifnonnull      : if_null(objectType, If::neq); break;
       case Bytecodes::_goto_w         : _goto(s.cur_bci(), s.get_far_dest()); break;
       case Bytecodes::_jsr_w          : jsr(s.get_far_dest()); break;
+      case Bytecodes::_defaultvalue   : new_value_type_instance(s.get_index_u2()); break;
+      case Bytecodes::_withfield      : withfield(s.get_index_u2()); break;
       case Bytecodes::_breakpoint     : BAILOUT_("concurrent setting of breakpoint", NULL);
       default                         : ShouldNotReachHere(); break;
     }
@@ -3178,7 +3302,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     ciType* type = sig->type_at(i);
     BasicType basic_type = type->basic_type();
     // don't allow T_ARRAY to propagate into locals types
-    if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+    if (basic_type == T_ARRAY || basic_type == T_VALUETYPE) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
     state->store_local(idx, new Local(type, vt, idx, false));
     idx += type->size();

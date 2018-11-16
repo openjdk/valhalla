@@ -39,7 +39,7 @@ define_pd_global(bool, InlineIntrinsics,               true );
 define_pd_global(bool, PreferInterpreterNativeStubs,   false);
 define_pd_global(bool, ProfileTraps,                   false);
 define_pd_global(bool, UseOnStackReplacement,          true );
-define_pd_global(bool, TieredCompilation,              false);
+define_pd_global(bool, TieredCompilation,              true);
 define_pd_global(intx, CompileThreshold,               1500 );
 
 define_pd_global(intx,   OnStackReplacePercentage,     933  );

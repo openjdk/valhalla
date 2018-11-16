@@ -34,6 +34,8 @@
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.hpp"
+#include "ci/ciValueArrayKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "runtime/arguments.hpp"
@@ -1548,12 +1550,85 @@ void LIRGenerator::do_StoreField(StoreField* x) {
                   value.result(), info != NULL ? new CodeEmitInfo(info) : NULL, info);
 }
 
+// FIXME -- I can't find any other way to pass an address to access_load_at().
+class TempResolvedAddress: public Instruction {
+ public:
+  TempResolvedAddress(ValueType* type, LIR_Opr addr) : Instruction(type) {
+    set_operand(addr);
+  }
+  virtual void input_values_do(ValueVisitor*) {}
+  virtual void visit(InstructionVisitor* v)   {}
+  virtual const char* name() const  { return "TempResolvedAddress"; }
+};
+
+void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item) {
+  // Find the starting address of the source (inside the array)
+  ciType* array_type = array.value()->declared_type();
+  ciValueArrayKlass* value_array_klass = array_type->as_value_array_klass();
+  ciValueKlass* elem_klass = value_array_klass->element_klass()->as_value_klass();
+  int array_header_size = value_array_klass->array_header_in_bytes();
+
+#ifndef _LP64
+  LIR_Opr index_op = index.result();
+#else
+  LIR_Opr index_op = new_register(T_LONG);
+  __ convert(Bytecodes::_i2l, index.result(), index_op);
+#endif
+  // Need to shift manually, as LIR_Address can scale only up to 3.
+  __ shift_left(index_op, value_array_klass->log2_element_size(), index_op);
+
+  LIR_Opr elm_op = new_pointer_register();
+  LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
+  __ leal(LIR_OprFact::address(elm_address), elm_op);
+
+  for (int i = 0; i < elem_klass->nof_nonstatic_fields(); i++) {
+    ciField* inner_field = elem_klass->nonstatic_field_at(i);
+    int obj_offset = inner_field->offset();
+    int elm_offset = obj_offset - elem_klass->first_field_offset(); // object header is not stored in array.
+
+    BasicType field_type = inner_field->type()->basic_type();
+    switch (field_type) {
+    case T_BYTE:
+    case T_BOOLEAN:
+    case T_SHORT:
+    case T_CHAR:
+     field_type = T_INT;
+      break;
+    default:
+      break;
+    }
+
+    LIR_Opr temp = new_register(field_type);
+    TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(field_type), elm_op);
+    LIRItem elm_item(elm_resolved_addr, this);
+
+    DecoratorSet decorators = IN_HEAP;
+    if (is_load) {
+      access_load_at(decorators, field_type,
+                     elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                     NULL, NULL);
+      access_store_at(decorators, field_type,
+                      obj_item, LIR_OprFact::intConst(obj_offset), temp,
+                      NULL, NULL);
+    } else {
+    access_load_at(decorators, field_type,
+                   obj_item, LIR_OprFact::intConst(obj_offset), temp,
+                   NULL, NULL);
+    access_store_at(decorators, field_type,
+                    elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                    NULL, NULL);
+    }
+  }
+}
+
 void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   assert(x->is_pinned(),"");
+  bool is_flattened = x->array()->is_flattened_array();
   bool needs_range_check = x->compute_needs_range_check();
   bool use_length = x->length() != NULL;
   bool obj_store = x->elt_type() == T_ARRAY || x->elt_type() == T_OBJECT;
-  bool needs_store_check = obj_store && (x->value()->as_Constant() == NULL ||
+  bool needs_store_check = obj_store && !is_flattened &&
+                                        (x->value()->as_Constant() == NULL ||
                                          !get_jobject_constant(x->value())->is_null_object() ||
                                          x->should_profile());
 
@@ -1570,7 +1645,8 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     length.load_item();
 
   }
-  if (needs_store_check || x->check_boolean()) {
+
+  if (needs_store_check || x->check_boolean() || is_flattened) {
     value.load_item();
   } else {
     value.load_for_store(x->elt_type());
@@ -1603,13 +1679,18 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
-  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
-  if (x->check_boolean()) {
-    decorators |= C1_MASK_BOOLEAN;
-  }
+  if (is_flattened) {
+    index.load_item();
+    access_flattened_array(false, array, index, value);
+  } else {
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+    if (x->check_boolean()) {
+      decorators |= C1_MASK_BOOLEAN;
+    }
 
-  access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                  NULL, null_check_info);
+    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
+                    NULL, null_check_info);
+  }
 }
 
 void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
@@ -1870,12 +1951,20 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+  if (x->array()->is_flattened_array()) {
+    // Find the destination address (of the NewValueTypeInstance)
+    LIR_Opr obj = x->vt()->operand();
+    LIRItem obj_item(x->vt(), this);
 
-  LIR_Opr result = rlock_result(x, x->elt_type());
-  access_load_at(decorators, x->elt_type(),
-                 array, index.result(), result,
-                 NULL, null_check_info);
+    access_flattened_array(true, array, index, obj_item);
+    set_no_result(x);
+  } else {
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+    LIR_Opr result = rlock_result(x, x->elt_type());
+    access_load_at(decorators, x->elt_type(),
+                   array, index.result(), result,
+                   NULL, null_check_info);
+  }
 }
 
 
@@ -2735,6 +2824,7 @@ void LIRGenerator::invoke_load_arguments(Invoke* x, LIRItemList* args, const LIR
     } else {
       LIR_Address* addr = loc->as_address_ptr();
       param->load_for_store(addr->type());
+      assert(addr->type() != T_VALUETYPE, "not supported yet");
       if (addr->type() == T_OBJECT) {
         __ move_wide(param->result(), addr);
       } else

@@ -2098,11 +2098,18 @@ bool Arguments::check_vm_args_consistency() {
   }
 
   if (EnableValhalla) {
-    // C1 has no support for value types
-    if (!FLAG_IS_DEFAULT(TieredCompilation)) {
-      warning("TieredCompilation disabled because value types are not supported by C1");
+    if (!EnableValhallaC1) {
+      // C1 support for value types is incomplete. Don't use it by default.
+      if (!FLAG_IS_DEFAULT(TieredCompilation)) {
+        warning("TieredCompilation disabled because value types are not supported by C1");
+      }
+      FLAG_SET_CMDLINE(bool, TieredCompilation, false);
+    } else {
+      if (TieredStopAtLevel > 1) {
+        warning("C1 doesn't work with C2 yet. Forcing TieredStopAtLevel=1");
+        FLAG_SET_CMDLINE(intx, TieredStopAtLevel, 1);
+      }
     }
-    FLAG_SET_CMDLINE(bool, TieredCompilation, false);
   } else {
     FLAG_SET_CMDLINE(bool, ValueArrayFlatten, false);
   }

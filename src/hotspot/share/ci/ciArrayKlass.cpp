@@ -109,3 +109,7 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
     return ciObjArrayKlass::make(element_type->as_klass());
   }
 }
+
+int ciArrayKlass::array_header_in_bytes() {
+  return get_ArrayKlass()->array_header_in_bytes();
+}

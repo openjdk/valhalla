@@ -60,6 +60,8 @@ public:
   virtual ciKlass* element_klass() { return NULL; }
 
   static ciArrayKlass* make(ciType* element_type);
+
+  int array_header_in_bytes();
 };
 
 #endif // SHARE_VM_CI_CIARRAYKLASS_HPP

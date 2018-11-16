@@ -2647,6 +2647,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, EnableValhalla, false,                                      \
           "Enable experimental Valhalla features")                          \
                                                                             \
+  product(bool, EnableValhallaC1, false,                                    \
+          "Enable C1 compiler for Valhalla")                                \
+                                                                            \
   product_pd(bool, ValueTypePassFieldsAsArgs,                               \
              "Pass each value type field as an argument at calls")          \
                                                                             \

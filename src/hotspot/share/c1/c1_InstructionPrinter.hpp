@@ -104,6 +104,7 @@ class InstructionPrinter: public InstructionVisitor {
   virtual void do_TypeCast       (TypeCast*        x);
   virtual void do_Invoke         (Invoke*          x);
   virtual void do_NewInstance    (NewInstance*     x);
+  virtual void do_NewValueTypeInstance(NewValueTypeInstance* x);
   virtual void do_NewTypeArray   (NewTypeArray*    x);
   virtual void do_NewObjectArray (NewObjectArray*  x);
   virtual void do_NewMultiArray  (NewMultiArray*   x);

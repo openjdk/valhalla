@@ -84,6 +84,9 @@ import java.util.TreeMap;
 }
 
 public abstract class ValueTypeTest {
+    // Run "jtreg -Dtest.c1=true" to enable experimental C1 testing.
+    static final boolean TEST_C1 = Boolean.getBoolean("test.c1");
+
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
     public static final long rL = Utils.getRandomInstance().nextLong() % 1000;
@@ -91,7 +94,7 @@ public abstract class ValueTypeTest {
     // User defined settings
     private static final boolean PRINT_GRAPH = true;
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true"));
+    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && (!TEST_C1);
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
     private static final String TESTLIST = System.getProperty("Testlist", "");
@@ -125,7 +128,7 @@ public abstract class ValueTypeTest {
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
     protected static final boolean NullableValueTypes = (Boolean)WHITE_BOX.getVMFlag("NullableValueTypes");
     protected static final int COMP_LEVEL_ANY = -2;
-    protected static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
+    protected static final int COMP_LEVEL_FULL_OPTIMIZATION = TEST_C1 ? 1 : 4;
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
     protected static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
@@ -170,7 +173,11 @@ public abstract class ValueTypeTest {
      * the 5 built-in scenarios
      */
     public int getNumScenarios() {
-        return 5;
+        if (TEST_C1) {
+            return 1;
+        } else {
+            return 5;
+        }
     }
 
     /**
@@ -178,6 +185,12 @@ public abstract class ValueTypeTest {
      * extra parameters for (some of) these scenarios, override getExtraVMParameters().
      */
     public String[] getVMParameters(int scenario) {
+        if (TEST_C1) {
+            return new String[] {
+                    "-XX:+EnableValhallaC1",
+            };
+        }
+
         switch (scenario) {
         case 0: return new String[] {
                 "-XX:+AlwaysIncrementalInline",

@@ -41,7 +41,7 @@ BasicTypeArray* FrameMap::signature_type_array_for(const ciMethod* method) {
   for (int i = 0; i < sig->count(); i++) {
     ciType* type = sig->type_at(i);
     BasicType t = type->basic_type();
-    if (t == T_ARRAY) {
+    if (t == T_ARRAY || t == T_VALUETYPE) {
       t = T_OBJECT;
     }
     sta->append(t);

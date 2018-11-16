@@ -72,6 +72,7 @@ class   ExceptionObject;
 class   StateSplit;
 class     Invoke;
 class     NewInstance;
+class     NewValueTypeInstance;
 class     NewArray;
 class       NewTypeArray;
 class       NewObjectArray;
@@ -177,6 +178,7 @@ class InstructionVisitor: public StackObj {
   virtual void do_TypeCast       (TypeCast*        x) = 0;
   virtual void do_Invoke         (Invoke*          x) = 0;
   virtual void do_NewInstance    (NewInstance*     x) = 0;
+  virtual void do_NewValueTypeInstance(NewValueTypeInstance* x) = 0;
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
@@ -503,6 +505,8 @@ class Instruction: public CompilationResourceObj {
     return _next;
   }
 
+  bool is_flattened_array() const;
+
   Instruction *insert_after_same_bci(Instruction *i) {
 #ifndef PRODUCT
     i->set_printable_bci(printable_bci());
@@ -550,6 +554,7 @@ class Instruction: public CompilationResourceObj {
   virtual StateSplit*       as_StateSplit()      { return NULL; }
   virtual Invoke*           as_Invoke()          { return NULL; }
   virtual NewInstance*      as_NewInstance()     { return NULL; }
+  virtual NewValueTypeInstance* as_NewValueTypeInstance() { return NULL; }
   virtual NewArray*         as_NewArray()        { return NULL; }
   virtual NewTypeArray*     as_NewTypeArray()    { return NULL; }
   virtual NewObjectArray*   as_NewObjectArray()  { return NULL; }
@@ -947,6 +952,7 @@ BASE(AccessIndexed, AccessArray)
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
+  NewValueTypeInstance* _vt;
 
  public:
   // creation
@@ -963,6 +969,9 @@ LEAF(LoadIndexed, AccessIndexed)
 
   ciType* exact_type() const;
   ciType* declared_type() const;
+
+  NewValueTypeInstance* vt() { return _vt; }
+  void set_vt(NewValueTypeInstance* vt) { _vt = vt; }
 
   // generic
   HASHING2(LoadIndexed, true, array()->subst(), index()->subst())
@@ -1315,6 +1324,42 @@ LEAF(NewInstance, StateSplit)
   ciType* declared_type() const;
 };
 
+LEAF(NewValueTypeInstance, StateSplit)
+  bool _is_unresolved;
+  ciValueKlass* _klass;
+  Value _depends_on;      // Link to instance on with withfield was called on
+
+public:
+
+  // Default creation, always allocated for now
+  NewValueTypeInstance(ciValueKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL)
+  : StateSplit(instanceType, state_before)
+   , _is_unresolved(is_unresolved)
+   , _klass(klass)
+  {
+    if (depends_on == NULL) {
+      _depends_on = this;
+    } else {
+      _depends_on = depends_on;
+    }
+  }
+
+  // accessors
+  bool is_unresolved() const                     { return _is_unresolved; }
+  Value depends_on();
+
+  ciValueKlass* klass() const { return _klass; }
+
+  virtual bool needs_exception_state() const     { return false; }
+
+  // generic
+  virtual bool can_trap() const                  { return true; }
+  ciType* exact_type() const;
+  ciType* declared_type() const;
+
+  // Only done in LIR Generator -> map everything to object
+  void set_to_object_type() { set_type(instanceType); }
+};
 
 BASE(NewArray, StateSplit)
  private:

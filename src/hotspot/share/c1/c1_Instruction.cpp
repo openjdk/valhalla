@@ -29,6 +29,8 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
+#include "ci/ciValueArrayKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 
 
 // Implementation of Instruction
@@ -112,6 +114,18 @@ ciType* Instruction::exact_type() const {
   return NULL;
 }
 
+bool Instruction::is_flattened_array() const {
+  if (ValueArrayFlatten) {
+    ciType* type = declared_type();
+    if (type != NULL &&
+        type->is_value_array_klass() &&
+        type->as_value_array_klass()->element_klass()->as_value_klass()->flatten_array()) {
+    return true;
+    }
+  }
+
+  return false;
+}
 
 #ifndef PRODUCT
 void Instruction::check_state(ValueStack* state) {
@@ -220,6 +234,23 @@ ciType* NewInstance::exact_type() const {
 }
 
 ciType* NewInstance::declared_type() const {
+  return exact_type();
+}
+
+Value NewValueTypeInstance::depends_on() {
+  if (_depends_on != this) {
+    if (_depends_on->as_NewValueTypeInstance() != NULL) {
+      return _depends_on->as_NewValueTypeInstance()->depends_on();
+    }
+  }
+  return _depends_on;
+}
+
+ciType* NewValueTypeInstance::exact_type() const {
+  return klass();
+}
+
+ciType* NewValueTypeInstance::declared_type() const {
   return exact_type();
 }
 

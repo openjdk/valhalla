@@ -50,7 +50,7 @@ LIR_Opr FrameMap::map_to_opr(BasicType type, VMRegPair* reg, bool) {
 #else
       opr = as_long_opr(reg2, reg);
 #endif // _LP64
-    } else if (type == T_OBJECT || type == T_ARRAY) {
+    } else if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) {
       opr = as_oop_opr(reg);
     } else if (type == T_METADATA) {
       opr = as_metadata_opr(reg);

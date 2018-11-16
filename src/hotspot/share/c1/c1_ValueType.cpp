@@ -135,6 +135,7 @@ ValueType* as_ValueType(BasicType type) {
     case T_DOUBLE : return doubleType;
     case T_ARRAY  : return arrayType;
     case T_OBJECT : return objectType;
+    case T_VALUETYPE: return objectType;
     case T_ADDRESS: return addressType;
     case T_ILLEGAL: return illegalType;
     default       : ShouldNotReachHere();
@@ -154,6 +155,7 @@ ValueType* as_ValueType(ciConstant value) {
     case T_FLOAT  : return new FloatConstant (value.as_float ());
     case T_DOUBLE : return new DoubleConstant(value.as_double());
     case T_ARRAY  : // fall through (ciConstant doesn't have an array accessor)
+    case T_VALUETYPE: // fall through
     case T_OBJECT : {
       // TODO: Common the code with GraphBuilder::load_constant?
       ciObject* obj = value.as_object();

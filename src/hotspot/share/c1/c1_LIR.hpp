@@ -316,6 +316,7 @@ class LIR_OprDesc: public CompilationResourceObj {
       case T_INT:
       case T_ADDRESS:
       case T_OBJECT:
+      case T_VALUETYPE:
       case T_ARRAY:
       case T_METADATA:
         return single_size;
@@ -466,6 +467,7 @@ inline LIR_OprDesc::OprType as_OprType(BasicType type) {
   case T_FLOAT:    return LIR_OprDesc::float_type;
   case T_DOUBLE:   return LIR_OprDesc::double_type;
   case T_OBJECT:
+  case T_VALUETYPE:
   case T_ARRAY:    return LIR_OprDesc::object_type;
   case T_ADDRESS:  return LIR_OprDesc::address_type;
   case T_METADATA: return LIR_OprDesc::metadata_type;
@@ -651,6 +653,7 @@ class LIR_OprFact: public AllStatic {
     LIR_Opr res;
     switch (type) {
       case T_OBJECT: // fall through
+      case T_VALUETYPE: // fall through
       case T_ARRAY:
         res = (LIR_Opr)(intptr_t)((index << LIR_OprDesc::data_shift)  |
                                             LIR_OprDesc::object_type  |
@@ -756,6 +759,7 @@ class LIR_OprFact: public AllStatic {
   static LIR_Opr stack(int index, BasicType type) {
     LIR_Opr res;
     switch (type) {
+      case T_VALUETYPE: // fall through
       case T_OBJECT: // fall through
       case T_ARRAY:
         res = (LIR_Opr)(intptr_t)((index << LIR_OprDesc::data_shift) |

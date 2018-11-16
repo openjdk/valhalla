@@ -293,6 +293,15 @@ class Bytecode_new: public Bytecode {
   long index() const   { return get_index_u2(Bytecodes::_new); };
 };
 
+class Bytecode_defaultvalue: public Bytecode {
+ public:
+  Bytecode_defaultvalue(Method* method, address bcp): Bytecode(method, bcp) { verify(); }
+  void verify() const { assert(java_code() == Bytecodes::_defaultvalue, "check defaultvalue"); }
+
+  // Returns index
+  long index() const   { return get_index_u2(Bytecodes::_defaultvalue); };
+};
+
 class Bytecode_multianewarray: public Bytecode {
  public:
   Bytecode_multianewarray(Method* method, address bcp): Bytecode(method, bcp) { verify(); }

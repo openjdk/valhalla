@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "ci/ciArray.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObject.hpp"
+#include "ci/ciValueKlass.hpp"
 
 
 #ifndef PRODUCT
@@ -44,6 +45,7 @@ const char* InstructionPrinter::basic_type_name(BasicType type) {
     case T_DOUBLE : return "double";
     case T_ARRAY  : return "array";
     case T_OBJECT : return "object";
+    case T_VALUETYPE : return "value type";
     default       : return "???";
   }
 }
@@ -516,6 +518,10 @@ void InstructionPrinter::do_NewTypeArray(NewTypeArray* x) {
   output()->put(']');
 }
 
+void InstructionPrinter::do_NewValueTypeInstance(NewValueTypeInstance* x) {
+  output()->print("new value type instance ");
+  print_klass(x->klass());
+}
 
 void InstructionPrinter::do_NewObjectArray(NewObjectArray* x) {
   output()->print("new object array [");

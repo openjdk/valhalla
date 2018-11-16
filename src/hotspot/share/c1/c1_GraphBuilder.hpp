@@ -267,6 +267,10 @@ class GraphBuilder {
   void throw_op(int bci);
   Value round_fp(Value fp_value);
 
+  // value types
+  void new_value_type_instance(int klass_index);
+  void withfield(int field_index);
+
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);
   Instruction* append(Instruction* instr);
