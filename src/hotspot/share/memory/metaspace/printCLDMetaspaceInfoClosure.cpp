@@ -103,11 +103,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
     }
     _out->print(":");
     if (cld->is_shortlived()) {
-      if (InstanceKlass::cast(k)->is_unsafe_anonymous()) {
-        _out->print(" <unsafe anonymous class>, loaded by");
-      } else { 
-        _out->print(" <weak nonfindable class>, loaded by");
-      }
+      _out->print(" <weak nonfindable class>, loaded by");
     }
     if (name != NULL) {
       _out->print(" \"%s\"", name);
