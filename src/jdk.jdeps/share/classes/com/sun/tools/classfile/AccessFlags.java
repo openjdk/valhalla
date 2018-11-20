@@ -51,7 +51,6 @@ public class AccessFlags {
     public static final int ACC_VARARGS       = 0x0080; //                      method
     public static final int ACC_VALUE         = 0x0100; // class
     public static final int ACC_NATIVE        = 0x0100; //                      method
-    public static final int ACC_FLATTENABLE   = 0x0100; //                      field
     public static final int ACC_INTERFACE     = 0x0200; // class, inner
     public static final int ACC_ABSTRACT      = 0x0400; // class, inner,        method
     public static final int ACC_STRICT        = 0x0800; //                      method
@@ -122,12 +121,12 @@ public class AccessFlags {
 
     private static final int[] fieldModifiers = {
         ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL,
-        ACC_VOLATILE, ACC_TRANSIENT, ACC_FLATTENABLE
+        ACC_VOLATILE, ACC_TRANSIENT
     };
 
     private static final int[] fieldFlags = {
         ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL,
-        ACC_VOLATILE, ACC_TRANSIENT, ACC_SYNTHETIC, ACC_ENUM, ACC_FLATTENABLE
+        ACC_VOLATILE, ACC_TRANSIENT, ACC_SYNTHETIC, ACC_ENUM
     };
 
     public Set<String> getFieldModifiers() {

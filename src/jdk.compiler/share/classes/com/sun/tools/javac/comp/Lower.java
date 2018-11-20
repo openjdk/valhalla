@@ -1469,8 +1469,6 @@ public class Lower extends TreeTranslator {
                 proxyName = proxyName(v.name, index++);
             } while (!proxyNames.add(proxyName));
             final Type type = v.erasure(types);
-            if (types.isValue(type) && (flags & PARAMETER) == 0)
-                flags |= ACC_FLATTENABLE;
             VarSymbol proxy = new VarSymbol(
                 flags, proxyName, type, owner);
             proxies.put(v, proxy);
@@ -1537,8 +1535,6 @@ public class Lower extends TreeTranslator {
     JCVariableDecl outerThisDef(int pos, ClassSymbol owner) {
         Type target = types.erasure(owner.enclClass().type.getEnclosingType());
         long flags = FINAL | SYNTHETIC;
-        if (types.isValue(target))
-            flags |= ACC_FLATTENABLE;
         VarSymbol outerThis = makeOuterThisVarSymbol(owner, flags);
         return makeOuterThisVarDecl(pos, outerThis);
     }

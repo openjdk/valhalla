@@ -111,7 +111,6 @@ public class Flags {
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
     public static final int ACC_VALUE    = 0x0100;
-    public static final int ACC_FLATTENABLE = 0x0100;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************
@@ -230,11 +229,6 @@ public class Flags {
     public static final long UNION = 1L<<39;
 
     /**
-     * Flag that marks field that is a value instance that can be inlined in the layout.
-     */
-    public static final long FLATTENABLE = 1L<<40;
-
-    /**
      * Flag that marks an 'effectively final' local variable.
      */
     public static final long EFFECTIVELY_FINAL = 1L<<41;
@@ -326,11 +320,6 @@ public class Flags {
     public static final long ANONCONSTR_BASED = 1L<<57;
 
     /**
-     * Flag that marks field that is a value instance that SHOULD NOT be inlined in the layout.
-     */
-    public static final long NOT_FLATTENED = 1L<<58;
-
-    /**
      * Flag that marks finalize block as body-only, should not be copied into catch clauses.
      * Used to implement try-with-resources.
      */
@@ -349,13 +338,13 @@ public class Flags {
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
                                 SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE | FLATTENABLE | NOT_FLATTENED,
-        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT | FLATTENABLE | NOT_FLATTENED,
+        ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE,
+        ModifierFlags               = ((long)StandardFlags & ~INTERFACE) | DEFAULT,
         InterfaceMethodMask         = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask   = ABSTRACT | PUBLIC,
         LocalVarFlags               = FINAL | PARAMETER,
         VarFlags              = AccessFlags | FINAL | STATIC |
-                                VOLATILE | TRANSIENT | FLATTENABLE | NOT_FLATTENED | ENUM,
+                                VOLATILE | TRANSIENT | ENUM,
         ReceiverParamFlags          = PARAMETER;
 
 
@@ -370,8 +359,6 @@ public class Flags {
             if (0 != (flags & STATIC))    modifiers.add(Modifier.STATIC);
             if (0 != (flags & FINAL))     modifiers.add(Modifier.FINAL);
             if (0 != (flags & TRANSIENT)) modifiers.add(Modifier.TRANSIENT);
-            if (0 != (flags & FLATTENABLE)) modifiers.add(Modifier.FLATTENABLE);
-            if (0 != (flags & NOT_FLATTENED)) modifiers.add(Modifier.NOT_FLATTENED);
             if (0 != (flags & VOLATILE))  modifiers.add(Modifier.VOLATILE);
             if (0 != (flags & SYNCHRONIZED))
                                           modifiers.add(Modifier.SYNCHRONIZED);
@@ -440,8 +427,6 @@ public class Flags {
         HYPOTHETICAL(Flags.HYPOTHETICAL),
         PROPRIETARY(Flags.PROPRIETARY),
         UNION(Flags.UNION),
-        FLATTENABLE(Flags.FLATTENABLE),
-        NOT_FLATTENED(Flags.NOT_FLATTENED),
         EFFECTIVELY_FINAL(Flags.EFFECTIVELY_FINAL),
         CLASH(Flags.CLASH),
         AUXILIARY(Flags.AUXILIARY),

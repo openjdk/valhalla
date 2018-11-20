@@ -69,21 +69,6 @@ public class CheckLocalClasses {
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
             throw new Exception("Final flag not set");
 
-        Field [] flds = cls.fields;
-
-        for (Field fld : flds) {
-            if (fld.getName(cls.constant_pool).equals("this$1")) {
-                if (!fld.access_flags.is(AccessFlags.ACC_FLATTENABLE))
-                    throw new Exception("Flattenable flag not set");
-            } else if (fld.getName(cls.constant_pool).equals("val$o")) {
-                if (!fld.access_flags.is(AccessFlags.ACC_FLATTENABLE))
-                    throw new Exception("Flattenable flag not set");
-            } else if (fld.getName(cls.constant_pool).equals("value2")) {
-                if (fld.access_flags.is(AccessFlags.ACC_FLATTENABLE))
-                    throw new Exception("Flattenable flag set");
-            }
-        }
-
         cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$RefOuter$1Inner.class"));
 
         if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
@@ -92,19 +77,5 @@ public class CheckLocalClasses {
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
             throw new Exception("Final flag not set");
 
-        flds = cls.fields;
-
-        for (Field fld : flds) {
-            if (fld.getName(cls.constant_pool).equals("this$1")) {
-                if (fld.access_flags.is(AccessFlags.ACC_FLATTENABLE))
-                    throw new Exception("Flattenable flag is set");
-            } else if (fld.getName(cls.constant_pool).equals("val$o")) {
-                if (fld.access_flags.is(AccessFlags.ACC_FLATTENABLE))
-                    throw new Exception("Flattenable flag is set");
-            } else if (fld.getName(cls.constant_pool).equals("value2")) {
-                if (fld.access_flags.is(AccessFlags.ACC_FLATTENABLE))
-                    throw new Exception("Flattenable flag set");
-            }
-        }
     }
 }

@@ -185,7 +185,6 @@ public class JavacParser implements Parser {
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
-        this.allowFlattenabilityModifiers = fac.options.isSet("allowFlattenabilityModifiers");
         this.allowWithFieldOperator = fac.options.isSet("allowWithFieldOperator");
     }
 
@@ -202,10 +201,6 @@ public class JavacParser implements Parser {
     /** Switch: should we fold strings?
      */
     boolean allowStringFolding;
-
-    /** Switch: should we allow value type field flattenability modifiers?
-    */
-    boolean allowFlattenabilityModifiers;
 
     /** Switch: should we allow withField operator at source level ?
     */
@@ -344,8 +339,6 @@ public class JavacParser implements Parser {
                 case PROTECTED:
                 case STATIC:
                 case TRANSIENT:
-                case FLATTENABLE:
-                case NOTFLATTENED:
                 case NATIVE:
                 case VOLATILE:
                 case SYNCHRONIZED:
@@ -3051,8 +3044,6 @@ public class JavacParser implements Parser {
             case PUBLIC      : flag = Flags.PUBLIC; break;
             case STATIC      : flag = Flags.STATIC; break;
             case TRANSIENT   : flag = Flags.TRANSIENT; break;
-            case FLATTENABLE : checkSourceLevel(Feature.VALUE_TYPES); checkFlattenabilitySpecOk(token.pos); flag = Flags.FLATTENABLE; break;
-            case NOTFLATTENED: checkSourceLevel(Feature.VALUE_TYPES); checkFlattenabilitySpecOk(token.pos); flag = Flags.NOT_FLATTENED; break;
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
@@ -3101,12 +3092,6 @@ public class JavacParser implements Parser {
             storeEnd(mods, S.prevToken().endPos);
         return mods;
     }
-        // where
-        private void checkFlattenabilitySpecOk(int pos) {
-            if (!allowFlattenabilityModifiers) {
-                log.error(pos, Errors.FlattenabilityModifiersDisallowed);
-            }
-        }
 
     /** Annotation              = "@" Qualident [ "(" AnnotationFieldValues ")" ]
      *
@@ -3299,8 +3284,6 @@ public class JavacParser implements Parser {
                          t == PUBLIC ||
                          t == STATIC ||
                          t == TRANSIENT ||
-                         t == FLATTENABLE ||
-                         t == NOTFLATTENED ||
                          t == FINAL ||
                          t == ABSTRACT ||
                          t == NATIVE ||

@@ -1286,10 +1286,6 @@ public class Check {
                 if (types.isValue(sym.owner.type) && (flags & STATIC) == 0) {
                     implicit |= FINAL;
                 }
-                if (types.isValue(sym.type) && !types.isValueBased(sym.type)) {
-                    if ((flags & (STATIC | NOT_FLATTENED)) == 0)
-                        implicit |= FLATTENABLE;
-                }
             }
             break;
         case MTH:
@@ -2352,7 +2348,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & (FLATTENABLE | STATIC)) == FLATTENABLE && types.isValue(symbol.type);
+            return (symbol.flags() & STATIC) == 0 && types.isValue(symbol.type);
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {

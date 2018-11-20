@@ -162,8 +162,6 @@ public class Tokens {
         THROW("throw"),
         THROWS("throws"),
         TRANSIENT("transient"),
-        FLATTENABLE("__Flattenable"),
-        NOTFLATTENED("__NotFlattened"),
         TRY("try"),
         VALUE(), // a phantom token never returned by the scanner, but can result from a reclassification by the parser.
         VOID("void", Tag.NAMED),

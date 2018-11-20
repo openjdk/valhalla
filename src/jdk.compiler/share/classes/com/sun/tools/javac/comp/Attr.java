@@ -1231,13 +1231,6 @@ public class Attr extends JCTree.Visitor {
                     setSyntheticVariableType(tree, v.type);
                 }
             }
-            /* Due to delay in annotation handling, even a value based typed field would have
-               received default flattenability, flip it unless expressly modified.
-            */
-            if (v.owner.kind == TYP && types.isValue(v.type) && types.isValueBased(v.type)) {
-                if ((tree.getModifiers().flags & FLATTENABLE) == 0)
-                    v.flags_field &= ~FLATTENABLE;
-            }
             result = tree.type = v.type;
         }
         finally {

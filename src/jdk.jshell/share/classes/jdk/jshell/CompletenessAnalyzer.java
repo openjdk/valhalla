@@ -221,8 +221,6 @@ class CompletenessAnalyzer {
         PROTECTED(TokenKind.PROTECTED, XDECL1),  //  protected
         PUBLIC(TokenKind.PUBLIC, XDECL1),  //  public
         TRANSIENT(TokenKind.TRANSIENT, XDECL1),  //  transient
-        FLATTENABLE(TokenKind.FLATTENABLE, XDECL1),  //  __Flattenable
-        NOTFLATTENED(TokenKind.NOTFLATTENED, XDECL1),  //  __NotFlattened
         VOLATILE(TokenKind.VOLATILE, XDECL1),  //  volatile
         VALUE(TokenKind.VALUE, 0),
 
