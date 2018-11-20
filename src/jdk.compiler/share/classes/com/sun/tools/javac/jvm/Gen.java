@@ -2141,7 +2141,7 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
-            code.emitop2(checkcast, makeRef(tree.pos(), tree.clazz.type));
+            code.emitop2(checkcast, makeRef(tree.pos(), tree.clazz.type, types.emitQtypes && types.isValue(tree.clazz.type)));
         }
     }
 

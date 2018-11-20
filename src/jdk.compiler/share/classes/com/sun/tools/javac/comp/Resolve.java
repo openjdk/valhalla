@@ -2171,6 +2171,16 @@ public class Resolve {
                     : new AccessError(env, site, sym);
             }
         }
+
+        if (c.isValue() && site.tsym == c) {
+            if (name == names.val) {
+                return c;
+            }
+            if (name == names.box) {
+                return site.loxType().tsym;
+            }
+        }
+
         return typeNotFound;
     }
 
