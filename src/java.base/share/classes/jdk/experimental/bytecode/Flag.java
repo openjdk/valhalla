@@ -45,7 +45,6 @@ public enum Flag {
     ACC_BRIDGE(0x0040),
     ACC_VARARGS(0x0080),
     ACC_VALUE(0x0100),
-    ACC_FLATTENABLE(0x0100),
     ACC_NATIVE(0x0100),
     ACC_STRICT(0x0800);
 

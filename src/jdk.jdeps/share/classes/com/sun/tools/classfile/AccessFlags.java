@@ -236,7 +236,7 @@ public class AccessFlags {
         case 0x80:
             return (t == Kind.Field ? "ACC_TRANSIENT" : "ACC_VARARGS");
         case 0x100:
-            return (t == Kind.Class || t == Kind.InnerClass) ? "ACC_VALUE" : t == Kind.Field ? "ACC_FLATTENABLE" : "ACC_NATIVE";
+            return (t == Kind.Class || t == Kind.InnerClass) ? "ACC_VALUE" : "ACC_NATIVE";
         case ACC_INTERFACE:
             return "ACC_INTERFACE";
         case ACC_ABSTRACT:
