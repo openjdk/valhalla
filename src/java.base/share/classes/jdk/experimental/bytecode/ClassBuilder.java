@@ -220,25 +220,6 @@ public class ClassBuilder<S, T, C extends ClassBuilder<S, T, C>>
     }
 
     /**
-     * Add the value types attribute.
-     *
-     * @param valueTypes one or more symbols that are all the value types encountered while buiding this class
-     * @return this builder, for chained calls
-     */
-    @SuppressWarnings({"unchecked"})
-    public C withValueTypes(S... valueTypes) {
-        if (valueTypes != null && valueTypes.length > 0) {
-            GrowableByteBuffer a = new GrowableByteBuffer();
-            a.writeChar(valueTypes.length);
-            for (S vt: valueTypes) {
-                a.writeChar(poolHelper.putClass(vt));
-            }
-            return withAttribute("ValueTypes", a.bytes());
-        }
-        return thisBuilder();
-    }
-
-    /**
      * Build the constant pool into a byte array.
      *
      * @return a representation of this constant pool as a byte array
