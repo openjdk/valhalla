@@ -110,7 +110,6 @@ import com.sun.tools.classfile.StackMap_attribute;
 import com.sun.tools.classfile.Synthetic_attribute;
 import com.sun.tools.classfile.TypeAnnotation;
 import com.sun.tools.classfile.TypeAnnotation.Position;
-import com.sun.tools.classfile.ValueTypes_attribute;
 import static com.sun.tools.classfile.TypeAnnotation.TargetType.THROWS;
 import java.io.*;
 import java.util.*;
@@ -1136,18 +1135,6 @@ class AttributeVisitor implements Attribute.Visitor<Element, Element> {
             e.setAttr("name", x.getCpString(info.inner_name_index));
             e.setAttr("flags", x.flagString(info.inner_class_access_flags,
                     "InnerClass"));
-            e.trimToSize();
-            p.add(e);
-        }
-        return null;
-    }
-
-    @Override
-    public Element visitValueTypes(ValueTypes_attribute vt, Element p) {
-        String name = x.getCpString(vt.attribute_name_index);
-        for (int index : vt.value_class_info_index) {
-            Element e = new Element(name);
-            e.setAttr("class", x.getCpString(index));
             e.trimToSize();
             p.add(e);
         }

@@ -1362,10 +1362,6 @@ public class ClassfileInspector {
             return null;
         }
 
-        @Override
-        public Void visitValueTypes(ValueTypes_attribute attr, T p) {
-            return null;
-        }
     }
 
     private static final Attribute.Visitor<Void, ExpectedTypeAnnotation> typeAnnoMatcher
