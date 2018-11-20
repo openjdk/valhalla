@@ -29,8 +29,8 @@ import jdk.test.lib.Asserts;
  * @test VDefaultTest
  * @summary vdefault bytecode test
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator Point.java
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers VDefaultTest.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers VDefaultTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
  */
@@ -60,7 +60,7 @@ public class VDefaultTest {
         final long l;
         final float f;
         final double d;
-        __Flattenable final Point p;
+        final Point.val p;
 
         static Value make() {
             Value p = Value.default;

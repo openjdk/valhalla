@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test QuickeningTest
  * @summary Test quickening of getfield and putfield applied to value fields
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java QuickeningTest.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java JumboValue.java QuickeningTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.QuickeningTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.QuickeningTest
  */
@@ -37,9 +37,9 @@ import jdk.test.lib.Asserts;
 public class QuickeningTest {
 
     static class Parent {
-    __NotFlattened Point nfp;       /* Not flattenable value field */
-        __Flattenable Point fp;         /* Flattenable and flattened value field */
-        __Flattenable JumboValue fj;    /* Flattenable not flattene value field */
+    Point.box nfp;        /* Not flattenable value field */
+    Point.val fp;         /* Flattenable and flattened value field */
+    JumboValue.val fj;    /* Flattenable not flattened value field */
 
         public void setNfp(Point p) { nfp = p; }
         public void setFp(Point p) { fp = p; }
@@ -48,9 +48,9 @@ public class QuickeningTest {
 
     static class Child extends Parent {
         // This class inherited fields from the Parent class
-        __NotFlattened Point nfp2;      /* Not flattenable value field */
-        __Flattenable Point fp2;        /* Flattenable and flattened value field */
-        __Flattenable JumboValue fj2;   /* Flattenable not flattene value field */
+        Point.box nfp2;      /* Not flattenable value field */
+        Point.val fp2;        /* Flattenable and flattened value field */
+        JumboValue.val fj2;   /* Flattenable not flattene value field */
 
         public void setNfp2(Point p) { nfp2 = p; }
         public void setFp2(Point p)  { fp2 = p; }
@@ -58,9 +58,9 @@ public class QuickeningTest {
     }
 
     static final value class Value {
-        final __NotFlattened Point nfp;       /* Not flattenable value field */
-        final __Flattenable Point fp;         /* Flattenable and flattened value field */
-        final __Flattenable JumboValue fj;    /* Flattenable not flattene value field */
+        final Point.box nfp;       /* Not flattenable value field */
+        final Point.val fp;         /* Flattenable and flattened value field */
+        final JumboValue.val fj;    /* Flattenable not flattene value field */
 
         private Value() {
             nfp = Point.createPoint(0, 0);

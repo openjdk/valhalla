@@ -31,9 +31,9 @@ value public final class MyValue1 implements MyInterface {
     final short z;
     final Integer o;
     final int[] oa;
-    __Flattenable final MyValue2 v1;
-    __Flattenable final MyValue2 v2;
-    __Flattenable static final MyValue2 v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
+    final MyValue2.val v1;
+    final MyValue2.val v2;
+    static final MyValue2.val v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
     final int c;
 
     private MyValue1() {

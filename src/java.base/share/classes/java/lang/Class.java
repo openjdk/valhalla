@@ -499,29 +499,6 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns the names listed in the {@code "ValueTypes"} attribute.
-     */
-    Set<String> getDeclaredValueTypeNames() {
-        Set<String> names = declaredValueTypeNames;
-        if (names == null) {
-            String[] lvts = getLocalValueTypes0();
-            if (lvts != null) {
-                for (int i=0; i < lvts.length; i++) {
-                    lvts[i] = lvts[i].replace('/', '.');
-                }
-                names = Set.of(lvts);
-            } else {
-                names = Set.of();
-            }
-            declaredValueTypeNames = names;
-        }
-        return names;
-    }
-
-    private transient Set<String> declaredValueTypeNames;
-    private native String[] getLocalValueTypes0();
-
-    /**
      * Creates a new instance of the class represented by this {@code Class}
      * object.  The class is instantiated as if by a {@code new}
      * expression with an empty argument list.  The class is initialized if it

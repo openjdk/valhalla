@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test ValueTypeCreation
  * @summary Value Type creation test
  * @library /test/lib
- * @compile  -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueTypeCreation.java Point.java Long8Value.java Person.java
+ * @compile  -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueTypeCreation.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeCreation
  */
@@ -75,7 +75,7 @@ public class ValueTypeCreation {
 
     static final value class StaticSelf {
 
-        static __NotFlattened final StaticSelf DEFAULT = create(0);
+        static final StaticSelf.box DEFAULT = create(0);
         final int f1;
 
         private StaticSelf() { f1 = 0; }

@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @summary Test the basic value type implementation in C2
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestBasicFunctionality.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestBasicFunctionality.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -431,11 +431,11 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Value type fields in regular object
-    __Flattenable MyValue1 val1;
-    __Flattenable MyValue2 val2;
-    __Flattenable final MyValue1 val3 = MyValue1.createWithFieldsInline(rI, rL);
-    __Flattenable static MyValue1 val4;
-    __Flattenable static final MyValue1 val5 = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1.val val1;
+    MyValue2.val val2;
+    final MyValue1.val val3 = MyValue1.createWithFieldsInline(rI, rL);
+    static MyValue1.val val4;
+    static final MyValue1.val val5 = MyValue1.createWithFieldsInline(rI, rL);
 
     // Test value type fields in objects
     @Test(match = {ALLOC}, matchCount = {1}, failOn = (TRAP))
@@ -534,7 +534,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     class TestClass27 {
-        __Flattenable public MyValue1 v;
+        public MyValue1.val v;
     }
 
     // Test allocation elimination of unused object with initialized value type field
@@ -554,8 +554,8 @@ public class TestBasicFunctionality extends ValueTypeTest {
         test27(!warmup);
     }
 
-    __Flattenable static MyValue3 staticVal3;
-    __Flattenable static MyValue3 staticVal3_copy;
+    static MyValue3.val staticVal3;
+    static MyValue3.val staticVal3_copy;
 
     // Check elimination of redundant value type allocations
     @Test(match = {ALLOC}, matchCount = {1})

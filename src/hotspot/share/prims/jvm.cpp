@@ -1990,32 +1990,6 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
 }
 JVM_END
 
-JVM_ENTRY(jobjectArray, JVM_GetLocalValueTypes(JNIEnv* env, jclass cls))
-{
-  JVMWrapper("JVM_GetLocalValueTypes");
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
-  assert(k->is_instance_klass(), "must be");
-  InstanceKlass* ik = InstanceKlass::cast(k);
-  if (ik->has_value_types_attribute()) {
-    Array<ValueTypes>* value_types = ik->value_types();
-    int length = value_types->length();
-
-    objArrayOop r = oopFactory::new_objArray(SystemDictionary::String_klass(), length, CHECK_NULL);
-    objArrayHandle result(THREAD, r);
-    for (int i=0; i < length; i++) {
-      Symbol* vt = ik->get_declared_value_type_name(i);
-      Handle s = java_lang_String::create_from_symbol(vt, CHECK_0);
-      result->obj_at_put(i, s());
-    }
-    return (jobjectArray)JNIHandles::make_local(THREAD, result());
-  } else {
-    return NULL;
-  }
-}
-JVM_END
-
-
-
 // Constant pool access //////////////////////////////////////////////////////////
 
 JVM_ENTRY(jobject, JVM_GetClassConstantPool(JNIEnv *env, jclass cls))

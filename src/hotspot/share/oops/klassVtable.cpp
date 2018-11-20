@@ -523,10 +523,6 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, const methodHand
               THROW_MSG_(vmSymbols::java_lang_LinkageError(), ss.as_string(), false);
             }
           }
-          InstanceKlass::check_signature_for_value_types_consistency(signature,
-                                                                     InstanceKlass::cast(target_klass),
-                                                                     InstanceKlass::cast(super_klass),
-                                                                     CHECK_(false));
         }
 
         put_method_at(target_method(), i);
@@ -1261,10 +1257,6 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Insta
             THROW_MSG(vmSymbols::java_lang_LinkageError(), ss.as_string());
           }
         }
-        InstanceKlass::check_signature_for_value_types_consistency(m->signature(),
-                                                                   InstanceKlass::cast(interf),
-                                                                   target()->method_holder(),
-                                                                   CHECK);
       }
 
       // ime may have moved during GC so recalculate address

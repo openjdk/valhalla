@@ -239,6 +239,12 @@ private:
     }
     SignatureInfo::do_object(begin, end);
   }
+  void do_valuetype(int begin, int end) {
+    if (_offsets.length() < _max) {
+      _offsets.push(_size);
+    }
+    SignatureInfo::do_valuetype(begin, end);
+  }
   void do_array (int begin, int end) {
     if (_offsets.length() < _max) {
       _offsets.push(_size);

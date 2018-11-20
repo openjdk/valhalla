@@ -28,7 +28,7 @@
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes TestNativeClone.java
+ * @compile -XDemitQtypes -XDenableValueTypes TestNativeClone.java
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestNativeClone::test*

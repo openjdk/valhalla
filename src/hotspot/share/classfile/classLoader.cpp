@@ -209,7 +209,7 @@ const char* ClassLoader::package_from_name(const char* const class_name, bool* b
     // Set bad_class_name to true to indicate that the package name
     // could not be obtained due to an error condition.
     // In this situation, is_same_class_package returns false.
-    if (*class_name_ptr == 'L') {
+    if (*class_name_ptr == 'L' || *class_name_ptr == 'Q') {
       if (bad_class_name != NULL) {
         *bad_class_name = true;
       }

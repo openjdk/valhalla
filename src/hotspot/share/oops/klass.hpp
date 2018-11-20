@@ -563,6 +563,8 @@ protected:
   // For arrays, this returns the name of the element with a leading '['.
   // For classes, this returns the name with a leading 'L' and a trailing ';'
   //     and the package separators as '/'.
+  // For value classes, this returns the name with a leading 'Q' and a trailing ';'
+  //     and the package separators as '/'.
   virtual const char* signature_name() const;
 
   const char* joint_in_module_of_loader(const Klass* class2, bool include_parent_loader = false) const;

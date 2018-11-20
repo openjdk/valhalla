@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,7 +84,7 @@ public class BytecodeDescriptor {
     private static Class<?> parseSig(String str, int[] i, int end, ClassLoader loader) {
         if (i[0] == end)  return null;
         char c = str.charAt(i[0]++);
-        if (c == 'L') {
+        if (c == 'L' || c == 'Q') {
             int begc = i[0], endc = str.indexOf(';', begc);
             if (endc < 0)  return null;
             i[0] = endc+1;
@@ -151,7 +151,7 @@ public class BytecodeDescriptor {
 
     private static void unparseSig(Class<?> t, StringBuilder sb) {
         char c = Wrapper.forBasicType(t).basicTypeChar();
-        if (c != 'L') {
+        if (c != 'L' && c != 'Q') {
             sb.append(c);
         } else if (t == Object.class) {
             sb.append("Ljava/lang/Object;");

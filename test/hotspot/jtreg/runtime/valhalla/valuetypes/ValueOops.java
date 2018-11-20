@@ -41,8 +41,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueOops.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
@@ -112,13 +112,13 @@ public class ValueOops {
 
 
     static class Couple {
-        __Flattenable public Person onePerson;
-        __Flattenable public Person otherPerson;
+        public Person.val onePerson;
+        public Person.val otherPerson;
     }
 
     static final value class Composition {
-        __Flattenable public final Person onePerson;
-        __Flattenable public final Person otherPerson;
+        public final Person.val onePerson;
+        public final Person.val otherPerson;
 
         private Composition() {
             onePerson   = Person.create(0, null, null);
@@ -307,6 +307,8 @@ public class ValueOops {
         try {
             Class<?> vtClass = Person.class;
 
+	    System.out.println("vtClass="+vtClass);
+	    
             doGc();
 
             // VT on stack and lvt, null refs, see if GC flies
@@ -635,7 +637,7 @@ public class ValueOops {
     }
 
     static class BarWithValue {
-        __Flattenable FooValue foo;
+        FooValue.val foo;
         long extendedId;
         String moreNotes;
         int count;
@@ -643,7 +645,7 @@ public class ValueOops {
     }
 
     static final value class BarValue {
-        __Flattenable final FooValue foo;
+        final FooValue.val foo;
         final long extendedId;
         final String moreNotes;
         final int count;

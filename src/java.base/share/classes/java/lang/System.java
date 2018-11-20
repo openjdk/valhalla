@@ -49,6 +49,7 @@ import java.security.PrivilegedAction;
 import java.nio.channels.Channel;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -2203,7 +2204,7 @@ public final class System {
             }
 
             public Set<String> getDeclaredValueTypeNames(Class<?> current) {
-                return current.getDeclaredValueTypeNames();
+                return Collections.emptySet();
             }
 
         });

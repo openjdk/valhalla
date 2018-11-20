@@ -1666,11 +1666,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
                 "Illegal new instruction");
             return;
           }
-          if (_klass->is_declared_value_type(index)) {
-            verify_error(ErrorContext::bad_code(bci),
-              "Illegal use of value type as operand for new instruction");
-            return;
-          }
           type = VerificationType::uninitialized_type(bci);
           current_frame.push_stack(type, CHECK_VERIFY(this));
           no_control_flow = false; break;
@@ -1690,11 +1685,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             verify_error(ErrorContext::bad_type(bci,
                 TypeOrigin::cp(index, vtype)),
                 "Illegal defaultvalue instruction");
-            return;
-          }
-          if (!_klass->is_declared_value_type(index)) {
-            verify_error(ErrorContext::bad_code(bci),
-              "Illegal use of an object as operand for defaultvalue instruction");
             return;
           }
           current_frame.push_stack(vtype, CHECK_VERIFY(this));
@@ -1744,7 +1734,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           VerificationType ref = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!ref.is_null() && !ref.is_uninitialized() &&
-             _klass->is_declared_value_type(ref.name())) {
+             ref.name()->is_Q_signature()) {
             verify_error(ErrorContext::bad_code(bci),
               "Illegal use of value type as operand for monitorenter or monitorexit instruction");
             return;
@@ -2350,8 +2340,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
       // stack_object_type and target_class_type must be identical references.
       if (!stack_object_type.is_reference() ||
-          !stack_object_type.equals(target_class_type) ||
-          !_klass->is_declared_value_type(cp->klass_ref_index_at(index))) {
+          !stack_object_type.equals(target_class_type)) {
         verify_error(ErrorContext::bad_value_type(bci,
             current_frame->stack_top_ctx(),
             TypeOrigin::cp(index, target_class_type)),
@@ -2390,12 +2379,6 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
             current_frame->stack_top_ctx(),
             TypeOrigin::cp(index, target_class_type)),
             "Bad type on operand stack in putfield");
-        return;
-      }
-      if (_method->name() != vmSymbols::object_initializer_name() &&
-          _klass->is_declared_value_type(cp->klass_ref_index_at(index))) {
-        verify_error(ErrorContext::bad_code(bci),
-          "Field for putfield cannot be a member of a value type");
         return;
       }
     }

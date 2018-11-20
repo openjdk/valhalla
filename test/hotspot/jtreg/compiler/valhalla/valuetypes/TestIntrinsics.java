@@ -35,7 +35,7 @@ import jdk.internal.misc.Unsafe;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestIntrinsics.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -378,7 +378,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(res, v.x);
     }
 
-    __Flattenable MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1.val test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
     @Test()
     public int test24(long offset) {
@@ -431,7 +431,7 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Load non-flattenable value type field with unsafe
-    __NotFlattened MyValue1 test27_vt = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1.box test27_vt = MyValue1.createWithFieldsInline(rI, rL);
     private static final long TEST27_OFFSET;
     static {
         try {

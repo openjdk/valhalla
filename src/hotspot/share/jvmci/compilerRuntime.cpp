@@ -71,7 +71,7 @@ Klass* CompilerRuntime::resolve_klass_helper(JavaThread *thread, const char* nam
   Handle protection_domain(THREAD, caller->method_holder()->protection_domain());
 
   // Ignore wrapping L and ;
-  if (name[0] == 'L') {
+  if (name[0] == 'L' || name[0] == 'Q') {
     assert(len > 2, "small name %s", name);
     name++;
     len -= 2;

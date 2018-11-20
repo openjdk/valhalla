@@ -2678,7 +2678,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       }
       for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
         Symbol* sym = ss.as_symbol_or_null();
-        if (sym != NULL && method->method_holder()->is_declared_value_type(sym)) {
+        if (sym != NULL && sym->is_Q_signature()) {
           if (!ValueTypePassFieldsAsArgs) {
             sig_extended.push(SigEntry(T_VALUETYPEPTR));
           } else {
@@ -3043,12 +3043,16 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
       while (*s++ != ';');   // Skip signature
       sig_bt[cnt++] = T_OBJECT;
       break;
+    case 'Q':                // Value type
+      while (*s++ != ';');   // Skip signature
+      sig_bt[cnt++] = T_VALUETYPE;
+      break;
     case '[': {                 // Array
       do {                      // Skip optional size
         while (*s >= '0' && *s <= '9') s++;
       } while (*s++ == '[');   // Nested arrays?
       // Skip element type
-      if (s[-1] == 'L')
+      if (s[-1] == 'L' || s[-1] == 'Q')
         while (*s++ != ';'); // Skip signature
       sig_bt[cnt++] = T_ARRAY;
       break;

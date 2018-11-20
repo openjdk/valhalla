@@ -98,7 +98,7 @@ void vmSymbols::initialize(TRAPS) {
     _type_signatures[T_SHORT]   = short_signature();
     _type_signatures[T_BOOLEAN] = bool_signature();
     _type_signatures[T_VOID]    = void_signature();
-    // no single signatures for T_OBJECT or T_ARRAY
+    // no single signatures for T_OBJECT, T_VALUETYPE or T_ARRAY
 #ifdef ASSERT
     for (int i = (int)T_BOOLEAN; i < (int)T_VOID+1; i++) {
       Symbol* s = _type_signatures[i];

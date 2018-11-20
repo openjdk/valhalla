@@ -39,7 +39,7 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestNullableValueTypes.java
+ * @compile -XDenableValueTypes -XDallowWithFieldOperator TestNullableValueTypes.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla -XX:+NullableValueTypes
@@ -88,8 +88,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
                                                                       testValue1,
                                                                       testValue1};
 
-    __NotFlattened MyValue1 nullField;
-    __Flattenable  MyValue1 valueField1 = testValue1;
+    MyValue1.box nullField;
+    MyValue1.val valueField1 = testValue1;
 
     @Test
     @Warmup(10000) // Warmup to make sure 'callTest1WithNull' is compiled
@@ -529,7 +529,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // Test scalarization of default value type with non-flattenable field
     value final class Test17Value {
-        public final __NotFlattened MyValue1 valueField;
+        public final MyValue1.box valueField;
 
         public Test17Value() {
             valueField = MyValue1.createDefaultDontInline();
@@ -560,7 +560,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     static final MethodHandle test18_mh1;
     static final MethodHandle test18_mh2;
 
-    __NotFlattened static MyValue1 nullValue;
+    static MyValue1.box nullValue;
 
     @DontInline
     static void test18_target1(MyValue1 vt) {

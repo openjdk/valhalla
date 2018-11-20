@@ -445,15 +445,9 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
   }
 }
 
-void check_value_types_consistency(const constantPoolHandle& this_cp, Klass* resolved_klass, TRAPS) {
-  bool opinion0 = resolved_klass->is_value();
-  bool opinion1 = this_cp->pool_holder()->is_declared_value_type(resolved_klass->name());
-  if (opinion0 != opinion1) {
-    ResourceMark rm;
-    stringStream ss;
-    ss.print("constant pool %s inconsistent value type: %s",
-            this_cp->pool_holder()->external_name(), resolved_klass->external_name());
-    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
+void check_is_value_type(Klass* k, TRAPS) {
+  if (!k->is_value()) {
+    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
 }
 
@@ -490,9 +484,17 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
 
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
+  bool value_type_signature = false;
+  if (name->is_Q_signature()) {
+    name = name->fundamental_name(THREAD);
+    value_type_signature = true;
+  }
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
   Handle protection_domain (THREAD, this_cp->pool_holder()->protection_domain());
   Klass* k = SystemDictionary::resolve_or_fail(name, loader, protection_domain, true, THREAD);
+  if (value_type_signature) {
+    name->decrement_refcount();
+  }
   if (!HAS_PENDING_EXCEPTION) {
     // preserve the resolved klass from unloading
     mirror_handle = Handle(THREAD, k->java_mirror());
@@ -500,22 +502,19 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     verify_constant_pool_resolve(this_cp, k, THREAD);
   }
 
+  if (!HAS_PENDING_EXCEPTION && value_type_signature) {
+    check_is_value_type(k, THREAD);
+  }
+
   if (!HAS_PENDING_EXCEPTION) {
-    if (k->is_instance_klass()) {
-      check_value_types_consistency(this_cp, k, THREAD);
-    } else {
-      Klass* bottom_klass = NULL;
-      if (k->is_objArray_klass()) {
-        bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
-        assert(bottom_klass != NULL, "Should be set");
-        assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
-      } else if (k->is_valueArray_klass()) {
-        bottom_klass = ValueArrayKlass::cast(k)->element_klass();
-        assert(bottom_klass != NULL, "Should be set");
-      }
-      if (bottom_klass != NULL && bottom_klass->is_instance_klass()) {
-        check_value_types_consistency(this_cp, bottom_klass, THREAD);
-      }
+    Klass* bottom_klass = NULL;
+    if (k->is_objArray_klass()) {
+      bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
+      assert(bottom_klass != NULL, "Should be set");
+      assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
+    } else if (k->is_valueArray_klass()) {
+      bottom_klass = ValueArrayKlass::cast(k)->element_klass();
+      assert(bottom_klass != NULL, "Should be set");
     }
   }
 

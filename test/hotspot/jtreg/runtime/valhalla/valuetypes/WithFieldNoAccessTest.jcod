@@ -28,7 +28,7 @@
  * @summary Check that IllegalAccessError exceptions get thrown if a class that
  *          is not a nestmate of a value type tries to write to the value type's
  *          final fields.
- * @compile WithFieldNoAccessTest.jcod
+ * @compile -XDemitQtypes WithFieldNoAccessTest.jcod
  * @run main/othervm -XX:+EnableValhalla WithFieldNoAccessTest
  */
 

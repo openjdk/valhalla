@@ -29,12 +29,12 @@ import jdk.test.lib.Asserts;
  * @test TestInheritedValueTypeFields
  * @summary Test if value field klasses are correctly retrieved for inherited fields
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java TestInheritedValueTypeFields.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java TestInheritedValueTypeFields.java
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.TestInheritedValueTypeFields
  */
 
 class A {
-    __Flattenable Point p;
+    Point.val p;
 }
 
 class B extends A {
@@ -50,7 +50,7 @@ class D {
 }
 
 class E extends D {
-    __Flattenable Point p1;
+    Point.val p1;
 }
 
 class F extends E {
@@ -58,7 +58,7 @@ class F extends E {
 }
 
 class G extends F {
-    __Flattenable Point p2;
+    Point.val p2;
 }
 
 public class TestInheritedValueTypeFields {

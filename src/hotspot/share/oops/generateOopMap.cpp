@@ -121,6 +121,7 @@ class ComputeCallStack : public SignatureIterator {
   virtual void do_int   ()              { set(CellTypeState::value); };
   virtual void do_void  ()              { set(CellTypeState::bottom);};
   virtual void do_object(int begin, int end)  { set(CellTypeState::ref); };
+  virtual void do_valuetype(int begin, int end)  { set(CellTypeState::ref); };
   virtual void do_array (int begin, int end)  { set(CellTypeState::ref); };
 
   void do_double()                      { set(CellTypeState::value);
@@ -176,6 +177,7 @@ class ComputeEntryStack : public SignatureIterator {
   virtual void do_int   ()              { set(CellTypeState::value); };
   virtual void do_void  ()              { set(CellTypeState::bottom);};
   virtual void do_object(int begin, int end)  { set(CellTypeState::make_slot_ref(_idx)); }
+  virtual void do_valuetype(int begin, int end) { set(CellTypeState::make_slot_ref(_idx)); }
   virtual void do_array (int begin, int end)  { set(CellTypeState::make_slot_ref(_idx)); }
 
   void do_double()                      { set(CellTypeState::value);
@@ -2027,7 +2029,7 @@ void GenerateOopMap::do_withfield(int idx, int bci) {
 // This is used to parse the signature for fields, since they are very simple...
 CellTypeState *GenerateOopMap::sigchar_to_effect(char sigch, int bci, CellTypeState *out) {
   // Object and array
-  if (sigch=='L' || sigch=='[') {
+  if (sigch=='L' || sigch=='[' || sigch=='Q') {
     out[0] = CellTypeState::make_line_ref(bci);
     out[1] = CellTypeState::bottom;
     return out;

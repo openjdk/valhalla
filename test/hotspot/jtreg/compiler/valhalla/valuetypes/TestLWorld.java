@@ -39,7 +39,7 @@ import jdk.test.lib.Asserts;
  *          java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestLWorld.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -118,16 +118,16 @@ public class TestLWorld extends ValueTypeTest {
     Object objectField5 = null;
     Object objectField6 = null;
 
-    __Flattenable  MyValue1 valueField1 = testValue1;
-    __Flattenable  MyValue1 valueField2 = testValue1;
-    __NotFlattened MyValue1 valueField3 = testValue1;
-    __Flattenable  MyValue1 valueField4;
-    __NotFlattened MyValue1 valueField5;
+    MyValue1.val valueField1 = testValue1;
+    MyValue1.val valueField2 = testValue1;
+    MyValue1.box valueField3 = testValue1;
+    MyValue1.val valueField4;
+    MyValue1.box valueField5;
 
-    static __NotFlattened MyValue1 staticValueField1 = testValue1;
-    static __Flattenable  MyValue1 staticValueField2 = testValue1;
-    static __Flattenable  MyValue1 staticValueField3;
-    static __NotFlattened MyValue1 staticValueField4;
+    static MyValue1.box staticValueField1 = testValue1;
+    static MyValue1.val staticValueField2 = testValue1;
+    static MyValue1.val staticValueField3;
+    static MyValue1.box staticValueField4;
 
     @DontInline
     public Object readValueField5() {
@@ -1234,8 +1234,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test for bug in Escape Analysis
-    private static __NotFlattened final MyValue1 test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static __NotFlattened final MyValue1 test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+    private static final MyValue1.box test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
+    private static final MyValue1.box test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
     @Test()
     public void test42() {
@@ -1394,11 +1394,11 @@ public class TestLWorld extends ValueTypeTest {
         final Object objectField5 = null;
         final Object objectField6 = null;
 
-        final __Flattenable  MyValue1 valueField1;
-        final __Flattenable  MyValue1 valueField2;
-        final __NotFlattened MyValue1 valueField3;
-        final __Flattenable  MyValue1 valueField4;
-        final __NotFlattened MyValue1 valueField5;
+        final MyValue1.val valueField1;
+        final MyValue1.val valueField2;
+        final MyValue1.box valueField3;
+        final MyValue1.val valueField4;
+        final MyValue1.box valueField5;
 
         private Test51Value() {
             valueField1 = testValue1;
@@ -1909,9 +1909,9 @@ public class TestLWorld extends ValueTypeTest {
 
     // Test writing null to a flattenable/non-flattenable value type field in a value type
     value final class Test77Value {
-        final __NotFlattened MyValue1 valueField1;
-        final __Flattenable  MyValue1 valueField2;
-        final __NotFlattened MyValue1 alwaysNull;
+        final MyValue1.box valueField1;
+        final MyValue1.val valueField2;
+        final MyValue1.box alwaysNull;
 
         private Test77Value() {
             valueField1 = testValue1;

@@ -28,21 +28,21 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Uninitialized value fields test
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java UninitializedValueFieldsTest.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java UninitializedValueFieldsTest.java
  * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 public class UninitializedValueFieldsTest {
-    static __NotFlattened Point nonFlattenableStaticPoint;
-    static __Flattenable Point staticPoint;
+    static Point.box nonFlattenableStaticPoint;
+    static Point.val staticPoint;
 
     Point instancePoint;
 
-    static __NotFlattened JumboValue sj1;
-    static __Flattenable JumboValue sj2;
+    static JumboValue.box sj1;
+    static JumboValue.val sj2;
 
-    __NotFlattened JumboValue j1;
-    JumboValue j2;
+    JumboValue.box j1;
+    JumboValue.val j2;
 
     static Object getNull() {
         return null;

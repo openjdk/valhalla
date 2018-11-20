@@ -76,7 +76,7 @@ value public final class MyValue3 implements MyInterface {
     final double f4;
     final float f5;
     final double f6;
-    __Flattenable final MyValue3Inline v1;
+    final MyValue3Inline.val v1;
 
     private MyValue3() {
         this.c = 0;

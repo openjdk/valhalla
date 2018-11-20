@@ -86,6 +86,20 @@ bool Symbol::starts_with(const char* prefix, int len) const {
   return true;
 }
 
+bool Symbol::is_Q_signature() const {
+  return utf8_length() > 2 && byte_at(0) == 'Q' && byte_at(utf8_length() - 1) == ';';
+}
+
+Symbol* Symbol::fundamental_name(TRAPS) {
+  if ((byte_at(0) == 'Q' || byte_at(0) == 'L') && byte_at(utf8_length() - 1) == ';') {
+    return SymbolTable::lookup(this, 1, utf8_length() - 1, CHECK_NULL);
+  } else {
+    // reference count is incremented to be consistent with the behavior with
+    // the SymbolTable::lookup() call above
+    this->increment_refcount();
+    return this;
+  }
+}
 
 // ------------------------------------------------------------------
 // Symbol::index_of

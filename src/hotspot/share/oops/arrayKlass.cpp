@@ -112,7 +112,17 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS)
     if (element_klass->is_instance_klass()) { // it could be an array or simple type
       // Temporary hack, for arrays of value types, this code should be removed
       // once value types have their own array types
-      new_str[idx++] = 'L';
+      // With Q-descriptors, the code below needs to be reworked.
+      // It is still correct today because the only kind of value array supported
+      // is array of null-free values which map to the Q-signature.
+      // As soon as both arrays of null-free values and arrays of nullable values
+      // are supported, this code has to be rewritten to consider the kind of the
+      // array instead of the kind of the elements.
+      if (element_klass->is_value()) {
+        new_str[idx++] = 'Q';
+      } else {
+        new_str[idx++] = 'L';
+      }
     }
     memcpy(&new_str[idx], name_str, len * sizeof(char));
     idx += len;

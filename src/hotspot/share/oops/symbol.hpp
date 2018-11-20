@@ -203,6 +203,8 @@ class Symbol : public MetaspaceObj {
   bool starts_with(const char* prefix) const {
     return starts_with(prefix, (int) strlen(prefix));
   }
+  bool is_Q_signature() const;
+  Symbol* fundamental_name(TRAPS);
 
   // Tests if the symbol starts with the given prefix.
   int index_of_at(int i, const char* str, int len) const;

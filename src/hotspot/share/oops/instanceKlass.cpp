@@ -605,11 +605,6 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_nest_members(NULL);
 
-  if (value_types() != NULL && !value_types()->is_shared()) {
-    MetadataFactory::free_array<ValueTypes>(loader_data, value_types());
-  }
-  set_value_types(NULL);
-
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != NULL && !annotations()->is_shared()) {
     MetadataFactory::free_metadata(loader_data, annotations());
@@ -831,12 +826,14 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
 
   // Note:
   // Value class types used for flattenable fields are loaded during
-  // the loading phase (see layout ClassFileParser::layout_fields()).
+  // the loading phase (see ClassFileParser::post_process_parsed_stream()).
   // Value class types used as element types for array creation
   // are not pre-loaded. Their loading is triggered by either anewarray
   // or multianewarray bytecodes.
 
-  if (has_value_types_attribute()) {
+  // Could it be possible to do the following processing only if the
+  // class uses value types?
+  {
     ResourceMark rm(THREAD);
     for (int i = 0; i < methods()->length(); i++) {
       Method* m = methods()->at(i);
@@ -851,7 +848,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
             symb = SymbolTable::lookup(sig->as_C_string() + i + 1,
                                        sig->utf8_length() - 3, CHECK_false);
           }
-          if (is_declared_value_type(symb)) {
+          if (symb->is_Q_signature()) {
             oop loader = class_loader();
             oop protection_domain = this->protection_domain();
             Klass* klass = SystemDictionary::resolve_or_fail(symb,
@@ -2657,9 +2654,13 @@ const char* InstanceKlass::signature_name() const {
 
   char* dest = NEW_RESOURCE_ARRAY(char, src_length + hash_len + 3);
 
-  // Add L as type indicator
+  // Add L or Q as type indicator
   int dest_index = 0;
-  dest[dest_index++] = 'L';
+  if (is_value()) {
+    dest[dest_index++] = 'Q';
+  } else {
+    dest[dest_index++] = 'L';
+  }
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {
@@ -3516,119 +3517,6 @@ void InstanceKlass::oop_print_value_on(oop obj, outputStream* st) {
 
 const char* InstanceKlass::internal_name() const {
   return external_name();
-}
-
-bool InstanceKlass::is_declared_value_type(int index) {
-  assert(constants()->is_within_bounds(index) &&
-               constants()->tag_at(index).is_klass_or_reference(), "Invalid index");
-  return InstanceKlass::is_declared_value_type(value_types(), index);
-}
-
-bool InstanceKlass::is_declared_value_type(Array<ValueTypes>* value_types, int index) {
-  if (value_types == NULL) return false; // No ValueType attribute in this class file
-  for(int i = 0; i < value_types->length(); i++) {
-    if (value_types->at(i)._class_info_index == index) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool InstanceKlass::is_declared_value_type(Symbol* symbol) {
-  return InstanceKlass::is_declared_value_type(constants(), value_types(), symbol);
-}
-
-bool InstanceKlass::is_declared_value_type(ConstantPool* constants, Array<ValueTypes>* value_types, Symbol* symbol) {
-  assert(symbol != NULL, "Sanity check");
-  if (value_types == NULL) return false; // No ValueType attribute in this class file
-  for(int i = 0; i < value_types->length(); i++) {
-    if (value_types->at(i)._class_name == symbol) {
-      return true;
-    }
-  }
-  // symbol not found, class name symbol might not have been
-  // updated yet
-  for(int i = 0; i < value_types->length(); i++) {
-    if (constants->klass_at_noresolve((int)value_types->at(i)._class_info_index) == symbol) {
-      value_types->adr_at(i)->_class_name = symbol;
-      symbol->increment_refcount();
-      return true;
-    }
-  }
-  return false;
-}
-
-Symbol* InstanceKlass::get_declared_value_type_name(int i) {
-  Array<ValueTypes>* vtypes = value_types();
-  assert(i < vtypes->length(), "index out of bound");
-  Symbol* sym = vtypes->at(i)._class_name;
-  if (sym == NULL) {
-    sym = constants()->klass_at_noresolve((int)vtypes->at(i)._class_info_index);
-    vtypes->adr_at(i)->_class_name = sym;
-    sym->increment_refcount();
-  }
-  return sym;
-}
-
-void InstanceKlass::check_signature_for_value_types_consistency(Symbol* signature,
-                                                             InstanceKlass* k1,
-                                                             InstanceKlass* k2, TRAPS) {
-  if (signature->utf8_length() == 1) return;  // Primitive signature
-  if (!(k1->has_value_types_attribute() || k2->has_value_types_attribute())) return;
-  ResourceMark rm(THREAD);
-  for (SignatureStream sstream(signature); !sstream.is_done(); sstream.next()) {
-    if (sstream.is_object()) {
-      Symbol* sym = sstream.as_symbol(THREAD);
-      Symbol* name = sym;
-      if (sstream.is_array()) {
-        int i=0;
-        while (sym->byte_at(i) == '[') i++;
-        if (i == sym->utf8_length() - 1 ) continue; // primitive array
-        assert(sym->byte_at(i) == 'L', "Must be a L-type");
-        name = SymbolTable::lookup(sym->as_C_string() + i + 1,
-                                           sym->utf8_length() - 2 - i, CHECK);
-      }
-      bool opinion1 = k1->is_declared_value_type(name);
-      bool opinion2 = k2->is_declared_value_type(name);
-      if (sym != name) name->decrement_refcount();
-      if (opinion1 != opinion2) {
-        stringStream ss;
-        ss.print("signature %s inconsistent value type: %s %s",
-            signature->as_C_string(), k1->external_name(), k2->external_name());
-        THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
-      }
-    }
-  }
-}
-
-void InstanceKlass::check_symbol_for_value_types_consistency(Symbol* sym,
-                                                             InstanceKlass* k1,
-                                                             InstanceKlass* k2, TRAPS) {
-  if (sym->utf8_length() == 1) return;  // Primitive signature
-  if (!(k1->has_value_types_attribute() || k2->has_value_types_attribute())) return;
-  assert(sym->byte_at(0) == 'L' || sym->byte_at(0) == '[', "Sanity check");
-  ResourceMark rm(THREAD);
-  Symbol* name;
-  if (sym->byte_at(0) == 'L') {
-    name = SymbolTable::lookup(sym->as_C_string() + 1,
-                               sym->utf8_length() - 2, CHECK);
-  } else {
-    int i=0;
-    while (sym->byte_at(i) == '[') i++;
-    if (i == sym->utf8_length() - 1 ) return; // primitive array
-    assert(sym->byte_at(i) == 'L', "Must be a L-type");
-    name = SymbolTable::lookup(sym->as_C_string() + i + 1,
-                               sym->utf8_length() - 2 - i, CHECK);
-  }
-  bool opinion1 = k1->is_declared_value_type(name);
-  bool opinion2 = k2->is_declared_value_type(name);
-  name->decrement_refcount();
-  if (opinion1 != opinion2) {
-    stringStream ss;
-    ss.print("symbol %s inconsistent value type: %s %s",
-            sym->as_C_string(), k1->external_name(), k2->external_name());
-    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
-  }
 }
 
 void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,

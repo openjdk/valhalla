@@ -1421,7 +1421,11 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     return;
   }
   if (is_instance)  {
+    if (is_value) {
+      st->print("Q");
+    } else {
       st->print("L");
+    }
   }
   st->write((char*) name->base(), (int) name->utf8_length());
   if (is_instance)  st->print(";");

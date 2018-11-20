@@ -40,7 +40,7 @@
 // Signature  = "(" {Parameter} ")" ReturnType.
 // Parameter  = FieldType.
 // ReturnType = FieldType | "V".
-// FieldType  = "B" | "C" | "D" | "F" | "I" | "J" | "S" | "Z" | "L" ClassName ";" | "[" FieldType.
+// FieldType  = "B" | "C" | "D" | "F" | "I" | "J" | "S" | "Z" | "L" ClassName ";" | "Q" ValueClassName ";" | "[" FieldType.
 // ClassName  = string.
 
 
@@ -89,13 +89,22 @@ int SignatureIterator::parse_type() {
       if (_parameter_index < 0 ) _return_type = T_OBJECT;
       size = T_OBJECT_size;
       break;
+    case 'Q':
+      { int begin = ++_index;
+      Symbol* sig = _signature;
+      while (sig->byte_at(_index++) != ';') ;
+      do_valuetype(begin, _index);
+      }
+      if (_parameter_index < 0 ) _return_type = T_VALUETYPE;
+      size = T_VALUETYPE_size;
+      break;
     case '[':
       { int begin = ++_index;
         Symbol* sig = _signature;
         while (sig->byte_at(_index) == '[') {
           _index++;
         }
-        if (sig->byte_at(_index) == 'L') {
+        if (sig->byte_at(_index) == 'L' || sig->byte_at(_index) == 'Q') {
           while (sig->byte_at(_index++) != ';') ;
         } else {
           _index++;
@@ -232,6 +241,7 @@ void SignatureIterator::iterate_returntype() {
           _index++;
         }
         break;
+      case 'Q':
       case 'L':
         {
           while (sig->byte_at(_index++) != ';') ;
@@ -243,7 +253,7 @@ void SignatureIterator::iterate_returntype() {
           while (sig->byte_at(_index) == '[') {
             _index++;
           }
-          if (sig->byte_at(_index) == 'L') {
+          if (sig->byte_at(_index) == 'L' || sig->byte_at(_index) == 'Q' ) {
             while (sig->byte_at(_index++) != ';') ;
           } else {
             _index++;
@@ -308,7 +318,7 @@ void SignatureStream::next_non_primitive(int t) {
       break;
     }
     case 'Q': {
-      _type = T_VALUETYPEPTR;
+      _type = T_VALUETYPE;
       Symbol* sig = _signature;
       while (sig->byte_at(_end++) != ';');
       break;
@@ -486,6 +496,7 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
     case 'B': case 'C': case 'D': case 'F': case 'I':
     case 'J': case 'S': case 'Z': case 'V':
       return index + 1;
+    case 'Q': // fall through
     case 'L':
       for (index = index + 1; index < limit; ++index) {
         char c = type[index];
@@ -526,7 +537,7 @@ void SigEntry::fill_sig_bt(const GrowableArray<SigEntry>& sig_extended, BasicTyp
   for (int i = 0; i < sig_extended.length(); i++) {
     if (!skip_vt) {
       BasicType bt = sig_extended.at(i)._bt;
-      assert(bt != T_VALUETYPE, "value types should be passed as fields or reference");
+      // assert(bt != T_VALUETYPE, "value types should be passed as fields or reference");
       sig_bt_cc[j++] = bt;
     } else if (sig_extended.at(i)._bt != T_VALUETYPE &&
                (sig_extended.at(i)._bt != T_VOID ||

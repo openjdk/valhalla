@@ -68,6 +68,10 @@ class FieldType: public AllStatic {
              (signature->byte_at(sig_length - 1) == ';'));
   }
 
+  static bool is_valuetype(Symbol* signature) {
+    return signature->is_Q_signature();
+    }
+
   // Parse field and extract array information. Works for T_ARRAY only.
   static BasicType get_array_info(Symbol* signature, FieldArrayInfo& ai, TRAPS);
 };

@@ -263,7 +263,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null_helper(Symbol* c
                                                                        Handle protection_domain,
                                                                        TRAPS) {
   assert(class_name != NULL && !FieldType::is_array(class_name), "must be");
-  if (FieldType::is_obj(class_name)) {
+  if (FieldType::is_obj(class_name) || FieldType::is_valuetype(class_name)) {
     ResourceMark rm(THREAD);
     // Ignore wrapping L and ;. (and Q and ; for value types);
     TempNewSymbol name = SymbolTable::new_symbol(class_name->as_C_string() + 1,
@@ -454,7 +454,7 @@ Klass* SystemDictionary::resolve_flattenable_field_or_fail(AllFieldStream* fs,
                                                            Handle protection_domain,
                                                            bool throw_error,
                                                            TRAPS) {
-  Symbol* class_name = fs->signature();
+  Symbol* class_name = fs->signature()->fundamental_name(THREAD);
   class_loader = Handle(THREAD, java_lang_ClassLoader::non_reflection_class_loader(class_loader()));
   ClassLoaderData* loader_data = class_loader_data(class_loader);
   unsigned int p_hash = placeholders()->compute_hash(class_name);
@@ -490,6 +490,7 @@ Klass* SystemDictionary::resolve_flattenable_field_or_fail(AllFieldStream* fs,
                                     PlaceholderTable::FLATTENABLE_FIELD, THREAD);
   }
 
+  class_name->decrement_refcount();
   return klass;
 }
 
@@ -710,7 +711,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                                 Handle protection_domain,
                                                                 TRAPS) {
   assert(name != NULL && !FieldType::is_array(name) &&
-         !FieldType::is_obj(name), "invalid class name");
+         !FieldType::is_obj(name) && !FieldType::is_valuetype(name), "invalid class name");
 
   EventClassLoad class_load_start_event;
 
@@ -2641,7 +2642,7 @@ Handle SystemDictionary::find_java_mirror_for_type(Symbol* signature,
     assert(is_java_primitive(char2type(ch)) || ch == 'V', "");
     return Handle(THREAD, find_java_mirror_for_type(ch));
 
-  } else if (FieldType::is_obj(type) || FieldType::is_array(type)) {
+  } else if (FieldType::is_obj(type) || FieldType::is_valuetype(type) || FieldType::is_array(type)) {
 
     // It's a reference type.
     if (accessing_klass != NULL) {

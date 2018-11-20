@@ -1,7 +1,7 @@
 /**
  * @test TestFieldNullability
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestFieldNullability.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator TestFieldNullability.java
  * @run main/othervm -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError -XX:ValueFieldMaxFlatSize=32
  *                   runtime.valhalla.valuetypes.TestFieldNullability
  */
@@ -30,11 +30,11 @@ public class TestFieldNullability {
     }
 
     static value class TestValue {
-	final __NotFlattened MyValue nullableField;
-	final __Flattenable  MyValue nullfreeField;       // flattened
-	final __NotFlattened MyValue nullField;           // src of null
-	final __Flattenable  MyBigValue nullfreeBigField; // not flattened
-	final __NotFlattened MyBigValue nullBigField;     // src of null
+	final MyValue.box nullableField;
+	final MyValue.val nullfreeField;       // flattened
+	final MyValue.box nullField;           // src of null
+	final MyBigValue.val nullfreeBigField; // not flattened
+	final MyBigValue.box nullBigField;     // src of null
 
 	public void test() {
 	    Asserts.assertNull(nullField, "Invalid non null value for for unitialized non flattenable field");
@@ -71,11 +71,11 @@ public class TestFieldNullability {
     }
 
     static class TestClass {
-	__NotFlattened MyValue nullableField;
-	__Flattenable  MyValue nullfreeField;       // flattened
-	__NotFlattened MyValue nullField;
-	__Flattenable  MyBigValue nullfreeBigField; // not flattened
-	__NotFlattened MyBigValue nullBigField;
+	MyValue.box nullableField;
+	MyValue.val nullfreeField;       // flattened
+	MyValue.box nullField;
+	MyBigValue.val nullfreeBigField; // not flattened
+	MyBigValue.box nullBigField;
 
 	public void test() {
 	    Asserts.assertNull(nullField, "Invalid non null value for for unitialized non flattenable field");

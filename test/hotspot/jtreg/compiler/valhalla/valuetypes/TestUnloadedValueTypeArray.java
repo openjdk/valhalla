@@ -25,7 +25,7 @@
  * @test
  * @bug 8182997
  * @summary Array of unloaded value class should consistently use L signature
- * @compile -XDenableValueTypes -XDallowFlattenabilityModifiers TestUnloadedValueTypeArray.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers TestUnloadedValueTypeArray.java
  * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:CompileOnly=TestUnloadedValueTypeArray::test TestUnloadedValueTypeArray
  */
 

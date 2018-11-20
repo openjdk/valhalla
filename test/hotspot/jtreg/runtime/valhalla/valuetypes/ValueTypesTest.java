@@ -51,7 +51,7 @@ import javax.tools.*;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestValue1.java TestValue2.java TestValue3.java TestValue4.java ValueTypesTest.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator TestValue1.java TestValue2.java TestValue3.java TestValue4.java ValueTypesTest.java
  * @run main/othervm -Xint -Xmx128m -XX:+EnableValhalla -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -95,9 +95,8 @@ public class ValueTypesTest {
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     static void testExecutionStackToLocalVariable(Class<?> valueClass) throws Throwable {
-        String sig = "()L" + valueClass.getName() + ";";
+        String sig = "()Q" + valueClass.getName() + ";";
         final String signature = sig.replace('.', '/');
-        System.out.println(signature);
         MethodHandle fromExecStackToLocalVar = MethodHandleBuilder.loadCode(
                 LOOKUP,
                 "execStackToLocalVar",
@@ -138,9 +137,10 @@ public class ValueTypesTest {
 
     static void testExecutionStackToFields(Class<?> valueClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = Platform.isDebugBuild() ? 3 : 512;
-        String sig = "()L" + valueClass.getName() + ";";
+        String sig = "()Q" + valueClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
-        final String fieldSignature = "L" + valueClass.getName().replace('.', '/') + ";";
+        final String fieldQSignature = "Q" + valueClass.getName().replace('.', '/') + ";";
+	final String fieldLSignature = "L" + valueClass.getName().replace('.', '/') + ";";
         System.out.println(methodSignature);
         MethodHandle fromExecStackToFields = MethodHandleBuilder.loadCode(
                 LOOKUP,
@@ -161,33 +161,33 @@ public class ValueTypesTest {
                     .ifcmp(TypeTag.I, CondKind.EQ, "end")
                     .aload_1()
                     .invokestatic(valueClass, "getInstance", methodSignature, false)
-                    .putfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .putfield(containerClass, "nonStaticValueField", fieldQSignature)
                     .invokestatic(System.class, "gc", "()V", false)
                     .aload_1()
-                    .getfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .getfield(containerClass, "nonStaticValueField", fieldQSignature)
                     .invokevirtual(valueClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
                     .aload_1()
                     .invokestatic(valueClass, "getNonBufferedInstance", methodSignature, false)
-                    .putfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .putfield(containerClass, "nonStaticValueField", fieldQSignature)
                     .invokestatic(System.class, "gc", "()V", false)
                     .aload_1()
-                    .getfield(containerClass, "nonStaticValueField", fieldSignature)
+                    .getfield(containerClass, "nonStaticValueField", fieldQSignature)
                     .invokevirtual(valueClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
                     .invokestatic(valueClass, "getInstance", methodSignature, false)
-                    .putstatic(containerClass, "staticValueField", fieldSignature)
+                    .putstatic(containerClass, "staticValueField", fieldLSignature)
                     .invokestatic(System.class, "gc", "()V", false)
-                    .getstatic(containerClass, "staticValueField", fieldSignature)
+                    .getstatic(containerClass, "staticValueField", fieldLSignature)
                     .invokevirtual(valueClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
                     .invokestatic(valueClass, "getNonBufferedInstance", methodSignature, false)
-                    .putstatic(containerClass, "staticValueField", fieldSignature)
+                    .putstatic(containerClass, "staticValueField", fieldLSignature)
                     .invokestatic(System.class, "gc", "()V", false)
-                    .getstatic(containerClass, "staticValueField", fieldSignature)
+                    .getstatic(containerClass, "staticValueField", fieldLSignature)
                     .invokevirtual(valueClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
@@ -207,7 +207,7 @@ public class ValueTypesTest {
 
     static void testExecutionStackToValueArray(Class<?> valueClass, Class<?> containerClass) throws Throwable {
         final int ITERATIONS = Platform.isDebugBuild() ? 3 : 100;
-        String sig = "()L" + valueClass.getName() + ";";
+        String sig = "()Q" + valueClass.getName() + ";";
         final String signature = sig.replace('.', '/');
         final String arraySignature = "[L" + valueClass.getName().replace('.', '/') + ";";
         System.out.println(arraySignature);

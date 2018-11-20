@@ -435,7 +435,7 @@ C2V_VMENTRY(jobject, lookupType, (JNIEnv*, jobject, jstring jname, jclass access
   if (resolve) {
     resolved_klass = SystemDictionary::resolve_or_null(class_name, class_loader, protection_domain, CHECK_0);
   } else {
-    if (class_name->byte_at(0) == 'L' &&
+    if ((class_name->byte_at(0) == 'L' || class_name->byte_at(0) == 'Q' ) &&
       class_name->byte_at(class_name->utf8_length()-1) == ';') {
       // This is a name from a signature.  Strip off the trimmings.
       // Call recursive to keep scope of strippedsym.

@@ -61,7 +61,7 @@ value final class MyValue2Inline {
 value public final class MyValue2 implements MyInterface {
     final int x;
     final byte y;
-    __Flattenable final MyValue2Inline v1;
+    final MyValue2Inline.val v1;
 
     private MyValue2() {
         this.x = 0;

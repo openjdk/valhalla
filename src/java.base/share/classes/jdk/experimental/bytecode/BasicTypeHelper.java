@@ -56,6 +56,7 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
     public TypeTag tag(String s) {
         switch (s.charAt(0)) {
             case '[':
+            case 'Q':
             case 'L':
                 return TypeTag.A;
             case 'B':
@@ -144,6 +145,7 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
                     case '[':
                         ch++;
                         return "[" + next();
+                    case 'Q':
                     case 'L':
                         StringBuilder builder = new StringBuilder();
                         while (curr != ';') {
@@ -172,7 +174,11 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
 
     @Override
     public String symbol(String type) {
-        return type.startsWith("L") ? type.substring(1, type.length() - 1) : type;
+	if (type.startsWith("L") || type.startsWith("Q")) {
+	    return type.substring(1, type.length() - 1);
+	} else {
+	    return type;
+	}
     }
 
     @Override

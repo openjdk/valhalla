@@ -144,7 +144,6 @@
   template(tag_inner_classes,                         "InnerClasses")                             \
   template(tag_nest_members,                          "NestMembers")                              \
   template(tag_nest_host,                             "NestHost")                                 \
-  template(tag_value_types,                           "ValueTypes")                               \
   template(tag_constant_value,                        "ConstantValue")                            \
   template(tag_code,                                  "Code")                                     \
   template(tag_exceptions,                            "Exceptions")                               \

@@ -34,7 +34,7 @@ import static jdk.test.lib.Asserts.*;
  * @test ValueTypeArray
  * @summary Plain array test for Value Types
  * @library /test/lib
- * @compile -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
@@ -213,9 +213,9 @@ public class ValueTypeArray {
             return mi;
         }
 
-        public static __NotFlattened final MyInt MIN = MyInt.create(Integer.MIN_VALUE);
-        public static __NotFlattened final MyInt ZERO = MyInt.create(0);
-        public static __NotFlattened final MyInt MAX = MyInt.create(Integer.MAX_VALUE);
+        public static final MyInt.box MIN = MyInt.create(Integer.MIN_VALUE);
+        public static final MyInt.box ZERO = MyInt.create(0);
+        public static final MyInt.box MAX = MyInt.create(Integer.MAX_VALUE);
     }
 
     static interface SomeSecondaryType {
@@ -356,7 +356,7 @@ public class ValueTypeArray {
     }
 
     static final value class MyPoint {
-        final __Flattenable MyInt x;
+        final               MyInt.val x;
         final               MyInt y;
 
         private MyPoint() {
@@ -381,7 +381,7 @@ public class ValueTypeArray {
             mp = __WithField(mp.y, MyInt.create(y));
             return mp;
         }
-        static __NotFlattened final MyPoint ORIGIN = create(0);
+        static final MyPoint.box ORIGIN = create(0);
     }
 
     void testComposition() {

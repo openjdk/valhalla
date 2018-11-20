@@ -113,6 +113,7 @@ class SignatureIterator: public ResourceObj {
 
   // Object types (begin indexes the first character of the entry, end indexes the first character after the entry)
   virtual void do_object(int begin, int end) = 0;
+  virtual void do_valuetype(int begin, int end) = 0;
   virtual void do_array (int begin, int end) = 0;
 
   static bool is_static(uint64_t fingerprint) {
@@ -142,6 +143,7 @@ class SignatureTypeNames : public SignatureIterator {
   void do_long()                       { type_name("jlong"   ); }
   void do_void()                       { type_name("void"    ); }
   void do_object(int begin, int end)   { type_name("jobject" ); }
+  void do_valuetype(int begin, int end) { type_name("jvaluetype"); }
   void do_array (int begin, int end)   { type_name("jobject" ); }
 
  public:
@@ -170,6 +172,7 @@ class SignatureInfo: public SignatureIterator {
   void do_long  ()                     { set(T_LONG_size   , T_LONG   ); }
   void do_void  ()                     { set(T_VOID_size   , T_VOID   ); }
   void do_object(int begin, int end)   { set(T_OBJECT_size , T_OBJECT ); }
+  void do_valuetype(int begin, int end) { set(T_VALUETYPE_size, T_VALUETYPE ); }
   void do_array (int begin, int end)   { set(T_ARRAY_size  , T_ARRAY  ); }
 
  public:
@@ -236,6 +239,7 @@ class Fingerprinter: public SignatureIterator {
   void do_double()  { _fingerprint |= (((uint64_t)double_parm) << _shift_count); _shift_count += parameter_feature_size; }
 
   void do_object(int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
+  void do_valuetype(int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
   void do_array (int begin, int end)  { _fingerprint |= (((uint64_t)obj_parm) << _shift_count); _shift_count += parameter_feature_size; }
 
   void do_void()    { ShouldNotReachHere(); }

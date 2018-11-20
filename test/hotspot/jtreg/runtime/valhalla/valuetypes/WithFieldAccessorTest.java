@@ -25,7 +25,7 @@
  * @test
  * @bug 8210351
  * @summary test nestmate access to a value type's public, protected and private final fields.
- * @compile -XDallowWithFieldOperator WithFieldAccessorTest.java
+ * @compile -XDemitQtypes -XDallowWithFieldOperator WithFieldAccessorTest.java
  * @run main/othervm -XX:+EnableValhalla WithFieldAccessorTest
  */
 

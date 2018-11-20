@@ -290,6 +290,7 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
     break;
   case T_OBJECT:
   case T_ARRAY:
+  case T_VALUETYPE:
     fatal("Should not be handled with this method");
     break;
   default:
@@ -344,11 +345,11 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       vklass->data_for_oop(new_value_h()), true, false);
 
   // Updating the field specified in arguments
-  if (field_type == T_ARRAY) {
+  if (field_type == T_ARRAY || field_type == T_OBJECT) {
     oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
     assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
     new_value_h()->obj_field_put(field_offset, aoop);
-  } else if (field_type == T_OBJECT) {
+  } else if (field_type == T_VALUETYPE) {
     if (cp_entry->is_flattened()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       if (vt_oop == NULL) {
@@ -370,7 +371,7 @@ IRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
       new_value_h()->obj_field_put(field_offset, voop);
     }
-  } else { // not T_OBJECT nor T_ARRAY
+  } else { // not T_OBJECT nor T_ARRAY nor T_VALUETYPE
     intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
     copy_primitive_argument(addr, new_value_h, field_offset, field_type);
   }
@@ -1474,6 +1475,12 @@ IRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread *thread,
     case dtos: sig_type = 'D'; break;
     default:  ShouldNotReachHere(); return;
   }
+
+  // Both Q-signatures and L-signatures are mapped to atos
+  if (cp_entry->flag_state() == atos && ik->field_signature(index)->is_Q_signature()) {
+    sig_type = 'Q';
+  }
+
   bool is_static = (obj == NULL);
 
   HandleMark hm(thread);
