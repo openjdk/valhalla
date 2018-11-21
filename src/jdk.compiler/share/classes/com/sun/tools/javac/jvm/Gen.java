@@ -1912,7 +1912,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, types.emitQtypes && types.isValue(elemtype)), type);
+                code.emitAnewarray(makeRef(pos, elemtype, types.isValue(elemtype)), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2141,7 +2141,7 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
-            code.emitop2(checkcast, makeRef(tree.pos(), tree.clazz.type, types.emitQtypes && types.isValue(tree.clazz.type)));
+            code.emitop2(checkcast, makeRef(tree.pos(), tree.clazz.type, types.isValue(tree.clazz.type)));
         }
     }
 

@@ -99,7 +99,6 @@ public class Types {
     final Name capturedName;
 
     public final Warner noWarnings;
-    public final boolean emitQtypes;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
     public static Types instance(Context context) {
@@ -124,7 +123,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        emitQtypes = options.isSet("emitQtypes");
     }
     // </editor-fold>
 
@@ -5071,7 +5069,7 @@ public class Types {
                     if (type.isCompound()) {
                         throw new InvalidSignatureException(type);
                     }
-                    if (types.emitQtypes && types.isValue(type))
+                    if (types.isValue(type))
                         append('Q');
                     else
                         append('L');

@@ -477,7 +477,6 @@ public class ClassWriter extends ClassFile {
                     poolbuf.appendByte(CONSTANT_MethodType);
                     poolbuf.appendChar(pool.put(typeSig((MethodType)type)));
                 } else if (types.isValue(type)) {
-                    Assert.check(types.emitQtypes);
                     ClassSymbol c = (ClassSymbol) type.tsym;
                     if (c.owner.kind == TYP) pool.put(c.owner);
                     poolbuf.appendByte(CONSTANT_Class);
@@ -1466,7 +1465,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + t + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(pool.put(types.emitQtypes && types.isValue(t) ? new UniqueType(t, types) : t));
+                databuf.appendChar(pool.put(types.isValue(t) ? new UniqueType(t, types) : t));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
