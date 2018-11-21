@@ -306,10 +306,4 @@ public interface JavaLangAccess {
      * @throws IllegalArgumentException for malformed surrogates
      */
     byte[] getBytesUTF8NoRepl(String s);
-
-    /**
-     * Returns the names listed in {@code "ValueTypes"} attribute
-     * of the current class.
-     */
-    Set<String> getDeclaredValueTypeNames(Class<?> current);
 }

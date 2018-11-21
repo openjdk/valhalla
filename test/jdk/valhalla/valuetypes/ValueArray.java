@@ -24,8 +24,8 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on value array
- * @compile -XDallowFlattenabilityModifiers -XDallowWithFieldOperator Point.java NonFlattenValue.java
- * @compile -XDallowFlattenabilityModifiers -XDallowWithFieldOperator ValueArray.java
+ * @compile -XDallowWithFieldOperator Point.java NonFlattenValue.java
+ * @compile -XDallowWithFieldOperator ValueArray.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+ValueArrayFlatten ValueArray
  * @run testng/othervm -XX:+EnableValhalla -XX:-ValueArrayFlatten ValueArray
  */

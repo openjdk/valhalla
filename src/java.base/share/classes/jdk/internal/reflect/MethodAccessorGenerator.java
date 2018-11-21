@@ -25,14 +25,8 @@
 
 package jdk.internal.reflect;
 
-import jdk.internal.misc.SharedSecrets;
-
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 /** Generator for sun.reflect.MethodAccessor and
     sun.reflect.ConstructorAccessor objects using bytecodes to
@@ -44,7 +38,7 @@ import java.util.Set;
 
 class MethodAccessorGenerator extends AccessorGenerator {
 
-    private static final short NUM_BASE_CPOOL_ENTRIES   = (short) 10;
+    private static final short NUM_BASE_CPOOL_ENTRIES   = (short) 12;
     // One for invoke() plus one for constructor
     private static final short NUM_METHODS              = (short) 2;
     // Only used if forSerialization is true
@@ -63,8 +57,9 @@ class MethodAccessorGenerator extends AccessorGenerator {
     private short targetMethodRef;
     private short invokeIdx;
     private short invokeDescriptorIdx;
-    private short valueTypesAttrIdx;
-    private ConstantPoolClassPool cpClassPool;
+    // Constant pool index of CONSTANT_Class_info for first
+    // non-primitive parameter type. Should be incremented by 2.
+    private short nonPrimitiveParametersBaseIdx;
 
     MethodAccessorGenerator() {
     }
@@ -145,8 +140,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
         this.isConstructor = isConstructor;
         this.forSerialization = forSerialization;
 
-        this.cpClassPool = new ConstantPoolClassPool();
-
         asm.emitMagicAndVersion();
 
         // Constant pool entries:
@@ -165,16 +158,13 @@ class MethodAccessorGenerator extends AccessorGenerator {
         //     [UTF-8] target method or constructor signature
         //     [CONSTANT_NameAndType_info] for above
         //     [CONSTANT_Methodref_info or CONSTANT_InterfaceMethodref_info] for target method
+        //     [UTF-8] "invoke" or "newInstance"
+        //     [UTF-8] invoke or newInstance descriptor
         //     [UTF-8] descriptor for type of non-primitive parameter 1
         //     [CONSTANT_Class_info] for type of non-primitive parameter 1
         //     ...
         //     [UTF-8] descriptor for type of non-primitive parameter n
         //     [CONSTANT_Class_info] for type of non-primitive parameter n
-        //     [UTF-8] descriptor for declared value types if not present in CP
-        //     [CONSTANT_Class_info] for declared value types if not present in CP
-        //     ...
-        //     [UTF-8] "invoke" or "newInstance"
-        //     [UTF-8] invoke or newInstance descriptor
         // +   [UTF-8] "java/lang/Exception"
         // +   [CONSTANT_Class_info] for above
         // +   [UTF-8] "java/lang/ClassCastException"
@@ -287,12 +277,9 @@ class MethodAccessorGenerator extends AccessorGenerator {
             numCPEntries += NUM_SERIALIZATION_CPOOL_ENTRIES;
         }
 
-        numCPEntries += cpClassPool.numConstantPoolEntries();
-
-        // Add constant pool UTF8 entry for ValueTypes attribute name
-        if (cpClassPool.hasDeclaredValueTypes()) {
-            numCPEntries += 1;
-        }
+        // Add in variable-length number of entries to be able to describe
+        // non-primitive parameter types and checked exceptions.
+        numCPEntries += (short) (2 * numNonPrimitiveParameterTypes());
 
         asm.emitShort(add(numCPEntries, S1));
 
@@ -312,7 +299,9 @@ class MethodAccessorGenerator extends AccessorGenerator {
         }
         asm.emitConstantPoolClass(asm.cpi());
         superClass = asm.cpi();
-        targetClass = cpClassPool.cpIndex(declaringClass);
+        asm.emitConstantPoolUTF8(getClassName(declaringClass, false));
+        asm.emitConstantPoolClass(asm.cpi());
+        targetClass = asm.cpi();
         short serializationTargetClassIdx = (short) 0;
         if (forSerialization) {
             asm.emitConstantPoolUTF8(getClassName(serializationTargetClass, false));
@@ -332,10 +321,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
             }
         }
         targetMethodRef = asm.cpi();
-
-        // emit constant pool entries for parameter types and return type
-        cpClassPool.emitConstantPoolEntries();
-
         if (isConstructor) {
             asm.emitConstantPoolUTF8("newInstance");
         } else {
@@ -350,10 +335,14 @@ class MethodAccessorGenerator extends AccessorGenerator {
         }
         invokeDescriptorIdx = asm.cpi();
 
-        // emit name index for "ValueTypes" attribute
-        if (cpClassPool.hasDeclaredValueTypes()) {
-            asm.emitConstantPoolUTF8("ValueTypes");
-            valueTypesAttrIdx = asm.cpi();
+        // Output class information for non-primitive parameter types
+        nonPrimitiveParametersBaseIdx = add(asm.cpi(), S2);
+        for (int i = 0; i < parameterTypes.length; i++) {
+            Class<?> c = parameterTypes[i];
+            if (!isPrimitive(c)) {
+                asm.emitConstantPoolUTF8(getClassName(c, false));
+                asm.emitConstantPoolClass(asm.cpi());
+            }
         }
 
         // Entries common to FieldAccessor, MethodAccessor and ConstructorAccessor
@@ -390,18 +379,12 @@ class MethodAccessorGenerator extends AccessorGenerator {
         emitConstructor();
         emitInvoke();
 
-        // Additional attributes
-        if (cpClassPool.hasDeclaredValueTypes()) {
-            asm.emitShort(S1);
-            emitValueTypesAttribute();
-        } else {
-            asm.emitShort(S0);
-        }
+        // Additional attributes (none)
+        asm.emitShort(S0);
 
         // Load class
         vec.trim();
         final byte[] bytes = vec.getData();
-
         // Note: the class loader is the only thing that really matters
         // here -- it's important to get the generated code into the
         // same namespace as the target class. Since the generated code
@@ -426,16 +409,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
                 });
     }
 
-    private void emitValueTypesAttribute() {
-        short[] valueTypesAttr = cpClassPool.declaredValueTypes();
-        int attrLen = 2 + 2 * valueTypesAttr.length;
-        asm.emitShort(valueTypesAttrIdx);
-        asm.emitInt(attrLen);
-        asm.emitShort((short) valueTypesAttr.length);
-        for (short cpi : valueTypesAttr) {
-            asm.emitShort(cpi);
-        }
-    }
     /** This emits the code for either invoke() or newInstance() */
     private void emitInvoke() {
         // NOTE that this code will only handle 65535 parameters since we
@@ -536,6 +509,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         // is compatible with the formal parameter type, and pushing the
         // actual on the operand stack (unboxing and widening if necessary).
 
+        short paramTypeCPIdx = nonPrimitiveParametersBaseIdx;
         Label nextParamLabel = null;
         byte count = 1; // both invokeinterface opcode's "count" as well as
         // num args of other invoke bytecodes
@@ -633,8 +607,8 @@ class MethodAccessorGenerator extends AccessorGenerator {
                 cb.opc_athrow();
             } else {
                 // Emit appropriate checkcast
-                short paramTypeCPIdx = cpClassPool.cpIndex(paramType);
                 cb.opc_checkcast(paramTypeCPIdx);
+                paramTypeCPIdx = add(paramTypeCPIdx, S2);
                 // Fall through to next argument
             }
         }
@@ -659,6 +633,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                            count,
                                            count,
                                            typeSizeInStackSlots(returnType));
+
                 } else {
                     cb.opc_invokevirtual(targetMethodRef,
                                          count,
@@ -748,6 +723,16 @@ class MethodAccessorGenerator extends AccessorGenerator {
         return false;
     }
 
+    private int numNonPrimitiveParameterTypes() {
+        int num = 0;
+        for (int i = 0; i < parameterTypes.length; i++) {
+            if (!parameterTypes[i].isPrimitive()) {
+                ++num;
+            }
+        }
+        return num;
+    }
+
     private boolean isInterface() {
         return declaringClass.isInterface();
     }
@@ -777,95 +762,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
         } else {
             int num = ++methodSymnum;
             return "jdk/internal/reflect/GeneratedMethodAccessor" + num;
-        }
-    }
-
-    private static Set<String> getDeclaredValueTypeNames(Class<?> c) {
-        return SharedSecrets.getJavaLangAccess().getDeclaredValueTypeNames(c);
-    }
-
-    /*
-     * CONSTANT_CLASS constant pool entry pool for the declaring class and
-     * parameter types.  Add constant pool entry for the return type if
-     * it's a declared value type.
-     */
-    class ConstantPoolClassPool {
-        final Map<Class<?>, Short> cpEntries = new HashMap<>();
-        final Set<Class<?>> types = new HashSet<>();
-        final Set<Class<?>> valueTypes;
-        ConstantPoolClassPool() {
-            Set<String> declaredValueTypes = getDeclaredValueTypeNames(declaringClass);
-            if (declaredValueTypes.isEmpty()) {
-                // no declared value types
-                this.valueTypes = Set.of();
-                // CP entries for declaring class and parameter types
-                addCPEntry(declaringClass);
-                for (Class<?> paramType : parameterTypes) {
-                    addCPEntry(paramType);
-                }
-            } else {
-                this.valueTypes = new HashSet<>();
-                add(declaredValueTypes, declaringClass);
-                for (Class<?> paramType : parameterTypes) {
-                    add(declaredValueTypes, paramType);
-                }
-                // CONSTANT_CLASS entry for return type is referenced
-                // in ValueTypes attribute only
-                addIfDeclaredValueType(declaredValueTypes, returnType);
-            }
-        }
-
-        private void addCPEntry(Class<?> c) {
-            if (!c.isPrimitive())
-                types.add(c);
-        }
-
-        private void add(Set<String> declaredValueTypes, Class<?> type) {
-            addCPEntry(type);
-            addIfDeclaredValueType(declaredValueTypes, type);
-        }
-
-        // add if this type or its component type is a declared value type
-        private void addIfDeclaredValueType(Set<String> declaredValueTypes, Class<?> type) {
-            Class<?> c = type;
-            while (c.isArray()) c = c.getComponentType();
-            if (declaredValueTypes.contains(c.getName())) {
-                valueTypes.add(c);
-                addCPEntry(c);
-            }
-        }
-
-        int numConstantPoolEntries() {
-            return types.size() * 2;
-        }
-
-        void emitConstantPoolEntries() {
-            for (Class<?> c : types) {
-                cpEntries.computeIfAbsent(c, this::emitConstantPoolEntries);
-            }
-        }
-
-        private short emitConstantPoolEntries(Class<?> c) {
-            asm.emitConstantPoolUTF8(getClassName(c, false));
-            asm.emitConstantPoolClass(asm.cpi());
-            return asm.cpi();
-        }
-
-        boolean hasDeclaredValueTypes() {
-            return !valueTypes.isEmpty();
-        }
-
-        short cpIndex(Class<?> c) {
-            return cpEntries.computeIfAbsent(c, this::emitConstantPoolEntries);
-        }
-
-        short[] declaredValueTypes() {
-            short[] idx = new short[valueTypes.size()];
-            int i=0;
-            for (Class<?> c: valueTypes) {
-                idx[i++] = cpIndex(c);
-            }
-            return idx;
         }
     }
 }

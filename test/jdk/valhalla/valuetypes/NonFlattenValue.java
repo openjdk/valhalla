@@ -22,19 +22,19 @@
  */
 
 public value class NonFlattenValue {
-    __NotFlattened Point nfp;
+    Point.box nfp;
 
-    NonFlattenValue() {
-        nfp = Point.makePoint(0, 0);
+    NonFlattenValue(Point p) {
+        this.nfp = p;
     }
-
-    public Point point() {
+    public Point.box point() {
         return nfp;
     }
 
     public static NonFlattenValue make(int x, int y) {
         NonFlattenValue v = NonFlattenValue.default;
-        v = __WithField(v.nfp, Point.makePoint(x, y));
+        Point p = Point.makePoint(x, y);
+        v = __WithField(v.nfp, p);
         return v;
     }
 

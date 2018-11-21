@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on value types
- * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java Line.java MutablePath.java MixedValues.java
+ * @compile -XDallowWithFieldOperator Point.java Line.java MutablePath.java MixedValues.java
  * @run testng/othervm -XX:+EnableValhalla MethodHandleTest
  */
 

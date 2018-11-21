@@ -30,7 +30,7 @@ public class MixedValues {
     Line l;
     MutablePath mutablePath;
     List<String> list;
-    __NotFlattened Point nfp;
+    Point.box nfp;
 
     public MixedValues(Point p, Line l, MutablePath path, String... names) {
         this.p = p;

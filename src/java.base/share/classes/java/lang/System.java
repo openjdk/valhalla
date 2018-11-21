@@ -2202,11 +2202,6 @@ public final class System {
             public byte[] getBytesUTF8NoRepl(String s) {
                 return StringCoding.getBytesUTF8NoRepl(s);
             }
-
-            public Set<String> getDeclaredValueTypeNames(Class<?> current) {
-                return Collections.emptySet();
-            }
-
         });
     }
 }
