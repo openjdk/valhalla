@@ -1465,7 +1465,6 @@ public class ClassReader {
                     }
                 }
             },
-            // ValueTypes attribute is not currently handled in the reader - javac does not care
         };
 
         for (AttributeReader r: readers)
