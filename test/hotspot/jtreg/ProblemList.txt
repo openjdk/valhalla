@@ -38,6 +38,9 @@
 #
 #############################################################################
 
+# Valhalla dynamic-nestmates temporary exclusions
+compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJavaType.java 8209676 generic-all
+
 # :hotspot_compiler
 
 compiler/ciReplay/TestSAServer.java 8029528 generic-all
