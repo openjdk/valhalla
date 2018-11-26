@@ -113,8 +113,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
             aconst_null().
             invokevirtual(TestNullableValueTypes.class, "test1", "(Lcompiler/valhalla/valuetypes/MyValue1;)J", false).
             return_();
-        },
-        MyValue1.class);
+        });
 
     @DontCompile
     public void test1_verifier(boolean warmup) throws Throwable {
@@ -233,8 +232,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
             CODE.
             aconst_null().
             areturn();
-        },
-        MyValue1.class);
+        });
 
     @Test
     public void test7() throws Throwable {
@@ -262,8 +260,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
             aconst_null().
             putfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
             return_();
-        },
-        MyValue1.class);
+        });
 
     @Test
     public void test8() throws Throwable {
@@ -322,8 +319,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
             swap().
             putfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
             return_();
-        },
-        MyValue1.class);
+        });
 
     @Test
     public void test10(boolean flag) throws Throwable {
@@ -360,8 +356,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
             swap().
             putfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
             return_();
-        },
-        MyValue1.class);
+        });
 
     @Test
     public void test11(boolean flag) throws Throwable {
@@ -463,7 +458,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // Test writing null to a (flattened) value type array
-
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test14_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -485,6 +481,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), testValue1.hash());
     }
+*/
 
     @DontInline
     MyValue1 get_nullField() {

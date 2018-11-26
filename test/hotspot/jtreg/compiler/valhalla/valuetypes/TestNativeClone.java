@@ -63,8 +63,7 @@ public class TestNativeClone {
             aload_0().
             invokevirtual(Object.class, "clone", "()Ljava/lang/Object;", false).
             areturn();
-        },
-        MyValue.class);
+        });
 
     public static void test1(MyValue vt) throws Throwable {
         try {

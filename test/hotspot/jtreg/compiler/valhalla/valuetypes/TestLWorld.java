@@ -634,6 +634,8 @@ public class TestLWorld extends ValueTypeTest {
     private static final Integer[] testIntegerArray = new Integer[42];
 
     // Test load from (flattened) value type array disguised as object array
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @Test()
     public Object test21(Object[] oa, int index) {
         return oa[index];
@@ -684,6 +686,7 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
     }
+*/
 
     @ForceInline
     public void test24_inline(Object[] oa, Object o, int index) {
@@ -728,7 +731,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test value store to (flattened) value type array disguised as interface array
-
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test26_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
@@ -754,6 +758,7 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
     }
+*/
 
     @ForceInline
     public void test27_inline(MyInterface[] ia, MyInterface i, int index) {
@@ -777,7 +782,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test object store to (flattened) value type array disguised as object array
-
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test28_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -825,6 +831,7 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
     }
+*/
 
     @ForceInline
     public void test30_inline(Object[] oa, Object o, int index) {
@@ -848,7 +855,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test value store to (flattened) value type array disguised as interface array
-
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test31_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
@@ -895,9 +903,11 @@ public class TestLWorld extends ValueTypeTest {
             // Expected
         }
     }
+*/
 
     // Test writing null to a (flattened) value type array disguised as object array
-
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test33_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -956,8 +966,7 @@ public class TestLWorld extends ValueTypeTest {
             aconst_null().
             aastore().
             return_();
-        },
-        MyValue1.class);
+        });
 
     @Test()
     public void test35(MyValue1[] va, int index) throws Throwable {
@@ -975,6 +984,7 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
+*/
 
     // Test writing a value type to a null value type array
     @Test()
@@ -994,7 +1004,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test incremental inlining
-
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test37_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -1093,6 +1104,12 @@ public class TestLWorld extends ValueTypeTest {
         result = test38(null, testValue1Array, index, index, 6);
         Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
     }
+*/
+
+    @ForceInline
+    public Object test39_inline() {
+        return new MyValue1[42];
+    }
 
     // Same as above but merging into Object instead of Object[]
     @Test()
@@ -1100,7 +1117,7 @@ public class TestLWorld extends ValueTypeTest {
         Object result = null;
         switch (num) {
         case 0:
-            result = test38_inline();
+            result = test39_inline();
             break;
         case 1:
             result = oa;
@@ -1280,8 +1297,7 @@ public class TestLWorld extends ValueTypeTest {
             aload_3().
             aastore().
             return_();
-        },
-        MyValue1.class, MyValue2.class);
+        });
 
     @Test()
     public void test44(MyValue1[] va, int index, MyValue2 v) throws Throwable {
@@ -1301,6 +1317,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @ForceInline
     public void test45_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -1322,6 +1340,7 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
+*/
 
     // instanceof tests with values
     @Test
@@ -1708,6 +1727,8 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(((MyValue1)array[0]).hash(), testValue1.hash());
     }
 
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @Test()
     public void test66(Object[] array, MyValue1 vt) {
         array[0] = vt;
@@ -1731,6 +1752,7 @@ public class TestLWorld extends ValueTypeTest {
         test67(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
+*/
 
     @Test()
     public void test68(Object[] array, Integer o) {
@@ -1752,10 +1774,10 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @Test(failOn = ALLOC + STORE)
-    public int test69(Object[] array) {
+    public int test69(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
-            result = (MyValue1)test69_sum(result, (MyValue1)array[i]);
+            result = (MyValue1)test69_sum(result, array[i]);
         }
         return result.x;
     }
@@ -1766,7 +1788,7 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
 
-    // Same as test70 but with an Interface
+    // Same as test69 but with an Interface
     @ForceInline
     public MyInterface test70_sum(MyInterface a, MyInterface b) {
         int sum = ((MyValue1)a).x + ((MyValue1)b).x;
@@ -1774,10 +1796,10 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @Test(failOn = ALLOC + STORE)
-    public int test70(MyInterface[] array) {
+    public int test70(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
-            result = (MyValue1)test70_sum(result, (MyValue1)array[i]);
+            result = (MyValue1)test70_sum(result, array[i]);
         }
         return result.x;
     }
@@ -1836,6 +1858,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Tests for loading/storing unkown values
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @Test
     public Object test73(Object[] va) {
         return va[0];
@@ -1877,6 +1901,7 @@ public class TestLWorld extends ValueTypeTest {
     public void test75_verifier(boolean warmup) {
         test75(42);
     }
+*/
 
     // Cast an Integer to a value type
     private static final MethodHandle castIntegerToValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
@@ -1887,8 +1912,7 @@ public class TestLWorld extends ValueTypeTest {
             aload_1().
             checkcast(MyValue1.class).
             return_();
-        },
-        MyValue1.class);
+        });
 
     // Casting a null Integer to a value type should throw an exception
     @Test

@@ -728,6 +728,8 @@ public class TestArrays extends ValueTypeTest {
 
     // Tests with Object arrays and clone/arraycopy
     // clone() as stub call
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @Test
     public Object[] test32(Object[] va) {
         return va.clone();
@@ -800,6 +802,7 @@ public class TestArrays extends ValueTypeTest {
             verify(test34_orig, result);
         }
     }
+*/
 
     static void verify(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; ++i) {
@@ -807,6 +810,23 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
+    static void verify(MyValue1[] src, MyValue1[] dst) {
+        for (int i = 0; i < src.length; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    static void verify(MyValue2[] src, MyValue2[] dst) {
+        for (int i = 0; i < src.length; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    static void verify(MyValue2[] src, Object[] dst) {
+        for (int i = 0; i < src.length; ++i) {
+            Asserts.assertEQ(src[i].hash(), ((MyInterface)dst[i]).hash());
+        }
+    }
 
     static boolean compile_and_run_again_if_deoptimized(boolean warmup, String test) {
         if (!warmup) {
@@ -824,8 +844,8 @@ public class TestArrays extends ValueTypeTest {
 
     // arraycopy() of value type array of unknown size
     @Test
-    public void test35(Object[] src, Object[] dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
+    public void test35(Object src, Object dst, int len) {
+        System.arraycopy(src, 0, dst, 0, len);
     }
 
     @DontCompile
@@ -836,17 +856,17 @@ public class TestArrays extends ValueTypeTest {
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
-        test35(src, dst);
+        test35(src, dst, src.length);
         verify(src, dst);
         if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test35")) {
-            test35(src, dst);
+            test35(src, dst, src.length);
             verify(src, dst);
         }
     }
 
     @Test
-    public void test36(Object[] src, MyValue2[] dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
+    public void test36(Object src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
     @DontCompile
@@ -866,7 +886,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
-    public void test37(MyValue2[] src, Object[] dst) {
+    public void test37(MyValue2[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
@@ -888,8 +908,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     @Warmup(1) // Avoid early compilation
-    public void test38(Object[] src, MyValue2[] dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
+    public void test38(Object src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
     @DontCompile
@@ -901,7 +921,7 @@ public class TestArrays extends ValueTypeTest {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
         test38(src, dst);
-        verify(src, dst);
+        verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test38");
             if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
@@ -909,7 +929,7 @@ public class TestArrays extends ValueTypeTest {
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test38(src, dst);
-            verify(src, dst);
+            verify(dst, src);
             if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
                 throw new RuntimeException("unexpected deoptimization");
             }
@@ -917,7 +937,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
-    public void test39(MyValue2[] src, Object[] dst) {
+    public void test39(MyValue2[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
@@ -939,7 +959,7 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     @Warmup(1) // Avoid early compilation
-    public void test40(Object[] src, Object[] dst) {
+    public void test40(Object[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
@@ -952,7 +972,7 @@ public class TestArrays extends ValueTypeTest {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
         test40(src, dst);
-        verify(src, dst);
+        verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test40");
             if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
@@ -960,7 +980,7 @@ public class TestArrays extends ValueTypeTest {
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test40(src, dst);
-            verify(src, dst);
+            verify(dst, src);
             if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
                 throw new RuntimeException("unexpected deoptimization");
             }
@@ -968,8 +988,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
-    public void test41(Object[] src, Object[] dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
+    public void test41(Object src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
     @DontCompile
@@ -987,7 +1007,6 @@ public class TestArrays extends ValueTypeTest {
             verify(src, dst);
         }
     }
-
 
     @Test
     public void test42(Object[] src, Object[] dst) {
@@ -1014,7 +1033,7 @@ public class TestArrays extends ValueTypeTest {
 
     // short arraycopy()'s
     @Test
-    public void test43(Object[] src, Object[] dst) {
+    public void test43(Object src, Object dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
@@ -1034,7 +1053,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
-    public void test44(Object[] src, MyValue2[] dst) {
+    public void test44(Object src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
@@ -1054,7 +1073,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
-    public void test45(MyValue2[] src, Object[] dst) {
+    public void test45(MyValue2[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
@@ -1087,7 +1106,7 @@ public class TestArrays extends ValueTypeTest {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
         test46(src, dst);
-        verify(src, dst);
+        verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test46");
             if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
@@ -1095,7 +1114,7 @@ public class TestArrays extends ValueTypeTest {
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test46(src, dst);
-            verify(src, dst);
+            verify(dst, src);
             if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
                 throw new RuntimeException("unexpected deoptimization");
             }
@@ -1124,7 +1143,7 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     @Warmup(1) // Avoid early compilation
-    public void test48(Object[] src, Object[] dst) {
+    public void test48(Object[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
@@ -1136,7 +1155,7 @@ public class TestArrays extends ValueTypeTest {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
         test48(src, dst);
-        verify(src, dst);
+        verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test48");
             if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
@@ -1144,7 +1163,7 @@ public class TestArrays extends ValueTypeTest {
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test48(src, dst);
-            verify(src, dst);
+            verify(dst, src);
             if (!WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
                 throw new RuntimeException("unexpected deoptimization");
             }
@@ -1152,7 +1171,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test
-    public void test49(Object[] src, Object[] dst) {
+    public void test49(Object src, Object[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
@@ -1193,6 +1212,8 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @Test
     public MyValue1[] test51(MyValue1[] va) {
         return Arrays.copyOf(va, va.length, MyValue1[].class);
@@ -1452,6 +1473,7 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test63(va, oa);
         verify(verif, result);
     }
+*/
 
     // Test default initialization of value type arrays: small array
     @Test

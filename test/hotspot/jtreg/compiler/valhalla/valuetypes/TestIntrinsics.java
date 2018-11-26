@@ -392,6 +392,8 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Test copyOf intrinsic with allocated value type in it's debug information
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     value final class Test25Value {
         final int x;
         public Test25Value() {
@@ -413,6 +415,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Test25Value vt = new Test25Value();
         test25(vt);
     }
+*/
 
     @Test
     public Object test26() {
