@@ -72,8 +72,8 @@ public class VerifierValueTypes {
         // to withfield's field.
         runTestVerifyError("wthFldBadFldVal", "Bad type on operand stack");
 
-        // Test that VerifyError is thrown if the second operand on the stack is not a reference.
-        runTestVerifyError("wthFldBadFldRef", "Bad value type on operand stack in withfield");
+        // Test that VerifyError is thrown if the second operand on the stack is a primitive.
+        runTestVerifyError("wthFldBadFldRef", "Bad type on operand stack");
 
         // Test that ClassFormatError is thrown for a class file, with major version 54, that
         // contains a withfield opcode.
@@ -86,20 +86,14 @@ public class VerifierValueTypes {
         // entry is java.lang.Object and the reference on the stack is a value type.
         runTestVerifyError("wthFldObject", "must be identical value types");
 
-        // Test VerifyError is thrown if a new's cp entry is a value type.
-        runTestVerifyError("newVT", "Illegal use of value type as operand for new instruction");
-
         // Test VerifyError is thrown if a monitorenter's cp entry is a value type.
-        runTestVerifyError("monEnterVT", "Illegal use of value type as operand for monitorenter");
+        runTestVerifyError("monEnterVT", "Bad type on operand stack");
 
         // Test VerifyError is thrown if a defaultvalue's cp entry is a value type.
-        runTestVerifyError("defValueObj", "Illegal use of an object as operand for defaultvalue");
+        // TBD!!!
+        runTestVerifyError("defValueObj", "Invalid type on operand stack in withfield instruction");
 
         // Test VerifyError is thrown if a withfield's class operand is not a value type.
-        runTestVerifyError("withfieldObj", "Bad value type on operand stack in withfield");
-
-        // Test VerifyError is thrown if a putfield's class operand is a value type in a
-        // method not named '<init>'.
-        runTestVerifyError("putfieldVT", "Field for putfield cannot be a member of a value type");
+        runTestVerifyError("withfieldObj", "Bad type on operand stack");
     }
 }

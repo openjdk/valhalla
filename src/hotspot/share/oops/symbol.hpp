@@ -205,6 +205,7 @@ class Symbol : public MetaspaceObj {
   }
   bool is_Q_signature() const;
   Symbol* fundamental_name(TRAPS);
+  bool is_same_fundamental_type(Symbol*) const;
 
   // Tests if the symbol starts with the given prefix.
   int index_of_at(int i, const char* str, int len) const;
@@ -248,6 +249,7 @@ class Symbol : public MetaspaceObj {
   void print_utf8_on(outputStream* st) const;
   void print_on(outputStream* st) const;         // First level print
   void print_value_on(outputStream* st) const;   // Second level print.
+  void print_Qvalue_on(outputStream* st) const;  // Second level print for Q-types.
 
   // printing on default output stream
   void print()         { print_on(tty);       }

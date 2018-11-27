@@ -110,12 +110,67 @@ bool VerificationType::is_reference_assignable_from(
   } else if (is_array() && from.is_array()) {
     VerificationType comp_this = get_component(context, CHECK_false);
     VerificationType comp_from = from.get_component(context, CHECK_false);
+
+    if (comp_from.is_valuetype() && !comp_this.is_null() && comp_this.is_reference()) {
+      // An array of value types is not assignable to an array of java.lang.Objects.
+      if (comp_this.name() == vmSymbols::java_lang_Object()) {
+        return false;
+      }
+
+      // Need to load 'comp_this' to see if it is an interface.
+      InstanceKlass* klass = context->current_class();
+      {
+        HandleMark hm(THREAD);
+        Klass* comp_this_class = SystemDictionary::resolve_or_fail(
+            comp_this.name(), Handle(THREAD, klass->class_loader()),
+            Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+        klass->class_loader_data()->record_dependency(comp_this_class);
+        if (log_is_enabled(Debug, class, resolve)) {
+          Verifier::trace_class_resolution(comp_this_class, klass);
+        }
+        // An array of value types is not assignable to an array of interface types.
+        if (comp_this_class->is_interface()) {
+          return false;
+        }
+      }
+    }
+
     if (!comp_this.is_bogus() && !comp_from.is_bogus()) {
       return comp_this.is_component_assignable_from(comp_from, context,
                                           from_field_is_protected, CHECK_false);
     }
   }
   return false;
+}
+
+bool VerificationType::is_valuetype_assignable_from(const VerificationType& from) const {
+  // Check that 'from' is not null, is a value type, and is the same value type.
+  assert(is_valuetype(), "called with a non-valuetype type");
+  assert(!is_null(), "valuetype is not null");
+  assert(name() != vmSymbols::java_lang_Object(), "java.lang.Object is a value type?");
+  return (!from.is_null() && from.is_valuetype() && name() == from.name());
+}
+
+bool VerificationType::is_ref_assignable_from_value_type(const VerificationType& from, ClassVerifier* context, TRAPS) const {
+  assert(!from.is_null(), "Value type should not be null");
+  if (!is_null() && (name()->is_same_fundamental_type(from.name()) ||
+      name() == vmSymbols::java_lang_Object())) {
+    return true;
+  }
+
+  // Need to load 'this' to see if it is an interface.
+  InstanceKlass* klass = context->current_class();
+  {
+    HandleMark hm(THREAD);
+    Klass* this_class = SystemDictionary::resolve_or_fail(
+        name(), Handle(THREAD, klass->class_loader()),
+        Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+    klass->class_loader_data()->record_dependency(this_class);
+    if (log_is_enabled(Debug, class, resolve)) {
+      Verifier::trace_class_resolution(this_class, klass);
+    }
+    return (this_class->is_interface());
+  }
 }
 
 VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) const {
@@ -135,12 +190,16 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
         name(), 1, name()->utf8_length(),
         CHECK_(VerificationType::bogus_type()));
       return VerificationType::reference_type(component);
-    case 'Q': // fall through
     case 'L':
       component = context->create_temporary_symbol(
         name(), 2, name()->utf8_length() - 1,
         CHECK_(VerificationType::bogus_type()));
       return VerificationType::reference_type(component);
+    case 'Q':
+      component = context->create_temporary_symbol(
+        name(), 2, name()->utf8_length() - 1,
+        CHECK_(VerificationType::bogus_type()));
+      return VerificationType::valuetype_type(component);
     default:
       // Met an invalid type signature, e.g. [X
       return VerificationType::bogus_type();
@@ -165,6 +224,8 @@ void VerificationType::print_on(outputStream* st) const {
     case Double_2nd:       st->print("double_2nd"); break;
     case Null:             st->print("null"); break;
     case ReferenceQuery:   st->print("reference type"); break;
+    case ValueTypeQuery:   st->print("value type"); break;
+    case NonScalarQuery:   st->print("reference or value type"); break;
     case Category1Query:   st->print("category1 type"); break;
     case Category2Query:   st->print("category2 type"); break;
     case Category2_2ndQuery: st->print("category2_2nd type"); break;
@@ -173,6 +234,8 @@ void VerificationType::print_on(outputStream* st) const {
         st->print("uninitializedThis");
       } else if (is_uninitialized()) {
         st->print("uninitialized %d", bci());
+      } else if (is_valuetype()) {
+        name()->print_Qvalue_on(st);
       } else {
         name()->print_value_on(st);
       }

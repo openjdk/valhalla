@@ -101,6 +101,35 @@ Symbol* Symbol::fundamental_name(TRAPS) {
   }
 }
 
+bool Symbol::is_same_fundamental_type(Symbol* s) const {
+  if (this == s) return true;
+  if (utf8_length() < 3) return false;
+  int offset1, offset2, len;
+  if (byte_at(utf8_length() - 1) == ';') {
+    if (byte_at(0) != 'Q' && byte_at(0) != 'L') return false;
+    offset1 = 1;
+    len = utf8_length() - 2;
+  } else {
+    offset1 = 0;
+    len = utf8_length();
+  }
+  if (s->byte_at(s->utf8_length() - 1) == ';') {
+    if (s->byte_at(0) != 'Q' && s->byte_at(0) != 'L') return false;
+    offset2 = 1;
+  } else {
+    offset2 = 0;
+  }
+  if ((offset2 + len) > s->utf8_length()) return false;
+  if ((utf8_length() - offset1 * 2) != (s->utf8_length() - offset2 * 2))
+    return false;
+  int l = len;
+  while (l-- > 0) {
+    if (byte_at(offset1 + l) != s->byte_at(offset2 + l))
+      return false;
+  }
+  return true;
+}
+
 // ------------------------------------------------------------------
 // Symbol::index_of
 //
@@ -328,6 +357,18 @@ void Symbol::print_value_on(outputStream* st) const {
       st->print("%c", byte_at(i));
     }
     st->print("'");
+  }
+}
+
+void Symbol::print_Qvalue_on(outputStream* st) const {
+  if (this == NULL) {
+    st->print("NULL");
+  } else {
+    st->print("'Q");
+    for (int i = 0; i < utf8_length(); i++) {
+      st->print("%c", byte_at(i));
+    }
+    st->print(";'");
   }
 }
 

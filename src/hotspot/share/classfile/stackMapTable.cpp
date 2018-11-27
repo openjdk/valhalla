@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -187,7 +187,17 @@ VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
       _stream->stackmap_format_error("bad class index", THREAD);
       return VerificationType::bogus_type();
     }
-    return VerificationType::reference_type(_cp->klass_name_at(class_index));
+    Symbol* klass_name = _cp->klass_name_at(class_index);
+    if (klass_name->is_Q_signature()) {
+      Symbol* fund_name = klass_name->fundamental_name(THREAD);
+      if (fund_name == NULL) {
+        _stream->stackmap_format_error("TBD something bad happened", THREAD);
+        return VerificationType::bogus_type();
+      }
+      return VerificationType::valuetype_type(fund_name);
+    } else {
+      return VerificationType::reference_type(klass_name);
+    }
   }
   if (tag == ITEM_UninitializedThis) {
     if (flags != NULL) {

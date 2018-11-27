@@ -58,7 +58,7 @@
 #define NOFAILOVER_MAJOR_VERSION                       51
 #define NONZERO_PADDING_BYTES_IN_SWITCH_MAJOR_VERSION  51
 #define STATIC_METHOD_IN_INTERFACE_MAJOR_VERSION       52
-#define VALUETYPE_MAJOR_VERSION                        55
+#define VALUETYPE_MAJOR_VERSION                        56
 #define MAX_ARRAY_DIMENSIONS 255
 
 // Access to external entry for VerifyClassCodes - old byte code verifier
@@ -575,10 +575,18 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
 
 // Methods in ClassVerifier
 
+VerificationType reference_or_valuetype(InstanceKlass* klass) {
+  if (klass->is_value()) {
+    return VerificationType::valuetype_type(klass->name());
+  } else {
+    return VerificationType::reference_type(klass->name());
+  }
+}
+
 ClassVerifier::ClassVerifier(
     InstanceKlass* klass, TRAPS)
     : _thread(THREAD), _exception_type(NULL), _message(NULL), _klass(klass) {
-  _this_type = VerificationType::reference_type(klass->name());
+  _this_type = reference_or_valuetype(klass);
   // Create list to hold symbols in reference area.
   _symbols = new GrowableArray<Symbol*>(100, 0, NULL);
 }
@@ -968,7 +976,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::integer_type(), CHECK_VERIFY(this));
           atype = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
-          if (!atype.is_reference_array()) {
+          if (!atype.is_nonscalar_array()) {
             verify_error(ErrorContext::bad_type(bci,
                 current_frame.stack_top_ctx(),
                 TypeOrigin::implicit(VerificationType::reference_check())),
@@ -1142,7 +1150,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           atype = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
           // more type-checking is done at runtime
-          if (!atype.is_reference_array()) {
+          if (!atype.is_nonscalar_array()) {
             verify_error(ErrorContext::bad_type(bci,
                 current_frame.stack_top_ctx(),
                 TypeOrigin::implicit(VerificationType::reference_check())),
@@ -1542,12 +1550,12 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_if_acmpeq :
         case Bytecodes::_if_acmpne :
           current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
+            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
           // fall through
         case Bytecodes::_ifnull :
         case Bytecodes::_ifnonnull :
           current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
+            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
           target = bcs.dest();
           stackmap_table.check_jump_target
             (&current_frame, target, CHECK_VERIFY(this));
@@ -1598,7 +1606,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           no_control_flow = true; break;
         case Bytecodes::_areturn :
           type = current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
+            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
           verify_return_value(return_type, type, bci,
                               &current_frame, CHECK_VERIFY(this));
           no_control_flow = true; break;
@@ -1680,14 +1688,16 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           }
           index = bcs.get_index_u2();
           verify_cp_class_type(bci, index, cp, CHECK_VERIFY(this));
-          VerificationType vtype = cp_index_to_type(index, cp, CHECK_VERIFY(this));
-          if (!vtype.is_object()) {
+          VerificationType ref_type = cp_index_to_type(index, cp, CHECK_VERIFY(this));
+          if (!ref_type.is_object()) {
             verify_error(ErrorContext::bad_type(bci,
-                TypeOrigin::cp(index, vtype)),
+                TypeOrigin::cp(index, ref_type)),
                 "Illegal defaultvalue instruction");
             return;
           }
-          current_frame.push_stack(vtype, CHECK_VERIFY(this));
+          VerificationType value_type =
+            VerificationType::change_ref_to_valuetype(ref_type);
+          current_frame.push_stack(value_type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_newarray :
@@ -1733,12 +1743,6 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_monitorexit : {
           VerificationType ref = current_frame.pop_stack(
             VerificationType::reference_check(), CHECK_VERIFY(this));
-          if (!ref.is_null() && !ref.is_uninitialized() &&
-             ref.name()->is_Q_signature()) {
-            verify_error(ErrorContext::bad_code(bci),
-              "Illegal use of value type as operand for monitorenter or monitorexit instruction");
-            return;
-          }
           no_control_flow = false; break;
         }
         case Bytecodes::_multianewarray :
@@ -2337,17 +2341,19 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       for (int i = n - 1; i >= 0; i--) {
         current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
       }
-      stack_object_type = current_frame->pop_stack(CHECK_VERIFY(this));
-      // stack_object_type and target_class_type must be identical references.
-      if (!stack_object_type.is_reference() ||
-          !stack_object_type.equals(target_class_type)) {
+      // stack_object_type and target_class_type must be the same value type.
+      stack_object_type =
+        current_frame->pop_stack(VerificationType::valuetype_check(), CHECK_VERIFY(this));
+      VerificationType target_value_type =
+        VerificationType::change_ref_to_valuetype(target_class_type);
+      if (!stack_object_type.equals(target_value_type)) {
         verify_error(ErrorContext::bad_value_type(bci,
             current_frame->stack_top_ctx(),
             TypeOrigin::cp(index, target_class_type)),
-            "Bad value type on operand stack in withfield instruction");
+            "Invalid type on operand stack in withfield instruction");
         return;
       }
-      current_frame->push_stack(target_class_type, CHECK_VERIFY(this));
+      current_frame->push_stack(target_value_type, CHECK_VERIFY(this));
       break;
     }
     case Bytecodes::_getfield: {
@@ -2885,22 +2891,22 @@ void ClassVerifier::verify_invoke_instructions(
   } else if (opcode == Bytecodes::_invokespecial
              && !is_same_or_direct_interface(current_class(), current_type(), ref_class_type)
              && !ref_class_type.equals(VerificationType::reference_type(
-                  current_class()->super()->name()))) {
+                  current_class()->super()->name()))) { // super() can never be a value_type.
     bool subtype = false;
     bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
     if (!current_class()->is_unsafe_anonymous()) {
       subtype = ref_class_type.is_assignable_from(
                  current_type(), this, false, CHECK_VERIFY(this));
     } else {
-      VerificationType unsafe_anonymous_host_type =
-                        VerificationType::reference_type(current_class()->unsafe_anonymous_host()->name());
+      InstanceKlass* unsafe_host = current_class()->unsafe_anonymous_host();
+      VerificationType unsafe_anonymous_host_type = reference_or_valuetype(unsafe_host);
       subtype = ref_class_type.is_assignable_from(unsafe_anonymous_host_type, this, false, CHECK_VERIFY(this));
 
       // If invokespecial of IMR, need to recheck for same or
       // direct interface relative to the host class
       have_imr_indirect = (have_imr_indirect &&
                            !is_same_or_direct_interface(
-                             current_class()->unsafe_anonymous_host(),
+                             unsafe_host,
                              unsafe_anonymous_host_type, ref_class_type));
     }
     if (!subtype) {
@@ -2938,9 +2944,10 @@ void ClassVerifier::verify_invoke_instructions(
           // objectref is a subtype of the unsafe_anonymous_host of the current class
           // to allow an anonymous class to reference methods in the unsafe_anonymous_host
           VerificationType top = current_frame->pop_stack(CHECK_VERIFY(this));
-          VerificationType hosttype =
-            VerificationType::reference_type(current_class()->unsafe_anonymous_host()->name());
-          bool subtype = hosttype.is_assignable_from(top, this, false, CHECK_VERIFY(this));
+
+          InstanceKlass* unsafe_host = current_class()->unsafe_anonymous_host();
+          VerificationType host_type = reference_or_valuetype(unsafe_host);
+          bool subtype = host_type.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
             verify_error( ErrorContext::bad_type(current_frame->offset(),
               current_frame->stack_top_ctx(),
@@ -3053,11 +3060,12 @@ void ClassVerifier::verify_anewarray(
     strncpy(&arr_sig_str[1], component_name, length - 1);
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    // add one dimension to component with 'L' prepended and ';' appended.
+    char Q_or_L = component_type.is_valuetype() ? 'Q' : 'L';
+    // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length);
     arr_sig_str[0] = '[';
-    arr_sig_str[1] = 'L';
+    arr_sig_str[1] = Q_or_L;
     strncpy(&arr_sig_str[2], component_name, length - 2);
     arr_sig_str[length - 1] = ';';
   }
@@ -3101,7 +3109,7 @@ void ClassVerifier::verify_dload(u2 index, StackMapFrame* current_frame, TRAPS) 
 
 void ClassVerifier::verify_aload(u2 index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->get_local(
-    index, VerificationType::reference_check(), CHECK_VERIFY(this));
+    index, VerificationType::nonscalar_check(), CHECK_VERIFY(this));
   current_frame->push_stack(type, CHECK_VERIFY(this));
 }
 
@@ -3138,7 +3146,7 @@ void ClassVerifier::verify_dstore(u2 index, StackMapFrame* current_frame, TRAPS)
 
 void ClassVerifier::verify_astore(u2 index, StackMapFrame* current_frame, TRAPS) {
   VerificationType type = current_frame->pop_stack(
-    VerificationType::reference_check(), CHECK_VERIFY(this));
+    VerificationType::nonscalar_check(), CHECK_VERIFY(this));
   current_frame->set_local(index, type, CHECK_VERIFY(this));
 }
 

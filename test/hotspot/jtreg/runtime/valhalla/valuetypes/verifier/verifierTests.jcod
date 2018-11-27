@@ -60,7 +60,7 @@
 class defValBadCP {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -262,7 +262,7 @@ class defValBadMajorVersion {
 class defValWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -363,7 +363,7 @@ class defValWrongCPType {
 class wthFldBadCP {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -481,7 +481,7 @@ class wthFldBadCP {
 class wthFldBadFldVal {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -598,7 +598,7 @@ class wthFldBadFldVal {
 class wthFldBadFldRef {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -817,7 +817,7 @@ class wthFldBadMajorVersion {
 class wthFldWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -936,7 +936,7 @@ class wthFldWrongCPType {
 class wthFldObject {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [22] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1050,124 +1050,6 @@ class wthFldObject {
 
 ///////////////////////////////////////////////////////////
 
-// The withfield opcode (0xCC) was change to a new (0xBB) opcode and its
-// constant pool entry was changed to point to a class that is a value type.
-// This should cause a VerifyError because the operand for opcode new cannot be
-// a value type.
-//
-class newVT {
-  0xCAFEBABE;
-  0; // minor version
-  55; // version
-  [20] { // Constant Pool
-    ; // first element is empty
-    Method #4 #17; // #1     at 0x0A
-    Field #3 #18; // #2     at 0x0F
-    class #12; // #3     at 0x14
-    class #19; // #4     at 0x17
-    Utf8 "int_v"; // #5     at 0x1A
-    Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
-    Utf8 "()V"; // #8     at 0x2F
-    Utf8 "Code"; // #9     at 0x35
-    Utf8 "LineNumberTable"; // #10     at 0x3C
-    Utf8 "makenewVT"; // #11     at 0x4E
-    Utf8 "newVT"; // #12     at 0x5A
-    Utf8 "ValueTypes"; // #13     at 0x62
-    Utf8 "(I)LnewVT;"; // #14     at 0x6F
-    Utf8 "SourceFile"; // #15     at 0x7C
-    Utf8 "NewVT.java"; // #16     at 0x89
-    NameAndType #7 #8; // #17     at 0x96
-    NameAndType #5 #6; // #18     at 0x9B
-    Utf8 "java/lang/Object"; // #19     at 0xA0
-  } // Constant Pool
-
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
-  #3;// this_cpx
-  #4;// super_cpx
-
-  [0] { // Interfaces
-  } // Interfaces
-
-  [1] { // fields
-    { // Member at 0xBD
-      0x0010; // access
-      #5; // name_cpx
-      #6; // sig_cpx
-      [0] { // Attributes
-      } // Attributes
-    } // Member
-  } // fields
-
-  [2] { // methods
-    { // Member at 0xC7
-      0x0000; // access
-      #7; // name_cpx
-      #8; // sig_cpx
-      [1] { // Attributes
-        Attr(#9, 42) { // Code at 0xCF
-          2; // max_stack
-          1; // max_locals
-          Bytes[10]{
-            0x2AB700012A04B500;
-            0x02B1;
-          };
-          [0] { // Traps
-          } // end Traps
-          [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0xEB
-              [3] { // LineNumberTable
-                0  3; //  at 0xF7
-                4  4; //  at 0xFB
-                9  5; //  at 0xFF
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    } // Member
-    ;
-    { // Member at 0xFF
-      0x0008; // access
-      #11; // name_cpx
-      #14; // sig_cpx
-      [1] { // Attributes
-        Attr(#9, 44) { // Code at 0x0107
-          2; // max_stack
-          2; // max_locals
-          Bytes[12]{
-            0xCB00034C2B1ABB00; // Changed opcode withfield (0xCC) to new (0xBB)
-            0x034C2BB0;         // Changed constant pool entry to point to a value type class.
-          };
-          [0] { // Traps
-          } // end Traps
-          [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0x0125
-              [3] { // LineNumberTable
-                0  7; //  at 0x0131
-                4  8; //  at 0x0135
-                10  9; //  at 0x0139
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    } // Member
-  } // methods
-
-  [2] { // Attributes
-    Attr(#15, 2) { // SourceFile at 0x013B
-      #16;
-    } // end SourceFile
-    ;
-    Attr(#13, 4) { // ValueTypes at 0x0143
-      0x00010003;
-    } // end ValueTypes
-  } // Attributes
-} // end class newVT
-
-///////////////////////////////////////////////////////////
-
 // The astore_1 opcode (0x4C) was changed to a monitorenter (0xC2) opcode but
 // the operand on the stack is a value type.
 // This should cause a VerifyError because the operand for opcode monitorenter
@@ -1176,7 +1058,7 @@ class newVT {
 class monEnterVT {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1294,7 +1176,7 @@ class monEnterVT {
 class defValueObj {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1412,7 +1294,7 @@ class defValueObj {
 class withfieldObj {
   0xCAFEBABE;
   0; // minor version
-  55; // version
+  56; // version
   [23] { // Constant Pool
     ; // first element is empty
     Method #5 #19; // #1     at 0x0A
@@ -1530,121 +1412,3 @@ class withfieldObj {
     } // end ValueTypes
   } // Attributes
 } // end class withfieldObj
-
-///////////////////////////////////////////////////////////
-
-// The withfield opcode was changed to a getfield opcode in a method that is not
-// named '<init>'.
-// This should cause a VerifyError because the reference operand for a getfield
-// cannot be a value type unless it is in an '<init>' method.
-//
-class putfieldVT {
-  0xCAFEBABE;
-  0; // minor version
-  55; // version
-  [20] { // Constant Pool
-    ; // first element is empty
-    Method #4 #17; // #1     at 0x0A
-    Field #3 #18; // #2     at 0x0F
-    class #12; // #3     at 0x14
-    class #19; // #4     at 0x17
-    Utf8 "int_v"; // #5     at 0x1A
-    Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
-    Utf8 "()V"; // #8     at 0x2F
-    Utf8 "Code"; // #9     at 0x35
-    Utf8 "LineNumberTable"; // #10     at 0x3C
-    Utf8 "makeputfieldVT"; // #11     at 0x4E
-    Utf8 "putfieldVT"; // #12     at 0x5F
-    Utf8 "ValueTypes"; // #13     at 0x6C
-    Utf8 "(I)LputfieldVT;"; // #14     at 0x79
-    Utf8 "SourceFile"; // #15     at 0x8B
-    Utf8 "putfieldVT.java"; // #16     at 0x98
-    NameAndType #7 #8; // #17     at 0xAA
-    NameAndType #5 #6; // #18     at 0xAF
-    Utf8 "java/lang/Object"; // #19     at 0xB4
-  } // Constant Pool
-
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
-  #3;// this_cpx
-  #4;// super_cpx
-
-  [0] { // Interfaces
-  } // Interfaces
-
-  [1] { // fields
-    { // Member at 0xD1
-      0x0010; // access
-      #5; // name_cpx
-      #6; // sig_cpx
-      [0] { // Attributes
-      } // Attributes
-    } // Member
-  } // fields
-
-  [2] { // methods
-    { // Member at 0xDB
-      0x0000; // access
-      #7; // name_cpx
-      #8; // sig_cpx
-      [1] { // Attributes
-        Attr(#9, 42) { // Code at 0xE3
-          2; // max_stack
-          1; // max_locals
-          Bytes[10]{
-            0x2AB700012A04B500;
-            0x02B1;
-          };
-          [0] { // Traps
-          } // end Traps
-          [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0xFF
-              [3] { // LineNumberTable
-                0  3; //  at 0x010B
-                4  4; //  at 0x010F
-                9  5; //  at 0x0113
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    } // Member
-    ;
-    { // Member at 0x0113
-      0x0008; // access
-      #11; // name_cpx
-      #14; // sig_cpx
-      [1] { // Attributes
-        Attr(#9, 44) { // Code at 0x011B
-          2; // max_stack
-          2; // max_locals
-          Bytes[12]{
-            0xCB00034C2B1AB500; // Changed opcode withfield (0xCC) to putfield (0xB5) at byte 6.
-            0x024C2BB0;
-          };
-          [0] { // Traps
-          } // end Traps
-          [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0x0139
-              [3] { // LineNumberTable
-                0  7; //  at 0x0145
-                4  8; //  at 0x0149
-                10  9; //  at 0x014D
-              }
-            } // end LineNumberTable
-          } // Attributes
-        } // end Code
-      } // Attributes
-    } // Member
-  } // methods
-
-  [2] { // Attributes
-    Attr(#15, 2) { // SourceFile at 0x014F
-      #16;
-    } // end SourceFile
-    ;
-    Attr(#13, 4) { // ValueTypes at 0x0157
-      0x00010003;
-    } // end ValueTypes
-  } // Attributes
-} // end class putfieldVT

@@ -90,7 +90,6 @@
 // }
 //
 
-
 class WithFieldNoAccessTest$V {
   0xCAFEBABE;
   0; // minor version
@@ -121,7 +120,7 @@ class WithFieldNoAccessTest$V {
     Utf8 "V"; // #22     at 0x7F
     Utf8 "InnerClasses"; // #23     at 0x83
     Utf8 "ValueTypes"; // #24     at 0x92
-    Utf8 "(CJI)LWithFieldNoAccessTest$V;"; // #25     at 0x9F
+    Utf8 "(CJI)QWithFieldNoAccessTest$V;"; // #25     at 0x9F
     Utf8 "hashCode"; // #26     at 0xC0
     Utf8 "()I"; // #27     at 0xCB
     Utf8 "equals"; // #28     at 0xD1
@@ -131,7 +130,7 @@ class WithFieldNoAccessTest$V {
     Utf8 "longHashCode"; // #32     at 0x0114
     Utf8 "()J"; // #33     at 0x0123
     Utf8 "$makeValue$"; // #34     at 0x0129
-    Utf8 "()LWithFieldNoAccessTest$V;"; // #35     at 0x0137
+    Utf8 "()QWithFieldNoAccessTest$V;"; // #35     at 0x0137
     Utf8 "SourceFile"; // #36     at 0x0155
     Utf8 "WithFieldNoAccessTest.java"; // #37     at 0x0162
     Utf8 "NestHost"; // #38     at 0x017F
@@ -216,7 +215,7 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 6) { // LineNumberTable at 0x03F1
               [1] { // LineNumberTable
-                0  7; //  at 0x03FD
+                0  15; //  at 0x03FD
               }
             } // end LineNumberTable
           } // Attributes
@@ -244,11 +243,11 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 22) { // LineNumberTable at 0x043B
               [5] { // LineNumberTable
-                0  14; //  at 0x0447
-                5  15; //  at 0x044B
-                14  16; //  at 0x044F
-                24  17; //  at 0x0453
-                33  18; //  at 0x0457
+                0  22; //  at 0x0447
+                5  23; //  at 0x044B
+                14  24; //  at 0x044F
+                24  25; //  at 0x0453
+                33  26; //  at 0x0457
               }
             } // end LineNumberTable
           } // Attributes
@@ -272,7 +271,7 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 6) { // LineNumberTable at 0x0478
               [1] { // LineNumberTable
-                0  3; //  at 0x0484
+                0  11; //  at 0x0484
               }
             } // end LineNumberTable
           } // Attributes
@@ -296,7 +295,7 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 6) { // LineNumberTable at 0x04A6
               [1] { // LineNumberTable
-                0  3; //  at 0x04B2
+                0  11; //  at 0x04B2
               }
             } // end LineNumberTable
           } // Attributes
@@ -320,7 +319,7 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 6) { // LineNumberTable at 0x04D3
               [1] { // LineNumberTable
-                0  3; //  at 0x04DF
+                0  11; //  at 0x04DF
               }
             } // end LineNumberTable
           } // Attributes
@@ -344,7 +343,7 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 6) { // LineNumberTable at 0x0500
               [1] { // LineNumberTable
-                0  3; //  at 0x050C
+                0  11; //  at 0x050C
               }
             } // end LineNumberTable
           } // Attributes
@@ -371,11 +370,11 @@ class WithFieldNoAccessTest$V {
           [1] { // Attributes
             Attr(#20, 22) { // LineNumberTable at 0x0543
               [5] { // LineNumberTable
-                0  7; //  at 0x054F
-                4  8; //  at 0x0553
-                12  9; //  at 0x0557
-                20  10; //  at 0x055B
-                27  11; //  at 0x055F
+                0  15; //  at 0x054F
+                4  16; //  at 0x0553
+                12  17; //  at 0x0557
+                20  18; //  at 0x055B
+                27  19; //  at 0x055F
               }
             } // end LineNumberTable
           } // Attributes
@@ -384,7 +383,7 @@ class WithFieldNoAccessTest$V {
     } // Member
   } // methods
 
-  [4] { // Attributes
+  [3] { // Attributes
     Attr(#36, 2) { // SourceFile at 0x0561
       #37;
     } // end SourceFile
@@ -405,10 +404,6 @@ class WithFieldNoAccessTest$V {
         }  //  bootstrap_method
       }
     } // end BootstrapMethods
-    ;
-    Attr(#24, 4) { // ValueTypes at 0x0595
-      0x00010002;
-    } // end ValueTypes
   } // Attributes
 } // end class WithFieldNoAccessTest$V
 
@@ -482,7 +477,7 @@ class WithFieldNoAccessTest {
     Utf8 "WithFieldNoAccessTest$V"; // #63     at 0x038F
     Utf8 "java/lang/Throwable"; // #64     at 0x03A9
     Utf8 "make"; // #65     at 0x03BF
-    Utf8 "(CJI)LWithFieldNoAccessTest$V;"; // #66     at 0x03C6
+    Utf8 "(CJI)QWithFieldNoAccessTest$V;"; // #66     at 0x03C6
     Utf8 "c"; // #67     at 0x03E7
     Utf8 "C"; // #68     at 0x03EB
     Utf8 "(Ljava/lang/String;)V"; // #69     at 0x03EF
@@ -537,7 +532,7 @@ class WithFieldNoAccessTest {
           [1] { // Attributes
             Attr(#31, 6) { // LineNumberTable at 0x062D
               [1] { // LineNumberTable
-                0  1; //  at 0x0639
+                0  9; //  at 0x0639
               }
             } // end LineNumberTable
           } // Attributes
@@ -585,22 +580,22 @@ class WithFieldNoAccessTest {
           [2] { // Attributes
             Attr(#31, 66) { // LineNumberTable at 0x0719
               [16] { // LineNumberTable
-                0  24; //  at 0x0725
-                17  25; //  at 0x0729
-                27  26; //  at 0x072D
-                28  27; //  at 0x0731
-                40  28; //  at 0x0735
-                57  33; //  at 0x0739
-                76  34; //  at 0x073D
-                86  35; //  at 0x0741
-                87  36; //  at 0x0745
-                99  37; //  at 0x0749
-                116  42; //  at 0x074D
-                133  43; //  at 0x0751
-                143  44; //  at 0x0755
-                144  45; //  at 0x0759
-                156  46; //  at 0x075D
-                173  49; //  at 0x0761
+                0  32; //  at 0x0725
+                17  33; //  at 0x0729
+                27  34; //  at 0x072D
+                28  35; //  at 0x0731
+                40  36; //  at 0x0735
+                57  41; //  at 0x0739
+                76  42; //  at 0x073D
+                86  43; //  at 0x0741
+                87  44; //  at 0x0745
+                99  45; //  at 0x0749
+                116  50; //  at 0x074D
+                133  51; //  at 0x0751
+                143  52; //  at 0x0755
+                144  53; //  at 0x0759
+                156  54; //  at 0x075D
+                173  57; //  at 0x0761
               }
             } // end LineNumberTable
             ;
@@ -626,7 +621,7 @@ class WithFieldNoAccessTest {
     } // Member
   } // methods
 
-  [4] { // Attributes
+  [3] { // Attributes
     Attr(#37, 2) { // SourceFile at 0x0784
       #38;
     } // end SourceFile
@@ -648,9 +643,5 @@ class WithFieldNoAccessTest {
         }  //  bootstrap_method
       }
     } // end BootstrapMethods
-    ;
-    Attr(#27, 4) { // ValueTypes at 0x07BC
-      0x00010018;
-    } // end ValueTypes
   } // Attributes
 } // end class WithFieldNoAccessTest

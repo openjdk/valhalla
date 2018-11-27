@@ -74,7 +74,7 @@ class VerificationType {
       TypeMask           = 0x00000007,
 
       // Topmost types encoding
-      Reference          = 0x0,        // _sym contains the name of an object 
+      Reference          = 0x0,        // _sym contains the name of an object
       Primitive          = 0x1,        // see below for primitive list
       Uninitialized      = 0x2,        // 0x00ffff00 contains bci
       TypeQuery          = 0x3,        // Meta-types used for category testing
@@ -86,6 +86,7 @@ class VerificationType {
       Category2Flag      = 0x02,       // First word of a two-word value
       Category2_2ndFlag  = 0x04,       // Second word of a two-word value
       ValueTypeFlag      = 0x08,       // For value type query types
+      NonScalarFlag      = 0x10,       // For either value type or reference queries
 
       // special reference values
       Null               = 0x00000000, // A reference with a 0 sym is null
@@ -118,7 +119,8 @@ class VerificationType {
       Category1Query     = (Category1Flag     << 1 * BitsPerByte) | TypeQuery,
       Category2Query     = (Category2Flag     << 1 * BitsPerByte) | TypeQuery,
       Category2_2ndQuery = (Category2_2ndFlag << 1 * BitsPerByte) | TypeQuery,
-      ValueTypeQuery     = (ValueTypeFlag     << 1 * BitsPerByte) | TypeQuery
+      ValueTypeQuery     = (ValueTypeFlag     << 1 * BitsPerByte) | TypeQuery,
+      NonScalarQuery     = (NonScalarFlag     << 1 * BitsPerByte) | TypeQuery
     };
 
   VerificationType(uintptr_t raw_data) {
@@ -159,6 +161,8 @@ class VerificationType {
     { return VerificationType(Category2Query); }
   static VerificationType category2_2nd_check()
     { return VerificationType(Category2_2ndQuery); }
+  static VerificationType nonscalar_check()
+    { return VerificationType(NonScalarQuery); }
 
   // For reference types, store the actual Symbol
   static VerificationType reference_type(Symbol* sh) {
@@ -167,7 +171,7 @@ class VerificationType {
       // then this type encoding system will have to change to have a tag value
       // to descriminate between oops and primitives.
       return VerificationType((uintptr_t)sh);
-  }  
+  }
   static VerificationType uninitialized_type(u2 bci)
     { return VerificationType(bci << 1 * BitsPerByte | Uninitialized); }
   static VerificationType uninitialized_this_type()
@@ -219,6 +223,7 @@ class VerificationType {
   }
   bool is_reference_check() const { return _u._data == ReferenceQuery; }
   bool is_valuetype_check() const { return _u._data == ValueTypeQuery; }
+  bool is_nonscalar_check() const { return _u._data == NonScalarQuery; }
   bool is_category1_check() const { return _u._data == Category1Query; }
   bool is_category2_check() const { return _u._data == Category2Query; }
   bool is_category2_2nd_check() const { return _u._data == Category2_2ndQuery; }
@@ -240,6 +245,8 @@ class VerificationType {
   bool is_array_array() const { return is_x_array('['); }
   bool is_reference_array() const
     { return is_object_array() || is_array_array(); }
+  bool is_nonscalar_array() const
+    { return is_object_array() || is_array_array() || is_value_array(); }
   bool is_object() const
     { return (is_reference() && !is_null() && name()->utf8_length() >= 1 &&
               name()->byte_at(0) != '['); }
@@ -256,6 +263,12 @@ class VerificationType {
     return VerificationType(is_long() ? Long_2nd : Double_2nd);
   }
 
+  static VerificationType change_ref_to_valuetype(VerificationType ref) {
+    assert(ref.is_reference(), "Bad arg");
+    assert(!ref.is_null(), "Unexpected NULL");
+    return valuetype_type(ref.name());
+  }
+
   u2 bci() const {
     assert(is_uninitialized(), "Must be uninitialized type");
     return ((_u._data & BciMask) >> 1 * BitsPerByte);
@@ -268,8 +281,10 @@ class VerificationType {
 
   bool equals(const VerificationType& t) const {
     return (_u._data == t._u._data ||
-            (((is_reference() && t.is_reference()) || (is_valuetype() && t.is_valuetype())) &&
-             !is_null() && !t.is_null() && name() == t.name()));
+            (((is_reference() && t.is_reference()) ||
+             (is_valuetype() && t.is_valuetype())) &&
+              !is_null() && !t.is_null() && name() == t.name()));
+
   }
 
   bool operator ==(const VerificationType& t) const {
@@ -298,6 +313,9 @@ class VerificationType {
           return from.is_category2_2nd();
         case ReferenceQuery:
           return from.is_reference() || from.is_uninitialized();
+        case NonScalarQuery:
+          return from.is_reference() || from.is_uninitialized() ||
+                 from.is_valuetype();
         case ValueTypeQuery:
           return from.is_valuetype();
         case Boolean:
@@ -307,12 +325,14 @@ class VerificationType {
           // An int can be assigned to boolean, byte, char or short values.
           return from.is_integer();
         default:
-          if (is_reference() && from.is_reference()) {
+          if (is_valuetype()) {
+            return is_valuetype_assignable_from(from);
+          } else if (is_reference() && from.is_valuetype()) {
+            return is_ref_assignable_from_value_type(from, context, THREAD);
+          } else if (is_reference() && from.is_reference()) {
             return is_reference_assignable_from(from, context,
                                                 from_field_is_protected,
                                                 THREAD);
-          } else if (is_valuetype() && from.is_valuetype()) {
-            return is_valuetype_assignable_from(from, context, THREAD);
           } else {
             return false;
           }
@@ -357,13 +377,10 @@ class VerificationType {
     const VerificationType&, ClassVerifier*, bool from_field_is_protected,
     TRAPS) const;
 
-  bool is_valuetype_assignable_from(const VerificationType& from, ClassVerifier* context, TRAPS) const {
-    // 1. Check names - two value types are assignable if they have the same name
-    // 2. Check java/lang/__Value - from may be trying to be assigned to a __Value parameter
-    assert(is_valuetype() && from.is_valuetype(), "Is value type assignable called with a non-value type");
-    return (name() == from.name() ||
-            name() == vmSymbols::java_lang_Object());
-  }
+  bool is_valuetype_assignable_from(const VerificationType& from) const;
+
+  bool is_ref_assignable_from_value_type(const VerificationType& from, ClassVerifier* context, TRAPS) const;
+
 
  public:
   static bool resolve_and_check_assignability(InstanceKlass* klass, Symbol* name,
