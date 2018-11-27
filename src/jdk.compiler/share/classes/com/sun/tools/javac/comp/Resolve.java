@@ -2177,7 +2177,7 @@ public class Resolve {
                 return c;
             }
             if (name == names.box) {
-                return site.loxType().tsym;
+                return types.loxTypeSymbol((ClassSymbol) c);
             }
         }
 

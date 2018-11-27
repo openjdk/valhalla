@@ -317,12 +317,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
         throw new AssertionError();
     }
 
-    /** Define a light weight nullable box type. Make sense only for for a value type.
-     */
-    public Type loxType() {
-        throw new AssertionError();
-    }
-
     /**
      * If this is a constant type, return its underlying type.
      * Otherwise, return the type itself.
@@ -337,13 +331,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
      * it should not be used outside this class.
      */
     protected Type typeNoMetadata() {
-        Type t = metadata == TypeMetadata.EMPTY ? this : baseType();
-        if (t.hasTag(CLASS)) {
-            ClassType ct = (ClassType) t;
-            if (ct.loxType != null && ct.loxType.tsym.isValue())
-                return ct.loxType;
-        }
-        return t;
+        return metadata == TypeMetadata.EMPTY ? this : baseType();
     }
 
     /**
@@ -973,12 +961,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
          */
         public List<Type> all_interfaces_field;
 
-        /** The light weight box type for this type - make sense only for value types
-         *  Perhaps this field should be elided by having this maintained in a side
-         *  data structure
-         *  */
-        private ClassType loxType;
-
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
             this(outer, typarams, tsym, TypeMetadata.EMPTY);
         }
@@ -1023,22 +1005,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
                         return tsym.type;
                     }
                 };
-        }
-
-        public Type loxType() {
-            Assert.check(tsym.isValue());
-            if (loxType == null) {
-                loxType = new ClassType(outer_field, typarams_field, null);
-                loxType.allparams_field = this.allparams_field;
-                loxType.supertype_field = this.supertype_field;
-                loxType.interfaces_field = this.interfaces_field;
-                loxType.all_interfaces_field = this.all_interfaces_field;
-                ClassSymbol ts = new ClassSymbol((tsym.flags() & ~VALUE), tsym.name, loxType, tsym.owner);
-                ts.members_field = tsym.members();
-                loxType.tsym = ts;
-                loxType.loxType = this;
-            }
-            return loxType;
         }
 
         /** The Java source which this type represents.

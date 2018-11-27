@@ -602,6 +602,17 @@ public class Types {
         if (t.hasTag(ERROR)) {
             return true;
         }
+
+        if (isValue(t) || isValue(s)) {
+            ClassSymbol lox = loxMap.get(t.tsym);
+            if (lox != null && s.tsym == lox)
+                return true;
+
+            lox = loxMap.get(s.tsym);
+            if (lox != null && t.tsym == lox)
+                return true;
+        }
+
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
@@ -1001,6 +1012,29 @@ public class Types {
 
     public boolean isValueBased(Type t) {
         return allowValueBasedClasses && t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUEBASED) != 0;
+    }
+
+    private final HashMap<ClassSymbol, ClassSymbol> loxMap = new HashMap<>();
+
+    public ClassSymbol loxTypeSymbol(ClassSymbol c) {
+        if (!c.isValue() || !c.type.hasTag(CLASS))
+            return null;
+        ClassSymbol lox = loxMap.get(c);
+        if (lox != null)
+            return lox;
+
+        ClassType ct = (ClassType) c.type;
+        ClassType loxType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null);
+        loxType.allparams_field = ct.allparams_field;
+        loxType.supertype_field = ct.supertype_field;
+        loxType.interfaces_field = ct.interfaces_field;
+        loxType.all_interfaces_field = ct.all_interfaces_field;
+        lox = new ClassSymbol((c.flags() & ~VALUE), c.name, loxType, c.owner);
+        lox.members_field = c.members();
+        loxType.tsym = lox;
+
+        loxMap.put(c, lox);
+        return lox;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
