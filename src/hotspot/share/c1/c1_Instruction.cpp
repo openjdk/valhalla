@@ -222,7 +222,12 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  return ciObjArrayKlass::make(klass());
+  ciKlass* element_klass = klass();
+  if (element_klass->is_valuetype()) {
+    return ciValueArrayKlass::make(element_klass);
+  } else {
+    return ciObjArrayKlass::make(element_klass);
+  }
 }
 
 ciType* NewArray::declared_type() const {

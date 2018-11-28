@@ -284,9 +284,9 @@ class NewObjectArrayStub: public CodeStub {
   LIR_Opr        _length;
   LIR_Opr        _result;
   CodeEmitInfo*  _info;
-
+  bool           _is_value_type;
  public:
-  NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info);
+  NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info, bool is_value_type);
   virtual void emit_code(LIR_Assembler* e);
   virtual CodeEmitInfo* info() const             { return _info; }
   virtual void visit(LIR_OpVisitState* visitor) {

@@ -51,6 +51,7 @@ class StubAssembler;
   stub(fast_new_instance_init_check) \
   stub(new_type_array)               \
   stub(new_object_array)             \
+  stub(new_value_array)              \
   stub(new_multi_array)              \
   stub(handle_exception_nofpu)         /* optimized version that does not preserve fpu registers */ \
   stub(handle_exception)             \

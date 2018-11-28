@@ -1583,6 +1583,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
 
   for (int i = 0; i < elem_klass->nof_nonstatic_fields(); i++) {
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
+    assert(!inner_field->is_flattened(), "flattened fields must have been expanded");
     int obj_offset = inner_field->offset();
     int elm_offset = obj_offset - elem_klass->first_field_offset(); // object header is not stored in array.
 

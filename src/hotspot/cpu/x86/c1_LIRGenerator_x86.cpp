@@ -1261,13 +1261,18 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   length.load_item_force(FrameMap::rbx_opr);
   LIR_Opr len = length.result();
 
-  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info);
-  ciKlass* obj = (ciKlass*) ciObjArrayKlass::make(x->klass());
+  ciKlass* obj = (ciKlass*) x->exact_type();
+  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, obj->is_value_array_klass());
   if (obj == ciEnv::unloaded_ciobjarrayklass()) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
+  if (obj->is_value_array_klass()) {
+    // This check is valid even if the class is not yet loaded, because the class has a "Q" signature.
+    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_VALUETYPE, klass_reg, slow_path);
+  } else {
+    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
+  }
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);

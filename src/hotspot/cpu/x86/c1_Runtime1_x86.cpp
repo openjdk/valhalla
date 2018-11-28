@@ -1103,6 +1103,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case new_type_array_id:
     case new_object_array_id:
+    case new_value_array_id:
       {
         Register length   = rbx; // Incoming
         Register klass    = rdx; // Incoming
@@ -1110,8 +1111,10 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         if (id == new_type_array_id) {
           __ set_info("new_type_array", dont_gc_arguments);
-        } else {
+        } else if (id == new_object_array_id) {
           __ set_info("new_object_array", dont_gc_arguments);
+        } else {
+          __ set_info("new_value_array", dont_gc_arguments);
         }
 
 #ifdef ASSERT
@@ -1121,10 +1124,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           Register t0 = obj;
           __ movl(t0, Address(klass, Klass::layout_helper_offset()));
           __ sarl(t0, Klass::_lh_array_tag_shift);
-          int tag = ((id == new_type_array_id)
-                     ? Klass::_lh_array_tag_type_value
-                     : Klass::_lh_array_tag_obj_value);
-          __ cmpl(t0, tag);
+          switch (id) {
+          case new_type_array_id:    __ cmpl(t0, Klass::_lh_array_tag_type_value); break;
+          case new_object_array_id:  __ cmpl(t0, Klass::_lh_array_tag_obj_value);  break;
+          case new_value_array_id:   __ cmpl(t0, Klass::_lh_array_tag_vt_value);   break;
+          }
           __ jcc(Assembler::equal, ok);
           __ stop("assert(is an array klass)");
           __ should_not_reach_here();
@@ -1179,6 +1183,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
         } else {
+          // Runtime1::new_object_array handles both object and value arrays
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         }
 

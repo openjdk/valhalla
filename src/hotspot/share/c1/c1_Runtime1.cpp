@@ -384,9 +384,14 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* thread, Klass* array_klas
   //       (This may have to change if this code changes!)
   assert(array_klass->is_klass(), "not a class");
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
-  Klass* elem_klass = ObjArrayKlass::cast(array_klass)->element_klass();
-  objArrayOop obj = oopFactory::new_objArray(elem_klass, length, CHECK);
-  thread->set_vm_result(obj);
+  Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
+  if (elem_klass->is_value()) {
+    arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
+    thread->set_vm_result(obj);
+  } else {
+    objArrayOop obj = oopFactory::new_objArray(elem_klass, length, CHECK);
+    thread->set_vm_result(obj);
+  }
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
   if (DeoptimizeALot) {
