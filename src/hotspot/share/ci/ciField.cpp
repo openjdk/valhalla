@@ -68,7 +68,7 @@
 // ------------------------------------------------------------------
 // ciField::ciField
 ciField::ciField(ciInstanceKlass* klass, int index) :
-    _known_to_link_with_put(NULL), _known_to_link_with_get(NULL) {
+  _is_flattened(false), _known_to_link_with_put(NULL), _known_to_link_with_get(NULL) {
   ASSERT_IN_VM;
   CompilerThread *THREAD = CompilerThread::current();
 

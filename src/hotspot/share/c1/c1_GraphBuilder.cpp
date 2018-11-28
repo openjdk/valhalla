@@ -1646,6 +1646,19 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
   }
 }
 
+void GraphBuilder::copy_value_content(ciValueKlass* vk, Value src, int src_off, Value dest, int dest_off,
+    ValueStack* state_before, bool needs_patching) {
+  for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
+    ciField* inner_field = vk->nonstatic_field_at(i);
+    assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
+    int off = inner_field->offset() - vk->first_field_offset();
+    LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, needs_patching);
+    Value replacement = append(load);
+    StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, needs_patching);
+    append(store);
+  }
+}
+
 void GraphBuilder::access_field(Bytecodes::Code code) {
   bool will_link;
   ciField* field = stream()->get_field(will_link);
@@ -1747,9 +1760,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (state_before == NULL) {
           state_before = copy_state_for_exception();
         }
-        // Pb with test below, is_flattened() can return true for fields that are not value types
-        // (initialization issue of ciField?)
-        if (!(field->type()->is_valuetype() && field->is_flattened())) {
+
+        if (!field->is_flattened()) {
           LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           Value replacement = !needs_patching ? _memory->load(load) : load;
           if (replacement != load) {
@@ -1759,6 +1771,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             push(type, append(load));
           }
         } else { // flattened field, not optimized solution: re-instantiate the flattened value
+          assert(field->type()->is_valuetype(), "Sanity check");
           ciValueKlass* value_klass = field->type()->as_value_klass();
           int flattening_offset = field->offset() - value_klass->first_field_offset();
           assert(field->type()->is_valuetype(), "Sanity check");
@@ -1767,14 +1780,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           NewValueTypeInstance* new_instance = new NewValueTypeInstance(value_klass, state_before, false);
           _memory->new_instance(new_instance);
           apush(append_split(new_instance));
-          for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
-            ciField* inner_field = holder->nonstatic_field_at(i);
-            int off = inner_field->offset();
-            LoadField* load = new LoadField(obj, off + flattening_offset, inner_field, false, state_before, needs_patching);
-            Value replacement = append(load);
-            StoreField* store = new StoreField(new_instance, off, inner_field, replacement, false, state_before, needs_patching);
-            append(store);
-          }
+          copy_value_content(value_klass, obj, field->offset() , new_instance, value_klass->first_field_offset(),
+                       state_before, needs_patching);
         }
       }
       break;
@@ -1789,25 +1796,19 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      // Pb with test below, is_flattened() can return true for fields that are not value types
-      // (initialization issue of ciField?) <---- FIXME
-      if (!(field->type()->is_valuetype() && field->is_flattened())) {
+
+      if (!field->is_flattened()) {
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
         if (!needs_patching) store = _memory->store(store);
         if (store != NULL) {
           append(store);
         }
       } else {
+        assert(field->type()->is_valuetype(), "Sanity check");
         ciValueKlass* value_klass = field->type()->as_value_klass();
         int flattening_offset = field->offset() - value_klass->first_field_offset();
-        for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
-          ciField* inner_field = holder->nonstatic_field_at(i);
-          int off = inner_field->offset();
-          LoadField* load = new LoadField(val, off, inner_field, false, state_before, needs_patching);
-          Value replacement = append(load);
-          StoreField* store = new StoreField(obj, off + flattening_offset, inner_field, replacement, false, state_before, needs_patching);
-          append(store);
-        }
+        copy_value_content(value_klass, val, value_klass->first_field_offset(), obj, field->offset(),
+                   state_before, needs_patching);
       }
       break;
     }
@@ -1851,12 +1852,18 @@ void GraphBuilder::withfield(int field_index)
     int off = field->offset();
 
     if (field->offset() != offset) {
-      // Only load those fields who are not modified
-      LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
-      Value replacement = append(load);
-
-      StoreField* store = new StoreField(new_instance, off, field, replacement, false, state_before, needs_patching);
-      append(store);
+      if (field->is_flattened()) {
+        assert(field->type()->is_valuetype(), "Sanity check");
+        assert(field->type()->is_valuetype(), "Only value types can be flattened");
+        ciValueKlass* vk = field->type()->as_value_klass();
+        copy_value_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+      } else {
+        // Only load those fields who are not modified
+        LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
+        Value replacement = append(load);
+        StoreField* store = new StoreField(new_instance, off, field, replacement, false, state_before, needs_patching);
+        append(store);
+      }
     }
   }
 
@@ -1865,8 +1872,14 @@ void GraphBuilder::withfield(int field_index)
     Value mask = append(new Constant(new IntConstant(1)));
     val = append(new LogicOp(Bytecodes::_iand, val, mask));
   }
-  StoreField* store = new StoreField(new_instance, offset, field_modify, val, false, state_before, needs_patching);
-  append(store);
+  if (field_modify->is_flattened()) {
+    assert(field_modify->type()->is_valuetype(), "Only value types can be flattened");
+    ciValueKlass* vk = field_modify->type()->as_value_klass();
+    copy_value_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+  } else {
+    StoreField* store = new StoreField(new_instance, offset, field_modify, val, false, state_before, needs_patching);
+    append(store);
+  }
 }
 
 Dependencies* GraphBuilder::dependency_recorder() const {
