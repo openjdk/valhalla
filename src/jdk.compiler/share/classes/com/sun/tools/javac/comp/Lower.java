@@ -2872,8 +2872,13 @@ public class Lower extends TreeTranslator {
     @SuppressWarnings("unchecked") // XXX unchecked
     <T extends JCExpression> T boxIfNeeded(T tree, Type type) {
         boolean havePrimitive = tree.type.isPrimitive();
-        if (havePrimitive == type.isPrimitive())
-            return tree;
+        if (havePrimitive == type.isPrimitive()) {
+            boolean haveValue = types.isValue(tree.type);
+            if (haveValue == types.isValue(type))
+                return tree;
+            make_at(tree.pos());
+            return (T) make.TypeCast(type, tree);
+        }
         if (havePrimitive) {
             Type unboxedTarget = types.unboxedType(type);
             if (!unboxedTarget.hasTag(NONE)) {
