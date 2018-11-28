@@ -2877,7 +2877,7 @@ public class Lower extends TreeTranslator {
             if (haveValue == types.isValue(type))
                 return tree;
             make_at(tree.pos());
-            return (T) make.TypeCast(type, tree);
+            return (T) make.TypeCast(types.erasure(type), tree);
         }
         if (havePrimitive) {
             Type unboxedTarget = types.unboxedType(type);
