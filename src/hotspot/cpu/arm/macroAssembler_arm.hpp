@@ -358,6 +358,7 @@ public:
   void zero_memory(Register start, Register end, Register tmp);
 
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   void arm_stack_overflow_check(int frame_size_in_bytes, Register tmp);
   void arm_stack_overflow_check(Register Rsize, Register tmp);
@@ -852,6 +853,8 @@ public:
     sub(dst, r1, AsmOperand(r2, lsl, shift));
   }
 
+  // C 'boolean' to Java boolean: x == 0 ? 0 : 1
+  void c2bool(Register x);
 
     // klass oop manipulations if compressed
 
@@ -1095,4 +1098,3 @@ private:
 
 
 #endif // CPU_ARM_VM_MACROASSEMBLER_ARM_HPP
-

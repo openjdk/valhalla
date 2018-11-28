@@ -1066,7 +1066,7 @@ public:
     _method_DontInline,
     _method_InjectedProfile,
     _method_LambdaForm_Compiled,
-    _method_LambdaForm_Hidden,
+    _method_Hidden,
     _method_HotSpotIntrinsicCandidate,
     _jdk_internal_vm_annotation_Contended,
     _field_Stable,
@@ -2125,7 +2125,12 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
     case vmSymbols::VM_SYMBOL_ENUM_NAME(java_lang_invoke_LambdaForm_Hidden_signature): {
       if (_location != _in_method)  break;  // only allow for methods
       if (!privileged)              break;  // only allow in privileged code
-      return _method_LambdaForm_Hidden;
+      return _method_Hidden;
+    }
+    case vmSymbols::VM_SYMBOL_ENUM_NAME(java_security_AccessController_Hidden_signature): {
+      if (_location != _in_method)  break;  // only allow for methods
+      if (!privileged)              break;  // only allow in privileged code
+      return _method_Hidden;
     }
     case vmSymbols::VM_SYMBOL_ENUM_NAME(jdk_internal_HotSpotIntrinsicCandidate_signature): {
       if (_location != _in_method)  break;  // only allow for methods
@@ -2182,7 +2187,7 @@ void MethodAnnotationCollector::apply_to(const methodHandle& m) {
     m->set_has_injected_profile(true);
   if (has_annotation(_method_LambdaForm_Compiled) && m->intrinsic_id() == vmIntrinsics::_none)
     m->set_intrinsic_id(vmIntrinsics::_compiledLambdaForm);
-  if (has_annotation(_method_LambdaForm_Hidden))
+  if (has_annotation(_method_Hidden))
     m->set_hidden(true);
   if (has_annotation(_method_HotSpotIntrinsicCandidate) && !m->is_synthetic())
     m->set_intrinsic_candidate(true);
@@ -5525,10 +5530,16 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
 
   assert(_klass == ik, "invariant");
 
+
+  if (ik->should_store_fingerprint()) {
+    ik->store_fingerprint(_stream->compute_fingerprint());
+  }
+
   ik->set_has_passed_fingerprint_check(false);
   if (UseAOT && ik->supers_have_passed_fingerprint_checks()) {
     uint64_t aot_fp = AOTLoader::get_saved_fingerprint(ik);
-    if (aot_fp != 0 && aot_fp == _stream->compute_fingerprint()) {
+    uint64_t fp = ik->has_stored_fingerprint() ? ik->get_stored_fingerprint() : _stream->compute_fingerprint();
+    if (aot_fp != 0 && aot_fp == fp) {
       // This class matches with a class saved in an AOT library
       ik->set_has_passed_fingerprint_check(true);
     } else {

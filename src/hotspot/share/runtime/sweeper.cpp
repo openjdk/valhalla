@@ -142,7 +142,7 @@ void NMethodSweeper::init_sweeper_log() {
 #define SWEEP(nm)
 #endif
 
-CompiledMethodIterator NMethodSweeper::_current;               // Current compiled method
+CompiledMethodIterator NMethodSweeper::_current(CompiledMethodIterator::all_blobs); // Current compiled method
 long     NMethodSweeper::_traversals                   = 0;    // Stack scan count, also sweep ID.
 long     NMethodSweeper::_total_nof_code_cache_sweeps  = 0;    // Total number of full sweeps of the code cache
 long     NMethodSweeper::_time_counter                 = 0;    // Virtual time used to periodically invoke sweeper
@@ -163,8 +163,6 @@ Tickspan NMethodSweeper::_total_time_sweeping;                 // Accumulated ti
 Tickspan NMethodSweeper::_total_time_this_sweep;               // Total time this sweep
 Tickspan NMethodSweeper::_peak_sweep_time;                     // Peak time for a full sweep
 Tickspan NMethodSweeper::_peak_sweep_fraction_time;            // Peak time sweeping one fraction
-
-Monitor* NMethodSweeper::_stat_lock = new Monitor(Mutex::special, "Sweeper::Statistics", true, Monitor::_safepoint_check_sometimes);
 
 class MarkActivationClosure: public CodeBlobClosure {
 public:
@@ -276,7 +274,7 @@ CodeBlobClosure* NMethodSweeper::prepare_mark_active_nmethods() {
   assert(wait_for_stack_scanning(), "should only happen between sweeper cycles");
 
   _seen = 0;
-  _current = CompiledMethodIterator();
+  _current = CompiledMethodIterator(CompiledMethodIterator::all_blobs);
   // Initialize to first nmethod
   _current.next();
   _traversals += 1;
@@ -388,7 +386,7 @@ void NMethodSweeper::force_sweep() {
  */
 void NMethodSweeper::handle_safepoint_request() {
   JavaThread* thread = JavaThread::current();
-  if (SafepointMechanism::poll(thread)) {
+  if (SafepointMechanism::should_block(thread)) {
     if (PrintMethodFlushing && Verbose) {
       tty->print_cr("### Sweep at %d out of %d, yielding to safepoint", _seen, CodeCache::nmethod_count());
     }
@@ -578,7 +576,7 @@ void NMethodSweeper::sweep_code_cache() {
   const Ticks sweep_end_counter = Ticks::now();
   const Tickspan sweep_time = sweep_end_counter - sweep_start_counter;
   {
-    MutexLockerEx mu(_stat_lock, Mutex::_no_safepoint_check_flag);
+    MutexLockerEx mu(NMethodSweeperStats_lock, Mutex::_no_safepoint_check_flag);
     _total_time_sweeping  += sweep_time;
     _total_time_this_sweep += sweep_time;
     _peak_sweep_fraction_time = MAX2(sweep_time, _peak_sweep_fraction_time);
@@ -655,7 +653,7 @@ class CompiledMethodMarker: public StackObj {
     JavaThread* current = JavaThread::current();
     assert (current->is_Code_cache_sweeper_thread(), "Must be");
     _thread = (CodeCacheSweeperThread*)current;
-    if (!cm->is_zombie() && !cm->is_unloaded()) {
+    if (!cm->is_zombie() && !cm->is_unloading()) {
       // Only expose live nmethods for scanning
       _thread->set_scanned_compiled_method(cm);
     }
@@ -699,7 +697,7 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
   // Skip methods that are currently referenced by the VM
   if (cm->is_locked_by_vm()) {
     // But still remember to clean-up inline caches for alive nmethods
-    if (cm->is_alive()) {
+    if (cm->is_alive() && !cm->is_unloading()) {
       // Clean inline caches that point to zombie/non-entrant/unloaded nmethods
       CompiledICLocker ml(cm);
       cm->cleanup_inline_caches(false);
@@ -788,7 +786,7 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
 
 void NMethodSweeper::possibly_flush(nmethod* nm) {
   if (UseCodeCacheFlushing) {
-    if (!nm->is_locked_by_vm() && !nm->is_native_method() && !nm->is_not_installed()) {
+    if (!nm->is_locked_by_vm() && !nm->is_native_method() && !nm->is_not_installed() && !nm->is_unloading()) {
       bool make_not_entrant = false;
 
       // Do not make native methods not-entrant

@@ -415,6 +415,16 @@ final class PreSharedKeyExtension {
             result = false;
         }
 
+        // Make sure that the server handshake context's localSupportedSignAlgs
+        // field is populated.  This is particularly important when
+        // client authentication was used in an initial session and it is
+        // now being resumed.
+        if (shc.localSupportedSignAlgs == null) {
+            shc.localSupportedSignAlgs =
+                    SignatureScheme.getSupportedAlgorithms(
+                            shc.algorithmConstraints, shc.activeProtocols);
+        }
+
         // Validate the required client authentication.
         if (result &&
             (shc.sslConfig.clientAuthType == CLIENT_AUTH_REQUIRED)) {
@@ -646,7 +656,7 @@ final class PreSharedKeyExtension {
                 return null;
             }
             SecretKey psk = pskOpt.get();
-            Optional<byte[]> pskIdOpt = chc.resumingSession.getPskIdentity();
+            Optional<byte[]> pskIdOpt = chc.resumingSession.consumePskIdentity();
             if (!pskIdOpt.isPresent()) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
@@ -655,6 +665,11 @@ final class PreSharedKeyExtension {
                 return null;
             }
             byte[] pskId = pskIdOpt.get();
+
+            //The session cannot be used again. Remove it from the cache.
+            SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
+                chc.sslContext.engineGetClientSessionContext();
+            sessionCache.remove(chc.resumingSession.getSessionId());
 
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
@@ -763,7 +778,7 @@ final class PreSharedKeyExtension {
             SecretKey earlySecret = hkdf.extract(zeros, psk, "TlsEarlySecret");
 
             byte[] label = ("tls13 res binder").getBytes();
-            MessageDigest md = MessageDigest.getInstance(hashAlg.toString());;
+            MessageDigest md = MessageDigest.getInstance(hashAlg.name);
             byte[] hkdfInfo = SSLSecretDerivation.createHkdfInfo(
                     label, md.digest(new byte[0]), hashAlg.hashLength);
             return hkdf.expand(earlySecret,
@@ -818,10 +833,6 @@ final class PreSharedKeyExtension {
                     "Received pre_shared_key extension: ", shPsk);
             }
 
-            // The PSK identity should not be reused, even if it is
-            // not selected.
-            chc.resumingSession.consumePskIdentity();
-
             if (shPsk.selectedIdentity != 0) {
                 chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Selected identity index is not in correct range.");
@@ -831,11 +842,6 @@ final class PreSharedKeyExtension {
                 SSLLogger.fine(
                 "Resuming session: ", chc.resumingSession);
             }
-
-            // remove the session from the cache
-            SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
-                    chc.sslContext.engineGetClientSessionContext();
-            sessionCache.remove(chc.resumingSession.getSessionId());
         }
     }
 
@@ -848,13 +854,6 @@ final class PreSharedKeyExtension {
 
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Handling pre_shared_key absence.");
-            }
-
-            if (chc.handshakeExtensions.containsKey(
-                    SSLExtension.CH_PRE_SHARED_KEY)) {
-                // The PSK identity should not be reused, even if it is
-                // not selected.
-                chc.resumingSession.consumePskIdentity();
             }
 
             // The server refused to resume, or the client did not

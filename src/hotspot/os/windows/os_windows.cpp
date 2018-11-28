@@ -1688,7 +1688,13 @@ void os::win32::print_windows_version(outputStream* st) {
     if (is_workstation) {
       st->print("10");
     } else {
-      st->print("Server 2016");
+      // distinguish Windows Server 2016 and 2019 by build number
+      // Windows server 2019 GA 10/2018 build number is 17763
+      if (build_number > 17762) {
+        st->print("Server 2019");
+      } else {
+        st->print("Server 2016");
+      }
     }
     break;
 
@@ -2414,23 +2420,6 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
   }
 #endif // _WIN64
 
-  // Check to see if we caught the safepoint code in the
-  // process of write protecting the memory serialization page.
-  // It write enables the page immediately after protecting it
-  // so just return.
-  if (exception_code == EXCEPTION_ACCESS_VIOLATION) {
-    if (t != NULL && t->is_Java_thread()) {
-      JavaThread* thread = (JavaThread*) t;
-      PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
-      address addr = (address) exceptionRecord->ExceptionInformation[1];
-      if (os::is_memory_serialize_page(thread, addr)) {
-        // Block current thread until the memory serialize page permission restored.
-        os::block_on_serialize_page_trap();
-        return EXCEPTION_CONTINUE_EXECUTION;
-      }
-    }
-  }
-
   if ((exception_code == EXCEPTION_ACCESS_VIOLATION) &&
       VM_Version::is_cpuinfo_segv_addr(pc)) {
     // Verify that OS save/restore AVX registers.
@@ -2509,7 +2498,7 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
 #endif
           {
             // Null pointer exception.
-            if (!MacroAssembler::needs_explicit_null_check((intptr_t)addr)) {
+            if (MacroAssembler::uses_implicit_null_check((void*)addr)) {
               address stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
               if (stub != NULL) return Handle_Exception(exceptionInfo, stub);
             }
@@ -4047,6 +4036,11 @@ static jint initSock();
 
 // this is called _after_ the global arguments have been parsed
 jint os::init_2(void) {
+
+  // This could be set any time but all platforms
+  // have to set it the same so we have to mirror Solaris.
+  DEBUG_ONLY(os::set_mutex_init_done();)
+
   // Setup Windows Exceptions
 
   // for debugging float code generation bugs
@@ -5328,22 +5322,6 @@ bool os::find(address addr, outputStream* st) {
     result = true;
   }
   return result;
-}
-
-LONG WINAPI os::win32::serialize_fault_filter(struct _EXCEPTION_POINTERS* e) {
-  DWORD exception_code = e->ExceptionRecord->ExceptionCode;
-
-  if (exception_code == EXCEPTION_ACCESS_VIOLATION) {
-    JavaThread* thread = JavaThread::current();
-    PEXCEPTION_RECORD exceptionRecord = e->ExceptionRecord;
-    address addr = (address) exceptionRecord->ExceptionInformation[1];
-
-    if (os::is_memory_serialize_page(thread, addr)) {
-      return EXCEPTION_CONTINUE_EXECUTION;
-    }
-  }
-
-  return EXCEPTION_CONTINUE_SEARCH;
 }
 
 static jint initSock() {

@@ -123,7 +123,7 @@ public class except011 {
      */
     private static int messages = 0;
 
-    private static final String className = "nsk.stress.except.except011.except011oops";
+    private static final String className = "nsk.stress.except.except011oops";
 
     /**
      * Re-call to the method <code>run(out)</code> (ignore <code>args[]</code>),
@@ -266,7 +266,7 @@ public class except011 {
      * @see #run(String[], PrintStream)
      */
     public static void main(String args[]) {
-        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+        Thread.currentThread().setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             // Last try. If there is some OOME, test should end correctly
             @Override
             public void uncaughtException(Thread t, Throwable e) {

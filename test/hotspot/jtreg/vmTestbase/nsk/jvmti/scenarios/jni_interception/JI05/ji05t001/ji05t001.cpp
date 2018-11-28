@@ -99,13 +99,15 @@ static void doRedirect(JNIEnv *env, jvmtiEnv *jvmti, int indx) {
 
     NSK_DISPLAY1("\n%s JVMTI env: doRedirect: obtaining the JNI function table ...\n",
         (indx==0)?"first":"second");
-    if ((err = jvmti->GetJNIFunctionTable(&orig_jni_functions[indx])) != JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&orig_jni_functions[indx]);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         NSK_COMPLAIN2("TEST FAILED: %s JVMTI env: failed to get original JNI function table: %s\n",
             (indx==0)?"first":"second", TranslateError(err));
         env->FatalError("failed to get original JNI function table");
     }
-    if ((err = jvmti->GetJNIFunctionTable(&redir_jni_functions[indx])) != JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&redir_jni_functions[indx]);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         NSK_COMPLAIN2("TEST FAILED: %s JVMTI env: failed to get redirected JNI function table: %s\n",
             (indx==0)?"first":"second", TranslateError(err));
@@ -119,7 +121,8 @@ static void doRedirect(JNIEnv *env, jvmtiEnv *jvmti, int indx) {
     redir_jni_functions[indx]->GetVersion =
         (indx==0)?MyGetVersionA:MyGetVersionB;
 
-    if ((err = jvmti->SetJNIFunctionTable(redir_jni_functions[indx])) != JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(redir_jni_functions[indx]);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         NSK_COMPLAIN2("TEST FAILED: %s JVMTI env: failed to set new JNI function table: %s\n",
             (indx==0)?"first":"second", TranslateError(err));
@@ -186,7 +189,7 @@ static int initAgent(int indx) {
     NSK_DISPLAY1("\nagent %s initializer: the JVMTI env obtained\n\tsetting event callbacks ...\n",
         (indx==0)?"A":"B");
     (void) memset(&callbacks, 0, sizeof(callbacks));
-    switch(indx) {
+    switch (indx) {
     case 0:
         callbacks.VMInit = &VMInitA;
         break;
@@ -194,8 +197,8 @@ static int initAgent(int indx) {
         callbacks.VMInit = &VMInitB;
         break;
     }
-    if ((err = jvmti[indx]->SetEventCallbacks(
-            &callbacks, sizeof(callbacks))) != JVMTI_ERROR_NONE) {
+    err = jvmti[indx]->SetEventCallbacks(&callbacks, sizeof(callbacks));
+    if (err != JVMTI_ERROR_NONE) {
         NSK_COMPLAIN1("TEST FAILURE: failed to set event callbacks: %s\n",
             TranslateError(err));
         result = STATUS_FAILED;
@@ -204,8 +207,8 @@ static int initAgent(int indx) {
 
     NSK_DISPLAY1("\nagent %s initializer: setting event callbacks done\n\tenabling events ...\n",
         (indx==0)?"A":"B");
-    if ((err = jvmti[indx]->SetEventNotificationMode(JVMTI_ENABLE,
-            JVMTI_EVENT_VM_INIT, NULL)) != JVMTI_ERROR_NONE) { /* enable event globally */
+    err = jvmti[indx]->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
+    if (err != JVMTI_ERROR_NONE) { /* enable event globally */
         NSK_COMPLAIN2("TEST FAILURE: failed to enable JVMTI_EVENT_VM_INIT event for the agent %s: %s\n",
             (indx==0)?"A":"B", TranslateError(err));
         result = STATUS_FAILED;
@@ -240,7 +243,7 @@ static void startAgent(int indx) {
                 (indx==0)?"A":"B", TRIES);
             exit(STATUS_FAILED);
         }
-    } while(thrstarted[indx] != 1);
+    } while (thrstarted[indx] != 1);
 
     NSK_DISPLAY1("\nstartAgent: the agent %s thread started\n",
         (indx==0)?"A":"B");
@@ -255,7 +258,8 @@ static int agentA(void *context) {
     int exitCode = PASSED;
 
     NSK_DISPLAY0("\nthe agent A started\n\tattaching the thread to the VM ...\n");
-    if ((res = vm->AttachCurrentThread((void **) &env, (void *) 0)) != 0) {
+    res = vm->AttachCurrentThread((void **) &env, (void *) 0);
+    if (res != 0) {
         NSK_COMPLAIN1("TEST FAILURE: AttachCurrentThread() returns: %d\n", res);
         exit(STATUS_FAILED);
     }
@@ -288,7 +292,7 @@ static int agentA(void *context) {
                 TRIES);
             exit(STATUS_FAILED);
         }
-    } while(redir[1] != 1);
+    } while (redir[1] != 1);
 
     /* check the interception set in another JVMTI env */
     NSK_DISPLAY0("\n>>> TEST CASE #4) First JVMTI env: checking the redirection set in second JVMTI env ...\n");
@@ -304,7 +308,8 @@ static int agentA(void *context) {
 
     NSK_DISPLAY1("\nagent A: detaching and returning exit code %d\n",
         exitCode);
-    if ((res = vm->DetachCurrentThread()) != 0) {
+    res = vm->DetachCurrentThread();
+    if (res != 0) {
         NSK_COMPLAIN1("TEST WARNING: agent A: DetachCurrentThread() returns: %d\n", res);
     }
     return exitCode;
@@ -318,7 +323,8 @@ static int agentB(void *context) {
     int exitCode = PASSED;
 
     NSK_DISPLAY0("\nthe agent B started\n\tattaching the thread to the VM ...\n");
-    if ((res = vm->AttachCurrentThread((void **) &env, (void *) 0)) != 0) {
+    res = vm->AttachCurrentThread((void **) &env, (void *) 0);
+    if (res != 0) {
         NSK_COMPLAIN1("TEST FAILURE: AttachCurrentThread() returns: %d\n",
             res);
         exit(STATUS_FAILED);
@@ -335,7 +341,7 @@ static int agentB(void *context) {
                 TRIES);
             exit(STATUS_FAILED);
         }
-    } while(redir[0] != 1);
+    } while (redir[0] != 1);
 
     /* check the interception set in another JVMTI env */
     NSK_DISPLAY0("\n>>> TEST CASE #2) Second JVMTI env: checking the redirection set in first JVMTI env ...\n");
@@ -366,7 +372,8 @@ static int agentB(void *context) {
 
     NSK_DISPLAY1("\nagent B: detaching and returning exit code %d\n",
         exitCode);
-    if ((res = vm->DetachCurrentThread()) != 0) {
+    res = vm->DetachCurrentThread();
+    if (res != 0) {
         NSK_COMPLAIN1("TEST WARNING: agent B: DetachCurrentThread() returns: %d\n", res);
     }
     return exitCode;

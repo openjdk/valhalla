@@ -234,8 +234,8 @@ public class except002 {
 
         // Check ClassNotFoundException (positive):
         try {
-            trash = Class.forName("nsk.stress.except.except002.except002$Abra$Cadabra"); //   correct - should pass
-//          trash = Class.forName("nsk.stress.except.except002.except002.Abra.Cadabra"); // incorrect - should fail
+            trash = Class.forName("nsk.stress.except.except002$Abra$Cadabra"); //   correct - should pass
+//          trash = Class.forName("nsk.stress.except.except002.Abra.Cadabra"); // incorrect - should fail
             if (TRACE_ON)
                 log[messages++] = "Success: ClassNotFoundException (positive)";
         } catch (ClassNotFoundException cnfe) {
@@ -257,7 +257,7 @@ public class except002 {
      * @see #run(String[], PrintStream)
      */
     public static void main(String args[]) {
-        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+        Thread.currentThread().setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             // Last try. If there is some exception outside the code, test should end correctly
             @Override
             public void uncaughtException(Thread t, Throwable e) {

@@ -45,6 +45,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
+#include "runtime/timer.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
@@ -1528,10 +1529,6 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread * Self,
 // which in turn can mean large(r) numbers of objectmonitors in circulation.
 // This is an unfortunate aspect of this design.
 
-enum ManifestConstants {
-  ClearResponsibleAtSTW = 0
-};
-
 // Deflate a single monitor if not in-use
 // Return true if deflated, false if in-use
 bool ObjectSynchronizer::deflate_monitor(ObjectMonitor* mid, oop obj,
@@ -1544,7 +1541,6 @@ bool ObjectSynchronizer::deflate_monitor(ObjectMonitor* mid, oop obj,
   guarantee(mid->header()->is_neutral(), "invariant");
 
   if (mid->is_busy()) {
-    if (ClearResponsibleAtSTW) mid->_Responsible = NULL;
     deflated = false;
   } else {
     // Deflate the monitor if it is no longer being used
@@ -1623,9 +1619,10 @@ int ObjectSynchronizer::deflate_monitor_list(ObjectMonitor** listHeadp,
 }
 
 void ObjectSynchronizer::prepare_deflate_idle_monitors(DeflateMonitorCounters* counters) {
-  counters->nInuse = 0;          // currently associated with objects
-  counters->nInCirculation = 0;  // extant
-  counters->nScavenged = 0;      // reclaimed
+  counters->nInuse = 0;            // currently associated with objects
+  counters->nInCirculation = 0;    // extant
+  counters->nScavenged = 0;        // reclaimed
+  counters->perThreadTimes = 0.0;  // per-thread scavenge times
 }
 
 void ObjectSynchronizer::deflate_idle_monitors(DeflateMonitorCounters* counters) {
@@ -1665,6 +1662,14 @@ void ObjectSynchronizer::deflate_idle_monitors(DeflateMonitorCounters* counters)
 }
 
 void ObjectSynchronizer::finish_deflate_idle_monitors(DeflateMonitorCounters* counters) {
+  if (log_is_enabled(Info, safepoint, cleanup)) {
+    // Report the cumulative time for deflating each thread's idle
+    // monitors. Note: if the work is split among more than one
+    // worker thread, then the reported time will likely be more
+    // than a beginning to end measurement of the phase.
+    log_info(safepoint, cleanup)("deflating per-thread idle monitors, %3.7f secs", counters->perThreadTimes);
+  }
+
   gMonitorFreeCount += counters->nScavenged;
 
   // Consider: audit gFreeList to ensure that gMonitorFreeCount and list agree.
@@ -1685,8 +1690,15 @@ void ObjectSynchronizer::deflate_thread_local_monitors(Thread* thread, DeflateMo
 
   ObjectMonitor * freeHeadp = NULL;  // Local SLL of scavenged monitors
   ObjectMonitor * freeTailp = NULL;
+  elapsedTimer timer;
+
+  if (log_is_enabled(Info, safepoint, cleanup)) {
+    timer.start();
+  }
 
   int deflated_count = deflate_monitor_list(thread->omInUseList_addr(), &freeHeadp, &freeTailp);
+
+  timer.stop();
 
   Thread::muxAcquire(&gListLock, "scavenge - return");
 
@@ -1695,6 +1707,8 @@ void ObjectSynchronizer::deflate_thread_local_monitors(Thread* thread, DeflateMo
   thread->omInUseCount -= deflated_count;
   counters->nScavenged += deflated_count;
   counters->nInuse += thread->omInUseCount;
+  // For now, we only care about cumulative per-thread deflation time.
+  counters->perThreadTimes += timer.seconds();
 
   // Move the scavenged monitors back to the global free list.
   if (freeHeadp != NULL) {

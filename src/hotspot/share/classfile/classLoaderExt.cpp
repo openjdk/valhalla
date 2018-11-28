@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
-#include "classfile/classListParser.hpp"
 #include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/classLoaderData.inline.hpp"
@@ -257,7 +256,6 @@ void ClassLoaderExt::finalize_shared_paths_misc_info() {
 // the "source:" in the class list file (see classListParser.cpp), and can be a directory or
 // a JAR file.
 InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS) {
-
   assert(name != NULL, "invariant");
   assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
   ResourceMark rm(THREAD);
@@ -353,8 +351,4 @@ ClassPathEntry* ClassLoaderExt::find_classpath_entry_from_cache(const char* path
   ccpe._entry = new_entry;
   cached_path_entries->insert_before(0, ccpe);
   return new_entry;
-}
-
-Klass* ClassLoaderExt::load_one_class(ClassListParser* parser, TRAPS) {
-  return parser->load_current_class(THREAD);
 }

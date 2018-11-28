@@ -25,8 +25,8 @@
 
 package java.lang.invoke;
 
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.module.IllegalAccessLogger;
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.reflect.CallerSensitive;
@@ -4204,16 +4204,61 @@ assertEquals("XY", (String) f2.invokeExact("x", "y")); // XY
      */
     public static
     MethodHandle filterArguments(MethodHandle target, int pos, MethodHandle... filters) {
+        // In method types arguments start at index 0, while the LF
+        // editor have the MH receiver at position 0 - adjust appropriately.
+        final int MH_RECEIVER_OFFSET = 1;
         filterArgumentsCheckArity(target, pos, filters);
         MethodHandle adapter = target;
+
+        // keep track of currently matched filters, as to optimize repeated filters
+        int index = 0;
+        int[] positions = new int[filters.length];
+        MethodHandle filter = null;
+
         // process filters in reverse order so that the invocation of
         // the resulting adapter will invoke the filters in left-to-right order
         for (int i = filters.length - 1; i >= 0; --i) {
-            MethodHandle filter = filters[i];
-            if (filter == null)  continue;  // ignore null elements of filters
-            adapter = filterArgument(adapter, pos + i, filter);
+            MethodHandle newFilter = filters[i];
+            if (newFilter == null) continue;  // ignore null elements of filters
+
+            // flush changes on update
+            if (filter != newFilter) {
+                if (filter != null) {
+                    if (index > 1) {
+                        adapter = filterRepeatedArgument(adapter, filter, Arrays.copyOf(positions, index));
+                    } else {
+                        adapter = filterArgument(adapter, positions[0] - 1, filter);
+                    }
+                }
+                filter = newFilter;
+                index = 0;
+            }
+
+            filterArgumentChecks(target, pos + i, newFilter);
+            positions[index++] = pos + i + MH_RECEIVER_OFFSET;
+        }
+        if (index > 1) {
+            adapter = filterRepeatedArgument(adapter, filter, Arrays.copyOf(positions, index));
+        } else if (index == 1) {
+            adapter = filterArgument(adapter, positions[0] - 1, filter);
         }
         return adapter;
+    }
+
+    private static MethodHandle filterRepeatedArgument(MethodHandle adapter, MethodHandle filter, int[] positions) {
+        MethodType targetType = adapter.type();
+        MethodType filterType = filter.type();
+        BoundMethodHandle result = adapter.rebind();
+        Class<?> newParamType = filterType.parameterType(0);
+
+        Class<?>[] ptypes = targetType.ptypes().clone();
+        for (int pos : positions) {
+            ptypes[pos - 1] = newParamType;
+        }
+        MethodType newType = MethodType.makeImpl(targetType.rtype(), ptypes, true);
+
+        LambdaForm lform = result.editor().filterRepeatedArgumentForm(BasicType.basicType(newParamType), positions);
+        return result.copyWithExtendL(newType, lform, filter);
     }
 
     /*non-public*/ static
@@ -5005,7 +5050,7 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * <li>Examine and collect the suffixes of the step, pred, and fini parameter lists, after removing the iteration variable types.
      * (They must have the form {@code (V... A*)}; collect the {@code (A*)} parts only.)
      * <li>Do not collect suffixes from step, pred, and fini parameter lists that do not begin with all the iteration variable types.
-     * (These types will checked in step 2, along with all the clause function types.)
+     * (These types will be checked in step 2, along with all the clause function types.)
      * <li>Omitted clause functions are ignored.  (Equivalently, they are deemed to have empty parameter lists.)
      * <li>All of the collected parameter lists must be effectively identical.
      * <li>The longest parameter list (which is necessarily unique) is called the "external parameter list" ({@code (A...)}).

@@ -1778,9 +1778,6 @@ public class Attr extends JCTree.Visitor {
             if (condTypes.isEmpty()) {
                 return syms.objectType; //TODO: how to handle?
             }
-            if (condTypes.size() == 1) {
-                return condTypes.head;
-            }
             Type first = condTypes.head;
             // If same type, that is the result
             if (condTypes.tail.stream().allMatch(t -> types.isSameType(first, t)))
@@ -2419,7 +2416,7 @@ public class Attr extends JCTree.Visitor {
                                                clazztype.getMetadata());
 
                 Env<AttrContext> diamondEnv = localEnv.dup(tree);
-                diamondEnv.info.selectSuper = cdef != null;
+                diamondEnv.info.selectSuper = cdef != null || tree.classDeclRemoved();
                 diamondEnv.info.pendingResolutionPhase = null;
 
                 //if the type of the instance creation expression is a class type
@@ -2905,6 +2902,15 @@ public class Attr extends JCTree.Visitor {
                         return;
                     }
                     super.scan(tree);
+                }
+
+                @Override
+                public void visitClassDef(JCClassDecl that) {
+                    // or class declaration trees!
+                }
+
+                public void visitLambda(JCLambda that) {
+                    // or lambda expressions!
                 }
             }.scan(tree);
         }

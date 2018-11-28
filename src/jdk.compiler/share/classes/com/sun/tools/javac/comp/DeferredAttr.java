@@ -151,7 +151,7 @@ public class DeferredAttr extends JCTree.Visitor {
                         JCExpression clazz = copy(t.clazz, p);
                         List<JCExpression> args = copy(t.args, p);
                         JCClassDecl def = null;
-                        return make.at(t.pos).NewClass(encl, typeargs, clazz, args, def);
+                        return make.at(t.pos).SpeculativeNewClass(encl, typeargs, clazz, args, def, t.def != null);
                     } else {
                         return super.visitNewClass(node, p);
                     }
@@ -172,7 +172,7 @@ public class DeferredAttr extends JCTree.Visitor {
                             if (previous == null || previous == OverloadKind.ERROR) {
                                 t.setOverloadKind(overloadKind);
                             } else {
-                                Assert.check(previous == overloadKind);
+                                Assert.check(previous == overloadKind || overloadKind == OverloadKind.ERROR);
                             }
                         }
 

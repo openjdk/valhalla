@@ -44,11 +44,10 @@ CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType ty
                                bool caller_must_gc_arguments)
   : CodeBlob(name, type, layout, frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
     _mark_for_deoptimization_status(not_marked),
-    _is_unloading_state(0),
-    _method(method)
+    _method(method),
+    _gc_data(NULL)
 {
   init_defaults();
-  clear_unloading_state();
 }
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, int size,
@@ -57,11 +56,10 @@ CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType ty
   : CodeBlob(name, type, CodeBlobLayout((address) this, size, header_size, cb), cb,
              frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
     _mark_for_deoptimization_status(not_marked),
-    _is_unloading_state(0),
-    _method(method)
+    _method(method),
+    _gc_data(NULL)
 {
   init_defaults();
-  clear_unloading_state();
 }
 
 void CompiledMethod::init_defaults() {
@@ -544,49 +542,6 @@ void CompiledMethod::unload_nmethod_caches(bool unloading_occurred) {
 
   // Check that the metadata embedded in the nmethod is alive
   DEBUG_ONLY(metadata_do(check_class));
-}
-
-// The IsUnloadingStruct represents a tuple comprising a result of
-// IsUnloadingBehaviour::is_unloading() for a given unloading cycle.
-struct IsUnloadingStruct {
-  unsigned int _is_unloading:1;
-  unsigned int _unloading_cycle:2;
-};
-
-// The IsUnloadingUnion allows treating the tuple of the IsUnloadingStruct
-// like a uint8_t, making it possible to read and write the tuple atomically.
-union IsUnloadingUnion {
-  IsUnloadingStruct _inflated;
-  uint8_t _value;
-};
-
-bool CompiledMethod::is_unloading() {
-  IsUnloadingUnion state;
-  state._value = RawAccess<MO_RELAXED>::load(&_is_unloading_state);
-  if (state._inflated._is_unloading == 1) {
-    return true;
-  }
-  if (state._inflated._unloading_cycle == CodeCache::unloading_cycle()) {
-    return state._inflated._is_unloading == 1;
-  }
-
-  // The IsUnloadingBehaviour is responsible for checking if there are any dead
-  // oops in the CompiledMethod, by calling oops_do on it.
-  bool result = IsUnloadingBehaviour::current()->is_unloading(this);
-
-  state._inflated._unloading_cycle = CodeCache::unloading_cycle();
-  state._inflated._is_unloading = result ? 1 : 0;
-
-  RawAccess<MO_RELAXED>::store(&_is_unloading_state, state._value);
-
-  return result;
-}
-
-void CompiledMethod::clear_unloading_state() {
-  IsUnloadingUnion state;
-  state._inflated._unloading_cycle = CodeCache::unloading_cycle();
-  state._inflated._is_unloading = 0;
-  RawAccess<MO_RELAXED>::store(&_is_unloading_state, state._value);
 }
 
 // Called to clean up after class unloading for live nmethods and from the sweeper

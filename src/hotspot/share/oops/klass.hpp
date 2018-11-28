@@ -176,8 +176,7 @@ private:
   // Flags of the current shared class.
   u2     _shared_class_flags;
   enum {
-    _has_raw_archived_mirror = 1,
-    _has_signer_and_not_archived = 1 << 2
+    _has_raw_archived_mirror = 1
   };
 #endif
   // The _archived_mirror is set at CDS dump time pointing to the cached mirror
@@ -258,6 +257,7 @@ protected:
 
   // java mirror
   oop java_mirror() const;
+  oop java_mirror_no_keepalive() const;
   void set_java_mirror(Handle m);
 
   oop archived_java_mirror_raw() NOT_CDS_JAVA_HEAP_RETURN_(NULL); // no GC barrier
@@ -314,15 +314,6 @@ protected:
     CDS_ONLY(return (_shared_class_flags & _has_raw_archived_mirror) != 0;)
     NOT_CDS(return false;)
   }
-#if INCLUDE_CDS
-  void set_has_signer_and_not_archived() {
-    _shared_class_flags |= _has_signer_and_not_archived;
-  }
-  bool has_signer_and_not_archived() const {
-    assert(DumpSharedSpaces, "dump time only");
-    return (_shared_class_flags & _has_signer_and_not_archived) != 0;
-  }
-#endif // INCLUDE_CDS
 
   // Obtain the module or package for this class
   virtual ModuleEntry* module() const = 0;

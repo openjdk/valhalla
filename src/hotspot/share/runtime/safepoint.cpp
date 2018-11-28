@@ -141,7 +141,7 @@ static void post_safepoint_end_event(EventSafepointEnd* event) {
 
 SafepointSynchronize::SynchronizeState volatile SafepointSynchronize::_state = SafepointSynchronize::_not_synchronized;
 volatile int  SafepointSynchronize::_waiting_to_block = 0;
-volatile int SafepointSynchronize::_safepoint_counter = 0;
+volatile uint64_t SafepointSynchronize::_safepoint_counter = 0;
 int SafepointSynchronize::_current_jni_active_count = 0;
 long  SafepointSynchronize::_end_of_last_safepoint = 0;
 int SafepointSynchronize::_defer_thr_suspend_loop_count = 4000;
@@ -213,16 +213,7 @@ void SafepointSynchronize::begin() {
   //     writes and reads of both the safepoint state and the Java
   //     threads state is critical.  In order to guarantee that the
   //     memory writes are serialized with respect to each other,
-  //     the VM thread issues a memory barrier instruction
-  //     (on MP systems).  In order to avoid the overhead of issuing
-  //     a memory barrier for each Java thread making native calls, each Java
-  //     thread performs a write to a single memory page after changing
-  //     the thread state.  The VM thread performs a sequence of
-  //     mprotect OS calls which forces all previous writes from all
-  //     Java threads to be serialized.  This is done in the
-  //     os::serialize_thread_states() call.  This has proven to be
-  //     much more efficient than executing a membar instruction
-  //     on every call to native code.
+  //     the VM thread issues a memory barrier instruction.
   //  3. Running compiled Code
   //     Compiled code reads a global (Safepoint Polling) page that
   //     is set to fault if we are trying to get to a safepoint.
@@ -250,11 +241,6 @@ void SafepointSynchronize::begin() {
       }
     }
     OrderAccess::fence(); // storestore|storeload, global state -> local state
-
-    // Flush all thread states to memory
-    if (!UseMembar) {
-      os::serialize_thread_states();
-    }
 
     if (SafepointMechanism::uses_global_page_poll()) {
       // Make interpreter safepoint aware
@@ -630,7 +616,7 @@ public:
     Threads::possibly_parallel_threads_do(true, &_cleanup_threads_cl);
 
     if (_subtasks.try_claim_task(SafepointSynchronize::SAFEPOINT_CLEANUP_DEFLATE_MONITORS)) {
-      const char* name = "deflating idle monitors";
+      const char* name = "deflating global idle monitors";
       EventSafepointCleanupTask event;
       TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       ObjectSynchronizer::deflate_idle_monitors(_counters);
@@ -992,9 +978,9 @@ void SafepointSynchronize::print_safepoint_timeout(SafepointTimeoutReason reason
     }
   }
 
-  // To debug the long safepoint, specify both DieOnSafepointTimeout &
+  // To debug the long safepoint, specify both AbortVMOnSafepointTimeout &
   // ShowMessageBoxOnError.
-  if (DieOnSafepointTimeout) {
+  if (AbortVMOnSafepointTimeout) {
     fatal("Safepoint sync time longer than " INTX_FORMAT "ms detected when executing %s.",
           SafepointTimeoutDelay, VMThread::vm_safepoint_description());
   }
