@@ -72,7 +72,7 @@ public class ValueBootstrapMethodsTest {
 
         public String localToString() {
             System.out.println(l);
-            return String.format("[value %s, %s, %s, %s, %s]", Value.class,
+            return String.format("[%s, %s, %s, %s, %s]", Value.class,
                                  i, String.valueOf(d), s, l.toString());
         }
     }
