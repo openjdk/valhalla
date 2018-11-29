@@ -1128,6 +1128,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           case new_type_array_id:    __ cmpl(t0, Klass::_lh_array_tag_type_value); break;
           case new_object_array_id:  __ cmpl(t0, Klass::_lh_array_tag_obj_value);  break;
           case new_value_array_id:   __ cmpl(t0, Klass::_lh_array_tag_vt_value);   break;
+          default:  ShouldNotReachHere();
           }
           __ jcc(Assembler::equal, ok);
           __ stop("assert(is an array klass)");
