@@ -61,7 +61,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestNullableValueTypes test = new TestNullableValueTypes();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, Test17Value.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, Test17Value.class, Test21Value.class);
     }
 
     static {
@@ -92,8 +92,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     MyValue1.val valueField1 = testValue1;
 
     @Test
-    @Warmup(10000) // Warmup to make sure 'callTest1WithNull' is compiled
-    public long test1(MyValue1 vt) {
+    public long test1(MyValue1.box vt) {
         long result = 0;
         try {
             result = vt.hash();
@@ -104,20 +103,9 @@ public class TestNullableValueTypes extends ValueTypeTest {
         return result;
     }
 
-    private static final MethodHandle callTest1WithNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "callTest1WithNull",
-        MethodType.methodType(void.class, TestNullableValueTypes.class),
-        CODE -> {
-            CODE.
-            aload_0().
-            aconst_null().
-            invokevirtual(TestNullableValueTypes.class, "test1", "(Lcompiler/valhalla/valuetypes/MyValue1;)J", false).
-            return_();
-        });
-
     @DontCompile
     public void test1_verifier(boolean warmup) throws Throwable {
-        long result = (long)callTest1WithNull.invoke(this);
+        long result = test1(null);
         Asserts.assertEquals(result, 0L);
     }
 
@@ -225,24 +213,32 @@ public class TestNullableValueTypes extends ValueTypeTest {
         Asserts.assertEquals(vt.hash(), testValue1.hash());
     }
 
-    private static final MethodHandle getNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "getNull",
-        MethodType.methodType(MyValue1.class),
-        CODE -> {
-            CODE.
-            aconst_null().
-            areturn();
-        });
+    @ForceInline
+    public MyValue1.box getNull_inline() {
+        return null;
+    }
+
+    @DontInline
+    public MyValue1.box getNull_dontInline() {
+        return null;
+    }
 
     @Test
     public void test7() throws Throwable {
+        nullField = getNull_inline();     // Should not throw
+        nullField = getNull_dontInline(); // Should not throw
         try {
-            valueField1 = (MyValue1)getNull.invoke();
+            valueField1 = getNull_inline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
-        nullField = (MyValue1)getNull.invoke(); // Should not throw
+        try {
+            valueField1 = getNull_dontInline();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
     }
 
     @DontCompile
@@ -250,22 +246,10 @@ public class TestNullableValueTypes extends ValueTypeTest {
         test7();
     }
 
-    // null constant
-    private static final MethodHandle setNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "setNull",
-        MethodType.methodType(void.class, TestNullableValueTypes.class),
-        CODE -> {
-            CODE.
-            aload_0().
-            aconst_null().
-            putfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-            return_();
-        });
-
     @Test
     public void test8() throws Throwable {
         try {
-            setNull.invoke(this);
+            valueField1 = nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -301,29 +285,10 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // null constant
-    private static final MethodHandle mergeNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "mergeNull",
-        MethodType.methodType(void.class, TestNullableValueTypes.class, boolean.class),
-        CODE -> {
-            CODE.
-            iload_1().
-            iconst_0().
-            ifcmp(TypeTag.I, CondKind.EQ, "null").
-            aload_0().
-            getfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-            goto_("continue").
-            label("null").
-            aconst_null().
-            label("continue").
-            aload_0().
-            swap().
-            putfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-            return_();
-        });
-
     @Test
     public void test10(boolean flag) throws Throwable {
-        mergeNull.invoke(this, flag);
+        MyValue1.box val = flag ? valueField1 : null;
+        valueField1 = val;
     }
 
     @DontCompile
@@ -338,29 +303,10 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // null constant
-    private static final MethodHandle mergeNull2 = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "mergeNull2",
-        MethodType.methodType(void.class, TestNullableValueTypes.class, boolean.class),
-        CODE -> {
-            CODE.
-            iload_1().
-            iconst_0().
-            ifcmp(TypeTag.I, CondKind.EQ, "not_null").
-            aconst_null().
-            goto_("continue").
-            label("not_null").
-            aload_0().
-            getfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-            label("continue").
-            aload_0().
-            swap().
-            putfield(TestNullableValueTypes.class, "valueField1", "Lcompiler/valhalla/valuetypes/MyValue1;").
-            return_();
-        });
-
     @Test
     public void test11(boolean flag) throws Throwable {
-        mergeNull2.invoke(this, flag);
+        MyValue1.box val = flag ? null : valueField1;
+        valueField1 = val;
     }
 
     @DontCompile
@@ -633,5 +579,45 @@ public class TestNullableValueTypes extends ValueTypeTest {
         } catch (Throwable t) {
             throw new RuntimeException("test20 failed", t);
         }
+    }
+
+    // Test writing null to a flattenable/non-flattenable value type field in a value type
+    value final class Test21Value {
+        final MyValue1.box valueField1;
+        final MyValue1.val valueField2;
+        final MyValue1.box alwaysNull;
+
+        private Test21Value() {
+            valueField1 = testValue1;
+            valueField2 = testValue1;
+            alwaysNull  = testValue1;
+        }
+
+        @ForceInline
+        public Test21Value test1() {
+            return __WithField(this.valueField1, alwaysNull); // Should not throw NPE
+        }
+
+        @ForceInline
+        public Test21Value test2() {
+            return __WithField(this.valueField2, alwaysNull); // Should throw NPE
+        }
+    }
+
+    @Test
+    public Test21Value test21(Test21Value vt) {
+        vt = vt.test1();
+        try {
+            vt = vt.test2();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        return vt;
+    }
+
+    @DontCompile
+    public void test21_verifier(boolean warmup) {
+        test21(Test21Value.default);
     }
 }

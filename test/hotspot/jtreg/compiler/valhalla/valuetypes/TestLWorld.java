@@ -62,7 +62,7 @@ public class TestLWorld extends ValueTypeTest {
     public static void main(String[] args) throws Throwable {
         TestLWorld test = new TestLWorld();
         test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class,
-                 MyValue3Inline.class, Test51Value.class, Test77Value.class);
+                 MyValue3Inline.class, Test51Value.class);
     }
 
     // Helper methods
@@ -1929,45 +1929,5 @@ public class TestLWorld extends ValueTypeTest {
         } catch (ClassCastException e) {
             // Expected
         }
-    }
-
-    // Test writing null to a flattenable/non-flattenable value type field in a value type
-    value final class Test77Value {
-        final MyValue1.box valueField1;
-        final MyValue1.val valueField2;
-        final MyValue1.box alwaysNull;
-
-        private Test77Value() {
-            valueField1 = testValue1;
-            valueField2 = testValue1;
-            alwaysNull  = testValue1;
-        }
-
-        @ForceInline
-        public Test77Value test1() {
-            return __WithField(this.valueField1, alwaysNull); // Should not throw NPE
-        }
-
-        @ForceInline
-        public Test77Value test2() {
-            return __WithField(this.valueField2, alwaysNull); // Should throw NPE
-        }
-    }
-
-    @Test
-    public Test77Value test77(Test77Value vt) {
-        vt = vt.test1();
-        try {
-            vt = vt.test2();
-            throw new RuntimeException("NullPointerException expected");
-        } catch (NullPointerException e) {
-            // Expected
-        }
-        return vt;
-    }
-
-    @DontCompile
-    public void test77_verifier(boolean warmup) {
-        test77(Test77Value.default);
     }
 }
