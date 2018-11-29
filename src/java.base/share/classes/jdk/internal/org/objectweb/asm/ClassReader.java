@@ -2209,7 +2209,7 @@ public class ClassReader {
                 while (desc.charAt(i) == '[') {
                     ++i;
                 }
-                if (desc.charAt(i) == 'L') {
+                if (desc.charAt(i) == 'L' || desc.charAt(i) == 'Q') {
                     ++i;
                     while (desc.charAt(i) != ';') {
                         ++i;

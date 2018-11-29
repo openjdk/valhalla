@@ -153,7 +153,8 @@ interface MethodHandleInfo {
     public int getReferenceKind();
 
     /**
-     * Returns the class in which the cracked method handle's underlying member was defined.
+     * Returns the {@code Class} object representing {@linkplain Class#asBoxType() the box type}
+     * of the class in which the cracked method handle's underlying member was defined.
      * @return the declaring class of the underlying member
      */
     public Class<?> getDeclaringClass();

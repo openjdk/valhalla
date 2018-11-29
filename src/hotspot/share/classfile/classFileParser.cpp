@@ -5447,11 +5447,12 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
     case JVM_SIGNATURE_VALUETYPE:
-      if (_major_version < CONSTANT_CLASS_DESCRIPTORS ) {
-        classfile_parse_error("Class name contains illegal Q-signature "
-                                          "in descriptor in class file %s",
-                                          CHECK_0);
-      }
+      // Can't enable this check until JDK upgrades the bytecode generators
+      // if (_major_version < CONSTANT_CLASS_DESCRIPTORS ) {
+      //   classfile_parse_error("Class name contains illegal Q-signature "
+      //                                    "in descriptor in class file %s",
+      //                                    CHECK_0);
+      // }
       // fall through
     case JVM_SIGNATURE_CLASS:
     {

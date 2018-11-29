@@ -24,11 +24,18 @@
 public value class NonFlattenValue {
     Point.box nfp;
 
-    NonFlattenValue(Point p) {
+    NonFlattenValue() {
+        Point p = Point.makePoint(0,0);
         this.nfp = p;
     }
     public Point.box point() {
         return nfp;
+    }
+    public Point.val pointValue() {
+        return nfp;
+    }
+    public boolean has(Point.val p1, Point.box p2) {
+        return nfp.equals(p1) || nfp.equals(p2);
     }
 
     public static NonFlattenValue make(int x, int y) {

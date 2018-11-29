@@ -66,8 +66,11 @@ public class ValueTypeArray {
         try {
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
-            assertTrue(arrayCls.getComponentType() == Point.class,
-                       "Expected component type of Point.class");
+            // array-of-L-type not supported yet
+            // the component type of a flattened value array is of the value type
+            // the component type of a non-flattened array is of the box type
+            assertTrue(arrayCls.getComponentType().asBoxType() == Point.class,
+                       "Expected component type of Point.class got: " + arrayCls.getComponentType());
 
             arrayClsName = "[" + arrayClsName;
             Class<?> mulArrayCls = Class.forName(arrayClsName);

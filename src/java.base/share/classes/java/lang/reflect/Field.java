@@ -185,7 +185,8 @@ class Field extends AccessibleObject implements Member {
     }
 
     /**
-     * Returns the {@code Class} object representing the class or interface
+     * Returns the {@code Class} object representing
+     * {@linkplain Class#asBoxType() the box type} of the class or interface
      * that declares the field represented by this {@code Field} object.
      */
     @Override

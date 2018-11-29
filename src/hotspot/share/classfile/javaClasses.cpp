@@ -918,7 +918,12 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     if (k->is_array_klass()) {
       if (k->is_valueArray_klass()) {
         Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
-        comp_mirror = Handle(THREAD, element_klass->java_mirror());
+        if (element_klass->is_value()) {
+          ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
+          comp_mirror = Handle(THREAD, vk->value_mirror());
+        } else {
+          comp_mirror = Handle(THREAD, element_klass->java_mirror());
+        }
       }
       else if (k->is_typeArray_klass()) {
         BasicType type = TypeArrayKlass::cast(k)->element_type();
@@ -927,7 +932,12 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
         assert(k->is_objArray_klass(), "Must be");
         Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
         assert(element_klass != NULL, "Must have an element klass");
-        comp_mirror = Handle(THREAD, element_klass->java_mirror());
+        if (element_klass->is_value()) {
+          ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
+          comp_mirror = Handle(THREAD, vk->value_mirror());
+        } else {
+          comp_mirror = Handle(THREAD, element_klass->java_mirror());
+        }
       }
       assert(comp_mirror() != NULL, "must have a mirror");
 
@@ -967,11 +977,45 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       // concurrently doesn't expect a k to have a null java_mirror.
       release_set_array_klass(comp_mirror(), k);
     }
+
+    if (k->is_value()) {
+      // create the secondary mirror for value class
+      oop value_mirror_oop = create_value_mirror(k, mirror, CHECK);
+      set_box_mirror(mirror(), mirror());
+      set_value_mirror(mirror(), value_mirror_oop);
+    }
   } else {
     assert(fixup_mirror_list() != NULL, "fixup_mirror_list not initialized");
     fixup_mirror_list()->push(k);
   }
 }
+
+// Create the secondary mirror for value type. Sets all the fields of this java.lang.Class
+// instance with the same value as the primary mirror except signers.
+// Class::setSigners and getSigners will use the primary mirror when passed to the JVM.
+oop java_lang_Class::create_value_mirror(Klass* k, Handle mirror, TRAPS) {
+    // Allocate mirror (java.lang.Class instance)
+    oop mirror_oop = InstanceMirrorKlass::cast(SystemDictionary::Class_klass())->allocate_instance(k, CHECK_0);
+    Handle value_mirror(THREAD, mirror_oop);
+
+    java_lang_Class::set_klass(value_mirror(), k);
+    java_lang_Class::set_static_oop_field_count(value_mirror(), static_oop_field_count(mirror()));
+    // ## do we need to set init lock?
+    java_lang_Class::set_init_lock(value_mirror(), init_lock(mirror()));
+
+    if (k->is_array_klass()) {
+      assert(component_mirror(mirror()) != NULL, "must have a mirror");
+      set_component_mirror(value_mirror(), component_mirror(mirror()));
+    }
+
+    set_protection_domain(value_mirror(), protection_domain(mirror()));
+    set_class_loader(value_mirror(), class_loader(mirror()));
+    // ## handle if java.base is not yet defined
+    set_module(value_mirror(), module(mirror()));
+    set_box_mirror(value_mirror(), mirror());
+    set_value_mirror(value_mirror(), value_mirror());
+    return value_mirror();
+}                                              
 
 #if INCLUDE_CDS_JAVA_HEAP
 // Clears mirror fields. Static final fields with initial values are reloaded
@@ -1363,6 +1407,26 @@ void java_lang_Class::set_module(oop java_class, oop module) {
   java_class->obj_field_put(_module_offset, module);
 }
 
+oop java_lang_Class::value_mirror(oop java_class) {
+  assert(_value_mirror_offset != 0, "must be set");
+  return java_class->obj_field(_value_mirror_offset);
+}
+
+void java_lang_Class::set_value_mirror(oop java_class, oop mirror) {
+  assert(_value_mirror_offset != 0, "must be set");
+  java_class->obj_field_put(_value_mirror_offset, mirror);
+}
+
+oop java_lang_Class::box_mirror(oop java_class) {
+  assert(_box_mirror_offset != 0, "must be set");
+  return java_class->obj_field(_box_mirror_offset);
+}
+
+void java_lang_Class::set_box_mirror(oop java_class, oop mirror) {
+  assert(_box_mirror_offset != 0, "must be set");
+  java_class->obj_field_put(_box_mirror_offset, mirror);
+}
+
 oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
   // This should be improved by adding a field at the Java level or by
   // introducing a new VM klass (see comment in ClassFileParser)
@@ -1447,8 +1511,14 @@ Symbol* java_lang_Class::as_signature(oop java_class, bool intern_if_not_found, 
       name->increment_refcount();
     } else {
       ResourceMark rm;
-      const char* sigstr = k->signature_name();
-      int         siglen = (int) strlen(sigstr);
+      const char* sigstr;
+      if (k->is_value()) {
+        char c = (java_class == value_mirror(java_class)) ? 'Q' : 'L';
+        sigstr = InstanceKlass::cast(k)->signature_name_of(c);
+      } else {
+        sigstr = k->signature_name();
+      }
+      int siglen = (int) strlen(sigstr);
       if (!intern_if_not_found) {
         name = SymbolTable::probe(sigstr, siglen);
       } else {
@@ -1548,7 +1618,9 @@ int  java_lang_Class::classRedefinedCount_offset = -1;
   macro(classRedefinedCount_offset, k, "classRedefinedCount", int_signature,         false) ; \
   macro(_class_loader_offset,       k, "classLoader",         classloader_signature, false); \
   macro(_component_mirror_offset,   k, "componentType",       class_signature,       false); \
-  macro(_module_offset,             k, "module",              module_signature,      false)
+  macro(_module_offset,             k, "module",              module_signature,      false); \
+  macro(_box_mirror_offset,         k, "boxType",             class_signature,       false); \
+  macro(_value_mirror_offset,       k, "valueType",           class_signature,       false)
 
 void java_lang_Class::compute_offsets() {
   if (offsets_computed) {
@@ -4207,6 +4279,8 @@ int java_lang_Class::_class_loader_offset;
 int java_lang_Class::_module_offset;
 int java_lang_Class::_protection_domain_offset;
 int java_lang_Class::_component_mirror_offset;
+int java_lang_Class::_box_mirror_offset;
+int java_lang_Class::_value_mirror_offset;
 int java_lang_Class::_init_lock_offset;
 int java_lang_Class::_signers_offset;
 GrowableArray<Klass*>* java_lang_Class::_fixup_mirror_list = NULL;

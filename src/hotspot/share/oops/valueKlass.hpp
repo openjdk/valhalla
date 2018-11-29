@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_OOPS_VALUEKLASS_HPP
 #define SHARE_VM_OOPS_VALUEKLASS_HPP
 
+#include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
@@ -127,6 +128,10 @@ class ValueKlass: public InstanceKlass {
   // Type testing
   bool is_value_slow() const        { return true; }
 
+  oop value_mirror() const {
+    return java_lang_Class::value_mirror(java_mirror());
+  }
+  
   // Casting from Klass*
   static ValueKlass* cast(Klass* k) {
     assert(k->is_value(), "cast to ValueKlass");

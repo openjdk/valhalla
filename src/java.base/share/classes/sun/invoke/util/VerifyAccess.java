@@ -236,7 +236,7 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        if (type == refc) {
+        if (type.asBoxType() == refc.asBoxType()) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -295,7 +295,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (type == res);
+        return (type.asBoxType() == res);
     }
 
     /**

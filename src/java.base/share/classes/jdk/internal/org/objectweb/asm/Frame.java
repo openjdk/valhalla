@@ -773,6 +773,7 @@ class Frame {
         case 'D':
             return DOUBLE;
         case 'L':
+        case 'Q':
             // stores the internal name, not the descriptor!
             t = desc.substring(index + 1, desc.length() - 1);
             return OBJECT | cw.addType(t);
@@ -810,6 +811,7 @@ class Frame {
                 data = DOUBLE;
                 break;
             // case 'L':
+            // case 'Q':
             default:
                 // stores the internal name, not the descriptor
                 t = desc.substring(dims + 1, desc.length() - 1);

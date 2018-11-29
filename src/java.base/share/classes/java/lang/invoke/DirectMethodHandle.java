@@ -78,7 +78,7 @@ class DirectMethodHandle extends MethodHandle {
         if (!member.isStatic()) {
             if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isConstructor())
                 throw new InternalError(member.toString());
-            mtype = mtype.insertParameterTypes(0, refc);
+            mtype = mtype.insertParameterTypes(0, refc.isValue() ? refc.asValueType() : refc);
         }
         if (!member.isField()) {
             // refKind reflects the original type of lookup via findSpecial or
@@ -136,6 +136,8 @@ class DirectMethodHandle extends MethodHandle {
     private static DirectMethodHandle makeAllocator(MemberName ctor) {
         assert(ctor.isConstructor() && ctor.getName().equals("<init>"));
         Class<?> instanceClass = ctor.getDeclaringClass();
+        if (instanceClass.isValue())
+            instanceClass = instanceClass.asValueType();  // convert to Q-Type
         ctor = ctor.asConstructor();
         assert(ctor.isConstructor() && ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);

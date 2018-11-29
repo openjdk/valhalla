@@ -233,7 +233,7 @@ public final class ValueBootstrapMethods {
             Object[] values = invoke(getters, obj);
             return Arrays.stream(values)
                          .map(Object::toString)
-                         .collect(Collectors.joining(", ", "[value ", "]"));
+                         .collect(Collectors.joining(", ", "[", "]"));
         } else {
             return obj.toString();
         }

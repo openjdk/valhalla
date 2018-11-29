@@ -1398,7 +1398,7 @@ public class TestNewAcmp {
             if (args[i] != null && !parameterTypes[0].isInstance(args[i])) {
                 continue;
             }
-            if (args[i] == null && parameterTypes[0] == MyValue.class && !NullableValueTypes) {
+            if (args[i] == null && parameterTypes[0] == MyValue.class.asValueType() && !NullableValueTypes) {
                 continue;
             }
             if (parameterCount == 1) {
@@ -1420,7 +1420,7 @@ public class TestNewAcmp {
                     if (args[j] != null && !parameterTypes[1].isInstance(args[j])) {
                         continue;
                     }
-                    if (args[j] == null && parameterTypes[1] == MyValue.class && !NullableValueTypes) {
+                    if (args[j] == null && parameterTypes[1] == MyValue.class.asValueType() && !NullableValueTypes) {
                         continue;
                     }
                     System.out.print("Testing " + m.getName() + "(" + args[i] + ", " + args[j] + ")");

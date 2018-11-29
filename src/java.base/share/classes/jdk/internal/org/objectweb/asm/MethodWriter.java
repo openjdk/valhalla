@@ -1840,7 +1840,7 @@ class MethodWriter extends MethodVisitor {
                 while (descriptor.charAt(i) == '[') {
                     ++i;
                 }
-                if (descriptor.charAt(i) == 'L') {
+                if (descriptor.charAt(i) == 'L' || descriptor.charAt(i) == 'Q') {
                     ++i;
                     while (descriptor.charAt(i) != ';') {
                         ++i;
@@ -1849,6 +1849,7 @@ class MethodWriter extends MethodVisitor {
                 frame[frameIndex++] = Frame.type(cw, descriptor.substring(j, ++i));
                 break;
             case 'L':
+            case 'Q':
                 while (descriptor.charAt(i) != ';') {
                     ++i;
                 }

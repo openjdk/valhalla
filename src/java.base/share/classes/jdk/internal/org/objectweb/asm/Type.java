@@ -451,7 +451,7 @@ public class Type {
                 car = desc.charAt(c);
                 return n << 2
                         | (car == 'V' ? 0 : (car == 'D' || car == 'J' ? 2 : 1));
-            } else if (car == 'L') {
+            } else if (car == 'L' || car == 'Q') {
                 while (desc.charAt(c++) != ';') {
                 }
                 n += 1;
@@ -507,7 +507,7 @@ public class Type {
             while (buf[off + len] == '[') {
                 ++len;
             }
-            if (buf[off + len] == 'L') {
+            if (buf[off + len] == 'L' || buf[off + len] == 'Q') {
                 ++len;
                 while (buf[off + len] != ';') {
                     ++len;
@@ -515,6 +515,7 @@ public class Type {
             }
             return new Type(ARRAY, buf, off, len + 1);
         case 'L':
+        case 'Q':
             len = 1;
             while (buf[off + len] != ';') {
                 ++len;
@@ -817,8 +818,15 @@ public class Type {
                 buf.append('[');
                 d = d.getComponentType();
             } else {
-                buf.append('L');
                 String name = d.getName();
+                // Workarounds nasgen build that depends on ASM but compiled with
+                // the bootstrap JDK.  Can't use Class::isValue and Class::asValueType
+                int index = d.getTypeName().lastIndexOf("/val");
+                if (index > 0) {
+                    buf.append('Q');
+                } else {
+                    buf.append('L');
+                }
                 int len = name.length();
                 for (int i = 0; i < len; ++i) {
                     char car = name.charAt(i);

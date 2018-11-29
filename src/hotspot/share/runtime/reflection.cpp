@@ -40,6 +40,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
@@ -50,6 +51,7 @@
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/vframe.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 static void trace_class_resolution(const Klass* to_class) {
   ResourceMark rm;
@@ -782,13 +784,24 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
   );
 }
 
+// Returns Q-mirror if qtype_if_value is true and k is a ValueKlass;
+// otherwise returns java_mirror or L-mirror for ValueKlass
+static oop java_mirror(Klass* k, jboolean qtype_if_value) {
+  if (qtype_if_value && k->is_value()) {
+    ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(k));
+    return vk->value_mirror();
+  } else {
+    return k->java_mirror();
+  }
+}
+
 // Utility method converting a single SignatureStream element into java.lang.Class instance
 static oop get_mirror_from_signature(const methodHandle& method,
                                      SignatureStream* ss,
                                      TRAPS) {
 
-
-  if (T_OBJECT == ss->type() || T_ARRAY == ss->type() || T_VALUETYPE == ss->type()) {
+  BasicType bt = ss->type();
+  if (T_OBJECT == bt || T_ARRAY == bt || T_VALUETYPE == bt) {
     Symbol* name = ss->as_symbol(CHECK_NULL);
     oop loader = method->method_holder()->class_loader();
     oop protection_domain = method->method_holder()->protection_domain();
@@ -800,13 +813,13 @@ static oop get_mirror_from_signature(const methodHandle& method,
     if (log_is_enabled(Debug, class, resolve)) {
       trace_class_resolution(k);
     }
-    return k->java_mirror();
+    return java_mirror((Klass*)k, bt == T_VALUETYPE);
   }
 
-  assert(ss->type() != T_VOID || ss->at_return_type(),
+  assert(bt != T_VOID || ss->at_return_type(),
     "T_VOID should only appear as return type");
 
-  return java_lang_Class::primitive_mirror(ss->type());
+  return java_lang_Class::primitive_mirror(bt);
 }
 
 static objArrayHandle get_parameter_types(const methodHandle& method,
@@ -855,8 +868,7 @@ static Handle new_type(Symbol* signature, Klass* k, TRAPS) {
   if (log_is_enabled(Debug, class, resolve)) {
     trace_class_resolution(result);
   }
-
-  oop nt = result->java_mirror();
+  oop nt = java_mirror(result, type == T_VALUETYPE);
   return Handle(THREAD, nt);
 }
 
@@ -1269,6 +1281,8 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   BasicType rtype;
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
+  } else if (java_lang_Class::value_mirror(return_type_mirror) == return_type_mirror) {
+    rtype = T_VALUETYPE;
   } else {
     rtype = T_OBJECT;
   }

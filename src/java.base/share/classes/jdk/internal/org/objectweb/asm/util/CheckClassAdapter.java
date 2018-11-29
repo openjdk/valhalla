@@ -685,7 +685,7 @@ public class CheckClassAdapter extends ClassVisitor {
             pos = checkFormalTypeParameters(signature, pos);
         }
         pos = checkClassTypeSignature(signature, pos);
-        while (getChar(signature, pos) == 'L') {
+        while (getChar(signature, pos) == 'L' || getChar(signature, pos) == 'Q') {
             pos = checkClassTypeSignature(signature, pos);
         }
         if (pos != signature.length()) {

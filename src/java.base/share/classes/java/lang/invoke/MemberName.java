@@ -191,10 +191,11 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
+        Class<?> c = clazz.isValue() ? clazz.asValueType() : clazz;
         if (isConstructor() && getReferenceKind() == REF_newInvokeSpecial)
-            return itype.changeReturnType(clazz);
+            return itype.changeReturnType(c);
         if (!isStatic())
-            return itype.insertParameterTypes(0, clazz);
+            return itype.insertParameterTypes(0, c);
         return itype;
     }
 

@@ -854,7 +854,8 @@ public class Proxy implements java.io.Serializable {
                 type = Class.forName(c.getName(), false, ld);
             } catch (ClassNotFoundException e) {
             }
-            if (type != c) {
+            // use box type to do visibility check
+            if (type != c.asBoxType()) {
                 throw new IllegalArgumentException(c.getName() +
                         " referenced from a method is not visible from class loader");
             }

@@ -568,6 +568,7 @@ public class AnalyzerAdapter extends MethodVisitor {
             }
             break;
         // case 'L':
+        // case 'Q':
         default:
             if (index == 0) {
                 push(desc.substring(1, desc.length() - 1));

@@ -330,11 +330,7 @@ class Array {
         Class<?> componentType = array.getClass().getComponentType();
         if (componentType != null && !componentType.isPrimitive()) {
             Object[] objArray = (Object[]) array.getClass().cast(array);
-            if (componentType.isValue()) {
-                objArray[index] = componentType.cast(Objects.requireNonNull(value));
-            } else {
-                objArray[index] = componentType.cast(value);
-            }
+            objArray[index] = componentType.cast(value);
         } else {
             setReferenceOrPrimitive(array, index, value);
         }

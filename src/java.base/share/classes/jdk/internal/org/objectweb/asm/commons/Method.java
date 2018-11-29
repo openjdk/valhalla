@@ -240,6 +240,7 @@ public class Method {
         if (desc != null) {
             sb.append(desc);
         } else {
+            // FIXME: support Q-type
             sb.append('L');
             if (t.indexOf('.') < 0) {
                 if (!defaultPackage) {

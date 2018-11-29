@@ -1310,6 +1310,7 @@ public:
 
   // Naming
   const char* signature_name() const;
+  const char* signature_name_of(char c) const;
   static Symbol* package_from_name(const Symbol* name, TRAPS);
 
   // GC specific object visitors

@@ -159,22 +159,24 @@ void JavaCallWrapper::oops_do(OopClosure* f) {
 // Helper methods
 static BasicType runtime_type_from(JavaValue* result) {
   switch (result->get_type()) {
-    case T_BOOLEAN: // fall through
-    case T_CHAR   : // fall through
-    case T_SHORT  : // fall through
-    case T_INT    : // fall through
+    case T_BOOLEAN  : // fall through
+    case T_CHAR     : // fall through
+    case T_SHORT    : // fall through
+    case T_INT      : // fall through
 #ifndef _LP64
-    case T_OBJECT : // fall through
-    case T_ARRAY  : // fall through
+    case T_OBJECT   : // fall through
+    case T_ARRAY    : // fall through
+    case T_VALUETYPE: // fall through
 #endif
-    case T_BYTE   : // fall through
-    case T_VOID   : return T_INT;
-    case T_LONG   : return T_LONG;
-    case T_FLOAT  : return T_FLOAT;
-    case T_DOUBLE : return T_DOUBLE;
+    case T_BYTE     : // fall through
+    case T_VOID     : return T_INT;
+    case T_LONG     : return T_LONG;
+    case T_FLOAT    : return T_FLOAT;
+    case T_DOUBLE   : return T_DOUBLE;
 #ifdef _LP64
-    case T_ARRAY  : // fall through
-    case T_OBJECT:  return T_OBJECT;
+    case T_ARRAY    : // fall through
+    case T_OBJECT   : return T_OBJECT;
+    case T_VALUETYPE: return T_VALUETYPE;
 #endif
     default:
       ShouldNotReachHere();

@@ -94,9 +94,7 @@ public class MethodHandleTest {
         test.setValueField("l", mv, l);
         test.setValueField("staticPoint", null, p);
         test.setValueField("staticLine", null, l);
-        // remove the following cases when javac and jvm make
-        // static value fields be flattenable
-        test.setValueField("staticPoint", null, null);
+        // staticLine is a nullable field
         test.setValueField("staticLine", null, null);
     }
 

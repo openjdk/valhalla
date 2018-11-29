@@ -136,13 +136,17 @@ public class ValueArray {
     }
 
     static value class PointArray {
-        public Point[] points;
+        public Point.box[] points;
         PointArray() {
-            points = new Point[0];
+            points = new Point.box[0];
         }
         public static PointArray makeArray(Point... points) {
             PointArray a = PointArray.default;
-            a = __WithField(a.points, points);
+            Point.box[] boxArray = new Point.box[points.length];
+            for (int i=0; i < points.length; i++) {
+                boxArray[i] = points[i];
+            }
+            a = __WithField(a.points, boxArray);
             return a;
         }
     }

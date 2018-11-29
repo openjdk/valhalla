@@ -210,7 +210,8 @@ public final class Constructor<T> extends Executable {
     }
 
     /**
-     * Returns the {@code Class} object representing the class that
+     * Returns the {@code Class} object representing
+     * {@linkplain Class#asBoxType() the box type} of the class that
      * declares the constructor represented by this object.
      */
     @Override

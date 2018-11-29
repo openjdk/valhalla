@@ -58,7 +58,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -189,8 +188,9 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this class object.
      */
     public String toString() {
-        return (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-            + getName();
+        return (isValue() ? "value " : "")
+               + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
+               + getName();
     }
 
     /**
@@ -249,6 +249,10 @@ public final class Class<T> implements java.io.Serializable,
 
                 if (isAnnotation()) {
                     sb.append('@');
+                }
+                if (isValue()) {
+                    sb.append("value");
+                    sb.append(' ');
                 }
                 if (isInterface()) { // Note: all annotation types are interfaces
                     sb.append("interface");
@@ -338,6 +342,10 @@ public final class Class<T> implements java.io.Serializable,
      * <p> If {@code name} denotes an array class, the component type of
      * the array class is loaded but not initialized.
      *
+     * <p> If {@code name} denotes a value class, this method returns
+     * the {@code Class} object representing the
+     * {@linkplain #asBoxType() box value type}.
+     *
      * <p> For example, in an instance method the expression:
      *
      * <blockquote>
@@ -418,6 +426,10 @@ public final class Class<T> implements java.io.Serializable,
      * the given name is a class defined in a different module, this method
      * returns {@code null} after the class is loaded. </p>
      *
+     * <p> If {@code name} denotes a value class, this method returns
+     * the {@code Class} object representing the
+     * {@linkplain #asBoxType() box value type}. </p>
+     *
      * <p> This method does not check whether the requested class is
      * accessible to its caller. </p>
      *
@@ -497,6 +509,51 @@ public final class Class<T> implements java.io.Serializable,
         }
         return false;
     }
+
+    /**
+     * Returns a {@code Class} object representing the <em>box type</em>
+     * of this class if this class is a {@linkplain #isValue() value class};
+     * otherwise, returns this class.
+     *
+     * <p> A value class has two {@code Class} representations,
+     * a null-free type or a nullable box type, that can be obtained
+     * by calling {@link #asValueType()} or {@link #asBoxType()} method
+     * for conversion.
+     *
+     * @return the box type of this class if this class is a value class;
+     *         otherwise, this class.
+     */
+    public Class<?> asBoxType() {
+        return isValue() ? boxType : this;
+    }
+
+    /**
+     * Returns a {@code Class} object representing the <em>null-free value type</em>
+     * of this class if this class is a {@linkplain #isValue() value class};
+     * otherwise, returns {@code null}.
+     *
+     * <p> A value class has two {@code Class} representations,
+     * a null-free type or a nullable box type, that can be obtained
+     * by calling {@link #asValueType()} or {@link #asBoxType()} method
+     * for conversion.
+     *
+     * @return the unbox value type of this class if this class is a value class;
+     *         otherwise, {@code null}.
+     */
+    public Class<?> asValueType() {
+        return isValue() ? valueType : null;
+    }
+
+    /*
+     * Returns true if this class is a non-value class or a box value class.
+     */
+    boolean isBoxType() {
+        return boxType == null || this == boxType;
+    }
+
+    // set by VM if this class is a value type
+    private transient Class<?> boxType;
+    private transient Class<?> valueType;
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
@@ -788,6 +845,8 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="row"> char         <td style="text-align:center"> C
      * <tr><th scope="row"> class or interface
      *                                   <td style="text-align:center"> L<i>classname</i>;
+     * <tr><th scope="row"> {@linkplain #asValueType() regular value class}
+     *                                   <td style="text-align:center"> Q<i>classname</i>;
      * <tr><th scope="row"> double       <td style="text-align:center"> D
      * <tr><th scope="row"> float        <td style="text-align:center"> F
      * <tr><th scope="row"> int          <td style="text-align:center"> I
@@ -805,8 +864,12 @@ public final class Class<T> implements java.io.Serializable,
      *     returns "java.lang.String"
      * byte.class.getName()
      *     returns "byte"
+     * Point.class.getName()
+     *     returns "p.Point"
      * (new Object[3]).getClass().getName()
      *     returns "[Ljava.lang.Object;"
+     * (new Point[3]).getClass().getName()
+     *     returns "[QPoint;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
@@ -816,8 +879,9 @@ public final class Class<T> implements java.io.Serializable,
      */
     public String getName() {
         String name = this.name;
-        if (name == null)
+        if (name == null) {
             this.name = name = getName0();
+        }
         return name;
     }
 
@@ -1217,7 +1281,6 @@ public final class Class<T> implements java.io.Serializable,
     @HotSpotIntrinsicCandidate
     public native int getModifiers();
 
-
     /**
      * Gets the signers of this class.
      *
@@ -1226,13 +1289,22 @@ public final class Class<T> implements java.io.Serializable,
      *          a primitive type or void.
      * @since   1.1
      */
-    public native Object[] getSigners();
+    public Object[] getSigners() {
+        Class<?> c = (isValue() && !isBoxType()) ? asBoxType() : this;
+        return c.getSigners0();
+    }
 
+    private native Object[] getSigners0();
 
     /**
      * Set the signers of this class.
      */
-    native void setSigners(Object[] signers);
+    void setSigners(Object[] signers) {
+        Class<?> c = (isValue() && !isBoxType()) ? asBoxType() : this;
+        c.setSigners0(signers);
+    }
+
+    native void setSigners0(Object[] signers);
 
 
     /**
@@ -1570,6 +1642,9 @@ public final class Class<T> implements java.io.Serializable,
      * component type with "[]" appended.  In particular the simple
      * name of an array whose component type is anonymous is "[]".
      *
+     * <p>The simple name of a value type is the simple name of
+     * this class with {@code ".box"} appended.
+     *
      * @return the simple name of the underlying class
      * @since 1.5
      */
@@ -1591,7 +1666,7 @@ public final class Class<T> implements java.io.Serializable,
             simpleName = getName();
             simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
-        return simpleName;
+        return isValue() && isBoxType() ? simpleName + ".box" : simpleName;
     }
 
     /**
@@ -1610,14 +1685,15 @@ public final class Class<T> implements java.io.Serializable,
                     cl = cl.getComponentType();
                 } while (cl.isArray());
                 StringBuilder sb = new StringBuilder();
-                sb.append(cl.getName());
+                sb.append(cl.getTypeName());
                 for (int i = 0; i < dimensions; i++) {
                     sb.append("[]");
                 }
                 return sb.toString();
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
-        return getName();
+        // ## append "/box" to box value type instead?
+        return isBoxType() ? getName() : getName() + "/val";
     }
 
     /**
@@ -3621,13 +3697,18 @@ public final class Class<T> implements java.io.Serializable,
      * @return the object after casting, or null if obj is null
      *
      * @throws ClassCastException if the object is not
-     * null and is not assignable to the type T.
+     * {@code null} and is not assignable to the type T.
+     * @throws NullPointerException if this class is a {@linkplain #asValueType()
+     * null-free value class} and the object is {@code null}
      *
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
     @HotSpotIntrinsicCandidate
     public T cast(Object obj) {
+        if (isValue() && !isBoxType() && obj == null)
+            throw new NullPointerException(getName() + " is non-nullable value class");
+
         if (obj != null && !isInstance(obj))
             throw new ClassCastException(cannotCastMsg(obj));
         return (T) obj;
@@ -3896,7 +3977,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.8
      */
     public AnnotatedType[] getAnnotatedInterfaces() {
-         return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
+        return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
     }
 
     private native Class<?> getNestHost0();

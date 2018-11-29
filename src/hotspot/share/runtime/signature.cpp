@@ -31,6 +31,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
+#include "oops/valueKlass.hpp"
 #include "runtime/signature.hpp"
 
 // Implementation of SignatureIterator
@@ -403,7 +404,7 @@ oop SignatureStream::as_java_mirror(Handle class_loader, Handle protection_domai
     return Universe::java_mirror(type());
   Klass* klass = as_klass(class_loader, protection_domain, failure_mode, CHECK_NULL);
   if (klass == NULL)  return NULL;
-  return klass->java_mirror();
+  return _type == T_VALUETYPE ? ValueKlass::cast(InstanceKlass::cast(klass))->value_mirror() : klass->java_mirror();
 }
 
 Symbol* SignatureStream::as_symbol_or_null() {

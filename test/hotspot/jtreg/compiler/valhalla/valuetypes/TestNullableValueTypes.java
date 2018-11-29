@@ -460,7 +460,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
     public boolean test16(Object arg) throws Exception {
-        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class);
+        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class.asValueType());
         return (boolean)test16method.invoke(this, arg);
     }
 

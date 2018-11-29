@@ -112,7 +112,7 @@ public class SignatureReader {
                 pos = end + 1;
 
                 c = signature.charAt(pos);
-                if (c == 'L' || c == '[' || c == 'T') {
+                if (c == 'L' || c == 'Q' || c == '[' || c == 'T') {
                     pos = parseType(signature, pos, v.visitClassBound());
                 }
 

@@ -240,6 +240,8 @@ class java_lang_Class : AllStatic {
   static int _class_loader_offset;
   static int _module_offset;
   static int _component_mirror_offset;
+  static int _box_mirror_offset;
+  static int _value_mirror_offset;
 
   static bool offsets_computed;
   static int classRedefinedCount_offset;
@@ -262,6 +264,7 @@ class java_lang_Class : AllStatic {
                             Handle protection_domain, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
+  static oop  create_value_mirror(Klass* k, Handle mirror, TRAPS);
 
   // Archiving
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
@@ -309,6 +312,11 @@ class java_lang_Class : AllStatic {
   static oop class_loader(oop java_class);
   static void set_module(oop java_class, oop module);
   static oop module(oop java_class);
+
+  static void set_box_mirror(oop java_class, oop mirror);
+  static oop box_mirror(oop java_class);
+  static void set_value_mirror(oop java_class, oop mirror);
+  static oop value_mirror(oop java_class);
 
   static int oop_size(oop java_class);
   static int oop_size_raw(oop java_class);

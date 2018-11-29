@@ -25,7 +25,7 @@ import java.util.List;
 
 public class MixedValues {
     static Point staticPoint = Point.makePoint(10, 10);
-    static Line staticLine;   // LW1 allows null static value field
+    static Line.box staticLine;   // null static value box field
     Point p;
     Line l;
     MutablePath mutablePath;

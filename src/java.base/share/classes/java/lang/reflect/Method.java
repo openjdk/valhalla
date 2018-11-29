@@ -214,8 +214,10 @@ public final class Method extends Executable {
     }
 
     /**
-     * Returns the {@code Class} object representing the class or interface
+     * Returns the {@code Class} object representing
+     * {@linkplain Class#asBoxType() the box type} of the class or interface
      * that declares the method represented by this object.
+     *
      */
     @Override
     public Class<?> getDeclaringClass() {

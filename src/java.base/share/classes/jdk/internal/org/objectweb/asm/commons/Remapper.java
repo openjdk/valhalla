@@ -89,6 +89,7 @@ public abstract class Remapper {
             }
             return s;
         case Type.OBJECT:
+            // FIXME: support Q-type
             String newType = map(t.getInternalName());
             if (newType != null) {
                 return 'L' + newType + ';';

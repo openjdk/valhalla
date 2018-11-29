@@ -57,7 +57,7 @@ public class TestNativeClone {
 
     private static final MethodHandle cloneValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
         "MyValue",
-        MethodType.methodType(Object.class, MyValue.class),
+        MethodType.methodType(Object.class, MyValue.class.asValueType()),
         CODE -> {
             CODE.
             aload_0().

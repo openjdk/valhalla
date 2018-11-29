@@ -174,19 +174,32 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
+    /**
+     * Returns true if the given class is a regular value type.
+     */
+    public boolean isValueType(Class<?> c) {
+        return c.isValue() && c == c.asValueType();
+    }
+
+    /**
+     * Returns true if the given class is a flattened array.
+     */
     public native boolean isFlattenedArray(Class<?> arrayClass);
 
     /**
      * Fetches a reference value from a given Java variable.
+     * This method can return a reference to either an object or value
+     * or a null reference.
+     *
      * @see #getInt(Object, long)
      */
     @HotSpotIntrinsicCandidate
     public native Object getObject(Object o, long offset);
 
-    public native Object getValue(Object base, long offset, Class<?> valueType);
-
     /**
      * Stores a reference value into a given Java variable.
+     * This method can store a reference to either an object or value
+     * or a null reference.
      * <p>
      * Unless the reference {@code x} being stored is either null
      * or matches the field type, the results are undefined.
@@ -198,7 +211,44 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putObject(Object o, long offset, Object x);
 
-    public native void putValue(Object base, long offset, Class<?> valueType, Object value);
+    /**
+     * Fetches a value of type {@code <V>} from a given Java variable.
+     * More specifically, fetches a field or array element within the given
+     * {@code o} object at the given offset, or (if {@code o} is null)
+     * from the memory address whose numerical value is the given offset.
+     *
+     * @param o Java heap object in which the variable resides, if any, else
+     *        null
+     * @param offset indication of where the variable resides in a Java heap
+     *        object, if any, else a memory address locating the variable
+     *        statically
+     * @param vc value class
+     * @param <V> the type of a value
+     * @return the value fetched from the indicated Java variable
+     * @throws RuntimeException No defined exceptions are thrown, not even
+     *         {@link NullPointerException}
+     */
+    public native <V> V getValue(Object o, long offset, Class<?> vc);
+
+    /**
+     * Stores the given value into a given Java variable.
+     *
+     * Unless the reference {@code o} being stored is either null
+     * or matches the field type and not in a value container,
+     * the results are undefined.
+     *
+     * @param o Java heap object in which the variable resides, if any, else
+     *        null
+     * @param offset indication of where the variable resides in a Java heap
+     *        object, if any, else a memory address locating the variable
+     *        statically
+     * @param vc value class
+     * @param v the value to store into the indicated Java variable
+     * @param <V> the type of a value
+     * @throws RuntimeException No defined exceptions are thrown, not even
+     *         {@link NullPointerException}
+     */
+    public native <V> void putValue(Object o, long offset, Class<?> vc, V v);
 
     /** @see #getInt(Object, long) */
     @HotSpotIntrinsicCandidate
@@ -1308,10 +1358,10 @@ public final class Unsafe {
                                                     Object x);
 
     @ForceInline
-    public final boolean compareAndSetValue(Object o, long offset,
-                                            Class<?> valueType,
-                                            Object expected,
-                                            Object x) {
+    public final <V> boolean compareAndSetValue(Object o, long offset,
+                                                Class<?> valueType,
+                                                V expected,
+                                                V x) {
         synchronized (valueLock) {
             Object witness = getValue(o, offset, valueType);
             if (witness.equals(expected)) {
@@ -1328,12 +1378,11 @@ public final class Unsafe {
     public final native Object compareAndExchangeObject(Object o, long offset,
                                                         Object expected,
                                                         Object x);
-
     @ForceInline
-    public final Object compareAndExchangeValue(Object o, long offset,
-                                                Class<?> valueType,
-                                                Object expected,
-                                                Object x) {
+    public final <V> Object compareAndExchangeValue(Object o, long offset,
+                                                    Class<?> valueType,
+                                                    V expected,
+                                                    V x) {
         synchronized (valueLock) {
             Object witness = getValue(o, offset, valueType);
             if (witness.equals(expected)) {
@@ -1345,31 +1394,31 @@ public final class Unsafe {
 
     @HotSpotIntrinsicCandidate
     public final Object compareAndExchangeObjectAcquire(Object o, long offset,
-                                                               Object expected,
-                                                               Object x) {
+                                                        Object expected,
+                                                        Object x) {
         return compareAndExchangeObject(o, offset, expected, x);
     }
 
     @ForceInline
-    public final Object compareAndExchangeValueAcquire(Object o, long offset,
-                                                       Class<?> valueType,
-                                                       Object expected,
-                                                       Object x) {
+    public final <V> Object compareAndExchangeValueAcquire(Object o, long offset,
+                                                           Class<?> valueType,
+                                                           V expected,
+                                                           V x) {
         return compareAndExchangeValue(o, offset, valueType, expected, x);
     }
 
     @HotSpotIntrinsicCandidate
     public final Object compareAndExchangeObjectRelease(Object o, long offset,
-                                                               Object expected,
-                                                               Object x) {
+                                                        Object expected,
+                                                        Object x) {
         return compareAndExchangeObject(o, offset, expected, x);
     }
 
     @ForceInline
-    public final Object compareAndExchangeValueRelease(Object o, long offset,
-                                                       Class<?> valueType,
-                                                       Object expected,
-                                                       Object x) {
+    public final <V> Object compareAndExchangeValueRelease(Object o, long offset,
+                                                           Class<?> valueType,
+                                                           V expected,
+                                                           V x) {
         return compareAndExchangeValue(o, offset, valueType, expected, x);
     }
 
@@ -1381,10 +1430,10 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final boolean weakCompareAndSetValuePlain(Object o, long offset,
-                                                     Class<?> valueType,
-                                                     Object expected,
-                                                     Object x) {
+    public final <V> boolean weakCompareAndSetValuePlain(Object o, long offset,
+                                                         Class<?> valueType,
+                                                         V expected,
+                                                         V x) {
         return compareAndSetValue(o, offset, valueType, expected, x);
     }
 
@@ -1396,10 +1445,10 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final boolean weakCompareAndSetValueAcquire(Object o, long offset,
-                                                       Class<?> valueType,
-                                                       Object expected,
-                                                       Object x) {
+    public final <V> boolean weakCompareAndSetValueAcquire(Object o, long offset,
+                                                           Class<?> valueType,
+                                                           V expected,
+                                                           V x) {
         return compareAndSetValue(o, offset, valueType, expected, x);
     }
 
@@ -1411,10 +1460,10 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final boolean weakCompareAndSetValueRelease(Object o, long offset,
-                                                       Class<?> valueType,
-                                                       Object expected,
-                                                       Object x) {
+    public final <V> boolean weakCompareAndSetValueRelease(Object o, long offset,
+                                                           Class<?> valueType,
+                                                           V expected,
+                                                           V x) {
         return compareAndSetValue(o, offset, valueType, expected, x);
     }
 
@@ -1426,10 +1475,10 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final boolean weakCompareAndSetValue(Object o, long offset,
-                                                Class<?> valueType,
-                                                Object expected,
-                                                Object x) {
+    public final <V> boolean weakCompareAndSetValue(Object o, long offset,
+                                                    Class<?> valueType,
+                                                    V expected,
+                                                    V x) {
         return compareAndSetValue(o, offset, valueType, expected, x);
     }
 
@@ -2055,7 +2104,7 @@ public final class Unsafe {
      */
     private static final Object valueLock = new Object();
 
-    public final Object getValueVolatile(Object base, long offset, Class<?> valueType) {
+    public final <V> Object getValueVolatile(Object base, long offset, Class<?> valueType) {
         synchronized (valueLock) {
             return getValue(base, offset, valueType);
         }
@@ -2068,7 +2117,7 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void    putObjectVolatile(Object o, long offset, Object x);
 
-    public final void putValueVolatile(Object o, long offset, Class<?> valueType, Object x) {
+    public final <V> void putValueVolatile(Object o, long offset, Class<?> valueType, V x) {
         synchronized (valueLock) {
             putValue(o, offset, valueType, x);
         }
@@ -2146,7 +2195,7 @@ public final class Unsafe {
         return getObjectVolatile(o, offset);
     }
 
-    public final Object getValueAcquire(Object base, long offset, Class<?> valueType) {
+    public final <V> Object getValueAcquire(Object base, long offset, Class<?> valueType) {
         return getValueVolatile(base, offset, valueType);
     }
 
@@ -2214,7 +2263,7 @@ public final class Unsafe {
         putObjectVolatile(o, offset, x);
     }
 
-    public final void putValueRelease(Object o, long offset, Class<?> valueType, Object x) {
+    public final <V> void putValueRelease(Object o, long offset, Class<?> valueType, V x) {
         putValueVolatile(o, offset, valueType, x);
     }
 
@@ -2274,7 +2323,7 @@ public final class Unsafe {
         return getObjectVolatile(o, offset);
     }
 
-    public final Object getValueOpaque(Object base, long offset, Class<?> valueType) {
+    public final <V> Object getValueOpaque(Object base, long offset, Class<?> valueType) {
         return getValueVolatile(base, offset, valueType);
     }
 
@@ -2332,7 +2381,7 @@ public final class Unsafe {
         putObjectVolatile(o, offset, x);
     }
 
-    public final void putValueOpaque(Object o, long offset, Class<?> valueType, Object x) {
+    public final <V> void putValueOpaque(Object o, long offset, Class<?> valueType, V x) {
         putValueVolatile(o, offset, valueType, x);
     }
 
@@ -2770,7 +2819,8 @@ public final class Unsafe {
         return v;
     }
 
-    public final Object getAndSetValue(Object o, long offset, Class<?> valueType, Object newValue) {
+    @SuppressWarnings("unchecked")
+    public final <V> Object getAndSetValue(Object o, long offset, Class<?> valueType, V newValue) {
         synchronized (valueLock) {
             Object oldValue = getValue(o, offset, valueType);
             putValue(o, offset, valueType, newValue);
@@ -2788,7 +2838,7 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final Object getAndSetValueRelease(Object o, long offset, Class<?> valueType, Object newValue) {
+    public final <V> Object getAndSetValueRelease(Object o, long offset, Class<?> valueType, V newValue) {
         return getAndSetValue(o, offset, valueType, newValue);
     }
 
@@ -2802,7 +2852,7 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final Object getAndSetValueAcquire(Object o, long offset, Class<?> valueType, Object newValue) {
+    public final <V> Object getAndSetValueAcquire(Object o, long offset, Class<?> valueType, V newValue) {
         return getAndSetValue(o, offset, valueType, newValue);
     }
 

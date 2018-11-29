@@ -1544,6 +1544,11 @@ public abstract class VarHandle {
                                   Class<?>... intermediate) {
             Class<?>[] ps;
             int i;
+            // the field type (value) is mapped to the return type of MethodType
+            // the receiver type is mapped to a parameter type of MethodType
+            // So use the value type as receiver may be a box type.
+            if (receiver != null && receiver.isValue())
+                receiver = receiver.asValueType();
             switch (this) {
                 case GET:
                     ps = allocateParameters(0, receiver, intermediate);
