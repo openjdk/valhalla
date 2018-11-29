@@ -58,7 +58,7 @@ public class ValueTypeArray {
         testObjectArrayOfValues();
 
         testReflectArray();
-        testUtilArrays();
+        // testUtilArrays();
     }
 
     void testClassForName() {
@@ -249,6 +249,10 @@ public class ValueTypeArray {
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
     }
 
+/*
+ * Comment out this test because value type arrays are not assignable to the array
+ * parameter types used by the methods in class java.util.Arrays.
+ *
     void testUtilArrays() {
         // Sanity check j.u.Arrays
         MyInt[] myInts = new MyInt[] { MyInt.MAX, MyInt.MIN };
@@ -281,6 +285,7 @@ public class ValueTypeArray {
         // Then in the end, ArrayList.elementData is Object[], (that's why remove works)
         // why can't I write add(null) then ?
     }
+*/
 
     void testObjectArrayOfValues() {
         testSanityObjectArrays();
@@ -424,6 +429,20 @@ public class ValueTypeArray {
         catch (ArrayStoreException ase) {}
     }
 
+    void checkArrayElementsEqual(MyInt[] arr1, Object[] arr2) {
+        assertTrue(arr1.length == arr2.length, "Bad length");
+        for (int i = 0; i < arr1.length; i++) {
+            assertTrue(java.util.Objects.equals(arr1[i], arr2[i]), "Element " + i + " not equal");
+        }
+    }
+
+    void checkArrayElementsEqual(MyPoint[] arr1, Object[] arr2) {
+        assertTrue(arr1.length == arr2.length, "Bad length");
+        for (int i = 0; i < arr1.length; i++) {
+            assertTrue(java.util.Objects.equals(arr1[i], arr2[i]), "Element " + i + " not equal");
+        }
+    }
+
     void checkArrayElementsEqual(Object[] arr1, Object[] arr2) {
         assertTrue(arr1.length == arr2.length, "Bad length");
         for (int i = 0; i < arr1.length; i++) {
@@ -431,7 +450,12 @@ public class ValueTypeArray {
         }
     }
 
-    void arrayCopy(Object[] src, int srcPos, Object[] dst, int dstPos, int length) {
+    void arrayCopy(MyInt[] src, int srcPos, Object[] dst, int dstPos, int length) {
+        for (int i = 0; i < length ; i++) {
+            dst[dstPos++] = src[srcPos++];
+        }
+    }
+    void arrayCopy(MyPoint[] src, int srcPos, Object[] dst, int dstPos, int length) {
         for (int i = 0; i < length ; i++) {
             dst[dstPos++] = src[srcPos++];
         }
