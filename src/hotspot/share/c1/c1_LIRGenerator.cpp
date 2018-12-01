@@ -1567,15 +1567,30 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
   ciValueArrayKlass* value_array_klass = array_type->as_value_array_klass();
   ciValueKlass* elem_klass = value_array_klass->element_klass()->as_value_klass();
   int array_header_size = value_array_klass->array_header_in_bytes();
+  int shift = value_array_klass->log2_element_size();
 
 #ifndef _LP64
-  LIR_Opr index_op = index.result();
+  LIR_Opr index_op = new_register(T_INT);
+  // FIXME -- on 32-bit, the shift below can overflow, so we need to check that
+  // the top (shift+1) bits of index_op must be zero, or
+  // else throw ArrayIndexOutOfBoundsException
+  if (index.result()->is_constant()) {
+    jint const_index = index.result()->as_jint();
+    __ move(LIR_OprFact::intConst(const_index << shift), index_op);
+  } else {
+    __ shift_left(index_op, shift, index.result());
+  }
 #else
   LIR_Opr index_op = new_register(T_LONG);
-  __ convert(Bytecodes::_i2l, index.result(), index_op);
+  if (index.result()->is_constant()) {
+    jint const_index = index.result()->as_jint();
+    __ move(LIR_OprFact::longConst(const_index << shift), index_op);
+  } else {
+    __ convert(Bytecodes::_i2l, index.result(), index_op);
+    // Need to shift manually, as LIR_Address can scale only up to 3.
+    __ shift_left(index_op, shift, index_op);
+  }
 #endif
-  // Need to shift manually, as LIR_Address can scale only up to 3.
-  __ shift_left(index_op, value_array_klass->log2_element_size(), index_op);
 
   LIR_Opr elm_op = new_pointer_register();
   LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
