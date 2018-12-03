@@ -129,7 +129,7 @@ public class ValueTypesTest {
                     .label("end")
                     .iconst_0()
                     .return_(TypeTag.Z);
-                }, valueClass);
+                });
         boolean result = (boolean) fromExecStackToLocalVar.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");
@@ -140,7 +140,7 @@ public class ValueTypesTest {
         String sig = "()Q" + valueClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
         final String fieldQSignature = "Q" + valueClass.getName().replace('.', '/') + ";";
-	final String fieldLSignature = "L" + valueClass.getName().replace('.', '/') + ";";
+        final String fieldLSignature = "L" + valueClass.getName().replace('.', '/') + ";";
         System.out.println(methodSignature);
         MethodHandle fromExecStackToFields = MethodHandleBuilder.loadCode(
                 LOOKUP,
@@ -199,7 +199,7 @@ public class ValueTypesTest {
                     .label("failed")
                     .iconst_0()
                     .return_(TypeTag.Z);
-                }, valueClass);
+                });
         boolean result = (boolean) fromExecStackToFields.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");
@@ -273,7 +273,7 @@ public class ValueTypesTest {
                     .label("failed")
                     .iconst_0()
                     .return_(TypeTag.Z);
-                }, valueClass);
+                });
         boolean result = (boolean) fromExecStackToValueArray.invokeExact();
         System.out.println(result);
         assertTrue(result, "Invariant");

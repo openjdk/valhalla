@@ -305,10 +305,10 @@ public class ValueOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vtClass = Person.class;
+            Class<?> vtClass = Person.class.asValueType();
 
-	    System.out.println("vtClass="+vtClass);
-	    
+            System.out.println("vtClass="+vtClass);
+
             doGc();
 
             // VT on stack and lvt, null refs, see if GC flies
@@ -329,7 +329,7 @@ public class ValueOops {
                         .invokestatic(ValueOops.class, "doGc", "()V", false) // Stack,LVT
                         .pop()
                         .areturn();
-                    }, vtClass);
+                    });
             Person person = (Person) moveValueThroughStackAndLvt.invokeExact(createDefaultPerson());
             validateDefaultPerson(person);
             doGc();
@@ -608,7 +608,7 @@ public class ValueOops {
                             .aastore()
                             .pop()
                             .return_();
-                        }, FooValue.class).invoke(oopMaps);
+                        }).invoke(oopMaps);
             } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithDefault", t); }
         }
 
@@ -631,7 +631,7 @@ public class ValueOops {
                             .aastore()
                             .pop()
                             .return_();
-					     }, FooValue.class).invoke(fa, oopMaps);
+                        }).invoke(fa, oopMaps);
             } catch (Throwable t) { fail("exerciseVBytecodeExprStackWithRefs", t); }
         }
     }
