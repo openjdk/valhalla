@@ -31,7 +31,7 @@
  */
 
 value class Point {
-    static final Point origin = makePoint(10, 20);
+    static final Point.box origin = makePoint(10, 20);
     int x;
     int y;
     Point () {
