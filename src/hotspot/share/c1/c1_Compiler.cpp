@@ -110,6 +110,11 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
     return false;
   }
 
+  if (EnableValhalla && id == vmIntrinsics::_arraycopy) {
+    // FIXME: C1 doesn't support intrinsic copy of value arrays yet. Disable it for now.
+    return false;
+  }
+
   switch (id) {
   case vmIntrinsics::_compareAndSetLong:
     if (!VM_Version::supports_cx8()) return false;
