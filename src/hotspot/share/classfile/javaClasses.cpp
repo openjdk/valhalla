@@ -1015,7 +1015,7 @@ oop java_lang_Class::create_value_mirror(Klass* k, Handle mirror, TRAPS) {
     set_box_mirror(value_mirror(), mirror());
     set_value_mirror(value_mirror(), value_mirror());
     return value_mirror();
-}                                              
+}
 
 #if INCLUDE_CDS_JAVA_HEAP
 // Clears mirror fields. Static final fields with initial values are reloaded
@@ -1485,7 +1485,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     return;
   }
   if (is_instance)  {
-    if (is_value) {
+    if (is_value && (java_class == value_mirror(java_class))) {
       st->print("Q");
     } else {
       st->print("L");
