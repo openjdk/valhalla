@@ -132,6 +132,8 @@ private:
   ciMethod*  get_method_by_index(const constantPoolHandle& cpool,
                                  int method_index, Bytecodes::Code bc,
                                  ciInstanceKlass* loading_klass);
+  bool       get_never_null(const constantPoolHandle& cpool,
+                            int klass_index);
 
   // Implementation methods for loading and constant pool access.
   ciKlass* get_klass_by_name_impl(ciKlass* accessing_klass,
@@ -150,6 +152,8 @@ private:
   ciMethod*  get_method_by_index_impl(const constantPoolHandle& cpool,
                                       int method_index, Bytecodes::Code bc,
                                       ciInstanceKlass* loading_klass);
+  bool       get_never_null_impl(const constantPoolHandle& cpool,
+                                 int klass_index);
 
   // Helper methods
   bool       check_klass_accessibility(ciKlass* accessing_klass,

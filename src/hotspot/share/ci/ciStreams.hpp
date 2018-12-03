@@ -235,6 +235,7 @@ public:
   // or checkcast, get the referenced klass.
   ciKlass* get_klass(bool& will_link);
   int get_klass_index() const;
+  bool get_never_null() const;
 
   // If this bytecode is one of the ldc variants, get the referenced
   // constant.  Do not attempt to resolve it, since that would require

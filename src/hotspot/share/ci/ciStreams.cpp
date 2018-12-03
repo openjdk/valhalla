@@ -192,6 +192,16 @@ ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
 }
 
 // ------------------------------------------------------------------
+// ciBytecodeStream::get_never_null
+//
+// Get information about nullability from the constant pool.
+bool ciBytecodeStream::get_never_null() const {
+  VM_ENTRY_MARK;
+  constantPoolHandle cpool(_method->get_Method()->constants());
+  return CURRENT_ENV->get_never_null(cpool, get_klass_index());
+}
+
+// ------------------------------------------------------------------
 // ciBytecodeStream::get_constant_raw_index
 //
 // If this bytecode is one of the ldc variants, get the index of the

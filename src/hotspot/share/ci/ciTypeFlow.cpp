@@ -629,7 +629,8 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     do_null_assert(klass);
   } else {
     pop_object();
-    if (klass->is_valuetype() && !NullableValueTypes) {
+    if (str->get_never_null()) {
+      assert(klass->is_valuetype(), "must be a value type");
       push(outer()->mark_as_never_null(klass));
     } else {
       push_object(klass);

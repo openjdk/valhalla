@@ -38,9 +38,10 @@ ciType* ciMethodType::class_to_citype(oop klass_oop) const {
   }
 }
 
-ciType* ciMethodType::rtype() const {
+ciType* ciMethodType::rtype(bool& never_null) const {
   GUARDED_VM_ENTRY(
     oop rtype = java_lang_invoke_MethodType::rtype(get_oop());
+    never_null = (java_lang_Class::value_mirror(rtype) == rtype);
     return class_to_citype(rtype);
   )
 }
@@ -53,9 +54,10 @@ int ciMethodType::ptype_slot_count() const {
   GUARDED_VM_ENTRY(return java_lang_invoke_MethodType::ptype_slot_count(get_oop());)
 }
 
-ciType* ciMethodType::ptype_at(int index) const {
+ciType* ciMethodType::ptype_at(int index, bool& never_null) const {
   GUARDED_VM_ENTRY(
     oop ptype = java_lang_invoke_MethodType::ptype(get_oop(), index);
+    never_null = (java_lang_Class::value_mirror(ptype) == ptype);
     return class_to_citype(ptype);
   )
 }

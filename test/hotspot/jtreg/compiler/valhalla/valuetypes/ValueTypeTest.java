@@ -126,7 +126,6 @@ public abstract class ValueTypeTest {
     protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
     protected static final boolean ValueTypeArrayFlatten = (Boolean)WHITE_BOX.getVMFlag("ValueArrayFlatten");
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
-    protected static final boolean NullableValueTypes = (Boolean)WHITE_BOX.getVMFlag("NullableValueTypes");
     protected static final int COMP_LEVEL_ANY = -2;
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = TEST_C1 ? 1 : 4;
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();

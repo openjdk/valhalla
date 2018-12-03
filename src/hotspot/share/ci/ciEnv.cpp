@@ -598,6 +598,23 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 }
 
 // ------------------------------------------------------------------
+// ciEnv::get_never_null_impl
+//
+// Implementation of get_never_null.
+bool ciEnv::get_never_null_impl(const constantPoolHandle& cpool, int index) {
+  Symbol* klass_name = cpool->klass_name_at(index);
+  return klass_name->is_Q_signature();
+}
+
+// ------------------------------------------------------------------
+// ciEnv::get_never_null
+//
+// Get information about nullability from the constant pool.
+bool ciEnv::get_never_null(const constantPoolHandle& cpool, int index) {
+  GUARDED_VM_ENTRY(return get_never_null_impl(cpool, index);)
+}
+
+// ------------------------------------------------------------------
 // ciEnv::get_constant_by_index_impl
 //
 // Implementation of get_constant_by_index().

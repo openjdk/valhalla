@@ -42,7 +42,7 @@ import jdk.test.lib.Asserts;
  * @compile -XDenableValueTypes -XDallowWithFieldOperator TestNullableValueTypes.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla -XX:+NullableValueTypes
+ *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestNullableValueTypes
  */
@@ -70,11 +70,11 @@ public class TestNullableValueTypes extends ValueTypeTest {
             ClassLoader loader = clazz.getClassLoader();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class);
+            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class.asBoxType());
             test18_mh1 = lookup.findStatic(clazz, "test18_target1", test18_mt);
             test18_mh2 = lookup.findStatic(clazz, "test18_target2", test18_mt);
 
-            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.class);
+            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.class.asBoxType());
             test19_mh1 = lookup.findStatic(clazz, "test19_target1", test19_mt);
             test19_mh2 = lookup.findStatic(clazz, "test19_target2", test19_mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -164,7 +164,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test
-    public MyValue1 test5(MyValue1 vt) {
+    public MyValue1 test5(MyValue1.box vt) {
         try {
             Object o = vt;
             vt = (MyValue1)o;
@@ -214,27 +214,27 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @ForceInline
-    public MyValue1.box getNull_inline() {
+    public MyValue1.box getNullInline() {
         return null;
     }
 
     @DontInline
-    public MyValue1.box getNull_dontInline() {
+    public MyValue1.box getNullDontInline() {
         return null;
     }
 
     @Test
     public void test7() throws Throwable {
-        nullField = getNull_inline();     // Should not throw
-        nullField = getNull_dontInline(); // Should not throw
+        nullField = getNullInline();     // Should not throw
+        nullField = getNullDontInline(); // Should not throw
         try {
-            valueField1 = getNull_inline();
+            valueField1 = getNullInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
-            valueField1 = getNull_dontInline();
+            valueField1 = getNullDontInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -324,7 +324,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     int test12_cnt;
 
     @DontInline
-    public MyValue1 test12_helper() {
+    public MyValue1.box test12_helper() {
         test12_cnt++;
         return nullField;
     }
@@ -350,25 +350,25 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // null return at virtual call
     class A {
-        public MyValue1 test13_helper() {
+        public MyValue1.box test13_helper() {
             return nullField;
         }
     }
 
     class B extends A {
-        public MyValue1 test13_helper() {
+        public MyValue1.val test13_helper() {
             return nullField;
         }
     }
 
     class C extends A {
-        public MyValue1 test13_helper() {
+        public MyValue1.box test13_helper() {
             return nullField;
         }
     }
 
-    class D extends A {
-        public MyValue1 test13_helper() {
+    class D extends B {
+        public MyValue1.box test13_helper() {
             return nullField;
         }
     }
@@ -430,20 +430,31 @@ public class TestNullableValueTypes extends ValueTypeTest {
 */
 
     @DontInline
-    MyValue1 get_nullField() {
+    MyValue1.box getNullField1() {
+        return nullField;
+    }
+
+    @DontInline
+    MyValue1.val getNullField2() {
         return nullField;
     }
 
     @Test()
     public void test15() {
+        nullField = getNullField1(); // should not throw
         try {
-            valueField1 = get_nullField();
+            valueField1 = getNullField1();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
-
-        nullField = get_nullField(); // should not throw
+        try {
+// TODO enable this once we've fixed the interpreter to throw a NPE
+//            valueField1 = getNullField2();
+//            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
     }
 
     @DontCompile
@@ -452,7 +463,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @DontInline
-    public boolean test16_dontinline(MyValue1 vt) {
+    public boolean test16_dontinline(MyValue1.box vt) {
         return (Object)vt == null;
     }
 
@@ -460,7 +471,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
     public boolean test16(Object arg) throws Exception {
-        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class.asValueType());
+        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class.asBoxType());
         return (boolean)test16method.invoke(this, arg);
     }
 
@@ -506,12 +517,12 @@ public class TestNullableValueTypes extends ValueTypeTest {
     static MyValue1.box nullValue;
 
     @DontInline
-    static void test18_target1(MyValue1 vt) {
+    static void test18_target1(MyValue1.box vt) {
         nullValue = vt;
     }
 
     @ForceInline
-    static void test18_target2(MyValue1 vt) {
+    static void test18_target2(MyValue1.box vt) {
         nullValue = vt;
     }
 
@@ -536,12 +547,12 @@ public class TestNullableValueTypes extends ValueTypeTest {
     static MethodHandle test19_mh2;
 
     @DontInline
-    static void test19_target1(MyValue1 vt) {
+    static void test19_target1(MyValue1.box vt) {
         nullValue = vt;
     }
 
     @ForceInline
-    static void test19_target2(MyValue1 vt) {
+    static void test19_target2(MyValue1.box vt) {
         nullValue = vt;
     }
 
@@ -608,8 +619,9 @@ public class TestNullableValueTypes extends ValueTypeTest {
     public Test21Value test21(Test21Value vt) {
         vt = vt.test1();
         try {
-            vt = vt.test2();
-            throw new RuntimeException("NullPointerException expected");
+// TODO enable this once we've fixed the interpreter to throw a NPE
+//            vt = vt.test2();
+//            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -619,5 +631,26 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @DontCompile
     public void test21_verifier(boolean warmup) {
         test21(Test21Value.default);
+    }
+
+    @DontInline
+    public MyValue1.val test22_helper() {
+        return nullField;
+    }
+
+    @Test
+    public void test22() {
+        valueField1 = test22_helper();
+    }
+
+    @DontCompile
+    public void test22_verifier(boolean warmup) {
+        try {
+// TODO enable this once we've fixed the interpreter to throw a NPE
+//            test22();
+//            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
     }
 }

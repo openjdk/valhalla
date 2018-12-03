@@ -2662,9 +2662,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, ScalarizeValueTypes, true,                                  \
           "Scalarize value types in compiled code")                         \
                                                                             \
-  product(bool, NullableValueTypes, false,                                  \
-          "Treat all value types as nullable")                              \
-                                                                            \
   experimental(bool, UsePointerPerturbation, false,                         \
                "With value types, use the perturbation scheme for acmp")    \
 

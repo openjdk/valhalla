@@ -1385,7 +1385,6 @@ public class TestNewAcmp {
 
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
-    protected static final boolean NullableValueTypes = (Boolean)WHITE_BOX.getVMFlag("NullableValueTypes");
 
     public void runTest(Method m, Object[] args, int warmup, int nullMode) throws Exception {
         Class<?>[] parameterTypes = m.getParameterTypes();
@@ -1398,7 +1397,7 @@ public class TestNewAcmp {
             if (args[i] != null && !parameterTypes[0].isInstance(args[i])) {
                 continue;
             }
-            if (args[i] == null && parameterTypes[0] == MyValue.class.asValueType() && !NullableValueTypes) {
+            if (args[i] == null && parameterTypes[0] == MyValue.class.asValueType()) {
                 continue;
             }
             if (parameterCount == 1) {
@@ -1420,7 +1419,7 @@ public class TestNewAcmp {
                     if (args[j] != null && !parameterTypes[1].isInstance(args[j])) {
                         continue;
                     }
-                    if (args[j] == null && parameterTypes[1] == MyValue.class.asValueType() && !NullableValueTypes) {
+                    if (args[j] == null && parameterTypes[1] == MyValue.class.asValueType()) {
                         continue;
                     }
                     System.out.print("Testing " + m.getName() + "(" + args[i] + ", " + args[j] + ")");

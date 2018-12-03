@@ -830,8 +830,7 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast( Node *subobj, Node* superkls,
-                       Node* *failure_control = NULL );
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool never_null = false);
 
   Node* is_always_locked(Node* obj);
   Node* gen_value_type_test(Node* kls);

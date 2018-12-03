@@ -3136,12 +3136,10 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
-                              Node* *failure_control) {
+Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control, bool never_null) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
-
   bool is_value = obj->is_ValueType();
 
   // Fast cutout:  Check the case that the cast is vacuously true.
@@ -3168,9 +3166,12 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
         // to the type system as a speculative type.
         if (!is_value) {
           obj = record_profiled_receiver_for_speculation(obj);
-          if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !NullableValueTypes) {
+          if (never_null) {
+            assert(toop->is_valuetypeptr(), "must be a value type pointer");
             obj = null_check(obj);
-            obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
+            if (toop->value_klass()->is_scalarizable()) {
+              obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
+            }
           }
         }
         return obj;
@@ -3213,7 +3214,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass,
   Node* not_null_obj = NULL;
   if (is_value) {
     not_null_obj = obj;
-  } else if (toop->is_valuetypeptr() && !NullableValueTypes) {
+  } else if (never_null) {
+    assert(toop->is_valuetypeptr(), "must be a value type pointer");
     not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
