@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciValueArrayKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -161,6 +162,13 @@ ciValueArrayKlass* ciValueArrayKlass::make(ciKlass* element_klass) {
 }
 
 ciKlass* ciValueArrayKlass::exact_klass() {
-  ShouldNotCallThis();
+  assert(element_klass()->is_valuetype(), "element type must be value type");
+  if (element_klass()->is_loaded()) {
+    assert(element_klass()->as_value_klass()->exact_klass() != NULL, "must be");
+    return this;
+  }
+
+  // TODO handle this
+  guarantee(false, "klass not loaded");
   return NULL;
 }
