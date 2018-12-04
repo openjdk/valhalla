@@ -27,10 +27,8 @@
  *          classes dynamically that reference Q-type and L-type
  * @compile -XDallowWithFieldOperator Point.java Line.java MutablePath.java
  * @compile -XDallowWithFieldOperator NonFlattenValue.java
+ * @run testng/othervm -XX:+EnableValhalla QTypeDescriptorTest
  * @run testng/othervm -XX:+EnableValhalla -Dsun.reflect.noInflation=true QTypeDescriptorTest
- */
-/* TODO: JVM_InvokeMethod does not support Q-Type yet
- * @run testng/othervm -XX:+EnableValhalla -Dsun.reflect.inflationThreshold=0 QTypeDescriptorTest
  */
 
 import java.lang.invoke.MethodHandle;
