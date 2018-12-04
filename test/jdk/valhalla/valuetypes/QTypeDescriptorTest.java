@@ -92,6 +92,9 @@ public class QTypeDescriptorTest {
         MethodHandle mh = MethodHandles.lookup()
             .findStatic(ValueTest.class, "run", MethodType.methodType(void.class));
         mh.invokeExact();
+
+        mh = MethodHandles.lookup().unreflect(m);
+        mh.invokeExact();
     }
 
     @Test
@@ -120,6 +123,64 @@ public class QTypeDescriptorTest {
         Line l = intf.toLine(P0, NFV);
         assertEquals(l.p1, P0);
         assertEquals(l.p2, NFV.pointValue());
+    }
+
+    @DataProvider
+    static Object[][] descriptors() {
+        Class<?> pointLType = Point.class.asBoxType();
+        Class<?> pointQType = Point.class.asValueType();
+        Class<?> nonFlattenValueLType = NonFlattenValue.class.asBoxType();
+        Class<?> nonFlattenValueQType = NonFlattenValue.class.asValueType();
+        return new Object[][]{
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointQType, nonFlattenValueQType}, true},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointLType, nonFlattenValueQType}, false},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point[].class },                  true},
+            { NonFlattenValue.class, "point",      null,                                              true},
+            { NonFlattenValue.class, "pointValue", null,                                              true},
+            { NonFlattenValue.class, "has",        new Class<?>[] {pointQType, pointLType},           true},
+            { NonFlattenValue.class, "has",        new Class<?>[] {pointQType, pointQType},           false},
+        };
+    }
+
+    @Test(dataProvider = "descriptors")
+    public static void testDescriptors(Class<?> defc, String name, Class<?>[] params, boolean found) throws Exception {
+        try {
+            defc.getDeclaredMethod(name, params);
+            if (!found) throw new AssertionError("Expected NoSuchMethodException");
+        } catch (NoSuchMethodException e) {
+            if (found) throw e;
+        }
+    }
+
+    @DataProvider
+    static Object[][] methodTypes() {
+        Class<?> pointLType = Point.class.asBoxType();
+        Class<?> pointQType = Point.class.asValueType();
+        ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
+        return new Object[][]{
+            { "point",      MethodType.methodType(pointLType),                            true },
+            { "pointValue", MethodType.methodType(pointQType),                            true },
+            { "has",        MethodType.methodType(boolean.class, pointQType, pointLType), true },
+            { "point",      MethodType.methodType(pointQType),                            false },
+            { "pointValue", MethodType.methodType(pointLType),                            false },
+            { "has",        MethodType.methodType(boolean.class, pointLType, pointQType), false },
+            { "point",      MethodType.fromMethodDescriptorString("()LPoint;", loader),         true },
+            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),         false },
+            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),         true },
+            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint;", loader),         false },
+            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint;)Z", loader), true },
+            { "has",        MethodType.fromMethodDescriptorString("(LPoint;LPoint;)Z", loader), false },
+        };
+    }
+
+    @Test(dataProvider = "methodTypes")
+    public static void methodHandleLookup(String name, MethodType mtype, boolean found) throws Throwable {
+        try {
+            MethodHandles.lookup().findVirtual(NonFlattenValue.class, name, mtype);
+            if (!found) throw new AssertionError("Expected NoSuchMethodException");
+        } catch (NoSuchMethodException e) {
+            if (found) throw e;
+        }
     }
 
     private static <T> T[] newArray(IntFunction<T[]> arrayCreator, int size) {

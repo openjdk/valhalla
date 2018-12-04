@@ -50,4 +50,3 @@ public value class NonFlattenValue {
         return nfp.toString();
     }
 }
-

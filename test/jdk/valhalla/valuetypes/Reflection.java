@@ -194,7 +194,7 @@ public class Reflection {
                           m.getDeclaringClass().getTypeName(), m.getName(),
                           paramDesc, returnType.getTypeName());
     }
-    
+
     static void assertEquals(Object o1, Object o2) {
         if (o1 == o2 || o1.equals(o2))
             return;
