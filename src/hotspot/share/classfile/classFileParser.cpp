@@ -1638,6 +1638,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     verify_legal_field_signature(name, sig, CHECK);
     assert(!access_flags.is_flattenable(), "ACC_FLATTENABLE should have been filtered out");
     if (sig->is_Q_signature()) {
+      // assert(_major_version >= CONSTANT_CLASS_DESCRIPTORS, "Q-descriptors are only supported in recent classfiles");
       access_flags.set_is_flattenable();
     }
     if (access_flags.is_flattenable()) {

@@ -585,6 +585,7 @@ BasicType frame::interpreter_frame_result(oop* oop_result, jvalue* value_result)
 
   switch (type) {
     case T_OBJECT  :
+    case T_VALUETYPE:
     case T_ARRAY   : {
       oop obj;
       if (method->is_native()) {

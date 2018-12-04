@@ -452,7 +452,7 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_newarray: {
         BasicType atype = (BasicType)get_index_u1();
         const char* str = type2name(atype);
-        if (str == NULL || atype == T_OBJECT || atype == T_ARRAY) {
+        if (str == NULL || atype == T_OBJECT || atype == T_ARRAY || atype == T_VALUETYPE) {
           assert(false, "Unidentified basic type");
         }
         st->print_cr(" %s", str);

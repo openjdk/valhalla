@@ -143,7 +143,7 @@ class SignatureTypeNames : public SignatureIterator {
   void do_long()                       { type_name("jlong"   ); }
   void do_void()                       { type_name("void"    ); }
   void do_object(int begin, int end)   { type_name("jobject" ); }
-  void do_valuetype(int begin, int end) { type_name("jvaluetype"); }
+  void do_valuetype(int begin, int end) { type_name("jobject"); }
   void do_array (int begin, int end)   { type_name("jobject" ); }
 
  public:

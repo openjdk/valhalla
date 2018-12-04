@@ -193,6 +193,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                     Register tmp2) {
   BLOCK_COMMENT("ZBarrierSetAssembler::store_at {");
 
+  assert(type != T_VALUETYPE, "Not supported yet");
   // Verify oop store
   if (type == T_OBJECT || type == T_ARRAY) {
     // Note that src could be noreg, which means we

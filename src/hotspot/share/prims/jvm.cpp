@@ -741,7 +741,7 @@ JVM_ENTRY(jclass, JVM_FindPrimitiveClass(JNIEnv* env, const char* utf))
   JVMWrapper("JVM_FindPrimitiveClass");
   oop mirror = NULL;
   BasicType t = name2type(utf);
-  if (t != T_ILLEGAL && t != T_OBJECT && t != T_ARRAY) {
+  if (t != T_ILLEGAL && t != T_OBJECT && t != T_ARRAY && t != T_VALUETYPE) {
     mirror = Universe::java_mirror(t);
   }
   if (mirror == NULL) {

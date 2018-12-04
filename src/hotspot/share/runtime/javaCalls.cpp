@@ -399,7 +399,8 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   // Figure out if the result value is an oop or not (Note: This is a different value
   // than result_type. result_type will be T_INT of oops. (it is about size)
   BasicType result_type = runtime_type_from(result);
-  bool oop_result_flag = (result->get_type() == T_OBJECT || result->get_type() == T_ARRAY);
+  bool oop_result_flag = (result->get_type() == T_OBJECT || result->get_type() == T_ARRAY
+                          || result->get_type() == T_VALUETYPE);
 
   // NOTE: if we move the computation of the result_val_address inside
   // the call to call_stub, the optimizer produces wrong code.

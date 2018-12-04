@@ -100,7 +100,7 @@ public:
   BasicType type() const               { return _type; }
   LIR_Opr resolved_addr() const        { return _resolved_addr; }
   void set_resolved_addr(LIR_Opr addr) { _resolved_addr = addr; }
-  bool is_oop() const                  { return _type == T_ARRAY || _type == T_OBJECT; }
+  bool is_oop() const                  { return _type == T_ARRAY || _type == T_OBJECT || _type == T_VALUETYPE; }
   DecoratorSet decorators() const      { return _decorators; }
   bool is_raw() const                  { return (_decorators & AS_RAW) != 0; }
 };

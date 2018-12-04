@@ -482,6 +482,7 @@ void HeapShared::archive_reachable_objects_from_static_field(Klass *k,
     return;
   }
 
+  assert(field_type != T_VALUETYPE, "Not supported yet");
   if (field_type == T_OBJECT || field_type == T_ARRAY) {
     // obtain k's subGraph Info
     KlassSubGraphInfo* subgraph_info = get_subgraph_info(k);

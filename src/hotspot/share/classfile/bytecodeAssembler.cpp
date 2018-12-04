@@ -188,6 +188,7 @@ void BytecodeAssembler::load(BasicType bt, u4 index) {
     case T_DOUBLE:  dload(index); break;
     case T_LONG:    lload(index); break;
     case T_OBJECT:
+    case T_VALUETYPE:
     case T_ARRAY:   aload(index); break;
     default:
       ShouldNotReachHere();
@@ -255,6 +256,7 @@ void BytecodeAssembler::_return(BasicType bt) {
     case T_DOUBLE:  dreturn(); break;
     case T_LONG:    lreturn(); break;
     case T_OBJECT:
+    case T_VALUETYPE:
     case T_ARRAY:   areturn(); break;
     case T_VOID:    _return(); break;
     default:

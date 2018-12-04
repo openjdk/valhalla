@@ -682,6 +682,7 @@ bool VM_GetOrSetLocal::check_slot_type(javaVFrame* jvf) {
     slot_type = T_INT;
     break;
   case T_ARRAY:
+  case T_VALUETYPE:
     slot_type = T_OBJECT;
     break;
   default:

@@ -93,7 +93,7 @@ oop Reflection::box(jvalue* value, BasicType type, TRAPS) {
   if (type == T_VOID) {
     return NULL;
   }
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) {
     // regular objects are not boxed
     return (oop) value->l;
   }

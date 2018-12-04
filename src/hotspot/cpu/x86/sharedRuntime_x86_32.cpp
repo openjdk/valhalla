@@ -463,6 +463,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_INT:
     case T_ARRAY:
     case T_OBJECT:
+    case T_VALUETYPE:
     case T_ADDRESS:
       if( reg_arg0 == 9999 )  {
         reg_arg0 = i;
@@ -1015,6 +1016,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
     case T_SHORT:
     case T_INT:
     case T_OBJECT:
+    case T_VALUETYPE:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -1296,6 +1298,7 @@ static void save_or_restore_arguments(MacroAssembler* masm,
           }
           break;
         case T_OBJECT:
+        case T_VALUETYPE:
         default: ShouldNotReachHere();
       }
     } else if (in_regs[i].first()->is_XMMRegister()) {
@@ -1432,7 +1435,7 @@ static void verify_oop_args(MacroAssembler* masm,
   if (VerifyOops) {
     for (int i = 0; i < method->size_of_parameters(); i++) {
       if (sig_bt[i] == T_OBJECT ||
-          sig_bt[i] == T_ARRAY) {
+          sig_bt[i] == T_ARRAY || sig_bt[i] == T_VALUETYPE) {
         VMReg r = regs[i].first();
         assert(r->is_valid(), "bad oop arg");
         if (r->is_stack()) {
@@ -1905,6 +1908,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
           c_arg++;
           break;
         }
+      case T_VALUETYPE:
       case T_OBJECT:
         assert(!is_critical_native, "no oop arguments");
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
@@ -2090,6 +2094,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in st0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
+  case T_VALUETYPE:             // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -2249,7 +2254,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ reset_last_Java_frame(thread, false);
 
   // Unbox oop result, e.g. JNIHandles::resolve value.
-  if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
+  if (ret_type == T_OBJECT || ret_type == T_ARRAY || ret_type == T_VALUETYPE) {
     __ resolve_jobject(rax /* value */,
                        thread /* thread */,
                        rcx /* tmp */);

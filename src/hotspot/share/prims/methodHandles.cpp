@@ -574,7 +574,7 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
     if (is_subword_type(bt)) {
       bsig = vmSymbols::int_signature();
     } else {
-      assert(bt == T_OBJECT || bt == T_ARRAY, "is_basic_type_signature was false");
+      assert(bt == T_OBJECT || bt == T_ARRAY || bt == T_VALUETYPE, "is_basic_type_signature was false");
       bsig = vmSymbols::object_signature();
     }
   } else {

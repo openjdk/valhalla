@@ -863,7 +863,8 @@ C2V_VMENTRY(jobject, executeInstalledCode, (JNIEnv*, jobject, jobject args, jobj
 
   if (jap.get_ret_type() == T_VOID) {
     return NULL;
-  } else if (jap.get_ret_type() == T_OBJECT || jap.get_ret_type() == T_ARRAY) {
+  } else if (jap.get_ret_type() == T_OBJECT || jap.get_ret_type() == T_ARRAY
+             || jap.get_ret_type() == T_VALUETYPE) {
     return JNIHandles::make_local(THREAD, (oop) result.get_jobject());
   } else {
     jvalue *value = (jvalue *) result.get_value_addr();

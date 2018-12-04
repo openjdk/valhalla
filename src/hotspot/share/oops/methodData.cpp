@@ -216,7 +216,8 @@ int TypeEntriesAtCall::compute_cell_count(BytecodeStream* stream) {
     args_cell = TypeStackSlotEntries::compute_cell_count(inv.signature(), false, TypeProfileArgsLimit);
   }
   int ret_cell = 0;
-  if (MethodData::profile_return_for_invoke(m, bci) && (inv.result_type() == T_OBJECT || inv.result_type() == T_ARRAY)) {
+  if (MethodData::profile_return_for_invoke(m, bci)
+      && (inv.result_type() == T_OBJECT || inv.result_type() == T_ARRAY || inv.result_type() == T_VALUETYPE)) {
     ret_cell = ReturnTypeEntry::static_cell_count();
   }
   int header_cell = 0;
@@ -295,7 +296,8 @@ void CallTypeData::post_initialize(BytecodeStream* stream, MethodData* mdo) {
   }
 
   if (has_return()) {
-    assert(inv.result_type() == T_OBJECT || inv.result_type() == T_ARRAY, "room for a ret type but doesn't return obj?");
+    assert(inv.result_type() == T_OBJECT || inv.result_type() == T_ARRAY || inv.result_type() == T_VALUETYPE,
+           "room for a ret type but doesn't return obj?");
     _ret.post_initialize();
   }
 }
@@ -316,7 +318,8 @@ void VirtualCallTypeData::post_initialize(BytecodeStream* stream, MethodData* md
   }
 
   if (has_return()) {
-    assert(inv.result_type() == T_OBJECT || inv.result_type() == T_ARRAY, "room for a ret type but doesn't return obj?");
+    assert(inv.result_type() == T_OBJECT || inv.result_type() == T_ARRAY || inv.result_type() == T_VALUETYPE,
+           "room for a ret type but doesn't return obj?");
     _ret.post_initialize();
   }
 }

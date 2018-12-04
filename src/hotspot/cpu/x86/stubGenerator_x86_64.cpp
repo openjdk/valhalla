@@ -337,11 +337,13 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     __ movptr(c_rarg0, result);
     Label is_long, is_float, is_double, exit;
     __ movl(c_rarg1, result_type);
     __ cmpl(c_rarg1, T_OBJECT);
+    __ jcc(Assembler::equal, is_long);
+    __ cmpl(c_rarg1, T_VALUETYPE);
     __ jcc(Assembler::equal, is_long);
     __ cmpl(c_rarg1, T_LONG);
     __ jcc(Assembler::equal, is_long);

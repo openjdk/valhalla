@@ -490,6 +490,7 @@ address StubRoutines::select_fill_function(BasicType t, bool aligned, const char
   case T_DOUBLE:
   case T_LONG:
   case T_ARRAY:
+  case T_VALUETYPE:
   case T_OBJECT:
   case T_NARROWOOP:
   case T_NARROWKLASS:

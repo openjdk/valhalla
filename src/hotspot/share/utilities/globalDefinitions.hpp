@@ -613,7 +613,7 @@ inline bool is_signed_subword_type(BasicType t) {
 }
 
 inline bool is_reference_type(BasicType t) {
-  return (t == T_OBJECT || t == T_ARRAY);
+  return (t == T_OBJECT || t == T_ARRAY || t == T_VALUETYPE);
 }
 
 // Convert a char from a classfile signature to a BasicType
@@ -720,7 +720,6 @@ class JavaValue {
     jint     i;
     jlong    l;
     jobject  h;
-    jvaluetype q;
   } JavaCallValue;
 
  private:

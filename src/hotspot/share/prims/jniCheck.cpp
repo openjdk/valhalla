@@ -273,7 +273,8 @@ checkStaticFieldID(JavaThread* thr, jfieldID fid, jclass cls, int ftype)
   if (!id->find_local_field(&fd))
     ReportJNIFatalError(thr, fatal_static_field_not_found);
   if ((fd.field_type() != ftype) &&
-      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT)) {
+      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT) &&
+      !(fd.field_type() == T_VALUETYPE && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_static_field_mismatch);
   }
 }
@@ -310,7 +311,8 @@ checkInstanceFieldID(JavaThread* thr, jfieldID fid, jobject obj, int ftype)
     ReportJNIFatalError(thr, fatal_instance_field_not_found);
 
   if ((fd.field_type() != ftype) &&
-      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT)) {
+      !(fd.field_type() == T_ARRAY && ftype == T_OBJECT) &&
+      !(fd.field_type() == T_VALUETYPE && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_instance_field_mismatch);
   }
 }
