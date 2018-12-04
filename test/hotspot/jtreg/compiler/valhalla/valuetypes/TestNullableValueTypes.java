@@ -164,7 +164,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test
-    public MyValue1 test5(MyValue1.box vt) {
+    public MyValue1.box test5(MyValue1.box vt) {
         try {
             Object o = vt;
             vt = (MyValue1)o;
@@ -181,17 +181,17 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test5_verifier(boolean warmup) {
-        MyValue1 vt = test5(nullField);
+        MyValue1.box vt = test5(nullField);
         Asserts.assertEquals((Object)vt, null);
     }
 
     @DontInline
-    public MyValue1 test5_dontinline(MyValue1 vt) {
+    public MyValue1.box test5_dontinline(MyValue1.box vt) {
         return vt;
     }
 
     @ForceInline
-    public MyValue1 test5_inline(MyValue1 vt) {
+    public MyValue1.box test5_inline(MyValue1.box vt) {
         return vt;
     }
 
