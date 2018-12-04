@@ -68,8 +68,7 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
         ciSymbol* klass_name = env->get_symbol(name);
         type = env->get_klass_by_name_impl(_accessing_klass, cpool, klass_name, false);
       }
-      if (ss.type() == T_VALUETYPE) {
-        assert(type->is_valuetype(), "must be a valuetype");
+      if (type->is_valuetype() && ss.type() == T_VALUETYPE) {
         type = new (arena) ciWrapper(type, /* never_null */ true);
       }
     }
@@ -101,15 +100,13 @@ ciSignature::ciSignature(ciKlass* accessing_klass, ciSymbol* symbol, ciMethodTyp
   bool never_null = false;
   for (int i = 0; i < _count; i++) {
     type = method_type->ptype_at(i, never_null);
-    if (never_null) {
-      assert(type->is_valuetype(), "must be a valuetype");
+    if (type->is_valuetype() && never_null) {
       type = new (arena) ciWrapper(type, /* never_null */ true);
     }
     _types->append(type);
   }
   type = method_type->rtype(never_null);
-  if (never_null) {
-    assert(type->is_valuetype(), "must be a valuetype");
+  if (type->is_valuetype() && never_null) {
     type = new (arena) ciWrapper(type, /* never_null */ true);
   }
   _types->append(type);
