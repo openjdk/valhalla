@@ -110,7 +110,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test
-    public long test2(MyValue1 vt) {
+    public long test2(MyValue1.box vt) {
         long result = 0;
         try {
             result = vt.hashInterpreted();
