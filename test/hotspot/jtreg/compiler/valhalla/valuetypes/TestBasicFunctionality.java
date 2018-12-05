@@ -166,9 +166,8 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Merge value types created from two branches
-// TODO fix this once we can distinguish between nullable and non-nullable value types
-//    @Test(failOn = ALLOC + STORE + TRAP)
-    @Test()
+    @Test(valid = AlwaysIncrementalInlineOn, match = {ALLOC, STORE, LOAD}, matchCount = {1, 5, 12}, failOn = TRAP)
+    @Test(valid = AlwaysIncrementalInlineOff, failOn = ALLOC + STORE + TRAP)
     public long test8(boolean b) {
         MyValue1 v;
         if (b) {
@@ -629,8 +628,8 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Verify that C2 recognizes value type loads and re-uses the oop to avoid allocations
-    @Test(valid = ValueTypeReturnedAsFieldsOff, failOn = ALLOC + ALLOCA + STORE)
     @Test(valid = ValueTypeReturnedAsFieldsOn)
+    @Test(valid = ValueTypeReturnedAsFieldsOff, failOn = ALLOC + ALLOCA + STORE)
     public MyValue3 test31(MyValue3[] va) {
         // C2 can re-use the oop returned by createDontInline()
         // because the corresponding value type is equal to 'copy'.
@@ -650,8 +649,8 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Verify that C2 recognizes value type loads and re-uses the oop to avoid allocations
-    @Test(valid = ValueTypePassFieldsAsArgsOff, failOn = ALLOC + ALLOCA + STORE)
     @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOff, failOn = ALLOC + ALLOCA + STORE)
     public MyValue3 test32(MyValue3 vt, MyValue3[] va) {
         // C2 can re-use the oop of vt because vt is equal to 'copy'.
         MyValue3 copy = MyValue3.copy(vt);

@@ -92,9 +92,10 @@ public abstract class ValueTypeTest {
     public static final long rL = Utils.getRandomInstance().nextLong() % 1000;
 
     // User defined settings
+    protected static final boolean XCOMP = Platform.isComp();
     private static final boolean PRINT_GRAPH = true;
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && (!TEST_C1);
+    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !TEST_C1 && !XCOMP;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
     private static final String TESTLIST = System.getProperty("Testlist", "");
@@ -105,12 +106,13 @@ public abstract class ValueTypeTest {
     // Pre-defined settings
     private static final List<String> defaultFlags = Arrays.asList(
         "-XX:-BackgroundCompilation", "-XX:CICompilerCount=1",
-        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly",
         "-XX:CompileCommand=quiet",
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",
         "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*");
+    private static final List<String> printFlags = Arrays.asList(
+        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly");
     private static final List<String> verifyFlags = Arrays.asList(
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
         "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing", "-XX:+StressValueTypeReturnedAsFields");
@@ -122,16 +124,18 @@ public abstract class ValueTypeTest {
     protected static final int ValueTypeArrayFlattenOff = 0x8;
     protected static final int ValueTypeReturnedAsFieldsOn = 0x10;
     protected static final int ValueTypeReturnedAsFieldsOff = 0x20;
+    protected static final int AlwaysIncrementalInlineOn = 0x40;
+    protected static final int AlwaysIncrementalInlineOff = 0x80;
     static final int AllFlags = ValueTypePassFieldsAsArgsOn | ValueTypePassFieldsAsArgsOff | ValueTypeArrayFlattenOn | ValueTypeArrayFlattenOff | ValueTypeReturnedAsFieldsOn;
     protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
     protected static final boolean ValueTypeArrayFlatten = (Boolean)WHITE_BOX.getVMFlag("ValueArrayFlatten");
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
+    protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final int COMP_LEVEL_ANY = -2;
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = TEST_C1 ? 1 : 4;
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
     protected static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
-    protected static final boolean XCOMP = Platform.isComp();
 
     // Regular expressions used to match nodes in the PrintIdeal output
     protected static final String START = "(\\d+\\t(.*";
@@ -309,29 +313,15 @@ public abstract class ValueTypeTest {
         Asserts.assertFalse(tests.isEmpty(), "no tests to execute");
         ArrayList<String> args = new ArrayList<String>(defaultFlags);
         String[] vmInputArgs = InputArguments.getVmInputArgs();
-        if (VERIFY_IR) {
-            for (String arg : vmInputArgs) {
-                if (arg.startsWith("-XX:CompileThreshold")) {
-                    // Disable IR verification if
-                    VERIFY_IR = false;
-                }
-                // Check if the JVM supports value type specific default arguments from the test's run commands
-                if (arg.startsWith("-XX:+ValueTypePassFieldsAsArgs") ||
-                    arg.startsWith("-XX:+ValueTypeReturnedAsFields")) {
-                    Boolean value = (Boolean)WHITE_BOX.getVMFlag(arg.substring(5));
-                    if (!value) {
-                        System.out.println("WARNING: could not enable " + arg.substring(5) + ". Skipping IR verification.");
-                        VERIFY_IR = false;
-                    }
-                } else if (arg.startsWith("-XX:-ValueTypePassFieldsAsArgs") ||
-                           arg.startsWith("-XX:-ValueTypeReturnedAsFields")) {
-                    Boolean value = (Boolean)WHITE_BOX.getVMFlag(arg.substring(5));
-                    if (value) {
-                        System.out.println("WARNING: could not disable " + arg.substring(5) + ". Skipping IR verification.");
-                        VERIFY_IR = false;
-                    }
-                }
+        for (String arg : vmInputArgs) {
+            if (arg.startsWith("-XX:CompileThreshold")) {
+                // Disable IR verification if non-default CompileThreshold is set
+                VERIFY_IR = false;
             }
+        }
+        if (VERIFY_IR) {
+            // Add print flags for IR verification
+            args.addAll(printFlags);
             // Always trap for exception throwing to not confuse IR verification
             args.add("-XX:-OmitStackTraceInFastThrow");
         }
@@ -415,6 +405,12 @@ public abstract class ValueTypeTest {
                     assert anno == null;
                     anno = a;
                 } else if ((a.valid() & ValueTypeReturnedAsFieldsOff) != 0 && !ValueTypeReturnedAsFields) {
+                    assert anno == null;
+                    anno = a;
+                } else if ((a.valid() & AlwaysIncrementalInlineOn) != 0 && AlwaysIncrementalInline) {
+                    assert anno == null;
+                    anno = a;
+                } else if ((a.valid() & AlwaysIncrementalInlineOff) != 0 && !AlwaysIncrementalInline) {
                     assert anno == null;
                     anno = a;
                 }

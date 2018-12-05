@@ -273,12 +273,6 @@ void ciTypeFlow::JsrSet::print_on(outputStream* st) const {
 ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTypeFlow* analyzer) {
   assert(t1 != t2, "checked in caller");
 
-  // Unwrap the types after gathering nullness information
-  bool never_null1 = t1->is_never_null();
-  bool never_null2 = t2->is_never_null();
-  t1 = t1->unwrap();
-  t2 = t2->unwrap();
-
   if (t1->equals(top_type())) {
     return t2;
   } else if (t2->equals(top_type())) {
@@ -299,60 +293,66 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // At least one of the two types is a non-top primitive type.
     // The other type is not equal to it.  Fall to bottom.
     return bottom_type();
-  } else {
-    // Both types are non-top non-primitive types.  That is,
-    // both types are either instanceKlasses or arrayKlasses.
-    ciKlass* object_klass = analyzer->env()->Object_klass();
-    ciKlass* k1 = t1->as_klass();
-    ciKlass* k2 = t2->as_klass();
-    if (k1->equals(object_klass) || k2->equals(object_klass)) {
-      return object_klass;
-    } else if (!k1->is_loaded() || !k2->is_loaded()) {
-      // Unloaded classes fall to java.lang.Object at a merge.
-      return object_klass;
-    } else if (k1->is_interface() != k2->is_interface()) {
-      // When an interface meets a non-interface, we get Object;
-      // This is what the verifier does.
-      return object_klass;
-    } else if (k1->is_array_klass() || k2->is_array_klass()) {
-      // When an array meets a non-array, we get Object.
-      // When objArray meets typeArray, we also get Object.
-      // And when typeArray meets different typeArray, we again get Object.
-      // But when objArray meets objArray, we look carefully at element types.
-      if (k1->is_obj_array_klass() && k2->is_obj_array_klass()) {
-        // Meet the element types, then construct the corresponding array type.
-        ciKlass* elem1 = k1->as_obj_array_klass()->element_klass();
-        ciKlass* elem2 = k2->as_obj_array_klass()->element_klass();
-        ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
-        // Do an easy shortcut if one type is a super of the other.
-        if (elem == elem1) {
-          assert(k1 == ciObjArrayKlass::make(elem), "shortcut is OK");
-          return k1;
-        } else if (elem == elem2) {
-          assert(k2 == ciObjArrayKlass::make(elem), "shortcut is OK");
-          return k2;
-        } else {
-          return ciObjArrayKlass::make(elem);
-        }
-      } else if (k1->is_value_array_klass() || k2->is_value_array_klass()) {
-        ciKlass* elem1 = k1->as_array_klass()->element_klass();
-        ciKlass* elem2 = k2->as_array_klass()->element_klass();
-        ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
-        return ciArrayKlass::make(elem);
+  }
+
+  // Unwrap the types after gathering nullness information
+  bool never_null1 = t1->is_never_null();
+  bool never_null2 = t2->is_never_null();
+  t1 = t1->unwrap();
+  t2 = t2->unwrap();
+
+  // Both types are non-top non-primitive types.  That is,
+  // both types are either instanceKlasses or arrayKlasses.
+  ciKlass* object_klass = analyzer->env()->Object_klass();
+  ciKlass* k1 = t1->as_klass();
+  ciKlass* k2 = t2->as_klass();
+  if (k1->equals(object_klass) || k2->equals(object_klass)) {
+    return object_klass;
+  } else if (!k1->is_loaded() || !k2->is_loaded()) {
+    // Unloaded classes fall to java.lang.Object at a merge.
+    return object_klass;
+  } else if (k1->is_interface() != k2->is_interface()) {
+    // When an interface meets a non-interface, we get Object;
+    // This is what the verifier does.
+    return object_klass;
+  } else if (k1->is_array_klass() || k2->is_array_klass()) {
+    // When an array meets a non-array, we get Object.
+    // When objArray meets typeArray, we also get Object.
+    // And when typeArray meets different typeArray, we again get Object.
+    // But when objArray meets objArray, we look carefully at element types.
+    if (k1->is_obj_array_klass() && k2->is_obj_array_klass()) {
+      // Meet the element types, then construct the corresponding array type.
+      ciKlass* elem1 = k1->as_obj_array_klass()->element_klass();
+      ciKlass* elem2 = k2->as_obj_array_klass()->element_klass();
+      ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
+      // Do an easy shortcut if one type is a super of the other.
+      if (elem == elem1) {
+        assert(k1 == ciObjArrayKlass::make(elem), "shortcut is OK");
+        return k1;
+      } else if (elem == elem2) {
+        assert(k2 == ciObjArrayKlass::make(elem), "shortcut is OK");
+        return k2;
       } else {
-        return object_klass;
+        return ciObjArrayKlass::make(elem);
       }
+    } else if (k1->is_value_array_klass() || k2->is_value_array_klass()) {
+      ciKlass* elem1 = k1->as_array_klass()->element_klass();
+      ciKlass* elem2 = k2->as_array_klass()->element_klass();
+      ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
+      return ciArrayKlass::make(elem);
     } else {
-      // Must be two plain old instance klasses.
-      assert(k1->is_instance_klass(), "previous cases handle non-instances");
-      assert(k2->is_instance_klass(), "previous cases handle non-instances");
-      ciType* result = k1->least_common_ancestor(k2);
-      if (never_null1 && never_null2 && result->is_valuetype()) {
-        // Both value types are never null, mark the result as never null
-        result = analyzer->mark_as_never_null(result);
-      }
-      return result;
+      return object_klass;
     }
+  } else {
+    // Must be two plain old instance klasses.
+    assert(k1->is_instance_klass(), "previous cases handle non-instances");
+    assert(k2->is_instance_klass(), "previous cases handle non-instances");
+    ciType* result = k1->least_common_ancestor(k2);
+    if (never_null1 && never_null2 && result->is_valuetype()) {
+      // Both value types are never null, mark the result as never null
+      result = analyzer->mark_as_never_null(result);
+    }
+    return result;
   }
 }
 
@@ -630,6 +630,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   } else {
     pop_object();
     if (str->get_never_null()) {
+      // Casting to a Q-Type contains a NULL check
       assert(klass->is_valuetype(), "must be a value type");
       push(outer()->mark_as_never_null(klass));
     } else {
@@ -773,7 +774,7 @@ void ciTypeFlow::StateVector::do_ldc(ciBytecodeStream* str) {
     outer()->record_failure("ldc did not link");
     return;
   }
-  if (basic_type == T_OBJECT || basic_type == T_OBJECT || basic_type == T_ARRAY) {
+  if (basic_type == T_OBJECT || basic_type == T_VALUETYPE || basic_type == T_ARRAY) {
     ciObject* obj = con.as_object();
     if (obj->is_null_object()) {
       push_null();

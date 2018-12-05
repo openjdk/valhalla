@@ -710,6 +710,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         } else {
           safepoints.append_if_missing(sfpt);
         }
+      } else if (use->is_ValueType() && use->isa_ValueType()->get_oop() == res) {
+        // ok to eliminate
       } else if (use->Opcode() != Op_CastP2X) { // CastP2X is used by card mark
         if (use->is_Phi()) {
           if (use->outcnt() == 1 && use->unique_out()->Opcode() == Op_Return) {
@@ -1044,6 +1046,10 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
         }
 
         _igvn._worklist.push(ac);
+      } else if (use->is_ValueType()) {
+        assert(use->isa_ValueType()->get_oop() == res, "unexpected value type use");
+         _igvn.rehash_node_delayed(use);
+        use->isa_ValueType()->set_oop(_igvn.zerocon(T_VALUETYPE));
       } else {
         eliminate_gc_barrier(use);
       }
