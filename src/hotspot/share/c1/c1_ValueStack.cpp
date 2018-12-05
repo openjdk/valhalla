@@ -172,22 +172,35 @@ int ValueStack::unlock() {
   return total_locks_size();
 }
 
+// When we merge two object slots, we usually lose the type information.
+// However, for aaload/aastore to work with flattened arrays, we need to preserve
+// the type info (because the aaload/aastore bytecode themselves don't carry the
+// type info).
+ciType* ValueStack::merge_types(Value existing_value, Value new_value) {
+  if (new_value->is_flattened_array() &&
+      (existing_value == NULL || existing_value->is_flattened_array())) {
+    assert(existing_value == NULL || existing_value->exact_type() == new_value->exact_type(),
+           "must be guaranteed by verifier");
+    return new_value->exact_type();
+  }
+  return NULL;
+}
 
-void ValueStack::setup_phi_for_stack(BlockBegin* b, int index) {
+void ValueStack::setup_phi_for_stack(BlockBegin* b, int index, Value existing_value, Value new_value) {
   assert(stack_at(index)->as_Phi() == NULL || stack_at(index)->as_Phi()->block() != b, "phi function already created");
 
   ValueType* t = stack_at(index)->type();
-  Value phi = new Phi(t, b, -index - 1);
+  Value phi = new Phi(t, b, -index - 1, merge_types(existing_value, new_value));
   _stack.at_put(index, phi);
 
   assert(!t->is_double_word() || _stack.at(index + 1) == NULL, "hi-word of doubleword value must be NULL");
 }
 
-void ValueStack::setup_phi_for_local(BlockBegin* b, int index) {
+void ValueStack::setup_phi_for_local(BlockBegin* b, int index, Value existing_value, Value new_value) {
   assert(local_at(index)->as_Phi() == NULL || local_at(index)->as_Phi()->block() != b, "phi function already created");
 
   ValueType* t = local_at(index)->type();
-  Value phi = new Phi(t, b, index);
+  Value phi = new Phi(t, b, index, merge_types(existing_value, new_value));
   store_local(index, phi);
 }
 

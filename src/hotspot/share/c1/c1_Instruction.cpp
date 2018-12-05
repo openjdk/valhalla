@@ -827,7 +827,7 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
       TRACE_PHI(tty->print_cr("loop header block, initializing phi functions"));
 
       for_each_stack_value(new_state, index, new_value) {
-        new_state->setup_phi_for_stack(this, index);
+        new_state->setup_phi_for_stack(this, index, NULL, new_value);
         TRACE_PHI(tty->print_cr("creating phi-function %c%d for stack %d", new_state->stack_at(index)->type()->tchar(), new_state->stack_at(index)->id(), index));
       }
 
@@ -836,7 +836,7 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
       for_each_local_value(new_state, index, new_value) {
         bool requires_phi = requires_phi_function.at(index) || (new_value->type()->is_double_word() && requires_phi_function.at(index + 1));
         if (requires_phi || !SelectivePhiFunctions) {
-          new_state->setup_phi_for_local(this, index);
+          new_state->setup_phi_for_local(this, index, NULL, new_value);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for local %d", new_state->local_at(index)->type()->tchar(), new_state->local_at(index)->id(), index));
         }
       }
@@ -888,7 +888,7 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
         Phi* existing_phi = existing_value->as_Phi();
 
         if (new_value != existing_value && (existing_phi == NULL || existing_phi->block() != this)) {
-          existing_state->setup_phi_for_stack(this, index);
+          existing_state->setup_phi_for_stack(this, index, existing_value, new_value);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for stack %d", existing_state->stack_at(index)->type()->tchar(), existing_state->stack_at(index)->id(), index));
         }
       }
@@ -902,7 +902,7 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
           existing_state->invalidate_local(index);
           TRACE_PHI(tty->print_cr("invalidating local %d because of type mismatch", index));
         } else if (new_value != existing_value && (existing_phi == NULL || existing_phi->block() != this)) {
-          existing_state->setup_phi_for_local(this, index);
+          existing_state->setup_phi_for_local(this, index, existing_value, new_value);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for local %d", existing_state->local_at(index)->type()->tchar(), existing_state->local_at(index)->id(), index));
         }
       }

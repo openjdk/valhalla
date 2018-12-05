@@ -204,8 +204,10 @@ class ValueStack: public CompilationResourceObj {
   Value lock_at(int i) const                     { return _locks.at(i); }
 
   // SSA form IR support
-  void setup_phi_for_stack(BlockBegin* b, int index);
-  void setup_phi_for_local(BlockBegin* b, int index);
+  void setup_phi_for_stack(BlockBegin* b, int index, Value existing_value, Value new_value);
+  void setup_phi_for_local(BlockBegin* b, int index, Value existing_value, Value new_value);
+
+  ciType* merge_types(Value existing_value, Value new_value);
 
   // debugging
   void print()  PRODUCT_RETURN;

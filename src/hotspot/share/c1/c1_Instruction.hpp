@@ -649,18 +649,28 @@ LEAF(Phi, Instruction)
  private:
   int         _pf_flags; // the flags of the phi function
   int         _index;    // to value on operand stack (index < 0) or to local
+  ciType*     _exact_type; // currently is set only for flattened arrays, NULL otherwise.
  public:
   // creation
-  Phi(ValueType* type, BlockBegin* b, int index)
+  Phi(ValueType* type, BlockBegin* b, int index, ciType* exact_type)
   : Instruction(type->base())
   , _pf_flags(0)
   , _index(index)
+  , _exact_type(exact_type)
   {
     _block = b;
     NOT_PRODUCT(set_printable_bci(Value(b)->printable_bci()));
     if (type->is_illegal()) {
       make_illegal();
     }
+  }
+
+  virtual ciType* exact_type() const {
+    return _exact_type;
+  }
+
+  virtual ciType* declared_type() const {
+    return _exact_type;
   }
 
   // flags
