@@ -1456,6 +1456,8 @@ LEAF(NewMultiArray, NewArray)
     StateSplit::input_values_do(f);
     for (int i = 0; i < _dims->length(); i++) f->visit(_dims->adr_at(i));
   }
+
+  ciType* exact_type() const;
 };
 
 

@@ -230,6 +230,10 @@ ciType* NewObjectArray::exact_type() const {
   }
 }
 
+ciType* NewMultiArray::exact_type() const {
+  return _klass;
+}
+
 ciType* NewArray::declared_type() const {
   return exact_type();
 }
