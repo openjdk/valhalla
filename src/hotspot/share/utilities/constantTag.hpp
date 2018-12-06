@@ -47,12 +47,13 @@ enum {
   JVM_CONSTANT_InternalMax              = 106   // Last implementation tag
 };
 
+#define JVM_CONSTANT_QDESC_BIT (1 << 7)
 
 class constantTag {
  private:
   jbyte _tag;
  public:
-  bool is_klass() const             { return _tag == JVM_CONSTANT_Class; }
+  bool is_klass() const             { return value() == JVM_CONSTANT_Class; }
   bool is_field () const            { return _tag == JVM_CONSTANT_Fieldref; }
   bool is_method() const            { return _tag == JVM_CONSTANT_Methodref; }
   bool is_interface_method() const  { return _tag == JVM_CONSTANT_InterfaceMethodref; }
@@ -67,11 +68,15 @@ class constantTag {
   bool is_invalid() const           { return _tag == JVM_CONSTANT_Invalid; }
 
   bool is_unresolved_klass() const {
-    return _tag == JVM_CONSTANT_UnresolvedClass || _tag == JVM_CONSTANT_UnresolvedClassInError;
+    return value() == JVM_CONSTANT_UnresolvedClass || value() == JVM_CONSTANT_UnresolvedClassInError;
   }
 
   bool is_unresolved_klass_in_error() const {
-    return _tag == JVM_CONSTANT_UnresolvedClassInError;
+    return value() == JVM_CONSTANT_UnresolvedClassInError;
+  }
+
+  bool is_Qdescriptor_klass() const {
+    return (_tag & JVM_CONSTANT_QDESC_BIT) != 0;
   }
 
   bool is_method_handle_in_error() const {
@@ -108,9 +113,14 @@ class constantTag {
     _tag = JVM_CONSTANT_Invalid;
   }
   constantTag(jbyte tag) {
-    assert((tag >= 0 && tag <= JVM_CONSTANT_NameAndType) ||
-           (tag >= JVM_CONSTANT_MethodHandle && tag <= JVM_CONSTANT_InvokeDynamic) ||
-           (tag >= JVM_CONSTANT_InternalMin && tag <= JVM_CONSTANT_InternalMax), "Invalid constant tag");
+    jbyte entry_tag = tag & ~JVM_CONSTANT_QDESC_BIT;
+    assert((((tag & JVM_CONSTANT_QDESC_BIT) == 0) && (entry_tag >= 0 && entry_tag <= JVM_CONSTANT_NameAndType) ||
+           (entry_tag >= JVM_CONSTANT_MethodHandle && entry_tag <= JVM_CONSTANT_InvokeDynamic) ||
+           (entry_tag >= JVM_CONSTANT_InternalMin && entry_tag <= JVM_CONSTANT_InternalMax))
+           || (((tag & JVM_CONSTANT_QDESC_BIT) != 0) && (entry_tag == JVM_CONSTANT_Class ||
+               entry_tag == JVM_CONSTANT_UnresolvedClass || entry_tag == JVM_CONSTANT_UnresolvedClassInError
+               || entry_tag == JVM_CONSTANT_ClassIndex))
+               , "Invalid constant tag");
     _tag = tag;
   }
 
@@ -128,7 +138,8 @@ class constantTag {
     return constantTag();
   }
 
-  jbyte value() const                { return _tag; }
+  jbyte value() const                { return _tag & ~JVM_CONSTANT_QDESC_BIT; }
+  jbyte tag() const                  { return _tag; }
   jbyte error_value() const;
   jbyte non_error_value() const;
 

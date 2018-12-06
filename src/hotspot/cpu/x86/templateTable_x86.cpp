@@ -4480,10 +4480,11 @@ void TemplateTable::checkcast() {
   __ get_cpool_and_tags(rcx, rdx); // rcx=cpool, rdx=tags array
   __ get_unsigned_2_byte_index_at_bcp(rbx, 1); // rbx=index
   // See if bytecode has already been quicked
-  __ cmpb(Address(rdx, rbx,
-                  Address::times_1,
-                  Array<u1>::base_offset_in_bytes()),
-          JVM_CONSTANT_Class);
+  __ movzbl(rdx, Address(rdx, rbx,
+      Address::times_1,
+      Array<u1>::base_offset_in_bytes()));
+  __ andl (rdx, ~JVM_CONSTANT_QDESC_BIT);
+  __ cmpl(rdx, JVM_CONSTANT_Class);
   __ jcc(Assembler::equal, quicked);
   __ push(atos); // save receiver for result, and for GC
   call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::quicken_io_cc));
@@ -4521,15 +4522,29 @@ void TemplateTable::checkcast() {
   // Come here on success
   __ bind(ok_is_subtype);
   __ mov(rax, rdx); // Restore object in rdx
+  __ jmp(done);
+
+  __ bind(is_null);
 
   // Collect counts on whether this check-cast sees NULLs a lot or not.
   if (ProfileInterpreter) {
-    __ jmp(done);
-    __ bind(is_null);
     __ profile_null_seen(rcx);
-  } else {
-    __ bind(is_null);   // same as 'done'
   }
+
+  if (EnableValhalla) {
+    // Get cpool & tags index
+    __ get_cpool_and_tags(rcx, rdx); // rcx=cpool, rdx=tags array
+    __ get_unsigned_2_byte_index_at_bcp(rbx, 1); // rbx=index
+    // See if CP entry is a Q-descriptor
+    __ movzbl(rcx, Address(rdx, rbx,
+        Address::times_1,
+        Array<u1>::base_offset_in_bytes()));
+    __ andl (rcx, JVM_CONSTANT_QDESC_BIT);
+    __ cmpl(rcx, JVM_CONSTANT_QDESC_BIT);
+    __ jcc(Assembler::notEqual, done);
+    __ jump(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
+  }
+
   __ bind(done);
 }
 

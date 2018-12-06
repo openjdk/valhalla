@@ -237,10 +237,11 @@ void ConstantPool::klass_at_put(int class_index, int name_index, int resolved_kl
 
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-NULL, so we need hardware store ordering here.
+  jbyte qdesc_bit = name->is_Q_signature() ? (jbyte)JVM_CONSTANT_QDESC_BIT : 0;
   if (k != NULL) {
-    release_tag_at_put(class_index, JVM_CONSTANT_Class);
+    release_tag_at_put(class_index, JVM_CONSTANT_Class | qdesc_bit);
   } else {
-    release_tag_at_put(class_index, JVM_CONSTANT_UnresolvedClass);
+    release_tag_at_put(class_index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
   }
 }
 
@@ -547,7 +548,11 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* stored in _resolved_klasses is non-NULL, so we need
   // hardware store ordering here.
-  this_cp->release_tag_at_put(which, JVM_CONSTANT_Class);
+  jbyte tag = JVM_CONSTANT_Class;
+  if (this_cp->tag_at(which).is_Qdescriptor_klass()) {
+    tag |= JVM_CONSTANT_QDESC_BIT;
+  }
+  this_cp->release_tag_at_put(which, tag);
   return k;
 }
 
