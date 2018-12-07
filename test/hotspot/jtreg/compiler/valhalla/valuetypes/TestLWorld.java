@@ -1903,30 +1903,23 @@ public class TestLWorld extends ValueTypeTest {
     }
 */
 
-    // Cast an Integer to a value type
-    private static final MethodHandle castIntegerToValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "castIntegerToValue",
-        MethodType.methodType(void.class, TestLWorld.class, Integer.class),
-        CODE -> {
-            CODE.
-            aload_1().
-            checkcast(MyValue1.class).
-            return_();
-        });
+    // Casting a null Integer to a value type should throw a NPE
+    @ForceInline
+    public MyValue1 test76_helper(Object o) {
+        return (MyValue1)o;
+    }
 
-    // Casting a null Integer to a value type should throw an exception
     @Test
-    public void test76(Integer i) throws Throwable {
-        castIntegerToValue.invoke(this, i);
+    public MyValue1 test76(Integer i) throws Throwable {
+        return test76_helper(i);
     }
 
     @DontCompile
     public void test76_verifier(boolean warmup) throws Throwable {
         try {
             test76(null);
-// TODO enable this once we've fixed the interpreter to throw a NPE
-//            throw new RuntimeException("ClassCastException expected");
-        } catch (ClassCastException e) {
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
             // Expected
         }
     }

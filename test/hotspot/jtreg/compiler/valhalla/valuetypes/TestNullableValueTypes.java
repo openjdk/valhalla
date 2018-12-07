@@ -449,9 +449,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
             // Expected
         }
         try {
-// TODO enable this once we've fixed the interpreter to throw a NPE
-//            valueField1 = getNullField2();
-//            throw new RuntimeException("NullPointerException expected");
+            valueField1 = getNullField2();
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -619,9 +618,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
     public Test21Value test21(Test21Value vt) {
         vt = vt.test1();
         try {
-// TODO enable this once we've fixed the interpreter to throw a NPE
-//            vt = vt.test2();
-//            throw new RuntimeException("NullPointerException expected");
+            vt = vt.test2();
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
@@ -646,9 +644,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @DontCompile
     public void test22_verifier(boolean warmup) {
         try {
-// TODO enable this once we've fixed the interpreter to throw a NPE
-//            test22();
-//            throw new RuntimeException("NullPointerException expected");
+            test22();
+            throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
