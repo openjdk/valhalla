@@ -2768,7 +2768,7 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, Me
   // types load from the super-class display table which is immutable.
   m = mem->memory_at(C->get_alias_index(gvn->type(p2)->is_ptr()));
   Node *kmem = might_be_cache ? m : C->immutable_memory();
-  Node *nkls = gvn->transform(LoadKlassNode::make(*gvn, NULL, kmem, p2, gvn->type(p2)->is_ptr(), TypeKlassPtr::BOTTOM));
+  Node *nkls = gvn->transform(LoadKlassNode::make(*gvn, NULL, kmem, p2, gvn->type(p2)->is_ptr(), TypeKlassPtr::OBJECT_OR_NULL));
 
   // Compile speed common case: ARE a subtype and we canNOT fail
   if( superklass == nkls )

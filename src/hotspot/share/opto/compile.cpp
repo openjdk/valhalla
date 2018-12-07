@@ -4231,7 +4231,7 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
     return SSC_full_test;       // Let caller generate the general case.
   }
 
-  if (!EnableValhalla && superk == env()->Object_klass()) {
+  if (superk == env()->Object_klass()) {
     return SSC_always_true;     // (0) this test cannot fail
   }
 

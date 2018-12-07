@@ -654,7 +654,6 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeKlassPtr::OBJECT = TypeKlassPtr::make(TypePtr::NotNull, current->env()->Object_klass(), Offset(0) );
   TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0) );
-  TypeKlassPtr::BOTTOM = EnableValhalla ? TypeKlassPtr::make(TypePtr::BotPTR, NULL, Offset(0)) : TypeKlassPtr::OBJECT_OR_NULL;
 
   const Type **fi2c = TypeTuple::fields(2);
   fi2c[TypeFunc::Parms+0] = TypeInstPtr::BOTTOM; // Method*
@@ -5194,7 +5193,6 @@ const TypeMetadataPtr* TypeMetadataPtr::make(PTR ptr, ciMetadata* m, Offset offs
 // Not-null object klass or below
 const TypeKlassPtr *TypeKlassPtr::OBJECT;
 const TypeKlassPtr *TypeKlassPtr::OBJECT_OR_NULL;
-const TypeKlassPtr* TypeKlassPtr::BOTTOM;
 
 //------------------------------TypeKlassPtr-----------------------------------
 TypeKlassPtr::TypeKlassPtr( PTR ptr, ciKlass* klass, Offset offset )

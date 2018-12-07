@@ -1412,7 +1412,6 @@ public:
   // Convenience common pre-built types.
   static const TypeKlassPtr* OBJECT; // Not-null object klass or below
   static const TypeKlassPtr* OBJECT_OR_NULL; // Maybe-null version of same
-  static const TypeKlassPtr* BOTTOM;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping
 #endif
