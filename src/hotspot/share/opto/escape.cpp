@@ -3186,7 +3186,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
     // push allocation's users on appropriate worklist
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
       Node *use = n->fast_out(i);
-      if(use->is_Mem() && use->in(MemNode::Address) == n) {
+      if (use->is_Mem() && use->in(MemNode::Address) == n) {
         // Load/store to instance's field
         memnode_worklist.append_if_missing(use);
       } else if (use->is_MemBar()) {
@@ -3309,6 +3309,9 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       // get the memory projection
       n = n->find_out_with(Op_SCMemProj);
       assert(n != NULL && n->Opcode() == Op_SCMemProj, "memory projection required");
+    } else if (n->is_CallLeaf() && n->as_CallLeaf()->_name != NULL &&
+               strcmp(n->as_CallLeaf()->_name, "store_unknown_value") == 0) {
+      n = n->as_CallLeaf()->proj_out(TypeFunc::Memory);
     } else {
       assert(n->is_Mem(), "memory node required.");
       Node *addr = n->in(MemNode::Address);
@@ -3349,7 +3352,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           memnode_worklist.append_if_missing(use);
         }
 #ifdef ASSERT
-      } else if(use->is_Mem()) {
+      } else if (use->is_Mem()) {
         assert(use->in(MemNode::Memory) != n, "EA: missing memory path");
       } else if (use->is_MergeMem()) {
         assert(_mergemem_worklist.contains(use->as_MergeMem()), "EA: missing MergeMem node in the worklist");
@@ -3358,6 +3361,10 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           // EncodeISOArray overwrites destination array
           memnode_worklist.append_if_missing(use);
         }
+      } else if (use->is_CallLeaf() && use->as_CallLeaf()->_name != NULL &&
+                 strcmp(use->as_CallLeaf()->_name, "store_unknown_value") == 0) {
+        // store_unknown_value overwrites destination array
+        memnode_worklist.append_if_missing(use);
       } else {
         uint op = use->Opcode();
         if ((use->in(MemNode::Memory) == n) &&
