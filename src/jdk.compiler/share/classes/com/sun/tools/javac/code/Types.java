@@ -4860,10 +4860,16 @@ public class Types {
     public static class UniqueType {
         public final Type type;
         final Types types;
+        private boolean encodeTypeSig;
 
-        public UniqueType(Type type, Types types) {
+        public UniqueType(Type type, Types types, boolean encodeTypeSig) {
             this.type = type;
             this.types = types;
+            this.encodeTypeSig = encodeTypeSig;
+        }
+
+        public UniqueType(Type type, Types types) {
+            this(type, types, true);
         }
 
         public int hashCode() {
@@ -4873,6 +4879,10 @@ public class Types {
         public boolean equals(Object obj) {
             return (obj instanceof UniqueType) &&
                 types.isSameType(type, ((UniqueType)obj).type);
+        }
+
+        public boolean encodeTypeSig() {
+            return encodeTypeSig;
         }
 
         public String toString() {

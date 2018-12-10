@@ -480,7 +480,11 @@ public class ClassWriter extends ClassFile {
                     ClassSymbol c = (ClassSymbol) type.tsym;
                     if (c.owner.kind == TYP) pool.put(c.owner);
                     poolbuf.appendByte(CONSTANT_Class);
-                    poolbuf.appendChar(pool.put(typeSig(c.type)));
+                    if (((UniqueType) value).encodeTypeSig()) {
+                        poolbuf.appendChar(pool.put(typeSig(c.type)));
+                    } else {
+                        poolbuf.appendChar(pool.put(names.fromString("Q" + new String(externalize(c.flatname)) + ";")));
+                    }
                     enterInner(c);
                 } else {
                     Assert.check(type.hasTag(ARRAY));
@@ -1465,7 +1469,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + t + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(pool.put(types.isValue(t) ? new UniqueType(t, types) : t));
+                databuf.appendChar(pool.put(types.isValue(t) ? new UniqueType(t, types, false) : t));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
