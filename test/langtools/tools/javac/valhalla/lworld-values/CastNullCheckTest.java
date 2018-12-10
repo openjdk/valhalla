@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @bug 8215110
  * @summary Check that casting to a value type involves a null check.
  *
  * @compile -XDallowWithFieldOperator Point.java
@@ -61,7 +62,7 @@ public class CastNullCheckTest {
         } catch (NullPointerException npe) {
             caught++;
         }
-        if (caught != 1)
+        if (caught != 2)
             throw new AssertionError("Wrong NPE count: " + caught);
     }
 }

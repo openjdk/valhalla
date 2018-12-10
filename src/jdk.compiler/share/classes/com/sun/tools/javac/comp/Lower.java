@@ -2565,9 +2565,6 @@ public class Lower extends TreeTranslator {
             tree.expr = translate(tree.expr, tree.type);
         else
             tree.expr = translate(tree.expr);
-        if (Feature.VALUE_TYPES.allowedInSource(source) && types.isValue(tree.type) && !types.isValueBased(tree.type))
-            if (!types.isSameType(tree.expr.type, tree.clazz.type))
-                tree.expr = attr.makeNullCheck(tree.expr);
         result = tree;
     }
 
