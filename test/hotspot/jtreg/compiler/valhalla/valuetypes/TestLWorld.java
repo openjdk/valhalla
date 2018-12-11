@@ -1903,7 +1903,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 */
 
-    // Casting a null Integer to a value type should throw a NPE
+    // Casting a null Integer to a (non-nullable) value type should throw a NullPointerException
     @ForceInline
     public MyValue1 test76_helper(Object o) {
         return (MyValue1)o;
@@ -1921,6 +1921,74 @@ public class TestLWorld extends ValueTypeTest {
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
+        } catch (Exception e) {
+            throw new RuntimeException("test76 failed: unexpected exception", e);
+        }
+    }
+
+    // Casting an Integer to a (non-nullable) value type should throw a ClassCastException
+    @ForceInline
+    public MyValue1 test77_helper(Object o) {
+        return (MyValue1)o;
+    }
+
+    @Test
+    public MyValue1 test77(Integer i) throws Throwable {
+        return test77_helper(i);
+    }
+
+    @DontCompile
+    public void test77_verifier(boolean warmup) throws Throwable {
+        try {
+            test77(new Integer(42));
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        } catch (Exception e) {
+            throw new RuntimeException("test77 failed: unexpected exception", e);
+        }
+    }
+
+    // Casting a null Integer to a nullable value type should not throw
+    @ForceInline
+    public MyValue1.box test78_helper(Object o) {
+        return (MyValue1.box)o;
+    }
+
+    @Test
+    public MyValue1.box test78(Integer i) throws Throwable {
+        return test78_helper(i);
+    }
+
+    @DontCompile
+    public void test78_verifier(boolean warmup) throws Throwable {
+        try {
+            test78(null); // Should not throw
+        } catch (Exception e) {
+            throw new RuntimeException("test78 failed: unexpected exception", e);
+        }
+    }
+
+    // Casting an Integer to a nullable value type should throw a ClassCastException
+    @ForceInline
+    public MyValue1.box test79_helper(Object o) {
+        return (MyValue1.box)o;
+    }
+
+    @Test
+    public MyValue1.box test79(Integer i) throws Throwable {
+        return test79_helper(i);
+    }
+
+    @DontCompile
+    public void test79_verifier(boolean warmup) throws Throwable {
+        try {
+            test79(new Integer(42));
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        } catch (Exception e) {
+            throw new RuntimeException("test79 failed: unexpected exception", e);
         }
     }
 }

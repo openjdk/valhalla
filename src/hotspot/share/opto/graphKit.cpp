@@ -3145,6 +3145,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
+  assert(!never_null || toop->is_valuetypeptr(), "must be a value type pointer");
   bool is_value = obj->is_ValueType();
 
   // Fast cutout:  Check the case that the cast is vacuously true.
@@ -3172,21 +3173,23 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         if (!is_value) {
           obj = record_profiled_receiver_for_speculation(obj);
           if (never_null) {
-            assert(toop->is_valuetypeptr(), "must be a value type pointer");
             obj = null_check(obj);
-            if (toop->value_klass()->is_scalarizable()) {
-              obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
-            }
+          }
+          if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !gvn().type(obj)->maybe_null()) {
+            obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
           }
         }
         return obj;
       case Compile::SSC_always_false:
-        // It needs a null check because a null will *pass* the cast check.
-        if (is_value || toop->is_valuetypeptr()) {
-          // Value types are never null - always throw an exception
+        if (is_value || never_null) {
+          if (!is_value) {
+            null_check(obj);
+          }
+          // Value type is never null. Always throw an exception.
           builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(klass)));
           return top();
         } else {
+          // It needs a null check because a null will *pass* the cast check.
           return null_assert(obj);
         }
       }
@@ -3220,7 +3223,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (is_value) {
     not_null_obj = obj;
   } else if (never_null) {
-    assert(toop->is_valuetypeptr(), "must be a value type pointer");
     not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
