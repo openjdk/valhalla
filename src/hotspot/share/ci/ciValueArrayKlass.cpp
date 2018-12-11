@@ -55,6 +55,14 @@ ciValueArrayKlass::ciValueArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
   }
 }
 
+ciValueArrayKlass::ciValueArrayKlass(ciSymbol* array_name,
+                                     ciValueKlass* base_element_klass,
+                                     int dimension)
+  : ciArrayKlass(array_name, dimension, T_VALUETYPE) {
+  _base_element_klass = base_element_klass;
+  _element_klass = base_element_klass;
+}
+
 // ------------------------------------------------------------------
 // ciValueArrayKlass::element_klass
 //
@@ -148,9 +156,16 @@ ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
     return CURRENT_THREAD_ENV->get_value_array_klass(array);
   }
 
-  // TODO handle this
-  guarantee(false, "klass not loaded");
-  return NULL;
+  // The array klass was unable to be made or the element klass was
+  // not loaded.
+  ciSymbol* array_name = construct_array_name(element_klass->name(), 1);
+  if (array_name == ciEnv::unloaded_cisymbol()) {
+    //return ciEnv::unloaded_ciobjarrayklass();
+    assert(0, "FIXME");
+  }
+  return
+    CURRENT_ENV->get_unloaded_klass(element_klass, array_name, false)
+                        ->as_value_array_klass();
 }
 
 // ------------------------------------------------------------------

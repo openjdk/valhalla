@@ -982,6 +982,7 @@ void GraphBuilder::store_local(ValueStack* state, Value x, int index) {
 void GraphBuilder::load_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
   ValueStack* state_before = copy_state_indexed_access();
+  ValueStack* deopt_state = copy_state_before();
   compilation()->set_has_access_indexed(true);
   Value index = ipop();
   Value array = apop();
@@ -993,23 +994,30 @@ void GraphBuilder::load_indexed(BasicType type) {
   }
 
   if (array->is_flattened_array()) {
-    ciType* array_type = array->declared_type();
-    ciValueKlass* elem_klass = array_type->as_value_array_klass()->element_klass()->as_value_klass();
-    NewValueTypeInstance* new_instance = new NewValueTypeInstance(elem_klass, state_before, false);
-    _memory->new_instance(new_instance);
-    apush(append_split(new_instance));
-    LoadIndexed* load_indexed = new LoadIndexed(array, index, length, type, state_before);
-    load_indexed->set_vt(new_instance);
-    append(load_indexed);
-  } else {
-    push(as_ValueType(type), append(new LoadIndexed(array, index, length, type, state_before)));
+    if (array->declared_type()->is_loaded()) {
+      ciType* array_type = array->declared_type();
+      ciValueKlass* elem_klass = array_type->as_value_array_klass()->element_klass()->as_value_klass();
+      NewValueTypeInstance* new_instance = new NewValueTypeInstance(elem_klass, state_before, false);
+      _memory->new_instance(new_instance);
+      apush(append_split(new_instance));
+      LoadIndexed* load_indexed = new LoadIndexed(array, index, length, type, state_before);
+      load_indexed->set_vt(new_instance);
+      append(load_indexed);
+      return;
+    } else {
+      // Value array access may be deoptimized. Need full "before" states.
+      state_before = deopt_state;
+    }
   }
+
+  push(as_ValueType(type), append(new LoadIndexed(array, index, length, type, state_before)));
 }
 
 
 void GraphBuilder::store_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
   ValueStack* state_before = copy_state_indexed_access();
+  ValueStack* deopt_state = copy_state_before();
   compilation()->set_has_access_indexed(true);
   Value value = pop(as_ValueType(type));
   Value index = ipop();
@@ -1031,6 +1039,11 @@ void GraphBuilder::store_indexed(BasicType type) {
     }
   } else if (type == T_BYTE) {
     check_boolean = true;
+  }
+
+  if (array->is_flattened_array() && !array_type->is_loaded()) {
+    // Value array access may be deoptimized. Need full "before" states.
+    state_before = deopt_state;
   }
   StoreIndexed* result = new StoreIndexed(array, index, length, type, value, state_before, check_boolean);
   append(result);

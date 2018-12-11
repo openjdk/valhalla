@@ -139,7 +139,8 @@ private:
   ciKlass* get_klass_by_name_impl(ciKlass* accessing_klass,
                                   const constantPoolHandle& cpool,
                                   ciSymbol* klass_name,
-                                  bool require_local);
+                                  bool require_local,
+                                  bool is_value_type = false);
   ciKlass*   get_klass_by_index_impl(const constantPoolHandle& cpool,
                                      int klass_index,
                                      bool& is_accessible,
@@ -243,8 +244,8 @@ private:
   // Get a ciKlass representing an unloaded klass.
   // Ensures uniqueness of the result.
   ciKlass* get_unloaded_klass(ciKlass*  accessing_klass,
-                              ciSymbol* name) {
-    return _factory->get_unloaded_klass(accessing_klass, name, true);
+                              ciSymbol* name, bool is_value_type = false) {
+    return _factory->get_unloaded_klass(accessing_klass, name, true, is_value_type);
   }
 
   // Get a ciKlass representing an unloaded klass mirror.

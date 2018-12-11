@@ -23,11 +23,18 @@
 
 /**
  * @test
- * @bug 8182997
- * @summary Array of unloaded value class should consistently use L signature
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers TestUnloadedValueTypeArray.java
- * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:CompileOnly=TestUnloadedValueTypeArray::test TestUnloadedValueTypeArray
+ * @bug 8182997 8214898
+ * @library /test/lib
+ * @summary Test the handling of Arrays of unloaded value classes.
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers -XDallowWithFieldOperator TestUnloadedValueTypeArray.java
+ * @run main/othervm -XX:+EnableValhalla -Xcomp
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test1
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test2
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test3
+ *      TestUnloadedValueTypeArray
  */
+
+import jdk.test.lib.Asserts;
 
 value final class MyValue {
     final int foo;
@@ -37,17 +44,89 @@ value final class MyValue {
     }
 }
 
+value final class MyValue2 {
+    final int foo;
+
+    private MyValue2() {
+        foo = 0x42;
+    }
+    static MyValue2 make(int n) {
+        return __WithField(MyValue2.default.foo, n);
+    }
+}
+
+value final class MyValue3 {
+    final int foo;
+
+    private MyValue3() {
+        foo = 0x42;
+    }
+    static MyValue3 make(int n) {
+        return __WithField(MyValue3.default.foo, n);
+    }
+}
+
+
+
 public class TestUnloadedValueTypeArray {
 
     static MyValue[] target() {
         return new MyValue[10];
     }
 
-    static void test() {
+    static void test1() {
         target();
     }
 
+    static int test2(MyValue2[] arr) {
+        if (arr != null) {
+            return arr[1].foo;
+        } else {
+            return 1234;
+        }
+    }
+
+    static void test2_verifier() {
+        int n = 50000;
+
+        int m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test2(null);
+        }
+        Asserts.assertEQ(m, 1234);
+
+        MyValue2[] arr = new MyValue2[2];
+        arr[1] = MyValue2.make(5678);
+        m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test2(arr);
+        }
+        Asserts.assertEQ(m, 5678);
+    }
+
+    static void test3(MyValue3[] arr) {
+        if (arr != null) {
+            arr[1] = MyValue3.make(2345);
+        }
+    }
+
+    static void test3_verifier() {
+        int n = 50000;
+
+        for (int i=0; i<n; i++) {
+            test3(null);
+        }
+
+        MyValue3[] arr = new MyValue3[2];
+        for (int i=0; i<n; i++) {
+            test3(arr);
+        }
+        Asserts.assertEQ(arr[1].foo, 2345);
+    }
+
     static public void main(String[] args) {
-        test();
+        test1();
+        test2_verifier();
+        test3_verifier();
     }
 }

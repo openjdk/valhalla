@@ -1291,7 +1291,6 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
   if (obj->is_value_array_klass()) {
-    // This check is valid even if the class is not yet loaded, because the class has a "Q" signature.
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_VALUETYPE, klass_reg, slow_path);
   } else {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);

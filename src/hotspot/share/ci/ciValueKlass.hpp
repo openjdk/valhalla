@@ -47,6 +47,9 @@ protected:
     assert(is_final(), "ValueKlass must be final");
   };
 
+  ciValueKlass(ciSymbol* name, jobject loader, jobject protection_domain) :
+    ciInstanceKlass(name, loader, protection_domain) {}
+
   int compute_nonstatic_fields();
   const char* type_string() { return "ciValueKlass"; }
 

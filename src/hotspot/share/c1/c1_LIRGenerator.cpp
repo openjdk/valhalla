@@ -1565,6 +1565,8 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
   // Find the starting address of the source (inside the array)
   ciType* array_type = array.value()->declared_type();
   ciValueArrayKlass* value_array_klass = array_type->as_value_array_klass();
+  assert(value_array_klass->is_loaded(), "must be");
+
   ciValueKlass* elem_klass = value_array_klass->element_klass()->as_value_klass();
   int array_header_size = value_array_klass->array_header_in_bytes();
   int shift = value_array_klass->log2_element_size();
@@ -1637,6 +1639,18 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
   }
 }
 
+void LIRGenerator::maybe_deopt_value_array_access(LIRItem& array, CodeEmitInfo* null_check_info, CodeEmitInfo* deopt_info) {
+  LIR_Opr klass = new_register(T_METADATA);
+  __ move(new LIR_Address(array.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), klass, null_check_info);
+  LIR_Opr layout = new_register(T_INT);
+  __ move(new LIR_Address(klass, in_bytes(Klass::layout_helper_offset()), T_INT), layout);
+  __ shift_right(layout, Klass::_lh_array_tag_shift, layout);
+  __ cmp(lir_cond_equal, layout, LIR_OprFact::intConst(Klass::_lh_array_tag_vt_value));
+
+  CodeStub* stub = new DeoptimizeStub(deopt_info, Deoptimization::Reason_unloaded, Deoptimization::Action_make_not_entrant);
+  __ branch(lir_cond_equal, T_ILLEGAL, stub);
+}
+
 void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   assert(x->is_pinned(),"");
   bool is_flattened = x->array()->is_flattened_array();
@@ -1696,17 +1710,24 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_flattened) {
-    index.load_item();
-    access_flattened_array(false, array, index, value);
-  } else {
-    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
-    if (x->check_boolean()) {
-      decorators |= C1_MASK_BOOLEAN;
+    if (x->array()->declared_type()->is_loaded()) {
+      index.load_item();
+      access_flattened_array(false, array, index, value);
+      return;
+    } else {
+      // If the array is indeed flattened, deopt. Otherwise access it as a normal object array.
+      CodeEmitInfo* deopt_info = state_for(x, x->state_before());
+      maybe_deopt_value_array_access(array, null_check_info, deopt_info);
     }
-
-    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                    NULL, null_check_info);
   }
+
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+  if (x->check_boolean()) {
+    decorators |= C1_MASK_BOOLEAN;
+  }
+
+  access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
+                  NULL, null_check_info);
 }
 
 void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
@@ -1968,19 +1989,25 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   if (x->array()->is_flattened_array()) {
-    // Find the destination address (of the NewValueTypeInstance)
-    LIR_Opr obj = x->vt()->operand();
-    LIRItem obj_item(x->vt(), this);
+    if (x->array()->declared_type()->is_loaded()) {
+      // Find the destination address (of the NewValueTypeInstance)
+      LIR_Opr obj = x->vt()->operand();
+      LIRItem obj_item(x->vt(), this);
 
-    access_flattened_array(true, array, index, obj_item);
-    set_no_result(x);
-  } else {
-    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
-    LIR_Opr result = rlock_result(x, x->elt_type());
-    access_load_at(decorators, x->elt_type(),
-                   array, index.result(), result,
-                   NULL, null_check_info);
+      access_flattened_array(true, array, index, obj_item);
+      set_no_result(x);
+      return;
+    } else {
+      // If the array is indeed flattened, deopt. Otherwise access it as a normal object array.
+      CodeEmitInfo* deopt_info = state_for(x, x->state_before());
+      maybe_deopt_value_array_access(array, null_check_info, deopt_info);
+    }
   }
+  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+  LIR_Opr result = rlock_result(x, x->elt_type());
+  access_load_at(decorators, x->elt_type(),
+                 array, index.result(), result,
+                 NULL, null_check_info);
 }
 
 

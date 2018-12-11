@@ -267,6 +267,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
 
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
+  void maybe_deopt_value_array_access(LIRItem& array, CodeEmitInfo* null_check_info, CodeEmitInfo* deopt_info);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);

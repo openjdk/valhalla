@@ -42,6 +42,9 @@ private:
 
 protected:
   ciValueArrayKlass(Klass* h_k);
+  ciValueArrayKlass(ciSymbol* array_name,
+                    ciValueKlass* element_klass,
+                    int dimension);
 
   ValueArrayKlass* get_ValueArrayKlass() {
     return (ValueArrayKlass*)get_Klass();

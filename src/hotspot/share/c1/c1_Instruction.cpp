@@ -117,10 +117,13 @@ ciType* Instruction::exact_type() const {
 bool Instruction::is_flattened_array() const {
   if (ValueArrayFlatten) {
     ciType* type = declared_type();
-    if (type != NULL &&
-        type->is_value_array_klass() &&
-        type->as_value_array_klass()->element_klass()->as_value_klass()->flatten_array()) {
-    return true;
+    if (type != NULL && type->is_value_array_klass()) {
+      ciValueKlass* element_klass = type->as_value_array_klass()->element_klass()->as_value_klass();
+      if (!element_klass->is_loaded() || element_klass->flatten_array()) {
+        // Assume that all unloaded value arrays are not flattenable. If they
+        // turn out to be flattenable, we deoptimize on aaload/aastore.
+        return true;
+      }
     }
   }
 
