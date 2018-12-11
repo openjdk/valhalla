@@ -33,8 +33,9 @@ class Thread;
 // The GlobalCounter provides a synchronization mechanism between threads for
 // safe memory reclamation and other ABA problems. All readers must call
 // critical_section_begin before reading the volatile data and
-// critical_section_end afterwards. The write side must call write_synchronize
-// before reclaming the memory. The read-path only does an uncontented store
+// critical_section_end afterwards. Such read-side critical sections may
+// be properly nested. The write side must call write_synchronize
+// before reclaming the memory. The read-path only does an uncontended store
 // to a thread-local-storage and fence to stop any loads from floating up, thus
 // light weight and wait-free. The write-side is more heavy since it must check
 // all readers and wait until they have left the generation. (a system memory
@@ -45,9 +46,9 @@ class GlobalCounter : public AllStatic {
   // Since do not know what we will end up next to in BSS, we make sure the
   // counter is on a seperate cacheline.
   struct PaddedCounter {
-    DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE/2, 0);
+    DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, 0);
     volatile uintx _counter;
-    DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE/2, sizeof(volatile uintx));
+    DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile uintx));
   };
 
   // The global counter
@@ -62,20 +63,26 @@ class GlobalCounter : public AllStatic {
   class CounterThreadCheck;
 
  public:
-  // Must be called before accessing the data. Only threads accessible lock-free
-  // can used this. Those included now are all Threads on SMR ThreadsList and
-  // the VMThread. Nesting is not yet supported.
-  static void critical_section_begin(Thread *thread);
+  // The type of the critical section context passed from
+  // critical_section_begin() to critical_section_end().
+  typedef uintx CSContext;
 
-  // Must be called after finished accessing the data.
-  // Do not provide fence, allows load/stores moving into the critical section.
-  static void critical_section_end(Thread *thread);
+  // Must be called before accessing the data.  The result must be passed
+  // to the associated call to critical_section_end().  Acts as a full
+  // memory barrier before the code within the critical section.
+  static CSContext critical_section_begin(Thread *thread);
+
+  // Must be called after finished accessing the data.  The context
+  // must be the result of the associated initiating critical_section_begin().
+  // Acts as a release memory barrier after the code within the critical
+  // section.
+  static void critical_section_end(Thread *thread, CSContext context);
 
   // Make the data inaccessible to readers before calling. When this call
-  // returns it's safe to reclaim the data.
+  // returns it's safe to reclaim the data.  Acts as a full memory barrier.
   static void write_synchronize();
 
-  // A scoped object for a reads-side critical-section.
+  // A scoped object for a read-side critical-section.
   class CriticalSection;
 };
 

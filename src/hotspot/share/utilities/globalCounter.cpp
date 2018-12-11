@@ -59,12 +59,7 @@ class GlobalCounter::CounterThreadCheck : public ThreadClosure {
 void GlobalCounter::write_synchronize() {
   assert((*Thread::current()->get_rcu_counter() & COUNTER_ACTIVE) == 0x0, "must be outside a critcal section");
   // Atomic::add must provide fence since we have storeload dependency.
-  volatile uintx gbl_cnt = Atomic::add((uintx)COUNTER_INCREMENT, &_global_counter._counter,
-                                       memory_order_conservative);
-  // Handle bootstrap
-  if (Threads::number_of_threads() == 0) {
-    return;
-  }
+  uintx gbl_cnt = Atomic::add(COUNTER_INCREMENT, &_global_counter._counter);
 
   // Do all RCU threads.
   CounterThreadCheck ctc(gbl_cnt);

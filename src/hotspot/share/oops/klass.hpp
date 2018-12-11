@@ -178,8 +178,7 @@ private:
   // Flags of the current shared class.
   u2     _shared_class_flags;
   enum {
-    _has_raw_archived_mirror = 1,
-    _has_signer_and_not_archived = 1 << 2
+    _has_raw_archived_mirror = 1
   };
 #endif
   // The _archived_mirror is set at CDS dump time pointing to the cached mirror
@@ -260,6 +259,7 @@ protected:
 
   // java mirror
   oop java_mirror() const;
+  oop java_mirror_no_keepalive() const;
   void set_java_mirror(Handle m);
 
   oop archived_java_mirror_raw() NOT_CDS_JAVA_HEAP_RETURN_(NULL); // no GC barrier
@@ -316,15 +316,6 @@ protected:
     CDS_ONLY(return (_shared_class_flags & _has_raw_archived_mirror) != 0;)
     NOT_CDS(return false;)
   }
-#if INCLUDE_CDS
-  void set_has_signer_and_not_archived() {
-    _shared_class_flags |= _has_signer_and_not_archived;
-  }
-  bool has_signer_and_not_archived() const {
-    assert(DumpSharedSpaces, "dump time only");
-    return (_shared_class_flags & _has_signer_and_not_archived) != 0;
-  }
-#endif // INCLUDE_CDS
 
   // Obtain the module or package for this class
   virtual ModuleEntry* module() const = 0;
@@ -518,6 +509,9 @@ protected:
   virtual Klass* array_klass_impl(bool or_null, int rank, TRAPS);
   virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
+  // Error handling when length > max_length or length < 0
+  static void check_array_allocation_length(int length, int max_length, TRAPS);
+
   void set_vtable_length(int len) { _vtable_len= len; }
 
   vtableEntry* start_of_vtable() const;
@@ -674,8 +668,9 @@ protected:
   virtual MetaspaceObj::Type type() const { return ClassType; }
 
   // Iff the class loader (or mirror for unsafe anonymous classes) is alive the
-  // Klass is considered alive.  Has already been marked as unloading.
-  bool is_loader_alive() const { return !class_loader_data()->is_unloading(); }
+  // Klass is considered alive. This is safe to call before the CLD is marked as
+  // unloading, and hence during concurrent class unloading.
+  bool is_loader_alive() const { return class_loader_data()->is_alive(); }
 
   // Load the klass's holder as a phantom. This is useful when a weak Klass
   // pointer has been "peeked" and then must be kept alive before it may
@@ -686,16 +681,6 @@ protected:
   static void clean_subklass_tree() {
     clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
   }
-
-  // GC specific object visitors
-  //
-#if INCLUDE_PARALLELGC
-  // Parallel Scavenge
-  virtual void oop_ps_push_contents(  oop obj, PSPromotionManager* pm)   = 0;
-  // Parallel Compact
-  virtual void oop_pc_follow_contents(oop obj, ParCompactionManager* cm) = 0;
-  virtual void oop_pc_update_pointers(oop obj, ParCompactionManager* cm) = 0;
-#endif
 
   virtual void array_klasses_do(void f(Klass* k)) {}
 
@@ -731,6 +716,10 @@ protected:
 #endif
 
   virtual void oop_verify_on(oop obj, outputStream* st);
+
+  // for error reporting
+  static Klass* decode_klass_raw(narrowKlass narrow_klass);
+  static bool is_valid(Klass* k);
 
   static bool is_null(narrowKlass obj);
   static bool is_null(Klass* obj);

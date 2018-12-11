@@ -31,9 +31,7 @@
 #include "JVMTITools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define EXP_OBJ_NUMBER 1
 
@@ -52,7 +50,7 @@ static const char* THREAD_CLS_SIGNATURE = "Lnsk/jvmti/scenarios/allocation/AP06/
 
 /* jvmtiHeapRootCallback */
 jvmtiIterationControl JNICALL
-heapRootCallback( jvmtiHeapRootKind root_kind,
+heapRootCallback(jvmtiHeapRootKind root_kind,
                   jlong class_tag,
                   jlong size,
                   jlong* tag_ptr,
@@ -77,15 +75,15 @@ heapRootCallback( jvmtiHeapRootKind root_kind,
 
 /* jvmtiStackReferenceCallback */
 jvmtiIterationControl JNICALL
-stackReferenceCallback( jvmtiHeapRootKind root_kind,
-                        jlong     class_tag,
-                        jlong     size,
-                        jlong*    tag_ptr,
-                        jlong     thread_tag,
-                        jint      depth,
-                        jmethodID method,
-                        jint      slot,
-                        void*     user_data) {
+stackReferenceCallback(jvmtiHeapRootKind root_kind,
+                       jlong     class_tag,
+                       jlong     size,
+                       jlong*    tag_ptr,
+                       jlong     thread_tag,
+                       jint      depth,
+                       jmethodID method,
+                       jint      slot,
+                       void*     user_data) {
 
     if (*tag_ptr == threadTag) {
         NSK_DISPLAY4("stackReferenceCallback: root kind=%s, "
@@ -109,13 +107,13 @@ stackReferenceCallback( jvmtiHeapRootKind root_kind,
 
 /* jvmtiObjectReferenceCallback */
 jvmtiIterationControl JNICALL
-objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
-                         jlong  class_tag,
-                         jlong  size,
-                         jlong* tag_ptr,
-                         jlong  referrer_tag,
-                         jint   referrer_index,
-                         void*  user_data) {
+objectReferenceCallback(jvmtiObjectReferenceKind reference_kind,
+                        jlong  class_tag,
+                        jlong  size,
+                        jlong* tag_ptr,
+                        jlong  referrer_tag,
+                        jint   referrer_index,
+                        void*  user_data) {
 
     return JVMTI_ITERATION_ABORT;
 }
@@ -124,9 +122,9 @@ objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
 /************************/
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP06_ap06t001Thread_setTag( JNIEnv* jni, jobject obj) {
+Java_nsk_jvmti_scenarios_allocation_AP06_ap06t001Thread_setTag(JNIEnv* jni, jobject obj) {
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetTag, jvmti, obj, threadTag))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetTag(obj, threadTag))) {
         nsk_jvmti_setFailStatus();
     } else {
         NSK_DISPLAY0("setTag: the tag was set for checked thread.");
@@ -155,34 +153,26 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         }
 
         if (!NSK_JNI_VERIFY(jni, (fid =
-                NSK_CPP_STUB4(GetStaticFieldID, jni,
-                                                debugeeClass,
-                                                "thread",
-                                                THREAD_CLS_SIGNATURE)) != NULL )) {
+                jni->GetStaticFieldID(debugeeClass, "thread", THREAD_CLS_SIGNATURE)) != NULL)) {
             nsk_jvmti_setFailStatus();
             break;
         }
 
         if (!NSK_JNI_VERIFY(jni, (localRefThread =
-                NSK_CPP_STUB3(GetStaticObjectField, jni,
-                                                    debugeeClass,
-                                                    fid )) != NULL )) {
+                jni->GetStaticObjectField(debugeeClass, fid)) != NULL)) {
             NSK_COMPLAIN0("GetStaticObjectField returned NULL for 'thread' field value\n\n");
             nsk_jvmti_setFailStatus();
             break;
         }
 
-        if (!NSK_JNI_VERIFY(jni, (globalRefThread =
-                 NSK_CPP_STUB2(NewGlobalRef, jni, localRefThread)) != NULL))
+        if (!NSK_JNI_VERIFY(jni, (globalRefThread = jni->NewGlobalRef(localRefThread)) != NULL))
             return;
 
         NSK_DISPLAY0("Calling IterateOverReachableObjects\n");
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB5(IterateOverReachableObjects, jvmti,
-                                                           heapRootCallback,
-                                                           stackReferenceCallback,
-                                                           objectReferenceCallback,
-                                                           NULL /*user_data*/))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->IterateOverReachableObjects(heapRootCallback,
+                                                                 stackReferenceCallback,
+                                                                 objectReferenceCallback,
+                                                                 NULL /*user_data*/))) {
             nsk_jvmti_setFailStatus();
             break;
         }
@@ -190,19 +180,19 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         if (rootJNILocalCount != 1) {
             nsk_jvmti_setFailStatus();
             NSK_COMPLAIN1("JVMTI_HEAP_ROOT_JNI_LOCAL root kind was returned wrong %d times "
-                          "while iteration with IterateOverReachableObjects.\n\n", rootJNILocalCount );
+                          "while iteration with IterateOverReachableObjects.\n\n", rootJNILocalCount);
         }
 
         if (rootJNIGlobalCount != 1) {
             nsk_jvmti_setFailStatus();
             NSK_COMPLAIN1("JVMTI_HEAP_ROOT_JNI_GLOBAL root kind was returned wrong %d times "
-                          "while iteration with IterateOverReachableObjects.\n\n", rootJNIGlobalCount );
+                          "while iteration with IterateOverReachableObjects.\n\n", rootJNIGlobalCount);
         }
 
         if (rootThreadCount != 1) {
             nsk_jvmti_setFailStatus();
             NSK_COMPLAIN1("JVMTI_HEAP_ROOT_THREAD root kind was returned wrong %d times "
-                          "while iteration with IterateOverReachableObjects.\n\n", rootThreadCount );
+                          "while iteration with IterateOverReachableObjects.\n\n", rootThreadCount);
         }
 
     } while (0);
@@ -236,12 +226,10 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_tag_objects = 1;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps)))
         return JNI_ERR;
 
     if (!caps.can_tag_objects)
@@ -254,6 +242,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

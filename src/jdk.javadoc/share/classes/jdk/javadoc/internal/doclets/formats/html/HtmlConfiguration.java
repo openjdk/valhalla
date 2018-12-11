@@ -209,12 +209,6 @@ public class HtmlConfiguration extends BaseConfiguration {
     public HtmlVersion htmlVersion = null;
 
     /**
-     * Flag to enable/disable use of module directories when generating docs for modules
-     * Default: on (module directories are enabled).
-     */
-    public boolean useModuleDirectories = true;
-
-    /**
      * Collected set of doclint options
      */
     public Map<Doclet.Option, String> doclintOpts = new LinkedHashMap<>();
@@ -294,6 +288,10 @@ public class HtmlConfiguration extends BaseConfiguration {
         return resources;
     }
 
+    public Contents getContents() {
+        return contents;
+    }
+
     @Override
     public Messages getMessages() {
         return messages;
@@ -313,7 +311,7 @@ public class HtmlConfiguration extends BaseConfiguration {
         if (!helpfile.isEmpty()) {
             DocFile help = DocFile.createFileForInput(this, helpfile);
             if (!help.exists()) {
-                reporter.print(ERROR, getText("doclet.File_not_found", helpfile));
+                reporter.print(ERROR, resources.getText("doclet.File_not_found", helpfile));
                 return false;
             }
         }
@@ -321,7 +319,7 @@ public class HtmlConfiguration extends BaseConfiguration {
         if (!stylesheetfile.isEmpty()) {
             DocFile stylesheet = DocFile.createFileForInput(this, stylesheetfile);
             if (!stylesheet.exists()) {
-                reporter.print(ERROR, getText("doclet.File_not_found", stylesheetfile));
+                reporter.print(ERROR, resources.getText("doclet.File_not_found", stylesheetfile));
                 return false;
             }
         }
@@ -329,7 +327,7 @@ public class HtmlConfiguration extends BaseConfiguration {
         for (String ssheet : additionalStylesheets) {
             DocFile ssfile = DocFile.createFileForInput(this, ssheet);
             if (!ssfile.exists()) {
-                reporter.print(ERROR, getText("doclet.File_not_found", ssheet));
+                reporter.print(ERROR, resources.getText("doclet.File_not_found", ssheet));
                 return false;
             }
         }
@@ -511,63 +509,6 @@ public class HtmlConfiguration extends BaseConfiguration {
         return (e == null || workArounds.haveDocLint());
     }
 
-    @Override
-    public String getText(String key) {
-        return resources.getText(key);
-    }
-
-    @Override
-    public String getText(String key, String... args) {
-        return resources.getText(key, (Object[]) args);
-    }
-
-   /**
-     * {@inheritdoc}
-     */
-    @Override
-    public Content getContent(String key) {
-        return contents.getContent(key);
-    }
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key to look for in the configuration file
-     * @param o   string or content argument added to configuration text
-     * @return a content tree for the text
-     */
-    @Override
-    public Content getContent(String key, Object o) {
-        return contents.getContent(key, o);
-    }
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key to look for in the configuration file
-     * @param o1 resource argument
-     * @param o2 resource argument
-     * @return a content tree for the text
-     */
-    @Override
-    public Content getContent(String key, Object o1, Object o2) {
-        return contents.getContent(key, o1, o2);
-    }
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key to look for in the configuration file
-     * @param o0  string or content argument added to configuration text
-     * @param o1  string or content argument added to configuration text
-     * @param o2  string or content argument added to configuration text
-     * @return a content tree for the text
-     */
-    @Override
-    public Content getContent(String key, Object o0, Object o1, Object o2) {
-        return contents.getContent(key, o0, o1, o2);
-    }
-
     protected void buildSearchTagIndex() {
         for (SearchIndexItem sii : tagSearchIndex) {
             String tagLabel = sii.getLabel();
@@ -634,12 +575,12 @@ public class HtmlConfiguration extends BaseConfiguration {
                 @Override
                 public boolean process(String opt,  List<String> args) {
                     if (nohelp == true) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-helpfile", "-nohelp"));
                         return false;
                     }
                     if (!helpfile.isEmpty()) {
-                        reporter.print(ERROR, getText("doclet.Option_reuse",
+                        reporter.print(ERROR, resources.getText("doclet.Option_reuse",
                                 "-helpfile"));
                         return false;
                     }
@@ -650,7 +591,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             new Option(resources, "-html4") {
                 @Override
                 public boolean process(String opt,  List<String> args) {
-                    reporter.print(WARNING, getText("doclet.HTML_4_specified", helpfile));
+                    reporter.print(WARNING, resources.getText("doclet.HTML_4_specified", helpfile));
                     htmlVersion = HtmlVersion.HTML4;
                     return true;
                 }
@@ -667,7 +608,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt, List<String> args) {
                     nohelp = true;
                     if (!helpfile.isEmpty()) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-nohelp", "-helpfile"));
                         return false;
                     }
@@ -686,7 +627,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt,  List<String> args) {
                     createindex = false;
                     if (splitindex == true) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-noindex", "-splitindex"));
                         return false;
                     }
@@ -705,7 +646,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt,  List<String> args) {
                     nooverview = true;
                     if (overviewpath != null) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-nooverview", "-overview"));
                         return false;
                     }
@@ -724,7 +665,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt,  List<String> args) {
                     overviewpath = args.get(0);
                     if (nooverview == true) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-overview", "-nooverview"));
                         return false;
                     }
@@ -734,7 +675,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             new Option(resources, "--frames") {
                 @Override
                 public boolean process(String opt,  List<String> args) {
-                    reporter.print(WARNING, getText("doclet.Frames_specified", helpfile));
+                    reporter.print(WARNING, resources.getText("doclet.Frames_specified", helpfile));
                     frames = true;
                     return true;
                 }
@@ -758,7 +699,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt, List<String> args) {
                     splitindex = true;
                     if (createindex == false) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-splitindex", "-noindex"));
                         return false;
                     }
@@ -807,7 +748,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                     try {
                         URL ignored = new URL(docrootparent);
                     } catch (MalformedURLException e) {
-                        reporter.print(ERROR, getText("doclet.MalformedURL", docrootparent));
+                        reporter.print(ERROR, resources.getText("doclet.MalformedURL", docrootparent));
                         return false;
                     }
                     return true;
@@ -819,11 +760,11 @@ public class HtmlConfiguration extends BaseConfiguration {
                     String dopt = opt.replace("-Xdoclint:", DocLint.XMSGS_CUSTOM_PREFIX);
                     doclintOpts.put(this, dopt);
                     if (dopt.contains("/")) {
-                        reporter.print(ERROR, getText("doclet.Option_doclint_no_qualifiers"));
+                        reporter.print(ERROR, resources.getText("doclet.Option_doclint_no_qualifiers"));
                         return false;
                     }
                     if (!DocLint.isValidOption(dopt)) {
-                        reporter.print(ERROR, getText("doclet.Option_doclint_invalid_arg"));
+                        reporter.print(ERROR, resources.getText("doclet.Option_doclint_invalid_arg"));
                         return false;
                     }
                     return true;
@@ -835,16 +776,9 @@ public class HtmlConfiguration extends BaseConfiguration {
                     String dopt = opt.replace("-Xdoclint/package:", DocLint.XCHECK_PACKAGE);
                     doclintOpts.put(this, dopt);
                     if (!DocLint.isValidOption(dopt)) {
-                        reporter.print(ERROR, getText("doclet.Option_doclint_package_invalid_arg"));
+                        reporter.print(ERROR, resources.getText("doclet.Option_doclint_package_invalid_arg"));
                         return false;
                     }
-                    return true;
-                }
-            },
-            new XOption(resources, "--no-module-directories") {
-                @Override
-                public boolean process(String option, List<String> args) {
-                    useModuleDirectories = false;
                     return true;
                 }
             }
@@ -867,7 +801,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             if (charset == null) {
                 charset = docencoding;
             } else if (!charset.equals(docencoding)) {
-                reporter.print(ERROR, getText("doclet.Option_conflict", "-charset", "-docencoding"));
+                reporter.print(ERROR, resources.getText("doclet.Option_conflict", "-charset", "-docencoding"));
                 return false;
             }
         }

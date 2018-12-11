@@ -135,7 +135,6 @@ PerfCounter*    ClassLoader::_sync_JVMFindLoadedClassLockFreeCounter = NULL;
 PerfCounter*    ClassLoader::_sync_JVMDefineClassLockFreeCounter = NULL;
 PerfCounter*    ClassLoader::_sync_JNIDefineClassLockFreeCounter = NULL;
 PerfCounter*    ClassLoader::_unsafe_defineClassCallCounter = NULL;
-PerfCounter*    ClassLoader::_load_instance_class_failCounter = NULL;
 
 GrowableArray<ModuleClassPathList*>* ClassLoader::_patch_mod_entries = NULL;
 GrowableArray<ModuleClassPathList*>* ClassLoader::_exploded_entries = NULL;
@@ -164,7 +163,7 @@ static const char* get_jimage_version_string() {
   static char version_string[10] = "";
   if (version_string[0] == '\0') {
     jio_snprintf(version_string, sizeof(version_string), "%d.%d",
-                 Abstract_VM_Version::vm_major_version(), Abstract_VM_Version::vm_minor_version());
+                 VM_Version::vm_major_version(), VM_Version::vm_minor_version());
   }
   return (const char*)version_string;
 }
@@ -1472,16 +1471,16 @@ void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream
     // if no protocol prefix is found, path is the same as stream->source()
     char* path = skip_uri_protocol(src);
     char* canonical_class_src_path = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, JVM_MAXPATHLEN);
-    if (!get_canonical_path(path, canonical_class_src_path, JVM_MAXPATHLEN)) {
-      tty->print_cr("Bad pathname %s. CDS dump aborted.", path);
-      vm_exit(1);
-    }
+    bool success = get_canonical_path(path, canonical_class_src_path, JVM_MAXPATHLEN);
+    // The path is from the ClassFileStream. Since a ClassFileStream has been created successfully in functions
+    // such as ClassLoader::load_class(), its source path must be valid.
+    assert(success, "must be valid path");
     for (int i = 0; i < FileMapInfo::get_number_of_shared_paths(); i++) {
       SharedClassPathEntry* ent = FileMapInfo::shared_path(i);
-      if (!get_canonical_path(ent->name(), canonical_path_table_entry, JVM_MAXPATHLEN)) {
-        tty->print_cr("Bad pathname %s. CDS dump aborted.", ent->name());
-        vm_exit(1);
-      }
+      success = get_canonical_path(ent->name(), canonical_path_table_entry, JVM_MAXPATHLEN);
+      // A shared path has been validated during its creation in ClassLoader::create_class_path_entry(),
+      // it must be valid here.
+      assert(success, "must be valid path");
       // If the path (from the class stream source) is the same as the shared
       // class or module path, then we have a match.
       if (strcmp(canonical_path_table_entry, canonical_class_src_path) == 0) {
@@ -1604,9 +1603,6 @@ void ClassLoader::initialize() {
 
     NEWPERFEVENTCOUNTER(_unsafe_defineClassCallCounter, SUN_CLS,
                         "unsafeDefineClassCalls");
-
-    NEWPERFEVENTCOUNTER(_load_instance_class_failCounter, SUN_CLS,
-                        "loadInstanceClassFailRate");
   }
 
   // lookup zip library entry points

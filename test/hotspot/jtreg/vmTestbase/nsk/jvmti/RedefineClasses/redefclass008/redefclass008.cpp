@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define BP_NUM 5 /* overall number of breakpoints */
 
@@ -90,8 +77,8 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    if ((res = JNI_ENV_PTR(vm)->GetEnv(JNI_ENV_ARG(vm, (void **) &jvmti),
-            JVMTI_VERSION_1_1)) != JNI_OK) {
+    res = vm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
+    if (res != JNI_OK) {
         printf("%s: Failed to call GetEnv: error=%d\n", __FILE__, res);
         return JNI_ERR;
     }
@@ -146,46 +133,48 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_setBreakpoints(JNIEnv *env,
         return PASSED;
     }
 
-    redefCls =
-        JNI_ENV_PTR(env)->GetObjectClass(JNI_ENV_ARG(env, redefObj));
+    redefCls = env->GetObjectClass(redefObj);
 
     for (i=0; i<BP_NUM; i++) {
 /* get the JNI method ID for a method with name m_name and
    signature m_sign */
         if (breakpoints[i].inst) { /* an instance method */
-            if ((breakpoints[i].mid =
-                    JNI_ENV_PTR(env)->GetMethodID(JNI_ENV_ARG(env, redefCls),
-                    breakpoints[i].m_name, breakpoints[i].m_sign)) == NULL) {
-                printf("%s: Failed to get the method ID for the instance method\
- \"%s\" with signature \"%s\"\n",
+            breakpoints[i].mid = env->GetMethodID(
+                redefCls, breakpoints[i].m_name, breakpoints[i].m_sign);
+            if (breakpoints[i].mid == NULL) {
+                printf(
+                    "%s: Failed to get the method ID for the instance method \"%s\" with signature \"%s\"\n",
                     __FILE__, breakpoints[i].m_name, breakpoints[i].m_sign);
                 return STATUS_FAILED;
             }
         } else {                   /* a static method */
-            if ((breakpoints[i].mid =
-                    JNI_ENV_PTR(env)->GetStaticMethodID(JNI_ENV_ARG(env, redefCls),
-                    breakpoints[i].m_name, breakpoints[i].m_sign)) == NULL) {
-                printf("%s: Failed to get the method ID for the static method\
- \"%s\" with signature \"%s\"\n",
+            breakpoints[i].mid = env->GetStaticMethodID(
+                redefCls, breakpoints[i].m_name, breakpoints[i].m_sign);
+            if (breakpoints[i].mid == NULL) {
+                printf(
+                    "%s: Failed to get the method ID for the static method \"%s\" with signature \"%s\"\n",
                     __FILE__, breakpoints[i].m_name, breakpoints[i].m_sign);
                 return STATUS_FAILED;
             }
         }
 
-        if (vrb == 1)
-            printf(">>>>>>>> #%d Invoke SetBreakpoint():\n\tbreakpoint in the %s\
- method: name=\"%s\"; signature=\"%s\"; location=%d\n",
+        if (vrb == 1) {
+            printf(
+                ">>>>>>>> #%d Invoke SetBreakpoint():\n"
+                "\tbreakpoint in the %s method: name=\"%s\"; "
+                "signature=\"%s\"; location=%d\n",
                 i, breakpoints[i].inst?"instance":"static",
                 breakpoints[i].m_name, breakpoints[i].m_sign, breakpoints[i].loc);
-        if ((err = (jvmti->SetBreakpoint(breakpoints[i].mid,
-                breakpoints[i].loc))) != JVMTI_ERROR_NONE) {
+        }
+
+        err = jvmti->SetBreakpoint(breakpoints[i].mid, breakpoints[i].loc);
+        if (err != JVMTI_ERROR_NONE) {
             printf("%s: Failed to call SetBreakpoint(): error=%d: %s\n",
                     __FILE__, err, TranslateError(err));
             return STATUS_FAILED;
         }
 
-        err = jvmti->SetEventNotificationMode(JVMTI_ENABLE,
-            JVMTI_EVENT_BREAKPOINT, NULL);
+        err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, NULL);
         if (err != JVMTI_ERROR_NONE) {
             printf("Failed to enable BREAKPOINT event: %s (%d)\n",
                    TranslateError(err), err);
@@ -215,15 +204,14 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_makeRedefinition(JNIEnv *env,
 
 /* fill the structure jvmtiClassDefinition */
     classDef.klass = redefCls;
-    classDef.class_byte_count =
-        JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG(env, classBytes));
-    classDef.class_bytes = (unsigned char *)
-        JNI_ENV_PTR(env)->GetByteArrayElements(JNI_ENV_ARG(env, classBytes), NULL);
+    classDef.class_byte_count = env->GetArrayLength(classBytes);
+    classDef.class_bytes = (unsigned char *) env->GetByteArrayElements(classBytes, NULL);
 
     if (vrb == 1)
         printf(">>>>>>>> Invoke RedefineClasses():\n\tnew class byte count=%d\n",
             classDef.class_byte_count);
-    if ((err = (jvmti->RedefineClasses(1, &classDef))) != JVMTI_ERROR_NONE) {
+    err = jvmti->RedefineClasses(1, &classDef);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call RedefineClasses(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         printf("\tFor more info about this error see the JVMTI spec.\n");
@@ -246,54 +234,60 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_getResult(JNIEnv *env,
         return PASSED;
     }
 
-    redefCls =
-        JNI_ENV_PTR(env)->GetObjectClass(JNI_ENV_ARG(env, redefObj));
+    redefCls = env->GetObjectClass(redefObj);
 
 /* all breakpoints should be cleared after the redefinition */
     for (i=0; i<BP_NUM; i++) {
 /* get again the JNI method ID for a method with name m_name and
    signature m_sign */
         if (breakpoints[i].inst) { /* an instance method */
-            if ((breakpoints[i].mid =
-                    JNI_ENV_PTR(env)->GetMethodID(JNI_ENV_ARG(env, redefCls),
-                    breakpoints[i].m_name, breakpoints[i].m_sign)) == NULL) {
-                printf("%s: getResult: Failed to get the method ID for the instance method\
- \"%s\" with signature \"%s\"\n",
+            breakpoints[i].mid = env->GetMethodID(
+                redefCls, breakpoints[i].m_name, breakpoints[i].m_sign);
+            if (breakpoints[i].mid == NULL) {
+                printf(
+                    "%s: getResult: Failed to get the method ID for the instance method"
+                    "\"%s\" with signature \"%s\"\n",
                     __FILE__, breakpoints[i].m_name, breakpoints[i].m_sign);
                 return STATUS_FAILED;
             }
         } else {                   /* a static method */
-            if ((breakpoints[i].mid =
-                    JNI_ENV_PTR(env)->GetStaticMethodID(JNI_ENV_ARG(env, redefCls),
-                    breakpoints[i].m_name, breakpoints[i].m_sign)) == NULL) {
-                printf("%s: getResult: Failed to get the method ID for the static method\
- \"%s\" with signature \"%s\"\n",
+            breakpoints[i].mid = env->GetStaticMethodID(
+                redefCls, breakpoints[i].m_name, breakpoints[i].m_sign);
+            if (breakpoints[i].mid == NULL) {
+                printf(
+                    "%s: getResult: Failed to get the method ID for the static method"
+                    "\"%s\" with signature \"%s\"\n",
                     __FILE__, breakpoints[i].m_name, breakpoints[i].m_sign);
                 return STATUS_FAILED;
             }
         }
 
-        if ((err = (jvmti->ClearBreakpoint(breakpoints[i].mid,
-                breakpoints[i].loc))) != JVMTI_ERROR_NOT_FOUND) {
-            printf("TEST FAILED: Breakpoint #%d in the %s method:\n\
-\tname=\"%s\"; signature=\"%s\"; location=%d was not cleared:\n\
-\tClearBreakpoint() returned the error %d: %s\n\n",
+        err = jvmti->ClearBreakpoint(breakpoints[i].mid, breakpoints[i].loc);
+        if (err != JVMTI_ERROR_NOT_FOUND) {
+            printf(
+                "TEST FAILED: Breakpoint #%d in the %s method:\n"
+                "\tname=\"%s\"; signature=\"%s\"; location=%d was not cleared:\n"
+                "\tClearBreakpoint() returned the error %d: %s\n\n",
                 i, breakpoints[i].inst?"instance":"static",
                 breakpoints[i].m_name, breakpoints[i].m_sign,
                 breakpoints[i].loc, err, TranslateError(err));
             totRes = STATUS_FAILED;
         } else {
-            if (vrb == 1)
-                printf("Check #%d PASSED: Breakpoint in the %s method:\n\
-\tname=\"%s\"; signature=\"%s\"; location=%d was cleared:\n\
-\tClearBreakpoint() returned the error %d: %s\n\n",
+            if (vrb == 1) {
+                printf(
+                    "Check #%d PASSED: Breakpoint in the %s method:\n"
+                    "\tname=\"%s\"; signature=\"%s\"; location=%d was cleared:\n"
+                    "\tClearBreakpoint() returned the error %d: %s\n\n",
                     i, breakpoints[i].inst?"instance":"static",
                     breakpoints[i].m_name, breakpoints[i].m_sign,
                     breakpoints[i].loc, err, TranslateError(err));
-            if ((err = (jvmti->SetBreakpoint(breakpoints[i].mid,
-                    breakpoints[i].loc))) == JVMTI_ERROR_DUPLICATE) {
-                printf("TEST FAILED: the function SetBreakpoint() returned the error %d: %s\n\
-\ti.e. the breakpoint #%d has not been really cleared.\n\n",
+            }
+
+            err = jvmti->SetBreakpoint(breakpoints[i].mid, breakpoints[i].loc);
+            if (err == JVMTI_ERROR_DUPLICATE) {
+                printf(
+                    "TEST FAILED: the function SetBreakpoint() returned the error %d: %s\n"
+                    "\ti.e. the breakpoint #%d has not been really cleared.\n\n",
                     err, TranslateError(err), i);
                 totRes = STATUS_FAILED;
             }
@@ -303,6 +297,4 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_getResult(JNIEnv *env,
     return totRes;
 }
 
-#ifdef __cplusplus
 }
-#endif

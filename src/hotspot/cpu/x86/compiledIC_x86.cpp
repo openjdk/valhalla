@@ -177,7 +177,7 @@ void CompiledDirectStaticCall::set_to_interpreted(const methodHandle& callee, ad
 }
 
 void CompiledDirectStaticCall::set_stub_to_clean(static_stub_Relocation* static_stub) {
-  assert (CompiledIC_lock->is_locked() || SafepointSynchronize::is_at_safepoint(), "mt unsafe call");
+  assert(CompiledICLocker::is_safe(static_stub->addr()), "mt unsafe call");
   // Reset stub.
   address stub = static_stub->addr();
   assert(stub != NULL, "stub not found");
@@ -198,9 +198,7 @@ void CompiledDirectStaticCall::set_stub_to_clean(static_stub_Relocation* static_
 void CompiledDirectStaticCall::verify() {
   // Verify call.
   _call->verify();
-  if (os::is_MP()) {
-    _call->verify_alignment();
-  }
+  _call->verify_alignment();
 
 #ifdef ASSERT
   CodeBlob *cb = CodeCache::find_blob_unsafe((address) _call);

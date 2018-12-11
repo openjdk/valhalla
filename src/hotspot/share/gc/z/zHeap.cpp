@@ -273,12 +273,12 @@ void ZHeap::mark_start() {
   // Update statistics
   ZStatSample(ZSamplerHeapUsedBeforeMark, used());
 
-  // Retire TLABs
-  _object_allocator.retire_tlabs();
-
   // Flip address view
   ZAddressMasks::flip_to_marked();
   flip_views();
+
+  // Retire allocating pages
+  _object_allocator.retire_pages();
 
   // Reset allocated/reclaimed/used statistics
   _page_allocator.reset_statistics();
@@ -296,13 +296,24 @@ void ZHeap::mark_start() {
   ZStatHeap::set_at_mark_start(capacity(), used());
 }
 
-void ZHeap::mark() {
-  _mark.mark();
+void ZHeap::mark(bool initial) {
+  _mark.mark(initial);
 }
 
 void ZHeap::mark_flush_and_free(Thread* thread) {
   _mark.flush_and_free(thread);
 }
+
+class ZFixupPartialLoadsClosure : public ZRootsIteratorClosure {
+public:
+  virtual void do_oop(oop* p) {
+    ZBarrier::mark_barrier_on_root_oop_field(p);
+  }
+
+  virtual void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
+};
 
 class ZFixupPartialLoadsTask : public ZTask {
 private:
@@ -314,7 +325,7 @@ public:
       _thread_roots() {}
 
   virtual void work() {
-    ZMarkRootOopClosure cl;
+    ZFixupPartialLoadsClosure cl;
     _thread_roots.oops_do(&cl);
   }
 };
@@ -354,11 +365,6 @@ bool ZHeap::mark_end() {
 
   // Process weak roots
   _weak_roots_processor.process_weak_roots();
-
-  // Verification
-  if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
-    Universe::verify();
-  }
 
   return true;
 }
@@ -464,9 +470,6 @@ void ZHeap::relocate_start() {
   ZAddressMasks::flip_to_remapped();
   flip_views();
 
-  // Remap TLABs
-  _object_allocator.remap_tlabs();
-
   // Enter relocate phase
   ZGlobalPhase = ZPhaseRelocate;
 
@@ -562,7 +565,7 @@ public:
       _weak_roots() {}
 
   virtual void work() {
-    ZVerifyRootOopClosure cl;
+    ZVerifyOopClosure cl;
     _strong_roots.oops_do(&cl);
     _weak_roots.oops_do(&cl);
   }

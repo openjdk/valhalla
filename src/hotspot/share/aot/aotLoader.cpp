@@ -47,6 +47,8 @@ void AOTLoader::load_for_klass(InstanceKlass* ik, Thread* thread) {
     return;
   }
   if (UseAOT) {
+    // We allow hotswap to be enabled after the onload phase, but not breakpoints
+    assert(!JvmtiExport::can_post_breakpoint(), "AOT should have been disabled.");
     FOR_ALL_AOT_HEAPS(heap) {
       (*heap)->load_klass_data(ik, thread);
     }
@@ -54,6 +56,7 @@ void AOTLoader::load_for_klass(InstanceKlass* ik, Thread* thread) {
 }
 
 uint64_t AOTLoader::get_saved_fingerprint(InstanceKlass* ik) {
+  assert(UseAOT, "called only when AOT is enabled");
   if (ik->is_unsafe_anonymous()) {
     // don't even bother
     return 0;
@@ -65,24 +68,6 @@ uint64_t AOTLoader::get_saved_fingerprint(InstanceKlass* ik) {
     }
   }
   return 0;
-}
-
-bool AOTLoader::find_klass(InstanceKlass* ik) {
-  FOR_ALL_AOT_HEAPS(heap) {
-    if ((*heap)->find_klass(ik) != NULL) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool AOTLoader::contains(address p) {
-  FOR_ALL_AOT_HEAPS(heap) {
-    if ((*heap)->contains(p)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void AOTLoader::oops_do(OopClosure* f) {
@@ -99,15 +84,6 @@ void AOTLoader::metadata_do(void f(Metadata*)) {
       (*heap)->metadata_do(f);
     }
   }
-}
-
-// Flushing and deoptimization in case of evolution
-void AOTLoader::flush_evol_dependents_on(InstanceKlass* dependee) {
-  // make non entrant and mark for deoptimization
-  FOR_ALL_AOT_HEAPS(heap) {
-    (*heap)->flush_evol_dependents_on(dependee);
-  }
-  Deoptimization::deoptimize_dependents();
 }
 
 /**
@@ -139,6 +115,14 @@ void AOTLoader::initialize() {
       return;
     }
 
+    if (JvmtiExport::can_post_breakpoint()) {
+      if (PrintAOT) {
+        warning("JVMTI capability to post breakpoint is not compatible with AOT (switching AOT off)");
+      }
+      FLAG_SET_DEFAULT(UseAOT, false);
+      return;
+    }
+
     // -Xint is not compatible with AOT
     if (Arguments::is_interpreter_only()) {
       if (PrintAOT) {
@@ -147,6 +131,12 @@ void AOTLoader::initialize() {
       FLAG_SET_DEFAULT(UseAOT, false);
       return;
     }
+
+#ifdef _WINDOWS
+    const char pathSep = ';';
+#else
+    const char pathSep = ':';
+#endif
 
     // Scan the AOTLibrary option.
     if (AOTLibrary != NULL) {
@@ -158,7 +148,7 @@ void AOTLoader::initialize() {
         char* end = cp + len;
         while (cp < end) {
           const char* name = cp;
-          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != ':' && (*cp) != ';')  cp++;
+          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != pathSep) cp++;
           cp[0] = '\0';  // Terminate name
           cp++;
           load_library(name, true);

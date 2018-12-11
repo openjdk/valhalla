@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -47,8 +45,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
     NSK_DISPLAY0(">>> Testcase #1: force GC to collect sofly reachable objects\n");
     {
         NSK_DISPLAY0("Call ForceGarbageCollection()\n");
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB1(ForceGarbageCollection, jvmti))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->ForceGarbageCollection())) {
             nsk_jvmti_setFailStatus();
             return;
         }
@@ -94,6 +91,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

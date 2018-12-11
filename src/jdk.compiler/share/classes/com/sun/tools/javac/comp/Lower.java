@@ -1134,10 +1134,14 @@ public class Lower extends TreeTranslator {
                 make.at(tree.pos);
                 return makeLit(sym.type, cv);
             }
-            // Otherwise replace the variable by its proxy.
-            sym = proxies.get(sym);
-            Assert.check(sym != null && (sym.flags_field & FINAL) != 0);
-            tree = make.at(tree.pos).Ident(sym);
+            if (lambdaTranslationMap != null && lambdaTranslationMap.get(sym) != null) {
+                return make.at(tree.pos).Ident(lambdaTranslationMap.get(sym));
+            } else {
+                // Otherwise replace the variable by its proxy.
+                sym = proxies.get(sym);
+                Assert.check(sym != null && (sym.flags_field & FINAL) != 0);
+                tree = make.at(tree.pos).Ident(sym);
+            }
         }
         JCExpression base = (tree.hasTag(SELECT)) ? ((JCFieldAccess) tree).selected : null;
         switch (sym.kind) {
@@ -2067,7 +2071,9 @@ public class Lower extends TreeTranslator {
 
     // evaluate and discard the first expression, then evaluate the second.
     JCExpression makeComma(final JCExpression expr1, final JCExpression expr2) {
-        return abstractRval(expr1, discarded -> expr2);
+        JCExpression res = make.LetExpr(List.of(make.Exec(expr1)), expr2);
+        res.type = expr2.type;
+        return res;
     }
 
 /**************************************************************************

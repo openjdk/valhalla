@@ -58,7 +58,6 @@ class MetaspaceShared : AllStatic {
   static bool _has_error_classes;
   static bool _archive_loading_failed;
   static bool _remapped_readwrite;
-  static bool _open_archive_heap_region_mapped;
   static address _cds_i2i_entry_code_buffers;
   static size_t  _cds_i2i_entry_code_buffers_size;
   static size_t  _core_spaces_size;
@@ -77,13 +76,14 @@ class MetaspaceShared : AllStatic {
     num_non_heap_spaces = od + 1,
 
     // mapped java heap regions
-    first_string = od + 1, // index of first string region
-    max_strings = 2, // max number of string regions in string space
-    last_string = first_string + max_strings - 1,
-    first_open_archive_heap_region = first_string + max_strings,
+    first_closed_archive_heap_region = od + 1,
+    max_closed_archive_heap_region = 2,
+    last_closed_archive_heap_region = first_closed_archive_heap_region + max_closed_archive_heap_region - 1,
+    first_open_archive_heap_region = last_closed_archive_heap_region + 1,
     max_open_archive_heap_region = 2,
+    last_open_archive_heap_region = first_open_archive_heap_region + max_open_archive_heap_region - 1,
 
-    last_valid_region = first_open_archive_heap_region + max_open_archive_heap_region - 1,
+    last_valid_region = last_open_archive_heap_region,
     n_regions =  last_valid_region + 1 // total number of regions
   };
 
@@ -92,55 +92,7 @@ class MetaspaceShared : AllStatic {
   static int preload_classes(const char * class_list_path,
                              TRAPS) NOT_CDS_RETURN_(0);
 
-#if INCLUDE_CDS_JAVA_HEAP
- private:
-  static bool obj_equals(oop const& p1, oop const& p2) {
-    return p1 == p2;
-  }
-  static unsigned obj_hash(oop const& p);
-
-  typedef ResourceHashtable<oop, oop,
-      MetaspaceShared::obj_hash,
-      MetaspaceShared::obj_equals,
-      15889, // prime number
-      ResourceObj::C_HEAP> ArchivedObjectCache;
-  static ArchivedObjectCache* _archive_object_cache;
-
- public:
-  static ArchivedObjectCache* archive_object_cache() {
-    return _archive_object_cache;
-  }
-  static oop find_archived_heap_object(oop obj);
-  static oop archive_heap_object(oop obj, Thread* THREAD);
-  static oop materialize_archived_object(narrowOop v);
-  static void archive_klass_objects(Thread* THREAD);
-#endif
-
-  static bool is_archive_object(oop p) NOT_CDS_JAVA_HEAP_RETURN_(false);
-
-  static bool is_heap_object_archiving_allowed() {
-    CDS_JAVA_HEAP_ONLY(return (UseG1GC && UseCompressedOops && UseCompressedClassPointers);)
-    NOT_CDS_JAVA_HEAP(return false;)
-  }
-  static void create_archive_object_cache() {
-    CDS_JAVA_HEAP_ONLY(_archive_object_cache = new (ResourceObj::C_HEAP, mtClass)ArchivedObjectCache(););
-  }
-  static void destroy_archive_object_cache() {
-    CDS_JAVA_HEAP_ONLY(delete _archive_object_cache; _archive_object_cache = NULL;);
-  }
-  static void fixup_mapped_heap_regions() NOT_CDS_JAVA_HEAP_RETURN;
-
-  static void dump_closed_archive_heap_objects(GrowableArray<MemRegion> * closed_archive) NOT_CDS_JAVA_HEAP_RETURN;
-
-  static void dump_open_archive_heap_objects(GrowableArray<MemRegion> * open_archive) NOT_CDS_JAVA_HEAP_RETURN;
-  static void set_open_archive_heap_region_mapped() {
-    CDS_JAVA_HEAP_ONLY(_open_archive_heap_region_mapped = true);
-    NOT_CDS_JAVA_HEAP_RETURN;
-  }
-  static bool open_archive_heap_region_mapped() {
-    CDS_JAVA_HEAP_ONLY(return _open_archive_heap_region_mapped);
-    NOT_CDS_JAVA_HEAP_RETURN_(false);
-  }
+  static GrowableArray<Klass*>* collected_klasses();
 
   static ReservedSpace* shared_rs() {
     CDS_ONLY(return &_shared_rs);
@@ -148,6 +100,8 @@ class MetaspaceShared : AllStatic {
   }
   static void commit_shared_space_to(char* newtop) NOT_CDS_RETURN;
   static size_t core_spaces_size() {
+    assert(DumpSharedSpaces || UseSharedSpaces, "sanity");
+    assert(_core_spaces_size != 0, "sanity");
     return _core_spaces_size;
   }
   static void initialize_dumptime_shared_and_meta_spaces() NOT_CDS_RETURN;
@@ -155,12 +109,19 @@ class MetaspaceShared : AllStatic {
   static void post_initialize(TRAPS) NOT_CDS_RETURN;
 
   // Delta of this object from the bottom of the archive.
-  static uintx object_delta(void* obj) {
+  static uintx object_delta_uintx(void* obj) {
     assert(DumpSharedSpaces, "supported only for dumping");
     assert(shared_rs()->contains(obj), "must be");
     address base_address = address(shared_rs()->base());
-    uintx delta = address(obj) - base_address;
-    return delta;
+    uintx deltax = address(obj) - base_address;
+    return deltax;
+  }
+
+  static u4 object_delta_u4(void* obj) {
+    // offset is guaranteed to be less than MAX_SHARED_DELTA in DumpRegion::expand_top_to()
+    uintx deltax = object_delta_uintx(obj);
+    guarantee(deltax <= MAX_SHARED_DELTA, "must be 32-bit offset");
+    return (u4)deltax;
   }
 
   static void set_archive_loading_failed() {
@@ -174,29 +135,12 @@ class MetaspaceShared : AllStatic {
   static bool is_in_shared_metaspace(const void* p) {
     // If no shared metaspace regions are mapped, MetaspceObj::_shared_metaspace_{base,top} will
     // both be NULL and all values of p will be rejected quickly.
-    return (p < MetaspaceObj::_shared_metaspace_top && p >= MetaspaceObj::_shared_metaspace_base);
+    return (p < MetaspaceObj::shared_metaspace_top() && p >= MetaspaceObj::shared_metaspace_base());
   }
 
   // Return true if given address is in the shared region corresponding to the idx
   static bool is_in_shared_region(const void* p, int idx) NOT_CDS_RETURN_(false);
 
-  static bool is_heap_region(int idx) {
-    CDS_JAVA_HEAP_ONLY(return (idx >= MetaspaceShared::first_string &&
-                               idx < MetaspaceShared::first_open_archive_heap_region +
-                                     MetaspaceShared::max_open_archive_heap_region));
-    NOT_CDS_JAVA_HEAP_RETURN_(false);
-  }
-  static bool is_string_region(int idx) {
-    CDS_JAVA_HEAP_ONLY(return (idx >= MetaspaceShared::first_string &&
-                               idx < MetaspaceShared::first_string + MetaspaceShared::max_strings));
-    NOT_CDS_JAVA_HEAP_RETURN_(false);
-  }
-  static bool is_open_archive_heap_region(int idx) {
-    CDS_JAVA_HEAP_ONLY(return (idx >= MetaspaceShared::first_open_archive_heap_region &&
-                               idx < MetaspaceShared::first_open_archive_heap_region +
-                                     MetaspaceShared::max_open_archive_heap_region));
-    NOT_CDS_JAVA_HEAP_RETURN_(false);
-  }
   static bool is_in_trampoline_frame(address addr) NOT_CDS_RETURN_(false);
 
   static void allocate_cpp_vtable_clones();

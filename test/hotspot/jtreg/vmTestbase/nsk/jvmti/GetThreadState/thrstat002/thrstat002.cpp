@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define PASSED  0
 #define STATUS_FAILED  2
@@ -102,7 +89,7 @@ ThreadStart(jvmtiEnv *jvmti_env, JNIEnv *env, jthread thread) {
         result = STATUS_FAILED;
     }
     if (thrInfo.name != NULL && strcmp(thrInfo.name, "thr1") == 0) {
-        thr_ptr = JNI_ENV_PTR(env)->NewGlobalRef(JNI_ENV_ARG((JNIEnv *)env, thread));
+        thr_ptr = env->NewGlobalRef(thread);
         if (printdump == JNI_TRUE) {
             printf(">>> ThreadStart: \"%s\", 0x%p\n", thrInfo.name, thr_ptr);
         }
@@ -135,8 +122,7 @@ jint  Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         printdump = JNI_TRUE;
     }
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong result of a valid call to GetEnv !\n");
         return JNI_ERR;
@@ -259,8 +245,8 @@ Java_nsk_jvmti_GetThreadState_thrstat002_checkStatus(JNIEnv *env, jclass cls,
         return;
     }
 
-    printf( "START checkStatus for \"thr1\" (0x%p%s), check state: %s\n",
-            thr_ptr, suspStr, TranslateState(state[statInd]) );
+    printf("START checkStatus for \"thr1\" (0x%p%s), check state: %s\n",
+           thr_ptr, suspStr, TranslateState(state[statInd]));
 
     timeout_is_reached = JNI_TRUE;
     for (millis = WAIT_START, waited_millis=0; millis < wait_time; millis <<= 1) {
@@ -376,6 +362,4 @@ Java_nsk_jvmti_GetThreadState_thrstat002_getRes(JNIEnv *env, jclass cls) {
     return result;
 }
 
-#ifdef __cplusplus
 }
-#endif

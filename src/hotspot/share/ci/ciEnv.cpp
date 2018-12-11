@@ -78,7 +78,7 @@
 
 ciObject*              ciEnv::_null_object_instance;
 
-#define WK_KLASS_DEFN(name, ignore_s, ignore_o) ciInstanceKlass* ciEnv::_##name = NULL;
+#define WK_KLASS_DEFN(name, ignore_s) ciInstanceKlass* ciEnv::_##name = NULL;
 WK_KLASSES_DO(WK_KLASS_DEFN)
 #undef WK_KLASS_DEFN
 
@@ -400,8 +400,8 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // Now we need to check the SystemDictionary
   Symbol* sym = name->get_symbol();
-  if ((sym->byte_at(0) == 'L' || sym->byte_at(0) == 'Q') &&
-    sym->byte_at(sym->utf8_length()-1) == ';') {
+  if ((sym->char_at(0) == 'L' || sym->char_at(0) == 'Q') &&
+      sym->char_at(sym->utf8_length()-1) == ';') {
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
     TempNewSymbol strippedsym = SymbolTable::new_symbol(sym->as_utf8()+1,
@@ -428,7 +428,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // setup up the proper type to return on OOM
   ciKlass* fail_type;
-  if (sym->byte_at(0) == '[') {
+  if (sym->char_at(0) == '[') {
     fail_type = _unloaded_ciobjarrayklass;
   } else {
     fail_type = _unloaded_ciinstance_klass;
@@ -454,8 +454,8 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   // we must build an array type around it.  The CI requires array klasses
   // to be loaded if their element klasses are loaded, except when memory
   // is exhausted.
-  if (sym->byte_at(0) == '[' &&
-      (sym->byte_at(1) == '[' || sym->byte_at(1) == 'L' || sym->byte_at(1) == 'Q')) {
+  if (sym->char_at(0) == '[' &&
+      (sym->char_at(1) == '[' || sym->char_at(1) == 'L' || sym->char_at(1) == 'Q')) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     TempNewSymbol elem_sym = SymbolTable::new_symbol(sym->as_utf8()+1,
@@ -501,10 +501,10 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   // Not yet loaded into the VM, or not governed by loader constraints.
   // Make a CI representative for it.
   int i = 0;
-  while (sym->byte_at(i) == '[') {
+  while (sym->char_at(i) == '[') {
     i++;
   }
-  if (i > 0 && sym->byte_at(i) == 'Q') {
+  if (i > 0 && sym->char_at(i) == 'Q') {
     // An unloaded array class of value types is an ObjArrayKlass, an
     // unloaded value type class is an InstanceKlass. For consistency,
     // make the signature of the unloaded array of value type use L

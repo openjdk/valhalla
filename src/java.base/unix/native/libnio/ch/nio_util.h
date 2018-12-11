@@ -40,7 +40,7 @@
 #ifndef SO_REUSEPORT
 #ifdef __linux__
 #define SO_REUSEPORT 15
-#elif __solaris__
+#elif defined(__solaris__)
 #define SO_REUSEPORT 0x100e
 #elif defined(AIX) || defined(MACOSX)
 #define SO_REUSEPORT 0x0200
@@ -62,5 +62,4 @@ jlong convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading);
 
 /* Defined in Net.c */
 
-JNIEXPORT jint JNICALL
-handleSocketError(JNIEnv *env, jint errorValue);
+jint handleSocketError(JNIEnv *env, jint errorValue);

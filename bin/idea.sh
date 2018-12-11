@@ -113,21 +113,14 @@ if [ "x$SPEC" = "x" ] ; then
   echo "FATAL: SPEC is empty" >&2; exit 1
 fi
 
-
-addSourceFolder() {
-  root=$@
-  relativePath="`echo "$root" | sed -e s@"$TOP/\(.*$\)"@"\1"@`"
-  folder="`echo "$SOURCE_FOLDER" | sed -e s@"\(.*/\)####\(.*\)"@"\1$relativePath\2"@`"
-  printf "%s\n" "$folder" >> $IDEA_JDK
-}
-
 ### Replace template variables
 
 NUM_REPLACEMENTS=0
 
 replace_template_file() {
     for i in $(seq 1 $NUM_REPLACEMENTS); do
-      eval "sed -i \"s|\${FROM${i}}|\${TO${i}}|g\" $1"
+      eval "sed \"s|\${FROM${i}}|\${TO${i}}|g\" $1 > $1.tmp"
+      mv $1.tmp $1
     done
 }
 
@@ -143,18 +136,34 @@ add_replacement() {
     eval TO$NUM_REPLACEMENTS='$2'
 }
 
-add_replacement "###BUILD_DIR###" "`dirname $SPEC`"
 add_replacement "###MODULE_NAMES###" "$MODULE_NAMES"
-add_replacement "###JTREG_HOME###" "$JT_HOME"
-add_replacement "###IMAGES_DIR###" "`dirname $SPEC`/images/jdk"
-add_replacement "###ROOT_DIR###" "$TOPLEVEL_DIR"
-add_replacement "###IDEA_DIR###" "$IDEA_OUTPUT"
+SPEC_DIR=`dirname $SPEC`
+if [ "x$CYGPATH" = "x" ]; then
+    add_replacement "###BUILD_DIR###" "$SPEC_DIR"
+    add_replacement "###JTREG_HOME###" "$JT_HOME"
+    add_replacement "###IMAGES_DIR###" "$SPEC_DIR/images/jdk"
+    add_replacement "###ROOT_DIR###" "$TOPLEVEL_DIR"
+    add_replacement "###IDEA_DIR###" "$IDEA_OUTPUT"
+else
+    add_replacement "###BUILD_DIR###" "`cygpath -am $SPEC_DIR`"
+    add_replacement "###IMAGES_DIR###" "`cygpath -am $SPEC_DIR`/images/jdk"
+    add_replacement "###ROOT_DIR###" "`cygpath -am $TOPLEVEL_DIR`"
+    add_replacement "###IDEA_DIR###" "`cygpath -am $IDEA_OUTPUT`"
+    if [ "x$JT_HOME" = "x" ]; then
+      add_replacement "###JTREG_HOME###" ""
+    else
+      add_replacement "###JTREG_HOME###" "`cygpath -am $JT_HOME`"
+    fi
+fi
 
 SOURCE_PREFIX="<sourceFolder url=\"file://"
 SOURCE_POSTFIX="\" isTestSource=\"false\" />"
 
 for root in $MODULE_ROOTS; do
-    SOURCES=$SOURCES"\n$SOURCE_PREFIX""$root""$SOURCE_POSTFIX"
+    if [ "x$CYGPATH" != "x" ]; then
+    	root=`cygpath -am $root`
+    fi
+    SOURCES=$SOURCES" $SOURCE_PREFIX""$root""$SOURCE_POSTFIX"
 done
 
 add_replacement "###SOURCE_ROOTS###" "$SOURCES"

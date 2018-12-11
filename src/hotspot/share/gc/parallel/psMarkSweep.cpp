@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -150,7 +151,6 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
   heap->trace_heap_before_gc(_gc_tracer);
 
   // Fill in TLABs
-  heap->accumulate_statistics_all_tlabs();
   heap->ensure_parsability(true);  // retire TLABs
 
   if (VerifyBeforeGC && heap->total_collections() >= VerifyGCStartAt) {
@@ -433,15 +433,15 @@ bool PSMarkSweep::absorb_live_data_from_eden(PSAdaptiveSizePolicy* size_policy,
     return false; // Respect young gen minimum size.
   }
 
-  log_trace(heap, ergo)(" absorbing " SIZE_FORMAT "K:  "
-                        "eden " SIZE_FORMAT "K->" SIZE_FORMAT "K "
-                        "from " SIZE_FORMAT "K, to " SIZE_FORMAT "K "
-                        "young_gen " SIZE_FORMAT "K->" SIZE_FORMAT "K ",
-                        absorb_size / K,
-                        eden_capacity / K, (eden_capacity - absorb_size) / K,
-                        young_gen->from_space()->used_in_bytes() / K,
-                        young_gen->to_space()->used_in_bytes() / K,
-                        young_gen->capacity_in_bytes() / K, new_young_size / K);
+  log_trace(gc, ergo, heap)(" absorbing " SIZE_FORMAT "K:  "
+                            "eden " SIZE_FORMAT "K->" SIZE_FORMAT "K "
+                            "from " SIZE_FORMAT "K, to " SIZE_FORMAT "K "
+                            "young_gen " SIZE_FORMAT "K->" SIZE_FORMAT "K ",
+                            absorb_size / K,
+                            eden_capacity / K, (eden_capacity - absorb_size) / K,
+                            young_gen->from_space()->used_in_bytes() / K,
+                            young_gen->to_space()->used_in_bytes() / K,
+                            young_gen->capacity_in_bytes() / K, new_young_size / K);
 
   // Fill the unused part of the old gen.
   MutableSpace* const old_space = old_gen->object_space();

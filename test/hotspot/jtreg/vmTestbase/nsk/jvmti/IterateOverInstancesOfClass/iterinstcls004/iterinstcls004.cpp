@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -63,9 +61,7 @@ heapObjectCallback1(jlong class_tag,
     /* Set tag */
     *tag_ptr = objectCount;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(Allocate, st_jvmti, (sizeof(ObjectDesc)),
-                             (unsigned char**)&objectDescBuf))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->Allocate((sizeof(ObjectDesc)), (unsigned char**)&objectDescBuf))) {
         nsk_jvmti_setFailStatus();
         allocationError = 1;
     }
@@ -85,8 +81,7 @@ heapObjectCallback2(jlong class_tag,
 
     objectCount--;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(Deallocate, st_jvmti, (unsigned char*)objectDescBuf))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->Deallocate((unsigned char*)objectDescBuf))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -117,12 +112,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             NSK_DISPLAY0("Calling IterateOverInstancesOfClass with filter JVMTI_HEAP_OBJECT_UNTAGGED\n");
             {
                 if (!NSK_JVMTI_VERIFY(
-                        NSK_CPP_STUB5(IterateOverInstancesOfClass,
-                            jvmti,
-                            debugeeClass,
-                            JVMTI_HEAP_OBJECT_UNTAGGED,
-                            heapObjectCallback1,
-                            &userData))) {
+                        jvmti->IterateOverInstancesOfClass(debugeeClass, JVMTI_HEAP_OBJECT_UNTAGGED, heapObjectCallback1, &userData))) {
                     nsk_jvmti_setFailStatus();
                     break;
                 }
@@ -141,12 +131,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             NSK_DISPLAY0("Calling IterateOverInstancesOfClass with filter JVMTI_HEAP_OBJECT_TAGGED\n");
             {
                 if (!NSK_JVMTI_VERIFY(
-                        NSK_CPP_STUB5(IterateOverInstancesOfClass,
-                            jvmti,
-                            debugeeClass,
-                            JVMTI_HEAP_OBJECT_TAGGED,
-                            heapObjectCallback2,
-                            &userData))) {
+                        jvmti->IterateOverInstancesOfClass(debugeeClass, JVMTI_HEAP_OBJECT_TAGGED, heapObjectCallback2, &userData))) {
                     nsk_jvmti_setFailStatus();
                     break;
                 }
@@ -202,7 +187,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&caps, 0, sizeof(caps));
         caps.can_tag_objects = 1;
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+                jvmti->AddCapabilities(&caps))) {
             return JNI_ERR;
         }
     }
@@ -215,6 +200,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

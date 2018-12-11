@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,9 @@
  * @test
  * @bug 8141615
  * @summary Tests new public methods at ConstantPool
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  *          java.base/jdk.internal.reflect
- * @library /lib/testlibrary
+ * @library /test/lib
  * @compile ConstantPoolTestDummy.jasm
  * @run main jdk.internal.reflect.constantPool.ConstantPoolTest
  */
@@ -36,9 +36,9 @@ package jdk.internal.reflect.constantPool;
 
 import java.util.HashMap;
 import java.util.Map;
-import jdk.internal.misc.SharedSecrets;
-import jdk.testlibrary.Asserts;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.reflect.ConstantPool;
+import jdk.test.lib.Asserts;
 
 public class ConstantPoolTest {
 

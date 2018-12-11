@@ -26,9 +26,7 @@
 #include <jni.h>
 #include <aod.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define AGENT_NAME "VMNativeAgent01"
 
@@ -41,7 +39,8 @@ JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM *vm, char *optionsString, void *res
 
     // can't use NSK_DISPLAY since needed for nsk_ functions initialization isn't done here
 
-    if ((jni = (JNIEnv*) nsk_aod_createJNIEnv(vm)) == NULL)
+    jni = (JNIEnv*) nsk_aod_createJNIEnv(vm);
+    if (jni == NULL)
         return JNI_ERR;
 
     printf("%s: initialization was done\n", AGENT_NAME);
@@ -68,6 +67,4 @@ JNIEXPORT jint JNICALL Agent_OnAttach(JavaVM *vm, char *optionsString, void *res
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

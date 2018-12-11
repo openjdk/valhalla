@@ -24,8 +24,6 @@
 
 NATIVE_TEST_PATH := hotspot/jtreg/native
 
-TREAT_EXIT_CODE_1_AS_0 := true
-
 CLEAN_BEFORE_PREP := true
 
 USE_JTREG_VERSION := 4.1
@@ -50,9 +48,6 @@ all: hotspot_all
 hotspot_%:
 	$(ECHO) "Running tests: $@"
 	$(MAKE) -j 1 TEST_SELECTION=":$@" UNIQUE_DIR=$@ jtreg_tests;
-
-hotspot_internal:
-	$(ALT_OUTPUTDIR)/jdk/bin/java -XX:+ExecuteInternalVMTests -XX:+ShowMessageBoxOnError -version
 
 ################################################################
 

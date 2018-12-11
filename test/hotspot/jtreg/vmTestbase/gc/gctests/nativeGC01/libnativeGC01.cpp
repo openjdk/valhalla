@@ -24,12 +24,10 @@
 #include <jni.h>
 #include <stdio.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
- * A C function that takes a reference to java Object( a circular Linked list)
+ * A C function that takes a reference to java Object (a circular Linked list)
  * and utilizes this reference to do a java method callback to determine the
  * number of elements in the linked list
  */
@@ -57,8 +55,8 @@ Java_gc_gctests_nativeGC01_nativeGC01_nativeMethod01
            */
 
         clss = env->GetObjectClass(linked_list);
-        mid2 = env->GetMethodID(clss, "getLength", "()I" );
-        if (mid2  == 0) {
+        mid2 = env->GetMethodID(clss, "getLength", "()I");
+        if (mid2 == 0) {
                 printf("couldnt locate method getLength()");
                 return -1;
         }
@@ -66,6 +64,4 @@ Java_gc_gctests_nativeGC01_nativeGC01_nativeMethod01
         return elementCount;
 }
 
-#ifdef __cplusplus
 }
-#endif

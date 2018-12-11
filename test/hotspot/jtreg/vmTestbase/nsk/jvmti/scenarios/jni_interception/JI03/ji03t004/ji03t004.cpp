@@ -31,27 +31,7 @@
 
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef JNI_ENV_ARG
-  #ifdef __cplusplus
-    #define JNI_ENV_ARG(x, y) y
-    #define JNI_ENV_PTR(x) x
-  #else
-    #define JNI_ENV_ARG(x, y) x, y
-    #define JNI_ENV_PTR(x) (*x)
-  #endif
-#endif
-
-#ifndef JNI_ENV_ARG1
-  #ifdef __cplusplus
-    #define JNI_ENV_ARG1(x)
-  #else
-    #define JNI_ENV_ARG1(x) x
-  #endif
-#endif
 
 #define PASSED  0
 #define STATUS_FAILED  2
@@ -98,21 +78,19 @@ void doRedirect(JNIEnv *env) {
 
     if (verbose)
         printf("\ndoRedirect: obtaining the JNI function table ...\n");
-    if ((err = jvmti->GetJNIFunctionTable(&orig_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&orig_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get original JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get original JNI function table"));
+        env->FatalError("failed to get original JNI function table");
     }
-    if ((err = jvmti->GetJNIFunctionTable(&redir_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&redir_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get redirected JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get redirected JNI function table"));
+        env->FatalError("failed to get redirected JNI function table");
     }
     if (verbose)
         printf("doRedirect: the JNI function table obtained successfully\n");
@@ -122,13 +100,12 @@ void doRedirect(JNIEnv *env) {
     redir_jni_functions->AllocObject = MyAllocObject;
     redir_jni_functions->NewObjectV = MyNewObjectV;
 
-    if ((err = jvmti->SetJNIFunctionTable(redir_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(redir_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to set new JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to set new JNI function table"));
+        env->FatalError("failed to set new JNI function table");
     }
 
     if (verbose)
@@ -140,13 +117,12 @@ void doRestore(JNIEnv *env) {
 
     if (verbose)
         printf("\ndoRestore: restoring the original JNI function table ...\n");
-    if ((err = jvmti->SetJNIFunctionTable(orig_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(orig_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to restore original JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to restore original JNI function table"));
+        env->FatalError("failed to restore original JNI function table");
     }
     if (verbose)
         printf("doRestore: the original JNI function table is restored successfully\n");
@@ -157,42 +133,40 @@ void doExec(JNIEnv *env, jclass allCls, jmethodID ctorId, const char *msg, ...) 
     jobject newObj;
     va_list args;
     va_start(args, msg);
-    if ((allObj = JNI_ENV_PTR(env)->AllocObject(JNI_ENV_ARG(env, allCls)))
-            == NULL) {
+    allObj = env->AllocObject(allCls);
+    if (allObj == NULL) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to call %s AllocObject()\n",
             __FILE__, __LINE__, msg);
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to failed to call AllocObject()"));
+        env->FatalError("failed to failed to call AllocObject()");
     }
 
-    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG1(env))) {
+    if (env->ExceptionOccurred()) {
             result = STATUS_FAILED;
             printf("(%s,%d): TEST FAILED: exception occured during the call of %s AllocObject()\n",
                 __FILE__, __LINE__, msg);
-            JNI_ENV_PTR(env)->ExceptionDescribe(JNI_ENV_ARG1(env));
-            JNI_ENV_PTR(env)->ExceptionClear(JNI_ENV_ARG1(env));
+            env->ExceptionDescribe();
+            env->ExceptionClear();
     }
 
-    newObj = JNI_ENV_PTR(env)->NewObjectV(JNI_ENV_ARG(env, allCls), ctorId, args);
+    newObj = env->NewObjectV(allCls, ctorId, args);
     if (newObj == NULL) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to call %s NewObjectV()\n",
             __FILE__, __LINE__, msg);
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to failed to call NewObjectV()"));
+        env->FatalError("failed to failed to call NewObjectV()");
     }
 
-    if (JNI_ENV_PTR(env)->ExceptionOccurred(JNI_ENV_ARG1(env))) {
+    if (env->ExceptionOccurred()) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: exception occured during the call of %s AllocObject()\n",
             __FILE__, __LINE__, msg);
-        JNI_ENV_PTR(env)->ExceptionDescribe(JNI_ENV_ARG1(env));
-        JNI_ENV_PTR(env)->ExceptionClear(JNI_ENV_ARG1(env));
+        env->ExceptionDescribe();
+        env->ExceptionClear();
     }
     va_end(args);
-    JNI_ENV_PTR(env)->DeleteLocalRef(JNI_ENV_ARG(env, allObj));
-    JNI_ENV_PTR(env)->DeleteLocalRef(JNI_ENV_ARG(env, newObj));
+    env->DeleteLocalRef(allObj);
+    env->DeleteLocalRef(newObj);
 }
 
 void checkCall(int step, int exAllObjCalls, int exNewObjCalls) {
@@ -240,16 +214,15 @@ Java_nsk_jvmti_scenarios_jni_1interception_JI03_ji03t004_check(JNIEnv *env, jobj
         return STATUS_FAILED;
     }
 
-    if ((objCls = JNI_ENV_PTR(env)->FindClass(JNI_ENV_ARG(env, classSig)))
-            == NULL) {
+    objCls = env->FindClass(classSig);
+    if (objCls == NULL) {
         printf("(%s,%d): TEST FAILED: failed to call FindClass() for \"%s\"\n",
             __FILE__, __LINE__, classSig);
         return STATUS_FAILED;
     }
 
-    if ((ctorId = JNI_ENV_PTR(env)->GetMethodID(
-                JNI_ENV_ARG(env, objCls), "<init>", "()V"))
-            == NULL) {
+    ctorId = env->GetMethodID(objCls, "<init>", "()V");
+    if (ctorId == NULL) {
         printf("(%s,%d): TEST FAILED: failed to call GetMethodID() for a constructor\n",
             __FILE__, __LINE__);
         return STATUS_FAILED;
@@ -292,8 +265,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     if (verbose)
         printf("verbose mode on\n");
 
-    res = JNI_ENV_PTR(jvm)->
-        GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti), JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("(%s,%d): Failed to call GetEnv\n", __FILE__, __LINE__);
         return JNI_ERR;
@@ -302,6 +274,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

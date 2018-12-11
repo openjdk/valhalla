@@ -26,9 +26,7 @@
 #include <stdlib.h>
 #include "jnihelper.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define BOOL  0
 #define BYTE  1
@@ -69,7 +67,7 @@ Java_nsk_stress_jni_JNIter003_jniInitArrays (JNIEnv *env, jobject jobj, jint siz
     arrayArray[FLOAT]=env->NewFloatArray(SIZE); CE
     arrayArray[DOUBLE]=env->NewDoubleArray(SIZE); CE
 
-    for(i=0;i<8;i++)
+    for (i=0;i<8;i++)
     {env->SetObjectArrayElement(objectsArray,i,arrayArray[i]); CE }
 
     boolBuf=(jboolean *)malloc(SIZE*sizeof(jboolean));
@@ -165,7 +163,7 @@ Java_nsk_stress_jni_JNIter003_jniBodyChangeArray (JNIEnv *env, jobject jobj,
     env->MonitorExit(jobj); CE
     arrayOrig=(jarray *)malloc(8*sizeof(jarray));
     arrayClone=(jarray *)malloc(8*sizeof(jarray));
-    for(i=0;i<8;i++) {
+    for (i=0;i<8;i++) {
     arrayOrig[i]=(jarray) env->GetObjectArrayElement(orig,i); CE
     arrayClone[i]=(jarray) env->GetObjectArrayElement(clone,i); CE
     }
@@ -263,6 +261,4 @@ Use Orig pointers to get the original effect of the test.
     return JNI_TRUE;
 }
 
-#ifdef __cplusplus
 }
-#endif

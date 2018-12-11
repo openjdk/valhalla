@@ -27,9 +27,7 @@
 #include "agent_common.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ========================================================================== */
 
@@ -72,8 +70,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     setVerboseMode = nsk_jvmti_findOptionStringValue("setVerboseMode", NULL);
 
     if (strcmp(setVerboseMode, "y") == 0 || strcmp(setVerboseMode, "yes") == 0) {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetVerboseFlag, jvmti, JVMTI_VERBOSE_CLASS, JNI_TRUE))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetVerboseFlag(JVMTI_VERBOSE_CLASS, JNI_TRUE))) {
             return JNI_ERR;
         } else {
             NSK_DISPLAY0("JVMTI_VERBOSE_CLASS mode has been set.\n");
@@ -85,6 +82,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ========================================================================== */
 
-#ifdef __cplusplus
 }
-#endif

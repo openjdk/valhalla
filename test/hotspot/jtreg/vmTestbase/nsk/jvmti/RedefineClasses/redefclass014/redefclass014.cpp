@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define PASSED 0
 #define STATUS_FAILED 2
@@ -70,8 +57,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         printdump = JNI_TRUE;
     }
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong result of a valid call to GetEnv!\n");
         return JNI_ERR;
@@ -116,17 +102,16 @@ Java_nsk_jvmti_RedefineClasses_redefclass014_check(JNIEnv *env, jclass cls, jbyt
     }
 
     /* to check if RedefineClasses is supported */
-    if ((err = (jvmti->GetCapabilities(&caps))) != JVMTI_ERROR_NONE) {
+    err = jvmti->GetCapabilities(&caps);
+    if (err != JVMTI_ERROR_NONE) {
         printf("(GetCapabilities) unexpected error: %s (%d)\n",
                TranslateError(err), err);
         return STATUS_FAILED;
     }
 
     classDef.klass = cls;
-    classDef.class_byte_count =
-        JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG(env, bytes));
-    classDef.class_bytes = (unsigned char *)
-        JNI_ENV_PTR(env)->GetByteArrayElements(JNI_ENV_ARG(env, bytes), NULL);
+    classDef.class_byte_count = env->GetArrayLength(bytes);
+    classDef.class_bytes = (unsigned char *) env->GetByteArrayElements(bytes, NULL);
 
     if (printdump == JNI_TRUE) {
         printf(">>> circularity error check ...\n");
@@ -150,6 +135,4 @@ Java_nsk_jvmti_RedefineClasses_redefclass014_check(JNIEnv *env, jclass cls, jbyt
     return result;
 }
 
-#ifdef __cplusplus
 }
-#endif

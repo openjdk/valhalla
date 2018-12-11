@@ -28,21 +28,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define PASSED 0
 #define STATUS_FAILED 2
@@ -120,14 +107,14 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         printdump = JNI_TRUE;
     }
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong result of a valid call to GetEnv!\n");
         return JNI_ERR;
     }
 
-    if ((err = (jvmti->GetCapabilities(&caps))) != JVMTI_ERROR_NONE) {
+    err = jvmti->GetCapabilities(&caps);
+    if (err != JVMTI_ERROR_NONE) {
         printf("(GetCapabilities) unexpected error: %s (%d)\n",
                TranslateError(err), err);
         return JNI_ERR;
@@ -190,11 +177,9 @@ Java_nsk_jvmti_SetFieldAccessWatch_setfldw006_getReady(JNIEnv *env,
     }
     for (i = 0; i < sizeof(watches)/sizeof(watch_info); i++) {
         if (watches[i].is_static == JNI_TRUE) {
-            watches[i].fid = JNI_ENV_PTR(env)->GetStaticFieldID(
-                JNI_ENV_ARG(env, cls), watches[i].f_name, watches[i].f_sig);
+            watches[i].fid = env->GetStaticFieldID(cls, watches[i].f_name, watches[i].f_sig);
         } else {
-            watches[i].fid = JNI_ENV_PTR(env)->GetFieldID(
-                JNI_ENV_ARG(env, cls), watches[i].f_name, watches[i].f_sig);
+            watches[i].fid = env->GetFieldID(cls, watches[i].f_name, watches[i].f_sig);
         }
         err = jvmti->SetFieldAccessWatch(cls, watches[i].fid);
         if (err == JVMTI_ERROR_NONE) {
@@ -243,6 +228,4 @@ Java_nsk_jvmti_SetFieldAccessWatch_setfldw006_check(JNIEnv *env,
     return result;
 }
 
-#ifdef __cplusplus
 }
-#endif

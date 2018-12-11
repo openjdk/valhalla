@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
 
 /**
  * @test
- * @library /lib/testlibrary
- * @build ExecJarWithAgent Main Agent AgentHelper JarUtils jdk.testlibrary.*
+ * @library /test/lib
+ * @build ExecJarWithAgent Main Agent AgentHelper
+ *        jdk.test.lib.util.JarUtils
  * @run testng ExecJarWithAgent
  * @summary Test starting agents in executable JAR files
  */
@@ -38,8 +39,9 @@ import java.util.stream.Stream;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.util.JarUtils;
 
 @Test
 public class ExecJarWithAgent {

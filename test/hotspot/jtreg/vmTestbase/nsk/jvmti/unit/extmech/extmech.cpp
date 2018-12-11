@@ -26,9 +26,7 @@
 #include "jvmti.h"
 #include "agent_common.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define PASSED 0
 #define STATUS_FAILED 2
@@ -75,7 +73,7 @@ Java_nsk_jvmti_unit_extmech_isClassUnloadingEnabled
 }
 
 static void JNICALL
-ClassUnload(jvmtiEnv jvmti_env, JNIEnv *jni_env, jthread thread, jclass cls) {
+ClassUnload(jvmtiEnv* jvmti_env, JNIEnv *jni_env, jthread thread, jclass cls) {
 }
 
 /*
@@ -227,6 +225,4 @@ jint Agent_Initialize(JavaVM *vm, char *options, void *reserved)
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

@@ -26,6 +26,7 @@
 #include "precompiled.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/classLoaderData.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -79,7 +80,7 @@ void Symbol::operator delete(void *p) {
 bool Symbol::starts_with(const char* prefix, int len) const {
   if (len > utf8_length()) return false;
   while (len-- > 0) {
-    if (prefix[len] != (char) byte_at(len))
+    if (prefix[len] != char_at(len))
       return false;
   }
   assert(len == -1, "we should be at the beginning");
@@ -87,11 +88,11 @@ bool Symbol::starts_with(const char* prefix, int len) const {
 }
 
 bool Symbol::is_Q_signature() const {
-  return utf8_length() > 2 && byte_at(0) == 'Q' && byte_at(utf8_length() - 1) == ';';
+  return utf8_length() > 2 && char_at(0) == 'Q' && char_at(utf8_length() - 1) == ';';
 }
 
 Symbol* Symbol::fundamental_name(TRAPS) {
-  if ((byte_at(0) == 'Q' || byte_at(0) == 'L') && byte_at(utf8_length() - 1) == ';') {
+  if ((char_at(0) == 'Q' || char_at(0) == 'L') && char_at(utf8_length() - 1) == ';') {
     return SymbolTable::lookup(this, 1, utf8_length() - 1, CHECK_NULL);
   } else {
     // reference count is incremented to be consistent with the behavior with
@@ -105,16 +106,16 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
   if (this == s) return true;
   if (utf8_length() < 3) return false;
   int offset1, offset2, len;
-  if (byte_at(utf8_length() - 1) == ';') {
-    if (byte_at(0) != 'Q' && byte_at(0) != 'L') return false;
+  if (char_at(utf8_length() - 1) == ';') {
+    if (char_at(0) != 'Q' && char_at(0) != 'L') return false;
     offset1 = 1;
     len = utf8_length() - 2;
   } else {
     offset1 = 0;
     len = utf8_length();
   }
-  if (s->byte_at(s->utf8_length() - 1) == ';') {
-    if (s->byte_at(0) != 'Q' && s->byte_at(0) != 'L') return false;
+  if (s->char_at(s->utf8_length() - 1) == ';') {
+    if (s->char_at(0) != 'Q' && s->char_at(0) != 'L') return false;
     offset2 = 1;
   } else {
     offset2 = 0;
@@ -124,7 +125,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
     return false;
   int l = len;
   while (l-- > 0) {
-    if (byte_at(offset1 + l) != s->byte_at(offset2 + l))
+    if (char_at(offset1 + l) != s->char_at(offset2 + l))
       return false;
   }
   return true;
@@ -160,7 +161,7 @@ char* Symbol::as_C_string(char* buf, int size) const {
   if (size > 0) {
     int len = MIN2(size - 1, utf8_length());
     for (int i = 0; i < len; i++) {
-      buf[i] = byte_at(i);
+      buf[i] = char_at(i);
     }
     buf[len] = '\0';
   }
@@ -336,28 +337,36 @@ void Symbol::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Symbol::print_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print_cr("NULL");
-  } else {
-    st->print("Symbol: '");
-    print_symbol_on(st);
-    st->print("'");
-    st->print(" count %d", refcount());
-  }
+  st->print("Symbol: '");
+  print_symbol_on(st);
+  st->print("'");
+  st->print(" count %d", refcount());
 }
 
 // The print_value functions are present in all builds, to support the
 // disassembler and error reporting.
 void Symbol::print_value_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print("NULL");
-  } else {
-    st->print("'");
-    for (int i = 0; i < utf8_length(); i++) {
-      st->print("%c", byte_at(i));
-    }
-    st->print("'");
+  st->print("'");
+  for (int i = 0; i < utf8_length(); i++) {
+    st->print("%c", char_at(i));
   }
+  st->print("'");
+}
+
+bool Symbol::is_valid(Symbol* s) {
+  if (!is_aligned(s, sizeof(MetaWord))) return false;
+  if ((size_t)s < os::min_page_size()) return false;
+
+  if (!os::is_readable_range(s, s + 1)) return false;
+
+  // Symbols are not allocated in Java heap.
+  if (Universe::heap()->is_in_reserved(s)) return false;
+
+  int len = s->utf8_length();
+  if (len < 0) return false;
+
+  jbyte* bytes = (jbyte*) s->bytes();
+  return os::is_readable_range(bytes, bytes + len);
 }
 
 void Symbol::print_Qvalue_on(outputStream* st) const {
@@ -366,7 +375,7 @@ void Symbol::print_Qvalue_on(outputStream* st) const {
   } else {
     st->print("'Q");
     for (int i = 0; i < utf8_length(); i++) {
-      st->print("%c", byte_at(i));
+      st->print("%c", char_at(i));
     }
     st->print(";'");
   }

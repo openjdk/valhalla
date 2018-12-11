@@ -33,9 +33,7 @@
 #include "jvmti_tools.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define FILE_NAME "nsk/jvmti/scenarios/hotswap/HS103/hs103t002/MyThread"
 #define SEARCH_NAME "nsk/jvmti/scenarios/hotswap/HS103/hs103t002/MyThread"
@@ -59,45 +57,37 @@ JNIEXPORT void JNICALL doRedefineInNativeThread(jvmtiEnv * jvmti,
   testClass = jni->FindClass(MAIN_CLASS);
 
   if (!NSK_JNI_VERIFY(jni, (
-    setRedefinitionFailed = NSK_CPP_STUB4(GetStaticMethodID, jni,
-                        testClass, "setRedefinitionFailed", "()V")) != NULL))
+    setRedefinitionFailed = jni->GetStaticMethodID(testClass, "setRedefinitionFailed", "()V")) != NULL))
   {
-    NSK_CPP_STUB2(FatalError, jni,
-                "TEST FAILED: while getting setRedefinitionFailed()\n");
+    jni->FatalError("TEST FAILED: while getting setRedefinitionFailed()\n");
   }
 
   if (!NSK_JNI_VERIFY(jni, (
-    setRedefinitionDone = NSK_CPP_STUB4(GetStaticMethodID, jni,
-                testClass, "setRedefinitionDone", "()V")) != NULL))
+    setRedefinitionDone = jni->GetStaticMethodID(testClass, "setRedefinitionDone", "()V")) != NULL))
   {
-    NSK_CPP_STUB2(FatalError, jni,
-        "TEST FAILED: while getting setRedefinitionDone()\n");
+    jni->FatalError("TEST FAILED: while getting setRedefinitionDone()\n");
   }
 
   nsk_printf("doRedefineInNativeThread\n");
   cla = jni->FindClass(SEARCH_NAME);
   nsk_jvmti_getFileName(redefineNumber, FILE_NAME, fileName, sizeof(fileName)/sizeof(char));
-  for(i = 0; i < 30; i++) {
+  for (i = 0; i < 30; i++) {
     nsk_printf(" Inside the redefine method..\n");
-    if ( nsk_jvmti_redefineClass(jvmti, cla,fileName) == NSK_TRUE) {
+    if (nsk_jvmti_redefineClass(jvmti, cla,fileName) == NSK_TRUE) {
       nsk_printf("\nMyClass :: Successfully redefined..\n");
     } else {
       nsk_printf("\nMyClass :: Failed to redefine ..\n");
 
-      if (!NSK_JNI_VERIFY_VOID(jni, NSK_CPP_STUB3(CallStaticVoidMethod, jni,
-                                   testClass, setRedefinitionFailed)))
+      if (!NSK_JNI_VERIFY_VOID(jni, jni->CallStaticVoidMethod(testClass, setRedefinitionFailed)))
       {
-         NSK_CPP_STUB2(FatalError, jni,
-                "TEST FAILED: while calling setRedefinitionFailed()\n");
+         jni->FatalError("TEST FAILED: while calling setRedefinitionFailed()\n");
       }
     }
   }
 
-  if (!NSK_JNI_VERIFY_VOID(jni, NSK_CPP_STUB3(CallStaticVoidMethod, jni,
-                           testClass, setRedefinitionDone)))
+  if (!NSK_JNI_VERIFY_VOID(jni, jni->CallStaticVoidMethod(testClass, setRedefinitionDone)))
   {
-    NSK_CPP_STUB2(FatalError, jni,
-        "TEST FAILED: while calling setRedefinitionDone()\n");
+    jni->FatalError("TEST FAILED: while calling setRedefinitionDone()\n");
   }
 
   nsk_printf(" All 30 redefinitions are done..\n");
@@ -122,12 +112,12 @@ jint Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
   nsk_printf("Agent:: VM.. Started..\n");
 
   rc = vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1);
-  if (rc != JNI_OK ) {
+  if (rc != JNI_OK) {
     nsk_printf("Agent:: Could not load JVMTI interface \n");
     return JNI_ERR;
   } else {
     jvmtiCapabilities caps;
-    if (nsk_jvmti_parseOptions(options) == NSK_FALSE ) {
+    if (nsk_jvmti_parseOptions(options) == NSK_FALSE) {
       nsk_printf("# error agent Failed to parse options \n");
       return JNI_ERR;
     }
@@ -152,10 +142,8 @@ Java_nsk_jvmti_scenarios_hotswap_HS103_hs103t002_hs103t002_startAgentThread(JNIE
   name = jni->NewStringUTF(threadName);
   clas = jni->FindClass("java/lang/Thread");
 
-  if (!NSK_JNI_VERIFY(jni, (method = NSK_CPP_STUB4(GetMethodID,
-            jni, clas, "<init>","(Ljava/lang/String;)V")) != NULL)) {
-    NSK_CPP_STUB2(FatalError, jni,
-            "failed to get ID for the java method\n");
+  if (!NSK_JNI_VERIFY(jni, (method = jni->GetMethodID(clas, "<init>", "(Ljava/lang/String;)V")) != NULL)) {
+    jni->FatalError("failed to get ID for the java method\n");
   }
 
   thread = (jthread) jni->NewObject(clas,method,name);
@@ -166,7 +154,7 @@ Java_nsk_jvmti_scenarios_hotswap_HS103_hs103t002_hs103t002_startAgentThread(JNIE
   if (err == JVMTI_ERROR_INVALID_PRIORITY) {
     nsk_printf(" JVMTI_ERROR_INVALID_PRIORITY ..\n");
     return JNI_ERR;
-  } else if ( err == JVMTI_ERROR_INVALID_THREAD) {
+  } else if (err == JVMTI_ERROR_INVALID_THREAD) {
     nsk_printf(" JVMTI_ERROR_INVALID_THREAD ..\n");
     return JNI_ERR;
   } else if (err == JVMTI_ERROR_NULL_POINTER) {
@@ -178,6 +166,4 @@ Java_nsk_jvmti_scenarios_hotswap_HS103_hs103t002_hs103t002_startAgentThread(JNIE
   return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

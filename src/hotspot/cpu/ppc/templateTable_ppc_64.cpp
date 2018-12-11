@@ -2236,8 +2236,10 @@ void TemplateTable::resolve_cache_and_index(int byte_no, Register Rcache, Regist
 
   Bytecodes::Code code = bytecode();
   switch (code) {
-  case Bytecodes::_nofast_getfield: code = Bytecodes::_getfield; break;
-  case Bytecodes::_nofast_putfield: code = Bytecodes::_putfield; break;
+    case Bytecodes::_nofast_getfield: code = Bytecodes::_getfield; break;
+    case Bytecodes::_nofast_putfield: code = Bytecodes::_putfield; break;
+    default:
+      break;
   }
 
   assert(byte_no == f1_byte || byte_no == f2_byte, "byte_no out of range");
@@ -3880,7 +3882,6 @@ void TemplateTable::multianewarray() {
 void TemplateTable::arraylength() {
   transition(atos, itos);
 
-  Label LnoException;
   __ verify_oop(R17_tos);
   __ null_check_throw(R17_tos, arrayOopDesc::length_offset_in_bytes(), R11_scratch1);
   __ lwa(R17_tos, arrayOopDesc::length_offset_in_bytes(), R17_tos);
@@ -4081,7 +4082,7 @@ void TemplateTable::monitorenter() {
                     found_same_obj  = CCR1,
                     reached_limit   = CCR6;
   {
-    Label Lloop, Lentry;
+    Label Lloop;
     Register Rlimit = Rcurrent_monitor;
 
     // Set up search loop - start with topmost monitor.

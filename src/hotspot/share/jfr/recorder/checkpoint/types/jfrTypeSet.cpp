@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
@@ -939,7 +939,7 @@ void JfrTypeSet::do_class_loaders() {
     ClassLoaderDataGraph::cld_unloading_do(&cld_cb);
     return;
   }
-  ClassLoaderDataGraph::cld_do(&cld_cb);
+  ClassLoaderDataGraph::loaded_cld_do(&cld_cb);
 }
 
 static void clear_artifacts(JfrArtifactSet* artifacts,

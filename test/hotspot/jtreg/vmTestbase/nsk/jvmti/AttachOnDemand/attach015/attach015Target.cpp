@@ -28,9 +28,7 @@
 #include <aod.h>
 #include <jvmti_aod.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define LOADED_CLASS_NAME "nsk/jvmti/AttachOnDemand/attach015/ClassToLoad2"
 
@@ -39,9 +37,7 @@ extern "C" {
  */
 JNIEXPORT jboolean JNICALL
 Java_nsk_jvmti_AttachOnDemand_attach015_attach015Target_loadClassFromNative(JNIEnv * jni, jclass klass) {
-    return NSK_CPP_STUB2(FindClass, jni, LOADED_CLASS_NAME) ? JNI_TRUE : JNI_FALSE;
+    return jni->FindClass(LOADED_CLASS_NAME) ? JNI_TRUE : JNI_FALSE;
 }
 
-#ifdef __cplusplus
 }
-#endif

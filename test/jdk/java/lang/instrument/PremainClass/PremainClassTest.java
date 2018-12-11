@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,17 +21,17 @@
  * questions.
  */
 
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 /*
  * @test
  * @bug 5055293
  * @summary Test non ascii characters in the Premain-Class attribute.
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.management
- * @run build jdk.testlibrary.* DummyMain
+ * @run build DummyMain
  * @run main PremainClassTest
  */
 public class PremainClassTest {

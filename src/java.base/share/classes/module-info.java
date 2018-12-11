@@ -135,6 +135,16 @@ module java.base {
         java.security.sasl;
     exports jdk.internal to
         jdk.jfr;
+    exports jdk.internal.access to
+        java.desktop,
+        java.logging,
+        java.management,
+        java.naming,
+        java.rmi,
+        jdk.jlink,
+        jdk.net;
+    exports jdk.internal.event to
+        jdk.jfr;
     exports jdk.internal.jimage to
         jdk.jlink;
     exports jdk.internal.jimage.decompressor to
@@ -172,18 +182,15 @@ module java.base {
         java.logging,
         java.management,
         java.naming,
+        java.net.http,
         java.rmi,
         java.security.jgss,
-        java.sql,
         java.xml,
         jdk.attach,
         jdk.charsets,
         jdk.compiler,
-        java.net.http,
         jdk.jfr,
-        jdk.jlink,
         jdk.jshell,
-        jdk.net,
         jdk.scripting.nashorn,
         jdk.scripting.nashorn.shell,
         jdk.unsupported,
@@ -199,8 +206,7 @@ module java.base {
         jdk.management.agent,
         jdk.internal.jvmstat;
     exports jdk.internal.ref to
-        java.desktop,
-        jdk.unsupported;
+        java.desktop;
     exports jdk.internal.reflect to
         java.logging,
         java.sql,
@@ -233,7 +239,6 @@ module java.base {
         jdk.jconsole,
         java.net.http;
     exports sun.net.www to
-        java.desktop,
         java.net.http,
         jdk.jartool;
     exports sun.net.www.protocol.http to
@@ -242,12 +247,9 @@ module java.base {
         java.management,
         jdk.crypto.cryptoki,
         jdk.net,
-        jdk.sctp,
-        jdk.unsupported;
+        jdk.sctp;
     exports sun.nio.cs to
         jdk.charsets;
-    exports sun.nio.fs to
-        jdk.unsupported;
     exports sun.reflect.annotation to
         jdk.compiler;
     exports sun.reflect.generics.reflectiveObjects to

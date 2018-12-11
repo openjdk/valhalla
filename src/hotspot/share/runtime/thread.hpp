@@ -26,6 +26,7 @@
 #define SHARE_VM_RUNTIME_THREAD_HPP
 
 #include "jni.h"
+#include "code/compiledMethod.hpp"
 #include "gc/shared/gcThreadLocalData.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
 #include "memory/allocation.hpp"
@@ -40,7 +41,6 @@
 #include "runtime/os.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/park.hpp"
-#include "runtime/safepoint.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/threadHeapSampler.hpp"
 #include "runtime/threadLocalStorage.hpp"
@@ -281,6 +281,14 @@ class Thread: public ThreadShadow {
   void leave_signal_handler() { _num_nested_signal--; }
   bool is_inside_signal_handler() const { return _num_nested_signal > 0; }
 
+  // Determines if a heap allocation failure will be retried
+  // (e.g., by deoptimizing and re-executing in the interpreter).
+  // In this case, the failed allocation must raise
+  // Universe::out_of_memory_error_retry() and omit side effects
+  // such as JVMTI events and handling -XX:+HeapDumpOnOutOfMemoryError
+  // and -XX:OnOutOfMemoryError.
+  virtual bool in_retryable_allocation() const { return false; }
+
 #ifdef ASSERT
   void set_suspendible_thread() {
     _suspendible_thread = true;
@@ -390,11 +398,15 @@ class Thread: public ThreadShadow {
 
   // Manage Thread::current()
   void initialize_thread_current();
-  void clear_thread_current(); // TLS cleanup needed before threads terminate
+  static void clear_thread_current(); // TLS cleanup needed before threads terminate
+
+ protected:
+  // To be implemented by children.
+  virtual void run() = 0;
 
  public:
-  // thread entry point
-  virtual void run();
+  // invokes <ChildThreadClass>::run(), with common preparations and cleanups.
+  void call_run();
 
   // Testers
   virtual bool is_VM_thread()       const            { return false; }
@@ -636,6 +648,7 @@ protected:
   void    set_stack_size(size_t size)  { _stack_size = size; }
   address stack_end()  const           { return stack_base() - stack_size(); }
   void    record_stack_base_and_size();
+  void    register_thread_stack_with_NMT() NOT_NMT_RETURN;
 
   bool    on_local_stack(address adr) const {
     // QQQ this has knowledge of direction, ought to be a stack method
@@ -699,20 +712,10 @@ protected:
 
   static ByteSize polling_page_offset()          { return byte_offset_of(Thread, _polling_page); }
 
-#define TLAB_FIELD_OFFSET(name) \
-  static ByteSize tlab_##name##_offset()         { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::name##_offset(); }
-
-  TLAB_FIELD_OFFSET(start)
-  TLAB_FIELD_OFFSET(end)
-  TLAB_FIELD_OFFSET(top)
-  TLAB_FIELD_OFFSET(pf_top)
-  TLAB_FIELD_OFFSET(size)                   // desired_size
-  TLAB_FIELD_OFFSET(refill_waste_limit)
-  TLAB_FIELD_OFFSET(number_of_refills)
-  TLAB_FIELD_OFFSET(fast_refill_waste)
-  TLAB_FIELD_OFFSET(slow_allocations)
-
-#undef TLAB_FIELD_OFFSET
+  static ByteSize tlab_start_offset()            { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::start_offset(); }
+  static ByteSize tlab_end_offset()              { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::end_offset(); }
+  static ByteSize tlab_top_offset()              { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::top_offset(); }
+  static ByteSize tlab_pf_top_offset()           { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::pf_top_offset(); }
 
   static ByteSize allocated_bytes_offset()       { return byte_offset_of(Thread, _allocated_bytes); }
 
@@ -994,7 +997,7 @@ class JavaThread: public Thread {
  public:                                         // Expose _thread_state for SafeFetchInt()
   volatile JavaThreadState _thread_state;
  private:
-  ThreadSafepointState *_safepoint_state;        // Holds information about a thread during a safepoint
+  ThreadSafepointState* _safepoint_state;        // Holds information about a thread during a safepoint
   address               _saved_exception_pc;     // Saved pc of instruction where last implicit exception happened
 
   // JavaThread termination support
@@ -1060,6 +1063,10 @@ class JavaThread: public Thread {
 
   // Guard for re-entrant call to JVMCIRuntime::adjust_comp_level
   bool      _adjusting_comp_level;
+
+  // True if in a runtime call from compiled code that will deoptimize
+  // and re-execute a failed heap allocation in the interpreter.
+  bool      _in_retryable_allocation;
 
   // An id of a speculation that JVMCI compiled code can use to further describe and
   // uniquely identify the  speculative optimization guarded by the uncommon trap
@@ -1222,9 +1229,9 @@ class JavaThread: public Thread {
   inline JavaThreadState thread_state() const;
   inline void set_thread_state(JavaThreadState s);
 #endif
-  ThreadSafepointState *safepoint_state() const  { return _safepoint_state; }
-  void set_safepoint_state(ThreadSafepointState *state) { _safepoint_state = state; }
-  bool is_at_poll_safepoint()                    { return _safepoint_state->is_at_poll_safepoint(); }
+  inline ThreadSafepointState* safepoint_state() const;
+  inline void set_safepoint_state(ThreadSafepointState* state);
+  inline bool is_at_poll_safepoint();
 
   // JavaThread termination and lifecycle support:
   void smr_delete();
@@ -1265,10 +1272,6 @@ class JavaThread: public Thread {
 
   bool has_handshake() const {
     return _handshake.has_operation();
-  }
-
-  void cancel_handshake() {
-    _handshake.cancel(this);
   }
 
   void handshake_process_by_self() {
@@ -1474,7 +1477,7 @@ class JavaThread: public Thread {
 
 #if INCLUDE_JVMCI
   int  pending_deoptimization() const             { return _pending_deoptimization; }
-  long  pending_failed_speculation() const         { return _pending_failed_speculation; }
+  long pending_failed_speculation() const         { return _pending_failed_speculation; }
   bool adjusting_comp_level() const               { return _adjusting_comp_level; }
   void set_adjusting_comp_level(bool b)           { _adjusting_comp_level = b; }
   bool has_pending_monitorenter() const           { return _pending_monitorenter; }
@@ -1484,6 +1487,9 @@ class JavaThread: public Thread {
   void set_pending_transfer_to_interpreter(bool b) { _pending_transfer_to_interpreter = b; }
   void set_jvmci_alternate_call_target(address a) { assert(_jvmci._alternate_call_target == NULL, "must be"); _jvmci._alternate_call_target = a; }
   void set_jvmci_implicit_exception_pc(address a) { assert(_jvmci._implicit_exception_pc == NULL, "must be"); _jvmci._implicit_exception_pc = a; }
+
+  virtual bool in_retryable_allocation() const    { return _in_retryable_allocation; }
+  void set_in_retryable_allocation(bool b)        { _in_retryable_allocation = b; }
 #endif // INCLUDE_JVMCI
 
   // Exception handling for compiled methods
@@ -1752,13 +1758,7 @@ class JavaThread: public Thread {
   // JNI critical regions. These can nest.
   bool in_critical()    { return _jni_active_critical > 0; }
   bool in_last_critical()  { return _jni_active_critical == 1; }
-  void enter_critical() {
-    assert(Thread::current() == this ||
-           (Thread::current()->is_VM_thread() &&
-           SafepointSynchronize::is_synchronizing()),
-           "this must be current thread or synchronizing");
-    _jni_active_critical++;
-  }
+  inline void enter_critical();
   void exit_critical() {
     assert(Thread::current() == this, "this must be current thread");
     _jni_active_critical--;
@@ -1883,14 +1883,9 @@ class JavaThread: public Thread {
   void thread_main_inner();
 
  private:
-  // PRIVILEGED STACK
-  PrivilegedElement*  _privileged_stack_top;
   GrowableArray<oop>* _array_for_gc;
  public:
 
-  // Returns the privileged_stack information.
-  PrivilegedElement* privileged_stack_top() const       { return _privileged_stack_top; }
-  void set_privileged_stack_top(PrivilegedElement *e)   { _privileged_stack_top = e; }
   void register_array_for_gc(GrowableArray<oop>* array) { _array_for_gc = array; }
 
  public:

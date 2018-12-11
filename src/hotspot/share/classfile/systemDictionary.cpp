@@ -29,6 +29,7 @@
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.inline.hpp"
@@ -51,6 +52,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/filemap.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -66,7 +68,7 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/valueKlass.hpp"
-#include "prims/jvmtiEnvBase.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
@@ -96,7 +98,6 @@
 #endif
 
 PlaceholderTable*      SystemDictionary::_placeholders        = NULL;
-Dictionary*            SystemDictionary::_shared_dictionary   = NULL;
 LoaderConstraintTable* SystemDictionary::_loader_constraints  = NULL;
 ResolutionErrorTable*  SystemDictionary::_resolution_errors   = NULL;
 SymbolPropertyTable*   SystemDictionary::_invoke_method_table = NULL;
@@ -354,7 +355,7 @@ InstanceKlass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
   assert(!FieldType::is_array(super_name), "invalid super class name");
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
-    // Special processing for CDS dump time.
+    // Special processing for handling UNREGISTERED shared classes.
     InstanceKlass* k = SystemDictionaryShared::dump_time_resolve_super_or_fail(child_name,
         super_name, class_loader, protection_domain, is_superclass, CHECK_NULL);
     if (k) {
@@ -1207,46 +1208,13 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
 }
 
 #if INCLUDE_CDS
-void SystemDictionary::set_shared_dictionary(HashtableBucket<mtClass>* t, int length,
-                                             int number_of_entries) {
-  assert(!DumpSharedSpaces, "Should not be called with DumpSharedSpaces");
-  assert(length == _shared_dictionary_size * sizeof(HashtableBucket<mtClass>),
-         "bad shared dictionary size.");
-  _shared_dictionary = new Dictionary(ClassLoaderData::the_null_class_loader_data(),
-                                      _shared_dictionary_size, t, number_of_entries,
-                                      false /* explicitly set _resizable to false */);
-}
-
-
-// If there is a shared dictionary, then find the entry for the
-// given shared system class, if any.
-
-InstanceKlass* SystemDictionary::find_shared_class(Symbol* class_name) {
-  if (shared_dictionary() != NULL) {
-    unsigned int d_hash = shared_dictionary()->compute_hash(class_name);
-    int d_index = shared_dictionary()->hash_to_index(d_hash);
-
-    return shared_dictionary()->find_shared_class(d_index, d_hash, class_name);
-  } else {
-    return NULL;
-  }
-}
-
-
-// Load a class from the shared spaces (found through the shared system
-// dictionary).  Force the superclass and all interfaces to be loaded.
-// Update the class definition to include sibling classes and no
-// subclasses (yet).  [Classes in the shared space are not part of the
-// object hierarchy until loaded.]
-
-InstanceKlass* SystemDictionary::load_shared_class(
-                 Symbol* class_name, Handle class_loader, TRAPS) {
-  InstanceKlass* ik = find_shared_class(class_name);
-  // Make sure we only return the boot class for the NULL classloader.
-  if (ik != NULL &&
-      ik->is_shared_boot_class() && class_loader.is_null()) {
-    Handle protection_domain;
-    return load_shared_class(ik, class_loader, protection_domain, THREAD);
+// Load a class for boot loader from the shared spaces. This also
+// forces the super class and all interfaces to be loaded.
+InstanceKlass* SystemDictionary::load_shared_boot_class(Symbol* class_name,
+                                                        TRAPS) {
+  InstanceKlass* ik = SystemDictionaryShared::find_builtin_class(class_name);
+  if (ik != NULL && ik->is_shared_boot_class()) {
+    return load_shared_class(ik, Handle(), Handle(), THREAD);
   }
   return NULL;
 }
@@ -1459,18 +1427,6 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   }
   return ik;
 }
-
-void SystemDictionary::clear_invoke_method_table() {
-  SymbolPropertyEntry* spe = NULL;
-  for (int index = 0; index < _invoke_method_table->table_size(); index++) {
-    SymbolPropertyEntry* p = _invoke_method_table->bucket(index);
-    while (p != NULL) {
-      spe = p;
-      p = p->next();
-      _invoke_method_table->free_entry(spe);
-    }
-  }
-}
 #endif // INCLUDE_CDS
 
 InstanceKlass* SystemDictionary::load_instance_class(Symbol* class_name, Handle class_loader, TRAPS) {
@@ -1533,13 +1489,12 @@ InstanceKlass* SystemDictionary::load_instance_class(Symbol* class_name, Handle 
            !search_only_bootloader_append,
            "Attempt to load a class outside of boot loader's module path");
 
-    // Search the shared system dictionary for classes preloaded into the
-    // shared spaces.
+    // Search for classes in the CDS archive.
     InstanceKlass* k = NULL;
     {
 #if INCLUDE_CDS
       PerfTraceTime vmtimer(ClassLoader::perf_shared_classload_time());
-      k = load_shared_class(class_name, class_loader, THREAD);
+      k = load_shared_boot_class(class_name, THREAD);
 #endif
     }
 
@@ -1895,22 +1850,29 @@ void SystemDictionary::add_to_hierarchy(InstanceKlass* k, TRAPS) {
 
 // Assumes classes in the SystemDictionary are only unloaded at a safepoint
 // Note: anonymous classes are not in the SD.
-bool SystemDictionary::do_unloading(GCTimer* gc_timer,
-                                    bool do_cleaning) {
+bool SystemDictionary::do_unloading(GCTimer* gc_timer) {
 
   bool unloading_occurred;
+  bool is_concurrent = !SafepointSynchronize::is_at_safepoint();
   {
     GCTraceTime(Debug, gc, phases) t("ClassLoaderData", gc_timer);
-
+    assert_locked_or_safepoint(ClassLoaderDataGraph_lock);  // caller locks.
     // First, mark for unload all ClassLoaderData referencing a dead class loader.
-    unloading_occurred = ClassLoaderDataGraph::do_unloading(do_cleaning);
+    unloading_occurred = ClassLoaderDataGraph::do_unloading();
     if (unloading_occurred) {
+      MutexLockerEx ml2(is_concurrent ? Module_lock : NULL);
       JFR_ONLY(Jfr::on_unloading_classes();)
+      MutexLockerEx ml1(is_concurrent ? SystemDictionary_lock : NULL);
       ClassLoaderDataGraph::clean_module_and_package_info();
     }
   }
 
-  // TODO: just return if !unloading_occurred.
+  // Cleanup ResolvedMethodTable even if no unloading occurred.
+  {
+    GCTraceTime(Debug, gc, phases) t("ResolvedMethodTable", gc_timer);
+    ResolvedMethodTable::trigger_cleanup();
+  }
+
   if (unloading_occurred) {
     {
       GCTraceTime(Debug, gc, phases) t("SymbolTable", gc_timer);
@@ -1919,23 +1881,21 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer,
     }
 
     {
+      MutexLockerEx ml(is_concurrent ? SystemDictionary_lock : NULL);
       GCTraceTime(Debug, gc, phases) t("Dictionary", gc_timer);
       constraints()->purge_loader_constraints();
       resolution_errors()->purge_resolution_errors();
     }
-  }
 
-  {
-    GCTraceTime(Debug, gc, phases) t("ProtectionDomainCacheTable", gc_timer);
-    // Oops referenced by the protection domain cache table may get unreachable independently
-    // of the class loader (eg. cached protection domain oops). So we need to
-    // explicitly unlink them here.
-    _pd_cache_table->trigger_cleanup();
-  }
-
-  if (do_cleaning) {
-    GCTraceTime(Debug, gc, phases) t("ResolvedMethodTable", gc_timer);
-    ResolvedMethodTable::trigger_cleanup();
+    {
+      GCTraceTime(Debug, gc, phases) t("ResolvedMethodTable", gc_timer);
+      // Oops referenced by the protection domain cache table may get unreachable independently
+      // of the class loader (eg. cached protection domain oops). So we need to
+      // explicitly unlink them here.
+      // All protection domain oops are linked to the caller class, so if nothing
+      // unloads, this is not needed.
+      _pd_cache_table->trigger_cleanup();
+    }
   }
 
   return unloading_occurred;
@@ -1949,11 +1909,6 @@ void SystemDictionary::oops_do(OopClosure* f) {
 
   // Visit extra methods
   invoke_method_table()->oops_do(f);
-}
-
-// CDS: scan and relocate all classes in the system dictionary.
-void SystemDictionary::classes_do(MetaspaceClosure* it) {
-  ClassLoaderData::the_null_class_loader_data()->dictionary()->classes_do(it);
 }
 
 // CDS: scan and relocate all classes referenced by _well_known_klasses[].
@@ -1971,22 +1926,6 @@ void SystemDictionary::methods_do(void f(Method*)) {
   invoke_method_table()->methods_do(f);
 }
 
-class RemoveClassesClosure : public CLDClosure {
-  public:
-    void do_cld(ClassLoaderData* cld) {
-      if (cld->is_system_class_loader_data() || cld->is_platform_class_loader_data()) {
-        cld->dictionary()->remove_classes_in_error_state();
-      }
-    }
-};
-
-void SystemDictionary::remove_classes_in_error_state() {
-  ClassLoaderData::the_null_class_loader_data()->dictionary()->remove_classes_in_error_state();
-  RemoveClassesClosure rcc;
-  MutexLocker ml(ClassLoaderDataGraph_lock);
-  ClassLoaderDataGraph::cld_do(&rcc);
-}
-
 // ----------------------------------------------------------------------------
 // Initialization
 
@@ -2002,54 +1941,48 @@ void SystemDictionary::initialize(TRAPS) {
   // Allocate private object used as system class loader lock
   _system_loader_lock_obj = oopFactory::new_intArray(0, CHECK);
   // Initialize basic classes
-  resolve_preloaded_classes(CHECK);
+  resolve_well_known_classes(CHECK);
 }
 
 // Compact table of directions on the initialization of klasses:
 static const short wk_init_info[] = {
-  #define WK_KLASS_INIT_INFO(name, symbol, option) \
-    ( ((int)vmSymbols::VM_SYMBOL_ENUM_NAME(symbol) \
-          << SystemDictionary::CEIL_LG_OPTION_LIMIT) \
-      | (int)SystemDictionary::option ),
+  #define WK_KLASS_INIT_INFO(name, symbol) \
+    ((short)vmSymbols::VM_SYMBOL_ENUM_NAME(symbol)),
+
   WK_KLASSES_DO(WK_KLASS_INIT_INFO)
   #undef WK_KLASS_INIT_INFO
   0
 };
 
-bool SystemDictionary::resolve_wk_klass(WKID id, int init_opt, TRAPS) {
+#ifdef ASSERT
+bool SystemDictionary::is_well_known_klass(Symbol* class_name) {
+  int sid;
+  for (int i = 0; (sid = wk_init_info[i]) != 0; i++) {
+    Symbol* symbol = vmSymbols::symbol_at((vmSymbols::SID)sid);
+    if (class_name == symbol) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
+bool SystemDictionary::resolve_wk_klass(WKID id, TRAPS) {
   assert(id >= (int)FIRST_WKID && id < (int)WKID_LIMIT, "oob");
-  int  info = wk_init_info[id - FIRST_WKID];
-  int  sid  = (info >> CEIL_LG_OPTION_LIMIT);
+  int sid = wk_init_info[id - FIRST_WKID];
   Symbol* symbol = vmSymbols::symbol_at((vmSymbols::SID)sid);
   InstanceKlass** klassp = &_well_known_klasses[id];
 
-  bool must_load;
-#if INCLUDE_JVMCI
-  if (EnableJVMCI) {
-    // If JVMCI is enabled we require its classes to be found.
-    must_load = (init_opt < SystemDictionary::Opt) || (init_opt == SystemDictionary::Jvmci);
-  } else
-#endif
-  {
-    must_load = (init_opt < SystemDictionary::Opt);
-  }
 
-  if (init_opt == SystemDictionary::ValhallaClasses) {
-    if (EnableValhalla) {
-      must_load = true;
-    } else {
-      return false;
-    }
+#if INCLUDE_JVMCI
+  if (id >= FIRST_JVMCI_WKID) {
+    assert(EnableJVMCI, "resolve JVMCI classes only when EnableJVMCI is true");
   }
+#endif
 
   if ((*klassp) == NULL) {
-    Klass* k;
-    if (must_load) {
-      k = resolve_or_fail(symbol, true, CHECK_0); // load required class
-    } else {
-      k = resolve_or_null(symbol,       CHECK_0); // load optional klass
-    }
-    (*klassp) = (k == NULL) ? NULL : InstanceKlass::cast(k);
+    Klass* k = resolve_or_fail(symbol, true, CHECK_0);
+    (*klassp) = InstanceKlass::cast(k);
   }
   return ((*klassp) != NULL);
 }
@@ -2058,19 +1991,15 @@ void SystemDictionary::resolve_wk_klasses_until(WKID limit_id, WKID &start_id, T
   assert((int)start_id <= (int)limit_id, "IDs are out of order!");
   for (int id = (int)start_id; id < (int)limit_id; id++) {
     assert(id >= (int)FIRST_WKID && id < (int)WKID_LIMIT, "oob");
-    int info = wk_init_info[id - FIRST_WKID];
-    int sid  = (info >> CEIL_LG_OPTION_LIMIT);
-    int opt  = (info & right_n_bits(CEIL_LG_OPTION_LIMIT));
-
-    resolve_wk_klass((WKID)id, opt, CHECK);
+    resolve_wk_klass((WKID)id, CHECK);
   }
 
   // move the starting value forward to the limit:
   start_id = limit_id;
 }
 
-void SystemDictionary::resolve_preloaded_classes(TRAPS) {
-  assert(WK_KLASS(Object_klass) == NULL, "preloaded classes should only be initialized once");
+void SystemDictionary::resolve_well_known_classes(TRAPS) {
+  assert(WK_KLASS(Object_klass) == NULL, "well-known classes should only be initialized once");
 
   // Create the ModuleEntry for java.base.  This call needs to be done here,
   // after vmSymbols::initialize() is called but before any classes are pre-loaded.
@@ -2082,7 +2011,24 @@ void SystemDictionary::resolve_preloaded_classes(TRAPS) {
 #if INCLUDE_CDS
   if (UseSharedSpaces) {
     resolve_wk_klasses_through(WK_KLASS_ENUM_NAME(Object_klass), scan, CHECK);
+
+    // It's unsafe to access the archived heap regions before they
+    // are fixed up, so we must do the fixup as early as possible
+    // before the archived java objects are accessed by functions
+    // such as java_lang_Class::restore_archived_mirror and
+    // ConstantPool::restore_unshareable_info (restores the archived
+    // resolved_references array object).
+    //
+    // HeapShared::fixup_mapped_heap_regions() fills the empty
+    // spaces in the archived heap regions and may use
+    // SystemDictionary::Object_klass(), so we can do this only after
+    // Object_klass is resolved. See the above resolve_wk_klasses_through()
+    // call. No mirror objects are accessed/restored in the above call.
+    // Mirrors are restored after java.lang.Class is loaded.
+    HeapShared::fixup_mapped_heap_regions();
+
     // Initialize the constant pool for the Object_class
+    assert(Object_klass()->is_shared(), "must be");
     Object_klass()->constants()->restore_unshareable_info(CHECK);
     resolve_wk_klasses_through(WK_KLASS_ENUM_NAME(Class_klass), scan, CHECK);
   } else
@@ -2122,7 +2068,8 @@ void SystemDictionary::resolve_preloaded_classes(TRAPS) {
   WKID jsr292_group_end   = WK_KLASS_ENUM_NAME(VolatileCallSite_klass);
   resolve_wk_klasses_until(jsr292_group_start, scan, CHECK);
   resolve_wk_klasses_through(jsr292_group_end, scan, CHECK);
-  resolve_wk_klasses_until(NOT_JVMCI(WKID_LIMIT) JVMCI_ONLY(FIRST_JVMCI_WKID), scan, CHECK);
+  WKID last = NOT_JVMCI(WKID_LIMIT) JVMCI_ONLY(FIRST_JVMCI_WKID);
+  resolve_wk_klasses_until(last, scan, CHECK);
 
   _box_klasses[T_BOOLEAN] = WK_KLASS(Boolean_klass);
   _box_klasses[T_CHAR]    = WK_KLASS(Character_klass);
@@ -2139,6 +2086,17 @@ void SystemDictionary::resolve_preloaded_classes(TRAPS) {
     Method* method = InstanceKlass::cast(ClassLoader_klass())->find_method(vmSymbols::checkPackageAccess_name(), vmSymbols::class_protectiondomain_signature());
     _has_checkPackageAccess = (method != NULL);
   }
+
+#ifdef ASSERT
+  if (UseSharedSpaces) {
+    assert(JvmtiExport::is_early_phase(),
+           "All well known classes must be resolved in JVMTI early phase");
+    for (int i = FIRST_WKID; i < last; i++) {
+      InstanceKlass* k = _well_known_klasses[i];
+      assert(k->is_shared(), "must not be replaced by JVMTI class file load hook");
+    }
+  }
+#endif
 }
 
 // Tells if a given klass is a box (wrapper class, such as java.lang.Integer).
@@ -2638,7 +2596,7 @@ Handle SystemDictionary::find_java_mirror_for_type(Symbol* signature,
   if (type->utf8_length() == 1) {
 
     // It's a primitive.  (Void has a primitive mirror too.)
-    char ch = (char) type->byte_at(0);
+    char ch = type->char_at(0);
     assert(is_java_primitive(char2type(ch)) || ch == 'V', "");
     return Handle(THREAD, find_java_mirror_for_type(ch));
 
@@ -2954,40 +2912,10 @@ ProtectionDomainCacheEntry* SystemDictionary::cache_get(Handle protection_domain
   return _pd_cache_table->get(protection_domain);
 }
 
-#if INCLUDE_CDS
-void SystemDictionary::reorder_dictionary_for_sharing() {
-  ClassLoaderData::the_null_class_loader_data()->dictionary()->reorder_dictionary_for_sharing();
-}
-#endif
-
-size_t SystemDictionary::count_bytes_for_buckets() {
-  return ClassLoaderData::the_null_class_loader_data()->dictionary()->count_bytes_for_buckets();
-}
-
-size_t SystemDictionary::count_bytes_for_table() {
-  return ClassLoaderData::the_null_class_loader_data()->dictionary()->count_bytes_for_table();
-}
-
-void SystemDictionary::copy_buckets(char* top, char* end) {
-  ClassLoaderData::the_null_class_loader_data()->dictionary()->copy_buckets(top, end);
-}
-
-void SystemDictionary::copy_table(char* top, char* end) {
-  ClassLoaderData::the_null_class_loader_data()->dictionary()->copy_table(top, end);
-}
-
 // ----------------------------------------------------------------------------
-void SystemDictionary::print_shared(outputStream *st) {
-  shared_dictionary()->print_on(st);
-}
 
 void SystemDictionary::print_on(outputStream *st) {
-  if (shared_dictionary() != NULL) {
-    st->print_cr("Shared Dictionary");
-    shared_dictionary()->print_on(st);
-    st->cr();
-  }
-
+  CDS_ONLY(SystemDictionaryShared::print_on(st));
   GCMutexLocker mu(SystemDictionary_lock);
 
   ClassLoaderDataGraph::print_dictionary(st);
@@ -3029,9 +2957,7 @@ void SystemDictionary::dump(outputStream *st, bool verbose) {
   if (verbose) {
     print_on(st);
   } else {
-    if (shared_dictionary() != NULL) {
-      shared_dictionary()->print_table_statistics(st, "Shared Dictionary");
-    }
+    CDS_ONLY(SystemDictionaryShared::print_table_statistics(st));
     ClassLoaderDataGraph::print_dictionary_statistics(st);
     placeholders()->print_table_statistics(st, "Placeholder Table");
     constraints()->print_table_statistics(st, "LoaderConstraints Table");
@@ -3062,60 +2988,6 @@ int SystemDictionaryDCmd::num_arguments() {
   } else {
     return 0;
   }
-}
-
-class CombineDictionariesClosure : public CLDClosure {
-  private:
-    Dictionary* _master_dictionary;
-  public:
-    CombineDictionariesClosure(Dictionary* master_dictionary) :
-      _master_dictionary(master_dictionary) {}
-    void do_cld(ClassLoaderData* cld) {
-      ResourceMark rm;
-      if (cld->is_unsafe_anonymous()) {
-        return;
-      }
-      if (cld->is_system_class_loader_data() || cld->is_platform_class_loader_data()) {
-        for (int i = 0; i < cld->dictionary()->table_size(); ++i) {
-          Dictionary* curr_dictionary = cld->dictionary();
-          DictionaryEntry* p = curr_dictionary->bucket(i);
-          while (p != NULL) {
-            Symbol* name = p->instance_klass()->name();
-            unsigned int d_hash = _master_dictionary->compute_hash(name);
-            int d_index = _master_dictionary->hash_to_index(d_hash);
-            DictionaryEntry* next = p->next();
-            if (p->literal()->class_loader_data() != cld) {
-              // This is an initiating class loader entry; don't use it
-              log_trace(cds)("Skipping initiating cl entry: %s", name->as_C_string());
-              curr_dictionary->free_entry(p);
-            } else {
-              log_trace(cds)("Moved to boot dictionary: %s", name->as_C_string());
-              curr_dictionary->unlink_entry(p);
-              p->set_pd_set(NULL); // pd_set is runtime only information and will be reconstructed.
-              _master_dictionary->add_entry(d_index, p);
-            }
-            p = next;
-          }
-          *curr_dictionary->bucket_addr(i) = NULL;
-        }
-      }
-    }
-};
-
-// Combining platform and system loader dictionaries into boot loader dictionary.
-// During run time, we only have one shared dictionary.
-void SystemDictionary::combine_shared_dictionaries() {
-  assert(DumpSharedSpaces, "dump time only");
-  Dictionary* master_dictionary = ClassLoaderData::the_null_class_loader_data()->dictionary();
-  CombineDictionariesClosure cdc(master_dictionary);
-  ClassLoaderDataGraph::cld_do(&cdc);
-
-  // These tables are no longer valid or necessary. Keeping them around will
-  // cause SystemDictionary::verify() to fail. Let's empty them.
-  _placeholders        = new PlaceholderTable(_placeholder_table_size);
-  _loader_constraints  = new LoaderConstraintTable(_loader_constraint_size);
-
-  NOT_PRODUCT(SystemDictionary::verify());
 }
 
 void SystemDictionary::initialize_oop_storage() {

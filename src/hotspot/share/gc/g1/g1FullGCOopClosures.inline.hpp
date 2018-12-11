@@ -25,7 +25,7 @@
 #ifndef SHARE_VM_GC_G1_G1FULLGCOOPCLOSURES_INLINE_HPP
 #define SHARE_VM_GC_G1_G1FULLGCOOPCLOSURES_INLINE_HPP
 
-#include "gc/g1/g1Allocator.hpp"
+#include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1FullGCMarker.inline.hpp"
 #include "gc/g1/g1FullGCOopClosures.hpp"
@@ -68,7 +68,7 @@ template <class T> inline void G1AdjustClosure::adjust_pointer(T* p) {
 
   oop obj = CompressedOops::decode_not_null(heap_oop);
   assert(Universe::heap()->is_in(obj), "should be in heap");
-  if (G1ArchiveAllocator::is_archive_object(obj)) {
+  if (G1ArchiveAllocator::is_archived_object(obj)) {
     // We never forward archive objects.
     return;
   }

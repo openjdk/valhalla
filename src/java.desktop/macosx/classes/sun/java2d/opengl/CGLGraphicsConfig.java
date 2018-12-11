@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,11 +54,13 @@ import sun.java2d.opengl.OGLContext.OGLContextCaps;
 import sun.java2d.pipe.hw.AccelSurface;
 import sun.java2d.pipe.hw.AccelTypedVolatileImage;
 import sun.java2d.pipe.hw.ContextCapabilities;
-import static sun.java2d.opengl.OGLSurfaceData.*;
-import static sun.java2d.opengl.OGLContext.OGLContextCaps.*;
-
 import sun.lwawt.LWComponentPeer;
 import sun.lwawt.macosx.CPlatformView;
+
+import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_DOUBLEBUFFERED;
+import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_EXT_FBOBJECT;
+import static sun.java2d.opengl.OGLSurfaceData.FBOBJECT;
+import static sun.java2d.opengl.OGLSurfaceData.TEXTURE;
 
 public final class CGLGraphicsConfig extends CGraphicsConfig
     implements OGLGraphicsConfig
@@ -125,7 +127,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
     }
 
     public static CGLGraphicsConfig getConfig(CGraphicsDevice device,
-                                              int pixfmt)
+                                              int displayID, int pixfmt)
     {
         if (!cglAvailable) {
             return null;
@@ -133,7 +135,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
 
         long cfginfo = 0;
         int textureSize = 0;
-        final String ids[] = new String[1];
+        final String[] ids = new String[1];
         OGLRenderQueue rq = OGLRenderQueue.getInstance();
         rq.lock();
         try {
@@ -141,9 +143,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
             // surfaces/contexts, so we should first invalidate the current
             // Java-level context and flush the queue...
             OGLContext.invalidateCurrentContext();
-
-            cfginfo = getCGLConfigInfo(device.getCGDisplayID(), pixfmt,
-                                       kOpenGLSwapInterval);
+            cfginfo = getCGLConfigInfo(displayID, pixfmt, kOpenGLSwapInterval);
             if (cfginfo != 0L) {
                 textureSize = nativeGetMaxTextureSize();
                 // 7160609: GL still fails to create a square texture of this
@@ -259,8 +259,8 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
 
     @Override
     public String toString() {
-        int displayID = getDevice().getCGDisplayID();
-        return ("CGLGraphicsConfig[dev="+displayID+",pixfmt="+pixfmt+"]");
+        String display = getDevice().getIDstring();
+        return ("CGLGraphicsConfig[" + display + ", pixfmt=" + pixfmt + "]");
     }
 
     @Override

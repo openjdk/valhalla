@@ -72,8 +72,6 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
   AC_ARG_WITH([jvm-variants], [AS_HELP_STRING([--with-jvm-variants],
       [JVM variants (separated by commas) to build (server,client,minimal,core,zero,custom) @<:@server@:>@])])
 
-  SETUP_HOTSPOT_TARGET_CPU_PORT
-
   if test "x$with_jvm_variants" = x; then
     with_jvm_variants="server"
   fi
@@ -252,14 +250,6 @@ AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_CDS],
     AC_MSG_ERROR([Invalid value for --enable-cds: $enable_cds])
   fi
 
-  # Disable CDS on AIX.
-  if test "x$OPENJDK_TARGET_OS" = "xaix"; then
-    ENABLE_CDS="false"
-    if test "x$enable_cds" = "xyes"; then
-      AC_MSG_ERROR([CDS is currently not supported on AIX. Remove --enable-cds.])
-    fi
-  fi
-
   AC_SUBST(ENABLE_CDS)
 ])
 
@@ -307,9 +297,6 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   if test "x$OPENJDK_TARGET_CPU" = xarm; then
     HOTSPOT_TARGET_CPU=arm_32
     HOTSPOT_TARGET_CPU_DEFINE="ARM32"
-  elif test "x$OPENJDK_TARGET_CPU" = xaarch64 && test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
-    HOTSPOT_TARGET_CPU=arm_64
-    HOTSPOT_TARGET_CPU_ARCH=arm
   fi
 
   # Verify that dependencies are met for explicitly set features.
@@ -349,6 +336,11 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     fi
   else
     AC_MSG_RESULT([no])
+  fi
+
+  # Disable unsupported GCs for Zero
+  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
+    DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES epsilongc g1gc zgc"
   fi
 
   # Turn on additional features based on other parts of configure
@@ -484,6 +476,34 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   # All variants but minimal (and custom) get these features
   NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cmsgc g1gc parallelgc serialgc epsilongc jni-check jvmti management nmt services vm-structs"
 
+  # Disable CDS on AIX.
+  if test "x$OPENJDK_TARGET_OS" = "xaix"; then
+    ENABLE_CDS="false"
+    if test "x$enable_cds" = "xyes"; then
+      AC_MSG_ERROR([CDS is currently not supported on AIX. Remove --enable-cds.])
+    fi
+  fi
+
+  # Disable CDS if user requested it with --with-jvm-features=-cds.
+  DISABLE_CDS=`$ECHO $DISABLED_JVM_FEATURES | $GREP cds`
+  if test "x$DISABLE_CDS" = "xcds"; then
+    ENABLE_CDS="false"
+    if test "x$enable_cds" = "xyes"; then
+      AC_MSG_ERROR([CDS was disabled by --with-jvm-features=-cds. Remove --enable-cds.])
+    fi
+  fi
+
+  # Disable CDS for zero, minimal, core..
+  if HOTSPOT_CHECK_JVM_VARIANT(zero) || HOTSPOT_CHECK_JVM_VARIANT(minimal) || HOTSPOT_CHECK_JVM_VARIANT(core); then
+    # ..except when the user explicitely requested it with --enable-jvm-features
+    if ! HOTSPOT_CHECK_JVM_FEATURE(cds); then
+      ENABLE_CDS="false"
+      if test "x$enable_cds" = "xyes"; then
+        AC_MSG_ERROR([CDS not implemented for variants zero, minimal, core. Remove --enable-cds.])
+      fi
+    fi
+  fi
+
   AC_MSG_CHECKING([if cds should be enabled])
   if test "x$ENABLE_CDS" = "xtrue"; then
     if test "x$enable_cds" = "xyes"; then
@@ -517,6 +537,9 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   # Used for verification of Makefiles by check-jvm-feature
   AC_SUBST(VALID_JVM_FEATURES)
+
+  # --with-cpu-port is no longer supported
+  BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
 ])
 
 ###############################################################################
@@ -552,31 +575,6 @@ AC_DEFUN_ONCE([HOTSPOT_FINALIZE_JVM_FEATURES],
     fi
   done
 ])
-
-################################################################################
-#
-# Specify which sources will be used to build the 64-bit ARM port
-#
-# --with-cpu-port=arm64   will use hotspot/src/cpu/arm
-# --with-cpu-port=aarch64 will use hotspot/src/cpu/aarch64
-#
-AC_DEFUN([SETUP_HOTSPOT_TARGET_CPU_PORT],
-[
-  AC_ARG_WITH(cpu-port, [AS_HELP_STRING([--with-cpu-port],
-      [specify sources to use for Hotspot 64-bit ARM port (arm64,aarch64) @<:@aarch64@:>@ ])])
-
-  if test "x$with_cpu_port" != x; then
-    if test "x$OPENJDK_TARGET_CPU" != xaarch64; then
-      AC_MSG_ERROR([--with-cpu-port only available on aarch64])
-    fi
-    if test "x$with_cpu_port" != xarm64 && \
-        test "x$with_cpu_port" != xaarch64; then
-      AC_MSG_ERROR([--with-cpu-port must specify arm64 or aarch64])
-    fi
-    HOTSPOT_TARGET_CPU_PORT="$with_cpu_port"
-  fi
-])
-
 
 ################################################################################
 # Check if gtest should be built

@@ -201,7 +201,7 @@ writeBytes(JNIEnv *env, jobject this, jbyteArray bytes,
     }
 }
 
-JNIEXPORT void JNICALL
+void
 throwFileNotFoundException(JNIEnv *env, jstring path)
 {
     char buf[256];
@@ -211,11 +211,7 @@ throwFileNotFoundException(JNIEnv *env, jstring path)
 
     n = getLastErrorString(buf, sizeof(buf));
     if (n > 0) {
-#ifdef WIN32
-        why = (*env)->NewStringUTF(env, buf);
-#else
         why = JNU_NewStringPlatform(env, buf);
-#endif
         CHECK_NULL(why);
     }
     x = JNU_NewObjectByName(env,

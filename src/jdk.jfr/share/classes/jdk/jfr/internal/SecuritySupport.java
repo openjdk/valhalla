@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.io.Reader;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -71,11 +72,20 @@ import jdk.jfr.Recording;
  */
 public final class SecuritySupport {
     private final static Unsafe unsafe = Unsafe.getUnsafe();
+    private final static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private final static Module JFR_MODULE = Event.class.getModule();
     public  final static SafePath JFC_DIRECTORY = getPathInProperty("java.home", "lib/jfr");
 
     static final SafePath USER_HOME = getPathInProperty("user.home", null);
     static final SafePath JAVA_IO_TMPDIR = getPathInProperty("java.io.tmpdir", null);
+
+    static {
+        // ensure module java.base can read module jdk.jfr as early as possible
+        addReadEdge(Object.class);
+        addHandlerExport(Object.class);
+        addEventsExport(Object.class);
+        addInstrumentExport(Object.class);
+    }
 
     final static class SecureRecorderListener implements FlightRecorderListener {
 
@@ -260,8 +270,24 @@ public final class SecuritySupport {
         Modules.addExports(JFR_MODULE, Utils.HANDLERS_PACKAGE_NAME, clazz.getModule());
     }
 
-    public static void registerEvent(Class<? extends Event> eventClass) {
-        doPrivileged(() -> FlightRecorder.register(eventClass), new FlightRecorderPermission(Utils.REGISTER_EVENT));
+    static void addEventsExport(Class<?> clazz) {
+        Modules.addExports(JFR_MODULE, Utils.EVENTS_PACKAGE_NAME, clazz.getModule());
+    }
+
+    static void addInstrumentExport(Class<?> clazz) {
+        Modules.addExports(JFR_MODULE, Utils.INSTRUMENT_PACKAGE_NAME, clazz.getModule());
+    }
+
+    static void addReadEdge(Class<?> clazz) {
+        Modules.addReads(clazz.getModule(), JFR_MODULE);
+    }
+
+    public static void registerEvent(Class<? extends jdk.internal.event.Event> eventClass) {
+        doPrivileged(() ->  MetadataRepository.getInstance().register(eventClass), new FlightRecorderPermission(Utils.REGISTER_EVENT));
+    }
+
+    public static void registerMirror(Class<? extends Event> eventClass) {
+        doPrivileged(() ->  MetadataRepository.getInstance().registerMirror(eventClass), new FlightRecorderPermission(Utils.REGISTER_EVENT));
     }
 
     static boolean getBooleanProperty(String propertyName) {
@@ -381,8 +407,17 @@ public final class SecuritySupport {
         unsafe.ensureClassInitialized(clazz);
     }
 
-    static Class<?> defineClass(String name, byte[] bytes, ClassLoader classLoader) {
-        return unsafe.defineClass(name, bytes, 0, bytes.length, classLoader, null);
+    static Class<?> defineClass(Class<?> lookupClass, byte[] bytes) {
+        return AccessController.doPrivileged(new PrivilegedAction<>() {
+            @Override
+            public Class<?> run() {
+                try {
+                    return MethodHandles.privateLookupIn(lookupClass, LOOKUP).defineClass(bytes);
+                } catch (IllegalAccessException e) {
+                    throw new InternalError(e);
+                }
+            }
+        });
     }
 
     static Thread createThreadWitNoPermissions(String threadName, Runnable runnable) {

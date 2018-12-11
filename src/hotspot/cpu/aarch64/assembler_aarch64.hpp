@@ -317,29 +317,6 @@ namespace ext
   enum operation { uxtb, uxth, uxtw, uxtx, sxtb, sxth, sxtw, sxtx };
 };
 
-// abs methods which cannot overflow and so are well-defined across
-// the entire domain of integer types.
-static inline unsigned int uabs(unsigned int n) {
-  union {
-    unsigned int result;
-    int value;
-  };
-  result = n;
-  if (value < 0) result = -result;
-  return result;
-}
-static inline unsigned long uabs(unsigned long n) {
-  union {
-    unsigned long result;
-    long value;
-  };
-  result = n;
-  if (value < 0) result = -result;
-  return result;
-}
-static inline unsigned long uabs(long n) { return uabs((unsigned long)n); }
-static inline unsigned long uabs(int n) { return uabs((unsigned int)n); }
-
 // Addressing modes
 class Address {
  public:
@@ -2356,7 +2333,7 @@ public:
 
   // FMLA/FMLS - Vector - Scalar
   INSN(fmlavs, 0, 0b0001);
-  INSN(fmlsvs, 0, 0b0001);
+  INSN(fmlsvs, 0, 0b0101);
   // FMULX - Vector - Scalar
   INSN(fmulxvs, 1, 0b1001);
 

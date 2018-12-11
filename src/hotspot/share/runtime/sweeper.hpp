@@ -88,8 +88,6 @@ class NMethodSweeper : public AllStatic {
   static Tickspan  _peak_sweep_time;              // Peak time for a full sweep
   static Tickspan  _peak_sweep_fraction_time;     // Peak time sweeping one fraction
 
-  static Monitor*  _stat_lock;
-
   static MethodStateChange process_compiled_method(CompiledMethod *nm);
   static void              release_compiled_method(CompiledMethod* nm);
 
@@ -117,6 +115,7 @@ class NMethodSweeper : public AllStatic {
 
   static void mark_active_nmethods();      // Invoked at the end of each safepoint
   static CodeBlobClosure* prepare_mark_active_nmethods();
+  static CodeBlobClosure* prepare_reset_hotness_counters();
   static void sweeper_loop();
   static void notify(int code_blob_type);  // Possibly start the sweeper thread.
   static void force_sweep();

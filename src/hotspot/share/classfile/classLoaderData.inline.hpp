@@ -34,7 +34,7 @@
 
 inline oop ClassLoaderData::class_loader() const {
   assert(!_unloading, "This oop is not available to unloading class loader data");
-  assert(_holder.is_null() || _holder.peek() != NULL , "This class loader data holder must be alive");
+  assert(_holder.is_null() || holder_no_keepalive() != NULL , "This class loader data holder must be alive");
   return _class_loader.resolve();
 }
 
@@ -46,63 +46,13 @@ inline ClassLoaderData* ClassLoaderData::class_loader_data_or_null(oop loader) {
   if (loader == NULL) {
     return ClassLoaderData::the_null_class_loader_data();
   }
-  return java_lang_ClassLoader::loader_data(loader);
+  return java_lang_ClassLoader::loader_data_acquire(loader);
 }
 
 inline ClassLoaderData* ClassLoaderData::class_loader_data(oop loader) {
   ClassLoaderData* loader_data = class_loader_data_or_null(loader);
   assert(loader_data != NULL, "Must be");
   return loader_data;
-}
-
-
-inline ClassLoaderData *ClassLoaderDataGraph::find_or_create(Handle loader) {
-  guarantee(loader() != NULL && oopDesc::is_oop(loader()), "Loader must be oop");
-  // Gets the class loader data out of the java/lang/ClassLoader object, if non-null
-  // it's already in the loader_data, so no need to add
-  ClassLoaderData* loader_data= java_lang_ClassLoader::loader_data(loader());
-  if (loader_data) {
-     return loader_data;
-  }
-  return ClassLoaderDataGraph::add(loader, false);
-}
-
-size_t ClassLoaderDataGraph::num_instance_classes() {
-  return _num_instance_classes;
-}
-
-size_t ClassLoaderDataGraph::num_array_classes() {
-  return _num_array_classes;
-}
-
-void ClassLoaderDataGraph::inc_instance_classes(size_t count) {
-  Atomic::add(count, &_num_instance_classes);
-}
-
-void ClassLoaderDataGraph::dec_instance_classes(size_t count) {
-  assert(count <= _num_instance_classes, "Sanity");
-  Atomic::sub(count, &_num_instance_classes);
-}
-
-void ClassLoaderDataGraph::inc_array_classes(size_t count) {
-  Atomic::add(count, &_num_array_classes);
-}
-
-void ClassLoaderDataGraph::dec_array_classes(size_t count) {
-  assert(count <= _num_array_classes, "Sanity");
-  Atomic::sub(count, &_num_array_classes);
-}
-
-bool ClassLoaderDataGraph::should_clean_metaspaces_and_reset() {
-  // Only clean metaspaces after full GC.
-  bool do_cleaning = _safepoint_cleanup_needed;
-#if INCLUDE_JVMTI
-  do_cleaning = do_cleaning && (_should_clean_deallocate_lists || InstanceKlass::has_previous_versions());
-#else
-  do_cleaning = do_cleaning && _should_clean_deallocate_lists;
-#endif
-  _safepoint_cleanup_needed = false;  // reset
-  return do_cleaning;
 }
 
 #endif // SHARE_VM_CLASSFILE_CLASSLOADERDATA_INLINE_HPP

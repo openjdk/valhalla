@@ -36,7 +36,7 @@ class UnsafeQualifiedStaticObjectFieldAccessorImpl
 
     public Object get(Object obj) throws IllegalArgumentException {
         return isFlatValue() ? unsafe.getValue(obj, fieldOffset, field.getType())
-                             : unsafe.getObjectVolatile(base, fieldOffset);
+                             : unsafe.getReferenceVolatile(base, fieldOffset);
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {
@@ -81,7 +81,7 @@ class UnsafeQualifiedStaticObjectFieldAccessorImpl
         if (isFlatValue()) {
             unsafe.putValue(base, fieldOffset, field.getType(), value);
         } else {
-            unsafe.putObjectVolatile(base, fieldOffset, value);
+        unsafe.putReferenceVolatile(base, fieldOffset, value);
         }
     }
 

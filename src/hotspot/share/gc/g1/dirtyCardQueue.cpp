@@ -28,6 +28,7 @@
 #include "gc/g1/g1RemSet.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
+#include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -146,18 +147,15 @@ uint DirtyCardQueueSet::num_par_ids() {
 }
 
 void DirtyCardQueueSet::initialize(Monitor* cbl_mon,
-                                   Mutex* fl_lock,
+                                   BufferNode::Allocator* allocator,
                                    int process_completed_threshold,
                                    int max_completed_queue,
                                    Mutex* lock,
-                                   DirtyCardQueueSet* fl_owner,
                                    bool init_free_ids) {
   PtrQueueSet::initialize(cbl_mon,
-                          fl_lock,
+                          allocator,
                           process_completed_threshold,
-                          max_completed_queue,
-                          fl_owner);
-  set_buffer_size(G1UpdateBufferSize);
+                          max_completed_queue);
   _shared_dirty_card_queue.set_lock(lock);
   if (init_free_ids) {
     _free_ids = new FreeIdSet(num_par_ids(), _cbl_mon);
@@ -223,23 +221,22 @@ bool DirtyCardQueueSet::mut_process_buffer(BufferNode* node) {
 
 
 BufferNode* DirtyCardQueueSet::get_completed_buffer(size_t stop_at) {
-  BufferNode* nd = NULL;
   MutexLockerEx x(_cbl_mon, Mutex::_no_safepoint_check_flag);
 
   if (_n_completed_buffers <= stop_at) {
-    _process_completed = false;
     return NULL;
   }
 
-  if (_completed_buffers_head != NULL) {
-    nd = _completed_buffers_head;
-    assert(_n_completed_buffers > 0, "Invariant");
-    _completed_buffers_head = nd->next();
-    _n_completed_buffers--;
-    if (_completed_buffers_head == NULL) {
-      assert(_n_completed_buffers == 0, "Invariant");
-      _completed_buffers_tail = NULL;
-    }
+  assert(_n_completed_buffers > 0, "invariant");
+  assert(_completed_buffers_head != NULL, "invariant");
+  assert(_completed_buffers_tail != NULL, "invariant");
+
+  BufferNode* nd = _completed_buffers_head;
+  _completed_buffers_head = nd->next();
+  _n_completed_buffers--;
+  if (_completed_buffers_head == NULL) {
+    assert(_n_completed_buffers == 0, "Invariant");
+    _completed_buffers_tail = NULL;
   }
   DEBUG_ONLY(assert_completed_buffer_list_len_correct_locked());
   return nd;

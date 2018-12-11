@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
@@ -846,18 +847,43 @@ PSParallelCompact::IsAliveClosure PSParallelCompact::_is_alive_closure;
 
 bool PSParallelCompact::IsAliveClosure::do_object_b(oop p) { return mark_bitmap()->is_marked(p); }
 
+class PCReferenceProcessor: public ReferenceProcessor {
+public:
+  PCReferenceProcessor(
+    BoolObjectClosure* is_subject_to_discovery,
+    BoolObjectClosure* is_alive_non_header) :
+      ReferenceProcessor(is_subject_to_discovery,
+      ParallelRefProcEnabled && (ParallelGCThreads > 1), // mt processing
+      ParallelGCThreads,   // mt processing degree
+      true,                // mt discovery
+      ParallelGCThreads,   // mt discovery degree
+      true,                // atomic_discovery
+      is_alive_non_header) {
+  }
+
+  template<typename T> bool discover(oop obj, ReferenceType type) {
+    T* referent_addr = (T*) java_lang_ref_Reference::referent_addr_raw(obj);
+    T heap_oop = RawAccess<>::oop_load(referent_addr);
+    oop referent = CompressedOops::decode_not_null(heap_oop);
+    return PSParallelCompact::mark_bitmap()->is_unmarked(referent)
+        && ReferenceProcessor::discover_reference(obj, type);
+  }
+  virtual bool discover_reference(oop obj, ReferenceType type) {
+    if (UseCompressedOops) {
+      return discover<narrowOop>(obj, type);
+    } else {
+      return discover<oop>(obj, type);
+    }
+  }
+};
+
 void PSParallelCompact::post_initialize() {
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
   _span_based_discoverer.set_span(heap->reserved_region());
   _ref_processor =
-    new ReferenceProcessor(&_span_based_discoverer,
-                           ParallelRefProcEnabled && (ParallelGCThreads > 1), // mt processing
-                           ParallelGCThreads,   // mt processing degree
-                           true,                // mt discovery
-                           ParallelGCThreads,   // mt discovery degree
-                           true,                // atomic_discovery
-                           &_is_alive_closure,  // non-header is alive closure
-                           false);              // disable adjusting number of processing threads
+    new PCReferenceProcessor(&_span_based_discoverer,
+                             &_is_alive_closure); // non-header is alive closure
+
   _counters = new CollectorCounters("PSParallelCompact", 1);
 
   // Initialize static fields in ParCompactionManager.
@@ -973,7 +999,6 @@ void PSParallelCompact::pre_compact()
   heap->trace_heap_before_gc(&_gc_tracer);
 
   // Fill in TLABs
-  heap->accumulate_statistics_all_tlabs();
   heap->ensure_parsability(true);  // retire TLABs
 
   if (VerifyBeforeGC && heap->total_collections() >= VerifyGCStartAt) {
@@ -2001,15 +2026,15 @@ bool PSParallelCompact::absorb_live_data_from_eden(PSAdaptiveSizePolicy* size_po
     return false; // Respect young gen minimum size.
   }
 
-  log_trace(heap, ergo)(" absorbing " SIZE_FORMAT "K:  "
-                        "eden " SIZE_FORMAT "K->" SIZE_FORMAT "K "
-                        "from " SIZE_FORMAT "K, to " SIZE_FORMAT "K "
-                        "young_gen " SIZE_FORMAT "K->" SIZE_FORMAT "K ",
-                        absorb_size / K,
-                        eden_capacity / K, (eden_capacity - absorb_size) / K,
-                        young_gen->from_space()->used_in_bytes() / K,
-                        young_gen->to_space()->used_in_bytes() / K,
-                        young_gen->capacity_in_bytes() / K, new_young_size / K);
+  log_trace(gc, ergo, heap)(" absorbing " SIZE_FORMAT "K:  "
+                            "eden " SIZE_FORMAT "K->" SIZE_FORMAT "K "
+                            "from " SIZE_FORMAT "K, to " SIZE_FORMAT "K "
+                            "young_gen " SIZE_FORMAT "K->" SIZE_FORMAT "K ",
+                            absorb_size / K,
+                            eden_capacity / K, (eden_capacity - absorb_size) / K,
+                            young_gen->from_space()->used_in_bytes() / K,
+                            young_gen->to_space()->used_in_bytes() / K,
+                            young_gen->capacity_in_bytes() / K, new_young_size / K);
 
   // Fill the unused part of the old gen.
   MutableSpace* const old_space = old_gen->object_space();
@@ -2078,7 +2103,7 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
   TaskQueueSetSuper* qset = ParCompactionManager::stack_array();
   ParallelTaskTerminator terminator(active_gc_threads, qset);
 
-  ParCompactionManager::MarkAndPushClosure mark_and_push_closure(cm);
+  PCMarkAndPushClosure mark_and_push_closure(cm);
   ParCompactionManager::FollowStackClosure follow_stack_closure(cm);
 
   // Need new claim bits before marking starts.
@@ -2179,7 +2204,7 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   // Need new claim bits when tracing through and adjusting pointers.
   ClassLoaderDataGraph::clear_claimed_marks();
 
-  PSParallelCompact::AdjustPointerClosure oop_closure(cm);
+  PCAdjustPointerClosure oop_closure(cm);
 
   // General strong roots.
   Universe::oops_do(&oop_closure);
@@ -2189,7 +2214,7 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   Management::oops_do(&oop_closure);
   JvmtiExport::oops_do(&oop_closure);
   SystemDictionary::oops_do(&oop_closure);
-  CLDToOopClosure cld_closure(&oop_closure);
+  CLDToOopClosure cld_closure(&oop_closure, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::cld_do(&cld_closure);
 
   // Now adjust pointers in remaining weak roots.  (All of which should
@@ -3070,88 +3095,6 @@ void MoveAndUpdateClosure::copy_partial_obj()
     Copy::aligned_conjoint_words(source(), destination(), words);
   }
   update_state(words);
-}
-
-void InstanceKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  PSParallelCompact::AdjustPointerClosure closure(cm);
-  if (UseCompressedOops) {
-    oop_oop_iterate_oop_maps<narrowOop>(obj, &closure);
-  } else {
-    oop_oop_iterate_oop_maps<oop>(obj, &closure);
-  }
-}
-
-void InstanceMirrorKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  InstanceKlass::oop_pc_update_pointers(obj, cm);
-
-  PSParallelCompact::AdjustPointerClosure closure(cm);
-  if (UseCompressedOops) {
-    oop_oop_iterate_statics<narrowOop>(obj, &closure);
-  } else {
-    oop_oop_iterate_statics<oop>(obj, &closure);
-  }
-}
-
-void InstanceClassLoaderKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  InstanceKlass::oop_pc_update_pointers(obj, cm);
-}
-
-#ifdef ASSERT
-template <class T> static void trace_reference_gc(const char *s, oop obj,
-                                                  T* referent_addr,
-                                                  T* discovered_addr) {
-  log_develop_trace(gc, ref)("%s obj " PTR_FORMAT, s, p2i(obj));
-  log_develop_trace(gc, ref)("     referent_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-                             p2i(referent_addr), referent_addr ? p2i((oop)RawAccess<>::oop_load(referent_addr)) : NULL);
-  log_develop_trace(gc, ref)("     discovered_addr/* " PTR_FORMAT " / " PTR_FORMAT,
-                             p2i(discovered_addr), discovered_addr ? p2i((oop)RawAccess<>::oop_load(discovered_addr)) : NULL);
-}
-#endif
-
-template <class T>
-static void oop_pc_update_pointers_specialized(oop obj, ParCompactionManager* cm) {
-  T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
-  PSParallelCompact::adjust_pointer(referent_addr, cm);
-  T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
-  PSParallelCompact::adjust_pointer(discovered_addr, cm);
-  debug_only(trace_reference_gc("InstanceRefKlass::oop_update_ptrs", obj,
-                                referent_addr, discovered_addr);)
-}
-
-void InstanceRefKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  InstanceKlass::oop_pc_update_pointers(obj, cm);
-
-  if (UseCompressedOops) {
-    oop_pc_update_pointers_specialized<narrowOop>(obj, cm);
-  } else {
-    oop_pc_update_pointers_specialized<oop>(obj, cm);
-  }
-}
-
-void ObjArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  assert(obj->is_objArray(), "obj must be obj array");
-  PSParallelCompact::AdjustPointerClosure closure(cm);
-  if (UseCompressedOops) {
-    oop_oop_iterate_elements<narrowOop>(objArrayOop(obj), &closure);
-  } else {
-    oop_oop_iterate_elements<oop>(objArrayOop(obj), &closure);
-  }
-}
-
-void TypeArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  assert(obj->is_typeArray(),"must be a type array");
-}
-
-void ValueArrayKlass::oop_pc_update_pointers(oop obj, ParCompactionManager* cm) {
-  assert(obj->is_valueArray(),"must be a value array");
-  if (contains_oops()) {
-    PSParallelCompact::AdjustPointerClosure closure(cm);
-    if (UseCompressedOops) {
-      oop_oop_iterate_elements<narrowOop>(valueArrayOop(obj), &closure);
-    } else {
-      oop_oop_iterate_elements<oop>(valueArrayOop(obj), &closure);
-    }
-  }
 }
 
 ParMarkBitMapClosure::IterationStatus

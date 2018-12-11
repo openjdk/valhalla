@@ -29,9 +29,7 @@
 #include "jvmti_tools.h"
 #include "agent_common.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 //expected values
 #define EXPECTED_PRIMITIVES 2
@@ -64,7 +62,7 @@ jint JNICALL field_callback(jvmtiHeapReferenceKind kind,
                             jvmtiPrimitiveType value_type,
                             void* user_data) {
   //nothing should be reported in ZERO_INVOCATIONS_PHASE
-  if(phase == ZERO_INVOCATIONS_PHASE) {
+  if (phase == ZERO_INVOCATIONS_PHASE) {
     NSK_COMPLAIN2("jvmtiPrimitiveFieldCallback was invoked for a field with "
                   "class tag 0x%lX and object tag 0x%lX during iteration with "
                   "interface or abstract class as a filter.\n",
@@ -72,10 +70,10 @@ jint JNICALL field_callback(jvmtiHeapReferenceKind kind,
     nsk_jvmti_setFailStatus();
   } else {
     int i;
-    if(value_type != JVMTI_PRIMITIVE_TYPE_LONG)
+    if (value_type != JVMTI_PRIMITIVE_TYPE_LONG)
       return 0;
 
-    if(IS_FIELD_UNEXPECTED(value.j)) {
+    if (IS_FIELD_UNEXPECTED(value.j)) {
       NSK_COMPLAIN3("Unexpected value 0x%lX was repotrted by "
                     "jvmtiPrimitiveFieldCallback for an object with "
                     "class tag 0x%lX and object tag 0x%lX.\n",
@@ -85,8 +83,8 @@ jint JNICALL field_callback(jvmtiHeapReferenceKind kind,
     }
 
     //find reported field in expected values
-    for(i = 0; i < EXPECTED_PRIMITIVES; i++) {
-      if(expected_values[i] == value.j)
+    for (i = 0; i < EXPECTED_PRIMITIVES; i++) {
+      if (expected_values[i] == value.j)
         occurancies[i]++;
     }
 
@@ -125,7 +123,7 @@ jint JNICALL heap_callback(jlong class_tag,
                            jint length,
                            void* user_data) {
   //nothing should be reported in ZERO_INVOCATIONS_PHASE
-  if(phase == ZERO_INVOCATIONS_PHASE) {
+  if (phase == ZERO_INVOCATIONS_PHASE) {
     NSK_COMPLAIN2("jvmtiHeapIterationCallback was invoked for an object with "
                   "class tag 0x%lX and object tag 0x%lX during iteration with "
                   "interface or abstract class as a klass-filter.\n",
@@ -143,10 +141,10 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
   int i;
 
   NSK_DISPLAY0("Waiting debugee.\n");
-  if(!NSK_VERIFY(nsk_jvmti_enableEvents(JVMTI_ENABLE, 1, &event, NULL))) {
+  if (!NSK_VERIFY(nsk_jvmti_enableEvents(JVMTI_ENABLE, 1, &event, NULL))) {
     return;
   }
-  if(!NSK_VERIFY(nsk_jvmti_waitForSync(timeout))) {
+  if (!NSK_VERIFY(nsk_jvmti_waitForSync(timeout))) {
     return;
   }
 
@@ -157,15 +155,14 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
   primitive_callbacks.heap_iteration_callback = &heap_callback;
 
   phase = ZERO_INVOCATIONS_PHASE;
-  for(i = 0; i < FILTER_COUNT; i++) {
-    if(!NSK_VERIFY(NULL != (klass = NSK_CPP_STUB2(FindClass, jni, types[i])))) {
+  for (i = 0; i < FILTER_COUNT; i++) {
+    if (!NSK_VERIFY(NULL != (klass = jni->FindClass(types[i])))) {
       NSK_COMPLAIN1("Can't find class %s.\n",types[i]);
       nsk_jvmti_setFailStatus();
       return;
     }
     NSK_DISPLAY1("Iterating through heap with klass-filter '%s'.\n",types[i]);
-    if(!NSK_JVMTI_VERIFY(NSK_CPP_STUB5(IterateThroughHeap, jvmti,
-                                       0, klass, &primitive_callbacks, NULL))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateThroughHeap(0, klass, &primitive_callbacks, NULL))) {
       nsk_jvmti_setFailStatus();
       return;
     }
@@ -173,18 +170,17 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
   phase = STATIC_FIELDS_FINDING_PHASE;
   NSK_DISPLAY0("Iterating through heap with klass-filter 'java/lang/Class'.\n");
-  if(!NSK_VERIFY(NULL != (klass = NSK_CPP_STUB2(FindClass, jni, "java/lang/Class")))) {
+  if (!NSK_VERIFY(NULL != (klass = jni->FindClass("java/lang/Class")))) {
     NSK_COMPLAIN0("Can't find class java/lang/Class.\n");
     nsk_jvmti_setFailStatus();
     return;
   }
-  if(!NSK_JVMTI_VERIFY(NSK_CPP_STUB5(IterateThroughHeap, jvmti,
-                                     0, klass, &primitive_callbacks, NULL))) {
+  if (!NSK_JVMTI_VERIFY(jvmti->IterateThroughHeap(0, klass, &primitive_callbacks, NULL))) {
     nsk_jvmti_setFailStatus();
     return;
   }
-  for(i = 0; i < EXPECTED_PRIMITIVES; i++) {
-    if(occurancies[i] != EXPECTED_OCCURANCE_COUNT) {
+  for (i = 0; i < EXPECTED_PRIMITIVES; i++) {
+    if (occurancies[i] != EXPECTED_OCCURANCE_COUNT) {
       NSK_COMPLAIN3("Primitive static field with value 0x%lX was reported "
                     "%d times while expected to be reported %d times.\n",
                     expected_values[i], occurancies[i], EXPECTED_OCCURANCE_COUNT);
@@ -192,7 +188,7 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
     }
   }
 
-  if(!NSK_VERIFY(nsk_jvmti_resumeSync()))
+  if (!NSK_VERIFY(nsk_jvmti_resumeSync()))
     return;
 }
 
@@ -212,7 +208,8 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   jvmtiCapabilities caps;
   jvmtiEventCallbacks event_callbacks;
 
-  if(!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL)) {
+  jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+  if (!NSK_VERIFY(jvmti != NULL)) {
     return JNI_ERR;
   }
 
@@ -224,14 +221,12 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   caps.can_tag_objects = 1;
   caps.can_generate_object_free_events = 1;
 
-  if(!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+  if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
     return JNI_ERR;
   }
 
   memset(&event_callbacks, 0, sizeof(jvmtiEventCallbacks));
-  if(!NSK_JVMTI_VERIFY(
-                       NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                     &event_callbacks, sizeof(jvmtiEventCallbacks)))) {
+  if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&event_callbacks, sizeof(jvmtiEventCallbacks)))) {
     return JNI_ERR;
   }
 
@@ -242,6 +237,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

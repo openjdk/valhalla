@@ -55,7 +55,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         VERSIONINFO_RESOURCE := $(ROOT_SRCDIR)/common/AccessBridgeStatusWindow.rc, \
     )
 
-    $$(BUILD_JAVAACCESSBRIDGE$1): $(SUPPORT_OUTPUTDIR)/native/java.desktop/libjawt/jawt.lib
+    $$(BUILD_JAVAACCESSBRIDGE$1): $(call FindStaticLib, java.desktop, jawt, /libjawt)
 
     TARGETS += $$(BUILD_JAVAACCESSBRIDGE$1)
   endef
@@ -69,7 +69,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
         EXTRA_SRC := common, \
         OPTIMIZATION := LOW, \
         DISABLED_WARNINGS_microsoft := 4311 4302 4312, \
-        CFLAGS := $(filter-out -MD, $(CFLAGS_JDKLIB)) -MT \
+        CFLAGS := $(CFLAGS_JDKLIB) \
             -DACCESSBRIDGE_ARCH_$2, \
         EXTRA_HEADER_DIRS := \
             include/bridge \

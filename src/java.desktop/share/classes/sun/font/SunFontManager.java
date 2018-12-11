@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,7 +145,7 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
       */
      // MACOSX begin -- need to access these in subclass
      protected static final int CHANNELPOOLSIZE = 20;
-     protected FileFont fontFileCache[] = new FileFont[CHANNELPOOLSIZE];
+     protected FileFont[] fontFileCache = new FileFont[CHANNELPOOLSIZE];
      // MACOSX end
      private int lastPoolIndex = 0;
 
@@ -2740,7 +2740,7 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
                 new java.security.PrivilegedAction<Object>() {
                         public Object run() {
                             SecurityManager sm = System.getSecurityManager();
-                            return sm instanceof sun.applet.AppletSecurity;
+                            return sm instanceof sun.awt.AWTSecurityManager;
                         }
                     });
         return appletSM.booleanValue();

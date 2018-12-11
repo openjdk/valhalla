@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define STATUS_FAILED 2
 #define PASSED 0
@@ -101,7 +88,8 @@ int suspThread(jint vrb, jobject susThr) {
         printf(">>>>>>>> Invoke SuspendThread()\n");
         fflush(stdout);
     }
-    if ((err = (jvmti->SuspendThread(susThr))) != JVMTI_ERROR_NONE) {
+    err = jvmti->SuspendThread(susThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call SuspendThread(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         return JNI_ERR;
@@ -124,7 +112,8 @@ int resThread(jint vrb, jobject susThr) {
         printf(">>>>>>>> Invoke ResumeThread()\n");
         fflush(stdout);
     }
-    if ((err = (jvmti->ResumeThread(susThr))) != JVMTI_ERROR_NONE) {
+    err = jvmti->ResumeThread(susThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call ResumeThread(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         return JNI_ERR;
@@ -173,7 +162,8 @@ Java_nsk_jvmti_PopFrame_popframe004_doPopFrame(JNIEnv *env, jclass cls, jint t_c
     }
     set_watch_ev(1); /* watch JVMTI events */
 
-    if ((err = (jvmti->PopFrame(frameThr))) == JVMTI_ERROR_NONE) {
+    err = jvmti->PopFrame(frameThr);
+    if (err == JVMTI_ERROR_NONE) {
         printf("Check #%d FAILED: PopFrame() was unexpectedly done\n", t_case);
         tot_result = STATUS_FAILED;
     } else if (err != JVMTI_ERROR_NO_MORE_FRAMES &&
@@ -220,8 +210,7 @@ jint  Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong result of a valid call to GetEnv!\n");
         return JNI_ERR;
@@ -289,12 +278,11 @@ Java_nsk_jvmti_PopFrame_popframe004_getResult(JNIEnv *env, jclass cls) {
 
 void nativeMeth2(JNIEnv *env, jobject obj, jint vrb,
         jobject frameThr) {
-    jclass cls =
-        JNI_ENV_PTR(env)->GetObjectClass(JNI_ENV_ARG(env, frameThr));
+    jclass cls = env->GetObjectClass(frameThr);
     jmethodID mid = NULL;
 
-    if ((mid = JNI_ENV_PTR(env)->GetMethodID(JNI_ENV_ARG(env, cls),
-        "activeMethod", "()V")) == NULL) {
+    mid = env->GetMethodID(cls, "activeMethod", "()V");
+    if (mid == NULL) {
         printf("TEST FAILURE: nativeMeth2(): Unable to get method ID\n");
         tot_result = STATUS_FAILED;
         return;
@@ -303,7 +291,7 @@ void nativeMeth2(JNIEnv *env, jobject obj, jint vrb,
         printf("nativeMeth2(): calling the Java activeMethod()\n");
         fflush(stdout);
     }
-    JNI_ENV_PTR(env)->CallVoidMethod(JNI_ENV_ARG(env, frameThr), mid);
+    env->CallVoidMethod(frameThr, mid);
 }
 
 JNIEXPORT void JNICALL
@@ -316,6 +304,4 @@ Java_nsk_jvmti_PopFrame_popframe004_nativeMeth(JNIEnv *env, jobject obj, jint vr
     nativeMeth2(env, obj, vrb, frameThr);
 }
 
-#ifdef __cplusplus
 }
-#endif

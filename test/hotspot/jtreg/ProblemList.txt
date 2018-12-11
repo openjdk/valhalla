@@ -59,6 +59,8 @@ applications/ctw/modules/jdk_jconsole.java 8189604 windows-all
 
 compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java 8190680 generic-all
 
+compiler/runtime/Test8168712.java 8211769,8211771 generic-ppc64,generic-ppc64le,linux-s390x
+
 #############################################################################
 
 # :hotspot_gc
@@ -81,6 +83,7 @@ gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java 8193639 solaris-all
 
 runtime/appcds/javaldr/GCSharedStringsDuringDump.java 8208778 macosx-x64
 runtime/appcds/javaldr/GCDuringDump.java 8208778 macosx-x64
+runtime/appcds/jigsaw/classpathtests/EmptyClassInBootClassPath.java 8213299 generic-all
 runtime/CompressedOops/UseCompressedOops.java 8079353 generic-all
 runtime/RedefineTests/RedefineRunningMethods.java 8208778 macosx-x64
 runtime/SharedArchiveFile/SASymbolTableTest.java 8193639 solaris-all
@@ -112,50 +115,52 @@ runtime/appcds/sharedStrings/SharedStringsBasic.java 8210258 generic-all
 
 serviceability/sa/ClhsdbAttach.java 8193639 solaris-all
 serviceability/sa/ClhsdbCDSCore.java 8193639 solaris-all
-serviceability/sa/ClhsdbCDSJstackPrintAll.java 8193639 solaris-all
+serviceability/sa/ClhsdbCDSJstackPrintAll.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/CDSJMapClstats.java 8193639 solaris-all
 serviceability/sa/ClhsdbField.java 8193639 solaris-all
-serviceability/sa/ClhsdbFindPC.java 8193639 solaris-all
+serviceability/sa/ClhsdbFindPC.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbFlags.java 8193639 solaris-all
-serviceability/sa/ClhsdbInspect.java 8193639 solaris-all
-serviceability/sa/ClhsdbJdis.java 8193639 solaris-all
-serviceability/sa/ClhsdbJhisto.java 8193639 solaris-all
-serviceability/sa/ClhsdbJstack.java 8193639 solaris-all
+serviceability/sa/ClhsdbInspect.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/ClhsdbJdis.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/ClhsdbJhisto.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/ClhsdbJstack.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbLongConstant.java 8193639 solaris-all
-serviceability/sa/ClhsdbPmap.java 8193639 solaris-all
+serviceability/sa/ClhsdbPmap.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbPrintAll.java 8193639 solaris-all
-serviceability/sa/ClhsdbPrintAs.java 8193639 solaris-all
+serviceability/sa/ClhsdbPrintAs.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbPrintStatics.java 8193639 solaris-all
-serviceability/sa/ClhsdbPstack.java 8193639 solaris-all
+serviceability/sa/ClhsdbPstack.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbRegionDetailsScanOopsForG1.java 8193639 solaris-all
-serviceability/sa/ClhsdbScanOops.java 8193639 solaris-all
-serviceability/sa/ClhsdbSource.java 8193639 solaris-all
+serviceability/sa/ClhsdbScanOops.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/ClhsdbSource.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbSymbol.java 8193639 solaris-all
 serviceability/sa/ClhsdbSymbolTable.java 8193639 solaris-all
-serviceability/sa/ClhsdbThread.java 8193639 solaris-all
+serviceability/sa/ClhsdbThread.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbVmStructsDump.java 8193639 solaris-all
-serviceability/sa/ClhsdbWhere.java 8193639 solaris-all
-serviceability/sa/DeadlockDetectionTest.java 8193639 solaris-all
-serviceability/sa/JhsdbThreadInfoTest.java 8193639 solaris-all
+serviceability/sa/ClhsdbWhere.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/DeadlockDetectionTest.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/JhsdbThreadInfoTest.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8193639 solaris-all
 serviceability/sa/sadebugd/SADebugDTest.java 8163805 generic-all
 serviceability/sa/TestClassDump.java 8193639 solaris-all
-serviceability/sa/TestClhsdbJstackLock.java 8193639 solaris-all
-serviceability/sa/TestCpoolForInvokeDynamic.java 8193639 solaris-all
+serviceability/sa/TestClhsdbJstackLock.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/TestCpoolForInvokeDynamic.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/TestDefaultMethods.java 8193639 solaris-all
 serviceability/sa/TestG1HeapRegion.java 8193639 solaris-all
 serviceability/sa/TestHeapDumpForInvokeDynamic.java 8193639 solaris-all
 serviceability/sa/TestHeapDumpForLargeArray.java 8193639 solaris-all
 serviceability/sa/TestInstanceKlassSize.java 8193639 solaris-all
 serviceability/sa/TestInstanceKlassSizeForInterface.java 8193639 solaris-all
-serviceability/sa/TestIntConstant.java 8193639 solaris-all
-serviceability/sa/TestJhsdbJstackLock.java 8193639 solaris-all
+serviceability/sa/TestIntConstant.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+serviceability/sa/TestJhsdbJstackLock.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/TestJmapCore.java 8193639 solaris-all
 serviceability/sa/TestJmapCoreMetaspace.java 8193639 solaris-all
 serviceability/sa/TestPrintMdo.java 8193639 solaris-all
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8191270 generic-all
 serviceability/sa/TestType.java 8193639 solaris-all
-serviceability/sa/TestUniverse.java#id0 8193639 solaris-all
+serviceability/sa/TestUniverse.java#id0 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
+
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorStatIntervalTest.java 8214032 generic-all
 
 # Valhalla TODO:
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
@@ -227,10 +232,7 @@ vmTestbase/nsk/jvmti/ResourceExhausted/resexhausted001/TestDescription.java 7013
 vmTestbase/nsk/jvmti/ResourceExhausted/resexhausted003/TestDescription.java 6606767 generic-all
 vmTestbase/nsk/jvmti/ResourceExhausted/resexhausted004/TestDescription.java 7013634,6606767 generic-all
 vmTestbase/nsk/jvmti/ThreadStart/threadstart001/TestDescription.java 8016181 generic-all
-vmTestbase/nsk/jvmti/scenarios/allocation/AP10/ap10t001/TestDescription.java 8210131 generic-all
 vmTestbase/nsk/jvmti/scenarios/extension/EX03/ex03t001/TestDescription.java 8173658 generic-all
-vmTestbase/nsk/jvmti/scenarios/hotswap/HS102/hs102t002/TestDescription.java 8204506,8203350 generic-all
-vmTestbase/nsk/jvmti/scenarios/hotswap/HS204/hs204t001/hs204t001.java 6813266 generic-all
 vmTestbase/nsk/jvmti/scenarios/sampling/SP06/sp06t003/TestDescription.java 8051349 generic-all
 vmTestbase/nsk/jvmti/AttachOnDemand/attach034/TestDescription.java 8042145 generic-all
 vmTestbase/nsk/jvmti/AttachOnDemand/attach045/TestDescription.java 8202971 generic-all
@@ -260,12 +262,5 @@ vmTestbase/vm/mlvm/indy/func/jvmti/mergeCP_indy2manySame_b/TestDescription.java 
 
 
 vmTestbase/nsk/jdwp/ThreadReference/ForceEarlyReturn/forceEarlyReturn001/forceEarlyReturn001.java 7199837 generic-all
-
-vmTestbase/metaspace/stressHierarchy/stressHierarchy007/TestDescription.java 8208697 generic-all
-vmTestbase/metaspace/stressHierarchy/stressHierarchy008/TestDescription.java 8208697 generic-all
-vmTestbase/metaspace/stressHierarchy/stressHierarchy009/TestDescription.java 8208697 generic-all
-vmTestbase/metaspace/stressHierarchy/stressHierarchy010/TestDescription.java 8208697 generic-all
-vmTestbase/metaspace/stressHierarchy/stressHierarchy011/TestDescription.java 8208697 generic-all
-vmTestbase/metaspace/stressHierarchy/stressHierarchy012/TestDescription.java 8208697 generic-all
 
 #############################################################################

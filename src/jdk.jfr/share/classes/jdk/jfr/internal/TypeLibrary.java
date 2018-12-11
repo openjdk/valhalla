@@ -49,7 +49,6 @@ import java.util.stream.Stream;
 
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Description;
-import jdk.jfr.Event;
 import jdk.jfr.Label;
 import jdk.jfr.MetadataDefinition;
 import jdk.jfr.Name;
@@ -69,7 +68,7 @@ public final class TypeLibrary {
 
     private TypeLibrary(List<Type> jvmTypes) {
         visitReachable(jvmTypes, t -> !types.containsKey(t.getId()), t -> types.put(t.getId(), t));
-        if (LogTag.JFR_SYSTEM_METADATA.shouldLog(LogLevel.INFO.level)) {
+        if (Logger.shouldLog(LogTag.JFR_SYSTEM_METADATA, LogLevel.INFO)) {
             Stream<Type> s = types.values().stream().sorted((x, y) -> Long.compare(x.getId(), y.getId()));
             s.forEach(t -> t.log("Added", LogTag.JFR_SYSTEM_METADATA, LogLevel.INFO));
         }
@@ -240,7 +239,7 @@ public final class TypeLibrary {
         // STRUCT
         String superType = null;
         boolean eventType = false;
-        if (Event.class.isAssignableFrom(clazz)) {
+        if (jdk.internal.event.Event.class.isAssignableFrom(clazz)) {
             superType = Type.SUPER_TYPE_EVENT;
             eventType= true;
         }
@@ -423,7 +422,7 @@ public final class TypeLibrary {
         for (Type type :  types.values()) {
             if (type.getRemove() && !Type.isDefinedByJVM(type.getId())) {
                 removeIds.add(type.getId());
-                if (LogTag.JFR_METADATA.shouldLog(LogLevel.TRACE.level)) {
+                if (Logger.shouldLog(LogTag.JFR_METADATA, LogLevel.TRACE)) {
                     Logger.log(LogTag.JFR_METADATA, LogLevel.TRACE, "Removed obsolete metadata " + type.getName());
                 }
             }
@@ -488,5 +487,9 @@ public final class TypeLibrary {
             }
             aQ.addAll(ae.getAnnotationElements());
         }
+    }
+
+    public void removeType(long id) {
+        types.remove(id);
     }
 }

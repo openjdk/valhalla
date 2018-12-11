@@ -25,17 +25,21 @@
 #include "precompiled.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "opto/arraycopynode.hpp"
+#include "opto/convertnode.hpp"
 #include "opto/graphKit.hpp"
 #include "opto/idealKit.hpp"
+#include "opto/macro.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "utilities/macros.hpp"
 
 // By default this is a no-op.
 void BarrierSetC2::resolve_address(C2Access& access) const { }
 
-void* C2Access::barrier_set_state() const {
+void* C2ParseAccess::barrier_set_state() const {
   return _kit->barrier_set_state();
 }
+
+PhaseGVN& C2ParseAccess::gvn() const { return _kit->gvn(); }
 
 bool C2Access::needs_cpu_membar() const {
   bool mismatched = (_decorators & C2_MISMATCHED) != 0;
@@ -68,7 +72,6 @@ bool C2Access::needs_cpu_membar() const {
 
 Node* BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
   DecoratorSet decorators = access.decorators();
-  GraphKit* kit = access.kit();
 
   bool mismatched = (decorators & C2_MISMATCHED) != 0;
   bool unaligned = (decorators & C2_UNALIGNED) != 0;
@@ -77,22 +80,49 @@ Node* BarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) cons
   bool in_native = (decorators & IN_NATIVE) != 0;
   assert(!in_native, "not supported yet");
 
-  if (access.type() == T_DOUBLE) {
-    Node* new_val = kit->dstore_rounding(val.node());
-    val.set_node(new_val);
-  }
-
   MemNode::MemOrd mo = access.mem_node_mo();
 
-  Node* store = kit->store_to_memory(kit->control(), access.addr().node(), val.node(), access.type(),
+  Node* store;
+  if (access.is_parse_access()) {
+    C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
+
+    GraphKit* kit = parse_access.kit();
+    if (access.type() == T_DOUBLE) {
+      Node* new_val = kit->dstore_rounding(val.node());
+      val.set_node(new_val);
+    }
+
+    store = kit->store_to_memory(kit->control(), access.addr().node(), val.node(), access.type(),
                                      access.addr().type(), mo, requires_atomic_access, unaligned, mismatched);
-  access.set_raw_access(store);
+    access.set_raw_access(store);
+  } else {
+    assert(!requires_atomic_access, "not yet supported");
+    assert(access.is_opt_access(), "either parse or opt access");
+    C2OptAccess& opt_access = static_cast<C2OptAccess&>(access);
+    Node* ctl = opt_access.ctl();
+    MergeMemNode* mm = opt_access.mem();
+    PhaseGVN& gvn = opt_access.gvn();
+    const TypePtr* adr_type = access.addr().type();
+    int alias = gvn.C->get_alias_index(adr_type);
+    Node* mem = mm->memory_at(alias);
+
+    StoreNode* st = StoreNode::make(gvn, ctl, mem, access.addr().node(), adr_type, val.node(), access.type(), mo);
+    if (unaligned) {
+      st->set_unaligned_access();
+    }
+    if (mismatched) {
+      st->set_mismatched_access();
+    }
+    store = gvn.transform(st);
+    if (store == st) {
+      mm->set_memory_at(alias, st);
+    }
+  }
   return store;
 }
 
 Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) const {
   DecoratorSet decorators = access.decorators();
-  GraphKit* kit = access.kit();
 
   Node* adr = access.addr().node();
   const TypePtr* adr_type = access.addr().type();
@@ -107,16 +137,31 @@ Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) con
 
   MemNode::MemOrd mo = access.mem_node_mo();
   LoadNode::ControlDependency dep = pinned ? LoadNode::Pinned : LoadNode::DependsOnlyOnTest;
-  Node* control = control_dependent ? kit->control() : NULL;
 
   Node* load;
-  if (in_native) {
-    load = kit->make_load(control, adr, val_type, access.type(), mo);
+  if (access.is_parse_access()) {
+    C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
+    GraphKit* kit = parse_access.kit();
+    Node* control = control_dependent ? kit->control() : NULL;
+
+    if (in_native) {
+      load = kit->make_load(control, adr, val_type, access.type(), mo);
+    } else {
+      load = kit->make_load(control, adr, val_type, access.type(), adr_type, mo,
+                            dep, requires_atomic_access, unaligned, mismatched);
+    }
+    access.set_raw_access(load);
   } else {
-    load = kit->make_load(control, adr, val_type, access.type(), adr_type, mo,
-                          dep, requires_atomic_access, unaligned, mismatched);
+    assert(!requires_atomic_access, "not yet supported");
+    assert(access.is_opt_access(), "either parse or opt access");
+    C2OptAccess& opt_access = static_cast<C2OptAccess&>(access);
+    Node* control = control_dependent ? opt_access.ctl() : NULL;
+    MergeMemNode* mm = opt_access.mem();
+    PhaseGVN& gvn = opt_access.gvn();
+    Node* mem = mm->memory_at(gvn.C->get_alias_index(adr_type));
+    load = LoadNode::make(gvn, control, mem, adr, adr_type, val_type, access.type(), mo, dep, unaligned, mismatched);
+    load = gvn.transform(load);
   }
-  access.set_raw_access(load);
 
   return load;
 }
@@ -128,7 +173,11 @@ class C2AccessFence: public StackObj {
 public:
   C2AccessFence(C2Access& access) :
     _access(access), _leading_membar(NULL) {
-    GraphKit* kit = access.kit();
+    GraphKit* kit = NULL;
+    if (access.is_parse_access()) {
+      C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
+      kit = parse_access.kit();
+    }
     DecoratorSet decorators = access.decorators();
 
     bool is_write = (decorators & C2_WRITE_ACCESS) != 0;
@@ -139,6 +188,7 @@ public:
     bool is_release = (decorators & MO_RELEASE) != 0;
 
     if (is_atomic) {
+      assert(kit != NULL, "unsupported at optimization time");
       // Memory-model-wise, a LoadStore acts like a little synchronized
       // block, so needs barriers on each side.  These don't translate
       // into actual barriers on most machines, but we still need rest of
@@ -157,6 +207,7 @@ public:
       // floating down past the volatile write.  Also prevents commoning
       // another volatile read.
       if (is_volatile || is_release) {
+        assert(kit != NULL, "unsupported at optimization time");
         _leading_membar = kit->insert_mem_bar(Op_MemBarRelease);
       }
     } else {
@@ -166,11 +217,13 @@ public:
       // so there's no problems making a strong assert about mixing users
       // of safe & unsafe memory.
       if (is_volatile && support_IRIW_for_not_multiple_copy_atomic_cpu) {
+        assert(kit != NULL, "unsupported at optimization time");
         _leading_membar = kit->insert_mem_bar(Op_MemBarVolatile);
       }
     }
 
     if (access.needs_cpu_membar()) {
+      assert(kit != NULL, "unsupported at optimization time");
       kit->insert_mem_bar(Op_MemBarCPUOrder);
     }
 
@@ -183,7 +236,11 @@ public:
   }
 
   ~C2AccessFence() {
-    GraphKit* kit = _access.kit();
+    GraphKit* kit = NULL;
+    if (_access.is_parse_access()) {
+      C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(_access);
+      kit = parse_access.kit();
+    }
     DecoratorSet decorators = _access.decorators();
 
     bool is_write = (decorators & C2_WRITE_ACCESS) != 0;
@@ -200,6 +257,7 @@ public:
     }
 
     if (is_atomic) {
+      assert(kit != NULL, "unsupported at optimization time");
       if (is_acquire || is_volatile) {
         Node* n = _access.raw_access();
         Node* mb = kit->insert_mem_bar(Op_MemBarAcquire, n);
@@ -210,6 +268,7 @@ public:
     } else if (is_write) {
       // If not multiple copy atomic, we do the MemBarVolatile before the load.
       if (is_volatile && !support_IRIW_for_not_multiple_copy_atomic_cpu) {
+        assert(kit != NULL, "unsupported at optimization time");
         Node* n = _access.raw_access();
         Node* mb = kit->insert_mem_bar(Op_MemBarVolatile, n); // Use fat membar
         if (_leading_membar != NULL) {
@@ -218,6 +277,7 @@ public:
       }
     } else {
       if (is_volatile || is_acquire) {
+        assert(kit != NULL, "unsupported at optimization time");
         Node* n = _access.raw_access();
         assert(_leading_membar == NULL || support_IRIW_for_not_multiple_copy_atomic_cpu, "no leading membar expected");
         Node* mb = kit->insert_mem_bar(Op_MemBarAcquire, n);
@@ -293,7 +353,7 @@ void C2Access::fixup_decorators() {
     if (!needs_cpu_membar() && adr_type->isa_instptr()) {
       assert(adr_type->meet(TypePtr::NULL_PTR) != adr_type->remove_speculative(), "should be not null");
       intptr_t offset = Type::OffsetBot;
-      AddPNode::Ideal_base_and_offset(adr, &_kit->gvn(), offset);
+      AddPNode::Ideal_base_and_offset(adr, &gvn(), offset);
       if (offset >= 0) {
         int s = Klass::layout_helper_size_in_bytes(adr_type->isa_instptr()->klass()->layout_helper());
         if (offset < s) {
@@ -308,26 +368,28 @@ void C2Access::fixup_decorators() {
 
 //--------------------------- atomic operations---------------------------------
 
-static void pin_atomic_op(C2AtomicAccess& access) {
+void BarrierSetC2::pin_atomic_op(C2AtomicParseAccess& access) const {
   if (!access.needs_pinning()) {
     return;
   }
   // SCMemProjNodes represent the memory state of a LoadStore. Their
   // main role is to prevent LoadStore nodes from being optimized away
   // when their results aren't used.
-  GraphKit* kit = access.kit();
+  assert(access.is_parse_access(), "entry not supported at optimization time");
+  C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
+  GraphKit* kit = parse_access.kit();
   Node* load_store = access.raw_access();
   assert(load_store != NULL, "must pin atomic op");
   Node* proj = kit->gvn().transform(new SCMemProjNode(load_store));
   kit->set_memory(proj, access.alias_idx());
 }
 
-void C2AtomicAccess::set_memory() {
+void C2AtomicParseAccess::set_memory() {
   Node *mem = _kit->memory(_alias_idx);
   _memory = mem;
 }
 
-Node* BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access, Node* expected_val,
+Node* BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                    Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
   MemNode::MemOrd mo = access.mem_node_mo();
@@ -384,7 +446,7 @@ Node* BarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access, Node*
   return load_store;
 }
 
-Node* BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Node* expected_val,
+Node* BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                     Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
   DecoratorSet decorators = access.decorators();
@@ -458,7 +520,7 @@ Node* BarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Node
   return load_store;
 }
 
-Node* BarrierSetC2::atomic_xchg_at_resolved(C2AtomicAccess& access, Node* new_val, const Type* value_type) const {
+Node* BarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
   GraphKit* kit = access.kit();
   Node* mem = access.memory();
   Node* adr = access.addr().node();
@@ -506,7 +568,7 @@ Node* BarrierSetC2::atomic_xchg_at_resolved(C2AtomicAccess& access, Node* new_va
   return load_store;
 }
 
-Node* BarrierSetC2::atomic_add_at_resolved(C2AtomicAccess& access, Node* new_val, const Type* value_type) const {
+Node* BarrierSetC2::atomic_add_at_resolved(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
   Node* load_store = NULL;
   GraphKit* kit = access.kit();
   Node* adr = access.addr().node();
@@ -536,27 +598,27 @@ Node* BarrierSetC2::atomic_add_at_resolved(C2AtomicAccess& access, Node* new_val
   return load_store;
 }
 
-Node* BarrierSetC2::atomic_cmpxchg_val_at(C2AtomicAccess& access, Node* expected_val,
+Node* BarrierSetC2::atomic_cmpxchg_val_at(C2AtomicParseAccess& access, Node* expected_val,
                                           Node* new_val, const Type* value_type) const {
   C2AccessFence fence(access);
   resolve_address(access);
   return atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
 }
 
-Node* BarrierSetC2::atomic_cmpxchg_bool_at(C2AtomicAccess& access, Node* expected_val,
+Node* BarrierSetC2::atomic_cmpxchg_bool_at(C2AtomicParseAccess& access, Node* expected_val,
                                            Node* new_val, const Type* value_type) const {
   C2AccessFence fence(access);
   resolve_address(access);
   return atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
 }
 
-Node* BarrierSetC2::atomic_xchg_at(C2AtomicAccess& access, Node* new_val, const Type* value_type) const {
+Node* BarrierSetC2::atomic_xchg_at(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
   C2AccessFence fence(access);
   resolve_address(access);
   return atomic_xchg_at_resolved(access, new_val, value_type);
 }
 
-Node* BarrierSetC2::atomic_add_at(C2AtomicAccess& access, Node* new_val, const Type* value_type) const {
+Node* BarrierSetC2::atomic_add_at(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const {
   C2AccessFence fence(access);
   resolve_address(access);
   return atomic_add_at_resolved(access, new_val, value_type);
@@ -574,12 +636,145 @@ void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* co
 
   const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
 
-  ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, NULL, dst_base, NULL, countx, false, false);
+  ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, NULL, dst_base, NULL, countx, true, false);
   ac->set_clonebasic();
   Node* n = kit->gvn().transform(ac);
   if (n == ac) {
+    ac->_adr_type = TypeRawPtr::BOTTOM;
     kit->set_predefined_output_for_runtime_call(ac, ac->in(TypeFunc::Memory), raw_adr_type);
   } else {
     kit->set_all_memory(n);
   }
+}
+
+Node* BarrierSetC2::obj_allocate(PhaseMacroExpand* macro, Node* ctrl, Node* mem, Node* toobig_false, Node* size_in_bytes,
+                                 Node*& i_o, Node*& needgc_ctrl,
+                                 Node*& fast_oop_ctrl, Node*& fast_oop_rawmem,
+                                 intx prefetch_lines) const {
+
+  Node* eden_top_adr;
+  Node* eden_end_adr;
+
+  macro->set_eden_pointers(eden_top_adr, eden_end_adr);
+
+  // Load Eden::end.  Loop invariant and hoisted.
+  //
+  // Note: We set the control input on "eden_end" and "old_eden_top" when using
+  //       a TLAB to work around a bug where these values were being moved across
+  //       a safepoint.  These are not oops, so they cannot be include in the oop
+  //       map, but they can be changed by a GC.   The proper way to fix this would
+  //       be to set the raw memory state when generating a  SafepointNode.  However
+  //       this will require extensive changes to the loop optimization in order to
+  //       prevent a degradation of the optimization.
+  //       See comment in memnode.hpp, around line 227 in class LoadPNode.
+  Node *eden_end = macro->make_load(ctrl, mem, eden_end_adr, 0, TypeRawPtr::BOTTOM, T_ADDRESS);
+
+  // We need a Region for the loop-back contended case.
+  enum { fall_in_path = 1, contended_loopback_path = 2 };
+  Node *contended_region;
+  Node *contended_phi_rawmem;
+  if (UseTLAB) {
+    contended_region = toobig_false;
+    contended_phi_rawmem = mem;
+  } else {
+    contended_region = new RegionNode(3);
+    contended_phi_rawmem = new PhiNode(contended_region, Type::MEMORY, TypeRawPtr::BOTTOM);
+    // Now handle the passing-too-big test.  We fall into the contended
+    // loop-back merge point.
+    contended_region    ->init_req(fall_in_path, toobig_false);
+    contended_phi_rawmem->init_req(fall_in_path, mem);
+    macro->transform_later(contended_region);
+    macro->transform_later(contended_phi_rawmem);
+  }
+
+  // Load(-locked) the heap top.
+  // See note above concerning the control input when using a TLAB
+  Node *old_eden_top = UseTLAB
+    ? new LoadPNode      (ctrl, contended_phi_rawmem, eden_top_adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM, MemNode::unordered)
+    : new LoadPLockedNode(contended_region, contended_phi_rawmem, eden_top_adr, MemNode::acquire);
+
+  macro->transform_later(old_eden_top);
+  // Add to heap top to get a new heap top
+  Node *new_eden_top = new AddPNode(macro->top(), old_eden_top, size_in_bytes);
+  macro->transform_later(new_eden_top);
+  // Check for needing a GC; compare against heap end
+  Node *needgc_cmp = new CmpPNode(new_eden_top, eden_end);
+  macro->transform_later(needgc_cmp);
+  Node *needgc_bol = new BoolNode(needgc_cmp, BoolTest::ge);
+  macro->transform_later(needgc_bol);
+  IfNode *needgc_iff = new IfNode(contended_region, needgc_bol, PROB_UNLIKELY_MAG(4), COUNT_UNKNOWN);
+  macro->transform_later(needgc_iff);
+
+  // Plug the failing-heap-space-need-gc test into the slow-path region
+  Node *needgc_true = new IfTrueNode(needgc_iff);
+  macro->transform_later(needgc_true);
+  needgc_ctrl = needgc_true;
+
+  // No need for a GC.  Setup for the Store-Conditional
+  Node *needgc_false = new IfFalseNode(needgc_iff);
+  macro->transform_later(needgc_false);
+
+  i_o = macro->prefetch_allocation(i_o, needgc_false, contended_phi_rawmem,
+                                   old_eden_top, new_eden_top, prefetch_lines);
+
+  Node* fast_oop = old_eden_top;
+
+  // Store (-conditional) the modified eden top back down.
+  // StorePConditional produces flags for a test PLUS a modified raw
+  // memory state.
+  if (UseTLAB) {
+    Node* store_eden_top =
+      new StorePNode(needgc_false, contended_phi_rawmem, eden_top_adr,
+                     TypeRawPtr::BOTTOM, new_eden_top, MemNode::unordered);
+    macro->transform_later(store_eden_top);
+    fast_oop_ctrl = needgc_false; // No contention, so this is the fast path
+    fast_oop_rawmem = store_eden_top;
+  } else {
+    Node* store_eden_top =
+      new StorePConditionalNode(needgc_false, contended_phi_rawmem, eden_top_adr,
+                                new_eden_top, fast_oop/*old_eden_top*/);
+    macro->transform_later(store_eden_top);
+    Node *contention_check = new BoolNode(store_eden_top, BoolTest::ne);
+    macro->transform_later(contention_check);
+    store_eden_top = new SCMemProjNode(store_eden_top);
+    macro->transform_later(store_eden_top);
+
+    // If not using TLABs, check to see if there was contention.
+    IfNode *contention_iff = new IfNode (needgc_false, contention_check, PROB_MIN, COUNT_UNKNOWN);
+    macro->transform_later(contention_iff);
+    Node *contention_true = new IfTrueNode(contention_iff);
+    macro->transform_later(contention_true);
+    // If contention, loopback and try again.
+    contended_region->init_req(contended_loopback_path, contention_true);
+    contended_phi_rawmem->init_req(contended_loopback_path, store_eden_top);
+
+    // Fast-path succeeded with no contention!
+    Node *contention_false = new IfFalseNode(contention_iff);
+    macro->transform_later(contention_false);
+    fast_oop_ctrl = contention_false;
+
+    // Bump total allocated bytes for this thread
+    Node* thread = new ThreadLocalNode();
+    macro->transform_later(thread);
+    Node* alloc_bytes_adr = macro->basic_plus_adr(macro->top()/*not oop*/, thread,
+                                                  in_bytes(JavaThread::allocated_bytes_offset()));
+    Node* alloc_bytes = macro->make_load(fast_oop_ctrl, store_eden_top, alloc_bytes_adr,
+                                         0, TypeLong::LONG, T_LONG);
+#ifdef _LP64
+    Node* alloc_size = size_in_bytes;
+#else
+    Node* alloc_size = new ConvI2LNode(size_in_bytes);
+    macro->transform_later(alloc_size);
+#endif
+    Node* new_alloc_bytes = new AddLNode(alloc_bytes, alloc_size);
+    macro->transform_later(new_alloc_bytes);
+    fast_oop_rawmem = macro->make_store(fast_oop_ctrl, store_eden_top, alloc_bytes_adr,
+                                        0, new_alloc_bytes, T_LONG);
+  }
+  return fast_oop;
+}
+
+void BarrierSetC2::clone_barrier_at_expansion(ArrayCopyNode* ac, Node* call, PhaseIterGVN& igvn) const {
+  // no barrier
+  igvn.replace_node(ac, call);
 }

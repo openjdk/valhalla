@@ -260,7 +260,7 @@ class LibraryCallKit : public GraphKit {
   Node* generate_min_max(vmIntrinsics::ID id, Node* x, Node* y);
   // This returns Type::AnyPtr, RawPtr, or OopPtr.
   int classify_unsafe_addr(Node* &base, Node* &offset, BasicType type);
-  Node* make_unsafe_address(Node*& base, Node* offset, BasicType type = T_ILLEGAL, bool can_cast = false);
+  Node* make_unsafe_address(Node*& base, Node* offset, DecoratorSet decorators, BasicType type = T_ILLEGAL, bool can_cast = false);
 
   typedef enum { Relaxed, Opaque, Volatile, Acquire, Release } AccessKind;
   DecoratorSet mo_decorator_for_access_kind(AccessKind kind);
@@ -559,10 +559,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_notify:
   case vmIntrinsics::_notifyAll:
-    if (ObjectMonitor::Knob_InlineNotify) {
-      return inline_notify(intrinsic_id());
-    }
-    return false;
+    return inline_notify(intrinsic_id());
 
   case vmIntrinsics::_addExactI:                return inline_math_addExactI(false /* add */);
   case vmIntrinsics::_addExactL:                return inline_math_addExactL(false /* add */);
@@ -606,7 +603,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_inflateStringC:
   case vmIntrinsics::_inflateStringB:           return inline_string_copy(!is_compress);
 
-  case vmIntrinsics::_getObject:                return inline_unsafe_access(!is_store, T_OBJECT,   Relaxed, false);
+  case vmIntrinsics::_getReference:             return inline_unsafe_access(!is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_getBoolean:               return inline_unsafe_access(!is_store, T_BOOLEAN,  Relaxed, false);
   case vmIntrinsics::_getByte:                  return inline_unsafe_access(!is_store, T_BYTE,     Relaxed, false);
   case vmIntrinsics::_getShort:                 return inline_unsafe_access(!is_store, T_SHORT,    Relaxed, false);
@@ -616,7 +613,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getFloat:                 return inline_unsafe_access(!is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_getDouble:                return inline_unsafe_access(!is_store, T_DOUBLE,   Relaxed, false);
 
-  case vmIntrinsics::_putObject:                return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false);
+  case vmIntrinsics::_putReference:             return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_putBoolean:               return inline_unsafe_access( is_store, T_BOOLEAN,  Relaxed, false);
   case vmIntrinsics::_putByte:                  return inline_unsafe_access( is_store, T_BYTE,     Relaxed, false);
   case vmIntrinsics::_putShort:                 return inline_unsafe_access( is_store, T_SHORT,    Relaxed, false);
@@ -626,7 +623,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putFloat:                 return inline_unsafe_access( is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_putDouble:                return inline_unsafe_access( is_store, T_DOUBLE,   Relaxed, false);
 
-  case vmIntrinsics::_getObjectVolatile:        return inline_unsafe_access(!is_store, T_OBJECT,   Volatile, false);
+  case vmIntrinsics::_getReferenceVolatile:     return inline_unsafe_access(!is_store, T_OBJECT,   Volatile, false);
   case vmIntrinsics::_getBooleanVolatile:       return inline_unsafe_access(!is_store, T_BOOLEAN,  Volatile, false);
   case vmIntrinsics::_getByteVolatile:          return inline_unsafe_access(!is_store, T_BYTE,     Volatile, false);
   case vmIntrinsics::_getShortVolatile:         return inline_unsafe_access(!is_store, T_SHORT,    Volatile, false);
@@ -636,7 +633,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getFloatVolatile:         return inline_unsafe_access(!is_store, T_FLOAT,    Volatile, false);
   case vmIntrinsics::_getDoubleVolatile:        return inline_unsafe_access(!is_store, T_DOUBLE,   Volatile, false);
 
-  case vmIntrinsics::_putObjectVolatile:        return inline_unsafe_access( is_store, T_OBJECT,   Volatile, false);
+  case vmIntrinsics::_putReferenceVolatile:     return inline_unsafe_access( is_store, T_OBJECT,   Volatile, false);
   case vmIntrinsics::_putBooleanVolatile:       return inline_unsafe_access( is_store, T_BOOLEAN,  Volatile, false);
   case vmIntrinsics::_putByteVolatile:          return inline_unsafe_access( is_store, T_BYTE,     Volatile, false);
   case vmIntrinsics::_putShortVolatile:         return inline_unsafe_access( is_store, T_SHORT,    Volatile, false);
@@ -656,7 +653,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putIntUnaligned:          return inline_unsafe_access( is_store, T_INT,      Relaxed, true);
   case vmIntrinsics::_putLongUnaligned:         return inline_unsafe_access( is_store, T_LONG,     Relaxed, true);
 
-  case vmIntrinsics::_getObjectAcquire:         return inline_unsafe_access(!is_store, T_OBJECT,   Acquire, false);
+  case vmIntrinsics::_getReferenceAcquire:      return inline_unsafe_access(!is_store, T_OBJECT,   Acquire, false);
   case vmIntrinsics::_getBooleanAcquire:        return inline_unsafe_access(!is_store, T_BOOLEAN,  Acquire, false);
   case vmIntrinsics::_getByteAcquire:           return inline_unsafe_access(!is_store, T_BYTE,     Acquire, false);
   case vmIntrinsics::_getShortAcquire:          return inline_unsafe_access(!is_store, T_SHORT,    Acquire, false);
@@ -666,7 +663,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getFloatAcquire:          return inline_unsafe_access(!is_store, T_FLOAT,    Acquire, false);
   case vmIntrinsics::_getDoubleAcquire:         return inline_unsafe_access(!is_store, T_DOUBLE,   Acquire, false);
 
-  case vmIntrinsics::_putObjectRelease:         return inline_unsafe_access( is_store, T_OBJECT,   Release, false);
+  case vmIntrinsics::_putReferenceRelease:      return inline_unsafe_access( is_store, T_OBJECT,   Release, false);
   case vmIntrinsics::_putBooleanRelease:        return inline_unsafe_access( is_store, T_BOOLEAN,  Release, false);
   case vmIntrinsics::_putByteRelease:           return inline_unsafe_access( is_store, T_BYTE,     Release, false);
   case vmIntrinsics::_putShortRelease:          return inline_unsafe_access( is_store, T_SHORT,    Release, false);
@@ -676,7 +673,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putFloatRelease:          return inline_unsafe_access( is_store, T_FLOAT,    Release, false);
   case vmIntrinsics::_putDoubleRelease:         return inline_unsafe_access( is_store, T_DOUBLE,   Release, false);
 
-  case vmIntrinsics::_getObjectOpaque:          return inline_unsafe_access(!is_store, T_OBJECT,   Opaque, false);
+  case vmIntrinsics::_getReferenceOpaque:       return inline_unsafe_access(!is_store, T_OBJECT,   Opaque, false);
   case vmIntrinsics::_getBooleanOpaque:         return inline_unsafe_access(!is_store, T_BOOLEAN,  Opaque, false);
   case vmIntrinsics::_getByteOpaque:            return inline_unsafe_access(!is_store, T_BYTE,     Opaque, false);
   case vmIntrinsics::_getShortOpaque:           return inline_unsafe_access(!is_store, T_SHORT,    Opaque, false);
@@ -686,7 +683,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getFloatOpaque:           return inline_unsafe_access(!is_store, T_FLOAT,    Opaque, false);
   case vmIntrinsics::_getDoubleOpaque:          return inline_unsafe_access(!is_store, T_DOUBLE,   Opaque, false);
 
-  case vmIntrinsics::_putObjectOpaque:          return inline_unsafe_access( is_store, T_OBJECT,   Opaque, false);
+  case vmIntrinsics::_putReferenceOpaque:       return inline_unsafe_access( is_store, T_OBJECT,   Opaque, false);
   case vmIntrinsics::_putBooleanOpaque:         return inline_unsafe_access( is_store, T_BOOLEAN,  Opaque, false);
   case vmIntrinsics::_putByteOpaque:            return inline_unsafe_access( is_store, T_BYTE,     Opaque, false);
   case vmIntrinsics::_putShortOpaque:           return inline_unsafe_access( is_store, T_SHORT,    Opaque, false);
@@ -696,48 +693,48 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putFloatOpaque:           return inline_unsafe_access( is_store, T_FLOAT,    Opaque, false);
   case vmIntrinsics::_putDoubleOpaque:          return inline_unsafe_access( is_store, T_DOUBLE,   Opaque, false);
 
-  case vmIntrinsics::_compareAndSetObject:              return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap,      Volatile);
-  case vmIntrinsics::_compareAndSetByte:                return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap,      Volatile);
-  case vmIntrinsics::_compareAndSetShort:               return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap,      Volatile);
-  case vmIntrinsics::_compareAndSetInt:                 return inline_unsafe_load_store(T_INT,    LS_cmp_swap,      Volatile);
-  case vmIntrinsics::_compareAndSetLong:                return inline_unsafe_load_store(T_LONG,   LS_cmp_swap,      Volatile);
+  case vmIntrinsics::_compareAndSetReference:   return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap,      Volatile);
+  case vmIntrinsics::_compareAndSetByte:        return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap,      Volatile);
+  case vmIntrinsics::_compareAndSetShort:       return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap,      Volatile);
+  case vmIntrinsics::_compareAndSetInt:         return inline_unsafe_load_store(T_INT,    LS_cmp_swap,      Volatile);
+  case vmIntrinsics::_compareAndSetLong:        return inline_unsafe_load_store(T_LONG,   LS_cmp_swap,      Volatile);
 
-  case vmIntrinsics::_weakCompareAndSetObjectPlain:     return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Relaxed);
-  case vmIntrinsics::_weakCompareAndSetObjectAcquire:   return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Acquire);
-  case vmIntrinsics::_weakCompareAndSetObjectRelease:   return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Release);
-  case vmIntrinsics::_weakCompareAndSetObject:          return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Volatile);
-  case vmIntrinsics::_weakCompareAndSetBytePlain:       return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Relaxed);
-  case vmIntrinsics::_weakCompareAndSetByteAcquire:     return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Acquire);
-  case vmIntrinsics::_weakCompareAndSetByteRelease:     return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Release);
-  case vmIntrinsics::_weakCompareAndSetByte:            return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Volatile);
-  case vmIntrinsics::_weakCompareAndSetShortPlain:      return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Relaxed);
-  case vmIntrinsics::_weakCompareAndSetShortAcquire:    return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Acquire);
-  case vmIntrinsics::_weakCompareAndSetShortRelease:    return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Release);
-  case vmIntrinsics::_weakCompareAndSetShort:           return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Volatile);
-  case vmIntrinsics::_weakCompareAndSetIntPlain:        return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Relaxed);
-  case vmIntrinsics::_weakCompareAndSetIntAcquire:      return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Acquire);
-  case vmIntrinsics::_weakCompareAndSetIntRelease:      return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Release);
-  case vmIntrinsics::_weakCompareAndSetInt:             return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Volatile);
-  case vmIntrinsics::_weakCompareAndSetLongPlain:       return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Relaxed);
-  case vmIntrinsics::_weakCompareAndSetLongAcquire:     return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Acquire);
-  case vmIntrinsics::_weakCompareAndSetLongRelease:     return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Release);
-  case vmIntrinsics::_weakCompareAndSetLong:            return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Volatile);
+  case vmIntrinsics::_weakCompareAndSetReferencePlain:     return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Relaxed);
+  case vmIntrinsics::_weakCompareAndSetReferenceAcquire:   return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Acquire);
+  case vmIntrinsics::_weakCompareAndSetReferenceRelease:   return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Release);
+  case vmIntrinsics::_weakCompareAndSetReference:          return inline_unsafe_load_store(T_OBJECT, LS_cmp_swap_weak, Volatile);
+  case vmIntrinsics::_weakCompareAndSetBytePlain:          return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Relaxed);
+  case vmIntrinsics::_weakCompareAndSetByteAcquire:        return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Acquire);
+  case vmIntrinsics::_weakCompareAndSetByteRelease:        return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Release);
+  case vmIntrinsics::_weakCompareAndSetByte:               return inline_unsafe_load_store(T_BYTE,   LS_cmp_swap_weak, Volatile);
+  case vmIntrinsics::_weakCompareAndSetShortPlain:         return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Relaxed);
+  case vmIntrinsics::_weakCompareAndSetShortAcquire:       return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Acquire);
+  case vmIntrinsics::_weakCompareAndSetShortRelease:       return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Release);
+  case vmIntrinsics::_weakCompareAndSetShort:              return inline_unsafe_load_store(T_SHORT,  LS_cmp_swap_weak, Volatile);
+  case vmIntrinsics::_weakCompareAndSetIntPlain:           return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Relaxed);
+  case vmIntrinsics::_weakCompareAndSetIntAcquire:         return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Acquire);
+  case vmIntrinsics::_weakCompareAndSetIntRelease:         return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Release);
+  case vmIntrinsics::_weakCompareAndSetInt:                return inline_unsafe_load_store(T_INT,    LS_cmp_swap_weak, Volatile);
+  case vmIntrinsics::_weakCompareAndSetLongPlain:          return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Relaxed);
+  case vmIntrinsics::_weakCompareAndSetLongAcquire:        return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Acquire);
+  case vmIntrinsics::_weakCompareAndSetLongRelease:        return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Release);
+  case vmIntrinsics::_weakCompareAndSetLong:               return inline_unsafe_load_store(T_LONG,   LS_cmp_swap_weak, Volatile);
 
-  case vmIntrinsics::_compareAndExchangeObject:         return inline_unsafe_load_store(T_OBJECT, LS_cmp_exchange,  Volatile);
-  case vmIntrinsics::_compareAndExchangeObjectAcquire:  return inline_unsafe_load_store(T_OBJECT, LS_cmp_exchange,  Acquire);
-  case vmIntrinsics::_compareAndExchangeObjectRelease:  return inline_unsafe_load_store(T_OBJECT, LS_cmp_exchange,  Release);
-  case vmIntrinsics::_compareAndExchangeByte:           return inline_unsafe_load_store(T_BYTE,   LS_cmp_exchange,  Volatile);
-  case vmIntrinsics::_compareAndExchangeByteAcquire:    return inline_unsafe_load_store(T_BYTE,   LS_cmp_exchange,  Acquire);
-  case vmIntrinsics::_compareAndExchangeByteRelease:    return inline_unsafe_load_store(T_BYTE,   LS_cmp_exchange,  Release);
-  case vmIntrinsics::_compareAndExchangeShort:          return inline_unsafe_load_store(T_SHORT,  LS_cmp_exchange,  Volatile);
-  case vmIntrinsics::_compareAndExchangeShortAcquire:   return inline_unsafe_load_store(T_SHORT,  LS_cmp_exchange,  Acquire);
-  case vmIntrinsics::_compareAndExchangeShortRelease:   return inline_unsafe_load_store(T_SHORT,  LS_cmp_exchange,  Release);
-  case vmIntrinsics::_compareAndExchangeInt:            return inline_unsafe_load_store(T_INT,    LS_cmp_exchange,  Volatile);
-  case vmIntrinsics::_compareAndExchangeIntAcquire:     return inline_unsafe_load_store(T_INT,    LS_cmp_exchange,  Acquire);
-  case vmIntrinsics::_compareAndExchangeIntRelease:     return inline_unsafe_load_store(T_INT,    LS_cmp_exchange,  Release);
-  case vmIntrinsics::_compareAndExchangeLong:           return inline_unsafe_load_store(T_LONG,   LS_cmp_exchange,  Volatile);
-  case vmIntrinsics::_compareAndExchangeLongAcquire:    return inline_unsafe_load_store(T_LONG,   LS_cmp_exchange,  Acquire);
-  case vmIntrinsics::_compareAndExchangeLongRelease:    return inline_unsafe_load_store(T_LONG,   LS_cmp_exchange,  Release);
+  case vmIntrinsics::_compareAndExchangeReference:         return inline_unsafe_load_store(T_OBJECT, LS_cmp_exchange,  Volatile);
+  case vmIntrinsics::_compareAndExchangeReferenceAcquire:  return inline_unsafe_load_store(T_OBJECT, LS_cmp_exchange,  Acquire);
+  case vmIntrinsics::_compareAndExchangeReferenceRelease:  return inline_unsafe_load_store(T_OBJECT, LS_cmp_exchange,  Release);
+  case vmIntrinsics::_compareAndExchangeByte:              return inline_unsafe_load_store(T_BYTE,   LS_cmp_exchange,  Volatile);
+  case vmIntrinsics::_compareAndExchangeByteAcquire:       return inline_unsafe_load_store(T_BYTE,   LS_cmp_exchange,  Acquire);
+  case vmIntrinsics::_compareAndExchangeByteRelease:       return inline_unsafe_load_store(T_BYTE,   LS_cmp_exchange,  Release);
+  case vmIntrinsics::_compareAndExchangeShort:             return inline_unsafe_load_store(T_SHORT,  LS_cmp_exchange,  Volatile);
+  case vmIntrinsics::_compareAndExchangeShortAcquire:      return inline_unsafe_load_store(T_SHORT,  LS_cmp_exchange,  Acquire);
+  case vmIntrinsics::_compareAndExchangeShortRelease:      return inline_unsafe_load_store(T_SHORT,  LS_cmp_exchange,  Release);
+  case vmIntrinsics::_compareAndExchangeInt:               return inline_unsafe_load_store(T_INT,    LS_cmp_exchange,  Volatile);
+  case vmIntrinsics::_compareAndExchangeIntAcquire:        return inline_unsafe_load_store(T_INT,    LS_cmp_exchange,  Acquire);
+  case vmIntrinsics::_compareAndExchangeIntRelease:        return inline_unsafe_load_store(T_INT,    LS_cmp_exchange,  Release);
+  case vmIntrinsics::_compareAndExchangeLong:              return inline_unsafe_load_store(T_LONG,   LS_cmp_exchange,  Volatile);
+  case vmIntrinsics::_compareAndExchangeLongAcquire:       return inline_unsafe_load_store(T_LONG,   LS_cmp_exchange,  Acquire);
+  case vmIntrinsics::_compareAndExchangeLongRelease:       return inline_unsafe_load_store(T_LONG,   LS_cmp_exchange,  Release);
 
   case vmIntrinsics::_getAndAddByte:                    return inline_unsafe_load_store(T_BYTE,   LS_get_add,       Volatile);
   case vmIntrinsics::_getAndAddShort:                   return inline_unsafe_load_store(T_SHORT,  LS_get_add,       Volatile);
@@ -748,7 +745,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getAndSetShort:                   return inline_unsafe_load_store(T_SHORT,  LS_get_set,       Volatile);
   case vmIntrinsics::_getAndSetInt:                     return inline_unsafe_load_store(T_INT,    LS_get_set,       Volatile);
   case vmIntrinsics::_getAndSetLong:                    return inline_unsafe_load_store(T_LONG,   LS_get_set,       Volatile);
-  case vmIntrinsics::_getAndSetObject:                  return inline_unsafe_load_store(T_OBJECT, LS_get_set,       Volatile);
+  case vmIntrinsics::_getAndSetReference:               return inline_unsafe_load_store(T_OBJECT, LS_get_set,       Volatile);
 
   case vmIntrinsics::_loadFence:
   case vmIntrinsics::_storeFence:
@@ -1119,6 +1116,9 @@ bool LibraryCallKit::inline_string_compareTo(StrIntrinsicNode::ArgEnc ae) {
   arg1 = must_be_not_null(arg1, true);
   arg2 = must_be_not_null(arg2, true);
 
+  arg1 = access_resolve(arg1, ACCESS_READ);
+  arg2 = access_resolve(arg2, ACCESS_READ);
+
   // Get start addr and length of first argument
   Node* arg1_start  = array_element_address(arg1, intcon(0), T_BYTE);
   Node* arg1_cnt    = load_array_length(arg1);
@@ -1145,6 +1145,9 @@ bool LibraryCallKit::inline_string_equals(StrIntrinsicNode::ArgEnc ae) {
 
     arg1 = must_be_not_null(arg1, true);
     arg2 = must_be_not_null(arg2, true);
+
+    arg1 = access_resolve(arg1, ACCESS_READ);
+    arg2 = access_resolve(arg2, ACCESS_READ);
 
     // Get start addr and length of first argument
     Node* arg1_start  = array_element_address(arg1, intcon(0), T_BYTE);
@@ -1186,6 +1189,9 @@ bool LibraryCallKit::inline_array_equals(StrIntrinsicNode::ArgEnc ae) {
   Node* arg1 = argument(0);
   Node* arg2 = argument(1);
 
+  arg1 = access_resolve(arg1, ACCESS_READ);
+  arg2 = access_resolve(arg2, ACCESS_READ);
+
   const TypeAryPtr* mtype = (ae == StrIntrinsicNode::UU) ? TypeAryPtr::CHARS : TypeAryPtr::BYTES;
   set_result(_gvn.transform(new AryEqNode(control(), memory(mtype), arg1, arg2, ae)));
   clear_upper_avx();
@@ -1212,6 +1218,7 @@ bool LibraryCallKit::inline_hasNegatives() {
   if (stopped()) {
     return true;
   }
+  ba = access_resolve(ba, ACCESS_READ);
   Node* ba_start = array_element_address(ba, offset, T_BYTE);
   Node* result = new HasNegativesNode(control(), memory(TypeAryPtr::BYTES), ba_start, len);
   set_result(_gvn.transform(result));
@@ -1282,6 +1289,9 @@ bool LibraryCallKit::inline_string_indexOf(StrIntrinsicNode::ArgEnc ae) {
   src = must_be_not_null(src, true);
   tgt = must_be_not_null(tgt, true);
 
+  src = access_resolve(src, ACCESS_READ);
+  tgt = access_resolve(tgt, ACCESS_READ);
+
   // Get start addr and length of source string
   Node* src_start = array_element_address(src, intcon(0), T_BYTE);
   Node* src_count = load_array_length(src);
@@ -1328,6 +1338,9 @@ bool LibraryCallKit::inline_string_indexOfI(StrIntrinsicNode::ArgEnc ae) {
 
   src = must_be_not_null(src, true);
   tgt = must_be_not_null(tgt, true);
+
+  src = access_resolve(src, ACCESS_READ);
+  tgt = access_resolve(tgt, ACCESS_READ);
 
   // Multiply byte array index by 2 if String is UTF16 encoded
   Node* src_offset = (ae == StrIntrinsicNode::LL) ? from_index : _gvn.transform(new LShiftINode(from_index, intcon(1)));
@@ -1415,6 +1428,7 @@ bool LibraryCallKit::inline_string_indexOfChar() {
   Node* max         = argument(3);
 
   src = must_be_not_null(src, true);
+  src = access_resolve(src, ACCESS_READ);
 
   Node* src_offset = _gvn.transform(new LShiftINode(from_index, intcon(1)));
   Node* src_start = array_element_address(src, src_offset, T_BYTE);
@@ -1504,6 +1518,9 @@ bool LibraryCallKit::inline_string_copy(bool compress) {
   if (stopped()) {
     return true;
   }
+
+  src = access_resolve(src, ACCESS_READ);
+  dst = access_resolve(dst, ACCESS_WRITE);
 
   Node* src_start = array_element_address(src, src_offset, src_elem);
   Node* dst_start = array_element_address(dst, dst_offset, dst_elem);
@@ -1595,6 +1612,7 @@ bool LibraryCallKit::inline_string_toBytesU() {
     AllocateArrayNode* alloc = tightly_coupled_allocation(newcopy, NULL);
 
     // Calculate starting addresses.
+    value = access_resolve(value, ACCESS_READ);
     Node* src_start = array_element_address(value, offset, T_CHAR);
     Node* dst_start = basic_plus_adr(newcopy, arrayOopDesc::base_offset_in_bytes(T_BYTE));
 
@@ -1678,6 +1696,9 @@ bool LibraryCallKit::inline_string_getCharsU() {
   }
 
   if (!stopped()) {
+    src = access_resolve(src, ACCESS_READ);
+    dst = access_resolve(dst, ACCESS_WRITE);
+
     // Calculate starting addresses.
     Node* src_start = array_element_address(src, src_begin, T_BYTE);
     Node* dst_start = array_element_address(dst, dst_begin, T_CHAR);
@@ -1746,17 +1767,16 @@ bool LibraryCallKit::inline_string_char_access(bool is_store) {
   }
 
   value = must_be_not_null(value, true);
+  value = access_resolve(value, is_store ? ACCESS_WRITE : ACCESS_READ);
 
   Node* adr = array_element_address(value, index, T_CHAR);
   if (adr->is_top()) {
     return false;
   }
   if (is_store) {
-    (void) store_to_memory(control(), adr, ch, T_CHAR, TypeAryPtr::BYTES, MemNode::unordered,
-                           false, false, true /* mismatched */);
+    access_store_at(value, adr, TypeAryPtr::BYTES, ch, TypeInt::CHAR, T_CHAR, IN_HEAP | MO_UNORDERED | C2_MISMATCHED);
   } else {
-    ch = make_load(control(), adr, TypeInt::CHAR, T_CHAR, TypeAryPtr::BYTES, MemNode::unordered,
-                   LoadNode::DependsOnlyOnTest, false, false, true /* mismatched */);
+    ch = access_load_at(value, adr, TypeAryPtr::BYTES, TypeInt::CHAR, T_CHAR, IN_HEAP | MO_UNORDERED | C2_MISMATCHED | C2_CONTROL_DEPENDENT_LOAD);
     set_result(ch);
   }
   return true;
@@ -2184,7 +2204,7 @@ LibraryCallKit::classify_unsafe_addr(Node* &base, Node* &offset, BasicType type)
   }
 }
 
-inline Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, BasicType type, bool can_cast) {
+inline Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, DecoratorSet decorators, BasicType type, bool can_cast) {
   Node* uncasted_base = base;
   int kind = classify_unsafe_addr(uncasted_base, offset, type);
   if (kind == Type::RawPtr) {
@@ -2213,6 +2233,7 @@ inline Node* LibraryCallKit::make_unsafe_address(Node*& base, Node* offset, Basi
     }
     // We don't know if it's an on heap or off heap access. Fall back
     // to raw memory access.
+    base = access_resolve(base, decorators);
     Node* raw = _gvn.transform(new CheckCastPPNode(control(), base, TypeRawPtr::BOTTOM));
     return basic_plus_adr(top(), raw, offset);
   } else {
@@ -2339,14 +2360,14 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     ciSignature* sig = callee()->signature();
 #ifdef ASSERT
     if (!is_store) {
-      // Object getObject(Object base, int/long offset), etc.
+      // Object getReference(Object base, int/long offset), etc.
       BasicType rtype = sig->return_type()->basic_type();
       assert(rtype == type, "getter must return the expected value");
       assert(sig->count() == 2, "oop getter has 2 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "getter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "getter offset is correct");
     } else {
-      // void putObject(Object base, int/long offset, Object x), etc.
+      // void putReference(Object base, int/long offset, Object x), etc.
       assert(sig->return_type()->basic_type() == T_VOID, "putter must not return a value");
       assert(sig->count() == 3, "oop putter has 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "putter base is object");
@@ -2410,7 +2431,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   // 32-bit machines ignore the high half!
   offset = ConvL2X(offset);
-  adr = make_unsafe_address(base, offset, type, kind == Relaxed);
+  adr = make_unsafe_address(base, offset, is_store ? ACCESS_WRITE : ACCESS_READ, type, kind == Relaxed);
 
   if (_gvn.type(base)->isa_ptr() != TypePtr::NULL_PTR) {
     heap_base_oop = base;
@@ -2448,7 +2469,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       bt = adr_type->is_aryptr()->elem()->array_element_basic_type();
     }
     if (bt == T_ARRAY || bt == T_NARROWOOP) {
-      // accessing an array field with getObject is not a mismatch
+      // accessing an array field with getReference is not a mismatch
       bt = T_OBJECT;
     }
     if ((bt == T_OBJECT) != (type == T_OBJECT)) {
@@ -2545,7 +2566,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = ConvL2X(val);
       val = gvn().transform(new CastX2PNode(val));
     }
-    access_store_at(control(), heap_base_oop, adr, adr_type, val, value_type, type, decorators);
+    access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
   }
 
   return true;
@@ -2556,16 +2577,16 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 //
 // LS_cmp_swap:
 //
-//   boolean compareAndSetObject(Object o, long offset, Object expected, Object x);
+//   boolean compareAndSetReference(Object o, long offset, Object expected, Object x);
 //   boolean compareAndSetInt(   Object o, long offset, int    expected, int    x);
 //   boolean compareAndSetLong(  Object o, long offset, long   expected, long   x);
 //
 // LS_cmp_swap_weak:
 //
-//   boolean weakCompareAndSetObject(       Object o, long offset, Object expected, Object x);
-//   boolean weakCompareAndSetObjectPlain(  Object o, long offset, Object expected, Object x);
-//   boolean weakCompareAndSetObjectAcquire(Object o, long offset, Object expected, Object x);
-//   boolean weakCompareAndSetObjectRelease(Object o, long offset, Object expected, Object x);
+//   boolean weakCompareAndSetReference(       Object o, long offset, Object expected, Object x);
+//   boolean weakCompareAndSetReferencePlain(  Object o, long offset, Object expected, Object x);
+//   boolean weakCompareAndSetReferenceAcquire(Object o, long offset, Object expected, Object x);
+//   boolean weakCompareAndSetReferenceRelease(Object o, long offset, Object expected, Object x);
 //
 //   boolean weakCompareAndSetInt(          Object o, long offset, int    expected, int    x);
 //   boolean weakCompareAndSetIntPlain(     Object o, long offset, int    expected, int    x);
@@ -2579,9 +2600,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 //
 // LS_cmp_exchange:
 //
-//   Object compareAndExchangeObjectVolatile(Object o, long offset, Object expected, Object x);
-//   Object compareAndExchangeObjectAcquire( Object o, long offset, Object expected, Object x);
-//   Object compareAndExchangeObjectRelease( Object o, long offset, Object expected, Object x);
+//   Object compareAndExchangeReferenceVolatile(Object o, long offset, Object expected, Object x);
+//   Object compareAndExchangeReferenceAcquire( Object o, long offset, Object expected, Object x);
+//   Object compareAndExchangeReferenceRelease( Object o, long offset, Object expected, Object x);
 //
 //   Object compareAndExchangeIntVolatile(   Object o, long offset, Object expected, Object x);
 //   Object compareAndExchangeIntAcquire(    Object o, long offset, Object expected, Object x);
@@ -2703,7 +2724,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   assert(Unsafe_field_offset_to_byte_offset(11) == 11, "fieldOffset must be byte-scaled");
   // 32-bit machines ignore the high half of long offsets
   offset = ConvL2X(offset);
-  Node* adr = make_unsafe_address(base, offset, type, false);
+  Node* adr = make_unsafe_address(base, offset, ACCESS_WRITE | ACCESS_READ, type, false);
   const TypePtr *adr_type = _gvn.type(adr)->isa_ptr();
 
   Compile::AliasType* alias_type = C->alias_type(adr_type);
@@ -2764,24 +2785,24 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   Node* result = NULL;
   switch (kind) {
     case LS_cmp_exchange: {
-      result = access_atomic_cmpxchg_val_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_cmpxchg_val_at(base, adr, adr_type, alias_idx,
                                             oldval, newval, value_type, type, decorators);
       break;
     }
     case LS_cmp_swap_weak:
       decorators |= C2_WEAK_CMPXCHG;
     case LS_cmp_swap: {
-      result = access_atomic_cmpxchg_bool_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_cmpxchg_bool_at(base, adr, adr_type, alias_idx,
                                              oldval, newval, value_type, type, decorators);
       break;
     }
     case LS_get_set: {
-      result = access_atomic_xchg_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_xchg_at(base, adr, adr_type, alias_idx,
                                      newval, value_type, type, decorators);
       break;
     }
     case LS_get_add: {
-      result = access_atomic_add_at(control(), base, adr, adr_type, alias_idx,
+      result = access_atomic_add_at(base, adr, adr_type, alias_idx,
                                     newval, value_type, type, decorators);
       break;
     }
@@ -2998,6 +3019,11 @@ bool LibraryCallKit::inline_native_isInterrupted() {
   Node* rec_thr = argument(0);
   Node* tls_ptr = NULL;
   Node* cur_thr = generate_current_thread(tls_ptr);
+
+  // Resolve oops to stable for CmpP below.
+  cur_thr = access_resolve(cur_thr, 0);
+  rec_thr = access_resolve(rec_thr, 0);
+
   Node* cmp_thr = _gvn.transform(new CmpPNode(cur_thr, rec_thr));
   Node* bol_thr = _gvn.transform(new BoolNode(cmp_thr, BoolTest::ne));
 
@@ -3437,6 +3463,10 @@ bool LibraryCallKit::inline_native_subtype_check() {
     klasses[which_arg] = _gvn.transform(kls);
   }
 
+  // Resolve oops to stable for CmpP below.
+  args[0] = access_resolve(args[0], 0);
+  args[1] = access_resolve(args[1], 0);
+
   // Having loaded both klasses, test each for null.
   bool never_see_null = !too_many_traps(Deoptimization::Reason_null_check);
   for (which_arg = 0; which_arg <= 1; which_arg++) {
@@ -3719,7 +3749,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Value type array may have object field that would require a
     // write barrier. Conservatively, go to slow path.
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    Node* not_objArray = !bs->array_copy_requires_gc_barriers(T_OBJECT) ? generate_typeArray_guard(klass_node, bailout) : generate_non_objArray_guard(klass_node, bailout);
+    Node* not_objArray = !bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing) ?
+        generate_typeArray_guard(klass_node, bailout) : generate_non_objArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
@@ -3794,6 +3825,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       // The answer is MinI(orig_length - start, length).
       Node* orig_tail = _gvn.transform(new SubINode(orig_length, start));
       Node* moved = generate_min_max(vmIntrinsics::_min, orig_tail, length);
+
+      original = access_resolve(original, ACCESS_READ);
 
       // Generate a direct call to the right arraycopy function(s).
       // We know the copy is disjoint but we might not know if the
@@ -4282,8 +4315,10 @@ bool LibraryCallKit::inline_unsafe_copyMemory() {
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
 
-  Node* src = make_unsafe_address(src_ptr, src_off);
-  Node* dst = make_unsafe_address(dst_ptr, dst_off);
+  src_ptr = access_resolve(src_ptr, ACCESS_READ);
+  dst_ptr = access_resolve(dst_ptr, ACCESS_WRITE);
+  Node* src = make_unsafe_address(src_ptr, src_off, ACCESS_READ);
+  Node* dst = make_unsafe_address(dst_ptr, dst_off, ACCESS_WRITE);
 
   // Conservatively insert a memory barrier on all memory slices.
   // Do not let writes of the copy source or destination float below the copy.
@@ -4354,7 +4389,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
   countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
 
-  access_clone(control(), src_base, dst_base, countx, is_array);
+  access_clone(src_base, dst_base, countx, is_array);
 
   // Do not let reads from the cloned object float above the arraycopy.
   if (alloc != NULL) {
@@ -4462,7 +4497,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       set_control(array_ctl);
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      if (bs->array_copy_requires_gc_barriers(T_OBJECT)) {
+      if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
         // Value type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_valueArray_guard(obj_klass, slow_region);
@@ -4474,7 +4509,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
         Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-        if (bs->array_copy_requires_gc_barriers(T_OBJECT)) {
+        if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
           // If it is an oop array, it requires very special treatment,
           // because gc barriers are required when accessing the array.
           Node* is_obja = generate_objArray_guard(obj_klass, (RegionNode*)NULL);
@@ -4970,7 +5005,10 @@ bool LibraryCallKit::inline_arraycopy() {
     return true;
   }
 
-  ArrayCopyNode* ac = ArrayCopyNode::make(this, true, src, src_offset, dest, dest_offset, length, alloc != NULL, negative_length_guard_generated,
+  Node* new_src = access_resolve(src, ACCESS_READ);
+  Node* new_dest = access_resolve(dest, ACCESS_WRITE);
+
+  ArrayCopyNode* ac = ArrayCopyNode::make(this, true, new_src, src_offset, new_dest, dest_offset, length, alloc != NULL, negative_length_guard_generated,
                                           // Create LoadRange and LoadKlass nodes for use during macro expansion here
                                           // so the compiler has a chance to eliminate them: during macro expansion,
                                           // we have to set their control (CastPP nodes are eliminated).
@@ -5083,6 +5121,9 @@ bool LibraryCallKit::inline_encodeISOArray() {
   src = must_be_not_null(src, true);
   dst = must_be_not_null(dst, true);
 
+  src = access_resolve(src, ACCESS_READ);
+  dst = access_resolve(dst, ACCESS_WRITE);
+
   const Type* src_type = src->Value(&_gvn);
   const Type* dst_type = dst->Value(&_gvn);
   const TypeAryPtr* top_src = src_type->isa_aryptr();
@@ -5137,6 +5178,10 @@ bool LibraryCallKit::inline_multiplyToLen() {
 
   x = must_be_not_null(x, true);
   y = must_be_not_null(y, true);
+
+  x = access_resolve(x, ACCESS_READ);
+  y = access_resolve(y, ACCESS_READ);
+  z = access_resolve(z, ACCESS_WRITE);
 
   const Type* x_type = x->Value(&_gvn);
   const Type* y_type = y->Value(&_gvn);
@@ -5246,6 +5291,9 @@ bool LibraryCallKit::inline_squareToLen() {
   x = must_be_not_null(x, true);
   z = must_be_not_null(z, true);
 
+  x = access_resolve(x, ACCESS_READ);
+  z = access_resolve(z, ACCESS_WRITE);
+
   const Type* x_type = x->Value(&_gvn);
   const Type* z_type = z->Value(&_gvn);
   const TypeAryPtr* top_x = x_type->isa_aryptr();
@@ -5295,6 +5343,9 @@ bool LibraryCallKit::inline_mulAdd() {
 
   out = must_be_not_null(out, true);
 
+  in = access_resolve(in, ACCESS_READ);
+  out = access_resolve(out, ACCESS_WRITE);
+
   const Type* out_type = out->Value(&_gvn);
   const Type* in_type = in->Value(&_gvn);
   const TypeAryPtr* top_out = out_type->isa_aryptr();
@@ -5343,6 +5394,11 @@ bool LibraryCallKit::inline_montgomeryMultiply() {
   Node* len  = argument(3);
   Node* inv  = argument(4);
   Node* m    = argument(6);
+
+  a = access_resolve(a, ACCESS_READ);
+  b = access_resolve(b, ACCESS_READ);
+  n = access_resolve(n, ACCESS_READ);
+  m = access_resolve(m, ACCESS_WRITE);
 
   const Type* a_type = a->Value(&_gvn);
   const TypeAryPtr* top_a = a_type->isa_aryptr();
@@ -5402,6 +5458,10 @@ bool LibraryCallKit::inline_montgomerySquare() {
   Node* len  = argument(2);
   Node* inv  = argument(3);
   Node* m    = argument(5);
+
+  a = access_resolve(a, ACCESS_READ);
+  n = access_resolve(n, ACCESS_READ);
+  m = access_resolve(m, ACCESS_WRITE);
 
   const Type* a_type = a->Value(&_gvn);
   const TypeAryPtr* top_a = a_type->isa_aryptr();
@@ -5472,8 +5532,10 @@ bool LibraryCallKit::inline_vectorizedMismatch() {
   Node* call;
   jvms()->set_should_reexecute(true);
 
-  Node* obja_adr = make_unsafe_address(obja, aoffset);
-  Node* objb_adr = make_unsafe_address(objb, boffset);
+  obja = access_resolve(obja, ACCESS_READ);
+  objb = access_resolve(objb, ACCESS_READ);
+  Node* obja_adr = make_unsafe_address(obja, aoffset, ACCESS_READ);
+  Node* objb_adr = make_unsafe_address(objb, boffset, ACCESS_READ);
 
   call = make_runtime_call(RC_LEAF,
     OptoRuntime::vectorizedMismatch_Type(),
@@ -5548,6 +5610,7 @@ bool LibraryCallKit::inline_updateBytesCRC32() {
 
   // 'src_start' points to src array + scaled offset
   src = must_be_not_null(src, true);
+  src = access_resolve(src, ACCESS_READ);
   Node* src_start = array_element_address(src, offset, src_elem);
 
   // We assume that range check is done by caller.
@@ -5637,11 +5700,13 @@ bool LibraryCallKit::inline_updateBytesCRC32C() {
 
   // 'src_start' points to src array + scaled offset
   src = must_be_not_null(src, true);
+  src = access_resolve(src, ACCESS_READ);
   Node* src_start = array_element_address(src, offset, src_elem);
 
   // static final int[] byteTable in class CRC32C
   Node* table = get_table_from_crc32c_class(callee()->holder());
   table = must_be_not_null(table, true);
+  table = access_resolve(table, ACCESS_READ);
   Node* table_start = array_element_address(table, intcon(0), T_INT);
 
   // We assume that range check is done by caller.
@@ -5686,6 +5751,7 @@ bool LibraryCallKit::inline_updateDirectByteBufferCRC32C() {
   // static final int[] byteTable in class CRC32C
   Node* table = get_table_from_crc32c_class(callee()->holder());
   table = must_be_not_null(table, true);
+  table = access_resolve(table, ACCESS_READ);
   Node* table_start = array_element_address(table, intcon(0), T_INT);
 
   // Call the stub.
@@ -5729,6 +5795,7 @@ bool LibraryCallKit::inline_updateBytesAdler32() {
   }
 
   // 'src_start' points to src array + scaled offset
+  src = access_resolve(src, ACCESS_READ);
   Node* src_start = array_element_address(src, offset, src_elem);
 
   // We assume that range check is done by caller.
@@ -5932,6 +5999,9 @@ bool LibraryCallKit::inline_aescrypt_Block(vmIntrinsics::ID id) {
   src = must_be_not_null(src, true);
   dest = must_be_not_null(dest, true);
 
+  src = access_resolve(src, ACCESS_READ);
+  dest = access_resolve(dest, ACCESS_WRITE);
+
   // (1) src and dest are arrays.
   const Type* src_type = src->Value(&_gvn);
   const Type* dest_type = dest->Value(&_gvn);
@@ -6005,6 +6075,9 @@ bool LibraryCallKit::inline_cipherBlockChaining_AESCrypt(vmIntrinsics::ID id) {
   src = must_be_not_null(src, false);
   dest = must_be_not_null(dest, false);
 
+  src = access_resolve(src, ACCESS_READ);
+  dest = access_resolve(dest, ACCESS_WRITE);
+
   // (1) src and dest are arrays.
   const Type* src_type = src->Value(&_gvn);
   const Type* dest_type = dest->Value(&_gvn);
@@ -6050,6 +6123,7 @@ bool LibraryCallKit::inline_cipherBlockChaining_AESCrypt(vmIntrinsics::ID id) {
   // similarly, get the start address of the r vector
   Node* objRvec = load_field_from_object(cipherBlockChaining_object, "r", "[B", /*is_exact*/ false);
   if (objRvec == NULL) return false;
+  objRvec = access_resolve(objRvec, ACCESS_WRITE);
   Node* r_start = array_element_address(objRvec, intcon(0), T_BYTE);
 
   Node* cbcCrypt;
@@ -6098,6 +6172,10 @@ bool LibraryCallKit::inline_counterMode_AESCrypt(vmIntrinsics::ID id) {
   Node* dest = argument(4);
   Node* dest_offset = argument(5);
 
+  src = access_resolve(src, ACCESS_READ);
+  dest = access_resolve(dest, ACCESS_WRITE);
+  counterMode_object = access_resolve(counterMode_object, ACCESS_WRITE);
+
   // (1) src and dest are arrays.
   const Type* src_type = src->Value(&_gvn);
   const Type* dest_type = dest->Value(&_gvn);
@@ -6138,10 +6216,12 @@ bool LibraryCallKit::inline_counterMode_AESCrypt(vmIntrinsics::ID id) {
   // similarly, get the start address of the r vector
   Node* obj_counter = load_field_from_object(counterMode_object, "counter", "[B", /*is_exact*/ false);
   if (obj_counter == NULL) return false;
+  obj_counter = access_resolve(obj_counter, ACCESS_WRITE);
   Node* cnt_start = array_element_address(obj_counter, intcon(0), T_BYTE);
 
   Node* saved_encCounter = load_field_from_object(counterMode_object, "encryptedCounter", "[B", /*is_exact*/ false);
   if (saved_encCounter == NULL) return false;
+  saved_encCounter = access_resolve(saved_encCounter, ACCESS_WRITE);
   Node* saved_encCounter_start = array_element_address(saved_encCounter, intcon(0), T_BYTE);
   Node* used = field_address_from_object(counterMode_object, "used", "I", /*is_exact*/ false);
 
@@ -6182,6 +6262,7 @@ Node * LibraryCallKit::get_key_start_from_aescrypt_object(Node *aescrypt_object)
   if (objAESCryptKey == NULL) return (Node *) NULL;
 
   // now have the array, need to get the start address of the K array
+  objAESCryptKey = access_resolve(objAESCryptKey, ACCESS_READ);
   Node* k_start = array_element_address(objAESCryptKey, intcon(0), T_INT);
   return k_start;
 }
@@ -6193,6 +6274,7 @@ Node * LibraryCallKit::get_original_key_start_from_aescrypt_object(Node *aescryp
   if (objAESCryptKey == NULL) return (Node *) NULL;
 
   // now have the array, need to get the start address of the lastKey array
+  objAESCryptKey = access_resolve(objAESCryptKey, ACCESS_READ);
   Node* original_k_start = array_element_address(objAESCryptKey, intcon(0), T_BYTE);
   return original_k_start;
 }
@@ -6234,6 +6316,10 @@ Node* LibraryCallKit::inline_cipherBlockChaining_AESCrypt_predicate(bool decrypt
 
   src = must_be_not_null(src, true);
   dest = must_be_not_null(dest, true);
+
+  // Resolve oops to stable for CmpP below.
+  src = access_resolve(src, 0);
+  dest = access_resolve(dest, 0);
 
   ciInstanceKlass* instklass_AESCrypt = klass_AESCrypt->as_instance_klass();
 
@@ -6323,6 +6409,10 @@ bool LibraryCallKit::inline_ghash_processBlocks() {
   subkeyH = must_be_not_null(subkeyH, true);
   data = must_be_not_null(data, true);
 
+  state = access_resolve(state, ACCESS_WRITE);
+  subkeyH = access_resolve(subkeyH, ACCESS_READ);
+  data = access_resolve(data, ACCESS_READ);
+
   Node* state_start  = array_element_address(state, intcon(0), T_LONG);
   assert(state_start, "state is NULL");
   Node* subkeyH_start  = array_element_address(subkeyH, intcon(0), T_LONG);
@@ -6397,6 +6487,7 @@ bool LibraryCallKit::inline_sha_implCompress(vmIntrinsics::ID id) {
   }
   // 'src_start' points to src array + offset
   src = must_be_not_null(src, true);
+  src = access_resolve(src, ACCESS_READ);
   Node* src_start = array_element_address(src, ofs, src_elem);
   Node* state = NULL;
   address stubAddr;
@@ -6464,6 +6555,7 @@ bool LibraryCallKit::inline_digestBase_implCompressMB(int predicate) {
   }
   // 'src_start' points to src array + offset
   src = must_be_not_null(src, false);
+  src = access_resolve(src, ACCESS_READ);
   Node* src_start = array_element_address(src, ofs, src_elem);
 
   const char* klass_SHA_name = NULL;
@@ -6546,6 +6638,7 @@ Node * LibraryCallKit::get_state_from_sha_object(Node *sha_object) {
   if (sha_state == NULL) return (Node *) NULL;
 
   // now have the array, need to get the start address of the state array
+  sha_state = access_resolve(sha_state, ACCESS_WRITE);
   Node* state = array_element_address(sha_state, intcon(0), T_INT);
   return state;
 }
@@ -6557,6 +6650,7 @@ Node * LibraryCallKit::get_state_from_sha5_object(Node *sha_object) {
   if (sha_state == NULL) return (Node *) NULL;
 
   // now have the array, need to get the start address of the state array
+  sha_state = access_resolve(sha_state, ACCESS_WRITE);
   Node* state = array_element_address(sha_state, intcon(0), T_LONG);
   return state;
 }

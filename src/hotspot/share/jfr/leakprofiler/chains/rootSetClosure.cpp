@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
-#include "classfile/classLoaderData.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/strongRootsScope.hpp"
@@ -92,7 +92,7 @@ void RootSetClosure::process_roots(OopClosure* closure) {
   SaveRestoreCLDClaimBits save_restore_cld_claim_bits;
   RootSetClosureMarkScope mark_scope;
 
-  CLDToOopClosure cldt_closure(closure);
+  CLDToOopClosure cldt_closure(closure, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::always_strong_cld_do(&cldt_closure);
   CodeBlobToOopClosure blobs(closure, false);
   Threads::oops_do(closure, &blobs);

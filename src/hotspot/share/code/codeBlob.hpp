@@ -187,6 +187,7 @@ public:
   bool contains(address addr) const              { return content_begin()      <= addr && addr < content_end();    }
   bool is_frame_complete_at(address addr) const  { return _frame_complete_offset != CodeOffsets::frame_never_safe &&
                                                           code_contains(addr) && addr >= code_begin() + _frame_complete_offset; }
+  int frame_complete_offset() const              { return _frame_complete_offset; }
 
   // CodeCache support: really only used by the nmethods, but in order to get
   // asserts and certain bookkeeping to work in the CodeCache they are defined
@@ -222,6 +223,7 @@ public:
   virtual void print() const                     { print_on(tty); };
   virtual void print_on(outputStream* st) const;
   virtual void print_value_on(outputStream* st) const;
+  void dump_for_addr(address addr, outputStream* st, bool verbose) const;
   void print_code();
 
   // Print the comment associated with offset on stream, if there is one
@@ -394,6 +396,10 @@ class BufferBlob: public RuntimeBlob {
   BufferBlob(const char* name, int size, CodeBuffer* cb);
   BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps);
 
+  // This ordinary operator delete is needed even though not used, so the
+  // below two-argument operator delete will be treated as a placement
+  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
+  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -502,6 +508,10 @@ class RuntimeStub: public RuntimeBlob {
     bool        caller_must_gc_arguments
   );
 
+  // This ordinary operator delete is needed even though not used, so the
+  // below two-argument operator delete will be treated as a placement
+  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
+  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:
@@ -537,6 +547,10 @@ class SingletonBlob: public RuntimeBlob {
   friend class VMStructs;
 
  protected:
+  // This ordinary operator delete is needed even though not used, so the
+  // below two-argument operator delete will be treated as a placement
+  // delete rather than an ordinary sized delete; see C++14 3.7.4.2/p2.
+  void operator delete(void* p);
   void* operator new(size_t s, unsigned size) throw();
 
  public:

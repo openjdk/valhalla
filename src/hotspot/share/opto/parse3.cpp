@@ -312,7 +312,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
     val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
   } else {
-    access_store_at(control(), obj, adr, adr_type, val, field_type, bt, decorators);
+    access_store_at(obj, adr, adr_type, val, field_type, bt, decorators);
   }
 
   if (is_field) {
@@ -408,7 +408,7 @@ Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, in
       Node*    elem   = expand_multianewarray(array_klass_1, &lengths[1], ndimensions-1, nargs);
       intptr_t offset = header + ((intptr_t)i << LogBytesPerHeapOop);
       Node*    eaddr  = basic_plus_adr(array, offset);
-      access_store_at(control(), array, eaddr, adr_type, elem, elemtype, T_OBJECT, IN_HEAP | IS_ARRAY);
+      access_store_at(array, eaddr, adr_type, elem, elemtype, T_OBJECT, IN_HEAP | IS_ARRAY);
     }
   }
   return array;

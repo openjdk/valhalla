@@ -31,9 +31,7 @@
 #include "JVMTITools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define OBJ_MAX_COUNT 100000
 
@@ -63,30 +61,26 @@ static jrawMonitorID counterMonitor_ptr = NULL;
 
 static void increaseCounter(volatile int* counterPtr) {
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorEnter, jvmti, counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(counterMonitor_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 
     (*counterPtr)++;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorExit, jvmti, counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(counterMonitor_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 }
 
 static void setCounter(volatile int* counterPtr, int value) {
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorEnter, jvmti, counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(counterMonitor_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 
     *counterPtr = value;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorExit, jvmti, counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(counterMonitor_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 }
@@ -94,15 +88,13 @@ static void setCounter(volatile int* counterPtr, int value) {
 static int getCounter(volatile int* counterPtr) {
     int result;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorEnter, jvmti, counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(counterMonitor_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 
     result = *counterPtr;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorExit, jvmti, counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(counterMonitor_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -115,26 +107,23 @@ void notifyThread() {
 
     /* enter and notify runLock */
     {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorEnter, jvmti, runLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(runLock))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorNotify, jvmti, runLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorNotify(runLock))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorExit, jvmti, runLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(runLock))) {
             nsk_jvmti_setFailStatus();
         }
     }
 }
 
 jvmtiIterationControl JNICALL
-heapObjectCallback( jlong  class_tag,
-                    jlong  size,
-                    jlong* tag_ptr,
-                    void*  user_data) {
+heapObjectCallback(jlong  class_tag,
+                   jlong  size,
+                   jlong* tag_ptr,
+                   void*  user_data) {
 
     if (getCounter(&iterationCount) == 0) {
         notifyThread();
@@ -150,11 +139,11 @@ heapObjectCallback( jlong  class_tag,
 
 /* jvmtiHeapRootCallback */
 jvmtiIterationControl JNICALL
-heapRootCallback( jvmtiHeapRootKind root_kind,
-                  jlong class_tag,
-                  jlong size,
-                  jlong* tag_ptr,
-                  void* user_data) {
+heapRootCallback(jvmtiHeapRootKind root_kind,
+                 jlong class_tag,
+                 jlong size,
+                 jlong* tag_ptr,
+                 void* user_data) {
 
     if (getCounter(&iterationCount) == 0) {
         notifyThread();
@@ -170,15 +159,15 @@ heapRootCallback( jvmtiHeapRootKind root_kind,
 
 /* jvmtiStackReferenceCallback */
 jvmtiIterationControl JNICALL
-stackReferenceCallback( jvmtiHeapRootKind root_kind,
-                        jlong     class_tag,
-                        jlong     size,
-                        jlong*    tag_ptr,
-                        jlong     thread_tag,
-                        jint      depth,
-                        jmethodID method,
-                        jint      slot,
-                        void*     user_data) {
+stackReferenceCallback(jvmtiHeapRootKind root_kind,
+                       jlong     class_tag,
+                       jlong     size,
+                       jlong*    tag_ptr,
+                       jlong     thread_tag,
+                       jint      depth,
+                       jmethodID method,
+                       jint      slot,
+                       void*     user_data) {
 
     if (getCounter(&iterationCount) == 0) {
         notifyThread();
@@ -195,13 +184,13 @@ stackReferenceCallback( jvmtiHeapRootKind root_kind,
 
 /* jvmtiObjectReferenceCallback */
 jvmtiIterationControl JNICALL
-objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
-                         jlong  class_tag,
-                         jlong  size,
-                         jlong* tag_ptr,
-                         jlong  referrer_tag,
-                         jint   referrer_index,
-                         void*  user_data) {
+objectReferenceCallback(jvmtiObjectReferenceKind reference_kind,
+                        jlong  class_tag,
+                        jlong  size,
+                        jlong* tag_ptr,
+                        jlong  referrer_tag,
+                        jint   referrer_index,
+                        void*  user_data) {
 
     if (getCounter(&iterationCount) == 0) {
         notifyThread();
@@ -229,12 +218,8 @@ void JNICALL agent_start(jvmtiEnv* jvmti, JNIEnv* jni, void *p) {
     {
         jlong tag = (jlong)1;
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB6(GetObjectsWithTags, jvmti,
-                                              1, &tag,
-                                              &taggedObjectsCount,
-                                              &taggedObjectsList,
-                                              NULL))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->GetObjectsWithTags(
+                1, &tag, &taggedObjectsCount, &taggedObjectsList, NULL))) {
             nsk_jvmti_setFailStatus();
             return;
         }
@@ -248,23 +233,19 @@ void JNICALL agent_start(jvmtiEnv* jvmti, JNIEnv* jni, void *p) {
     }
 
     /* enter runLock */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorEnter, jvmti, runLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(runLock))) {
         nsk_jvmti_setFailStatus();
     }
 
     /* enter and notify startLock */
     {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorEnter, jvmti, startLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(startLock))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorNotify, jvmti, startLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorNotify(startLock))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorExit, jvmti, startLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(startLock))) {
             nsk_jvmti_setFailStatus();
         }
     }
@@ -273,12 +254,10 @@ void JNICALL agent_start(jvmtiEnv* jvmti, JNIEnv* jni, void *p) {
 
     /* wait on runLock */
     {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(RawMonitorWait, jvmti, runLock, timeout))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorWait(runLock, timeout))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorExit, jvmti, runLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(runLock))) {
             nsk_jvmti_setFailStatus();
         }
     }
@@ -290,8 +269,7 @@ void JNICALL agent_start(jvmtiEnv* jvmti, JNIEnv* jni, void *p) {
         int modified = 0;
         int i;
         for (i = 0; i < taggedObjectsCount; i+=2) {
-            if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB3(SetTag, jvmti, taggedObjectsList[i], 0))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->SetTag(taggedObjectsList[i], 0))) {
                 nsk_jvmti_setFailStatus();
                 continue;
             }
@@ -304,24 +282,20 @@ void JNICALL agent_start(jvmtiEnv* jvmti, JNIEnv* jni, void *p) {
 
     /* destroy objects list */
     {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)taggedObjectsList))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->Deallocate((unsigned char*)taggedObjectsList))) {
             nsk_jvmti_setFailStatus();
         }
     }
 
     /* enter and notify endLock */
     {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorEnter, jvmti, endLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(endLock))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorNotify, jvmti, endLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorNotify(endLock))) {
             nsk_jvmti_setFailStatus();
         }
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(RawMonitorExit, jvmti, endLock))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(endLock))) {
             nsk_jvmti_setFailStatus();
         }
     }
@@ -335,31 +309,24 @@ static int startThread(JNIEnv* jni, jthread threadObj) {
     int success = NSK_TRUE;
 
     /* enter startLock */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorEnter, jvmti, startLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(startLock))) {
         nsk_jvmti_setFailStatus();
     }
 
     /* start thread */
     if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(RunAgentThread, jvmti,
-                                          threadObj,
-                                          agent_start,
-                                          NULL,
-                                          JVMTI_THREAD_NORM_PRIORITY))) {
+            jvmti->RunAgentThread(threadObj, agent_start, NULL, JVMTI_THREAD_NORM_PRIORITY))) {
         success = NSK_FALSE;
         nsk_jvmti_setFailStatus();
     } else {
         /* wait on startLock */
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(RawMonitorWait, jvmti, startLock, timeout))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorWait(startLock, timeout))) {
             nsk_jvmti_setFailStatus();
         }
     }
 
     /* exit starLock */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorExit, jvmti, startLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(startLock))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -372,26 +339,20 @@ static jthread newThreadObj(JNIEnv* jni) {
     jmethodID cid;
     jthread result = NULL;
 
-    if (!NSK_JNI_VERIFY(jni, (thrClass =
-            NSK_CPP_STUB2(FindClass, jni,
-                                     "java/lang/Thread")) != NULL )) {
+    thrClass = jni->FindClass("java/lang/Thread");
+    if (!NSK_JNI_VERIFY(jni, thrClass != NULL)) {
         nsk_jvmti_setFailStatus();
         return result;
     }
 
-    if (!NSK_JNI_VERIFY(jni, (cid =
-            NSK_CPP_STUB4(GetMethodID, jni,
-                                       thrClass,
-                                       "<init>",
-                                       "()V")) != NULL )) {
+    cid = jni->GetMethodID(thrClass, "<init>", "()V");
+    if (!NSK_JNI_VERIFY(jni, cid != NULL)) {
         nsk_jvmti_setFailStatus();
         return result;
     }
 
-    if (!NSK_JNI_VERIFY(jni, (result =
-            NSK_CPP_STUB3(NewObject, jni,
-                                     thrClass,
-                                     cid )) != NULL )) {
+    result = jni->NewObject(thrClass, cid);
+    if (!NSK_JNI_VERIFY(jni, result != NULL)) {
         nsk_jvmti_setFailStatus();
         return result;
     }
@@ -408,14 +369,14 @@ static int prepareToIteration (JNIEnv* jni) {
     setCounter(&iterationCount, 0);
     setCounter(&objectCount, 0);
 
-    if (!NSK_VERIFY((threadObj = newThreadObj(jni)) != NULL)) {
+    threadObj = newThreadObj(jni);
+    if (!NSK_VERIFY(threadObj != NULL)) {
         nsk_jvmti_setFailStatus();
         return NSK_FALSE;
     }
 
     /* enter endLock */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorEnter, jvmti, endLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(endLock))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -432,14 +393,12 @@ static void afterIteration (JNIEnv* jni) {
     NSK_DISPLAY0("Wait for new agent thread to complete\n");
 
     /* wait on endLock */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(RawMonitorWait, jvmti, endLock, timeout))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorWait(endLock, timeout))) {
         nsk_jvmti_setFailStatus();
     }
 
     /* exit endLock */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RawMonitorExit, jvmti, endLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(endLock))) {
         nsk_jvmti_setFailStatus();
     }
 }
@@ -447,19 +406,19 @@ static void afterIteration (JNIEnv* jni) {
 /***********************************************************************/
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_setTag( JNIEnv* jni,
-                                                          jclass  klass,
-                                                          jobject target, /* object to be tagged */
-                                                          jlong   tag ) {
+Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_setTag(JNIEnv* jni,
+                                                         jclass  klass,
+                                                         jobject target, /* object to be tagged */
+                                                         jlong   tag) {
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetTag, jvmti, target, tag))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetTag(target, tag))) {
         nsk_jvmti_setFailStatus();
     }
 }
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverHeap( JNIEnv* jni,
-                                                                      jclass  klass ) {
+Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverHeap(JNIEnv* jni,
+                                                                     jclass  klass) {
     int modified = 0;
     int found = 0;
 
@@ -467,11 +426,9 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverHeap( JNIEnv* jn
         return;
 
     NSK_DISPLAY0("Calling IterateOverHeap...\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB4(IterateOverHeap, jvmti,
-                                           JVMTI_HEAP_OBJECT_TAGGED,
-                                           heapObjectCallback,
-                                           NULL /*user_data*/))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateOverHeap(JVMTI_HEAP_OBJECT_TAGGED,
+                                                 heapObjectCallback,
+                                                 NULL /*user_data*/))) {
         nsk_jvmti_setFailStatus();
     }
     NSK_DISPLAY0("IterateOverHeap finished.\n");
@@ -490,8 +447,8 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverHeap( JNIEnv* jn
 }
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverReachableObjects( JNIEnv* jni,
-                                                                                  jclass  klass ) {
+Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverReachableObjects(JNIEnv* jni,
+                                                                                 jclass  klass) {
     int modified = 0;
     int found = 0;
 
@@ -499,12 +456,10 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverReachableObjects
         return;
 
     NSK_DISPLAY0("Calling IterateOverReachableObjects...\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(IterateOverReachableObjects, jvmti,
-                                                       heapRootCallback,
-                                                       stackReferenceCallback,
-                                                       objectReferenceCallback,
-                                                       NULL /*user_data*/))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateOverReachableObjects(heapRootCallback,
+                                                             stackReferenceCallback,
+                                                             objectReferenceCallback,
+                                                             NULL /*user_data*/))) {
         nsk_jvmti_setFailStatus();
     }
     NSK_DISPLAY0("IterateOverReachableObjects finished.\n");
@@ -523,8 +478,8 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverReachableObjects
 }
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverInstancesOfClass( JNIEnv* jni,
-                                                                                  jclass  klass ) {
+Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverInstancesOfClass(JNIEnv* jni,
+                                                                                 jclass  klass) {
     int modified = 0;
     int found = 0;
 
@@ -532,12 +487,10 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverInstancesOfClass
         return;
 
     NSK_DISPLAY0("Calling IterateOverInstancesOfClass...\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(IterateOverInstancesOfClass, jvmti,
-                                                       debugeeClass,
-                                                       JVMTI_HEAP_OBJECT_TAGGED,
-                                                       heapObjectCallback,
-                                                       NULL /*user_data*/))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateOverInstancesOfClass(debugeeClass,
+                                                             JVMTI_HEAP_OBJECT_TAGGED,
+                                                             heapObjectCallback,
+                                                             NULL /*user_data*/))) {
         nsk_jvmti_setFailStatus();
     }
     NSK_DISPLAY0("IterateOverInstancesOfClass finished.\n");
@@ -556,16 +509,14 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverInstancesOfClass
 }
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverObjectsReachableFromObject( JNIEnv* jni,
-                                                                                            jclass  klass ) {
+Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverObjectsReachableFromObject(JNIEnv* jni,
+                                                                                           jclass  klass) {
     jobject root = NULL;
     int modified = 0;
     int found = 0;
 
-    if (!NSK_JNI_VERIFY(jni, (root =
-            NSK_CPP_STUB3(GetStaticObjectField, jni,
-                                                debugeeClass,
-                                                rootFieldID )) != NULL )) {
+    root = jni->GetStaticObjectField(debugeeClass, rootFieldID);
+    if (!NSK_JNI_VERIFY(jni, root != NULL)) {
         NSK_COMPLAIN0("GetStaticObjectField returned NULL for 'root' field value\n\n");
         nsk_jvmti_setFailStatus();
         return;
@@ -575,11 +526,9 @@ Java_nsk_jvmti_scenarios_allocation_AP04_ap04t003_runIterateOverObjectsReachable
         return;
 
     NSK_DISPLAY0("Calling IterateOverObjectsReachableFromObject...\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB4(IterateOverObjectsReachableFromObject, jvmti,
-                                                                 root,
-                                                                 objectReferenceCallback,
-                                                                 NULL /*user_data*/))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->IterateOverObjectsReachableFromObject(root,
+                                                                       objectReferenceCallback,
+                                                                       NULL /*user_data*/))) {
         nsk_jvmti_setFailStatus();
     }
     NSK_DISPLAY0("IterateOverObjectsReachableFromObject finished.\n");
@@ -611,16 +560,13 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         return;
     }
 
-    if (!NSK_JNI_VERIFY(jni, (debugeeClass = (jclass)
-            NSK_CPP_STUB2(NewGlobalRef, jni, debugeeClass)) != NULL))
+    debugeeClass = (jclass) jni->NewGlobalRef(debugeeClass);
+    if (!NSK_JNI_VERIFY(jni, debugeeClass != NULL))
         return;
 
     NSK_DISPLAY1("Find ID of 'root' field: %s\n", ROOT_SIGNATURE);
-    if (!NSK_JNI_VERIFY(jni, (rootFieldID =
-            NSK_CPP_STUB4(GetStaticFieldID, jni,
-                                            debugeeClass,
-                                            "root",
-                                            ROOT_SIGNATURE)) != NULL )) {
+    rootFieldID = jni->GetStaticFieldID(debugeeClass, "root", ROOT_SIGNATURE);
+    if (!NSK_JNI_VERIFY(jni, rootFieldID != NULL)) {
         nsk_jvmti_setFailStatus();
         return;
     }
@@ -633,11 +579,11 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
     if (!NSK_VERIFY(nsk_jvmti_waitForSync(timeout)))
         return;
 
-    NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, debugeeClass));
-    NSK_TRACE(NSK_CPP_STUB2(DestroyRawMonitor, jvmti, counterMonitor_ptr));
-    NSK_TRACE(NSK_CPP_STUB2(DestroyRawMonitor, jvmti, startLock));
-    NSK_TRACE(NSK_CPP_STUB2(DestroyRawMonitor, jvmti, runLock));
-    NSK_TRACE(NSK_CPP_STUB2(DestroyRawMonitor, jvmti, endLock));
+    NSK_TRACE(jni->DeleteGlobalRef(debugeeClass));
+    NSK_TRACE(jvmti->DestroyRawMonitor(counterMonitor_ptr));
+    NSK_TRACE(jvmti->DestroyRawMonitor(startLock));
+    NSK_TRACE(jvmti->DestroyRawMonitor(runLock));
+    NSK_TRACE(jvmti->DestroyRawMonitor(endLock));
 
     NSK_DISPLAY0("Let debugee to finish\n");
     if (!NSK_VERIFY(nsk_jvmti_resumeSync()))
@@ -661,37 +607,31 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         return JNI_ERR;
 
     /* create JVMTI environment */
-    if (!NSK_VERIFY((jvmti =
-            nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(CreateRawMonitor, jvmti, "counterMonitor", &counterMonitor_ptr))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("counterMonitor", &counterMonitor_ptr))) {
         return JNI_ERR;
     }
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(CreateRawMonitor, jvmti, "startLock", &startLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("startLock", &startLock))) {
         return JNI_ERR;
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(CreateRawMonitor, jvmti, "runLock", &runLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("runLock", &runLock))) {
         return JNI_ERR;
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(CreateRawMonitor, jvmti, "endLock", &endLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("endLock", &endLock))) {
         return JNI_ERR;
     }
 
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_tag_objects = 1;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps)))
         return JNI_ERR;
 
     if (!caps.can_tag_objects)
@@ -704,6 +644,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

@@ -1848,9 +1848,6 @@ public class Attr extends JCTree.Visitor {
             if (condTypes.isEmpty()) {
                 return syms.objectType; //TODO: how to handle?
             }
-            if (condTypes.size() == 1) {
-                return condTypes.head;
-            }
             Type first = condTypes.head;
             // If same type, that is the result
             if (condTypes.tail.stream().allMatch(t -> types.isSameType(first, t)))
@@ -2533,7 +2530,7 @@ public class Attr extends JCTree.Visitor {
                                                clazztype.getMetadata());
 
                 Env<AttrContext> diamondEnv = localEnv.dup(tree);
-                diamondEnv.info.selectSuper = cdef != null;
+                diamondEnv.info.selectSuper = cdef != null || tree.classDeclRemoved();
                 diamondEnv.info.pendingResolutionPhase = null;
 
                 //if the type of the instance creation expression is a class type
@@ -2807,12 +2804,14 @@ public class Attr extends JCTree.Visitor {
      */
     @Override
     public void visitLambda(final JCLambda that) {
+        boolean wrongContext = false;
         if (pt().isErroneous() || (pt().hasTag(NONE) && pt() != Type.recoveryType)) {
             if (pt().hasTag(NONE) && (env.info.enclVar == null || !env.info.enclVar.type.isErroneous())) {
                 //lambda only allowed in assignment or method invocation/cast context
                 log.error(that.pos(), Errors.UnexpectedLambda);
             }
             resultInfo = recoveryInfo;
+            wrongContext = true;
         }
         //create an environment for attribution of the lambda expression
         final Env<AttrContext> localEnv = lambdaEnv(that, env);
@@ -2929,7 +2928,8 @@ public class Attr extends JCTree.Visitor {
 
                 checkAccessibleTypes(that, localEnv, resultInfo.checkContext.inferenceContext(), lambdaType, currentTarget);
             }
-            result = check(that, currentTarget, KindSelector.VAL, resultInfo);
+            result = wrongContext ? that.type = types.createErrorType(pt())
+                                  : check(that, currentTarget, KindSelector.VAL, resultInfo);
         } catch (Types.FunctionDescriptorLookupError ex) {
             JCDiagnostic cause = ex.getDiagnostic();
             resultInfo.checkContext.report(that, cause);
@@ -3020,6 +3020,15 @@ public class Attr extends JCTree.Visitor {
                         return;
                     }
                     super.scan(tree);
+                }
+
+                @Override
+                public void visitClassDef(JCClassDecl that) {
+                    // or class declaration trees!
+                }
+
+                public void visitLambda(JCLambda that) {
+                    // or lambda expressions!
                 }
             }.scan(tree);
         }
@@ -5489,22 +5498,11 @@ public class Attr extends JCTree.Visitor {
         }
 
         @Override
-        public void visitLambda(JCLambda that) {
-            super.visitLambda(that);
-            if (that.target == null) {
-                that.target = syms.unknownType;
-            }
-        }
-
-        @Override
         public void visitReference(JCMemberReference that) {
             super.visitReference(that);
             if (that.sym == null) {
                 that.sym = new MethodSymbol(0, names.empty, dummyMethodType(),
                         syms.noSymbol);
-            }
-            if (that.target == null) {
-                that.target = syms.unknownType;
             }
         }
     }

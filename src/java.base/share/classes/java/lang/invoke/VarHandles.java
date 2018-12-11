@@ -35,12 +35,12 @@ final class VarHandles {
             if (!type.isPrimitive()) {
                 if (f.isFlatValue()) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleObjects.FlatValueFieldInstanceReadOnly(refc, foffset, type)
-                        : new VarHandleObjects.FlatValueFieldInstanceReadWrite(refc, foffset, type);
+                        ? new VarHandleReferences.FlatValueFieldInstanceReadOnly(refc, foffset, type)
+                        : new VarHandleReferences.FlatValueFieldInstanceReadWrite(refc, foffset, type);
                 } else {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleObjects.FieldInstanceReadOnly(refc, foffset, type)
-                        : new VarHandleObjects.FieldInstanceReadWrite(refc, foffset, type, f.canBeNull());
+                       ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type)
+                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.canBeNull());
                 }
             }
             else if (type == boolean.class) {
@@ -102,8 +102,8 @@ final class VarHandles {
             if (!type.isPrimitive()) {
                 assert(!f.isFlatValue());   // static field is not flattened
                 return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleObjects.FieldStaticReadOnly(base, foffset, type)
-                        : new VarHandleObjects.FieldStaticReadWrite(base, foffset, type, f.canBeNull());
+                       ? new VarHandleReferences.FieldStaticReadOnly(base, foffset, type)
+                       : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.canBeNull());
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
@@ -166,8 +166,8 @@ final class VarHandles {
             // minimize the performance impact to non-value array.
             // It should be removed when Unsafe::isFlattenedArray is intrinsified.
             return componentType.isValue() && UNSAFE.isFlattenedArray(arrayClass)
-                ? new VarHandleObjects.ValueArray(aoffset, ashift, arrayClass)
-                : new VarHandleObjects.Array(aoffset, ashift, arrayClass);
+                ? new VarHandleReferences.ValueArray(aoffset, ashift, arrayClass)
+                : new VarHandleReferences.Array(aoffset, ashift, arrayClass);
         }
         else if (componentType == boolean.class) {
             return new VarHandleBooleans.Array(aoffset, ashift);

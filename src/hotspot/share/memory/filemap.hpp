@@ -150,6 +150,8 @@ struct FileMapHeader : public CDSFileMapHeaderBase {
   bool   _verify_local;                 // BytecodeVerificationLocal setting
   bool   _verify_remote;                // BytecodeVerificationRemote setting
   bool   _has_platform_or_app_classes;  // Archive contains app classes
+  size_t _shared_base_address;          // SharedBaseAddress used at dump time
+  bool   _allow_archiving_with_java_agent; // setting of the AllowArchivingWithJavaAgent option
 
   void set_has_platform_or_app_classes(bool v) {
     _has_platform_or_app_classes = v;
@@ -263,7 +265,8 @@ public:
                      bool read_only, bool allow_exec);
   size_t write_archive_heap_regions(GrowableArray<MemRegion> *heap_mem,
                                     GrowableArray<ArchiveHeapOopmapInfo> *oopmaps,
-                                    int first_region_id, int max_num_regions);
+                                    int first_region_id, int max_num_regions,
+                                    bool print_log);
   void  write_bytes(const void* buffer, size_t count);
   void  write_bytes_aligned(const void* buffer, size_t count);
   char* map_region(int i, char** top_ret);
@@ -324,7 +327,7 @@ public:
   bool  map_heap_data(MemRegion **heap_mem, int first, int max, int* num,
                       bool is_open = false) NOT_CDS_JAVA_HEAP_RETURN_(false);
   bool  verify_mapped_heap_regions(int first, int num) NOT_CDS_JAVA_HEAP_RETURN_(false);
-  void  dealloc_archive_heap_regions(MemRegion* regions, int num) NOT_CDS_JAVA_HEAP_RETURN;
+  void  dealloc_archive_heap_regions(MemRegion* regions, int num, bool is_open) NOT_CDS_JAVA_HEAP_RETURN;
 
   CDSFileMapRegion* space_at(int i) {
     return _header->space_at(i);
@@ -335,12 +338,12 @@ public:
   }
 
   // The starting address of spc, as calculated with CompressedOop::decode_non_null()
-  address start_address_with_current_oop_encoding_mode(CDSFileMapRegion* spc) {
+  address start_address_as_decoded_with_current_oop_encoding_mode(CDSFileMapRegion* spc) {
     return decode_start_address(spc, true);
   }
 
-  // The starting address of spc, as calculated with HeapShared::decode_with_archived_oop_encoding_mode()
-  address start_address_with_archived_oop_encoding_mode(CDSFileMapRegion* spc) {
+  // The starting address of spc, as calculated with HeapShared::decode_from_archive()
+  address start_address_as_decoded_from_archive(CDSFileMapRegion* spc) {
     return decode_start_address(spc, false);
   }
 

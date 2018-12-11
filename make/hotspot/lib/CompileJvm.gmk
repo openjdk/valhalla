@@ -60,12 +60,6 @@ ifeq ($(OPENJDK_TARGET_CPU), x86_64)
   OPENJDK_TARGET_CPU_VM_VERSION := amd64
 else ifeq ($(OPENJDK_TARGET_CPU), sparcv9)
   OPENJDK_TARGET_CPU_VM_VERSION := sparc
-else ifeq ($(HOTSPOT_TARGET_CPU_ARCH), arm)
-  ifeq ($(OPENJDK_TARGET_CPU), aarch64)
-    # This sets the Oracle Aarch64 port to use arm64
-    # while the original Aarch64 port uses aarch64
-    OPENJDK_TARGET_CPU_VM_VERSION := arm64
-  endif
 else
   OPENJDK_TARGET_CPU_VM_VERSION := $(OPENJDK_TARGET_CPU)
 endif
@@ -78,6 +72,35 @@ CFLAGS_VM_VERSION := \
     -DHOTSPOT_VM_DISTRO='"$(HOTSPOT_VM_DISTRO)"' \
     -DCPU='"$(OPENJDK_TARGET_CPU_VM_VERSION)"' \
     #
+
+################################################################################
+# Disabled warnings
+
+DISABLED_WARNINGS_gcc := extra parentheses comment unknown-pragmas address \
+    delete-non-virtual-dtor char-subscripts array-bounds int-in-bool-context \
+    ignored-qualifiers  missing-field-initializers implicit-fallthrough \
+    empty-body strict-overflow sequence-point maybe-uninitialized \
+    misleading-indentation
+
+ifeq ($(call check-jvm-feature, zero), true)
+  DISABLED_WARNINGS_gcc += return-type switch
+endif
+
+DISABLED_WARNINGS_clang := tautological-compare \
+    undefined-var-template sometimes-uninitialized unknown-pragmas \
+    delete-non-virtual-dtor missing-braces char-subscripts \
+    ignored-qualifiers missing-field-initializers mismatched-tags
+
+DISABLED_WARNINGS_solstudio := labelnotused hidef w_novirtualdescr inlafteruse \
+    unknownpragma doubunder w_enumnotused w_toomanyenumnotused \
+    wvarhidenmem wunreachable wnoretvalue notemsource
+
+DISABLED_WARNINGS_xlc := 1540-0216 1540-0198 1540-1090 1540-1639 1540-1088 \
+    1500-010
+
+DISABLED_WARNINGS_microsoft :=
+
+
 
 ################################################################################
 # Platform specific setup
@@ -115,7 +138,7 @@ ifeq ($(OPENJDK_TARGET_OS), solaris)
   endif
   # Exclude warnings in devstudio 12.6
   ifeq ($(CC_VERSION_NUMBER), 5.15)
-    DISABLED_WARNINGS_solstudio := SEC_ARR_OUTSIDE_BOUND_READ \
+    DISABLED_WARNINGS_solstudio += SEC_ARR_OUTSIDE_BOUND_READ \
       SEC_ARR_OUTSIDE_BOUND_WRITE
   endif
 endif
@@ -158,10 +181,11 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
     CFLAGS := $(JVM_CFLAGS), \
     vm_version.cpp_CXXFLAGS := $(CFLAGS_VM_VERSION), \
     arguments.cpp_CXXFLAGS := $(CFLAGS_VM_VERSION), \
-    DISABLED_WARNINGS_clang := tautological-compare, \
+    DISABLED_WARNINGS_gcc := $(DISABLED_WARNINGS_gcc), \
+    DISABLED_WARNINGS_clang := $(DISABLED_WARNINGS_clang), \
     DISABLED_WARNINGS_solstudio := $(DISABLED_WARNINGS_solstudio), \
-    DISABLED_WARNINGS_xlc := 1540-0216 1540-0198 1540-1090 1540-1639 \
-        1540-1088 1500-010, \
+    DISABLED_WARNINGS_xlc := $(DISABLED_WARNINGS_xlc), \
+    DISABLED_WARNINGS_microsoft := $(DISABLED_WARNINGS_microsoft), \
     ASFLAGS := $(JVM_ASFLAGS), \
     LDFLAGS := $(JVM_LDFLAGS), \
     LIBS := $(JVM_LIBS), \
@@ -184,15 +208,17 @@ VM_VERSION_OBJ := $(JVM_OUTPUTDIR)/objs/vm_version$(OBJ_SUFFIX)
 $(VM_VERSION_OBJ): $(filter-out $(VM_VERSION_OBJ) $(JVM_MAPFILE), \
     $(BUILD_LIBJVM_TARGET_DEPS))
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
-  # It doesn't matter which jvm.lib file gets exported, but we need
-  # to pick just one.
-  ifeq ($(JVM_VARIANT), $(JVM_VARIANT_MAIN))
-    $(eval $(call SetupCopyFiles, COPY_JVM_LIB, \
-        DEST := $(LIB_OUTPUTDIR), \
-        FILES :=$(BUILD_LIBJVM_IMPORT_LIBRARY), \
-    ))
-    TARGETS += $(COPY_JVM_LIB)
+ifneq ($(GENERATE_COMPILE_COMMANDS_ONLY), true)
+  ifeq ($(OPENJDK_TARGET_OS), windows)
+    # It doesn't matter which jvm.lib file gets exported, but we need
+    # to pick just one.
+    ifeq ($(JVM_VARIANT), $(JVM_VARIANT_MAIN))
+      $(eval $(call SetupCopyFiles, COPY_JVM_LIB, \
+          DEST := $(LIB_OUTPUTDIR), \
+          FILES :=$(BUILD_LIBJVM_IMPORT_LIBRARY), \
+      ))
+      TARGETS += $(COPY_JVM_LIB)
+    endif
   endif
 endif
 
@@ -231,44 +257,46 @@ TARGETS += $(BUILD_LIBJVM)
 # Search the output for the operator(s) of interest, to see where they are
 # referenced.
 
-ifneq ($(filter $(TOOLCHAIN_TYPE), gcc clang solstudio), )
+ifneq ($(GENERATE_COMPILE_COMMANDS_ONLY), true)
+  ifneq ($(filter $(TOOLCHAIN_TYPE), gcc clang solstudio), )
 
-  DEMANGLED_REGEXP := [^:]operator (new|delete)
+    DEMANGLED_REGEXP := [^:]operator (new|delete)
 
-  # Running c++filt to find offending symbols in all files is too expensive,
-  # especially on Solaris, so use mangled names when looking for symbols.
-  # Save the demangling for when something is actually found.
-  ifeq ($(TOOLCHAIN_TYPE), solstudio)
-    MANGLED_SYMS := \
-        __1c2n6FL_pv_ \
-        __1c2N6FL_pv_ \
-        __1c2k6Fpv_v_ \
-        __1c2K6Fpv_v_ \
-        #
-    UNDEF_PATTERN := UNDEF
-  else
-    MANGLED_SYMS := \
-        _ZdaPv \
-        _ZdlPv \
-        _Znam \
-        _Znwm \
-        #
-    UNDEF_PATTERN := ' U '
+    # Running c++filt to find offending symbols in all files is too expensive,
+    # especially on Solaris, so use mangled names when looking for symbols.
+    # Save the demangling for when something is actually found.
+    ifeq ($(TOOLCHAIN_TYPE), solstudio)
+      MANGLED_SYMS := \
+          __1c2n6FL_pv_ \
+          __1c2N6FL_pv_ \
+          __1c2k6Fpv_v_ \
+          __1c2K6Fpv_v_ \
+          #
+      UNDEF_PATTERN := UNDEF
+    else
+      MANGLED_SYMS := \
+          _ZdaPv \
+          _ZdlPv \
+          _Znam \
+          _Znwm \
+          #
+      UNDEF_PATTERN := ' U '
+    endif
+
+    define SetupOperatorNewDeleteCheck
+        $1.op_check: $1
+	  if [ -n "`$(NM) $$< | $(GREP) $(addprefix -e , $(MANGLED_SYMS)) \
+	      | $(GREP) $(UNDEF_PATTERN)`" ]; then \
+	    $(ECHO) "$$<: Error: Use of global operators new and delete is not allowed in Hotspot:"; \
+	    $(NM) $$< | $(CXXFILT) | $(EGREP) '$(DEMANGLED_REGEXP)' | $(GREP) $(UNDEF_PATTERN); \
+	    $(ECHO) "See: $(TOPDIR)/make/hotspot/lib/CompileJvm.gmk"; \
+	    exit 1; \
+	  fi
+	  $(TOUCH) $$@
+
+      TARGETS += $1.op_check
+    endef
+
+    $(foreach o, $(BUILD_LIBJVM_ALL_OBJS), $(eval $(call SetupOperatorNewDeleteCheck,$o)))
   endif
-
-  define SetupOperatorNewDeleteCheck
-    $1.op_check: $1
-	if [ -n "`$(NM) $$< | $(GREP) $(addprefix -e , $(MANGLED_SYMS)) \
-	    | $(GREP) $(UNDEF_PATTERN)`" ]; then \
-	  $(ECHO) "$$<: Error: Use of global operators new and delete is not allowed in Hotspot:"; \
-	  $(NM) $$< | $(CXXFILT) | $(EGREP) '$(DEMANGLED_REGEXP)' | $(GREP) $(UNDEF_PATTERN); \
-	  $(ECHO) "See: $(TOPDIR)/make/hotspot/lib/CompileJvm.gmk"; \
-	  exit 1; \
-	fi
-	$(TOUCH) $$@
-
-    TARGETS += $1.op_check
-  endef
-
-  $(foreach o, $(BUILD_LIBJVM_ALL_OBJS), $(eval $(call SetupOperatorNewDeleteCheck,$o)))
 endif

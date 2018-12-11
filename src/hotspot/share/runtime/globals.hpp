@@ -247,15 +247,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           range(8, 256)                                                     \
           constraint(ObjectAlignmentInBytesConstraintFunc,AtParse)          \
                                                                             \
-  product(bool, AssumeMP, true,                                             \
-          "(Deprecated) Instruct the VM to assume multiple processors are available")\
-                                                                            \
-  /* UseMembar is theoretically a temp flag used for memory barrier      */ \
-  /* removal testing.  It was supposed to be removed before FCS but has  */ \
-  /* been re-added (see 6401008)                                         */ \
-  product_pd(bool, UseMembar,                                               \
-          "(Unstable) Issues membars on thread state transitions")          \
-                                                                            \
   develop(bool, CleanChunkPoolAsync, true,                                  \
           "Clean the chunk pool asynchronously")                            \
                                                                             \
@@ -507,8 +498,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Time out and warn or fail after SafepointTimeoutDelay "          \
           "milliseconds if failed to reach safepoint")                      \
                                                                             \
-  develop(bool, DieOnSafepointTimeout, false,                               \
-          "Die upon failure to reach safepoint (see SafepointTimeout)")     \
+  diagnostic(bool, AbortVMOnSafepointTimeout, false,                        \
+          "Abort upon failure to reach safepoint (see SafepointTimeout)")   \
                                                                             \
   /* 50 retries * (5 * current_retry_count) millis = ~6.375 seconds */      \
   /* typically, at most a few retries are needed                    */      \
@@ -827,28 +818,14 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Use LWP-based instead of libthread-based synchronization "       \
           "(SPARC only)")                                                   \
                                                                             \
-  experimental(ccstr, SyncKnobs, NULL,                                      \
-               "(Unstable) Various monitor synchronization tunables")       \
-                                                                            \
-  experimental(intx, EmitSync, 0,                                           \
-               "(Unsafe, Unstable) "                                        \
-               "Control emission of inline sync fast-path code")            \
-                                                                            \
   product(intx, MonitorBound, 0, "Bound Monitor population")                \
           range(0, max_jint)                                                \
-                                                                            \
-  product(bool, MonitorInUseLists, true, "Track Monitors for Deflation")    \
                                                                             \
   experimental(intx, MonitorUsedDeflationThreshold, 90,                     \
                 "Percentage of used monitors before triggering cleanup "    \
                 "safepoint which deflates monitors (0 is off). "            \
                 "The check is performed on GuaranteedSafepointInterval.")   \
                 range(0, 100)                                               \
-                                                                            \
-  experimental(intx, SyncFlags, 0, "(Unsafe, Unstable) "                    \
-               "Experimental Sync flags")                                   \
-                                                                            \
-  experimental(intx, SyncVerbose, 0, "(Unstable)")                          \
                                                                             \
   experimental(intx, hashCode, 5,                                           \
                "(Unstable) select hashCode generation algorithm")           \
@@ -1302,6 +1279,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "If an error occurs, save the error data to this file "           \
           "[default: ./hs_err_pid%p.log] (%p replaced with pid)")           \
                                                                             \
+  product(bool, ExtensiveErrorReports,                                      \
+          PRODUCT_ONLY(false) NOT_PRODUCT(true),                            \
+          "Error reports are more extensive.")                              \
+                                                                            \
   product(bool, DisplayVMOutputToStderr, false,                             \
           "If DisplayVMOutput is true, display all VM output to stderr")    \
                                                                             \
@@ -1388,9 +1369,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(intx, FastAllocateSizeLimit, 128*K,                               \
           /* Note:  This value is zero mod 1<<13 for a cheap sparc set. */  \
           "Inline allocations larger than this in doublewords must go slow")\
-                                                                            \
-  product(bool, AggressiveOpts, false,                                      \
-          "(Deprecated) Enable aggressive optimizations - see arguments.cpp") \
                                                                             \
   product_pd(bool, CompactStrings,                                          \
           "Enable Strings to use single byte chars in backing store")       \
@@ -2059,6 +2037,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   notproduct(bool, CIObjectFactoryVerify, false,                            \
           "enable potentially expensive verification in ciObjectFactory")   \
                                                                             \
+  diagnostic(bool, AbortVMOnCompilationFailure, false,                      \
+          "Abort VM when method had failed to compile.")                    \
+                                                                            \
   /* Priorities */                                                          \
   product_pd(bool, UseThreadPriorities,  "Use native thread priorities")    \
                                                                             \
@@ -2474,9 +2455,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Average number of symbols per bucket in shared table")           \
           range(2, 246)                                                     \
                                                                             \
-  diagnostic(bool, IgnoreUnverifiableClassesDuringDump, true,              \
-          "Do not quit -Xshare:dump even if we encounter unverifiable "     \
-          "classes. Just exclude them from the shared dictionary.")         \
+  diagnostic(bool, AllowArchivingWithJavaAgent, false,                      \
+          "Allow Java agent to be run with CDS dumping")                    \
                                                                             \
   diagnostic(bool, PrintMethodHandleStubs, false,                           \
           "Print generated stub code for method handles")                   \

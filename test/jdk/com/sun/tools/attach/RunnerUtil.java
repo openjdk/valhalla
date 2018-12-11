@@ -27,8 +27,8 @@ import java.nio.file.Files;
 import java.util.Arrays;
 
 import jdk.test.lib.thread.ProcessThread;
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 /*
  * Utility functions for test runners.

@@ -46,7 +46,6 @@ class OopClosure;
 class ScanClosure;
 class FastScanClosure;
 class FilteringClosure;
-class BarrierSet;
 class CMSIsAliveClosure;
 
 class PSPromotionManager;
@@ -158,6 +157,8 @@ class oopDesc {
 
   inline static bool equals(oop o1, oop o2) { return Access<>::equals(o1, o2); }
 
+  inline static bool equals_raw(oop o1, oop o2) { return RawAccess<>::equals(o1, o2); }
+
   // Access to fields in a instanceOop through these methods.
   template <DecoratorSet decorator>
   oop obj_field_access(int offset) const;
@@ -260,6 +261,7 @@ class oopDesc {
   static bool is_oop_or_null(oop obj, bool ignore_mark_word = false);
 #ifndef PRODUCT
   inline bool is_unlocked_oop() const;
+  static bool is_archived_object(oop p) NOT_CDS_JAVA_HEAP_RETURN_(false);
 #endif
 
   // garbage collection
@@ -275,7 +277,7 @@ class oopDesc {
   // Exactly one thread succeeds in inserting the forwarding pointer, and
   // this call returns "NULL" for that thread; any other thread has the
   // value of the forwarding pointer returned and does not modify "this".
-  inline oop forward_to_atomic(oop p, atomic_memory_order order = memory_order_conservative);
+  inline oop forward_to_atomic(oop p, markOop compare, atomic_memory_order order = memory_order_conservative);
 
   inline oop forwardee() const;
   inline oop forwardee_acquire() const;
@@ -286,16 +288,6 @@ class oopDesc {
 
   // mark-sweep support
   void follow_body(int begin, int end);
-
-  // Garbage Collection support
-
-#if INCLUDE_PARALLELGC
-  // Parallel Compact
-  inline void pc_follow_contents(ParCompactionManager* cm);
-  inline void pc_update_contents(ParCompactionManager* cm);
-  // Parallel Scavenge
-  inline void ps_push_contents(PSPromotionManager* pm);
-#endif
 
   template <typename OopClosureType>
   inline void oop_iterate(OopClosureType* cl);
@@ -337,6 +329,13 @@ class oopDesc {
     assert(has_klass_gap(), "only applicable to compressed klass pointers");
     return klass_offset_in_bytes() + sizeof(narrowKlass);
   }
+
+  // for error reporting
+  static oop   decode_oop_raw(narrowOop narrow_oop);
+  static void* load_klass_raw(oop obj);
+  static void* load_oop_raw(oop obj, int offset);
+  static bool  is_valid(oop obj);
+  static oop   oop_or_null(address addr);
 };
 
 #endif // SHARE_VM_OOPS_OOP_HPP

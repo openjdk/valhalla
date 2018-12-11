@@ -608,10 +608,10 @@ protected:
 
   static bool os_supports_avx_vectors() {
     bool retVal = false;
+    int nreg = 2 LP64_ONLY(+2);
     if (supports_evex()) {
       // Verify that OS save/restore all bits of EVEX registers
       // during signal processing.
-      int nreg = 2 LP64_ONLY(+2);
       retVal = true;
       for (int i = 0; i < 16 * nreg; i++) { // 64 bytes per zmm register
         if (_cpuid_info.zmm_save[i] != ymm_test_value()) {
@@ -622,7 +622,6 @@ protected:
     } else if (supports_avx()) {
       // Verify that OS save/restore all bits of AVX registers
       // during signal processing.
-      int nreg = 2 LP64_ONLY(+2);
       retVal = true;
       for (int i = 0; i < 8 * nreg; i++) { // 32 bytes per ymm register
         if (_cpuid_info.ymm_save[i] != ymm_test_value()) {
@@ -634,7 +633,6 @@ protected:
       if (retVal == false) {
         // Verify that OS save/restore all bits of EVEX registers
         // during signal processing.
-        int nreg = 2 LP64_ONLY(+2);
         retVal = true;
         for (int i = 0; i < 16 * nreg; i++) { // 64 bytes per zmm register
           if (_cpuid_info.zmm_save[i] != ymm_test_value()) {
@@ -816,7 +814,10 @@ public:
   static bool supports_avx512cd() { return (_features & CPU_AVX512CD) != 0; }
   static bool supports_avx512bw() { return (_features & CPU_AVX512BW) != 0; }
   static bool supports_avx512vl() { return (_features & CPU_AVX512VL) != 0; }
-  static bool supports_avx512vlbw() { return (supports_avx512bw() && supports_avx512vl()); }
+  static bool supports_avx512vlbw() { return (supports_evex() && supports_avx512bw() && supports_avx512vl()); }
+  static bool supports_avx512vldq() { return (supports_evex() && supports_avx512dq() && supports_avx512vl()); }
+  static bool supports_avx512vlbwdq() { return (supports_evex() && supports_avx512vl() &&
+                                                supports_avx512bw() && supports_avx512dq()); }
   static bool supports_avx512novl() { return (supports_evex() && !supports_avx512vl()); }
   static bool supports_avx512nobw() { return (supports_evex() && !supports_avx512bw()); }
   static bool supports_avx256only() { return (supports_avx2() && !supports_evex()); }

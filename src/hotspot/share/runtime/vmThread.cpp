@@ -243,7 +243,7 @@ void VMThread::run() {
   assert(this == vm_thread(), "check");
 
   this->initialize_named_thread();
-  this->record_stack_base_and_size();
+
   // Notify_lock wait checks on active_handles() to rewait in
   // case of spurious wakeup, it should wait on the last
   // value set prior to the notify
@@ -319,7 +319,9 @@ void VMThread::run() {
 // Notify the VMThread that the last non-daemon JavaThread has terminated,
 // and wait until operation is performed.
 void VMThread::wait_for_vm_thread_exit() {
-  { MutexLocker mu(VMOperationQueue_lock);
+  assert(Thread::current()->is_Java_thread(), "Should be a JavaThread");
+  assert(((JavaThread*)Thread::current())->is_terminated(), "Should be terminated");
+  { MutexLockerEx mu(VMOperationQueue_lock, Mutex::_no_safepoint_check_flag);
     _should_terminate = true;
     VMOperationQueue_lock->notify();
   }

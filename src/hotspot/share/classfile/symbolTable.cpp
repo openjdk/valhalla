@@ -24,11 +24,12 @@
 
 #include "precompiled.hpp"
 #include "classfile/altHashing.hpp"
-#include "classfile/compactHashtable.inline.hpp"
+#include "classfile/compactHashtable.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/symbolTable.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
@@ -56,8 +57,23 @@
 #define ON_STACK_BUFFER_LENGTH 128
 
 // --------------------------------------------------------------------------
+
+inline bool symbol_equals_compact_hashtable_entry(Symbol* value, const char* key, int len) {
+  if (value->equals(key, len)) {
+    assert(value->refcount() == PERM_REFCOUNT, "must be shared");
+    return true;
+  } else {
+    return false;
+  }
+}
+
+static OffsetCompactHashtable<
+  const char*, Symbol*,
+  symbol_equals_compact_hashtable_entry
+> _shared_table;
+
+// --------------------------------------------------------------------------
 SymbolTable* SymbolTable::_the_table = NULL;
-CompactHashtable<Symbol*, char> SymbolTable::_shared_table;
 volatile bool SymbolTable::_alt_hash = false;
 volatile bool SymbolTable::_lookup_shared_first = false;
 // Static arena for symbols that are not deallocated
@@ -224,10 +240,20 @@ public:
   };
 };
 
+class SharedSymbolIterator {
+  SymbolClosure* _symbol_closure;
+public:
+  SharedSymbolIterator(SymbolClosure* f) : _symbol_closure(f) {}
+  void do_value(Symbol* symbol) {
+    _symbol_closure->do_symbol(&symbol);
+  }
+};
+
 // Call function for all symbols in the symbol table.
 void SymbolTable::symbols_do(SymbolClosure *cl) {
   // all symbols from shared table
-  _shared_table.symbols_do(cl);
+  SharedSymbolIterator iter(cl);
+  _shared_table.iterate(&iter);
 
   // all symbols from the dynamic table
   SymbolsDo sd(cl);
@@ -251,7 +277,7 @@ public:
 void SymbolTable::metaspace_pointers_do(MetaspaceClosure* it) {
   assert(DumpSharedSpaces, "called only during dump time");
   MetaspacePointersDo mpd(it);
-  SymbolTable::the_table()->_local_table->do_scan(Thread::current(), mpd);
+  SymbolTable::the_table()->_local_table->do_safepoint_scan(mpd);
 }
 
 Symbol* SymbolTable::lookup_dynamic(const char* name,
@@ -448,8 +474,8 @@ private:
 #ifdef ASSERT
     assert(sym->utf8_length() == _len, "%s [%d,%d]", where, sym->utf8_length(), _len);
     for (int i = 0; i < _len; i++) {
-      assert(sym->byte_at(i) == (jbyte) _name[i],
-             "%s [%d,%d,%d]", where, i, sym->byte_at(i), _name[i]);
+      assert(sym->char_at(i) == _name[i],
+             "%s [%d,%d,%d]", where, i, sym->char_at(i), _name[i]);
     }
 #endif
   }
@@ -598,40 +624,34 @@ void SymbolTable::dump(outputStream* st, bool verbose) {
 
 #if INCLUDE_CDS
 struct CopyToArchive : StackObj {
-  CompactSymbolTableWriter* _writer;
-  CopyToArchive(CompactSymbolTableWriter* writer) : _writer(writer) {}
+  CompactHashtableWriter* _writer;
+  CopyToArchive(CompactHashtableWriter* writer) : _writer(writer) {}
   bool operator()(Symbol** value) {
     assert(value != NULL, "expected valid value");
     assert(*value != NULL, "value should point to a symbol");
     Symbol* sym = *value;
     unsigned int fixed_hash = hash_shared_symbol((const char*)sym->bytes(), sym->utf8_length());
-    if (fixed_hash == 0) {
-      return true;
-    }
     assert(fixed_hash == hash_symbol((const char*)sym->bytes(), sym->utf8_length(), false),
            "must not rehash during dumping");
-
-    // add to the compact table
-    _writer->add(fixed_hash, sym);
-
+    _writer->add(fixed_hash, MetaspaceShared::object_delta_u4(sym));
     return true;
   }
 };
 
-void SymbolTable::copy_shared_symbol_table(CompactSymbolTableWriter* writer) {
+void SymbolTable::copy_shared_symbol_table(CompactHashtableWriter* writer) {
   CopyToArchive copy(writer);
-  SymbolTable::the_table()->_local_table->do_scan(Thread::current(), copy);
+  SymbolTable::the_table()->_local_table->do_safepoint_scan(copy);
 }
 
 void SymbolTable::write_to_archive() {
   _shared_table.reset();
 
-  int num_buckets = (int)(SymbolTable::the_table()->_items_count / SharedSymbolTableBucketSize);
-  // calculation of num_buckets can result in zero buckets, we need at least one
-  CompactSymbolTableWriter writer(num_buckets > 1 ? num_buckets : 1,
-                                  &MetaspaceShared::stats()->symbol);
+  int num_buckets = CompactHashtableWriter::default_num_buckets(
+      SymbolTable::the_table()->_items_count);
+  CompactHashtableWriter writer(num_buckets,
+                                &MetaspaceShared::stats()->symbol);
   copy_shared_symbol_table(&writer);
-  writer.dump(&_shared_table);
+  writer.dump(&_shared_table, "symbol");
 
   // Verify table is correct
   Symbol* sym = vmSymbols::java_lang_Object();
@@ -641,9 +661,8 @@ void SymbolTable::write_to_archive() {
   assert(sym == _shared_table.lookup(name, hash, len), "sanity");
 }
 
-void SymbolTable::serialize(SerializeClosure* soc) {
-  _shared_table.set_type(CompactHashtable<Symbol*, char>::_symbol_table);
-  _shared_table.serialize(soc);
+void SymbolTable::serialize_shared_table_header(SerializeClosure* soc) {
+  _shared_table.serialize_header(soc);
 
   if (soc->writing()) {
     // Sanity. Make sure we don't use the shared table at dump time

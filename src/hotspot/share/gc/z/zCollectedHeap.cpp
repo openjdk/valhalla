@@ -23,6 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
+#include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
@@ -115,6 +116,10 @@ bool ZCollectedHeap::is_in(const void* p) const {
 
 bool ZCollectedHeap::is_in_closed_subset(const void* p) const {
   return is_in(p);
+}
+
+void ZCollectedHeap::fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap) {
+  // Does nothing, not a parsable heap
 }
 
 HeapWord* ZCollectedHeap::allocate_new_tlab(size_t min_size, size_t requested_size, size_t* actual_size) {
@@ -289,6 +294,14 @@ VirtualSpaceSummary ZCollectedHeap::create_heap_space_summary() {
   return VirtualSpaceSummary(reserved_region().start(),
                              reserved_region().start() + capacity_in_words,
                              reserved_region().start() + max_capacity_in_words);
+}
+
+void ZCollectedHeap::safepoint_synchronize_begin() {
+  SuspendibleThreadSet::synchronize();
+}
+
+void ZCollectedHeap::safepoint_synchronize_end() {
+  SuspendibleThreadSet::desynchronize();
 }
 
 void ZCollectedHeap::prepare_for_verify() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,13 +118,13 @@ class DependencyContext : public StackObj {
   // Safepoints are forbidden during DC lifetime. GC can invalidate
   // _dependency_context_addr if it relocates the holder
   // (e.g. CallSiteContext Java object).
-  int _safepoint_counter;
+  uint64_t _safepoint_counter;
 
   DependencyContext(intptr_t* addr) : _dependency_context_addr(addr),
-    _safepoint_counter(SafepointSynchronize::_safepoint_counter) {}
+    _safepoint_counter(SafepointSynchronize::safepoint_counter()) {}
 
   ~DependencyContext() {
-    assert(_safepoint_counter == SafepointSynchronize::_safepoint_counter, "safepoint happened");
+    assert(_safepoint_counter == SafepointSynchronize::safepoint_counter(), "safepoint happened");
   }
 #else
   DependencyContext(intptr_t* addr) : _dependency_context_addr(addr) {}
@@ -140,10 +140,6 @@ class DependencyContext : public StackObj {
   int  remove_all_dependents();
 
   void expunge_stale_entries();
-
-  // Unsafe deallocation of nmethodBuckets. Used in IK::release_C_heap_structures
-  // to clean up the context possibly containing live entries pointing to unloaded nmethods.
-  void wipe();
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose);

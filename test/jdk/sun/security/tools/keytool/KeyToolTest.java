@@ -22,10 +22,9 @@
  */
 
 /*
- *
- *
- * @summary Testing keytool
+ * @test
  * @author weijun.wang
+ * @summary Testing keytool
  *
  * Run through autotest.sh and manualtest.sh
  *
@@ -54,6 +53,12 @@
  *
  * ATTENTION:
  * NSS PKCS11 config file are changed, DSA not supported now.
+ *
+ * @library /test/lib
+ * @modules java.base/sun.security.tools.keytool
+ *          java.base/sun.security.util
+ *          java.base/sun.security.x509
+ * @run main/othervm/timeout=600 -Dfile KeyToolTest
  */
 
 import java.nio.file.Files;
@@ -67,6 +72,7 @@ import java.util.*;
 import java.security.cert.X509Certificate;
 import jdk.test.lib.util.FileUtils;
 import sun.security.util.ObjectIdentifier;
+
 
 public class KeyToolTest {
 
@@ -632,12 +638,12 @@ public class KeyToolTest {
                 "-genkeypair -alias p1 -dname CN=olala");
         // when specify keypass, make sure keypass==storepass...
         testOK("changeit\n", "-keystore x.p12 -keypass changeit " +
-                "-storetype PKCS12 -genkeypair -alias p3 -dname CN=olala");
+                "-storetype PKCS12 -genkeypair -keyalg DSA -alias p3 -dname CN=olala");
         assertTrue(err.indexOf("Warning") == -1,
                 "PKCS12 silent when keypass == storepass");
         // otherwise, print a warning
         testOK("changeit\n", "-keystore x.p12 -keypass another" +
-                " -storetype PKCS12 -genkeypair -alias p2 -dname CN=olala");
+                " -storetype PKCS12 -genkeypair -keyalg DSA -alias p2 -dname CN=olala");
         assertTrue(err.indexOf("Warning") != -1,
                 "PKCS12 warning when keypass != storepass");
         // no -keypasswd for PKCS12
@@ -657,12 +663,12 @@ public class KeyToolTest {
                 "-genkeypair -alias p1 -dname CN=olala");
         // when specify keypass, make sure keypass==storepass...
         testOK("", "-storepass changeit -keystore x.p12 -keypass changeit " +
-                "-storetype PKCS12 -genkeypair -alias p3 -dname CN=olala");
+                "-storetype PKCS12 -genkeypair -keyalg DSA -alias p3 -dname CN=olala");
         assertTrue(err.indexOf("Warning") == -1,
                 "PKCS12 silent when keypass == storepass");
         // otherwise, print a warning
         testOK("", "-storepass changeit -keystore x.p12 -keypass another " +
-                "-storetype PKCS12 -genkeypair -alias p2 -dname CN=olala");
+                "-storetype PKCS12 -genkeypair -keyalg DSA -alias p2 -dname CN=olala");
         assertTrue(err.indexOf("Warning") != -1,
                 "PKCS12 warning when keypass != storepass");
 

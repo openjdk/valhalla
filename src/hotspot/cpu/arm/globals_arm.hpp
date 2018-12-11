@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,8 +65,6 @@ define_pd_global(intx,  InlineSmallCode,          1500);
 define_pd_global(bool,  RewriteBytecodes,         true);
 define_pd_global(bool,  RewriteFrequentPairs,     true);
 
-define_pd_global(bool,  UseMembar,                true);
-
 define_pd_global(bool,  PreserveFramePointer,     false);
 
 // GC Ergo Flags
@@ -88,13 +86,5 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
                    notproduct, \
                    range, \
                    constraint, \
-                   writeable) \
-                                                                                        \
-  develop(bool, VerifyInterpreterStackTop, false,                                       \
-          "Verify interpreter stack top at every stack expansion (AArch64 only)")       \
-                                                                                        \
-  develop(bool, ZapHighNonSignificantBits, false,                                       \
-          "Zap high non-significant bits of values (AArch64 only)")                     \
-                                                                                        \
-
+                   writeable)
 #endif // CPU_ARM_VM_GLOBALS_ARM_HPP

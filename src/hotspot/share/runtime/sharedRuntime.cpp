@@ -1301,7 +1301,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
          (!is_virtual && invoke_code == Bytecodes::_invokedynamic) ||
          ( is_virtual && invoke_code != Bytecodes::_invokestatic ), "inconsistent bytecode");
 
-  assert(caller_nm->is_alive(), "It should be alive");
+  assert(caller_nm->is_alive() && !caller_nm->is_unloading(), "It should be alive");
 
 #ifndef PRODUCT
   // tracing/debugging/statistics
@@ -1379,7 +1379,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
 
   // grab lock, check for deoptimization and potentially patch caller
   {
-    MutexLocker ml_patch(CompiledIC_lock);
+    CompiledICLocker ml(caller_nm);
 
     // Lock blocks for safepoint during which both nmethods can change state.
 
@@ -1410,7 +1410,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
       }
     }
 
-  } // unlock CompiledIC_lock
+  } // unlock CompiledICLocker
 
   return callee_method;
 }
@@ -1613,11 +1613,13 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
   JvmtiDynamicCodeEventCollector event_collector;
 
   // Update inline cache to megamorphic. Skip update if we are called from interpreted.
-  { MutexLocker ml_patch (CompiledIC_lock);
+  {
     RegisterMap reg_map(thread, false);
     frame caller_frame = thread->last_frame().sender(&reg_map);
     CodeBlob* cb = caller_frame.cb();
     CompiledMethod* caller_nm = cb->as_compiled_method_or_null();
+    CompiledICLocker ml(caller_nm);
+
     if (cb->is_compiled()) {
       CompiledIC* inline_cache = CompiledIC_before(((CompiledMethod*)cb), caller_frame.pc());
       bool should_be_mono = false;
@@ -1632,8 +1634,10 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
       } else if (inline_cache->is_icholder_call()) {
         CompiledICHolder* ic_oop = inline_cache->cached_icholder();
         if (ic_oop != NULL) {
-
-          if (receiver()->klass() == ic_oop->holder_klass()) {
+          if (!ic_oop->is_loader_alive()) {
+            // Deferred IC cleaning due to concurrent class unloading
+            inline_cache->set_to_clean();
+          } else if (receiver()->klass() == ic_oop->holder_klass()) {
             // This isn't a real miss. We must have seen that compiled code
             // is now available and we want the call site converted to a
             // monomorphic compiled call site.
@@ -1675,7 +1679,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
     } else {
       fatal("Unimplemented");
     }
-  } // Release CompiledIC_lock
+  } // Release CompiledICLocker
 
   return callee_method;
 }
@@ -1759,8 +1763,7 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
       // to a wrong method). It should not be performance critical, since the
       // resolve is only done once.
 
-      bool is_nmethod = caller_nm->is_nmethod();
-      MutexLocker ml(CompiledIC_lock);
+      CompiledICLocker ml(caller_nm);
       if (is_static_call) {
         CompiledStaticCall* ssc = caller_nm->compiledStaticCall_at(call_addr);
         ssc->set_to_clean();

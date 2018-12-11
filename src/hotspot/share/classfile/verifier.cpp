@@ -131,7 +131,7 @@ void Verifier::log_end_verification(outputStream* st, const char* klassName, Sym
   st->print_cr("End class verification for: %s", klassName);
 }
 
-bool Verifier::verify(InstanceKlass* klass, Verifier::Mode mode, bool should_verify_class, TRAPS) {
+bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
   HandleMark hm(THREAD);
   ResourceMark rm(THREAD);
 
@@ -2880,7 +2880,7 @@ void ClassVerifier::verify_invoke_instructions(
     }
   }
 
-  if (method_name->byte_at(0) == '<') {
+  if (method_name->char_at(0) == '<') {
     // Make sure <init> can only be invoked by invokespecial
     if (opcode != Bytecodes::_invokespecial ||
         method_name != vmSymbols::object_initializer_name()) {

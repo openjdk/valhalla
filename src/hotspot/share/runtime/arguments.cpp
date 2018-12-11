@@ -106,6 +106,9 @@ char*  Arguments::SharedArchivePath             = NULL;
 AgentLibraryList Arguments::_libraryList;
 AgentLibraryList Arguments::_agentList;
 
+// These are not set by the JDK's built-in launchers, but they can be set by
+// programs that embed the JVM using JNI_CreateJavaVM. See comments around
+// JavaVMOption in jni.h.
 abort_hook_t     Arguments::_abort_hook         = NULL;
 exit_hook_t      Arguments::_exit_hook          = NULL;
 vfprintf_hook_t  Arguments::_vfprintf_hook      = NULL;
@@ -526,47 +529,32 @@ static SpecialFlag const special_jvm_flags[] = {
   // --- Non-alias flags - sorted by obsolete_in then expired_in:
   { "MaxGCMinorPauseMillis",        JDK_Version::jdk(8), JDK_Version::undefined(), JDK_Version::undefined() },
   { "UseConcMarkSweepGC",           JDK_Version::jdk(9), JDK_Version::undefined(), JDK_Version::undefined() },
-  { "AssumeMP",                     JDK_Version::jdk(10),JDK_Version::undefined(), JDK_Version::undefined() },
-  { "MonitorInUseLists",            JDK_Version::jdk(10),JDK_Version::undefined(), JDK_Version::undefined() },
   { "MaxRAMFraction",               JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "MinRAMFraction",               JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "InitialRAMFraction",           JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
-  { "UseMembar",                    JDK_Version::jdk(10), JDK_Version::undefined(), JDK_Version::undefined() },
-  { "IgnoreUnverifiableClassesDuringDump", JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
+  { "UseMembar",                    JDK_Version::jdk(10), JDK_Version::jdk(12), JDK_Version::undefined() },
   { "CompilerThreadHintNoPreempt",  JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "VMThreadHintNoPreempt",        JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
-  { "AggressiveOpts",               JDK_Version::jdk(11), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+
+#if defined(_ALLBSD_SOURCE)
+  { "UseSHM",                       JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "UseHugeTLBFS",                 JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+#endif
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "CreateMinidumpOnCrash",        JDK_Version::jdk(9),  JDK_Version::undefined(), JDK_Version::undefined() },
-  { "MustCallLoadClassInternal",    JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "UnsyncloadClass",              JDK_Version::jdk(10), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "TLABStats",                    JDK_Version::jdk(12), JDK_Version::undefined(), JDK_Version::undefined() },
 
   // -------------- Obsolete Flags - sorted by expired_in --------------
-  { "CheckAssertionStatusDirectives",JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "PrintMallocFree",               JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "PrintMalloc",                   JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "ShowSafepointMsgs",             JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "FastTLABRefill",                JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "SafepointSpinBeforeYield",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "CheckEndorsedAndExtDirs",       JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "DeferThrSuspendLoopCount",      JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "DeferPollingPageLoopCount",     JDK_Version::jdk(10),     JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "TraceScavenge",                 JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
   { "PermSize",                      JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "MaxPermSize",                   JDK_Version::undefined(), JDK_Version::jdk(8),  JDK_Version::undefined() },
   { "SharedReadWriteSize",           JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedReadOnlySize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscDataSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscCodeSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
-  { "UseUTCFileTimestamp",           JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "InlineNotify",                  JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "EnableTracing",                 JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "UseLockedTracing",              JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "NativeMonitorTimeout",          JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "NativeMonitorSpinLimit",        JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
-  { "NativeMonitorFlags",            JDK_Version::undefined(), JDK_Version::jdk(11), JDK_Version::jdk(12) },
+  { "AssumeMP",                      JDK_Version::jdk(10),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "IgnoreUnverifiableClassesDuringDump", JDK_Version::jdk(10),  JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "UnlinkSymbolsALot",             JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "AllowNonVirtualCalls",          JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "PrintSafepointStatistics",      JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
@@ -574,6 +562,12 @@ static SpecialFlag const special_jvm_flags[] = {
   { "PrintSafepointStatisticsCount", JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "TransmitErrorReport",           JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
   { "ErrorReportServer",             JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "EmitSync",                      JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "SyncVerbose",                   JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "SyncFlags",                     JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "SyncKnobs",                     JDK_Version::undefined(), JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "MonitorInUseLists",             JDK_Version::jdk(10),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
+  { "AggressiveOpts",                JDK_Version::jdk(11),     JDK_Version::jdk(12), JDK_Version::jdk(13) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   { "dep > obs",                    JDK_Version::jdk(9), JDK_Version::jdk(8), JDK_Version::undefined() },
@@ -1951,7 +1945,7 @@ void Arguments::set_bytecode_flags() {
   }
 }
 
-// Aggressive optimization flags  -XX:+AggressiveOpts
+// Aggressive optimization flags
 jint Arguments::set_aggressive_opts_flags() {
 #ifdef COMPILER2
   if (AggressiveUnboxing) {
@@ -1968,14 +1962,10 @@ jint Arguments::set_aggressive_opts_flags() {
       AggressiveUnboxing = false;
     }
   }
-  if (AggressiveOpts || !FLAG_IS_DEFAULT(AutoBoxCacheMax)) {
+  if (!FLAG_IS_DEFAULT(AutoBoxCacheMax)) {
     if (FLAG_IS_DEFAULT(EliminateAutoBox)) {
       FLAG_SET_DEFAULT(EliminateAutoBox, true);
     }
-    if (FLAG_IS_DEFAULT(AutoBoxCacheMax)) {
-      FLAG_SET_DEFAULT(AutoBoxCacheMax, 20000);
-    }
-
     // Feed the cache size setting into the JDK
     char buffer[1024];
     jio_snprintf(buffer, 1024, "java.lang.Integer.IntegerCache.high=" INTX_FORMAT, AutoBoxCacheMax);
@@ -1983,17 +1973,7 @@ jint Arguments::set_aggressive_opts_flags() {
       return JNI_ENOMEM;
     }
   }
-  if (AggressiveOpts && FLAG_IS_DEFAULT(BiasedLockingStartupDelay)) {
-    FLAG_SET_DEFAULT(BiasedLockingStartupDelay, 500);
-  }
 #endif
-
-  if (AggressiveOpts) {
-// Sample flag setting code
-//    if (FLAG_IS_DEFAULT(EliminateZeroing)) {
-//      FLAG_SET_DEFAULT(EliminateZeroing, true);
-//    }
-  }
 
   return JNI_OK;
 }
@@ -2126,17 +2106,10 @@ bool Arguments::is_bad_option(const JavaVMOption* option, jboolean ignore,
     option_type = ++spacer; // Set both to the empty string.
   }
 
-  if (os::obsolete_option(option)) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Obsolete %s%soption: %s\n", option_type, spacer,
-      option->optionString);
-    return false;
-  } else {
-    jio_fprintf(defaultStream::error_stream(),
-                "Unrecognized %s%soption: %s\n", option_type, spacer,
-      option->optionString);
-    return true;
-  }
+  jio_fprintf(defaultStream::error_stream(),
+              "Unrecognized %s%soption: %s\n", option_type, spacer,
+              option->optionString);
+  return true;
 }
 
 static const char* user_assertion_options[] = {
@@ -2701,23 +2674,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
       // Obsolete in JDK 10
       JDK_Version::jdk(10).to_string(version, sizeof(version));
       warning("Ignoring option %s; support was removed in %s", option->optionString, version);
-    // -Xconcurrentio
-    } else if (match_option(option, "-Xconcurrentio")) {
-      if (FLAG_SET_CMDLINE(bool, UseLWPSynchronization, true) != JVMFlag::SUCCESS) {
-        return JNI_EINVAL;
-      }
-      if (FLAG_SET_CMDLINE(bool, BackgroundCompilation, false) != JVMFlag::SUCCESS) {
-        return JNI_EINVAL;
-      }
-      SafepointSynchronize::set_defer_thr_suspend_loop_count();
-      if (FLAG_SET_CMDLINE(bool, UseTLAB, false) != JVMFlag::SUCCESS) {
-        return JNI_EINVAL;
-      }
-      if (FLAG_SET_CMDLINE(size_t, NewSizeThreadIncrease, 16 * K) != JVMFlag::SUCCESS) {  // 20Kb per thread added to new generation
-        return JNI_EINVAL;
-      }
-
-      // -Xinternalversion
+    // -Xinternalversion
     } else if (match_option(option, "-Xinternalversion")) {
       jio_fprintf(defaultStream::output_stream(), "%s\n",
                   VM_Version::internal_vm_info_string());
@@ -3502,21 +3459,27 @@ void Arguments::set_shared_spaces_flags() {
 
 // Sharing support
 // Construct the path to the archive
+char* Arguments::get_default_shared_archive_path() {
+  char *default_archive_path;
+  char jvm_path[JVM_MAXPATHLEN];
+  os::jvm_path(jvm_path, sizeof(jvm_path));
+  char *end = strrchr(jvm_path, *os::file_separator());
+  if (end != NULL) *end = '\0';
+  size_t jvm_path_len = strlen(jvm_path);
+  size_t file_sep_len = strlen(os::file_separator());
+  const size_t len = jvm_path_len + file_sep_len + 20;
+  default_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
+  if (default_archive_path != NULL) {
+    jio_snprintf(default_archive_path, len, "%s%sclasses.jsa",
+      jvm_path, os::file_separator());
+  }
+  return default_archive_path;
+}
+
 static char* get_shared_archive_path() {
   char *shared_archive_path;
   if (SharedArchiveFile == NULL) {
-    char jvm_path[JVM_MAXPATHLEN];
-    os::jvm_path(jvm_path, sizeof(jvm_path));
-    char *end = strrchr(jvm_path, *os::file_separator());
-    if (end != NULL) *end = '\0';
-    size_t jvm_path_len = strlen(jvm_path);
-    size_t file_sep_len = strlen(os::file_separator());
-    const size_t len = jvm_path_len + file_sep_len + 20;
-    shared_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
-    if (shared_archive_path != NULL) {
-      jio_snprintf(shared_archive_path, len, "%s%sclasses.jsa",
-        jvm_path, os::file_separator());
-    }
+    shared_archive_path = Arguments::get_default_shared_archive_path();
   } else {
     shared_archive_path = os::strdup_check_oom(SharedArchiveFile, mtArguments);
   }
@@ -3884,6 +3847,10 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
   UNSUPPORTED_OPTION(UseLargePages);
 #endif
 
+#if defined(AIX)
+  UNSUPPORTED_OPTION(AllocateHeapAt);
+#endif
+
   ArgumentsExt::report_unsupported_options();
 
 #ifndef PRODUCT
@@ -3952,7 +3919,7 @@ jint Arguments::apply_ergo() {
   // Set bytecode rewriting flags
   set_bytecode_flags();
 
-  // Set flags if Aggressive optimization flags (-XX:+AggressiveOpts) enabled
+  // Set flags if aggressive optimization flags are enabled
   jint code = set_aggressive_opts_flags();
   if (code != JNI_OK) {
     return code;
@@ -4021,7 +3988,7 @@ jint Arguments::apply_ergo() {
     }
   }
 #ifdef COMPILER2
-  if (!UseBiasedLocking || EmitSync != 0) {
+  if (!UseBiasedLocking) {
     UseOptoBiasInlining = false;
   }
 #endif

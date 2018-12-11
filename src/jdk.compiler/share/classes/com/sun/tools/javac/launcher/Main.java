@@ -27,8 +27,11 @@ package com.sun.tools.javac.launcher;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -37,21 +40,32 @@ import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.CodeSigner;
+import java.security.CodeSource;
+import java.security.ProtectionDomain;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.MissingResourceException;
+import java.util.NoSuchElementException;
 import java.util.ResourceBundle;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.NestingKind;
@@ -59,7 +73,6 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.FileObject;
 import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaFileManager;
-import javax.tools.JavaFileManager.Location;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -172,7 +185,7 @@ public class Main {
     public void run(String[] runtimeArgs, String[] args) throws Fault, InvocationTargetException {
         Path file = getFile(args);
 
-        Context context = new Context();
+        Context context = new Context(file.toAbsolutePath());
         String mainClassName = compile(file, getJavacOpts(runtimeArgs), context);
 
         String[] appArgs = Arrays.copyOfRange(args, 1, args.length);
@@ -183,7 +196,7 @@ public class Main {
      * Returns the path for the filename found in the first of an array of arguments.
      *
      * @param args the array
-     * @return the path
+     * @return the path, as given in the array of args
      * @throws Fault if there is a problem determining the path, or if the file does not exist
      */
     private Path getFile(String[] args) throws Fault {
@@ -386,12 +399,10 @@ public class Main {
      */
     private void execute(String mainClassName, String[] appArgs, Context context)
             throws Fault, InvocationTargetException {
+        System.setProperty("jdk.launcher.sourcefile", context.file.toString());
         ClassLoader cl = context.getClassLoader(ClassLoader.getSystemClassLoader());
         try {
             Class<?> appClass = Class.forName(mainClassName, true, cl);
-            if (appClass.getClassLoader() != cl) {
-                throw new Fault(Errors.UnexpectedClass(mainClassName));
-            }
             Method main = appClass.getDeclaredMethod("main", String[].class);
             int PUBLIC_STATIC = Modifier.PUBLIC | Modifier.STATIC;
             if ((main.getModifiers() & PUBLIC_STATIC) != PUBLIC_STATIC) {
@@ -471,14 +482,19 @@ public class Main {
      * a class loader.
      */
     private static class Context {
-        private Map<String, byte[]> inMemoryClasses = new HashMap<>();
+        private final Path file;
+        private final Map<String, byte[]> inMemoryClasses = new HashMap<>();
+
+        Context(Path file) {
+            this.file = file;
+        }
 
         JavaFileManager getFileManager(StandardJavaFileManager delegate) {
             return new MemoryFileManager(inMemoryClasses, delegate);
         }
 
         ClassLoader getClassLoader(ClassLoader parent) {
-            return new MemoryClassLoader(inMemoryClasses, parent);
+            return new MemoryClassLoader(inMemoryClasses, parent, file);
         }
     }
 
@@ -525,26 +541,232 @@ public class Main {
     }
 
     /**
-     * An in-memory classloader, that uses an in-memory cache written by {@link MemoryFileManager}.
+     * An in-memory classloader, that uses an in-memory cache of classes written by
+     * {@link MemoryFileManager}.
      *
-     * <p>The classloader uses the standard parent-delegation model, just providing
-     * {@code findClass} to find classes in the in-memory cache.
+     * <p>The classloader inverts the standard parent-delegation model, giving preference
+     * to classes defined in the source file before classes known to the parent (such
+     * as any like-named classes that might be found on the application class path.)
      */
     private static class MemoryClassLoader extends ClassLoader {
-        private final Map<String, byte[]> map;
+        /**
+         * The map of all classes found in the source file, indexed by
+         * {@link ClassLoader#name binary name}.
+         */
+        private final Map<String, byte[]> sourceFileClasses;
 
-        MemoryClassLoader(Map<String, byte[]> map, ClassLoader parent) {
+        /**
+         * A minimal protection domain, specifying a code source of the source file itself,
+         * used for classes found in the source file and defined by this loader.
+         */
+        private final ProtectionDomain domain;
+
+        MemoryClassLoader(Map<String, byte[]> sourceFileClasses, ClassLoader parent, Path file) {
             super(parent);
-            this.map = map;
+            this.sourceFileClasses = sourceFileClasses;
+            CodeSource codeSource;
+            try {
+                codeSource = new CodeSource(file.toUri().toURL(), (CodeSigner[]) null);
+            } catch (MalformedURLException e) {
+                codeSource = null;
+            }
+            domain = new ProtectionDomain(codeSource, null, this, null);
+        }
+
+        /**
+         * Override loadClass to check for classes defined in the source file
+         * before checking for classes in the parent class loader,
+         * including those on the classpath.
+         *
+         * {@code loadClass(String name)} calls this method, and so will have the same behavior.
+         *
+         * @param name the name of the class to load
+         * @param resolve whether or not to resolve the class
+         * @return the class
+         * @throws ClassNotFoundException if the class is not found
+         */
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> c = findLoadedClass(name);
+                if (c == null) {
+                    if (sourceFileClasses.containsKey(name)) {
+                        c = findClass(name);
+                    } else {
+                        c = getParent().loadClass(name);
+                    }
+                    if (resolve) {
+                        resolveClass(c);
+                    }
+                }
+                return c;
+            }
+        }
+
+
+        /**
+         * Override getResource to check for resources (i.e. class files) defined in the
+         * source file before checking resources in the parent class loader,
+         * including those on the class path.
+         *
+         * {@code getResourceAsStream(String name)} calls this method,
+         * and so will have the same behavior.
+         *
+         * @param name the name of the resource
+         * @return a URL for the resource, or null if not found
+         */
+        @Override
+        public URL getResource(String name) {
+            if (sourceFileClasses.containsKey(toBinaryName(name))) {
+                return findResource(name);
+            } else {
+                return getParent().getResource(name);
+            }
+        }
+
+        /**
+         * Override getResources to check for resources (i.e. class files) defined in the
+         * source file before checking resources in the parent class loader,
+         * including those on the class path.
+         *
+         * @param name the name of the resource
+         * @return an enumeration of the resources in this loader and in the application class loader
+         */
+        @Override
+        public Enumeration<URL> getResources(String name) throws IOException {
+            URL u = findResource(name);
+            Enumeration<URL> e = getParent().getResources(name);
+            if (u == null) {
+                return e;
+            } else {
+                List<URL> list = new ArrayList<>();
+                list.add(u);
+                while (e.hasMoreElements()) {
+                    list.add(e.nextElement());
+                }
+                return Collections.enumeration(list);
+            }
         }
 
         @Override
         protected Class<?> findClass(String name) throws ClassNotFoundException {
-            byte[] bytes = map.get(name);
+            byte[] bytes = sourceFileClasses.get(name);
             if (bytes == null) {
                 throw new ClassNotFoundException(name);
             }
-            return defineClass(name, bytes, 0, bytes.length);
+            return defineClass(name, bytes, 0, bytes.length, domain);
+        }
+
+        @Override
+        public URL findResource(String name) {
+            String binaryName = toBinaryName(name);
+            if (binaryName == null || sourceFileClasses.get(binaryName) == null) {
+                return null;
+            }
+
+            URLStreamHandler handler = this.handler;
+            if (handler == null) {
+                this.handler = handler = new MemoryURLStreamHandler();
+            }
+
+            try {
+                return new URL(PROTOCOL, null, -1, name, handler);
+            } catch (MalformedURLException e) {
+                return null;
+            }
+        }
+
+        @Override
+        public Enumeration<URL> findResources(String name) {
+            return new Enumeration<URL>() {
+                private URL next = findResource(name);
+
+                @Override
+                public boolean hasMoreElements() {
+                    return (next != null);
+                }
+
+                @Override
+                public URL nextElement() {
+                    if (next == null) {
+                        throw new NoSuchElementException();
+                    }
+                    URL u = next;
+                    next = null;
+                    return u;
+                }
+            };
+        }
+
+        /**
+         * Converts a "resource name" (as used in the getResource* methods)
+         * to a binary name if the name identifies a class, or null otherwise.
+         * @param name the resource name
+         * @return the binary name
+         */
+        private String toBinaryName(String name) {
+            if (!name.endsWith(".class")) {
+                return null;
+            }
+            return name.substring(0, name.length() - DOT_CLASS_LENGTH).replace('/', '.');
+        }
+
+        private static final int DOT_CLASS_LENGTH = ".class".length();
+        private final String PROTOCOL = "sourcelauncher-" + getClass().getSimpleName() + hashCode();
+        private URLStreamHandler handler;
+
+        /**
+         * A URLStreamHandler for use with URLs returned by MemoryClassLoader.getResource.
+         */
+        private class MemoryURLStreamHandler extends URLStreamHandler {
+            @Override
+            public URLConnection openConnection(URL u) {
+                if (!u.getProtocol().equalsIgnoreCase(PROTOCOL)) {
+                    throw new IllegalArgumentException(u.toString());
+                }
+                return new MemoryURLConnection(u, sourceFileClasses.get(toBinaryName(u.getPath())));
+            }
+
+        }
+
+        /**
+         * A URLConnection for use with URLs returned by MemoryClassLoader.getResource.
+         */
+        private static class MemoryURLConnection extends URLConnection {
+            private byte[] bytes;
+            private InputStream in;
+
+            MemoryURLConnection(URL u, byte[] bytes) {
+                super(u);
+                this.bytes = bytes;
+            }
+
+            @Override
+            public void connect() throws IOException {
+                if (!connected) {
+                    if (bytes == null) {
+                        throw new FileNotFoundException(getURL().getPath());
+                    }
+                    in = new ByteArrayInputStream(bytes);
+                    connected = true;
+                }
+            }
+
+            @Override
+            public InputStream getInputStream() throws IOException {
+                connect();
+                return in;
+            }
+
+            @Override
+            public long getContentLengthLong() {
+                return bytes.length;
+            }
+
+            @Override
+            public String getContentType() {
+                return "application/octet-stream";
+            }
         }
     }
 }

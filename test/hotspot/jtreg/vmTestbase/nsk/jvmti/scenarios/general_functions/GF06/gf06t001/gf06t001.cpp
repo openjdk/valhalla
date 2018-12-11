@@ -28,23 +28,8 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_ARG1(x)
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_ARG1(x) x
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 /* ============================================================================= */
 
@@ -90,8 +75,7 @@ static int checkEnvStorage(jvmtiEnv* jvmti, const char where[]) {
     void* storage = NULL;
 
     NSK_DISPLAY0("Calling GetEnvironmentLocalStorage():");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetEnvironmentLocalStorage, jvmti, &storage))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetEnvironmentLocalStorage(&storage))) {
         return NSK_FALSE;
     }
     NSK_DISPLAY1("  ... got storage: 0x%p\n", (void*)storage);
@@ -130,9 +114,9 @@ jthread getEnvThread(JNIEnv *env) {
     jmethodID cid;
     jthread res;
 
-    thrClass = NSK_CPP_STUB2(FindClass, env, "java/lang/Thread");
-    cid = NSK_CPP_STUB4(GetMethodID, env, thrClass, "<init>", "()V");
-    res = NSK_CPP_STUB3(NewObject, env, thrClass, cid);
+    thrClass = env->FindClass("java/lang/Thread");
+    cid = env->GetMethodID(thrClass, "<init>", "()V");
+    res = env->NewObject(thrClass, cid);
     return res;
 }
 
@@ -201,16 +185,14 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     timeout = nsk_jvmti_getWaitTime() * 60 * 1000;
 
     NSK_DISPLAY0("Create first JVMTI env.\n");
-    res = JNI_ENV_PTR(jvm)->
-        GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti_1), JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti_1, JVMTI_VERSION_1_1);
     if (res < 0) {
         NSK_COMPLAIN0("Wrong result of a valid call to GetEnv!\n");
         return JNI_ERR;
     }
 
     NSK_DISPLAY1("Set local storage in JVM_OnLoad() for first JVMTI env: 0x%p\n", (void*)initialStorage);
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(SetEnvironmentLocalStorage, jvmti_1, initialStorage))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_1->SetEnvironmentLocalStorage(initialStorage))) {
         return JNI_ERR;
     }
     NSK_DISPLAY0("  ... ok\n");
@@ -228,8 +210,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         eventCallbacks.VMInit = callbackVMInit;
         eventCallbacks.VMDeath = callbackVMDeath;
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti_2,
-                                    &eventCallbacks, sizeof(eventCallbacks)))) {
+                jvmti_2->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             return JNI_ERR;
         }
 
@@ -254,6 +235,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "code/codeCache.hpp"
+#include "code/compiledIC.hpp"
 #include "memory/resourceArea.hpp"
 #include "nativeInst_sparc.hpp"
 #include "oops/oop.inline.hpp"
@@ -189,8 +190,9 @@ void NativeCall::replace_mt_safe(address instr_addr, address code_buffer) {
 //
 // Used in the runtime linkage of calls; see class CompiledIC.
 void NativeCall::set_destination_mt_safe(address dest) {
-  assert(Patching_lock->is_locked() ||
-         SafepointSynchronize::is_at_safepoint(), "concurrent code patching");
+  assert((Patching_lock->is_locked() || SafepointSynchronize::is_at_safepoint()) ||
+         CompiledICLocker::is_safe(addr_at(0)),
+         "concurrent code patching");
   // set_destination uses set_long_at which does the ICache::invalidate
   set_destination(dest);
 }
@@ -205,9 +207,9 @@ void NativeCall::test() {
   uint idx;
   int offsets[] = {
     0x0,
-    0xfffffff0,
-    0x7ffffff0,
-    0x80000000,
+    (int)0xfffffff0,
+    (int)0x7ffffff0,
+    (int)0x80000000,
     0x20,
     0x4000,
   };
@@ -361,9 +363,9 @@ void NativeMovConstReg::test() {
   uint idx;
   int offsets[] = {
     0x0,
-    0x7fffffff,
-    0x80000000,
-    0xffffffff,
+    (int)0x7fffffff,
+    (int)0x80000000,
+    (int)0xffffffff,
     0x20,
     4096,
     4097,
@@ -534,9 +536,9 @@ void NativeMovConstRegPatching::test() {
   uint idx;
   int offsets[] = {
     0x0,
-    0x7fffffff,
-    0x80000000,
-    0xffffffff,
+    (int)0x7fffffff,
+    (int)0x80000000,
+    (int)0xffffffff,
     0x20,
     4096,
     4097,
@@ -630,9 +632,9 @@ void NativeMovRegMem::test() {
   uint idx1;
   int offsets[] = {
     0x0,
-    0xffffffff,
-    0x7fffffff,
-    0x80000000,
+    (int)0xffffffff,
+    (int)0x7fffffff,
+    (int)0x80000000,
     4096,
     4097,
     0x20,
@@ -751,9 +753,9 @@ void NativeJump::test() {
   uint idx;
   int offsets[] = {
     0x0,
-    0xffffffff,
-    0x7fffffff,
-    0x80000000,
+    (int)0xffffffff,
+    (int)0x7fffffff,
+    (int)0x80000000,
     4096,
     4097,
     0x20,

@@ -84,8 +84,7 @@ public:
   operator Symbol*()                             { return _temp; }
 };
 
-template <class T, class N> class CompactHashtable;
-class CompactSymbolTableWriter;
+class CompactHashtableWriter;
 class SerializeClosure;
 
 class SymbolTableConfig;
@@ -108,8 +107,6 @@ private:
 
   // The symbol table
   static SymbolTable* _the_table;
-  // Shared symbol table.
-  static CompactHashtable<Symbol*, char> _shared_table;
   static volatile bool _lookup_shared_first;
   static volatile bool _alt_hash;
 
@@ -243,10 +240,10 @@ public:
 
   // Sharing
 private:
-  static void copy_shared_symbol_table(CompactSymbolTableWriter* ch_table);
+  static void copy_shared_symbol_table(CompactHashtableWriter* ch_table);
 public:
   static void write_to_archive() NOT_CDS_RETURN;
-  static void serialize(SerializeClosure* soc) NOT_CDS_RETURN;
+  static void serialize_shared_table_header(SerializeClosure* soc) NOT_CDS_RETURN;
   static void metaspace_pointers_do(MetaspaceClosure* it);
 
   // Jcmd

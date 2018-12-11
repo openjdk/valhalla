@@ -47,8 +47,8 @@ import javax.net.ssl.SSLProtocolException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
-import jdk.internal.misc.JavaNetInetAddressAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaNetInetAddressAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * Implementation of an SSL socket.
@@ -849,8 +849,7 @@ public final class SSLSocketImpl
          *
          * This implementation is somewhat less efficient than possible, but
          * not badly so (redundant copy).  We reuse the read() code to keep
-         * things simpler. Note that SKIP_ARRAY is static and may garbled by
-         * concurrent use, but we are not interested in the data anyway.
+         * things simpler.
          */
         @Override
         public synchronized long skip(long n) throws IOException {
@@ -1230,7 +1229,7 @@ public final class SSLSocketImpl
         // identification.  Use the application original specified
         // hostname or IP address instead.
 
-        // Get the original hostname via jdk.internal.misc.SharedSecrets
+        // Get the original hostname via jdk.internal.access.SharedSecrets
         InetAddress inetAddress = getInetAddress();
         if (inetAddress == null) {      // not connected
             return;

@@ -30,6 +30,8 @@ import java.lang.ref.SoftReference;
 import java.net.URI;
 import java.text.CollationKey;
 import java.text.Collator;
+import java.text.ParseException;
+import java.text.RuleBasedCollator;
 import java.util.*;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Map.Entry;
@@ -84,6 +86,7 @@ import jdk.javadoc.internal.doclets.formats.html.SearchIndexItem;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.CommentUtils.DocCommentDuo;
 import jdk.javadoc.internal.doclets.toolkit.Messages;
+import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.WorkArounds;
 import jdk.javadoc.internal.tool.DocEnvImpl;
 
@@ -108,6 +111,7 @@ import static jdk.javadoc.internal.doclets.toolkit.builders.ConstantsSummaryBuil
 public class Utils {
     public final BaseConfiguration configuration;
     public final Messages messages;
+    public final Resources resources;
     public final DocTrees docTrees;
     public final Elements elementUtils;
     public final Types typeUtils;
@@ -116,6 +120,7 @@ public class Utils {
     public Utils(BaseConfiguration c) {
         configuration = c;
         messages = configuration.getMessages();
+        resources = configuration.getResources();
         elementUtils = c.docEnv.getElementUtils();
         typeUtils = c.docEnv.getTypeUtils();
         docTrees = c.docEnv.getDocTrees();
@@ -1243,7 +1248,7 @@ public class Utils {
             typeName = "doclet.Class";
         }
         typeName = lowerCaseOnly ? toLowerCase(typeName) : typeName;
-        return typeNameMap.computeIfAbsent(typeName, configuration :: getText);
+        return typeNameMap.computeIfAbsent(typeName, resources::getText);
     }
 
     private final Map<String, String> typeNameMap = new HashMap<>();
@@ -1366,11 +1371,11 @@ public class Utils {
                 continue;
             if (ee.getSimpleName().contentEquals("values") && ee.getParameters().isEmpty()) {
                 removeCommentHelper(ee); // purge previous entry
-                configuration.cmtUtils.setEnumValuesTree(configuration, e);
+                configuration.cmtUtils.setEnumValuesTree(e);
             }
             if (ee.getSimpleName().contentEquals("valueOf") && ee.getParameters().size() == 1) {
                 removeCommentHelper(ee); // purge previous entry
-                configuration.cmtUtils.setEnumValueOfTree(configuration, e);
+                configuration.cmtUtils.setEnumValueOfTree(e);
             }
         }
     }
@@ -1483,7 +1488,7 @@ public class Utils {
             return false;
         }
 
-        if (!getBlockTags(m).isEmpty())
+        if (!getBlockTags(m).isEmpty() || isDeprecated(m))
             return false;
 
         List<? extends DocTree> fullBody = getFullBody(m);
@@ -1588,7 +1593,7 @@ public class Utils {
         private final Collator instance;
         private final int MAX_SIZE = 1000;
         private DocCollator(Locale locale, int strength) {
-            instance = Collator.getInstance(locale);
+            instance = createCollator(locale);
             instance.setStrength(strength);
 
             keys = new LinkedHashMap<String, CollationKey>(MAX_SIZE + 1, 0.75f, true) {
@@ -1606,6 +1611,21 @@ public class Utils {
 
         public int compare(String s1, String s2) {
             return getKey(s1).compareTo(getKey(s2));
+        }
+
+        private Collator createCollator(Locale locale) {
+            Collator baseCollator = Collator.getInstance(locale);
+            if (baseCollator instanceof RuleBasedCollator) {
+                // Extend collator to sort signatures with additional args and var-args in a well-defined order:
+                // () < (int) < (int, int) < (int...)
+                try {
+                    return new RuleBasedCollator(((RuleBasedCollator) baseCollator).getRules()
+                            + "& ')' < ',' < '.','['");
+                } catch (ParseException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return baseCollator;
         }
     }
 
@@ -3070,7 +3090,7 @@ public class Utils {
                             throw new JavaScriptScanner.Fault();
                         });
                     } catch (JavaScriptScanner.Fault jsf) {
-                        String text = configuration.getText("doclet.JavaScript_in_comment");
+                        String text = resources.getText("doclet.JavaScript_in_comment");
                         throw new UncheckedDocletException(new SimpleDocletException(text, jsf));
                     }
                 }
@@ -3106,7 +3126,7 @@ public class Utils {
                     throw new JavaScriptScanner.Fault();
                 });
             } catch (JavaScriptScanner.Fault jsf) {
-                String text = configuration.getText("doclet.JavaScript_in_option", name);
+                String text = resources.getText("doclet.JavaScript_in_option", name);
                 throw new UncheckedDocletException(new SimpleDocletException(text, jsf));
             }
         }

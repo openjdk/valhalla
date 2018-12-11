@@ -160,6 +160,11 @@ class ReflectAccess implements jdk.internal.reflect.LangReflectAccess {
         return (T) obj.getRoot();
     }
 
+    public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
+        throws IllegalAccessException, InstantiationException, InvocationTargetException
+    {
+        return ctor.newInstanceWithCaller(args, true, caller);
+    }
     /*
      * With a Field object for C.f of type T, T should have been resolved
      * and T must be present in ValueType attribute.

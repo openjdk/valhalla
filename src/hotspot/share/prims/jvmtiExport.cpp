@@ -994,6 +994,20 @@ class JvmtiClassFileLoadHookPoster : public StackObj {
   }
 };
 
+bool JvmtiExport::is_early_phase() {
+  return JvmtiEnvBase::get_phase() <= JVMTI_PHASE_PRIMORDIAL;
+}
+
+bool JvmtiExport::has_early_class_hook_env() {
+  JvmtiEnvIterator it;
+  for (JvmtiEnv* env = it.first(); env != NULL; env = it.next(env)) {
+    if (env->early_class_hook_env()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool JvmtiExport::_should_post_class_file_load_hook = false;
 
 // this entry is for class file load hook on class load, redefine and retransform
@@ -1044,7 +1058,7 @@ class JvmtiObjectAllocEventMark : public JvmtiClassEventMark  {
  public:
    JvmtiObjectAllocEventMark(JavaThread *thread, oop obj) : JvmtiClassEventMark(thread, oop_to_klass(obj)) {
      _jobj = (jobject)to_jobject(obj);
-     _size = obj->size() * wordSize;
+     _size = Universe::heap()->obj_size(obj) * wordSize;
    };
    jobject jni_jobject() { return _jobj; }
    jlong size() { return _size; }
@@ -1469,6 +1483,18 @@ void JvmtiExport::post_object_free(JvmtiEnv* env, jlong tag) {
 }
 
 void JvmtiExport::post_resource_exhausted(jint resource_exhausted_flags, const char* description) {
+
+  JavaThread *thread  = JavaThread::current();
+
+  // JDK-8213834: handlers of ResourceExhausted may attempt some analysis
+  // which often requires running java.
+  // This will cause problems on threads not able to run java, e.g. compiler
+  // threads. To forestall these problems, we therefore suppress sending this
+  // event from threads which are not able to run java.
+  if (!thread->can_call_java()) {
+    return;
+  }
+
   EVT_TRIG_TRACE(JVMTI_EVENT_RESOURCE_EXHAUSTED, ("Trg resource exhausted event triggered" ));
 
   JvmtiEnvIterator it;
@@ -1476,7 +1502,6 @@ void JvmtiExport::post_resource_exhausted(jint resource_exhausted_flags, const c
     if (env->is_enabled(JVMTI_EVENT_RESOURCE_EXHAUSTED)) {
       EVT_TRACE(JVMTI_EVENT_RESOURCE_EXHAUSTED, ("Evt resource exhausted event sent" ));
 
-      JavaThread *thread  = JavaThread::current();
       JvmtiThreadEventMark jem(thread);
       JvmtiJavaThreadEventTransition jet(thread);
       jvmtiEventResourceExhausted callback = env->callbacks()->ResourceExhausted;
@@ -2930,8 +2955,7 @@ bool JvmtiSampledObjectAllocEventCollector::object_alloc_is_safe_to_sample() {
     return false;
   }
 
-  if (Compile_lock->owner() == thread ||
-      MultiArray_lock->owner() == thread) {
+  if (MultiArray_lock->owner() == thread) {
     return false;
   }
   return true;

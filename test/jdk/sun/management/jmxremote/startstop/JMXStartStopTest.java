@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,8 +44,8 @@ import javax.management.*;
 import javax.management.remote.*;
 import javax.net.ssl.SSLHandshakeException;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 import jdk.internal.agent.Agent;
 import jdk.internal.agent.AgentConfigurationError;
 import jdk.internal.agent.ConnectorAddressLink;
@@ -57,12 +57,12 @@ import jdk.internal.agent.ConnectorAddressLink;
  * @summary Makes sure that enabling/disabling the management agent through JCMD
  *          achieves the desired results
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.management
  *          java.rmi
  *          jdk.management.agent/jdk.internal.agent
  *
- * @build jdk.testlibrary.* JMXStartStopTest PortAllocator TestApp ManagementAgentJcmd
+ * @build JMXStartStopTest PortAllocator TestApp ManagementAgentJcmd
  * @run main/othervm/timeout=600 -XX:+UsePerfData JMXStartStopTest
  */
 public class JMXStartStopTest {

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/metadataOnStackMark.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
@@ -2186,6 +2187,8 @@ void Method::set_on_stack(const bool value) {
   if (value && !already_set) {
     MetadataOnStackMark::record(this);
   }
+  assert(!value || !is_old() || is_obsolete() || is_running_emcp(),
+         "emcp methods cannot run after emcp bit is cleared");
 }
 
 // Called when the class loader is unloaded to make all methods weak.

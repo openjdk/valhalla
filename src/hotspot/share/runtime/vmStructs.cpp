@@ -29,6 +29,7 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "classfile/compactHashtable.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
@@ -329,8 +330,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   nonstatic_field(ObjArrayKlass,               _bottom_klass,                                 Klass*)                                \
   volatile_nonstatic_field(Symbol,             _length_and_refcount,                          unsigned int)                          \
   nonstatic_field(Symbol,                      _identity_hash,                                short)                                 \
-  unchecked_nonstatic_field(Symbol,            _body,                                         sizeof(jbyte)) /* NOTE: no type */     \
-  nonstatic_field(Symbol,                      _body[0],                                      jbyte)                                 \
+  unchecked_nonstatic_field(Symbol,            _body,                                         sizeof(u1)) /* NOTE: no type */        \
+  nonstatic_field(Symbol,                      _body[0],                                      u1)                                    \
   nonstatic_field(TypeArrayKlass,              _max_length,                                   jint)                                  \
                                                                                                                                      \
   /***********************/                                                                                                          \
@@ -404,6 +405,8 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* Memory */                                                                                                                       \
   /**********/                                                                                                                       \
                                                                                                                                      \
+     static_field(MetaspaceObj,                _shared_metaspace_base,                        void*)                                 \
+     static_field(MetaspaceObj,                _shared_metaspace_top,                         void*)                                 \
   nonstatic_field(ThreadLocalAllocBuffer,      _start,                                        HeapWord*)                             \
   nonstatic_field(ThreadLocalAllocBuffer,      _top,                                          HeapWord*)                             \
   nonstatic_field(ThreadLocalAllocBuffer,      _end,                                          HeapWord*)                             \
@@ -460,7 +463,6 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   /* SystemDictionary */                                                                                                             \
   /********************/                                                                                                             \
                                                                                                                                      \
-     static_field(SystemDictionary,            _shared_dictionary,                            Dictionary*)                           \
      static_field(SystemDictionary,            _system_loader_lock_obj,                       oop)                                   \
      static_field(SystemDictionary,            WK_KLASS(Object_klass),                        InstanceKlass*)                        \
      static_field(SystemDictionary,            WK_KLASS(String_klass),                        InstanceKlass*)                        \

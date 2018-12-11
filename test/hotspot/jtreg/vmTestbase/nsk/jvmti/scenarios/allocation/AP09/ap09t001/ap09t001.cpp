@@ -31,9 +31,7 @@
 #include "JVMTITools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define EXP_OBJ_NUMBER 1
 
@@ -63,38 +61,38 @@ static int interfaceFound     = 0;
 
 /* jvmtiHeapRootCallback */
 jvmtiIterationControl JNICALL
-heapRootCallback( jvmtiHeapRootKind root_kind,
-                  jlong class_tag,
-                  jlong size,
-                  jlong* tag_ptr,
-                  void* user_data) {
+heapRootCallback(jvmtiHeapRootKind root_kind,
+                 jlong class_tag,
+                 jlong size,
+                 jlong* tag_ptr,
+                 void* user_data) {
     return JVMTI_ITERATION_CONTINUE;
 }
 
 /* jvmtiStackReferenceCallback */
 jvmtiIterationControl JNICALL
-stackReferenceCallback( jvmtiHeapRootKind root_kind,
-                        jlong     class_tag,
-                        jlong     size,
-                        jlong*    tag_ptr,
-                        jlong     thread_tag,
-                        jint      depth,
-                        jmethodID method,
-                        jint      slot,
-                        void*     user_data) {
+stackReferenceCallback(jvmtiHeapRootKind root_kind,
+                       jlong     class_tag,
+                       jlong     size,
+                       jlong*    tag_ptr,
+                       jlong     thread_tag,
+                       jint      depth,
+                       jmethodID method,
+                       jint      slot,
+                       void*     user_data) {
     return JVMTI_ITERATION_CONTINUE;
 }
 
 
 /* jvmtiObjectReferenceCallback */
 jvmtiIterationControl JNICALL
-objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
-                         jlong  class_tag,
-                         jlong  size,
-                         jlong* tag_ptr,
-                         jlong  referrer_tag,
-                         jint   referrer_index,
-                         void*  user_data) {
+objectReferenceCallback(jvmtiObjectReferenceKind reference_kind,
+                        jlong  class_tag,
+                        jlong  size,
+                        jlong* tag_ptr,
+                        jlong  referrer_tag,
+                        jint   referrer_index,
+                        void*  user_data) {
 
     if (*tag_ptr != 0 && referrer_tag != 0) {
         NSK_DISPLAY4("objectReferenceCallback: reference kind=%s, referrer_index=%d, referrer_tag=%d, referree_tag=%d\n",
@@ -129,20 +127,19 @@ objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
 /************************/
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP09_ap09t001_setTag( JNIEnv* jni,
-                                                          jobject obj,
-                                                          jobject target,
-                                                          jlong   tag ) {
+Java_nsk_jvmti_scenarios_allocation_AP09_ap09t001_setTag(JNIEnv* jni,
+                                                         jobject obj,
+                                                         jobject target,
+                                                         jlong   tag) {
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetTag, jvmti, target, tag))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetTag(target, tag))) {
         nsk_jvmti_setFailStatus();
     }
 }
 
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_allocation_AP09_ap09t001_setReferrer( JNIEnv* jni, jclass klass, jobject ref) {
-    if (!NSK_JNI_VERIFY(jni, (referrer =
-            NSK_CPP_STUB2(NewGlobalRef, jni, ref)) != NULL))
+Java_nsk_jvmti_scenarios_allocation_AP09_ap09t001_setReferrer(JNIEnv* jni, jclass klass, jobject ref) {
+    if (!NSK_JNI_VERIFY(jni, (referrer = jni->NewGlobalRef(ref)) != NULL))
         nsk_jvmti_setFailStatus();
 }
 
@@ -157,12 +154,9 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
     do {
         NSK_DISPLAY0("\nCalling IterateOverObjectsReachableFromObject\n");
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB4(IterateOverObjectsReachableFromObject,
-                    jvmti,
-                    referrer,
-                    objectReferenceCallback,
-                    NULL /*user_data*/))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->IterateOverObjectsReachableFromObject(referrer,
+                                                                           objectReferenceCallback,
+                                                                           NULL /*user_data*/))) {
             nsk_jvmti_setFailStatus();
         }
         if (!classFound) {
@@ -194,7 +188,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             nsk_jvmti_setFailStatus();
         }
 
-        NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, referrer));
+        NSK_TRACE(jni->DeleteGlobalRef(referrer));
     } while (0);
 
     NSK_DISPLAY0("Let debugee to finish\n");
@@ -226,12 +220,10 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_tag_objects = 1;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps)))
         return JNI_ERR;
 
     if (!caps.can_tag_objects) {
@@ -246,6 +238,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

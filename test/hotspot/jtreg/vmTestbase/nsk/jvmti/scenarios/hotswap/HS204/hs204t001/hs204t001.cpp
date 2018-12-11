@@ -30,9 +30,7 @@
 #include "jvmti_tools.h"
 
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 static JNIEnv* jni = NULL;
 static jvmtiEnv *jvmti = NULL;
 static jlong timeout = 0;
@@ -53,7 +51,7 @@ static jint newClassSize;
 char *getClassName(jvmtiEnv *jvmti, jclass  klass) {
     char * className;
     char * generic;
-    if( !NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature, jvmti, klass, &className, &generic))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetClassSignature(klass, &className, &generic))) {
         nsk_jvmti_setFailStatus();
     }
     return className;
@@ -66,18 +64,18 @@ callbackClassLoad(jvmtiEnv *jvmti_env,
         jclass klass) {
     char * name;
     name = getClassName(jvmti_env,klass);
-    if( (strcmp(name,CLASS_NAME ) == 0) && (redefineNumber== 1) ) {
+    if ((strcmp(name,CLASS_NAME) == 0) && (redefineNumber== 1)) {
        char fileName[512];
         nsk_jvmti_getFileName(redefineNumber, FILE_NAME, fileName,
                         sizeof(fileName)/sizeof(char));
         NSK_DISPLAY1(">>>>>>CallbackClassLoad ... Name=%s...  >>\n",name);
-        if ( nsk_jvmti_redefineClass(jvmti, klass, fileName) == NSK_TRUE) {
+        if (nsk_jvmti_redefineClass(jvmti, klass, fileName) == NSK_TRUE) {
             NSK_DISPLAY0("\nMyClass :: Successfully redefined..\n");
             redefineNumber++;
         } else {
             NSK_COMPLAIN0("\nMyClass :: Failed to redefine ..\n");
         }
-        /* if( (myTestClass =NSK_CPP_STUB2(NewGlobalRef,jni_env, klass)) == NULL) {
+        /* if ((myTestClass = jni_env->NewGlobalRef(klass)) == NULL) {
            NSK_COMPLAIN0("Failed to create global ref...");
            }
          */
@@ -91,18 +89,19 @@ callbackClassPrepare(jvmtiEnv *jvmti_env,
         jclass klass) {
     char *  name;
     name = getClassName(jvmti_env, klass);
-    if ( (strcmp(name, CLASS_NAME) ==0 ) && (redefineNumber == 0) ) {
+    if ((strcmp(name, CLASS_NAME) ==0) && (redefineNumber == 0)) {
         char fileName[512];
         nsk_jvmti_getFileName(redefineNumber, FILE_NAME, fileName,
                         sizeof(fileName)/sizeof(char));
         NSK_DISPLAY1(">>>>>>callbackClassPrepare ... Name=%s...  >>\n",name);
-        if ( nsk_jvmti_redefineClass(jvmti, klass, fileName) == NSK_TRUE) {
+        if (nsk_jvmti_redefineClass(jvmti, klass, fileName) == NSK_TRUE) {
             NSK_DISPLAY0("\nMyClass :: Successfully redefined..\n");
             redefineNumber++;
         } else {
             NSK_COMPLAIN0("\nMyClass :: Failed to redefine ..\n");
         }
-        if( (myTestClass = (jclass) NSK_CPP_STUB2(NewGlobalRef,jni_env, klass)) == NULL) {
+        myTestClass = (jclass) jni_env->NewGlobalRef(klass);
+        if (myTestClass == NULL) {
             NSK_COMPLAIN0("Failed to create global ref...");
         }
     }
@@ -119,7 +118,7 @@ callbackClassFileLoadHock(jvmtiEnv *jvmti_env,
         const unsigned char* class_data,
         jint* new_class_data_len,
         unsigned char** new_class_data) {
-    if (name != NULL && strcmp(name, NAME)==0 && (redefineNumber == 1 )) {
+    if (name != NULL && strcmp(name, NAME)==0 && (redefineNumber == 1)) {
         NSK_DISPLAY1(">>>>>>callbackClassFileLoadHock ... Name=%s...  >>\n",name);
         /*redefineClass(jvmti_env, myTestClass);*/
     }
@@ -176,7 +175,7 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint rc ;
     NSK_DISPLAY0(" VM.. Started..\n");
     rc=vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1);
-    if ( rc!= JNI_OK ) {
+    if (rc!= JNI_OK) {
         NSK_COMPLAIN0(" Could not load JVMTI interface \n");
     } else {
         /* Open simple block for better memor usage. */
@@ -242,9 +241,9 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t001_hs204t001_setThread(JNIEnv * en
                          jclass klass,
              jobject thread) {
     NSK_DISPLAY0(" Inside the setThread Method");
-    if (!NSK_JNI_VERIFY(env, (testClass =(jclass) NSK_CPP_STUB2(NewGlobalRef, env, klass)) != NULL))
+    if (!NSK_JNI_VERIFY(env, (testClass = (jclass) env->NewGlobalRef(klass)) != NULL))
         nsk_jvmti_setFailStatus();
-    if (!NSK_JNI_VERIFY(env, (testedThread =NSK_CPP_STUB2(NewGlobalRef, env, thread)) != NULL))
+    if (!NSK_JNI_VERIFY(env, (testedThread = env->NewGlobalRef(thread)) != NULL))
         nsk_jvmti_setFailStatus();
 }
 
@@ -254,17 +253,17 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t001_hs204t001_suspendThread(JNIEnv 
         jobject thread) {
     jint state;
     NSK_DISPLAY0("---suspend thread .. \n");
-    if (NSK_CPP_STUB3(GetThreadState,jvmti,thread, &state) == JVMTI_ERROR_NONE) {
+    if (jvmti->GetThreadState(thread, &state) == JVMTI_ERROR_NONE) {
         NSK_DISPLAY0(" No Errors in finding state of the thread.\n");
         if (state & JVMTI_THREAD_STATE_ALIVE) {
             NSK_DISPLAY0(" Thread state is alive .. So can be suspend should be possible ..\n");
             nsk_jvmti_disableNotification(jvmti, JVMTI_EVENT_SINGLE_STEP, thread);
-            if (!NSK_JVMTI_VERIFY(  NSK_CPP_STUB2(SuspendThread, jvmti, thread))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->SuspendThread(thread))) {
                 NSK_COMPLAIN0("TEST FAILED: unable to suspend the thread \n");
                 nsk_jvmti_setFailStatus();
                 return NSK_FALSE;
             } else {
-                NSK_DISPLAY0(" Sucessfully suspended Thread..\n" );
+                NSK_DISPLAY0(" Sucessfully suspended Thread..\n");
             }
         } else {
             NSK_COMPLAIN0("Was not able to suspend a thread..\n");
@@ -280,11 +279,11 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t001_hs204t001_popFrame(JNIEnv * env
         jthread thread) {
     jint state;
     NSK_DISPLAY0("Inside pop_Frame method.....\n");
-    if (NSK_CPP_STUB3(GetThreadState,jvmti,thread, &state) == JVMTI_ERROR_NONE) {
+    if (jvmti->GetThreadState(thread, &state) == JVMTI_ERROR_NONE) {
         NSK_DISPLAY0(" Got the state of thread \n");
-        if ( state & JVMTI_THREAD_STATE_SUSPENDED) {
+        if (state & JVMTI_THREAD_STATE_SUSPENDED) {
             NSK_DISPLAY0(" Thread is already in suspended mode..\n");
-            if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(PopFrame, jvmti, thread))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->PopFrame(thread))) {
                 NSK_COMPLAIN0(" TEST FAILED: UNABLE TO POP FRAME \n");
                 nsk_jvmti_setFailStatus();
                 return NSK_FALSE;
@@ -292,7 +291,7 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t001_hs204t001_popFrame(JNIEnv * env
                 NSK_DISPLAY0(" Poped frame safely..");
             }
             /* We should resume that thread for next execution.. */
-            if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(ResumeThread, jvmti, thread))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(thread))) {
                 NSK_COMPLAIN0(" TEST FAILED: UNABLE TO Resume thread \n");
                 nsk_jvmti_setFailStatus();
                 return NSK_FALSE;
@@ -305,6 +304,4 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t001_hs204t001_popFrame(JNIEnv * env
     }
     return NSK_TRUE;
 }
-#ifdef __cplusplus
 }
-#endif

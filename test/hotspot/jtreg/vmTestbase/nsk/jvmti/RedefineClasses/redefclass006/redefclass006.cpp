@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define STATUS_FAILED 2
 #define PASSED 0
@@ -64,8 +51,8 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    if ((res = JNI_ENV_PTR(vm)->GetEnv(JNI_ENV_ARG(vm, (void **) &jvmti),
-            JVMTI_VERSION_1_1)) != JNI_OK) {
+    res = vm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
+    if (res != JNI_OK) {
         printf("%s: Failed to call GetEnv: error=%d\n", __FILE__, res);
         return JNI_ERR;
     }
@@ -114,7 +101,7 @@ Java_nsk_jvmti_RedefineClasses_redefclass006_makeRedefinition(JNIEnv *env,
         return PASSED;
     }
 
-    switch(t_case) {
+    switch (t_case) {
 /* NULL pointer to the jvmtiClassDefinition */
         case 0:
             break;
@@ -132,15 +119,15 @@ Java_nsk_jvmti_RedefineClasses_redefclass006_makeRedefinition(JNIEnv *env,
         case 2:
             /* partly fill the structure jvmtiClassDefinition */
             classDef.klass = redefCls;
-            classDef.class_byte_count =
-                JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG(env, classBytes));
+            classDef.class_byte_count = env->GetArrayLength(classBytes);
             classDef.class_bytes = NULL;
             classDefPtr = &classDef;
             break;
     }
 
 /* explode the bomb */
-    if ((err = (jvmti->RedefineClasses(1, classDefPtr))) != JVMTI_ERROR_NULL_POINTER) {
+    err = jvmti->RedefineClasses(1, classDefPtr);
+    if (err != JVMTI_ERROR_NULL_POINTER) {
         printf("TEST FAILED: the function RedefineClasses() returned error %d: %s\n",
             err, TranslateError(err));
         printf("\tBut it should return the error JVMTI_ERROR_NULL_POINTER.\n");
@@ -150,6 +137,4 @@ Java_nsk_jvmti_RedefineClasses_redefclass006_makeRedefinition(JNIEnv *env,
     return PASSED;
 }
 
-#ifdef __cplusplus
 }
-#endif

@@ -26,9 +26,7 @@
 #include <string.h>
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 #define FILE_NAME "nsk/jvmti/scenarios/hotswap/HS301/hs301t003/MyClass"
 #define CLASS_NAME "Lnsk/jvmti/scenarios/hotswap/HS301/hs301t003/MyClass;"
 
@@ -38,17 +36,16 @@ void JNICALL callbackClassPrepare(jvmtiEnv *jvmti_env,
                                jclass klass) {
   char * className;
   char * generic;
-  if ( ! NSK_JVMTI_VERIFY ( NSK_CPP_STUB4(GetClassSignature,
-                  jvmti_env, klass, &className, &generic) ) ) {
+  if (!NSK_JVMTI_VERIFY (jvmti_env->GetClassSignature(klass, &className, &generic))) {
     nsk_printf(" Agent:: Error while getting ClassFileName Signature ");
   } else {
-      if (strcmp(className, CLASS_NAME ) == 0) {
+      if (strcmp(className, CLASS_NAME) == 0) {
           int redefineNumber =0;
           char fileName[512];
           nsk_jvmti_getFileName(redefineNumber, FILE_NAME,
                   fileName, sizeof(fileName)/sizeof(char));
           nsk_jvmti_disableNotification(jvmti_env,
-                  JVMTI_EVENT_CLASS_LOAD, NULL );
+                  JVMTI_EVENT_CLASS_LOAD, NULL);
           if (nsk_jvmti_redefineClass(jvmti_env, klass, fileName) == NSK_TRUE) {
               nsk_printf("\n Redefine successful.\n");
           } else {
@@ -72,33 +69,30 @@ JNIEXPORT jint JNI_OnLoad_hs301t003(JavaVM *jvm, char *options, void *reserved) 
 jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jvmtiEnv * jvmti;
     nsk_printf("Agent:: Agent_OnLoad.\n");
-    if ( ! NSK_VERIFY ( JNI_OK == NSK_CPP_STUB3(GetEnv, vm,
-                    (void **)&jvmti, JVMTI_VERSION_1_1) ) ) {
+    if (!NSK_VERIFY (JNI_OK == vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1))) {
         nsk_printf("Agent:: Could not load JVMTI interface.\n");
         return JNI_ERR;
     } else {
         jvmtiCapabilities caps;
         jvmtiEventCallbacks eventCallbacks;
-        if (nsk_jvmti_parseOptions(options) == NSK_FALSE ) {
+        if (nsk_jvmti_parseOptions(options) == NSK_FALSE) {
             nsk_printf("# error agent Failed to parse options.\n");
             return JNI_ERR;
         }
         memset(&caps, 0, sizeof(caps));
         caps.can_redefine_classes = 1;
         caps.can_generate_all_class_hook_events=1;
-        if (! NSK_JVMTI_VERIFY ( NSK_CPP_STUB2(AddCapabilities, jvmti, &caps) ))  {
+        if (!NSK_JVMTI_VERIFY (jvmti->AddCapabilities(&caps)))  {
             nsk_printf(" Agent:: Error occured while adding capabilities.\n");
             return JNI_ERR;
         }
         memset(&eventCallbacks, 0, sizeof(eventCallbacks));
         eventCallbacks.ClassPrepare = &callbackClassPrepare;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                    &eventCallbacks, sizeof(eventCallbacks)))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             nsk_printf(" Agent:: Error occured while setting event call back.\n");
             return JNI_ERR;
         }
-        if ( nsk_jvmti_enableNotification(jvmti, JVMTI_EVENT_CLASS_PREPARE, NULL) == NSK_TRUE ) {
+        if (nsk_jvmti_enableNotification(jvmti, JVMTI_EVENT_CLASS_PREPARE, NULL) == NSK_TRUE) {
             nsk_printf(" Agent:: Enabled notification.\n");
         } else {
             nsk_printf(" Agent:: Failed to enable notification.\n");
@@ -106,6 +100,4 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     }
     return JNI_OK;
 }
-#ifdef __cplusplus
 }
-#endif

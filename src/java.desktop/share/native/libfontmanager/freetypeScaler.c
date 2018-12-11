@@ -38,6 +38,7 @@
 #include FT_SIZES_H
 #include FT_OUTLINE_H
 #include FT_SYNTHESIS_H
+#include FT_LCD_FILTER_H
 
 #include "fontscaler.h"
 
@@ -397,6 +398,8 @@ static int setupFTContext(JNIEnv *env,
         if (errCode == 0) {
             errCode = FT_Activate_Size(scalerInfo->face->size);
         }
+
+        FT_Library_SetLcdFilter(scalerInfo->library, FT_LCD_FILTER_DEFAULT);
     }
 
     return errCode;
@@ -679,7 +682,6 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
     int error, imageSize;
     UInt16 width, height;
     GlyphInfo *glyphInfo;
-    int glyph_index;
     int renderFlags = FT_LOAD_RENDER, target;
     FT_GlyphSlot ftglyph;
 
@@ -719,8 +721,6 @@ Java_sun_font_FreetypeFontScaler_getGlyphImageNative(
         target = FT_LOAD_TARGET_LCD_V;
     }
     renderFlags |= target;
-
-    glyph_index = FT_Get_Char_Index(scalerInfo->face, glyphCode);
 
     error = FT_Load_Glyph(scalerInfo->face, glyphCode, renderFlags);
     if (error) {
@@ -958,7 +958,6 @@ static FT_Outline* getFTOutline(JNIEnv* env, jobject font2D,
         FTScalerContext *context, FTScalerInfo* scalerInfo,
         jint glyphCode, jfloat xpos, jfloat ypos) {
     int renderFlags;
-    int glyph_index;
     FT_Error error;
     FT_GlyphSlot ftglyph;
 
@@ -973,8 +972,6 @@ static FT_Outline* getFTOutline(JNIEnv* env, jobject font2D,
     }
 
     renderFlags = FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
-
-    glyph_index = FT_Get_Char_Index(scalerInfo->face, glyphCode);
 
     error = FT_Load_Glyph(scalerInfo->face, glyphCode, renderFlags);
     if (error) {

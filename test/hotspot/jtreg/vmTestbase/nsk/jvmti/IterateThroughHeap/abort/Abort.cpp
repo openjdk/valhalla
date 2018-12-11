@@ -29,9 +29,7 @@
 #include "jvmti_tools.h"
 #include "agent_common.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 static int timeout = 0;
 
@@ -83,10 +81,10 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
   int invocations = 0;
 
   NSK_DISPLAY0("Waiting debugee.\n");
-  if(!NSK_VERIFY(nsk_jvmti_enableEvents(JVMTI_ENABLE, 1, &event, NULL))) {
+  if (!NSK_VERIFY(nsk_jvmti_enableEvents(JVMTI_ENABLE, 1, &event, NULL))) {
     return;
   }
-  if(!NSK_VERIFY(nsk_jvmti_waitForSync(timeout))) {
+  if (!NSK_VERIFY(nsk_jvmti_waitForSync(timeout))) {
     return;
   }
 
@@ -97,19 +95,18 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
   primitive_callbacks.heap_iteration_callback = &heap_callback;
 
   NSK_DISPLAY0("Iterating over reachable objects.\n");
-  if(!NSK_JVMTI_VERIFY(NSK_CPP_STUB5(IterateThroughHeap, jvmti,
-                                     0, NULL, &primitive_callbacks, &invocations))) {
+  if (!NSK_JVMTI_VERIFY(jvmti->IterateThroughHeap(0, NULL, &primitive_callbacks, &invocations))) {
     nsk_jvmti_setFailStatus();
     return;
   }
 
-  if(invocations != 1) {
+  if (invocations != 1) {
     NSK_COMPLAIN1("Primitive callbacks were invoked more than once: "
                   "%d invocations registered.\n",invocations);
     nsk_jvmti_setFailStatus();
   }
 
-  if(!NSK_VERIFY(nsk_jvmti_resumeSync()))
+  if (!NSK_VERIFY(nsk_jvmti_resumeSync()))
     return;
 }
 
@@ -129,7 +126,8 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   jvmtiCapabilities caps;
   jvmtiEventCallbacks event_callbacks;
 
-  if(!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL)) {
+  jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+  if (!NSK_VERIFY(jvmti != NULL)) {
     return JNI_ERR;
   }
 
@@ -141,14 +139,12 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   caps.can_tag_objects = 1;
   caps.can_generate_object_free_events = 1;
 
-  if(!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+  if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
     return JNI_ERR;
   }
 
   memset(&event_callbacks, 0, sizeof(jvmtiEventCallbacks));
-  if(!NSK_JVMTI_VERIFY(
-                       NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                     &event_callbacks, sizeof(jvmtiEventCallbacks)))) {
+  if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&event_callbacks, sizeof(jvmtiEventCallbacks)))) {
     return JNI_ERR;
   }
 
@@ -159,6 +155,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
   return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

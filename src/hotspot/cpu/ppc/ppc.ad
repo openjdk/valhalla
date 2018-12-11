@@ -1,6 +1,6 @@
 //
-// Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
-// Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+// Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2012, 2018 SAP SE. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -908,6 +908,7 @@ reg_class dbl_reg(
 // ----------------------------
 
 reg_class vs_reg(
+  // Attention: Only these ones are saved & restored at safepoint by RegisterSaver.
   VSR32,
   VSR33,
   VSR34,
@@ -928,18 +929,7 @@ reg_class vs_reg(
   VSR49,
   VSR50,
   VSR51
-//  VSR52,     // nv!
-//  VSR53,     // nv!
-//  VSR54,     // nv!
-//  VSR55,     // nv!
-//  VSR56,     // nv!
-//  VSR57,     // nv!
-//  VSR58,     // nv!
-//  VSR59,     // nv!
-//  VSR60,     // nv!
-//  VSR61,     // nv!
-//  VSR62,     // nv!
-//  VSR63      // nv!
+  // VSR52-VSR63 // nv!
 );
 
  %}
@@ -2219,9 +2209,13 @@ const bool Matcher::match_rule_supported(int opcode) {
     return VM_Version::has_fsqrt();
   case Op_CountLeadingZerosI:
   case Op_CountLeadingZerosL:
+    if (!UseCountLeadingZerosInstructionsPPC64)
+      return false;
+    break;
   case Op_CountTrailingZerosI:
   case Op_CountTrailingZerosL:
-    if (!UseCountLeadingZerosInstructionsPPC64)
+    if (!UseCountLeadingZerosInstructionsPPC64 &&
+        !UseCountTrailingZerosInstructionsPPC64)
       return false;
     break;
 
@@ -2234,9 +2228,35 @@ const bool Matcher::match_rule_supported(int opcode) {
   case Op_StrEquals:
     return SpecialStringEquals;
   case Op_StrIndexOf:
-    return SpecialStringIndexOf;
   case Op_StrIndexOfChar:
     return SpecialStringIndexOf;
+  case Op_AddVB:
+  case Op_AddVS:
+  case Op_AddVI:
+  case Op_AddVF:
+  case Op_AddVD:
+  case Op_SubVB:
+  case Op_SubVS:
+  case Op_SubVI:
+  case Op_SubVF:
+  case Op_SubVD:
+  case Op_MulVS:
+  case Op_MulVF:
+  case Op_MulVD:
+  case Op_DivVF:
+  case Op_DivVD:
+  case Op_AbsVF:
+  case Op_AbsVD:
+  case Op_NegVF:
+  case Op_NegVD:
+  case Op_SqrtVF:
+  case Op_SqrtVD:
+  case Op_AddVL:
+  case Op_SubVL:
+  case Op_MulVI:
+    return SuperwordUseVSX;
+  case Op_PopCountVI:
+    return (SuperwordUseVSX && UsePopCountInstruction);
   }
 
   return true;  // Per default match rules are supported.
@@ -7613,7 +7633,7 @@ instruct cmovI_reg(cmpOp cmp, flagsRegSrc crx, iRegIdst dst, iRegIsrc src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_reg(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7626,7 +7646,7 @@ instruct cmovI_imm(cmpOp cmp, flagsRegSrc crx, iRegIdst dst, immI16 src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_imm(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7659,7 +7679,7 @@ instruct cmovL_reg(cmpOp cmp, flagsRegSrc crx, iRegLdst dst, iRegLsrc src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_reg(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7672,7 +7692,7 @@ instruct cmovL_imm(cmpOp cmp, flagsRegSrc crx, iRegLdst dst, immL16 src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_imm(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7706,7 +7726,7 @@ instruct cmovN_reg(cmpOp cmp, flagsRegSrc crx, iRegNdst dst, iRegNsrc src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_reg(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7719,7 +7739,7 @@ instruct cmovN_imm(cmpOp cmp, flagsRegSrc crx, iRegNdst dst, immN_0 src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_imm(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7752,7 +7772,7 @@ instruct cmovP_reg(cmpOp cmp, flagsRegSrc crx, iRegPdst dst, iRegP_N2P src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_reg(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7765,7 +7785,7 @@ instruct cmovP_imm(cmpOp cmp, flagsRegSrc crx, iRegPdst dst, immP_0 src) %{
 
   format %{ "CMOVE   $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_imm(dst, crx, src, cmp) );
   ins_pipe(pipe_class_default);
 %}
@@ -7778,7 +7798,7 @@ instruct cmovF_reg(cmpOp cmp, flagsRegSrc crx, regF dst, regF src) %{
 
   format %{ "CMOVEF  $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8));
   ins_encode %{
     // TODO: PPC port $archOpcode(ppc64Opcode_cmovef);
     Label done;
@@ -7800,7 +7820,7 @@ instruct cmovD_reg(cmpOp cmp, flagsRegSrc crx, regD dst, regD src) %{
 
   format %{ "CMOVEF  $cmp, $crx, $dst, $src\n\t" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8));
   ins_encode %{
     // TODO: PPC port $archOpcode(ppc64Opcode_cmovef);
     Label done;
@@ -9261,7 +9281,7 @@ instruct cmovI_bne_negI_reg(iRegIdst dst, flagsRegSrc crx, iRegIsrc src1) %{
 
   format %{ "CMOVE   $dst, neg($src1), $crx" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8));
   ins_encode %{
     // TODO: PPC port $archOpcode(ppc64Opcode_cmove);
     Label done;
@@ -9324,7 +9344,7 @@ instruct cmovL_bne_negL_reg(iRegLdst dst, flagsRegSrc crx, iRegLsrc src1) %{
 
   format %{ "CMOVE   $dst, neg($src1), $crx" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT (InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8));
   ins_encode %{
     // TODO: PPC port $archOpcode(ppc64Opcode_cmove);
     Label done;
@@ -10017,7 +10037,7 @@ instruct sqrtD_reg(regD dst, regD src) %{
 
 // Single-precision sqrt.
 instruct sqrtF_reg(regF dst, regF src) %{
-  match(Set dst (ConvD2F (SqrtD (ConvF2D src))));
+  match(Set dst (SqrtF src));
   predicate(VM_Version::has_fsqrts());
   ins_cost(DEFAULT_COST);
 
@@ -11098,7 +11118,7 @@ instruct cmovI_bso_stackSlotL(iRegIdst dst, flagsRegSrc crx, stackSlotL src) %{
 
   format %{ "cmovI   $crx, $dst, $src" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT(InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT(InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8));
   ins_encode( enc_cmove_bso_stackSlotL(dst, crx, src) );
   ins_pipe(pipe_class_default);
 %}
@@ -11112,7 +11132,7 @@ instruct cmovI_bso_reg(iRegIdst dst, flagsRegSrc crx, regD src) %{
 
   format %{ "cmovI   $crx, $dst, $src" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT(InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT(InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 12 : 8));
   ins_encode( enc_cmove_bso_reg(dst, crx, src) );
   ins_pipe(pipe_class_default);
 %}
@@ -11367,7 +11387,7 @@ instruct cmovL_bso_stackSlotL(iRegLdst dst, flagsRegSrc crx, stackSlotL src) %{
 
   format %{ "cmovL   $crx, $dst, $src" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_bso_stackSlotL(dst, crx, src) );
   ins_pipe(pipe_class_default);
 %}
@@ -11381,7 +11401,7 @@ instruct cmovL_bso_reg(iRegLdst dst, flagsRegSrc crx, regD src) %{
 
   format %{ "cmovL   $crx, $dst, $src" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8);
+  size((false /* TODO: PPC PORT Compile::current()->do_hb_scheduling()*/ ? 12 : 8));
   ins_encode( enc_cmove_bso_reg(dst, crx, src) );
   ins_pipe(pipe_class_default);
 %}
@@ -11874,7 +11894,7 @@ instruct cmovI_conIvalueMinus1_conIvalue1(iRegIdst dst, flagsRegSrc crx) %{
 
   format %{ "cmovI   $crx, $dst, -1, 0, +1" %}
   // Worst case is branch + move + branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORTInsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 20 : 16);
+  size((false /* TODO: PPC PORTInsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 20 : 16));
   ins_encode %{
     // TODO: PPC port $archOpcode(ppc64Opcode_cmove);
     Label done;
@@ -12213,7 +12233,7 @@ instruct cmov_bns_less(flagsReg crx) %{
 
   format %{ "cmov    $crx" %}
   // Worst case is branch + move + stop, no stop without scheduler.
-  size(false /* TODO: PPC PORT(InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 16 : 12);
+  size((false /* TODO: PPC PORT(InsertEndGroupPPC64 && Compile::current()->do_hb_scheduling())*/ ? 16 : 12));
   ins_encode %{
     // TODO: PPC port $archOpcode(ppc64Opcode_cmovecr);
     Label done;
@@ -13409,7 +13429,7 @@ instruct countLeadingZerosP(iRegIdst dst, iRegPsrc src) %{
 
 instruct countTrailingZerosI_Ex(iRegIdst dst, iRegIsrc src) %{
   match(Set dst (CountTrailingZerosI src));
-  predicate(UseCountLeadingZerosInstructionsPPC64);
+  predicate(UseCountLeadingZerosInstructionsPPC64 && !UseCountTrailingZerosInstructionsPPC64);
   ins_cost(DEFAULT_COST);
 
   expand %{
@@ -13426,9 +13446,22 @@ instruct countTrailingZerosI_Ex(iRegIdst dst, iRegIsrc src) %{
   %}
 %}
 
+instruct countTrailingZerosI_cnttzw(iRegIdst dst, iRegIsrc src) %{
+  match(Set dst (CountTrailingZerosI src));
+  predicate(UseCountTrailingZerosInstructionsPPC64);
+  ins_cost(DEFAULT_COST);
+
+  format %{ "CNTTZW  $dst, $src" %}
+  size(4);
+  ins_encode %{
+    __ cnttzw($dst$$Register, $src$$Register);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
 instruct countTrailingZerosL_Ex(iRegIdst dst, iRegLsrc src) %{
   match(Set dst (CountTrailingZerosL src));
-  predicate(UseCountLeadingZerosInstructionsPPC64);
+  predicate(UseCountLeadingZerosInstructionsPPC64 && !UseCountTrailingZerosInstructionsPPC64);
   ins_cost(DEFAULT_COST);
 
   expand %{
@@ -13442,6 +13475,19 @@ instruct countTrailingZerosL_Ex(iRegIdst dst, iRegLsrc src) %{
     countLeadingZerosL(tmpL3, tmpL2);
     subI_imm16_reg(dst, imm2, tmpL3);
  %}
+%}
+
+instruct countTrailingZerosL_cnttzd(iRegIdst dst, iRegLsrc src) %{
+  match(Set dst (CountTrailingZerosL src));
+  predicate(UseCountTrailingZerosInstructionsPPC64);
+  ins_cost(DEFAULT_COST);
+
+  format %{ "CNTTZD  $dst, $src" %}
+  size(4);
+  ins_encode %{
+    __ cnttzd($dst$$Register, $src$$Register);
+  %}
+  ins_pipe(pipe_class_default);
 %}
 
 // Expand nodes for byte_reverse_int.
@@ -13666,6 +13712,7 @@ instruct storeS_reversed(iRegIsrc src, indirect mem) %{
 instruct mtvsrwz(vecX temp1, iRegIsrc src) %{
   effect(DEF temp1, USE src);
 
+  format %{ "MTVSRWZ $temp1, $src \t// Move to 16-byte register" %}
   size(4);
   ins_encode %{
     __ mtvsrwz($temp1$$VectorSRegister, $src$$Register);
@@ -13676,9 +13723,21 @@ instruct mtvsrwz(vecX temp1, iRegIsrc src) %{
 instruct xxspltw(vecX dst, vecX src, immI8 imm1) %{
   effect(DEF dst, USE src, USE imm1);
 
+  format %{ "XXSPLTW $dst, $src, $imm1 \t// Splat word" %}
   size(4);
   ins_encode %{
     __ xxspltw($dst$$VectorSRegister, $src$$VectorSRegister, $imm1$$constant);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct xscvdpspn_regF(vecX dst, regF src) %{
+  effect(DEF dst, USE src);
+
+  format %{ "XSCVDPSPN $dst, $src \t// Convert scalar single precision to vector single precision" %}
+  size(4);
+  ins_encode %{
+    __ xscvdpspn($dst$$VectorSRegister, $src$$FloatRegister->to_vsr());
   %}
   ins_pipe(pipe_class_default);
 %}
@@ -13989,6 +14048,303 @@ instruct repl2F_immF0(iRegLdst dst, immF_0 zero) %{
 %}
 
 
+//----------Vector Arithmetic Instructions--------------------------------------
+
+// Vector Addition Instructions
+
+instruct vadd16B_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (AddVB src1 src2));
+  predicate(n->as_Vector()->length() == 16);
+  format %{ "VADDUBM  $dst,$src1,$src2\t// add packed16B" %}
+  size(4);
+  ins_encode %{
+    __ vaddubm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vadd8S_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (AddVS src1 src2));
+  predicate(n->as_Vector()->length() == 8);
+  format %{ "VADDUHM  $dst,$src1,$src2\t// add packed8S" %}
+  size(4);
+  ins_encode %{
+    __ vadduhm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vadd4I_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (AddVI src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "VADDUWM  $dst,$src1,$src2\t// add packed4I" %}
+  size(4);
+  ins_encode %{
+    __ vadduwm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vadd4F_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (AddVF src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "VADDFP  $dst,$src1,$src2\t// add packed4F" %}
+  size(4);
+  ins_encode %{
+    __ vaddfp($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vadd2L_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (AddVL src1 src2));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "VADDUDM  $dst,$src1,$src2\t// add packed2L" %}
+  size(4);
+  ins_encode %{
+    __ vaddudm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vadd2D_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (AddVD src1 src2));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVADDDP  $dst,$src1,$src2\t// add packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvadddp($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Subtraction Instructions
+
+instruct vsub16B_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (SubVB src1 src2));
+  predicate(n->as_Vector()->length() == 16);
+  format %{ "VSUBUBM  $dst,$src1,$src2\t// sub packed16B" %}
+  size(4);
+  ins_encode %{
+    __ vsububm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vsub8S_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (SubVS src1 src2));
+  predicate(n->as_Vector()->length() == 8);
+  format %{ "VSUBUHM  $dst,$src1,$src2\t// sub packed8S" %}
+  size(4);
+  ins_encode %{
+    __ vsubuhm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vsub4I_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (SubVI src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "VSUBUWM  $dst,$src1,$src2\t// sub packed4I" %}
+  size(4);
+  ins_encode %{
+    __ vsubuwm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vsub4F_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (SubVF src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "VSUBFP  $dst,$src1,$src2\t// sub packed4F" %}
+  size(4);
+  ins_encode %{
+    __ vsubfp($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vsub2L_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (SubVL src1 src2));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "VSUBUDM  $dst,$src1,$src2\t// sub packed2L" %}
+  size(4);
+  ins_encode %{
+    __ vsubudm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vsub2D_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (SubVD src1 src2));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVSUBDP  $dst,$src1,$src2\t// sub packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvsubdp($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Multiplication Instructions
+
+instruct vmul8S_reg(vecX dst, vecX src1, vecX src2, vecX tmp) %{
+  match(Set dst (MulVS src1 src2));
+  predicate(n->as_Vector()->length() == 8);
+  effect(TEMP tmp);
+  format %{ "VSPLTISH  $tmp,0\t// mul packed8S" %}
+  format %{ "VMLADDUHM  $dst,$src1,$src2\t// mul packed8S" %}
+  size(8);
+  ins_encode %{
+    __ vspltish($tmp$$VectorSRegister->to_vr(), 0);
+    __ vmladduhm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr(), $tmp$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vmul4I_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (MulVI src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "VMULUWM  $dst,$src1,$src2\t// mul packed4I" %}
+  size(4);
+  ins_encode %{
+    __ vmuluwm($dst$$VectorSRegister->to_vr(), $src1$$VectorSRegister->to_vr(), $src2$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vmul4F_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (MulVF src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "XVMULSP  $dst,$src1,$src2\t// mul packed4F" %}
+  size(4);
+  ins_encode %{
+    __ xvmulsp($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vmul2D_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (MulVD src1 src2));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVMULDP  $dst,$src1,$src2\t// mul packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvmuldp($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Division Instructions
+
+instruct vdiv4F_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (DivVF src1 src2));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "XVDIVSP  $dst,$src1,$src2\t// div packed4F" %}
+  size(4);
+  ins_encode %{
+    __ xvdivsp($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vdiv2D_reg(vecX dst, vecX src1, vecX src2) %{
+  match(Set dst (DivVD src1 src2));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVDIVDP  $dst,$src1,$src2\t// div packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvdivdp($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Absolute Instructions
+
+instruct vabs4F_reg(vecX dst, vecX src) %{
+  match(Set dst (AbsVF src));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "XVABSSP $dst,$src\t// absolute packed4F" %}
+  size(4);
+  ins_encode %{
+    __ xvabssp($dst$$VectorSRegister, $src$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vabs2D_reg(vecX dst, vecX src) %{
+  match(Set dst (AbsVD src));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVABSDP $dst,$src\t// absolute packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvabsdp($dst$$VectorSRegister, $src$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Negate Instructions
+
+instruct vneg4F_reg(vecX dst, vecX src) %{
+  match(Set dst (NegVF src));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "XVNEGSP $dst,$src\t// negate packed4F" %}
+  size(4);
+  ins_encode %{
+    __ xvnegsp($dst$$VectorSRegister, $src$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vneg2D_reg(vecX dst, vecX src) %{
+  match(Set dst (NegVD src));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVNEGDP $dst,$src\t// negate packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvnegdp($dst$$VectorSRegister, $src$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Square Root Instructions
+
+instruct vsqrt4F_reg(vecX dst, vecX src) %{
+  match(Set dst (SqrtVF src));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "XVSQRTSP $dst,$src\t// sqrt packed4F" %}
+  size(4);
+  ins_encode %{
+    __ xvsqrtsp($dst$$VectorSRegister, $src$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+instruct vsqrt2D_reg(vecX dst, vecX src) %{
+  match(Set dst (SqrtVD src));
+  predicate(n->as_Vector()->length() == 2);
+  format %{ "XVSQRTDP  $dst,$src\t// sqrt packed2D" %}
+  size(4);
+  ins_encode %{
+    __ xvsqrtdp($dst$$VectorSRegister, $src$$VectorSRegister);
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+// Vector Population Count Instructions
+
+instruct vpopcnt4I_reg(vecX dst, vecX src) %{
+  match(Set dst (PopCountVI src));
+  predicate(n->as_Vector()->length() == 4);
+  format %{ "VPOPCNTW $dst,$src\t// pop count packed4I" %}
+  size(4);
+  ins_encode %{
+    __ vpopcntw($dst$$VectorSRegister->to_vr(), $src$$VectorSRegister->to_vr());
+  %}
+  ins_pipe(pipe_class_default);
+%}
+
+
 //----------Overflow Math Instructions-----------------------------------------
 
 // Note that we have to make sure that XER.SO is reset before using overflow instructions.
@@ -14047,24 +14403,16 @@ instruct overflowMulL_reg_reg(flagsRegCR0 cr0, iRegLsrc op1, iRegLsrc op2) %{
   ins_pipe(pipe_class_default);
 %}
 
-
 instruct repl4F_reg_Ex(vecX dst, regF src) %{
   match(Set dst (ReplicateF src));
   predicate(n->as_Vector()->length() == 4);
-  ins_cost(2 * MEMORY_REF_COST + DEFAULT_COST);
+  ins_cost(DEFAULT_COST);
   expand %{
-    stackSlotL tmpS;
-    iRegIdst tmpI;
-    iRegLdst tmpL;
     vecX tmpV;
     immI8  zero %{ (int)  0 %}
 
-    moveF2I_reg_stack(tmpS, src);   // Move float to stack.
-    moveF2I_stack_reg(tmpI, tmpS);  // Move stack to int reg.
-    moveReg(tmpL, tmpI);             // Move int to long reg.
-    repl32(tmpL);                    // Replicate bitpattern.
-    mtvsrd(tmpV, tmpL);
-    xxpermdi(dst, tmpV, tmpV, zero);
+    xscvdpspn_regF(tmpV, src);
+    xxspltw(dst, tmpV, zero);
   %}
 %}
 
@@ -14091,17 +14439,13 @@ instruct repl4F_immF0(vecX dst, immF_0 zero) %{
 instruct repl2D_reg_Ex(vecX dst, regD src) %{
   match(Set dst (ReplicateD src));
   predicate(n->as_Vector()->length() == 2);
-  expand %{
-    stackSlotL tmpS;
-    iRegLdst tmpL;
-    iRegLdst tmp;
-    vecX tmpV;
-    immI8  zero %{ (int)  0 %}
-    moveD2L_reg_stack(tmpS, src);
-    moveD2L_stack_reg(tmpL, tmpS);
-    mtvsrd(tmpV, tmpL);
-    xxpermdi(dst, tmpV, tmpV, zero);
+
+  format %{ "XXPERMDI      $dst, $src, $src, 0 \t// Splat doubleword" %}
+  size(4);
+  ins_encode %{
+    __ xxpermdi($dst$$VectorSRegister, $src$$FloatRegister->to_vsr(), $src$$FloatRegister->to_vsr(), 0);
   %}
+  ins_pipe(pipe_class_default);
 %}
 
 instruct repl2D_immI0(vecX dst, immI_0 zero) %{
@@ -14132,7 +14476,7 @@ instruct mtvsrd(vecX dst, iRegLsrc src) %{
   predicate(false);
   effect(DEF dst, USE src);
 
-  format %{ "MTVSRD      $dst, $src \t// Move to 16-byte register"%}
+  format %{ "MTVSRD      $dst, $src \t// Move to 16-byte register" %}
   size(4);
   ins_encode %{
     __ mtvsrd($dst$$VectorSRegister, $src$$Register);
@@ -14143,7 +14487,7 @@ instruct mtvsrd(vecX dst, iRegLsrc src) %{
 instruct xxspltd(vecX dst, vecX src, immI8 zero) %{
   effect(DEF dst, USE src, USE zero);
 
-  format %{ "XXSPLATD      $dst, $src, $zero \t// Permute 16-byte register"%}
+  format %{ "XXSPLATD      $dst, $src, $zero \t// Splat doubleword" %}
   size(4);
   ins_encode %{
     __ xxpermdi($dst$$VectorSRegister, $src$$VectorSRegister, $src$$VectorSRegister, $zero$$constant);
@@ -14154,7 +14498,7 @@ instruct xxspltd(vecX dst, vecX src, immI8 zero) %{
 instruct xxpermdi(vecX dst, vecX src1, vecX src2, immI8 zero) %{
   effect(DEF dst, USE src1, USE src2, USE zero);
 
-  format %{ "XXPERMDI      $dst, $src1, $src2, $zero \t// Permute 16-byte register"%}
+  format %{ "XXPERMDI      $dst, $src1, $src2, $zero \t// Splat doubleword" %}
   size(4);
   ins_encode %{
     __ xxpermdi($dst$$VectorSRegister, $src1$$VectorSRegister, $src2$$VectorSRegister, $zero$$constant);

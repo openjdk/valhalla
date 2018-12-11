@@ -920,7 +920,8 @@ void InstructForm::build_components() {
   const char *name;
   const char *kill_name = NULL;
   for (_parameters.reset(); (name = _parameters.iter()) != NULL;) {
-    OperandForm *opForm = (OperandForm*)_localNames[name];
+    OpClassForm *opForm = _localNames[name]->is_opclass();
+    assert(opForm != NULL, "sanity");
 
     Effect* e = NULL;
     {
@@ -937,7 +938,8 @@ void InstructForm::build_components() {
       // complex so simply enforce the restriction during parse.
       if (kill_name != NULL &&
           e->isa(Component::TEMP) && !e->isa(Component::DEF)) {
-        OperandForm* kill = (OperandForm*)_localNames[kill_name];
+        OpClassForm* kill = _localNames[kill_name]->is_opclass();
+        assert(kill != NULL, "sanity");
         globalAD->syntax_err(_linenum, "%s: %s %s must be at the end of the argument list\n",
                              _ident, kill->_ident, kill_name);
       } else if (e->isa(Component::KILL) && !e->isa(Component::USE)) {
@@ -1355,7 +1357,7 @@ void InstructForm::set_unique_opnds() {
     // component back to an index and any DEF always goes at 0 so the
     // length of the array has to be the number of components + 1.
     _uniq_idx_length = _components.count() + 1;
-    uniq_idx = (uint*) malloc(sizeof(uint) * _uniq_idx_length);
+    uniq_idx = (uint*) AllocateHeap(sizeof(uint) * _uniq_idx_length);
     for (i = 0; i < _uniq_idx_length; i++) {
       uniq_idx[i] = i;
     }
@@ -2351,7 +2353,8 @@ void OperandForm::build_components() {
   // Add parameters that "do not appear in match rule".
   const char *name;
   for (_parameters.reset(); (name = _parameters.iter()) != NULL;) {
-    OperandForm *opForm = (OperandForm*)_localNames[name];
+    OpClassForm *opForm = _localNames[name]->is_opclass();
+    assert(opForm != NULL, "sanity");
 
     if ( _components.operand_position(name) == -1 ) {
       _components.insert(name, opForm->_ident, Component::INVALID, false);
@@ -3450,7 +3453,7 @@ void MatchNode::build_internalop( ) {
   rstr = (_rChild) ? ((_rChild->_internalop) ?
                        _rChild->_internalop : _rChild->_opType) : "";
   len += (int)strlen(lstr) + (int)strlen(rstr);
-  subtree = (char *)malloc(len);
+  subtree = (char *)AllocateHeap(len);
   sprintf(subtree,"_%s_%s_%s", _opType, lstr, rstr);
   // Hash the subtree string in _internalOps; if a name exists, use it
   iop = (char *)_AD._internalOps[subtree];
@@ -3864,7 +3867,7 @@ void MatchRule::matchrule_swap_commutative_op(const char* instr_ident, int count
   MatchRule* clone = new MatchRule(_AD, this);
   // Swap operands of commutative operation
   ((MatchNode*)clone)->swap_commutative_op(true, count);
-  char* buf = (char*) malloc(strlen(instr_ident) + 4);
+  char* buf = (char*) AllocateHeap(strlen(instr_ident) + 4);
   sprintf(buf, "%s_%d", instr_ident, match_rules_cnt++);
   clone->_result = buf;
 

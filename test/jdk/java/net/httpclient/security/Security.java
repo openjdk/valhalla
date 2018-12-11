@@ -27,8 +27,8 @@
  * @modules java.net.http
  *          java.logging
  *          jdk.httpserver
- * @library /lib/testlibrary/
- * @build jdk.testlibrary.SimpleSSLContext
+ * @library /test/lib
+ * @build jdk.test.lib.net.SimpleSSLContext
  * @compile ../../../../com/sun/net/httpserver/LogFilter.java
  * @compile ../../../../com/sun/net/httpserver/FileServerHandler.java
  * @compile ../ProxyServer.java
@@ -377,6 +377,24 @@ public class Security {
                     else
                         throw new RuntimeException(t);
                 }
+            }),
+            // (16) allowed to set Host header but does not have permission
+            TestAndResult.of(true, () -> { //Policy 16
+                URI u = URI.create("http://localhost:" + port + "/files/foo.txt");
+                HttpRequest request = HttpRequest.newBuilder(u)
+                        .header("Host", "foohost:123")
+                        .GET().build();
+                HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
+            }),
+            // (17) allowed to set Host header and does have permission
+            TestAndResult.of(false, () -> { //Policy 17
+                URI u = URI.create("http://localhost:" + port + "/files/foo.txt");
+                HttpRequest request = HttpRequest.newBuilder(u)
+                        .header("Host", "foohost:123")
+                        .GET().build();
+                HttpResponse<?> response = client.send(request, ofString());
+                System.out.println("Received response:" + response);
             })
         };
     }

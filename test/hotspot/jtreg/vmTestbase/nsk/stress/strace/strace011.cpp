@@ -24,9 +24,7 @@
 #include <stdio.h>
 #include "nsk_strace.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 static const char *Stest_cn="nsk/stress/strace/strace011";
 static const char *SthreadName_mn="getName";
@@ -77,7 +75,7 @@ Java_nsk_stress_strace_strace011Thread_recursiveMethod(JNIEnv *env, jobject obj)
         alltime = 0;
         GET_STATIC_BOOL_FIELD(isLocked, testClass, "isLocked");
 
-        while ( isLocked != JNI_TRUE )
+        while (isLocked != JNI_TRUE)
         {
             MONITOR_ENTER(testField);
             CALL_VOID(testField, threadClass, "wait", Slongparam, 1LL);
@@ -112,6 +110,4 @@ Java_nsk_stress_strace_strace011Thread_recursiveMethod(JNIEnv *env, jobject obj)
     SET_INT_FIELD(obj, threadClass, "currentDepth", currDepth);
 }
 
-#ifdef __cplusplus
 }
-#endif

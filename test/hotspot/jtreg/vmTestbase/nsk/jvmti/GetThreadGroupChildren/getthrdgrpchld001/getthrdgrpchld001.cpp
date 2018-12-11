@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -83,7 +81,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY0("Get top level thread groups\n");
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB3(GetTopThreadGroups, jvmti, &topGroupsCount, &topGroups))) {
+                    jvmti->GetTopThreadGroups(&topGroupsCount, &topGroups))) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -112,8 +110,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY1("Get children of root thread group: %p\n", (void*)rootGroup);
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB6(GetThreadGroupChildren, jvmti, rootGroup,
-                                    &threadsCount, &threads, &groupsCount, &groups))) {
+                    jvmti->GetThreadGroupChildren(rootGroup, &threadsCount, &threads, &groupsCount, &groups))) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -144,7 +141,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
                     jvmtiThreadGroupInfo info;
 
                     if (!NSK_JVMTI_VERIFY(
-                            NSK_CPP_STUB3(GetThreadGroupInfo, jvmti, groups[i], &info))) {
+                            jvmti->GetThreadGroupInfo(groups[i], &info))) {
                         nsk_jvmti_setFailStatus();
                         continue;
                     }
@@ -223,11 +220,11 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             /* deallocate arrays */
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)groups))) {
+                    jvmti->Deallocate((unsigned char*)groups))) {
                 nsk_jvmti_setFailStatus();
             }
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)threads))) {
+                    jvmti->Deallocate((unsigned char*)threads))) {
                 nsk_jvmti_setFailStatus();
             }
         }
@@ -260,8 +257,7 @@ static int checkThreadGroup(jvmtiEnv* jvmti, JNIEnv* jni,
         jthreadGroup* groups = NULL;
 
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB6(GetThreadGroupChildren, jvmti, group,
-                                &threadsCount, &threads, &groupsCount, &groups))) {
+                jvmti->GetThreadGroupChildren(group, &threadsCount, &threads, &groupsCount, &groups))) {
             nsk_jvmti_setFailStatus();
             return NSK_FALSE;
         }
@@ -292,7 +288,7 @@ static int checkThreadGroup(jvmtiEnv* jvmti, JNIEnv* jni,
                 jvmtiThreadInfo info;
 
                 if (!NSK_JVMTI_VERIFY(
-                        NSK_CPP_STUB3(GetThreadInfo, jvmti, threads[i], &info))) {
+                        jvmti->GetThreadInfo(threads[i], &info))) {
                     nsk_jvmti_setFailStatus();
                     continue;
                 }
@@ -316,11 +312,11 @@ static int checkThreadGroup(jvmtiEnv* jvmti, JNIEnv* jni,
 
         /* deallocate arrays */
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)groups))) {
+                jvmti->Deallocate((unsigned char*)groups))) {
             nsk_jvmti_setFailStatus();
         }
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)threads))) {
+                jvmti->Deallocate((unsigned char*)threads))) {
             nsk_jvmti_setFailStatus();
         }
     }
@@ -341,8 +337,7 @@ static jthreadGroup findThreadGroupByName(jvmtiEnv* jvmti, JNIEnv* jni, const ch
         jthreadGroup * groups = NULL;
 
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB6(GetThreadGroupChildren, jvmti, groupsList[i],
-                                &threadsCount, &threads, &groupsCount, &groups))) {
+                jvmti->GetThreadGroupChildren(groupsList[i], &threadsCount, &threads, &groupsCount, &groups))) {
             nsk_jvmti_setFailStatus();
             return NULL;
         }
@@ -359,7 +354,7 @@ static jthreadGroup findThreadGroupByName(jvmtiEnv* jvmti, JNIEnv* jni, const ch
                 if (groups[i] != NULL) {
 
                     if (!NSK_JVMTI_VERIFY(
-                            NSK_CPP_STUB3(GetThreadGroupInfo, jvmti, groups[i], &info))) {
+                            jvmti->GetThreadGroupInfo(groups[i], &info))) {
                         nsk_jvmti_setFailStatus();
                         continue;
                     }
@@ -378,11 +373,11 @@ static jthreadGroup findThreadGroupByName(jvmtiEnv* jvmti, JNIEnv* jni, const ch
 
         /* deallocate arrays */
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)groups))) {
+                jvmti->Deallocate((unsigned char*)groups))) {
             nsk_jvmti_setFailStatus();
         }
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)threads))) {
+                jvmti->Deallocate((unsigned char*)threads))) {
             nsk_jvmti_setFailStatus();
         }
     }
@@ -432,6 +427,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

@@ -31,13 +31,13 @@
  *        "--limit-modules java.base" option is specified
  * @requires vm.cds & !vm.graal.enabled
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  *          java.management
  *          jdk.jartool/sun.tools.jar
  *          jdk.internal.jvmstat/sun.jvmstat.monitor
  * @compile ../../test-classes/EmptyClassHelper.java
  * @compile ../../test-classes/com/sun/tools/javac/Main.jasm
- * @run main EmptyClassInBootClassPath
+ * @run driver EmptyClassInBootClassPath
  */
 
 import java.io.File;
@@ -66,7 +66,7 @@ public class EmptyClassInBootClassPath {
         List<String> argsList = new ArrayList<String>();
         argsList.add(classPath);
         argsList.add(bootclasspath);
-        argsList.add("--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED");
+        argsList.add("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED");
         argsList.add("EmptyClassHelper");
 
         // case 1: load class in bootclasspath using app loader

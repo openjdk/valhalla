@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -49,10 +49,11 @@ TOPDIR := $(strip $(patsubst %/make/, %, $(dir $(makefile_path))))
 # given.
 # Note: No spaces are allowed around the arguments.
 #
-# $1: The name of the argument
+# $1: The name of the variable
 # $2: The default value, if any, or OPTIONAL (do not provide a default but
 #     do not exit if it is missing)
 # $3: If NO_CHECK, disable checking for target file/directory existence
+#     If MKDIR, create the default directory
 define SetupVariable
   ifeq ($$($1), )
     ifeq ($2, )
@@ -75,10 +76,17 @@ define SetupVariable
   endif
   # If $1 has a value (is not optional), and $3 is not set (to NO_CHECK),
   # and if wildcard is empty, then complain that the file is missing.
-  ifeq ($$(strip $$(if $$($1), , OPTIONAL) $$(wildcard $$($1)) $3), )
-    $$(info Error: Prebuilt variable $1 points to missing file/directory:)
-    $$(info '$$($1)')
-    $$(error Cannot continue.)
+  ifeq ($3, MKDIR)
+    ifneq ($$(findstring $$(LOG), info debug trace), )
+      $$(info Creating directory for $1)
+    endif
+    $$(shell mkdir -p $$($1))
+  else ifneq ($3, NO_CHECK)
+    ifeq ($$(strip $$(if $$($1), , OPTIONAL) $$(wildcard $$($1))), )
+      $$(info Error: Prebuilt variable $1 points to missing file/directory:)
+      $$(info '$$($1)')
+      $$(error Cannot continue.)
+    endif
   endif
 endef
 
@@ -87,12 +95,12 @@ endef
 # $1: The output file name
 # $2..$N: The lines to output to the file
 define CreateNewSpec
-  $(if $(strip $(26)), \
+  $(if $(strip $(31)), \
     $(error Internal makefile error: \
       Too many arguments to macro, please update CreateNewSpec in RunTestsPrebuilt.gmk) \
   ) \
   $(shell $(RM) $1) \
-  $(foreach i, $(call sequence, 2, 25), \
+  $(foreach i, $(call sequence, 2, 30), \
     $(if $(strip $($i)), \
       $(call AppendFile, $(strip $($i)), $1) \
     ) \
@@ -106,14 +114,14 @@ endef
 # Verify that user has given correct additional input.
 
 # These variables are absolutely necessary
-$(eval $(call SetupVariable,OUTPUTDIR))
+$(eval $(call SetupVariable,OUTPUTDIR,$(TOPDIR)/build/run-test-prebuilt,MKDIR))
 $(eval $(call SetupVariable,BOOT_JDK))
 $(eval $(call SetupVariable,JT_HOME))
 
 # These can have default values based on the ones above
 $(eval $(call SetupVariable,JDK_IMAGE_DIR,$(OUTPUTDIR)/images/jdk))
 $(eval $(call SetupVariable,TEST_IMAGE_DIR,$(OUTPUTDIR)/images/test))
-$(eval $(call SetupVariable,SYMBOLS_IMAGE_DIR,$(OUTPUTDIR)/images/symbols))
+$(eval $(call SetupVariable,SYMBOLS_IMAGE_DIR,$(OUTPUTDIR)/images/symbols,NO_CHECK))
 
 # Provide default values for tools that we need
 $(eval $(call SetupVariable,MAKE,make,NO_CHECK))
@@ -202,8 +210,8 @@ endif
 
 ifeq ($(OPENJDK_TARGET_OS), windows)
   ifeq ($(wildcard $(TEST_IMAGE_DIR)/bin/fixpath.exe), )
-    $$(info Error: fixpath is missing from test image '$(TEST_IMAGE_DIR)')
-    $$(error Cannot continue.)
+    $(info Error: fixpath is missing from test image '$(TEST_IMAGE_DIR)')
+    $(error Cannot continue.)
   endif
   FIXPATH := $(TEST_IMAGE_DIR)/bin/fixpath.exe -c
   PATH_SEP:=;
@@ -212,17 +220,62 @@ else
   PATH_SEP:=:
 endif
 
-# Check number of cores
+# Check number of cores and memory in MB
 ifeq ($(OPENJDK_TARGET_OS), linux)
-    NUM_CORES := $(shell $(CAT) /proc/cpuinfo  | $(GREP) -c processor)
+  NUM_CORES := $(shell $(CAT) /proc/cpuinfo  | $(GREP) -c processor)
+  MEMORY_SIZE := $(shell \
+      $(EXPR) `$(CAT) /proc/meminfo | $(GREP) MemTotal | $(AWK) '{print $$2}'` / 1024 \
+  )
 else ifeq ($(OPENJDK_TARGET_OS), macosx)
-    NUM_CORES := $(shell /usr/sbin/sysctl -n hw.ncpu)
+  NUM_CORES := $(shell /usr/sbin/sysctl -n hw.ncpu)
+  MEMORY_SIZE := $(shell $(EXPR) `/usr/sbin/sysctl -n hw.memsize` / 1024 / 1024)
 else ifeq ($(OPENJDK_TARGET_OS), solaris)
-    NUM_CORES := $(shell LC_MESSAGES=C /usr/sbin/psrinfo -v | $(GREP) -c on-line)
+  NUM_CORES := $(shell LC_MESSAGES=C /usr/sbin/psrinfo -v | $(GREP) -c on-line)
+  MEMORY_SIZE := $(shell \
+      /usr/sbin/prtconf 2> /dev/null | $(GREP) "^Memory [Ss]ize" | $(AWK) '{print $$3}' \
+  )
 else ifeq ($(OPENJDK_TARGET_OS), windows)
-    NUM_CORES := $(NUMBER_OF_PROCESSORS)
+  NUM_CORES := $(NUMBER_OF_PROCESSORS)
+  MEMORY_SIZE := $(shell \
+      $(EXPR) `wmic computersystem get totalphysicalmemory -value | $(GREP) = \
+          | $(CUT) -d "=" -f 2-` / 1024 / 1024 \
+  )
+endif
+ifeq ($(NUM_CORES), )
+  $(warn Could not find number of CPUs, assuming 1)
+  NUM_CORES := 1
+endif
+ifeq ($(MEMORY_SIZE), )
+  $(warn Could not find memory size, assuming 1024 MB)
+  MEMORY_SIZE := 1024
+endif
+
+# Setup LD for AOT support
+ifneq ($(DEVKIT_HOME), )
+  ifeq ($(OPENJDK_TARGET_OS), windows)
+    LD := $(DEVKIT_HOME)/VC/bin/x64/link
+    LIBRARY_PREFIX :=
+    SHARED_LIBRARY_SUFFIX := .dll
+    EXE_SUFFIX := .exe
+  else ifeq ($(OPENJDK_TARGET_OS), linux)
+    LD := $(DEVKIT_HOME)/bin/ld
+    LIBRARY_PREFIX := lib
+    SHARED_LIBRARY_SUFFIX := .so
+    EXE_SUFFIX :=
+  else ifeq ($(OPENJDK_TARGET_OS), macosx)
+    LD := $(DEVKIT_HOME)/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld
+    LIBRARY_PREFIX := lib
+    SHARED_LIBRARY_SUFFIX := .dylib
+    EXE_SUFFIX :=
+  else ifeq ($(OPENJDK_TARGET_OS), solaris)
+    # Prefer system linker for AOT on Solaris.
+    LD := ld
+    LIBRARY_PREFIX := lib
+    SHARED_LIBRARY_SUFFIX := .so
+    EXE_SUFFIX :=
+  endif
 else
-    NUM_CORES := 1
+  LD := ld
 endif
 
 ################################################################################
@@ -260,6 +313,11 @@ $(call CreateNewSpec, $(NEW_SPEC), \
     OPENJDK_TARGET_CPU_BITS := $(OPENJDK_TARGET_CPU_BITS), \
     OPENJDK_TARGET_CPU_ENDIAN := $(OPENJDK_TARGET_CPU_ENDIAN), \
     NUM_CORES := $(NUM_CORES), \
+    MEMORY_SIZE := $(MEMORY_SIZE), \
+    LD := $(LD), \
+    LIBRARY_PREFIX := $(LIBRARY_PREFIX), \
+    SHARED_LIBRARY_SUFFIX := $(SHARED_LIBRARY_SUFFIX), \
+    EXE_SUFFIX := $(EXE_SUFFIX), \
     include $(TOPDIR)/make/RunTestsPrebuiltSpec.gmk, \
     $(CUSTOM_NEW_SPEC_LINE), \
 )
@@ -276,9 +334,6 @@ run-test-prebuilt:
 	@$(RM) -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error
 	@cd $(TOPDIR) && $(MAKE) $(MAKE_ARGS) -f make/RunTests.gmk run-test \
 	    TEST="$(TEST)"
-	@if test -f $(MAKESUPPORT_OUTPUTDIR)/exit-with-error ; then \
-	  exit 1 ; \
-	fi
 
 all: run-test-prebuilt
 

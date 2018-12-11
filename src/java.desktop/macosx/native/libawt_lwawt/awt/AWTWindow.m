@@ -214,7 +214,7 @@ AWT_NS_WINDOW_IMPLEMENTATION
     if (IS(styleBits, UNIFIED))       type |= NSUnifiedTitleAndToolbarWindowMask;
     if (IS(styleBits, UTILITY))       type |= NSUtilityWindowMask;
     if (IS(styleBits, HUD))           type |= NSHUDWindowMask;
-    if (IS(styleBits, SHEET))         type |= NSDocModalWindowMask;
+    if (IS(styleBits, SHEET))         type |= NSWindowStyleMaskDocModalWindow;
     if (IS(styleBits, NONACTIVATING)) type |= NSNonactivatingPanelMask;
 
     return type;
@@ -273,7 +273,12 @@ AWT_NS_WINDOW_IMPLEMENTATION
 {
 AWT_ASSERT_APPKIT_THREAD;
 
-    NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:bits];
+    NSUInteger newBits = bits;
+    if (IS(bits, SHEET) && owner == nil) {
+        newBits = bits & ~NSWindowStyleMaskDocModalWindow;
+    }
+    NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:newBits];
+
     NSRect contentRect = rect; //[NSWindow contentRectForFrameRect:rect styleMask:styleMask];
     if (contentRect.size.width <= 0.0) {
         contentRect.size.width = 1.0;
@@ -289,7 +294,8 @@ AWT_ASSERT_APPKIT_THREAD;
     if (IS(bits, UTILITY) ||
         IS(bits, NONACTIVATING) ||
         IS(bits, HUD) ||
-        IS(bits, HIDES_ON_DEACTIVATE))
+        IS(bits, HIDES_ON_DEACTIVATE) ||
+        IS(bits, SHEET))
     {
         self.nsWindow = [[AWTWindow_Panel alloc] initWithDelegate:self
                             frameRect:contentRect
@@ -317,6 +323,10 @@ AWT_ASSERT_APPKIT_THREAD;
 
     if (IS(self.styleBits, IS_POPUP)) {
         [self.nsWindow setCollectionBehavior:(1 << 8) /*NSWindowCollectionBehaviorFullScreenAuxiliary*/];
+    }
+
+    if (IS(bits, SHEET) && owner != nil) {
+        [self.nsWindow setStyleMask: NSWindowStyleMaskDocModalWindow];
     }
 
     return self;
@@ -477,6 +487,21 @@ AWT_ASSERT_APPKIT_THREAD;
     return isBlocked;
 }
 
+// Test whether window is simple window and owned by embedded frame
+- (BOOL) isSimpleWindowOwnedByEmbeddedFrame {
+    BOOL isSimpleWindowOwnedByEmbeddedFrame = NO;
+
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_isBlocked, jc_CPlatformWindow, "isSimpleWindowOwnedByEmbeddedFrame", "()Z");
+        isSimpleWindowOwnedByEmbeddedFrame = JNFCallBooleanMethod(env, platformWindow, jm_isBlocked) == JNI_TRUE ? YES : NO;
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
+
+    return isSimpleWindowOwnedByEmbeddedFrame;
+}
+
 // Tests whether the corresponding Java platform window is visible or not
 + (BOOL) isJavaPlatformWindowVisible:(NSWindow *)window {
     BOOL isVisible = NO;
@@ -543,7 +568,7 @@ AWT_ASSERT_APPKIT_THREAD;
 // NSWindow overrides
 - (BOOL) canBecomeKeyWindow {
 AWT_ASSERT_APPKIT_THREAD;
-    return self.isEnabled && IS(self.styleBits, SHOULD_BECOME_KEY);
+    return self.isEnabled && (IS(self.styleBits, SHOULD_BECOME_KEY) || [self isSimpleWindowOwnedByEmbeddedFrame]);
 }
 
 - (BOOL) canBecomeMainWindow {

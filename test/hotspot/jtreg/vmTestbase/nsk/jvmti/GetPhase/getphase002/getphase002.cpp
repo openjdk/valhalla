@@ -26,9 +26,7 @@
 #include "agent_common.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ========================================================================== */
 
@@ -49,7 +47,7 @@ agentProc(jvmtiEnv *jvmti, JNIEnv* jni, void* arg) {
 
     NSK_DISPLAY0("Check if GetPhase(NULL) returns JVMTI_ERROR_NULL_POINTER\n");
     if (!NSK_JVMTI_VERIFY_CODE(JVMTI_ERROR_NULL_POINTER,
-            NSK_CPP_STUB2(GetPhase, jvmti, NULL)))
+            jvmti->GetPhase(NULL)))
         nsk_jvmti_setFailStatus();
 
     /* resume debugee after last sync */
@@ -97,6 +95,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ========================================================================== */
 
-#ifdef __cplusplus
 }
-#endif

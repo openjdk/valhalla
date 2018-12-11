@@ -2417,6 +2417,8 @@ void TemplateTable::resolve_cache_and_index(int byte_no,
   switch (code) {
     case Bytecodes::_nofast_getfield: code = Bytecodes::_getfield; break;
     case Bytecodes::_nofast_putfield: code = Bytecodes::_putfield; break;
+    default:
+      break;
   }
 
   {
@@ -3213,6 +3215,8 @@ void TemplateTable::jvmti_post_fast_field_mod() {
     case Bytecodes::_fast_lputfield:
       __ pop_l(Z_tos);
       break;
+    default:
+      break;
   }
 
   __ bind(exit);
@@ -3785,7 +3789,6 @@ void TemplateTable::_new() {
   Label slow_case;
   Label done;
   Label initialize_header;
-  Label allocate_shared;
 
   BLOCK_COMMENT("TemplateTable::_new {");
   __ get_2_byte_integer_at_bcp(offset/*dest*/, 1, InterpreterMacroAssembler::Unsigned);

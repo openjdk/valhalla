@@ -195,11 +195,6 @@ class ObjectMonitor {
   static PerfCounter * _sync_Deflations;
   static PerfLongVariable * _sync_MonExtant;
 
-  static int Knob_ExitRelease;
-  static int Knob_InlineNotify;
-  static int Knob_Verbose;
-  static int Knob_VerifyInUse;
-  static int Knob_VerifyMatch;
   static int Knob_SpinLimit;
 
   void* operator new (size_t size) throw();
@@ -307,7 +302,6 @@ class ObjectMonitor {
 
  private:
   void      AddWaiter(ObjectWaiter * waiter);
-  static    void DeferredInitialize();
   void      INotify(Thread * Self);
   ObjectWaiter * DequeueWaiter();
   void      DequeueSpecificWaiter(ObjectWaiter * waiter);
@@ -320,22 +314,5 @@ class ObjectMonitor {
   void      ExitEpilog(Thread * Self, ObjectWaiter * Wakee);
   bool      ExitSuspendEquivalent(JavaThread * Self);
 };
-
-#undef TEVENT
-#define TEVENT(nom) { if (SyncVerbose) FEVENT(nom); }
-
-#define FEVENT(nom)                             \
-  {                                             \
-    static volatile int ctr = 0;                \
-    int v = ++ctr;                              \
-    if ((v & (v - 1)) == 0) {                   \
-      tty->print_cr("INFO: " #nom " : %d", v);  \
-      tty->flush();                             \
-    }                                           \
-  }
-
-#undef  TEVENT
-#define TEVENT(nom) {;}
-
 
 #endif // SHARE_VM_RUNTIME_OBJECTMONITOR_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,8 @@
  * @summary Test to check allocation of Java Heap with AllocateHeapAt option. Has multiple sub-tests to cover different code paths.
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @requires vm.bits == "64" & vm.gc != "Z"
+ * @requires vm.bits == "64" & vm.gc != "Z" & os.family != "aix"
+ * @run main/timeout=360 TestAllocateHeapAtMultiple
  */
 
 import jdk.test.lib.JDKToolFinder;

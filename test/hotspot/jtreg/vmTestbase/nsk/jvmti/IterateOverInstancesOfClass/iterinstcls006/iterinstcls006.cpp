@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -47,13 +45,11 @@ heapObjectCallback(jlong class_tag,
                    jlong* tag_ptr,
                    void* storage_data) {
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(SetEnvironmentLocalStorage, st_jvmti, storage_data ))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->SetEnvironmentLocalStorage(storage_data))) {
         nsk_jvmti_setFailStatus();
     }
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetEnvironmentLocalStorage, st_jvmti, &storage_ptr))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->GetEnvironmentLocalStorage(&storage_ptr))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -84,25 +80,23 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         NSK_DISPLAY0("Calling IterateOverInstancesOfClass with filter JVMTI_HEAP_OBJECT_EITHER\n");
         {
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB5(IterateOverInstancesOfClass,
-                        jvmti,
-                        debugeeClass,
-                        JVMTI_HEAP_OBJECT_EITHER,
-                        heapObjectCallback,
-                        (void *)storage_data))) {
+                    jvmti->IterateOverInstancesOfClass(debugeeClass,
+                                                       JVMTI_HEAP_OBJECT_EITHER,
+                                                       heapObjectCallback,
+                                                       (void *) storage_data))) {
                 nsk_jvmti_setFailStatus();
             }
         }
 
         if (storage_data != storage_ptr) {
             NSK_COMPLAIN2("Local storage address was corrupted: %p ,\n\texpected value: %p\n",
-                             storage_ptr, storage_data);
+                          storage_ptr, storage_data);
             nsk_jvmti_setFailStatus();
         }
 
         if (strcmp(storage_data, (char *)storage_ptr) != 0) {
             NSK_COMPLAIN2("Local storage was corrupted: %s ,\n\texpected value: %s\n",
-                             (char *)storage_ptr, storage_data );
+                          (char *)storage_ptr, storage_data);
             nsk_jvmti_setFailStatus();
         }
     } while (0);
@@ -146,8 +140,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
         memset(&caps, 0, sizeof(caps));
         caps.can_tag_objects = 1;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
             return JNI_ERR;
         }
     }
@@ -160,6 +153,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

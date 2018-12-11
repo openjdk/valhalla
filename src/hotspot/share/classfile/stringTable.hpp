@@ -33,8 +33,7 @@
 #include "oops/weakHandle.hpp"
 #include "utilities/concurrentHashTable.hpp"
 
-template <class T, class N> class CompactHashtable;
-class CompactStringTableWriter;
+class CompactHashtableWriter;
 class SerializeClosure;
 
 class StringTable;
@@ -56,9 +55,6 @@ private:
 
   // The string table
   static StringTable* _the_table;
-  // Shared string table
-  static CompactHashtable<oop, char> _shared_table;
-  static volatile bool _shared_string_mapped;
   static volatile bool _alt_hash;
 
 private:
@@ -88,9 +84,9 @@ private:
 
   StringTable();
 
-  static oop intern(Handle string_or_null_h, jchar* name, int len, TRAPS);
-  oop do_intern(Handle string_or_null, jchar* name, int len, uintx hash, TRAPS);
-  oop do_lookup(jchar* name, int len, uintx hash);
+  static oop intern(Handle string_or_null_h, const jchar* name, int len, TRAPS);
+  oop do_intern(Handle string_or_null, const jchar* name, int len, uintx hash, TRAPS);
+  oop do_lookup(const jchar* name, int len, uintx hash);
 
   void concurrent_work(JavaThread* jt);
   void print_table_statistics(outputStream* st, const char* table_name);
@@ -151,7 +147,7 @@ private:
 
   // Probing
   static oop lookup(Symbol* symbol);
-  static oop lookup(jchar* chars, int length);
+  static oop lookup(const jchar* chars, int length);
 
   // Interning
   static oop intern(Symbol* symbol, TRAPS);
@@ -165,15 +161,13 @@ private:
 
   // Sharing
  private:
-  oop lookup_shared(jchar* name, int len, unsigned int hash) NOT_CDS_JAVA_HEAP_RETURN_(NULL);
-  static void copy_shared_string_table(CompactStringTableWriter* ch_table) NOT_CDS_JAVA_HEAP_RETURN;
+  oop lookup_shared(const jchar* name, int len, unsigned int hash) NOT_CDS_JAVA_HEAP_RETURN_(NULL);
+  static void copy_shared_string_table(CompactHashtableWriter* ch_table) NOT_CDS_JAVA_HEAP_RETURN;
  public:
   static oop create_archived_string(oop s, Thread* THREAD) NOT_CDS_JAVA_HEAP_RETURN_(NULL);
-  static void set_shared_string_mapped() { _shared_string_mapped = true; }
-  static bool shared_string_mapped()     { return _shared_string_mapped; }
   static void shared_oops_do(OopClosure* f) NOT_CDS_JAVA_HEAP_RETURN;
   static void write_to_archive() NOT_CDS_JAVA_HEAP_RETURN;
-  static void serialize(SerializeClosure* soc) NOT_CDS_JAVA_HEAP_RETURN;
+  static void serialize_shared_table_header(SerializeClosure* soc) NOT_CDS_JAVA_HEAP_RETURN;
 
   // Jcmd
   static void dump(outputStream* st, bool verbose=false);

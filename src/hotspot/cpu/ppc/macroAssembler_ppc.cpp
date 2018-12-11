@@ -1302,35 +1302,6 @@ bool MacroAssembler::is_load_from_polling_page(int instruction, void* ucontext,
 #endif
 }
 
-bool MacroAssembler::is_memory_serialization(int instruction, JavaThread* thread, void* ucontext) {
-#ifdef LINUX
-  ucontext_t* uc = (ucontext_t*) ucontext;
-
-  if (is_stwx(instruction) || is_stwux(instruction)) {
-    int ra = inv_ra_field(instruction);
-    int rb = inv_rb_field(instruction);
-
-    // look up content of ra and rb in ucontext
-    address ra_val=(address)uc->uc_mcontext.regs->gpr[ra];
-    long rb_val=(long)uc->uc_mcontext.regs->gpr[rb];
-    return os::is_memory_serialize_page(thread, ra_val+rb_val);
-  } else if (is_stw(instruction) || is_stwu(instruction)) {
-    int ra = inv_ra_field(instruction);
-    int d1 = inv_d1_field(instruction);
-
-    // look up content of ra in ucontext
-    address ra_val=(address)uc->uc_mcontext.regs->gpr[ra];
-    return os::is_memory_serialize_page(thread, ra_val+d1);
-  } else {
-    return false;
-  }
-#else
-  // workaround not needed on !LINUX :-)
-  ShouldNotCallThis();
-  return false;
-#endif
-}
-
 void MacroAssembler::bang_stack_with_offset(int offset) {
   // When increasing the stack, the old stack pointer will be written
   // to the new top of stack according to the PPC64 abi.
@@ -2848,12 +2819,6 @@ void MacroAssembler::compiler_fast_lock_object(ConditionRegister flag, Register 
   ld(displaced_header, oopDesc::mark_offset_in_bytes(), oop);
 
 
-  // Always do locking in runtime.
-  if (EmitSync & 0x01) {
-    cmpdi(flag, oop, 0); // Oop can't be 0 here => always false.
-    return;
-  }
-
   if (try_bias) {
     biased_locking_enter(flag, oop, displaced_header, temp, current_header, cont);
   }
@@ -2867,11 +2832,9 @@ void MacroAssembler::compiler_fast_lock_object(ConditionRegister flag, Register 
 #endif // INCLUDE_RTM_OPT
 
   // Handle existing monitor.
-  if ((EmitSync & 0x02) == 0) {
-    // The object has an existing monitor iff (mark & monitor_value) != 0.
-    andi_(temp, displaced_header, markOopDesc::monitor_value);
-    bne(CCR0, object_has_monitor);
-  }
+  // The object has an existing monitor iff (mark & monitor_value) != 0.
+  andi_(temp, displaced_header, markOopDesc::monitor_value);
+  bne(CCR0, object_has_monitor);
 
   // Set displaced_header to be (markOop of object | UNLOCK_VALUE).
   ori(displaced_header, displaced_header, markOopDesc::unlocked_value);
@@ -2914,48 +2877,46 @@ void MacroAssembler::compiler_fast_lock_object(ConditionRegister flag, Register 
   std(R0/*==0, perhaps*/, BasicLock::displaced_header_offset_in_bytes(), box);
 
   // Handle existing monitor.
-  if ((EmitSync & 0x02) == 0) {
-    b(cont);
+  b(cont);
 
-    bind(object_has_monitor);
-    // The object's monitor m is unlocked iff m->owner == NULL,
-    // otherwise m->owner may contain a thread or a stack address.
+  bind(object_has_monitor);
+  // The object's monitor m is unlocked iff m->owner == NULL,
+  // otherwise m->owner may contain a thread or a stack address.
 
 #if INCLUDE_RTM_OPT
-    // Use the same RTM locking code in 32- and 64-bit VM.
-    if (use_rtm) {
-      rtm_inflated_locking(flag, oop, displaced_header, box, temp, /*temp*/ current_header,
-                           rtm_counters, method_data, profile_rtm, cont);
-    } else {
+  // Use the same RTM locking code in 32- and 64-bit VM.
+  if (use_rtm) {
+    rtm_inflated_locking(flag, oop, displaced_header, box, temp, /*temp*/ current_header,
+                         rtm_counters, method_data, profile_rtm, cont);
+  } else {
 #endif // INCLUDE_RTM_OPT
 
-    // Try to CAS m->owner from NULL to current thread.
-    addi(temp, displaced_header, ObjectMonitor::owner_offset_in_bytes()-markOopDesc::monitor_value);
-    cmpxchgd(/*flag=*/flag,
-             /*current_value=*/current_header,
-             /*compare_value=*/(intptr_t)0,
-             /*exchange_value=*/R16_thread,
-             /*where=*/temp,
-             MacroAssembler::MemBarRel | MacroAssembler::MemBarAcq,
-             MacroAssembler::cmpxchgx_hint_acquire_lock());
+  // Try to CAS m->owner from NULL to current thread.
+  addi(temp, displaced_header, ObjectMonitor::owner_offset_in_bytes()-markOopDesc::monitor_value);
+  cmpxchgd(/*flag=*/flag,
+           /*current_value=*/current_header,
+           /*compare_value=*/(intptr_t)0,
+           /*exchange_value=*/R16_thread,
+           /*where=*/temp,
+           MacroAssembler::MemBarRel | MacroAssembler::MemBarAcq,
+           MacroAssembler::cmpxchgx_hint_acquire_lock());
 
-    // Store a non-null value into the box.
-    std(box, BasicLock::displaced_header_offset_in_bytes(), box);
+  // Store a non-null value into the box.
+  std(box, BasicLock::displaced_header_offset_in_bytes(), box);
 
-#   ifdef ASSERT
-    bne(flag, cont);
-    // We have acquired the monitor, check some invariants.
-    addi(/*monitor=*/temp, temp, -ObjectMonitor::owner_offset_in_bytes());
-    // Invariant 1: _recursions should be 0.
-    //assert(ObjectMonitor::recursions_size_in_bytes() == 8, "unexpected size");
-    asm_assert_mem8_is_zero(ObjectMonitor::recursions_offset_in_bytes(), temp,
+# ifdef ASSERT
+  bne(flag, cont);
+  // We have acquired the monitor, check some invariants.
+  addi(/*monitor=*/temp, temp, -ObjectMonitor::owner_offset_in_bytes());
+  // Invariant 1: _recursions should be 0.
+  //assert(ObjectMonitor::recursions_size_in_bytes() == 8, "unexpected size");
+  asm_assert_mem8_is_zero(ObjectMonitor::recursions_offset_in_bytes(), temp,
                             "monitor->_recursions should be 0", -1);
-#   endif
+# endif
 
 #if INCLUDE_RTM_OPT
-    } // use_rtm()
+  } // use_rtm()
 #endif
-  }
 
   bind(cont);
   // flag == EQ indicates success
@@ -2969,12 +2930,6 @@ void MacroAssembler::compiler_fast_unlock_object(ConditionRegister flag, Registe
   assert(flag != CCR0, "bad condition register");
   Label cont;
   Label object_has_monitor;
-
-  // Always do locking in runtime.
-  if (EmitSync & 0x01) {
-    cmpdi(flag, oop, 0); // Oop can't be 0 here => always false.
-    return;
-  }
 
   if (try_bias) {
     biased_locking_exit(flag, oop, current_header, cont);
@@ -3002,13 +2957,11 @@ void MacroAssembler::compiler_fast_unlock_object(ConditionRegister flag, Registe
   beq(flag, cont);
 
   // Handle existing monitor.
-  if ((EmitSync & 0x02) == 0) {
-    // The object has an existing monitor iff (mark & monitor_value) != 0.
-    RTM_OPT_ONLY( if (!(UseRTMForStackLocks && use_rtm)) ) // skip load if already done
-    ld(current_header, oopDesc::mark_offset_in_bytes(), oop);
-    andi_(R0, current_header, markOopDesc::monitor_value);
-    bne(CCR0, object_has_monitor);
-  }
+  // The object has an existing monitor iff (mark & monitor_value) != 0.
+  RTM_OPT_ONLY( if (!(UseRTMForStackLocks && use_rtm)) ) // skip load if already done
+  ld(current_header, oopDesc::mark_offset_in_bytes(), oop);
+  andi_(R0, current_header, markOopDesc::monitor_value);
+  bne(CCR0, object_has_monitor);
 
   // Check if it is still a light weight lock, this is is true if we see
   // the stack address of the basicLock in the markOop of the object.
@@ -3026,65 +2979,42 @@ void MacroAssembler::compiler_fast_unlock_object(ConditionRegister flag, Registe
   assert(oopDesc::mark_offset_in_bytes() == 0, "offset of _mark is not 0");
 
   // Handle existing monitor.
-  if ((EmitSync & 0x02) == 0) {
-    b(cont);
+  b(cont);
 
-    bind(object_has_monitor);
-    addi(current_header, current_header, -markOopDesc::monitor_value); // monitor
-    ld(temp,             ObjectMonitor::owner_offset_in_bytes(), current_header);
+  bind(object_has_monitor);
+  addi(current_header, current_header, -markOopDesc::monitor_value); // monitor
+  ld(temp,             ObjectMonitor::owner_offset_in_bytes(), current_header);
 
     // It's inflated.
 #if INCLUDE_RTM_OPT
-    if (use_rtm) {
-      Label L_regular_inflated_unlock;
-      // Clean monitor_value bit to get valid pointer
-      cmpdi(flag, temp, 0);
-      bne(flag, L_regular_inflated_unlock);
-      tend_();
-      b(cont);
-      bind(L_regular_inflated_unlock);
-    }
+  if (use_rtm) {
+    Label L_regular_inflated_unlock;
+    // Clean monitor_value bit to get valid pointer
+    cmpdi(flag, temp, 0);
+    bne(flag, L_regular_inflated_unlock);
+    tend_();
+    b(cont);
+    bind(L_regular_inflated_unlock);
+  }
 #endif
 
-    ld(displaced_header, ObjectMonitor::recursions_offset_in_bytes(), current_header);
-    xorr(temp, R16_thread, temp);      // Will be 0 if we are the owner.
-    orr(temp, temp, displaced_header); // Will be 0 if there are 0 recursions.
-    cmpdi(flag, temp, 0);
-    bne(flag, cont);
+  ld(displaced_header, ObjectMonitor::recursions_offset_in_bytes(), current_header);
+  xorr(temp, R16_thread, temp);      // Will be 0 if we are the owner.
+  orr(temp, temp, displaced_header); // Will be 0 if there are 0 recursions.
+  cmpdi(flag, temp, 0);
+  bne(flag, cont);
 
-    ld(temp,             ObjectMonitor::EntryList_offset_in_bytes(), current_header);
-    ld(displaced_header, ObjectMonitor::cxq_offset_in_bytes(), current_header);
-    orr(temp, temp, displaced_header); // Will be 0 if both are 0.
-    cmpdi(flag, temp, 0);
-    bne(flag, cont);
-    release();
-    std(temp, ObjectMonitor::owner_offset_in_bytes(), current_header);
-  }
+  ld(temp,             ObjectMonitor::EntryList_offset_in_bytes(), current_header);
+  ld(displaced_header, ObjectMonitor::cxq_offset_in_bytes(), current_header);
+  orr(temp, temp, displaced_header); // Will be 0 if both are 0.
+  cmpdi(flag, temp, 0);
+  bne(flag, cont);
+  release();
+  std(temp, ObjectMonitor::owner_offset_in_bytes(), current_header);
 
   bind(cont);
   // flag == EQ indicates success
   // flag == NE indicates failure
-}
-
-// Write serialization page so VM thread can do a pseudo remote membar.
-// We use the current thread pointer to calculate a thread specific
-// offset to write to within the page. This minimizes bus traffic
-// due to cache line collision.
-void MacroAssembler::serialize_memory(Register thread, Register tmp1, Register tmp2) {
-  srdi(tmp2, thread, os::get_serialize_page_shift_count());
-
-  int mask = os::vm_page_size() - sizeof(int);
-  if (Assembler::is_simm(mask, 16)) {
-    andi(tmp2, tmp2, mask);
-  } else {
-    lis(tmp1, (int)((signed short) (mask >> 16)));
-    ori(tmp1, tmp1, mask & 0x0000ffff);
-    andr(tmp2, tmp2, tmp1);
-  }
-
-  load_const(tmp1, (long) os::get_memory_serialize_page());
-  release();
-  stwx(R0, tmp1, tmp2);
 }
 
 void MacroAssembler::safepoint_poll(Label& slow_path, Register temp_reg) {

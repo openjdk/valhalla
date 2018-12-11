@@ -51,7 +51,7 @@ SignatureIterator::SignatureIterator(Symbol* signature) {
 }
 
 void SignatureIterator::expect(char c) {
-  if (_signature->byte_at(_index) != c) fatal("expecting %c", c);
+  if (_signature->char_at(_index) != c) fatal("expecting %c", c);
   _index++;
 }
 
@@ -62,7 +62,7 @@ int SignatureIterator::parse_type() {
   //       work (stack underflow for some tests) - this seems to be a VC++ 6.0
   //       compiler bug (was problem - gri 4/27/2000).
   int size = -1;
-  switch(_signature->byte_at(_index)) {
+  switch(_signature->char_at(_index)) {
     case 'B': do_byte  (); if (_parameter_index < 0 ) _return_type = T_BYTE;
               _index++; size = T_BYTE_size   ; break;
     case 'C': do_char  (); if (_parameter_index < 0 ) _return_type = T_CHAR;
@@ -84,7 +84,7 @@ int SignatureIterator::parse_type() {
     case 'L':
       { int begin = ++_index;
         Symbol* sig = _signature;
-        while (sig->byte_at(_index++) != ';') ;
+        while (sig->char_at(_index++) != ';') ;
         do_object(begin, _index);
       }
       if (_parameter_index < 0 ) _return_type = T_OBJECT;
@@ -93,7 +93,7 @@ int SignatureIterator::parse_type() {
     case 'Q':
       { int begin = ++_index;
       Symbol* sig = _signature;
-      while (sig->byte_at(_index++) != ';') ;
+      while (sig->char_at(_index++) != ';') ;
       do_valuetype(begin, _index);
       }
       if (_parameter_index < 0 ) _return_type = T_VALUETYPE;
@@ -102,11 +102,11 @@ int SignatureIterator::parse_type() {
     case '[':
       { int begin = ++_index;
         Symbol* sig = _signature;
-        while (sig->byte_at(_index) == '[') {
+        while (sig->char_at(_index) == '[') {
           _index++;
         }
-        if (sig->byte_at(_index) == 'L' || sig->byte_at(_index) == 'Q') {
-          while (sig->byte_at(_index++) != ';') ;
+        if (sig->char_at(_index) == 'L' || sig->char_at(_index) == 'Q') {
+          while (sig->char_at(_index++) != ';') ;
         } else {
           _index++;
         }
@@ -147,7 +147,7 @@ void SignatureIterator::iterate_parameters() {
   _index = 0;
   _parameter_index = 0;
   expect('(');
-  while (_signature->byte_at(_index) != ')') _parameter_index += parse_type();
+  while (_signature->char_at(_index) != ')') _parameter_index += parse_type();
   expect(')');
   _parameter_index = 0;
 }
@@ -227,8 +227,8 @@ void SignatureIterator::iterate_returntype() {
   // Need to skip over each type in the signature's argument list until a
   // closing ')' is found., then get the return type.  We cannot just scan
   // for the first ')' because ')' is a legal character in a type name.
-  while (sig->byte_at(_index) != ')') {
-    switch(sig->byte_at(_index)) {
+  while (sig->char_at(_index) != ')') {
+    switch(sig->char_at(_index)) {
       case 'B':
       case 'C':
       case 'D':
@@ -245,17 +245,17 @@ void SignatureIterator::iterate_returntype() {
       case 'Q':
       case 'L':
         {
-          while (sig->byte_at(_index++) != ';') ;
+          while (sig->char_at(_index++) != ';') ;
         }
         break;
       case '[':
         {
           int begin = ++_index;
-          while (sig->byte_at(_index) == '[') {
+          while (sig->char_at(_index) == '[') {
             _index++;
           }
-          if (sig->byte_at(_index) == 'L' || sig->byte_at(_index) == 'Q' ) {
-            while (sig->byte_at(_index++) != ';') ;
+          if (sig->char_at(_index) == 'L' || sig->char_at(_index) == 'Q' ) {
+            while (sig->char_at(_index++) != ';') ;
           } else {
             _index++;
           }
@@ -280,7 +280,7 @@ void SignatureIterator::iterate() {
   _parameter_index = 0;
   _index = 0;
   expect('(');
-  while (_signature->byte_at(_index) != ')') _parameter_index += parse_type();
+  while (_signature->char_at(_index) != ')') _parameter_index += parse_type();
   expect(')');
   // Parse return type
   _parameter_index = -1;
@@ -315,26 +315,26 @@ void SignatureStream::next_non_primitive(int t) {
     case 'L': {
       _type = T_OBJECT;
       Symbol* sig = _signature;
-      while (sig->byte_at(_end++) != ';');
+      while (sig->char_at(_end++) != ';');
       break;
     }
     case 'Q': {
       _type = T_VALUETYPE;
       Symbol* sig = _signature;
-      while (sig->byte_at(_end++) != ';');
+      while (sig->char_at(_end++) != ';');
       break;
     }
     case '[': {
       _type = T_ARRAY;
       Symbol* sig = _signature;
-      char c = sig->byte_at(_end);
-      while ('0' <= c && c <= '9') c = sig->byte_at(_end++);
-      while (sig->byte_at(_end) == '[') {
+      char c = sig->char_at(_end);
+      while ('0' <= c && c <= '9') c = sig->char_at(_end++);
+      while (sig->char_at(_end) == '[') {
         _end++;
-        c = sig->byte_at(_end);
-        while ('0' <= c && c <= '9') c = sig->byte_at(_end++);
+        c = sig->char_at(_end);
+        while ('0' <= c && c <= '9') c = sig->char_at(_end++);
       }
-      switch(sig->byte_at(_end)) {
+      switch(sig->char_at(_end)) {
         case 'B':
         case 'C':
         case 'D':
@@ -344,7 +344,7 @@ void SignatureStream::next_non_primitive(int t) {
         case 'S':
         case 'Z':_end++; break;
         default: {
-          while (sig->byte_at(_end++) != ';');
+          while (sig->char_at(_end++) != ';');
           break;
         }
       }
@@ -424,7 +424,7 @@ Symbol* SignatureStream::as_symbol_or_null() {
 
   char* buffer = NEW_RESOURCE_ARRAY(char, end - begin);
   for (int index = begin; index < end; index++) {
-    buffer[index - begin] = _signature->byte_at(index);
+    buffer[index - begin] = _signature->char_at(index);
   }
   Symbol* result = SymbolTable::probe(buffer, end - begin);
   return result;

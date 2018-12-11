@@ -582,6 +582,7 @@ public:
 
   virtual void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   static address target_addr_for_insn(address insn_addr, unsigned insn);
   static address target_addr_for_insn(address insn_addr) {
@@ -782,6 +783,9 @@ public:
 
   void resolve_jobject(Register value, Register thread, Register tmp);
 
+  // C 'boolean' to Java boolean: x == 0 ? 0 : 1
+  void c2bool(Register x);
+
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
@@ -972,9 +976,6 @@ public:
                                                 Register tmp,
                                                 int offset);
 
-  // Support for serializing memory accesses between threads
-  void serialize_memory(Register thread, Register tmp);
-
   // Arithmetics
 
   void addptr(const Address &dst, int32_t src);
@@ -1017,7 +1018,10 @@ public:
                enum operand_size size,
                bool acquire, bool release, bool weak,
                Register result);
+private:
+  void compare_eq(Register rn, Register rm, enum operand_size size);
 
+public:
   // Calls
 
   address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);

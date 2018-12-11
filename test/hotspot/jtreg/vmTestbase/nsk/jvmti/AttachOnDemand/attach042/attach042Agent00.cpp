@@ -28,9 +28,7 @@
 #include <aod.h>
 #include <jvmti_aod.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
  * Expected agent work scenario:
@@ -50,7 +48,7 @@ void JNICALL threadStartHandler(jvmtiEnv *jvmti,
         jthread thread) {
     char startedThreadName[MAX_STRING_LENGTH];
 
-    if(!nsk_jvmti_aod_getThreadName(jvmti, thread, startedThreadName)) {
+    if (!nsk_jvmti_aod_getThreadName(jvmti, thread, startedThreadName)) {
         nsk_jvmti_aod_disableEventAndFinish(agentName, JVMTI_EVENT_THREAD_START, 0, jvmti, jni);
         return;
     }
@@ -64,7 +62,7 @@ void JNICALL threadStartHandler(jvmtiEnv *jvmti,
         int i;
         int startedThreadWasFound = 0;
 
-        if(!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(GetAllThreads, jvmti, &threadsCount, &threads))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->GetAllThreads(&threadsCount, &threads))) {
             NSK_COMPLAIN1("%s: failed to get all threads\n", agentName);
             nsk_jvmti_aod_disableEventAndFinish(agentName, JVMTI_EVENT_THREAD_START, 0, jvmti, jni);
             return;
@@ -87,7 +85,7 @@ void JNICALL threadStartHandler(jvmtiEnv *jvmti,
                 startedThreadWasFound = 1;
             }
 
-            if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(GetThreadState, jvmti, threads[i], &threadState))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->GetThreadState(threads[i], &threadState))) {
                 NSK_COMPLAIN2("%s: failed to get status of thread '%s'\n", agentName, threadName);
                 nsk_jvmti_aod_deallocate(jvmti, (unsigned char*)threads);
                 nsk_jvmti_aod_disableEventAndFinish(agentName, JVMTI_EVENT_THREAD_START, 0, jvmti, jni);
@@ -125,20 +123,23 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     jvmtiEnv* jvmti;
     JNIEnv* jni;
 
-    if (!NSK_VERIFY((options = (Options*) nsk_aod_createOptions(optionsString)) != NULL))
+    options = (Options*) nsk_aod_createOptions(optionsString);
+    if (!NSK_VERIFY(options != NULL))
         return JNI_ERR;
 
     agentName = nsk_aod_getOptionValue(options, NSK_AOD_AGENT_NAME_OPTION);
 
-    if ((jni = (JNIEnv*) nsk_aod_createJNIEnv(vm)) == NULL)
+    jni = (JNIEnv*) nsk_aod_createJNIEnv(vm);
+    if (jni == NULL)
         return JNI_ERR;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     memset(&eventCallbacks,0, sizeof(eventCallbacks));
     eventCallbacks.ThreadStart = threadStartHandler;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks, jvmti, &eventCallbacks, sizeof(eventCallbacks))) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
         return JNI_ERR;
     }
 
@@ -154,6 +155,4 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ import java.util.Arrays;
  * @summary Test for feature 'support stronger entry protection'. An entry is
  * stored to keystore with different PasswordProtection objects which are
  * specified by different PBE algorithms (use -Dseed=X to set PRNG seed)
- * @library /test/lib /lib/testlibrary ../
+ * @library /test/lib ../
  * @key randomness
  * @build jdk.test.lib.RandomFactory
  * @run main EntryProtectionTest

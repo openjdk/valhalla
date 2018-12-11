@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -77,8 +75,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             return;
 
         NSK_DISPLAY1("Suspend thread: %p\n", (void*)testedThread);
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(SuspendThread, jvmti, testedThread))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SuspendThread(testedThread))) {
             nsk_jvmti_setFailStatus();
             return;
         }
@@ -106,8 +103,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             return;
 
         NSK_DISPLAY1("Resume thread: %p\n", (void*)testedThread);
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(ResumeThread, jvmti, testedThread))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(testedThread))) {
             nsk_jvmti_setFailStatus();
         }
 
@@ -116,7 +112,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             return;
 
         NSK_DISPLAY0("Delete thread reference\n");
-        NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, testedThread));
+        NSK_TRACE(jni->DeleteGlobalRef(testedThread));
     }
 
     NSK_DISPLAY0("Let debugee to finish\n");
@@ -131,7 +127,7 @@ JNIEXPORT void JNICALL
 callbackThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     /* check if event is for tested thread */
     if (thread != NULL &&
-                NSK_CPP_STUB3(IsSameObject, jni, testedThread, thread)) {
+                jni->IsSameObject(testedThread, thread)) {
         NSK_DISPLAY1("  ... received THREAD_END event for tested thread: %p\n", (void*)thread);
         eventsReceived++;
     } else {
@@ -172,8 +168,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         jvmtiCapabilities suspendCaps;
         memset(&suspendCaps, 0, sizeof(suspendCaps));
         suspendCaps.can_suspend = 1;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &suspendCaps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&suspendCaps)))
             return JNI_ERR;
     }
 
@@ -182,8 +177,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         jvmtiEventCallbacks callbacks;
         memset(&callbacks, 0, sizeof(callbacks));
         callbacks.ThreadEnd = callbackThreadEnd;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti, &callbacks, sizeof(callbacks))))
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks))))
         return JNI_ERR;
     }
 
@@ -196,6 +190,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

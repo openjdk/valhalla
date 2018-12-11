@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "aot/aotLoader.hpp"
 #include "classfile/classLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
@@ -574,9 +575,6 @@ void vm_direct_exit(int code) {
 }
 
 void vm_perform_shutdown_actions() {
-  // Warning: do not call 'exit_globals()' here. All threads are still running.
-  // Calling 'exit_globals()' will disable thread-local-storage and cause all
-  // kinds of assertions to trigger in debug mode.
   if (is_init_completed()) {
     Thread* thread = Thread::current_or_null();
     if (thread != NULL && thread->is_Java_thread()) {
@@ -609,6 +607,26 @@ void vm_abort(bool dump_core) {
 
   os::abort(dump_core);
   ShouldNotReachHere();
+}
+
+void vm_notify_during_cds_dumping(const char* error, const char* message) {
+  if (error != NULL) {
+    tty->print_cr("Error occurred during CDS dumping");
+    tty->print("%s", error);
+    if (message != NULL) {
+      tty->print_cr(": %s", message);
+    }
+    else {
+      tty->cr();
+    }
+  }
+}
+
+void vm_exit_during_cds_dumping(const char* error, const char* message) {
+  vm_notify_during_cds_dumping(error, message);
+
+  // Failure during CDS dumping, we don't want to dump core
+  vm_abort(false);
 }
 
 void vm_notify_during_shutdown(const char* error, const char* message) {

@@ -24,9 +24,7 @@
 #include <stdio.h>
 #include "nsk_strace.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 static const char *Stest_cn="nsk/stress/strace/strace006";
 
@@ -45,7 +43,8 @@ JNI_OnLoad(JavaVM *vm, void *reserved)
     }
 
     FIND_CLASS(stackOverflowErrorClass, "java/lang/StackOverflowError");
-    if ((stackOverflowErrorClass = (jclass) env->NewGlobalRef(stackOverflowErrorClass)) == NULL) {
+    stackOverflowErrorClass = (jclass) env->NewGlobalRef(stackOverflowErrorClass);
+    if (stackOverflowErrorClass == NULL) {
         printf("Can't create global ref for stack overflow class\n");
         return 0;
     }
@@ -90,11 +89,11 @@ Java_nsk_stress_strace_strace006Thread_recursiveMethod2(JNIEnv *env, jobject obj
     if (maxDepth - currDepth > 0)
     {
         GET_STATIC_METHOD_ID(method, threadClass, "yield", "()V");
-        NSK_CPP_STUB3(CallStaticVoidMethod, env, threadClass, method);
+        env->CallStaticVoidMethod(threadClass, method);
         EXCEPTION_CHECK(stackOverflowErrorClass, currDepth);
 
         GET_METHOD_ID(method, threadClass, "recursiveMethod1", "()V");
-        NSK_CPP_STUB3(CallVoidMethod, env, obj, method);
+        env->CallVoidMethod(obj, method);
         EXCEPTION_CHECK(stackOverflowErrorClass, currDepth);
     }
 
@@ -103,6 +102,4 @@ Java_nsk_stress_strace_strace006Thread_recursiveMethod2(JNIEnv *env, jobject obj
     SET_INT_FIELD(obj, threadClass, "currentDepth", currDepth);
 }
 
-#ifdef __cplusplus
 }
-#endif

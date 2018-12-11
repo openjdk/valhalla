@@ -45,6 +45,7 @@ public class CleanProtectionDomain {
     ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                                   "-Xlog:protectiondomain+table=debug",
                                   "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
+                                  "-XX:+UnlockDiagnosticVMOptions",
                                   "-XX:+WhiteBoxAPI",
                                   "-Xbootclasspath/a:.",
                                   Test.class.getName());
@@ -56,11 +57,10 @@ public class CleanProtectionDomain {
 
   static class Test {
     public static void test() throws Exception {
-      Unsafe unsafe = Unsafe.getUnsafe();
       TestClassLoader classloader = new TestClassLoader();
       ProtectionDomain pd = new ProtectionDomain(null, null);
       byte klassbuf[] = InMemoryJavaCompiler.compile("TestClass", "class TestClass { }");
-      Class klass = unsafe.defineClass(null, klassbuf, 0, klassbuf.length, classloader, pd);
+      Class<?> klass = classloader.defineClass("TestClass", klassbuf, pd);
     }
 
     public static void main(String[] args) throws Exception {
@@ -70,18 +70,29 @@ public class CleanProtectionDomain {
 
       test();
 
-      System.gc();
       // Wait until ServiceThread cleans ProtectionDomain table.
       // When the TestClassLoader is unloaded by GC, at least one
       // ProtectionDomainCacheEntry will be eligible for removal.
-      do {
+      int cnt = 0;
+      while (true) {
+        if (cnt++ % 30 == 0) {
+          System.gc();
+        }
         removedCount = wb.protectionDomainRemovedCount();
-      } while (removedCountOrig == removedCount);
+        if (removedCountOrig != removedCount) {
+          break;
+        }
+        Thread.sleep(100);
+      }
     }
 
     private static class TestClassLoader extends ClassLoader {
       public TestClassLoader() {
         super();
+      }
+
+      public Class<?> defineClass(String name, byte[] bytes, ProtectionDomain pd) {
+        return defineClass(name, bytes, 0, bytes.length, pd);
       }
     }
   }

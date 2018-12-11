@@ -37,6 +37,8 @@
 
 #include <dirent.h>
 #include <dlfcn.h>
+#include <grp.h>
+#include <pwd.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -440,6 +442,38 @@ void os::Posix::print_uname_info(outputStream* st) {
   st->print("%s", name.machine);
   st->cr();
 }
+
+void os::Posix::print_umask(outputStream* st, mode_t umsk) {
+  st->print((umsk & S_IRUSR) ? "r" : "-");
+  st->print((umsk & S_IWUSR) ? "w" : "-");
+  st->print((umsk & S_IXUSR) ? "x" : "-");
+  st->print((umsk & S_IRGRP) ? "r" : "-");
+  st->print((umsk & S_IWGRP) ? "w" : "-");
+  st->print((umsk & S_IXGRP) ? "x" : "-");
+  st->print((umsk & S_IROTH) ? "r" : "-");
+  st->print((umsk & S_IWOTH) ? "w" : "-");
+  st->print((umsk & S_IXOTH) ? "x" : "-");
+}
+
+void os::Posix::print_user_info(outputStream* st) {
+  unsigned id = (unsigned) ::getuid();
+  st->print("uid  : %u ", id);
+  id = (unsigned) ::geteuid();
+  st->print("euid : %u ", id);
+  id = (unsigned) ::getgid();
+  st->print("gid  : %u ", id);
+  id = (unsigned) ::getegid();
+  st->print_cr("egid : %u", id);
+  st->cr();
+
+  mode_t umsk = ::umask(0);
+  ::umask(umsk);
+  st->print("umask: %04o (", (unsigned) umsk);
+  print_umask(st, umsk);
+  st->print_cr(")");
+  st->cr();
+}
+
 
 bool os::get_host_name(char* buf, size_t buflen) {
   struct utsname name;
@@ -1609,9 +1643,24 @@ static void pthread_init_common(void) {
 // This means we have clockid_t, clock_gettime et al and CLOCK_MONOTONIC
 
 static int (*_clock_gettime)(clockid_t, struct timespec *);
+static int (*_clock_getres)(clockid_t, struct timespec *);
 static int (*_pthread_condattr_setclock)(pthread_condattr_t *, clockid_t);
 
 static bool _use_clock_monotonic_condattr;
+
+// Exported clock functionality
+
+int os::Posix::clock_gettime(clockid_t clock_id, struct timespec *tp) {
+  return _clock_gettime != NULL ? _clock_gettime(clock_id, tp) : -1;
+}
+
+int os::Posix::clock_getres(clockid_t clock_id, struct timespec *tp) {
+  return _clock_getres != NULL ? _clock_getres(clock_id, tp) : -1;
+}
+
+bool os::Posix::supports_monotonic_clock() {
+  return _clock_gettime != NULL;
+}
 
 // Determine what POSIX API's are present and do appropriate
 // configuration.
@@ -1619,8 +1668,6 @@ void os::Posix::init(void) {
 
   // NOTE: no logging available when this is called. Put logging
   // statements in init_2().
-
-  // Copied from os::Linux::clock_init(). The duplication is temporary.
 
   // 1. Check for CLOCK_MONOTONIC support.
 
@@ -1642,6 +1689,7 @@ void os::Posix::init(void) {
   }
 
   _clock_gettime = NULL;
+  _clock_getres = NULL;
 
   int (*clock_getres_func)(clockid_t, struct timespec*) =
     (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_getres");
@@ -1656,6 +1704,7 @@ void os::Posix::init(void) {
         clock_gettime_func(CLOCK_MONOTONIC, &tp) == 0) {
       // Yes, monotonic clock is supported.
       _clock_gettime = clock_gettime_func;
+      _clock_getres = clock_getres_func;
     } else {
 #ifdef NEEDS_LIBRT
       // Close librt if there is no monotonic clock.

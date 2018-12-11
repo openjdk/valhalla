@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -65,8 +63,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         NSK_DISPLAY1("  ... found thread: %p\n", (void*)testedThread);
 
         NSK_DISPLAY1("Suspend thread: %p\n", (void*)testedThread);
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(SuspendThread, jvmti, testedThread))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SuspendThread(testedThread))) {
             nsk_jvmti_setFailStatus();
             return;
         }
@@ -80,8 +77,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         {
             jint state = 0;
 
-            if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB3(GetThreadState, jvmti, testedThread, &state))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->GetThreadState(testedThread, &state))) {
                 nsk_jvmti_setFailStatus();
             }
             NSK_DISPLAY2("  ... got state vector: %s (%d)\n",
@@ -96,8 +92,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         }
 
         NSK_DISPLAY1("Resume thread: %p\n", (void*)testedThread);
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(ResumeThread, jvmti, testedThread))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(testedThread))) {
             nsk_jvmti_setFailStatus();
         }
         /* Original agentProc test block ends here. */
@@ -109,7 +104,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         for (late_count = 0; late_count < N_LATE_CALLS; late_count++) {
             jvmtiError l_err;
             printf("INFO: Late suspend thread: %p\n", (void*)testedThread);
-            l_err = NSK_CPP_STUB2(SuspendThread, jvmti, testedThread);
+            l_err = jvmti->SuspendThread(testedThread);
             if (l_err != JVMTI_ERROR_NONE) {
                 printf("INFO: Late suspend thread err: %d\n", l_err);
                 // testedThread has exited so we're done with late calls
@@ -119,8 +114,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             // Only resume a thread if suspend worked. Using NSK_DISPLAY1()
             // here because we want ResumeThread() to be faster.
             NSK_DISPLAY1("INFO: Late resume thread: %p\n", (void*)testedThread);
-            if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB2(ResumeThread, jvmti, testedThread))) {
+            if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(testedThread))) {
                 nsk_jvmti_setFailStatus();
             }
         }
@@ -139,7 +133,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             return;
 
         NSK_DISPLAY0("Delete thread reference\n");
-        NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, testedThread));
+        NSK_TRACE(jni->DeleteGlobalRef(testedThread));
     }
 
     NSK_DISPLAY0("Let debugee to finish\n");
@@ -182,8 +176,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         jvmtiCapabilities suspendCaps;
         memset(&suspendCaps, 0, sizeof(suspendCaps));
         suspendCaps.can_suspend = 1;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &suspendCaps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&suspendCaps)))
             return JNI_ERR;
     }
 
@@ -196,6 +189,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

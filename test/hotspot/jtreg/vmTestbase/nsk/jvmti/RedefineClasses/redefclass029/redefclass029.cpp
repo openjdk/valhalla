@@ -33,9 +33,7 @@
 #include "JVMTITools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define PASSED  0
 #define STATUS_FAILED  2
@@ -87,9 +85,9 @@ JNIEXPORT void JNICALL Java_nsk_jvmti_RedefineClasses_redefclass029_storeClassBy
         (JNIEnv *jni_env, jclass cls, jbyteArray classBytes) {
     jboolean isCopy;
 
-    bytesCount = NSK_CPP_STUB2(GetArrayLength, jni_env, classBytes);
+    bytesCount = jni_env->GetArrayLength(classBytes);
     clsBytes =
-        NSK_CPP_STUB3(GetByteArrayElements, jni_env, classBytes, &isCopy);
+        jni_env->GetByteArrayElements(classBytes, &isCopy);
 }
 
 /** callback functions **/
@@ -101,8 +99,7 @@ CompiledMethodLoad(jvmtiEnv *jvmti_env, jmethodID method, jint code_size,
     char *sig;
 
     NSK_DISPLAY0("CompiledMethodLoad event received for:\n");
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB5(GetMethodName,
-            jvmti_env, method, &name, &sig, NULL))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodName(method, &name, &sig, NULL))) {
         nsk_jvmti_setFailStatus();
         return;
     }
@@ -139,8 +136,8 @@ CompiledMethodUnload(jvmtiEnv* jvmti_env, jmethodID method,
     if (err == JVMTI_ERROR_NONE) {
         NSK_DISPLAY3("for: \tmethod: name=\"%s\" signature=\"%s\"\n\tnative address=0x%p\n",
           name, sig, code_addr);
-        NSK_CPP_STUB2(Deallocate, jvmti_env, (unsigned char*)name);
-        NSK_CPP_STUB2(Deallocate, jvmti_env, (unsigned char*)sig);
+        jvmti_env->Deallocate((unsigned char*)name);
+        jvmti_env->Deallocate((unsigned char*)sig);
     }
 }
 /************************/
@@ -164,8 +161,7 @@ agentProc(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg) {
 
     /* at first, send all generated CompiledMethodLoad events */
     NSK_DISPLAY0("agentProc: sending all generated CompiledMethodLoad events ...\n\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GenerateEvents, jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD))) {
         nsk_jvmti_setFailStatus();
         nsk_jvmti_resumeSync();
         return;
@@ -182,18 +178,16 @@ agentProc(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg) {
             nsk_jvmti_resumeSync();
             exit(95 + PASSED);
         }
-    } while(fire == 0);
+    } while (fire == 0);
 
     NSK_DISPLAY0("agentProc: hotspot method compiled\n\n");
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(GetMethodDeclaringClass,
-                                        jvmti_env, hsMethodID, &decl_cls))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodDeclaringClass(hsMethodID, &decl_cls))) {
         nsk_jvmti_setFailStatus();
         nsk_jvmti_resumeSync();
         return;
     }
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature,
-                                        jvmti_env, decl_cls, &cls_sig, NULL))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetClassSignature(decl_cls, &cls_sig, NULL))) {
         nsk_jvmti_setFailStatus();
         nsk_jvmti_resumeSync();
         return;
@@ -210,8 +204,7 @@ agentProc(jvmtiEnv* jvmti_env, JNIEnv* jni_env, void* arg) {
     NSK_DISPLAY1("agentProc: >>>>>>>> Invoke RedefineClasses():\n"
                  "\tnew class byte count=%d\n",
                  classDef.class_byte_count);
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(RedefineClasses,
-                                        jvmti, 1, &classDef))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RedefineClasses(1, &classDef))) {
       nsk_jvmti_setFailStatus();
       nsk_jvmti_resumeSync();
       return;
@@ -262,8 +255,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_generate_compiled_method_load_events = 1;
     caps.can_redefine_classes = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
     /* set event callback */
@@ -271,8 +263,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     (void) memset(&callbacks, 0, sizeof(callbacks));
     callbacks.CompiledMethodLoad = &CompiledMethodLoad;
     callbacks.CompiledMethodUnload = &CompiledMethodUnload;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks,
-            jvmti, &callbacks, sizeof(callbacks))))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks))))
         return JNI_ERR;
 
     NSK_DISPLAY0("setting event callbacks done\nenabling events ...\n");
@@ -288,6 +279,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

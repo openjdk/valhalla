@@ -28,9 +28,7 @@
 #include <aod.h>
 #include <jvmti_aod.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
  * Expected agent work scenario:
@@ -75,13 +73,13 @@ int registerNativeMethods(JNIEnv* jni) {
             {(char*) "agentGotCapabilities", (char*) "()Z", (void*) Java_nsk_jvmti_AttachOnDemand_attach002_attach002Target_agentGotCapabilities}};
     jint nativeMethodsNumber = 1;
 
-    if (!NSK_JNI_VERIFY(jni, (appClass =
-        NSK_CPP_STUB2(FindClass, jni, ATTACH002_TARGET_APP_CLASS_NAME)) != NULL)) {
+    appClass = jni->FindClass(ATTACH002_TARGET_APP_CLASS_NAME);
+    if (!NSK_JNI_VERIFY(jni, appClass != NULL)) {
         return NSK_FALSE;
     }
 
     if (!NSK_JNI_VERIFY(jni,
-            (NSK_CPP_STUB4(RegisterNatives, jni, appClass, nativeMethods, nativeMethodsNumber) == 0))) {
+            (jni->RegisterNatives(appClass, nativeMethods, nativeMethodsNumber) == 0))) {
         return NSK_FALSE;
     }
 
@@ -189,15 +187,18 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     jvmtiEnv* jvmti = NULL;
     JNIEnv* jni = NULL;
 
-    if (!NSK_VERIFY((options = (Options*) nsk_aod_createOptions(optionsString)) != NULL))
+    options = (Options*) nsk_aod_createOptions(optionsString);
+    if (!NSK_VERIFY(options != NULL))
         return JNI_ERR;
 
     agentName = nsk_aod_getOptionValue(options, NSK_AOD_AGENT_NAME_OPTION);
 
-    if ((jni = (JNIEnv*) nsk_aod_createJNIEnv(vm)) == NULL)
+    jni = (JNIEnv*) nsk_aod_createJNIEnv(vm);
+    if (jni == NULL)
         return NSK_FALSE;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     if (!NSK_VERIFY(registerNativeMethods(jni))) {
@@ -207,7 +208,7 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     memset(&caps, 0, sizeof(caps));
     caps.can_generate_all_class_hook_events = 1;
     caps.can_redefine_classes = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
         /*
          * If VM is run with -Xshare:on agent can't get required capabilities (see 6718407)
          */
@@ -224,7 +225,7 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
         eventCallbacks.ClassLoad = classLoadHandler;
         eventCallbacks.ClassPrepare = classPrepareHandler;
         eventCallbacks.ClassFileLoadHook = classFileLoadHoockHandler;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks, jvmti, &eventCallbacks, sizeof(eventCallbacks))) ) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             return JNI_ERR;
         }
 
@@ -241,6 +242,4 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

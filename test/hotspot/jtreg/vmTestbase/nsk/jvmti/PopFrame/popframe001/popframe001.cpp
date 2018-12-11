@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define STATUS_FAILED 2
 #define PASSED 0
@@ -100,7 +87,8 @@ Java_nsk_jvmti_PopFrame_popframe001_suspThread(JNIEnv *env,
 
     if (vrb == 1)
         printf(">>>>>>>> Invoke SuspendThread()\n");
-    if ((err = (jvmti->SuspendThread(susThr))) != JVMTI_ERROR_NONE) {
+    err = jvmti->SuspendThread(susThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call SuspendThread(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         return JNI_ERR;
@@ -121,7 +109,8 @@ Java_nsk_jvmti_PopFrame_popframe001_resThread(JNIEnv *env,
 
     if (vrb == 1)
         printf(">>>>>>>> Invoke ResumeThread()\n");
-    if ((err = (jvmti->ResumeThread(susThr))) != JVMTI_ERROR_NONE) {
+    err = jvmti->ResumeThread(susThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call ResumeThread(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         return JNI_ERR;
@@ -160,7 +149,8 @@ Java_nsk_jvmti_PopFrame_popframe001_doPopFrame(JNIEnv *env,
         printf(">>>>>>>> Invoke PopFrame()\n");
     set_watch_ev(1); /* watch JVMTI events */
 
-    if ((err = (jvmti->PopFrame(frameThr))) != JVMTI_ERROR_NONE) {
+    err = jvmti->PopFrame(frameThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("TEST FAILED: the function PopFrame() returned the error %d: %s\n",
             err, TranslateError(err));
         printf("\tFor more info about this error see the JVMTI spec.\n");
@@ -195,8 +185,7 @@ jint  Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong result of a valid call to GetEnv!\n");
         return JNI_ERR;
@@ -257,6 +246,4 @@ jint  Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

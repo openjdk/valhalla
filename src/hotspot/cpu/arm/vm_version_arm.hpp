@@ -41,23 +41,6 @@ class VM_Version: public Abstract_VM_Version {
   static void initialize();
   static bool is_initialized()      { return _is_initialized; }
 
-#ifdef AARCH64
-
- public:
-  static bool supports_ldrex()         { return true; }
-  static bool supports_ldrexd()        { return true; }
-  static bool supports_movw()          { return true; }
-
-  // Override Abstract_VM_Version implementation
-  static bool use_biased_locking();
-
-  static bool has_simd()               { return _has_simd; }
-  static bool has_vfp()                { return has_simd(); }
-  static bool simd_math_is_compliant() { return true; }
-
-  static bool prefer_moves_over_load_literal() { return true; }
-
-#else
 
  protected:
   enum Feature_Flag {
@@ -110,7 +93,6 @@ class VM_Version: public Abstract_VM_Version {
   static bool supports_kuser_cmpxchg64() { return _kuser_helper_version >= KUSER_VERSION_CMPXCHG64; }
   // Override Abstract_VM_Version implementation
   static bool use_biased_locking();
-  static const char* vm_info_string();
 
   static bool has_vfp()             { return (_features & vfp_m) != 0; }
   static bool has_vfp3_32()         { return (_features & vfp3_32_m) != 0; }
@@ -122,7 +104,6 @@ class VM_Version: public Abstract_VM_Version {
 
   friend class VM_Version_StubGenerator;
 
-#endif // AARCH64
 };
 
 #endif // CPU_ARM_VM_VM_VERSION_ARM_HPP

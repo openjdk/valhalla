@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define STATUS_FAILED 2
 #define PASSED 0
@@ -119,8 +106,8 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    if ((res = JNI_ENV_PTR(vm)->GetEnv(JNI_ENV_ARG(vm, (void **) &jvmti),
-            JVMTI_VERSION_1_1)) != JNI_OK) {
+    res = vm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
+    if (res != JNI_OK) {
         printf("%s: Failed to call GetEnv: error=%d\n", __FILE__, res);
         return JNI_ERR;
     }
@@ -186,26 +173,27 @@ Java_nsk_jvmti_RedefineClasses_redefclass005_makeRedefinition(JNIEnv *env,
         return PASSED;
     }
 
-    if ((err = (jvmti->GetCurrentThread(&thread))) != JVMTI_ERROR_NONE) {
+    err = jvmti->GetCurrentThread(&thread);
+    if (err != JVMTI_ERROR_NONE) {
         printf("Failed to get current thread: %s (%d)\n", TranslateError(err), err);
         result = STATUS_FAILED;
         return STATUS_FAILED;
     }
 
-    if ((err = (jvmti->SetEventNotificationMode(JVMTI_ENABLE,
-             JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL))) != JVMTI_ERROR_NONE) {
+    err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
+    if (err != JVMTI_ERROR_NONE) {
         printf("Failed to enable event JVMTI_EVENT_CLASS_FILE_LOAD_HOOK: %s (%d)\n",
                TranslateError(err), err);
         result = STATUS_FAILED;
     }
-    if ((err = (jvmti->SetEventNotificationMode(JVMTI_ENABLE,
-             JVMTI_EVENT_CLASS_LOAD, thread))) != JVMTI_ERROR_NONE) {
+    err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, thread);
+    if (err != JVMTI_ERROR_NONE) {
         printf("Failed to enable event JVMTI_EVENT_CLASS_LOAD: %s (%d)\n",
                TranslateError(err), err);
         result = STATUS_FAILED;
     }
-    if ((err = jvmti->SetEventNotificationMode(JVMTI_ENABLE,
-            JVMTI_EVENT_CLASS_PREPARE, thread)) != JVMTI_ERROR_NONE) {
+    err = jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, thread);
+    if (err != JVMTI_ERROR_NONE) {
         printf("Failed to enable JVMTI_EVENT_CLASS_PREPARE: %s (%d)\n",
                TranslateError(err), err);
         result = STATUS_FAILED;
@@ -213,17 +201,16 @@ Java_nsk_jvmti_RedefineClasses_redefclass005_makeRedefinition(JNIEnv *env,
 
 /* filling the structure jvmtiClassDefinition */
     classDef.klass = redefCls;
-    classDef.class_byte_count =
-        JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG(env, classBytes));
-    classDef.class_bytes = (unsigned char *)
-        JNI_ENV_PTR(env)->GetByteArrayElements(JNI_ENV_ARG(env, classBytes), NULL);
+    classDef.class_byte_count = env->GetArrayLength(classBytes);
+    classDef.class_bytes = (unsigned char *) env->GetByteArrayElements(classBytes, NULL);
 
     set_watch_ev(1); /* watch JVMTI events */
 
     if (vrb == 1)
         printf(">>>>>>>> Invoke RedefineClasses():\n\tnew class byte count=%d\n",
             classDef.class_byte_count);
-    if ((err = (jvmti->RedefineClasses(1, &classDef))) != JVMTI_ERROR_NONE) {
+    err = jvmti->RedefineClasses(1, &classDef);
+    if (err != JVMTI_ERROR_NONE) {
         printf("TEST FAILED: the function RedefineClasses() returned error %d: %s\n",
             err, TranslateError(err));
         printf("\tFor more info about this error see the JVMTI spec.\n");
@@ -250,6 +237,4 @@ Java_nsk_jvmti_RedefineClasses_redefclass005_makeRedefinition(JNIEnv *env,
     return(result);
 }
 
-#ifdef __cplusplus
 }
-#endif

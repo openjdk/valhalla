@@ -23,9 +23,7 @@
 
 package lib.jdb;
 
-import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,9 +32,6 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public abstract class JdbTest {
@@ -44,6 +39,7 @@ public abstract class JdbTest {
     public static class LaunchOptions {
         public final String debuggeeClass;
         public final List<String> debuggeeOptions = new LinkedList<>();
+        public String sourceFilename;
 
         public LaunchOptions(String debuggeeClass) {
             this.debuggeeClass = debuggeeClass;
@@ -56,21 +52,27 @@ public abstract class JdbTest {
             debuggeeOptions.addAll(Arrays.asList(options));
             return this;
         }
+        public LaunchOptions setSourceFilename(String name) {
+            sourceFilename = name;
+            return this;
+        }
     }
 
     public JdbTest(LaunchOptions launchOptions) {
-        this.launchOptions= launchOptions;
-        debuggeeClass = launchOptions.debuggeeClass;
+        this.launchOptions = launchOptions;
     }
     public JdbTest(String debuggeeClass) {
         this(new LaunchOptions(debuggeeClass));
     }
 
+    // sourceFilename is used by setBreakpoints and redefineClass
+    public JdbTest(String debuggeeClass, String sourceFilename) {
+        this(new LaunchOptions(debuggeeClass).setSourceFilename(sourceFilename));
+    }
+
     protected Jdb jdb;
-    protected Process debuggee;
-    private final List<String> debuggeeOutput = new LinkedList<>();
+    protected Debuggee debuggee;
     private final LaunchOptions launchOptions;
-    protected final String debuggeeClass;   // shortland for launchOptions.debuggeeClass
 
     // returns the whole jdb output as a string
     public String getJdbOutput() {
@@ -79,13 +81,18 @@ public abstract class JdbTest {
 
     // returns the whole debuggee output as a string
     public String getDebuggeeOutput() {
-        return debuggeeOutput.stream().collect(Collectors.joining(lineSeparator));
+        return debuggee == null ? "" : debuggee.getOutput();
     }
 
     public void run() {
         try {
             setup();
             runCases();
+        } catch (Throwable e) {
+            jdb.log("=======================================");
+            jdb.log("Exception thrown during test execution: " + e.getMessage());
+            jdb.log("=======================================");
+            throw e;
         } finally {
             shutdown();
         }
@@ -93,45 +100,22 @@ public abstract class JdbTest {
 
     protected void setup() {
         /* run debuggee as:
-            java -agentlib:jdwp=transport=dt_socket,address=0,server=n,suspend=y <debuggeeClass>
+            java -agentlib:jdwp=transport=dt_socket,server=n,suspend=y <debuggeeClass>
         it reports something like : Listening for transport dt_socket at address: 60810
         after that connect jdb by:
             jdb -connect com.sun.jdi.SocketAttach:port=60810
         */
         // launch debuggee
-        List<String> debuggeeArgs = new LinkedList<>();
-        // specify address=0 to automatically select free port
-        debuggeeArgs.add("-agentlib:jdwp=transport=dt_socket,address=0,server=y,suspend=y");
-        debuggeeArgs.addAll(launchOptions.debuggeeOptions);
-        debuggeeArgs.add(launchOptions.debuggeeClass);
-        ProcessBuilder pbDebuggee = ProcessTools.createJavaProcessBuilder(true, debuggeeArgs.toArray(new String[0]));
-
-        // debuggeeListen[0] - transport, debuggeeListen[1] - address
-        String[] debuggeeListen = new String[2];
-        Pattern listenRegexp = Pattern.compile("Listening for transport \\b(.+)\\b at address: \\b(\\d+)\\b");
-        try {
-            debuggee = ProcessTools.startProcess("debuggee", pbDebuggee,
-                    s -> debuggeeOutput.add(s),  // output consumer
-                    s -> {  // warm-up predicate
-                        Matcher m = listenRegexp.matcher(s);
-                        if (!m.matches()) {
-                            return false;
-                        }
-                        debuggeeListen[0] = m.group(1);
-                        debuggeeListen[1] = m.group(2);
-                        return true;
-                    },
-                    30, TimeUnit.SECONDS);
-        } catch (IOException | InterruptedException | TimeoutException ex) {
-            throw new RuntimeException("failed to launch debuggee", ex);
-        }
+        debuggee = Debuggee.launcher(launchOptions.debuggeeClass)
+                .addOptions(launchOptions.debuggeeOptions)
+                .launch();
 
         // launch jdb
         try {
-            jdb = new Jdb("-connect", "com.sun.jdi.SocketAttach:port=" + debuggeeListen[1]);
+            jdb = new Jdb("-connect", "com.sun.jdi.SocketAttach:port=" + debuggee.getAddress());
         } catch (Throwable ex) {
             // terminate debuggee if something went wrong
-            debuggee.destroy();
+            debuggee.shutdown();
             throw ex;
         }
         // wait while jdb is initialized
@@ -145,15 +129,9 @@ public abstract class JdbTest {
             jdb.shutdown();
         }
         // shutdown debuggee
-        if (debuggee != null && debuggee.isAlive()) {
-            try {
-                debuggee.waitFor(Utils.adjustTimeout(10), TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                // ignore
-            } finally {
-                if (debuggee.isAlive()) {
-                    debuggee.destroy();
-                }
+        if (debuggee != null) {
+            if (!debuggee.waitFor(10, TimeUnit.SECONDS)) {
+                debuggee.shutdown();
             }
         }
     }
@@ -201,7 +179,39 @@ public abstract class JdbTest {
     // from the file from test source directory.
     // returns number of the breakpoints set.
     protected int setBreakpointsFromTestSource(String debuggeeFileName, int id) {
-        return setBreakpoints(jdb, debuggeeClass, System.getProperty("test.src") + "/" + debuggeeFileName, id);
+        return setBreakpoints(jdb, launchOptions.debuggeeClass,
+                              getTestSourcePath(debuggeeFileName), id);
+    }
+
+    // sets breakpoints in the class {@code launchOptions.debuggeeClass}
+    // to the lines parsed by {@code parseBreakpoints}
+    // from the file from test source directory specified by {@code launchOptions.sourceFilename}.
+    // returns number of the breakpoints set.
+    protected int setBreakpoints(int id) {
+        verifySourceFilename();
+        return setBreakpointsFromTestSource(launchOptions.sourceFilename, id);
+    }
+
+    // transforms class with the specified id (see {@code ClassTransformer})
+    // and executes "redefine" jdb command for {@code launchOptions.debuggeeClass}.
+    // returns reply for the command.
+    protected List<String> redefineClass(int id, String... compilerOptions) {
+        verifySourceFilename();
+        String transformedClassFile = ClassTransformer.fromTestSource(launchOptions.sourceFilename)
+                .transform(id, launchOptions.debuggeeClass, compilerOptions);
+        return jdb.command(JdbCommand.redefine(launchOptions.debuggeeClass, transformedClassFile));
+    }
+
+    // gets full test source path for the given test filename
+    public static String getTestSourcePath(String fileName) {
+        return Paths.get(System.getProperty("test.src")).resolve(fileName).toString();
+    }
+
+    // verifies that sourceFilename is specified in ctor
+    private void verifySourceFilename() {
+        if (launchOptions.sourceFilename == null) {
+            throw new RuntimeException("launchOptions.sourceFilename must be specified.");
+        }
     }
 
     protected OutputAnalyzer execCommand(JdbCommand cmd) {

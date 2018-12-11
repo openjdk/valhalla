@@ -28,9 +28,7 @@
 #include <aod.h>
 #include <jvmti_aod.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
  * In this test the same agent library is attached 3 times, but with
@@ -53,7 +51,8 @@ void JNICALL  classLoadHandler(
     const char* agentName;
     Options* options;
 
-    if (!NSK_VERIFY((options = nsk_jvmti_aod_getMultiagentsOptions(jvmti)) != NULL)) {
+    options = nsk_jvmti_aod_getMultiagentsOptions(jvmti);
+    if (!NSK_VERIFY(options != NULL)) {
         NSK_COMPLAIN0("Failed to get agents's options\n");
         nsk_jvmti_aod_disableEvent(jvmti, JVMTI_EVENT_CLASS_LOAD);
         // can't call nsk_aod_agentFinished because of without options can't get agent's name
@@ -102,26 +101,29 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     Options* options;
     const char* agentName;
 
-    if (!NSK_VERIFY((options = (Options*) nsk_aod_createOptions(optionsString)) != NULL))
+    options = (Options*) nsk_aod_createOptions(optionsString);
+    if (!NSK_VERIFY(options != NULL))
         return JNI_ERR;
 
     agentName = nsk_aod_getOptionValue(options, NSK_AOD_AGENT_NAME_OPTION);
 
-    if ((jni = (JNIEnv*) nsk_aod_createJNIEnv(vm)) == NULL)
+    jni = (JNIEnv*) nsk_aod_createJNIEnv(vm);
+    if (jni == NULL)
         return NSK_FALSE;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     memset(&caps, 0, sizeof(caps));
     caps.can_redefine_classes = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
         return JNI_ERR;
     }
 
     memset(&eventCallbacks,0, sizeof(eventCallbacks));
     eventCallbacks.ClassLoad = classLoadHandler;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks, jvmti, &eventCallbacks, sizeof(eventCallbacks))) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
         return JNI_ERR;
     }
 
@@ -141,6 +143,4 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

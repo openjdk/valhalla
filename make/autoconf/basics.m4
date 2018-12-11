@@ -168,7 +168,7 @@ AC_DEFUN([ADD_JVM_ARG_IF_OK],
 [
   $ECHO "Check if jvm arg is ok: $1" >&AS_MESSAGE_LOG_FD
   $ECHO "Command: $3 $1 -version" >&AS_MESSAGE_LOG_FD
-  OUTPUT=`$3 $1 -version 2>&1`
+  OUTPUT=`$3 $1 $USER_BOOT_JDK_OPTIONS -version 2>&1`
   FOUND_WARN=`$ECHO "$OUTPUT" | $GREP -i warn`
   FOUND_VERSION=`$ECHO $OUTPUT | $GREP " version \""`
   if test "x$FOUND_VERSION" != x && test "x$FOUND_WARN" = x; then
@@ -569,7 +569,8 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   BASIC_REQUIRE_PROGS(GZIP, pigz gzip)
   BASIC_REQUIRE_PROGS(LN, ln)
   BASIC_REQUIRE_PROGS(LS, ls)
-  BASIC_REQUIRE_PROGS(MKDIR, mkdir)
+  # gmkdir is known to be safe for concurrent invocations with -p flag.
+  BASIC_REQUIRE_PROGS(MKDIR, [gmkdir mkdir])
   BASIC_REQUIRE_PROGS(MKTEMP, mktemp)
   BASIC_REQUIRE_PROGS(MV, mv)
   BASIC_REQUIRE_PROGS(NAWK, [nawk gawk awk])
@@ -862,7 +863,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
     # Create a default ./build/target-variant-debuglevel output root.
     if test "x${CONF_NAME}" = x; then
       AC_MSG_RESULT([in default location])
-      CONF_NAME="${OPENJDK_TARGET_OS}-${OPENJDK_TARGET_CPU}-${JDK_VARIANT}-${JVM_VARIANTS_WITH_AND}-${DEBUG_LEVEL}"
+      CONF_NAME="${OPENJDK_TARGET_OS}-${OPENJDK_TARGET_CPU}-${JVM_VARIANTS_WITH_AND}-${DEBUG_LEVEL}"
     else
       AC_MSG_RESULT([in build directory with custom name])
     fi
@@ -1190,6 +1191,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
   BASIC_PATH_PROGS(READELF, [greadelf readelf])
   BASIC_PATH_PROGS(DOT, dot)
   BASIC_PATH_PROGS(HG, hg)
+  BASIC_PATH_PROGS(GIT, git)
   BASIC_PATH_PROGS(STAT, stat)
   BASIC_PATH_PROGS(TIME, time)
   BASIC_PATH_PROGS(FLOCK, flock)

@@ -28,8 +28,10 @@
 #include "gc/parallel/gcTaskManager.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
+#include "gc/parallel/psClosure.inline.hpp"
 #include "gc/parallel/psMarkSweepProxy.hpp"
 #include "gc/parallel/psParallelCompact.inline.hpp"
+#include "gc/parallel/psPromotionManager.inline.hpp"
 #include "gc/parallel/psScavenge.inline.hpp"
 #include "gc/parallel/psTasks.hpp"
 #include "gc/shared/collectorPolicy.hpp"
@@ -279,7 +281,6 @@ bool PSScavenge::invoke_no_policy() {
   assert(!AlwaysTenure || _tenuring_threshold == 0, "Sanity");
 
   // Fill in TLABs
-  heap->accumulate_statistics_all_tlabs();
   heap->ensure_parsability(true);  // retire TLABs
 
   if (VerifyBeforeGC && heap->total_collections() >= VerifyGCStartAt) {

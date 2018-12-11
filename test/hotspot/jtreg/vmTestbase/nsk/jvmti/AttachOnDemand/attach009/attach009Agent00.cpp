@@ -28,9 +28,7 @@
 #include <aod.h>
 #include <jvmti_aod.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
  * Expected agent work scenario:
@@ -84,8 +82,7 @@ classLoadHandler(jvmtiEnv *jvmti,
             return;
         }
 
-        if (!NSK_JVMTI_VERIFY( NSK_CPP_STUB4(
-                SetEventNotificationMode, jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, thread) ) ) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, thread))) {
             NSK_COMPLAIN1("Failed to enable events for thread '%s'\n", mainThreadName);
             nsk_aod_agentFinished(jni, agentName, 0);
             return;
@@ -131,20 +128,23 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     jvmtiEventCallbacks eventCallbacks;
     JNIEnv* jni;
 
-    if (!NSK_VERIFY((options = (Options*) nsk_aod_createOptions(optionsString)) != NULL))
+    options = (Options*) nsk_aod_createOptions(optionsString);
+    if (!NSK_VERIFY(options != NULL))
         return JNI_ERR;
 
     agentName = nsk_aod_getOptionValue(options, NSK_AOD_AGENT_NAME_OPTION);
 
-    if ((jni = (JNIEnv*) nsk_aod_createJNIEnv(vm)) == NULL)
+    jni = (JNIEnv*) nsk_aod_createJNIEnv(vm);
+    if (jni == NULL)
         return NSK_FALSE;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     memset(&eventCallbacks,0, sizeof(eventCallbacks));
     eventCallbacks.ClassLoad = classLoadHandler;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks, jvmti, &eventCallbacks, sizeof(eventCallbacks))) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
         return JNI_ERR;
     }
 
@@ -160,6 +160,4 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

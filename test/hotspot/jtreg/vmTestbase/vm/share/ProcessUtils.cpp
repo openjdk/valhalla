@@ -33,9 +33,7 @@
 #endif /* _WIN32 */
 #include "jni_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /*
  * Class:     vm_share_ProcessUtils
@@ -104,7 +102,7 @@ JNIEXPORT jboolean JNICALL Java_vm_share_ProcessUtils_sendCtrlBreak
 }
 
 #ifdef _WIN32
-static BOOL  (WINAPI *_MiniDumpWriteDump)  ( HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION,
+static BOOL  (WINAPI *_MiniDumpWriteDump)  (HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION,
                                             PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
 void reportLastError(const char *msg) {
         long errcode = GetLastError();
@@ -149,7 +147,8 @@ jboolean doDumpCore() {
         static const char* name = "DBGHELP.DLL";
 
         printf("# TEST: creating Windows minidump...\n");
-        if ((size = GetSystemDirectory(path, pathLen)) > 0) {
+        size = GetSystemDirectory(path, pathLen);
+        if (size > 0) {
                 strcat(path, "\\");
                 strcat(path, name);
                 dbghelp = LoadLibrary(path);
@@ -160,12 +159,15 @@ jboolean doDumpCore() {
         }
 
         // try Windows directory
-        if (dbghelp == NULL && ((size = GetWindowsDirectory(path, pathLen)) > 6)) {
-                strcat(path, "\\");
-                strcat(path, name);
-                dbghelp = LoadLibrary(path);
-                if (dbghelp == NULL) {
-                        reportLastError("Load DBGHELP.DLL from Windows directory");
+        if (dbghelp == NULL) {
+                size = GetWindowsDirectory(path, pathLen);
+                if (size > 6) {
+                        strcat(path, "\\");
+                        strcat(path, name);
+                        dbghelp = LoadLibrary(path);
+                        if (dbghelp == NULL) {
+                                reportLastError("Load DBGHELP.DLL from Windows directory");
+                        }
                 }
         }
         if (dbghelp == NULL) {
@@ -173,9 +175,10 @@ jboolean doDumpCore() {
                 return JNI_FALSE;
         }
 
-        _MiniDumpWriteDump = (
-                        BOOL(WINAPI *)( HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION,
-                                PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION)) GetProcAddress(dbghelp, "MiniDumpWriteDump");
+        _MiniDumpWriteDump =
+                        (BOOL(WINAPI *)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION,
+                                        PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION))
+                                        GetProcAddress(dbghelp, "MiniDumpWriteDump");
 
         if (_MiniDumpWriteDump == NULL) {
                 printf("Failed to find MiniDumpWriteDump() in module dbghelp.dll");
@@ -261,6 +264,4 @@ JNIEXPORT jint JNICALL Java_vm_share_ProcessUtils_getWindowsPid
 #endif /* _WIN32 */
 }
 
-#ifdef __cplusplus
 }
-#endif

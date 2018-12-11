@@ -32,27 +32,7 @@
 #include "JVMTITools.h"
 #include "native_thread.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef JNI_ENV_ARG
-  #ifdef __cplusplus
-    #define JNI_ENV_ARG(x, y) y
-    #define JNI_ENV_PTR(x) x
-  #else
-    #define JNI_ENV_ARG(x, y) x, y
-    #define JNI_ENV_PTR(x) (*x)
-  #endif
-#endif
-
-#ifndef JNI_ENV_ARG1
-  #ifdef __cplusplus
-    #define JNI_ENV_ARG1(x)
-  #else
-    #define JNI_ENV_ARG1(x) x
-  #endif
-#endif
 
 #define PASSED  0
 #define STATUS_FAILED  2
@@ -90,21 +70,19 @@ static void doRedirect(JNIEnv *env) {
 
     if (verbose)
         printf("\ndoRedirect: obtaining the JNI function table ...\n");
-    if ((err = jvmti->GetJNIFunctionTable(&orig_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&orig_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get original JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get original JNI function table"));
+        env->FatalError("failed to get original JNI function table");
     }
-    if ((err = jvmti->GetJNIFunctionTable(&redir_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&redir_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get redirected JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get redirected JNI function table"));
+        env->FatalError("failed to get redirected JNI function table");
     }
     if (verbose)
         printf("doRedirect: the JNI function table obtained successfully\n");
@@ -113,13 +91,12 @@ static void doRedirect(JNIEnv *env) {
         printf("\ndoRedirect: overwriting the function GetVersion() ...\n");
     redir_jni_functions->GetVersion = MyGetVersion;
 
-    if ((err = jvmti->SetJNIFunctionTable(redir_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(redir_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get new JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get new JNI function table"));
+        env->FatalError("failed to get new JNI function table");
     }
 
     if (verbose)
@@ -131,13 +108,12 @@ static void doRestore(JNIEnv *env) {
 
     if (verbose)
         printf("\ndoRestore: restoring the original JNI function table ...\n");
-    if ((err = jvmti->SetJNIFunctionTable(orig_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(orig_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to restore original JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to restore original JNI function table"));
+        env->FatalError("failed to restore original JNI function table");
     }
     if (verbose)
         printf("doRestore: the original JNI function table is restored successfully\n");
@@ -150,13 +126,12 @@ static void checkRedir(JNIEnv *env, int exCalls) {
 
     redir_calls = 0;
 
-    if ((err = jvmti->GetJNIFunctionTable(&tested_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&tested_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get modified JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get modified JNI function table"));
+        env->FatalError("failed to get modified JNI function table");
     }
     if (verbose)
         printf("checkRedir: the JNI function table obtained successfully\n\tcalling GetVersion() ...\n");
@@ -222,8 +197,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     if (verbose)
         printf("verbose mode on\n");
 
-    res = JNI_ENV_PTR(jvm)->
-        GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti), JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("(%s,%d): Failed to call GetEnv\n", __FILE__, __LINE__);
         return JNI_ERR;
@@ -232,6 +206,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

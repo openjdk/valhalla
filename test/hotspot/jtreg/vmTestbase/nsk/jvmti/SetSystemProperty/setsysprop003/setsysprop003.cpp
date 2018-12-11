@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -58,8 +56,7 @@ static int setProperties(jvmtiEnv* jvmti) {
         NSK_DISPLAY1("  property: %s\n", propDescList[i].name);
         NSK_DISPLAY1("     value: \"%s\"\n", propDescList[i].value);
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetSystemProperty, jvmti,
-                                propDescList[i].name, propDescList[i].value))) {
+                jvmti->SetSystemProperty(propDescList[i].name, propDescList[i].value))) {
             success = NSK_FALSE;
         }
     }
@@ -104,6 +101,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

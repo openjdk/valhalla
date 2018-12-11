@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -554,7 +554,7 @@ public abstract class RasterPrinterJob extends PrinterJob {
         MediaSize size = getMediaSize(media, service, page);
 
         Paper paper = new Paper();
-        float dim[] = size.getSize(1); //units == 1 to avoid FP error
+        float[] dim = size.getSize(1); //units == 1 to avoid FP error
         double w = Math.rint((dim[0]*72.0)/Size2DSyntax.INCH);
         double h = Math.rint((dim[1]*72.0)/Size2DSyntax.INCH);
         paper.setSize(w, h);
@@ -895,17 +895,16 @@ public abstract class RasterPrinterJob extends PrinterJob {
    }
 
     protected PageFormat getPageFormatFromAttributes() {
-        if (attributes == null || attributes.isEmpty()) {
+        Pageable pageable = null;
+        if (attributes == null || attributes.isEmpty() ||
+            !((pageable = getPageable()) instanceof OpenBook)) {
             return null;
         }
 
         PageFormat newPf = attributeToPageFormat(
             getPrintService(), attributes);
         PageFormat oldPf = null;
-        Pageable pageable = getPageable();
-        if ((pageable != null) &&
-            (pageable instanceof OpenBook) &&
-            ((oldPf = pageable.getPageFormat(0)) != null)) {
+        if ((oldPf = pageable.getPageFormat(0)) != null) {
             // If orientation, media, imageable area attributes are not in
             // "attributes" set, then use respective values of the existing
             // page format "oldPf".

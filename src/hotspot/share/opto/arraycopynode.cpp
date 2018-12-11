@@ -33,7 +33,7 @@
 #include "utilities/macros.hpp"
 
 ArrayCopyNode::ArrayCopyNode(Compile* C, bool alloc_tightly_coupled, bool has_negative_length_guard)
-  : CallNode(arraycopy_type(), NULL, TypeRawPtr::BOTTOM),
+  : CallNode(arraycopy_type(), NULL, TypePtr::BOTTOM),
     _kind(None),
     _alloc_tightly_coupled(alloc_tightly_coupled),
     _has_negative_length_guard(has_negative_length_guard),
@@ -154,6 +154,28 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
   return get_length_if_constant(phase);
 }
 
+Node* ArrayCopyNode::load(BarrierSetC2* bs, PhaseGVN *phase, Node*& ctl, MergeMemNode* mem, Node* adr, const TypePtr* adr_type, const Type *type, BasicType bt) {
+  DecoratorSet decorators = C2_READ_ACCESS | C2_CONTROL_DEPENDENT_LOAD | IN_HEAP | C2_ARRAY_COPY;
+  C2AccessValuePtr addr(adr, adr_type);
+  C2OptAccess access(*phase, ctl, mem, decorators, bt, adr->in(AddPNode::Base), addr);
+  Node* res = bs->load_at(access, type);
+  ctl = access.ctl();
+  return res;
+}
+
+void ArrayCopyNode::store(BarrierSetC2* bs, PhaseGVN *phase, Node*& ctl, MergeMemNode* mem, Node* adr, const TypePtr* adr_type, Node* val, const Type *type, BasicType bt) {
+  DecoratorSet decorators = C2_WRITE_ACCESS | IN_HEAP | C2_ARRAY_COPY;
+  if (is_alloc_tightly_coupled()) {
+    decorators |= C2_TIGHLY_COUPLED_ALLOC;
+  }
+  C2AccessValuePtr addr(adr, adr_type);
+  C2AccessValue value(val, type);
+  C2OptAccess access(*phase, ctl, mem, decorators, bt, adr->in(AddPNode::Base), addr);
+  bs->store_at(access, value);
+  ctl = access.ctl();
+}
+
+
 Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int count) {
   if (!is_clonebasic()) {
     return NULL;
@@ -188,6 +210,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   ciInstanceKlass* ik = inst_src->klass()->as_instance_klass();
   assert(ik->nof_nonstatic_fields() <= ArrayCopyLoadStoreMaxElem, "too many fields");
 
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   for (int i = 0; i < count; i++) {
     ciField* field = ik->nonstatic_field_at(i);
     int fieldidx = phase->C->alias_type(field)->index();
@@ -209,11 +232,8 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
       type = Type::get_const_basic_type(bt);
     }
 
-    Node* v = LoadNode::make(*phase, ctl, mem->memory_at(fieldidx), next_src, adr_type, type, bt, MemNode::unordered);
-    v = phase->transform(v);
-    Node* s = StoreNode::make(*phase, ctl, mem->memory_at(fieldidx), next_dest, adr_type, v, bt, MemNode::unordered);
-    s = phase->transform(s);
-    mem->set_memory_at(fieldidx, s);
+    Node* v = load(bs, phase, ctl, mem, next_src, adr_type, type, bt);
+    store(bs, phase, ctl, mem, next_dest, adr_type, v, type, bt);
   }
 
   if (!finish_transform(phase, can_reshape, ctl, mem)) {
@@ -269,8 +289,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (dest_elem == T_OBJECT && (!is_alloc_tightly_coupled() ||
-                                  bs->array_copy_requires_gc_barriers(T_OBJECT))) {
+    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, BarrierSetC2::Optimization)) {
       // It's an object array copy but we can't emit the card marking
       // that is needed
       return false;
@@ -327,6 +346,11 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     if (elem == T_ARRAY ||
         (elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass())) {
       elem = T_OBJECT;
+    }
+
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    if (bs->array_copy_requires_gc_barriers(true, elem, true, BarrierSetC2::Optimization)) {
+      return false;
     }
 
     int diff = arrayOopDesc::base_offset_in_bytes(elem) - phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con();
@@ -402,7 +426,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
         kit.store_to_memory(kit.control(), next_dest, v, bt, adr_type, MemNode::unordered);
       } else {
         const TypeOopPtr* val_type = Type::get_const_type(ft)->is_oopptr();
-        kit.access_store_at(kit.control(), base_dest, next_dest, adr_type, v,
+        kit.access_store_at(base_dest, next_dest, adr_type, v,
                             val_type, bt, StoreNode::release_if_reference(T_OBJECT));
       }
     }
@@ -412,10 +436,10 @@ void ArrayCopyNode::copy(GraphKit& kit,
     Node* v = kit.make_load(kit.control(), next_src, value_type, copy_type, atp_src, MemNode::unordered);
     Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (copy_type == T_OBJECT && (!is_alloc_tightly_coupled() || bs->array_copy_requires_gc_barriers(T_OBJECT))) {
-      kit.access_store_at(kit.control(), base_dest, next_dest, atp_dest, v,
-                             value_type->make_ptr()->is_oopptr(), copy_type,
-                             StoreNode::release_if_reference(T_OBJECT));
+    if (copy_type == T_OBJECT && (bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Optimization))) {
+      kit.access_store_at(base_dest, next_dest, atp_dest, v,
+                          value_type->make_ptr()->is_oopptr(), copy_type,
+                          StoreNode::release_if_reference(T_OBJECT));
     } else {
       kit.store_to_memory(kit.control(), next_dest, v, copy_type, atp_dest, MemNode::unordered);
     }
@@ -488,7 +512,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       if (out_mem->outcnt() != 1 || !out_mem->raw_out(0)->is_MergeMem() ||
           out_mem->raw_out(0)->outcnt() != 1 || !out_mem->raw_out(0)->raw_out(0)->is_MemBar()) {
-        assert(bs->array_copy_requires_gc_barriers(T_OBJECT), "can only happen with card marking");
+        assert(bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization), "can only happen with card marking");
         return false;
       }
 
@@ -529,8 +553,11 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       const TypeAryPtr* ary_src = src_type->isa_aryptr();
       BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      assert(!is_clonebasic() ||  bs->array_copy_requires_gc_barriers(T_OBJECT) || (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+      assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization) ||
+             (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
 #endif
+      assert(!is_clonebasic(), "added control for clone?");
+      phase->record_for_igvn(this);
       return false;
     }
   }

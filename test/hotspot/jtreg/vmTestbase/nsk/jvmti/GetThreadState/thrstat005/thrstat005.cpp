@@ -33,21 +33,8 @@
 #include "JVMTITools.h"
 #endif
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define THREAD_STATE_MASK ~(JVMTI_THREAD_STATE_SUSPENDED \
                             | JVMTI_THREAD_STATE_INTERRUPTED \
@@ -113,14 +100,14 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     jvmtiError error;
     jint res;
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &g_ppJvmtiEnv), JVMTI_VERSION_1_1);
-    if ( res != JNI_OK || ! g_ppJvmtiEnv ) {
+    res = jvm->GetEnv((void **) &g_ppJvmtiEnv, JVMTI_VERSION_1_1);
+    if (res != JNI_OK || !g_ppJvmtiEnv) {
         printf("Agent_OnLoad: Error: GetEnv returned error or NULL\n");
         return JNI_ERR;
     }
 
     error = g_ppJvmtiEnv->CreateRawMonitor("beast", &g_waitMon);
-    if ( error != JVMTI_ERROR_NONE ) {
+    if (error != JVMTI_ERROR_NONE) {
         reportError("Agent_OnLoad: error creating raw monitor", error);
         return JNI_ERR;
     }
@@ -152,25 +139,32 @@ Java_nsk_jvmti_GetThreadState_thrstat005_checkThreadState(JNIEnv * pEnv, jclass 
         printf("GetThreadState = %x. Masked: %x. Must be: %x\n", thrState, maskedThrState, g_ThreadState[stateIdx]);
         fflush(stdout);
 
-        if ( maskedThrState == g_ThreadState[stateIdx] )
+        if (maskedThrState == g_ThreadState[stateIdx])
             return JNI_TRUE;
 
         printf("checkThreadState: wait %d ms\n", waitTime);
         fflush(stdout);
-        if ( (res = g_ppJvmtiEnv->RawMonitorEnter(g_waitMon)) != JVMTI_ERROR_NONE
-                || (res = g_ppJvmtiEnv->RawMonitorWait(g_waitMon, waitTime)) != JVMTI_ERROR_NONE
-                || (res = g_ppJvmtiEnv->RawMonitorExit(g_waitMon)) != JVMTI_ERROR_NONE ) {
-            reportError("GetThreadState: unexpected error", res);
+        res = g_ppJvmtiEnv->RawMonitorEnter(g_waitMon);
+        if (res != JVMTI_ERROR_NONE) {
+            reportError("GetThreadState: unexpected error from RawMontiorEnter", res);
+            return JNI_FALSE;
+        }
+        res = g_ppJvmtiEnv->RawMonitorWait(g_waitMon, waitTime);
+        if (res != JVMTI_ERROR_NONE) {
+            reportError("GetThreadState: unexpected error from RawMontiorWait", res);
+            return JNI_FALSE;
+        }
+        res = g_ppJvmtiEnv->RawMonitorExit(g_waitMon);
+        if (res != JVMTI_ERROR_NONE) {
+            reportError("GetThreadState: unexpected error from RawMonitorExit", res);
             return JNI_FALSE;
         }
 
         waitTime <<= 1;
 
-    } while ( waitTime < g_waitTime );
+    } while (waitTime < g_waitTime);
 
     return JNI_FALSE;
 }
 
-#ifdef __cplusplus
 }
-#endif

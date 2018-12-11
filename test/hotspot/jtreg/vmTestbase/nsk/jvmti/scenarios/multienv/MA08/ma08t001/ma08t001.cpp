@@ -30,9 +30,7 @@
 #define PASSED 0
 #define STATUS_FAILED 2
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ========================================================================== */
 
@@ -62,8 +60,7 @@ static int prepare(jvmtiEnv* jvmti, JNIEnv* jni) {
     NSK_DISPLAY0("Prepare: find tested thread\n");
 
     /* get all live threads */
-    if (!NSK_JVMTI_VERIFY(
-           NSK_CPP_STUB3(GetAllThreads, jvmti, &threads_count, &threads)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetAllThreads(&threads_count, &threads)))
         return NSK_FALSE;
 
     if (!NSK_VERIFY(threads_count > 0 && threads != NULL))
@@ -75,8 +72,7 @@ static int prepare(jvmtiEnv* jvmti, JNIEnv* jni) {
             return NSK_FALSE;
 
         /* get thread information */
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(GetThreadInfo, jvmti, threads[i], &info)))
+        if (!NSK_JVMTI_VERIFY(jvmti->GetThreadInfo(threads[i], &info)))
             return NSK_FALSE;
 
         NSK_DISPLAY3("    thread #%d (%s): %p\n", i, info.name, threads[i]);
@@ -92,8 +88,7 @@ static int prepare(jvmtiEnv* jvmti, JNIEnv* jni) {
     }
 
     /* deallocate threads list */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)threads)))
+    if (!NSK_JVMTI_VERIFY(jvmti->Deallocate((unsigned char*)threads)))
         return NSK_FALSE;
 
     if (threadForStop == NULL) {
@@ -108,17 +103,14 @@ static int prepare(jvmtiEnv* jvmti, JNIEnv* jni) {
 
     NSK_DISPLAY0("Prepare: create new instance of ThreadDeath exception\n");
 
-    if (!NSK_JNI_VERIFY(jni, (cls =
-            NSK_CPP_STUB2(FindClass, jni, THREAD_DEATH_CLASS_NAME)) != NULL))
+    if (!NSK_JNI_VERIFY(jni, (cls = jni->FindClass(THREAD_DEATH_CLASS_NAME)) != NULL))
         return NSK_FALSE;
 
     if (!NSK_JNI_VERIFY(jni, (ctor =
-            NSK_CPP_STUB4(GetMethodID, jni, cls,
-                THREAD_DEATH_CTOR_NAME, THREAD_DEATH_CTOR_SIGNATURE)) != NULL))
+            jni->GetMethodID(cls, THREAD_DEATH_CTOR_NAME, THREAD_DEATH_CTOR_SIGNATURE)) != NULL))
         return NSK_FALSE;
 
-    if (!NSK_JNI_VERIFY(jni, (threadDeath =
-            NSK_CPP_STUB3(NewObject, jni, cls, ctor)) != NULL))
+    if (!NSK_JNI_VERIFY(jni, (threadDeath = jni->NewObject(cls, ctor)) != NULL))
         return NSK_FALSE;
 
     return NSK_TRUE;
@@ -142,8 +134,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
     if (!NSK_VERIFY(threadForStop != NULL)) {
         nsk_jvmti_setFailStatus();
     } else {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(StopThread, jvmti, threadForStop, threadDeath)))
+        if (!NSK_JVMTI_VERIFY(jvmti->StopThread(threadForStop, threadDeath)))
             nsk_jvmti_setFailStatus();
     }
 
@@ -151,8 +142,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
     if (!NSK_VERIFY(threadForInterrupt != NULL)) {
         nsk_jvmti_setFailStatus();
     } else {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(InterruptThread, jvmti, threadForInterrupt)))
+        if (!NSK_JVMTI_VERIFY(jvmti->InterruptThread(threadForInterrupt)))
             nsk_jvmti_setFailStatus();
     }
 
@@ -201,7 +191,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     memset(&caps, 0, sizeof(caps));
     caps.can_signal_thread = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
         return JNI_ERR;
     }
 
@@ -214,6 +204,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ========================================================================== */
 
-#ifdef __cplusplus
 }
-#endif

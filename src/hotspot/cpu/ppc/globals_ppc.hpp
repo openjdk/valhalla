@@ -69,8 +69,6 @@ define_pd_global(intx,  InlineSmallCode,       1500);
 define_pd_global(bool, RewriteBytecodes,      true);
 define_pd_global(bool, RewriteFrequentPairs,  true);
 
-define_pd_global(bool, UseMembar,             true);
-
 define_pd_global(bool, PreserveFramePointer,  false);
 
 define_pd_global(bool, ValueTypePassFieldsAsArgs, false);
@@ -130,6 +128,9 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
                                                                             \
   product(bool, UseCountLeadingZerosInstructionsPPC64, true,                \
           "Use count leading zeros instructions.")                          \
+                                                                            \
+  product(bool, UseCountTrailingZerosInstructionsPPC64, false,              \
+          "Use count trailing zeros instructions.")                         \
                                                                             \
   product(bool, UseExtendedLoadAndReserveInstructionsPPC64, false,          \
           "Use extended versions of load-and-reserve instructions.")        \

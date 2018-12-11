@@ -26,6 +26,7 @@
 #include "precompiled.hpp"
 
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderHierarchyDCmd.hpp"
 #include "memory/allocation.hpp"
 #include "memory/resourceArea.hpp"
@@ -470,7 +471,7 @@ public:
   void do_cld (ClassLoaderData* cld) {
 
     // We do not display unloading loaders, for now.
-    if (cld->is_unloading()) {
+    if (!cld->is_alive()) {
       return;
     }
 
@@ -514,7 +515,7 @@ public:
     assert(SafepointSynchronize::is_at_safepoint(), "must be a safepoint");
     ResourceMark rm;
     LoaderInfoScanClosure cl (_show_classes, _verbose);
-    ClassLoaderDataGraph::cld_do(&cl);
+    ClassLoaderDataGraph::loaded_cld_do(&cl);
     // In non-verbose and non-show-classes mode, attempt to fold the tree.
     if (_fold) {
       if (!_verbose && !_show_classes) {

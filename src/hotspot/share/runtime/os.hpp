@@ -94,14 +94,21 @@ class os: AllStatic {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class MallocTracker;
+
+#ifdef ASSERT
+ private:
+  static bool _mutex_init_done;
+ public:
+  static void set_mutex_init_done() { _mutex_init_done = true; }
+  static bool mutex_init_done() { return _mutex_init_done; }
+#endif
+
  public:
   enum { page_sizes_max = 9 }; // Size of _page_sizes array (8 plus a sentinel)
 
  private:
   static OSThread*          _starting_thread;
   static address            _polling_page;
-  static volatile int32_t * _mem_serialize_page;
-  static uintptr_t          _serialize_page_mask;
  public:
   static size_t             _page_sizes[page_sizes_max];
 
@@ -226,8 +233,9 @@ class os: AllStatic {
     // the bootstrap routine for the stub generator needs to check
     // the processor count directly and leave the bootstrap routine
     // in place until called after initialization has ocurred.
-    return AssumeMP || (_processor_count != 1);
+    return (_processor_count != 1);
   }
+
   static julong available_memory();
   static julong physical_memory();
   static bool has_allocatable_memory_limit(julong* limit);
@@ -301,6 +309,9 @@ class os: AllStatic {
     // The _page_sizes array is sorted in descending order.
     return _page_sizes[0];
   }
+
+  // Return a lower bound for page sizes. Also works before os::init completed.
+  static size_t min_page_size() { return 4 * K; }
 
   // Methods for tracing page sizes returned by the above method.
   // The region_{min,max}_size parameters should be the values
@@ -414,54 +425,7 @@ class os: AllStatic {
 
   // Check if pointer points to readable memory (by 4-byte read access)
   static bool    is_readable_pointer(const void* p);
-
-  // Routines used to serialize the thread state without using membars
-  static void    serialize_thread_states();
-
-  // Since we write to the serialize page from every thread, we
-  // want stores to be on unique cache lines whenever possible
-  // in order to minimize CPU cross talk.  We pre-compute the
-  // amount to shift the thread* to make this offset unique to
-  // each thread.
-  static int     get_serialize_page_shift_count() {
-    return SerializePageShiftCount;
-  }
-
-  static void     set_serialize_page_mask(uintptr_t mask) {
-    _serialize_page_mask = mask;
-  }
-
-  static unsigned int  get_serialize_page_mask() {
-    return _serialize_page_mask;
-  }
-
-  static void    set_memory_serialize_page(address page);
-
-  static address get_memory_serialize_page() {
-    return (address)_mem_serialize_page;
-  }
-
-  static inline void write_memory_serialize_page(JavaThread *thread) {
-    uintptr_t page_offset = ((uintptr_t)thread >>
-                            get_serialize_page_shift_count()) &
-                            get_serialize_page_mask();
-    *(volatile int32_t *)((uintptr_t)_mem_serialize_page+page_offset) = 1;
-  }
-
-  static bool    is_memory_serialize_page(JavaThread *thread, address addr) {
-    if (UseMembar) return false;
-    // Previously this function calculated the exact address of this
-    // thread's serialize page, and checked if the faulting address
-    // was equal.  However, some platforms mask off faulting addresses
-    // to the page size, so now we just check that the address is
-    // within the page.  This makes the thread argument unnecessary,
-    // but we retain the NULL check to preserve existing behavior.
-    if (thread == NULL) return false;
-    address page = (address) _mem_serialize_page;
-    return addr >= page && addr < (page + os::vm_page_size());
-  }
-
-  static void block_on_serialize_page_trap();
+  static bool    is_readable_range(const void* from, const void* to);
 
   // threads
 
@@ -500,7 +464,6 @@ class os: AllStatic {
   static void pd_start_thread(Thread* thread);
   static void start_thread(Thread* thread);
 
-  static void initialize_thread(Thread* thr);
   static void free_thread(OSThread* osthread);
 
   // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
@@ -538,7 +501,7 @@ class os: AllStatic {
   static char* do_you_want_to_debug(const char* message);
 
   // run cmd in a separate process and return its exit code; or -1 on failures
-  static int fork_and_exec(char *cmd);
+  static int fork_and_exec(char *cmd, bool use_vfork_if_available = false);
 
   // Call ::exit() on all platforms but Windows
   static void exit(int num);
@@ -847,9 +810,6 @@ class os: AllStatic {
 
   // System loadavg support.  Returns -1 if load average cannot be obtained.
   static int loadavg(double loadavg[], int nelem);
-
-  // Hook for os specific jvm options that we don't want to abort on seeing
-  static bool obsolete_option(const JavaVMOption *option);
 
   // Amount beyond the callee frame size that we bang the stack.
   static int extra_bang_size_in_bytes();

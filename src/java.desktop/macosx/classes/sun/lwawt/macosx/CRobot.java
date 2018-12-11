@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,15 @@
 
 package sun.lwawt.macosx;
 
-import java.awt.*;
-import java.awt.peer.*;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.peer.RobotPeer;
 
 import sun.awt.CGraphicsDevice;
 
-class CRobot implements RobotPeer {
+final class CRobot implements RobotPeer {
+
     private static final int MOUSE_LOCATION_UNKNOWN      = -1;
 
     private final CGraphicsDevice fDevice;
@@ -65,8 +68,7 @@ class CRobot implements RobotPeer {
         mouseLastX = x;
         mouseLastY = y;
 
-        mouseEvent(fDevice.getCGDisplayID(), mouseLastX, mouseLastY,
-                   mouseButtonsState, true, true);
+        mouseEvent(mouseLastX, mouseLastY, mouseButtonsState, true, true);
     }
 
     /**
@@ -79,8 +81,7 @@ class CRobot implements RobotPeer {
     public void mousePress(int buttons) {
         mouseButtonsState |= buttons;
         checkMousePos();
-        mouseEvent(fDevice.getCGDisplayID(), mouseLastX, mouseLastY,
-                   buttons, true, false);
+        mouseEvent(mouseLastX, mouseLastY, buttons, true, false);
     }
 
     /**
@@ -93,8 +94,7 @@ class CRobot implements RobotPeer {
     public void mouseRelease(int buttons) {
         mouseButtonsState &= ~buttons;
         checkMousePos();
-        mouseEvent(fDevice.getCGDisplayID(), mouseLastX, mouseLastY,
-                   buttons, false, false);
+        mouseEvent(mouseLastX, mouseLastY, buttons, false, false);
     }
 
     /**
@@ -173,7 +173,7 @@ class CRobot implements RobotPeer {
      */
     @Override
     public int getRGBPixel(int x, int y) {
-        int c[] = new int[1];
+        int[] c = new int[1];
         double scale = fDevice.getScaleFactor();
         getScreenPixels(new Rectangle(x, y, (int) scale, (int) scale), c);
         return c[0];
@@ -186,15 +186,14 @@ class CRobot implements RobotPeer {
      */
     @Override
     public int [] getRGBPixels(final Rectangle bounds) {
-        int c[] = new int[bounds.width * bounds.height];
+        int[] c = new int[bounds.width * bounds.height];
         getScreenPixels(bounds, c);
 
         return c;
     }
 
     private native void initRobot();
-    private native void mouseEvent(int displayID, int lastX, int lastY,
-                                   int buttonsState,
+    private native void mouseEvent(int lastX, int lastY, int buttonsState,
                                    boolean isButtonsDownState,
                                    boolean isMouseMove);
     private native void keyEvent(int javaKeyCode, boolean keydown);

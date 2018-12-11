@@ -263,6 +263,31 @@ ALL_TARGETS += $(HOTSPOT_VARIANT_TARGETS) $(HOTSPOT_VARIANT_GENSRC_TARGETS) \
     $(HOTSPOT_VARIANT_LIBS_TARGETS) hotspot-ide-project
 
 ################################################################################
+# Generate libs and launcher targets for creating compile_commands.json fragments
+define DeclareCompileCommandsRecipe
+  $1-compile-commands:
+	$$(call LogInfo, Generating compile_commands.json fragments for $1)
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f Main.gmk $1-only \
+	    GENERATE_COMPILE_COMMANDS_ONLY=true)
+
+  COMPILE_COMMANDS_TARGETS_$2 += $1-compile-commands
+endef
+
+$(foreach t, $(HOTSPOT_VARIANT_LIBS_TARGETS), \
+  $(eval $(call DeclareCompileCommandsRecipe,$t,HOTSPOT)) \
+)
+
+$(foreach t, $(LIBS_TARGETS) $(LAUNCHER_TARGETS), \
+  $(eval $(call DeclareCompileCommandsRecipe,$t,JDK)) \
+)
+
+compile-commands compile-commands-hotspot:
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f CompileCommands.gmk)
+
+ALL_TARGETS += $(COMPILE_COMMANDS_TARGETS_HOTSPOT) $(COMPILE_COMMANDS_TARGETS_JDK)
+ALL_TARGETS += compile-commands compile-commands-hotspot
+
+################################################################################
 # Build demos targets
 
 demos-jdk:
@@ -448,10 +473,10 @@ ALL_TARGETS += $(INTERIM_JMOD_TARGETS) interim-image generate-link-opt-data
 #
 
 define DeclareRunTestRecipe
-  run-test-$1:
+  test-$1:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f RunTests.gmk run-test TEST="$1")
 
-  exploded-run-test-$1:
+  exploded-test-$1:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f RunTests.gmk run-test \
 	    TEST="$1" JDK_IMAGE_DIR=$(JDK_OUTPUTDIR))
 
@@ -459,13 +484,16 @@ endef
 
 # ALL_NAMED_TESTS is defined in FindTests.gmk
 $(foreach t, $(ALL_NAMED_TESTS), $(eval $(call DeclareRunTestRecipe,$t)))
-ALL_TEST_TARGETS := $(addprefix run-test-, $(ALL_NAMED_TESTS))
-ALL_EXPLODED_TEST_TARGETS := $(addprefix exploded-run-test-, $(ALL_NAMED_TESTS))
+ALL_TEST_TARGETS := $(addprefix test-, $(ALL_NAMED_TESTS))
+
+# We only support the "exploded-test-gtest" shortcut
+ALL_EXPLODED_TESTS := gtest
+ALL_EXPLODED_TEST_TARGETS := $(addprefix exploded-test-, $(ALL_EXPLODED_TESTS))
 
 ALL_TARGETS += $(ALL_TEST_TARGETS) $(ALL_EXPLODED_TEST_TARGETS)
 
 ################################################################################
-# Build tests
+# Build tests and microbenchmarks
 #
 
 prepare-test-image:
@@ -495,13 +523,6 @@ test-image-hotspot-jtreg-graal:
 	+($(CD) $(TOPDIR)/make/test && $(MAKE) $(MAKE_ARGS) -f JtregGraalUnit.gmk \
 	     test-image-hotspot-jtreg-graal)
 
-run-test:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f RunTests.gmk run-test TEST="$(TEST)")
-
-exploded-run-test:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f RunTests.gmk run-test \
-	    TEST="$(TEST)" JDK_IMAGE_DIR=$(JDK_OUTPUTDIR))
-
 ifeq ($(BUILD_GTEST), true)
   test-image-hotspot-gtest:
 	+($(CD) $(TOPDIR)/make/hotspot/test && $(MAKE) $(MAKE_ARGS) -f GtestImage.gmk)
@@ -516,51 +537,33 @@ ifeq ($(BUILD_FAILURE_HANDLER), true)
 	+($(CD) $(TOPDIR)/make/test && $(MAKE) $(MAKE_ARGS) \
 	    -f BuildFailureHandler.gmk build)
 
-  # Runs the tests for the failure handler jtreg extension
-  test-failure-handler:
-	+($(CD) $(TOPDIR)/make/test && $(MAKE) $(MAKE_ARGS) \
-	    -f BuildFailureHandler.gmk test)
-
   # Copies the failure handler jtreg extension into the test image
   test-image-failure-handler:
 	+($(CD) $(TOPDIR)/make/test && $(MAKE) $(MAKE_ARGS) \
 	     -f BuildFailureHandler.gmk images)
 endif
 
+build-microbenchmark:
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f test/BuildMicrobenchmark.gmk)
+
 ALL_TARGETS += prepare-test-image build-test-hotspot-jtreg-native \
     test-image-hotspot-jtreg-native build-test-jdk-jtreg-native \
     test-image-jdk-jtreg-native build-test-lib build-test-failure-handler \
     test-failure-handler test-image-failure-handler test-image-hotspot-gtest \
     test-image-hotspot-jtreg-graal build-test-hotspot-jtreg-graal \
-    run-test exploded-run-test
+    build-microbenchmark
 
 ################################################################################
 # Run tests
 
-# Run tests specified by $(TEST), or the default test set.
 test:
-	$(call RunTests, $(TEST), $(JDK_IMAGE_DIR))
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f RunTests.gmk run-test TEST="$(TEST)")
 
-test-hotspot-jtreg:
-	$(call RunTests, "hotspot_all", $(JDK_IMAGE_DIR))
+exploded-test:
+	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f RunTests.gmk run-test \
+	    TEST="$(TEST)" JDK_IMAGE_DIR=$(JDK_OUTPUTDIR))
 
-test-hotspot-jtreg-native:
-	$(call RunTests, "hotspot_native_sanity", $(JDK_IMAGE_DIR))
-
-test-hotspot-internal:
-	$(call RunTests, "hotspot_internal", $(JDK_OUTPUTDIR))
-
-test-hotspot-gtest:
-	$(call RunTests, "hotspot_gtest", $(JDK_OUTPUTDIR))
-
-test-jdk-jtreg-native:
-	$(call RunTests, "jdk_native_sanity", $(JDK_IMAGE_DIR))
-
-test-make:
-	($(CD) $(TOPDIR)/test/make && $(MAKE) $(MAKE_ARGS) -f TestMake.gmk $(TEST_TARGET))
-
-ALL_TARGETS += test test-hotspot-jtreg test-hotspot-jtreg-native \
-    test-hotspot-internal test-hotspot-gtest test-jdk-jtreg-native test-make
+ALL_TARGETS += test exploded-test
 
 ################################################################################
 # Bundles
@@ -691,16 +694,17 @@ else
   # copied and processed.
   java.desktop-gensrc-src: java.base-gensrc java.base-copy
 
-  # The annotation processing for jdk.internal.vm.ci and jdk.internal.vm.compiler
-  # needs classes from the current JDK.
-  jdk.internal.vm.ci-gensrc-src: $(addsuffix -java, \
-      $(call FindTransitiveDepsForModule, jdk.internal.vm.ci))
+  # The annotation processing for jdk.internal.vm.compiler
+  # and jdk.internal.vm.compiler.management needs classes from the current JDK.
   jdk.internal.vm.compiler-gensrc-src: $(addsuffix -java, \
       $(call FindTransitiveDepsForModule, jdk.internal.vm.compiler))
+  jdk.internal.vm.compiler.management-gensrc-src: $(addsuffix -java, \
+      $(call FindTransitiveDepsForModule, jdk.internal.vm.compiler.management))
 
-  # For jdk.internal.vm.compiler, the gensrc step is generating a module-info.java.extra
+  # For these modules, the gensrc step is generating a module-info.java.extra
   # file to be processed by the gensrc-moduleinfo target.
   jdk.internal.vm.compiler-gensrc-moduleinfo: jdk.internal.vm.compiler-gensrc-src
+  jdk.internal.vm.compiler.management-gensrc-moduleinfo: jdk.internal.vm.compiler.management-gensrc-src
 
   jdk.jdeps-gendata: java rmic
 
@@ -734,6 +738,20 @@ else
   $(foreach m, $(COPY_MODULES), $(eval $m_JMOD_DEPS += $m-copy))
   $(foreach m, $(ALL_MODULES), $(eval $m-jmod: $($(m)_JMOD_DEPS)))
   $(foreach m, $(INTERIM_IMAGE_MODULES), $(eval $m-interim-jmod: $($(m)_JMOD_DEPS)))
+
+  # Setup the minimal set of generated native source dependencies for hotspot
+  $(foreach v, $(JVM_VARIANTS), \
+    $(eval hotspot-$v-libs-compile-commands: hotspot-$v-gensrc) \
+    $(foreach m, $(filter java.desktop jdk.hotspot.agent, $(GENSRC_MODULES)), \
+      $(eval hotspot-$v-libs-compile-commands: $m-gensrc)) \
+  )
+
+  # For the full JDK compile commands, create all possible generated sources
+  $(foreach m, $(GENSRC_MODULES), $(eval $m-libs-compile-commands: $m-gensrc))
+  $(foreach m, $(filter $(JAVA_MODULES), $(LIBS_MODULES)), $(eval $m-libs-compile-commands: $m-java))
+
+  compile-commands-hotspot: $(COMPILE_COMMANDS_TARGETS_HOTSPOT)
+  compile-commands: $(COMPILE_COMMANDS_TARGETS_HOTSPOT) $(COMPILE_COMMANDS_TARGETS_JDK)
 
   # Jmods cannot be created until we have the jmod tool ready to run. During
   # a normal build we run it from the exploded image, but when cross compiling
@@ -774,6 +792,8 @@ else
   zip-source: gensrc rmic
 
   jrtfs-jar: interim-langtools
+
+  build-microbenchmark: interim-langtools exploded-image
 
   ifeq ($(ENABLE_GENERATE_CLASSLIST), true)
     ifeq ($(CREATE_BUILDJDK), true)
@@ -831,13 +851,17 @@ else
 
   docs-zip: docs-jdk
 
+  # Tests
   test: jdk-image test-image
 
-  run-test: jdk-image test-image
-  exploded-run-test: exploded-image test-image
+  exploded-test: exploded-image test-image
+
+  test-make: clean-test-make compile-commands
+
+  test-make-compile-commands: compile-commands
 
   # Declare dependency for all generated test targets
-  $(foreach t, $(ALL_TEST_TARGETS), $(eval $t: jdk-image test-image))
+  $(foreach t, $(filter-out test-make%, $(ALL_TEST_TARGETS)), $(eval $t: jdk-image test-image))
   $(foreach t, $(ALL_EXPLODED_TEST_TARGETS), $(eval $t: exploded-image test-image))
 
   create-buildjdk-copy: jdk.jlink-java java.base-gendata \
@@ -847,13 +871,9 @@ else
 
   interim-image: $(INTERIM_JMOD_TARGETS)
 
-  test-make: clean-test-make
-
   build-test-lib: exploded-image-optimize
 
   build-test-failure-handler: interim-langtools
-
-  test-failure-handler: build-test-failure-handler
 
   test-image-failure-handler: build-test-failure-handler
 
@@ -871,12 +891,6 @@ else
   test-image-hotspot-jtreg-graal: build-test-hotspot-jtreg-graal
 
   test-image-hotspot-gtest: hotspot
-
-  test-hotspot-internal: exploded-image
-
-  test-hotspot-jtreg: jdk-image test-image
-
-  test-hotspot-gtest: exploded-image test-image-hotspot-gtest
 
   install: product-images
 
@@ -1015,6 +1029,10 @@ test-image: prepare-test-image \
     test-image-jdk-jtreg-native test-image-failure-handler \
     test-image-demos-jdk $(JVM_TEST_IMAGE_TARGETS)
 
+ifneq ($(JMH_CORE_JAR), )
+  test-image: build-microbenchmark
+endif
+
 ################################################################################
 
 # all-images builds all our deliverables as images.
@@ -1046,6 +1064,28 @@ all: all-images
 
 ALL_TARGETS += default jdk images docs bundles all
 
+# Aliases used for running tests.
+
+# Let "run-test" be an alias for "test"
+$(foreach t, $(ALL_NAMED_TESTS), $(eval run-test-$t: test-$t))
+RUN_TEST_TARGETS := $(addprefix run-test-, $(ALL_NAMED_TESTS))
+
+run-test: test
+exploded-run-test: exploded-test
+
+# "make check" is a common idiom for running basic testing
+check: test-tier1
+
+# Keep some old names as aliases
+test-hotspot-jtreg: test-hotspot_all
+test-hotspot-jtreg-native: test-hotspot_native_sanity
+test-hotspot-gtest: exploded-test-gtest
+test-jdk-jtreg-native: test-jdk_native_sanity
+
+ALL_TARGETS += $(RUN_TEST_TARGETS) run-test exploded-run-test check \
+    test-hotspot-jtreg test-hotspot-jtreg-native test-hotspot-gtest \
+    test-jdk-jtreg-native
+
 ################################################################################
 ################################################################################
 #
@@ -1071,7 +1111,7 @@ CLEAN_MODULE_PHASE_TARGETS := $(addprefix clean-, $(foreach m, $(ALL_MODULES), \
 
 # Remove everything, except the output from configure.
 clean: $(CLEAN_DIR_TARGETS)
-	($(CD) $(OUTPUTDIR) && $(RM) -r build*.log*)
+	($(CD) $(OUTPUTDIR) && $(RM) -r build*.log* compile_commands.json)
 	$(ECHO) Cleaned all build artifacts.
 
 clean-docs:
@@ -1107,7 +1147,8 @@ clean-test: clean-test-results clean-test-support
 # directory was created by configure and now becomes empty, remove it as well.
 dist-clean: clean
 	($(CD) $(OUTPUTDIR) && \
-	    $(RM) -r *spec.gmk $(CONFIGURESUPPORT_OUTPUTDIR) Makefile compare.sh ide)
+	    $(RM) -r *spec.gmk $(CONFIGURESUPPORT_OUTPUTDIR) Makefile compare.sh ide \
+	    configure.log* build.log*)
 	$(if $(filter $(CONF_NAME),$(notdir $(OUTPUTDIR))), \
 	  if test "x`$(LS) $(OUTPUTDIR)`" != x; then \
 	    $(ECHO) "Warning: Not removing non-empty configuration directory for '$(CONF_NAME)'" ; \
@@ -1127,11 +1168,6 @@ ALL_TARGETS += clean clean-docs dist-clean $(CLEAN_DIR_TARGETS) $(CLEAN_SUPPORT_
 $(foreach t, $(ALL_TARGETS), $(eval $(t)-only: $(t)))
 
 ALL_TARGETS += $(addsuffix -only, $(filter-out dist-clean clean%, $(ALL_TARGETS)))
-
-################################################################################
-
-# Include JPRT targets
-include $(TOPDIR)/make/Jprt.gmk
 
 ################################################################################
 

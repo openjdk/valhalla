@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "jfr/leakprofiler/utilities/unifiedOop.hpp"
@@ -33,7 +34,6 @@
 #include "oops/markOop.hpp"
 #include "oops/oop.hpp"
 #include "prims/jvmtiThreadState.hpp"
-#include "prims/privilegedStack.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/threadSMR.inline.hpp"
@@ -127,7 +127,7 @@ class ReferenceToRootClosure : public StackObj {
 bool ReferenceToRootClosure::do_cldg_roots() {
   assert(!complete(), "invariant");
   ReferenceLocateClosure rlc(_callback, OldObjectRoot::_class_loader_data, OldObjectRoot::_type_undetermined, NULL);
-  CLDToOopClosure cldt_closure(&rlc);
+  CLDToOopClosure cldt_closure(&rlc, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::always_strong_cld_do(&cldt_closure);
   return rlc.complete();
 }
@@ -322,14 +322,6 @@ bool ReferenceToThreadRootClosure::do_thread_stack_detailed(JavaThread* jt) {
   ReferenceLocateClosure rcl(_callback, OldObjectRoot::_threads, OldObjectRoot::_stack_variable, jt);
 
   if (jt->has_last_Java_frame()) {
-    PrivilegedElement* const pelem = jt->privileged_stack_top();
-    if (pelem != NULL) {
-      pelem->oops_do(&rcl);
-      if (rcl.complete()) {
-        return true;
-      }
-    }
-
     // traverse the registered growable array gc_array
     // can't do this as it is not reachable from outside
 

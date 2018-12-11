@@ -144,8 +144,8 @@ class CodeBlob_sizes {
 address CodeCache::_low_bound = 0;
 address CodeCache::_high_bound = 0;
 int CodeCache::_number_of_nmethods_with_dependencies = 0;
-bool CodeCache::_needs_cache_clean = false;
 nmethod* CodeCache::_scavenge_root_nmethods = NULL;
+ExceptionCache* volatile CodeCache::_exception_cache_purge_list = NULL;
 
 // Initialize arrays of CodeHeap subsets
 GrowableArray<CodeHeap*>* CodeCache::_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<CodeHeap*> (CodeBlobType::All, true);
@@ -274,10 +274,10 @@ void CodeCache::initialize_heaps() {
   }
   // Make sure we have enough space for VM internal code
   uint min_code_cache_size = CodeCacheMinimumUseSpace DEBUG_ONLY(* 3);
-  if (non_nmethod_size < (min_code_cache_size + code_buffers_size)) {
+  if (non_nmethod_size < min_code_cache_size) {
     vm_exit_during_initialization(err_msg(
         "Not enough space in non-nmethod code heap to run VM: " SIZE_FORMAT "K < " SIZE_FORMAT "K",
-        non_nmethod_size/K, (min_code_cache_size + code_buffers_size)/K));
+        non_nmethod_size/K, min_code_cache_size/K));
   }
 
   // Verify sizes and update flag values
@@ -657,7 +657,7 @@ void CodeCache::blobs_do(void f(CodeBlob* nm)) {
 
 void CodeCache::nmethods_do(void f(nmethod* nm)) {
   assert_locked_or_safepoint(CodeCache_lock);
-  NMethodIterator iter;
+  NMethodIterator iter(NMethodIterator::all_blobs);
   while(iter.next()) {
     f(iter.method());
   }
@@ -665,8 +665,8 @@ void CodeCache::nmethods_do(void f(nmethod* nm)) {
 
 void CodeCache::metadata_do(void f(Metadata* m)) {
   assert_locked_or_safepoint(CodeCache_lock);
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     iter.method()->metadata_do(f);
   }
   AOTLoader::metadata_do(f);
@@ -683,17 +683,11 @@ int CodeCache::alignment_offset() {
 // Mark nmethods for unloading if they contain otherwise unreachable oops.
 void CodeCache::do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred) {
   assert_locked_or_safepoint(CodeCache_lock);
-  CompiledMethodIterator iter;
-  while(iter.next_alive()) {
-    iter.method()->do_unloading(is_alive);
+  UnloadingScope scope(is_alive);
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive);
+  while(iter.next()) {
+    iter.method()->do_unloading(unloading_occurred);
   }
-
-  // Now that all the unloaded nmethods are known, cleanup caches
-  // before CLDG is purged.
-  // This is another code cache walk but it is moved from gc_epilogue.
-  // G1 does a parallel walk of the nmethods so cleans them up
-  // as it goes and doesn't call this.
-  do_unloading_nmethod_caches(unloading_occurred);
 }
 
 void CodeCache::blobs_do(CodeBlobClosure* f) {
@@ -848,8 +842,8 @@ void CodeCache::asserted_non_scavengable_nmethods_do(CodeBlobClosure* f) {
 
 // Temporarily mark nmethods that are claimed to be on the scavenge list.
 void CodeCache::mark_scavenge_root_nmethods() {
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive);
+  while(iter.next()) {
     nmethod* nm = iter.method();
     assert(nm->scavenge_root_not_marked(), "clean state");
     if (nm->on_scavenge_root_list())
@@ -860,8 +854,8 @@ void CodeCache::mark_scavenge_root_nmethods() {
 // If the closure is given, run it on the unlisted nmethods.
 // Also make sure that the effects of mark_scavenge_root_nmethods is gone.
 void CodeCache::verify_perm_nmethods(CodeBlobClosure* f_or_null) {
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive);
+  while(iter.next()) {
     nmethod* nm = iter.method();
     bool call_f = (f_or_null != NULL);
     assert(nm->scavenge_root_not_marked(), "must be already processed");
@@ -875,8 +869,8 @@ void CodeCache::verify_perm_nmethods(CodeBlobClosure* f_or_null) {
 
 void CodeCache::verify_clean_inline_caches() {
 #ifdef ASSERT
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     nmethod* nm = iter.method();
     assert(!nm->is_unloaded(), "Tautology");
     nm->verify_clean_inline_caches();
@@ -902,41 +896,55 @@ void CodeCache::verify_icholder_relocations() {
 #endif
 }
 
+// Defer freeing of concurrently cleaned ExceptionCache entries until
+// after a global handshake operation.
+void CodeCache::release_exception_cache(ExceptionCache* entry) {
+  if (SafepointSynchronize::is_at_safepoint()) {
+    delete entry;
+  } else {
+    for (;;) {
+      ExceptionCache* purge_list_head = Atomic::load(&_exception_cache_purge_list);
+      entry->set_purge_list_next(purge_list_head);
+      if (Atomic::cmpxchg(entry, &_exception_cache_purge_list, purge_list_head) == purge_list_head) {
+        break;
+      }
+    }
+  }
+}
+
+// Delete exception caches that have been concurrently unlinked,
+// followed by a global handshake operation.
+void CodeCache::purge_exception_caches() {
+  ExceptionCache* curr = _exception_cache_purge_list;
+  while (curr != NULL) {
+    ExceptionCache* next = curr->purge_list_next();
+    delete curr;
+    curr = next;
+  }
+  _exception_cache_purge_list = NULL;
+}
+
 void CodeCache::gc_prologue() { }
 
 void CodeCache::gc_epilogue() {
   prune_scavenge_root_nmethods();
 }
 
+uint8_t CodeCache::_unloading_cycle = 1;
 
-void CodeCache::do_unloading_nmethod_caches(bool class_unloading_occurred) {
-  assert_locked_or_safepoint(CodeCache_lock);
-  // Even if classes are not unloaded, there may have been some nmethods that are
-  // unloaded because oops in them are no longer reachable.
-  NOT_DEBUG(if (needs_cache_clean() || class_unloading_occurred)) {
-    CompiledMethodIterator iter;
-    while(iter.next_alive()) {
-      CompiledMethod* cm = iter.method();
-      assert(!cm->is_unloaded(), "Tautology");
-      DEBUG_ONLY(if (needs_cache_clean() || class_unloading_occurred)) {
-        // Clean up both unloaded klasses from nmethods and unloaded nmethods
-        // from inline caches.
-        cm->unload_nmethod_caches(/*parallel*/false, class_unloading_occurred);
-      }
-      DEBUG_ONLY(cm->verify());
-      DEBUG_ONLY(cm->verify_oop_relocations());
-    }
+void CodeCache::increment_unloading_cycle() {
+  if (_unloading_cycle == 1) {
+    _unloading_cycle = 2;
+  } else {
+    _unloading_cycle = 1;
   }
-
-  set_needs_cache_clean(false);
-  verify_icholder_relocations();
 }
 
 void CodeCache::verify_oops() {
   MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   VerifyOopClosure voc;
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     nmethod* nm = iter.method();
     nm->oops_do(&voc);
     nm->verify_oop_relocations();
@@ -1112,16 +1120,16 @@ int CodeCache::number_of_nmethods_with_dependencies() {
 
 void CodeCache::clear_inline_caches() {
   assert_locked_or_safepoint(CodeCache_lock);
-  CompiledMethodIterator iter;
-  while(iter.next_alive()) {
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     iter.method()->clear_inline_caches();
   }
 }
 
 void CodeCache::cleanup_inline_caches() {
   assert_locked_or_safepoint(CodeCache_lock);
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     iter.method()->cleanup_inline_caches(/*clean_all=*/true);
   }
 }
@@ -1191,8 +1199,8 @@ int CodeCache::mark_for_evol_deoptimization(InstanceKlass* dependee) {
     }
   }
 
-  CompiledMethodIterator iter;
-  while(iter.next_alive()) {
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     CompiledMethod* nm = iter.method();
     if (nm->is_marked_for_deoptimization()) {
       // ...Already marked in the previous pass; don't count it again.
@@ -1214,8 +1222,8 @@ int CodeCache::mark_for_evol_deoptimization(InstanceKlass* dependee) {
 // Deoptimize all methods
 void CodeCache::mark_all_nmethods_for_deoptimization() {
   MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-  CompiledMethodIterator iter;
-  while(iter.next_alive()) {
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     CompiledMethod* nm = iter.method();
     if (!nm->method()->is_method_handle_intrinsic()) {
       nm->mark_for_deoptimization();
@@ -1227,8 +1235,8 @@ int CodeCache::mark_for_deoptimization(Method* dependee) {
   MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   int number_of_marked_CodeBlobs = 0;
 
-  CompiledMethodIterator iter;
-  while(iter.next_alive()) {
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     CompiledMethod* nm = iter.method();
     if (nm->is_dependent_on_method(dependee)) {
       ResourceMark rm;
@@ -1242,8 +1250,8 @@ int CodeCache::mark_for_deoptimization(Method* dependee) {
 
 void CodeCache::make_marked_nmethods_not_entrant() {
   assert_locked_or_safepoint(CodeCache_lock);
-  CompiledMethodIterator iter;
-  while(iter.next_alive()) {
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     CompiledMethod* nm = iter.method();
     if (nm->is_marked_for_deoptimization() && !nm->is_not_entrant()) {
       nm->make_not_entrant();
@@ -1511,7 +1519,7 @@ void CodeCache::print_internals() {
   int *buckets = NEW_C_HEAP_ARRAY(int, bucketLimit, mtCode);
   memset(buckets, 0, sizeof(int) * bucketLimit);
 
-  NMethodIterator iter;
+  NMethodIterator iter(NMethodIterator::all_blobs);
   while(iter.next()) {
     nmethod* nm = iter.method();
     if(nm->method() != NULL && nm->is_java_method()) {
@@ -1651,8 +1659,8 @@ void CodeCache::print_summary(outputStream* st, bool detailed) {
 void CodeCache::print_codelist(outputStream* st) {
   MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
-  CompiledMethodIterator iter;
-  while (iter.next_alive()) {
+  CompiledMethodIterator iter(CompiledMethodIterator::only_alive_and_not_unloading);
+  while (iter.next()) {
     CompiledMethod* cm = iter.method();
     ResourceMark rm;
     char* method_name = cm->method()->name_and_sig_as_C_string();

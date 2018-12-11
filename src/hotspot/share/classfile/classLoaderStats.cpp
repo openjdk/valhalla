@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderStats.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -139,7 +140,7 @@ void ClassLoaderStatsClosure::print() {
 
 
 void ClassLoaderStatsClosure::addEmptyParents(oop cl) {
-  while (cl != NULL && java_lang_ClassLoader::loader_data(cl) == NULL) {
+  while (cl != NULL && java_lang_ClassLoader::loader_data_acquire(cl) == NULL) {
     // This classloader has not loaded any classes
     ClassLoaderStats** cls_ptr = _stats->get(cl);
     if (cls_ptr == NULL) {
@@ -158,7 +159,7 @@ void ClassLoaderStatsClosure::addEmptyParents(oop cl) {
 
 void ClassLoaderStatsVMOperation::doit() {
   ClassLoaderStatsClosure clsc (_out);
-  ClassLoaderDataGraph::cld_do(&clsc);
+  ClassLoaderDataGraph::loaded_cld_do(&clsc);
   clsc.print();
 }
 

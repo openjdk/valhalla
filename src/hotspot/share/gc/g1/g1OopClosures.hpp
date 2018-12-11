@@ -36,6 +36,7 @@ class G1ConcurrentMark;
 class DirtyCardToOopClosure;
 class G1CMBitMap;
 class G1ParScanThreadState;
+class G1ScanEvacuatedObjClosure;
 class G1CMTask;
 class ReferenceProcessor;
 
@@ -43,7 +44,6 @@ class G1ScanClosureBase : public BasicOopIterateClosure {
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadState* _par_scan_state;
-  HeapRegion* _from;
 
   G1ScanClosureBase(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state);
   ~G1ScanClosureBase() { }
@@ -54,26 +54,21 @@ protected:
   template <class T>
   inline void handle_non_cset_obj_common(InCSetState const state, T* p, oop const obj);
 public:
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
-  void set_region(HeapRegion* from) { _from = from; }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   inline void trim_queue_partially();
 };
 
 // Used during the Update RS phase to refine remaining cards in the DCQ during garbage collection.
-class G1ScanObjsDuringUpdateRSClosure: public G1ScanClosureBase {
-  uint _worker_i;
-
+class G1ScanObjsDuringUpdateRSClosure : public G1ScanClosureBase {
 public:
   G1ScanObjsDuringUpdateRSClosure(G1CollectedHeap* g1h,
-                                  G1ParScanThreadState* pss,
-                                  uint worker_i) :
-    G1ScanClosureBase(g1h, pss), _worker_i(worker_i) { }
+                                  G1ParScanThreadState* pss) :
+    G1ScanClosureBase(g1h, pss) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  virtual void do_oop(oop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
 };
 
 // Used during the Scan RS phase to scan cards from the remembered set during garbage collection.
@@ -88,18 +83,47 @@ public:
   virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 };
 
+
 // This closure is applied to the fields of the objects that have just been copied during evacuation.
 class G1ScanEvacuatedObjClosure : public G1ScanClosureBase {
+  friend class G1ScanInYoungSetter;
+
+  enum ScanningInYoungValues {
+    False = 0,
+    True,
+    Uninitialized
+  };
+
+  ScanningInYoungValues _scanning_in_young;
+
 public:
   G1ScanEvacuatedObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
-    G1ScanClosureBase(g1h, par_scan_state) { }
+    G1ScanClosureBase(g1h, par_scan_state), _scanning_in_young(Uninitialized) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)          { do_oop_work(p); }
   virtual void do_oop(narrowOop* p)    { do_oop_work(p); }
 
+  // We need to do reference discovery while processing evacuated objects.
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+
   void set_ref_discoverer(ReferenceDiscoverer* rd) {
     set_ref_discoverer_internal(rd);
+  }
+};
+
+// RAII object to properly set the _scanning_in_young field in G1ScanEvacuatedObjClosure.
+class G1ScanInYoungSetter : public StackObj {
+  G1ScanEvacuatedObjClosure* _closure;
+
+public:
+  G1ScanInYoungSetter(G1ScanEvacuatedObjClosure* closure, bool new_value) : _closure(closure) {
+    assert(_closure->_scanning_in_young == G1ScanEvacuatedObjClosure::Uninitialized, "Must not be set");
+    _closure->_scanning_in_young = new_value ? G1ScanEvacuatedObjClosure::True : G1ScanEvacuatedObjClosure::False;
+  }
+
+  ~G1ScanInYoungSetter() {
+    DEBUG_ONLY(_closure->_scanning_in_young = G1ScanEvacuatedObjClosure::Uninitialized;)
   }
 };
 
@@ -157,12 +181,12 @@ public:
 class G1CLDScanClosure : public CLDClosure {
   G1ParCopyHelper* _closure;
   bool             _process_only_dirty;
-  bool             _must_claim;
+  int              _claim;
   int              _count;
 public:
   G1CLDScanClosure(G1ParCopyHelper* closure,
-                   bool process_only_dirty, bool must_claim)
-  : _closure(closure), _process_only_dirty(process_only_dirty), _must_claim(must_claim), _count(0) {}
+                   bool process_only_dirty, int claim_value)
+  : _closure(closure), _process_only_dirty(process_only_dirty), _claim(claim_value), _count(0) {}
   void do_cld(ClassLoaderData* cld);
 };
 
@@ -201,8 +225,7 @@ public:
     _worker_i(worker_i) {
   }
 
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
@@ -219,8 +242,8 @@ public:
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)       { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
-  // This closure needs special handling for InstanceRefKlass.
-  virtual ReferenceIterationMode reference_iteration_mode() { return DO_DISCOVERED_AND_DISCOVERY; }
+
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 };
 
 #endif // SHARE_VM_GC_G1_G1OOPCLOSURES_HPP

@@ -34,27 +34,7 @@
 #include "jvmti_tools.h"
 #include "native_thread.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifndef JNI_ENV_ARG
-  #ifdef __cplusplus
-    #define JNI_ENV_ARG(x, y) y
-    #define JNI_ENV_PTR(x) x
-  #else
-    #define JNI_ENV_ARG(x, y) x, y
-    #define JNI_ENV_PTR(x) (*x)
-  #endif
-#endif
-
-#ifndef JNI_ENV_ARG1
-  #ifdef __cplusplus
-    #define JNI_ENV_ARG1(x)
-  #else
-    #define JNI_ENV_ARG1(x) x
-  #endif
-#endif
 
 #define PASSED  0
 #define STATUS_FAILED  2
@@ -119,36 +99,34 @@ static void doRedirect(JNIEnv *env, jvmtiEnv *jvmti, int indx) {
 
     NSK_DISPLAY1("\n%s JVMTI env: doRedirect: obtaining the JNI function table ...\n",
         (indx==0)?"first":"second");
-    if ((err = jvmti->GetJNIFunctionTable(&orig_jni_functions[indx])) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&orig_jni_functions[indx]);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         NSK_COMPLAIN2("TEST FAILED: %s JVMTI env: failed to get original JNI function table: %s\n",
             (indx==0)?"first":"second", TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get original JNI function table"));
+        env->FatalError("failed to get original JNI function table");
     }
-    if ((err = jvmti->GetJNIFunctionTable(&redir_jni_functions[indx])) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&redir_jni_functions[indx]);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         NSK_COMPLAIN2("TEST FAILED: %s JVMTI env: failed to get redirected JNI function table: %s\n",
             (indx==0)?"first":"second", TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to get redirected JNI function table"));
+        env->FatalError("failed to get redirected JNI function table");
     }
 
-    NSK_DISPLAY1("%s JVMTI env: doRedirect: the JNI function table obtained successfully\n\
-\toverwriting the function GetVersion() ...\n",
-        (indx==0)?"first":"second");
+    NSK_DISPLAY1(
+        "%s JVMTI env: doRedirect: the JNI function table obtained successfully\n"
+        "\toverwriting the function GetVersion() ...\n",
+        (indx == 0) ? "first" : "second");
     redir_jni_functions[indx]->GetVersion =
         (indx==0)?MyGetVersionA:MyGetVersionB;
 
-    if ((err = jvmti->SetJNIFunctionTable(redir_jni_functions[indx])) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(redir_jni_functions[indx]);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         NSK_COMPLAIN2("TEST FAILED: %s JVMTI env: failed to set new JNI function table: %s\n",
             (indx==0)?"first":"second", TranslateError(err));
-        JNI_ENV_PTR(env)->FatalError(JNI_ENV_ARG(env,
-            "failed to set new JNI function table"));
+        env->FatalError("failed to set new JNI function table");
     }
 
     NSK_DISPLAY1("%s JVMTI env: doRedirect: the functions are overwritten successfully\n",
@@ -158,16 +136,16 @@ static void doRedirect(JNIEnv *env, jvmtiEnv *jvmti, int indx) {
 static void provokeIntercept(JNIEnv *env, const char *name) {
     jint res;
 
-    res = JNI_ENV_PTR(env)->
-        GetVersion(JNI_ENV_ARG1(env));
+    res = env->GetVersion();
     NSK_DISPLAY2("\nGetVersion() called by the agent %s returns %d\n",
         name, res);
 }
 
 static int checkIntercept(int indx, int env_num, int exCalls) {
     if (redir_calls[indx] == exCalls) {
-        NSK_DISPLAY5("\nCHECK PASSED: GetVersion() interception set in the %s JVMTI env %s properly:\n\
-\t%d interception(s) with the%s%s JVMTI env as expected\n",
+        NSK_DISPLAY5(
+            "\nCHECK PASSED: GetVersion() interception set in the %s JVMTI env %s properly:\n"
+            "\t%d interception(s) with the%s%s JVMTI env as expected\n",
             (indx==0)?"first":"second",
             (exCalls==0)?"overwritten by another environment":"works",
             redir_calls[indx],
@@ -176,8 +154,9 @@ static int checkIntercept(int indx, int env_num, int exCalls) {
     }
     else {
         result = STATUS_FAILED;
-        NSK_COMPLAIN6("\nTEST FAILED: GetVersion() interception set in the %s JVMTI env doesn't %s properly:\n\
-\t%d interception(s) with the%s%s JVMTI env instead of %d as expected\n",
+        NSK_COMPLAIN6(
+            "\nTEST FAILED: GetVersion() interception set in the %s JVMTI env doesn't %s properly:\n"
+            "\t%d interception(s) with the%s%s JVMTI env instead of %d as expected\n",
             (indx==0)?"first":"second",
             (exCalls==0)?"overwritten by another environment":"work",
             redir_calls[indx],
@@ -198,10 +177,8 @@ static int initAgent(int indx) {
 
     thrstarted[indx] = redir[indx] = redir_calls[indx] = 0;
 
-    NSK_DISPLAY1("\nagent %s initializer: obtaining the JVMTI env ...\n",
-        (indx==0)?"A":"B");
-    res = JNI_ENV_PTR(vm)->
-        GetEnv(JNI_ENV_ARG(vm, (void **) &jvmti[indx]), JVMTI_VERSION_1_1);
+    NSK_DISPLAY1("\nagent %s initializer: obtaining the JVMTI env ...\n", (indx==0)?"A":"B");
+    res = vm->GetEnv((void **) &jvmti[indx], JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti[indx] == NULL) {
         NSK_COMPLAIN1("TEST FAILURE: failed to call GetEnv for the agent %s\n",
             (indx==0)?"A":"B");
@@ -212,7 +189,7 @@ static int initAgent(int indx) {
     NSK_DISPLAY1("\nagent %s initializer: the JVMTI env obtained\n\tsetting event callbacks ...\n",
         (indx==0)?"A":"B");
     (void) memset(&callbacks, 0, sizeof(callbacks));
-    switch(indx) {
+    switch (indx) {
     case 0:
         callbacks.VMInit = &VMInitA;
         break;
@@ -220,8 +197,8 @@ static int initAgent(int indx) {
         callbacks.VMInit = &VMInitB;
         break;
     }
-    if ((err = jvmti[indx]->SetEventCallbacks(
-            &callbacks, sizeof(callbacks))) != JVMTI_ERROR_NONE) {
+    err = jvmti[indx]->SetEventCallbacks(&callbacks, sizeof(callbacks));
+    if (err != JVMTI_ERROR_NONE) {
         NSK_COMPLAIN1("TEST FAILURE: failed to set event callbacks: %s\n",
             TranslateError(err));
         result = STATUS_FAILED;
@@ -230,9 +207,8 @@ static int initAgent(int indx) {
 
     NSK_DISPLAY1("\nagent %s initializer: setting event callbacks done\n\tenabling events ...\n",
         (indx==0)?"A":"B");
-    if ((err = jvmti[indx]->SetEventNotificationMode(
-            JVMTI_ENABLE,
-            JVMTI_EVENT_VM_INIT, NULL)) != JVMTI_ERROR_NONE) { /* enable event globally */
+    err = jvmti[indx]->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
+    if (err != JVMTI_ERROR_NONE) { /* enable event globally */
         NSK_COMPLAIN2("TEST FAILURE: failed to enable JVMTI_EVENT_VM_INIT event for the agent %s: %s\n",
             (indx==0)?"A":"B", TranslateError(err));
         result = STATUS_FAILED;
@@ -267,7 +243,7 @@ static void startAgent(int indx) {
                 (indx==0)?"A":"B", TRIES);
             exit(STATUS_FAILED);
         }
-    } while(thrstarted[indx] != 1);
+    } while (thrstarted[indx] != 1);
 
     NSK_DISPLAY1("\nstartAgent: the agent %s thread started\n",
         (indx==0)?"A":"B");
@@ -282,18 +258,17 @@ static int agentA(void *context) {
     int exitCode = PASSED;
 
     NSK_DISPLAY0("\nthe agent A started\n\tattaching the thread to the VM ...\n");
-    if ((res =
-            JNI_ENV_PTR(vm)->AttachCurrentThread(
-                JNI_ENV_ARG(vm, (void **) &env), (void *) 0)) != 0) {
-        NSK_COMPLAIN1("TEST FAILURE: AttachCurrentThread() returns: %d\n",
-            res);
+    res = vm->AttachCurrentThread((void **) &env, (void *) 0);
+    if (res != 0) {
+        NSK_COMPLAIN1("TEST FAILURE: AttachCurrentThread() returns: %d\n", res);
         exit(STATUS_FAILED);
     }
 
     /* intercept the JNI function table */
     /* check the interception set in another JVMTI env */
-    NSK_DISPLAY0("\n>>> TEST CASE #1) First JVMTI env: checking the redirection set in the same env ...\n\
-\nagent A (first JVMTI env): redirecting the function table ...\n");
+    NSK_DISPLAY0(
+        "\n>>> TEST CASE #1) First JVMTI env: checking the redirection set in the same env ...\n"
+        "\nagent A (first JVMTI env): redirecting the function table ...\n");
     doRedirect(env, jvmti[0], 0);
 
     /* check that the interception has been set properly */
@@ -317,7 +292,7 @@ static int agentA(void *context) {
                 TRIES);
             exit(STATUS_FAILED);
         }
-    } while(redir[1] != 1);
+    } while (redir[1] != 1);
 
     /* check the interception set in another JVMTI env */
     NSK_DISPLAY0("\n>>> TEST CASE #4) First JVMTI env: checking the redirection set in second JVMTI env ...\n");
@@ -333,7 +308,8 @@ static int agentA(void *context) {
 
     NSK_DISPLAY1("\nagent A: detaching and returning exit code %d\n",
         exitCode);
-    if ((res = JNI_ENV_PTR(vm)->DetachCurrentThread(JNI_ENV_ARG1(vm))) != 0) {
+    res = vm->DetachCurrentThread();
+    if (res != 0) {
         NSK_COMPLAIN1("TEST WARNING: agent A: DetachCurrentThread() returns: %d\n", res);
     }
     return exitCode;
@@ -347,9 +323,8 @@ static int agentB(void *context) {
     int exitCode = PASSED;
 
     NSK_DISPLAY0("\nthe agent B started\n\tattaching the thread to the VM ...\n");
-    if ((res =
-            JNI_ENV_PTR(vm)->AttachCurrentThread(
-                JNI_ENV_ARG(vm, (void **) &env), (void *) 0)) != 0) {
+    res = vm->AttachCurrentThread((void **) &env, (void *) 0);
+    if (res != 0) {
         NSK_COMPLAIN1("TEST FAILURE: AttachCurrentThread() returns: %d\n",
             res);
         exit(STATUS_FAILED);
@@ -366,7 +341,7 @@ static int agentB(void *context) {
                 TRIES);
             exit(STATUS_FAILED);
         }
-    } while(redir[0] != 1);
+    } while (redir[0] != 1);
 
     /* check the interception set in another JVMTI env */
     NSK_DISPLAY0("\n>>> TEST CASE #2) Second JVMTI env: checking the redirection set in first JVMTI env ...\n");
@@ -378,8 +353,9 @@ static int agentB(void *context) {
     NSK_DISPLAY0("\n<<< TEST CASE #2) done\n");
 
     /* intercept the JNI function table */
-    NSK_DISPLAY0("\n>>> TEST CASE #3) Second JVMTI env: checking the redirection set in the same env ...\n\
-\nagent B (second JVMTI env): redirecting the function table ...\n");
+    NSK_DISPLAY0(
+        "\n>>> TEST CASE #3) Second JVMTI env: checking the redirection set in the same env ...\n"
+        "\nagent B (second JVMTI env): redirecting the function table ...\n");
     doRedirect(env, jvmti[1], 1);
 
     for (i=0; i<AGENTS; i++) {
@@ -396,7 +372,8 @@ static int agentB(void *context) {
 
     NSK_DISPLAY1("\nagent B: detaching and returning exit code %d\n",
         exitCode);
-    if ((res = JNI_ENV_PTR(vm)->DetachCurrentThread(JNI_ENV_ARG1(vm))) != 0) {
+    res = vm->DetachCurrentThread();
+    if (res != 0) {
         NSK_COMPLAIN1("TEST WARNING: agent B: DetachCurrentThread() returns: %d\n", res);
     }
     return exitCode;
@@ -470,6 +447,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

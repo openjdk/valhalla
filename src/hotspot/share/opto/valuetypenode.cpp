@@ -401,7 +401,7 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
       if (ary_type != NULL) {
         decorators |= IS_ARRAY;
       }
-      kit->access_store_at(kit->control(), base, adr, adr_type, value, val_type, bt, decorators, deoptimize_on_exception);
+      kit->access_store_at(base, adr, adr_type, value, val_type, bt, decorators, deoptimize_on_exception);
     }
   }
 }

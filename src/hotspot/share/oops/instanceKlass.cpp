@@ -166,25 +166,35 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
                                 k->external_name(), this->external_name());
   }
 
-  // Check names first and if they match then check actual klass. This avoids
-  // resolving anything unnecessarily.
+  // Check for a resolved cp entry , else fall back to a name check.
+  // We don't want to resolve any class other than the one being checked.
   for (int i = 0; i < _nest_members->length(); i++) {
     int cp_index = _nest_members->at(i);
-    Symbol* name = _constants->klass_name_at(cp_index);
-    if (name == k->name()) {
-      log_trace(class, nestmates)("- Found it at nest_members[%d] => cp[%d]", i, cp_index);
-
-      // names match so check actual klass - this may trigger class loading if
-      // it doesn't match (but that should be impossible)
+    if (_constants->tag_at(cp_index).is_klass()) {
       Klass* k2 = _constants->klass_at(cp_index, CHECK_false);
       if (k2 == k) {
-        log_trace(class, nestmates)("- class is listed as a nest member");
+        log_trace(class, nestmates)("- class is listed at nest_members[%d] => cp[%d]", i, cp_index);
         return true;
-      } else {
-        // same name but different klass!
-        log_trace(class, nestmates)(" - klass comparison failed!");
-        // can't have different classes for the same name, so we're done
-        return false;
+      }
+    }
+    else {
+      Symbol* name = _constants->klass_name_at(cp_index);
+      if (name == k->name()) {
+        log_trace(class, nestmates)("- Found it at nest_members[%d] => cp[%d]", i, cp_index);
+
+        // names match so check actual klass - this may trigger class loading if
+        // it doesn't match (but that should be impossible)
+        Klass* k2 = _constants->klass_at(cp_index, CHECK_false);
+        if (k2 == k) {
+          log_trace(class, nestmates)("- class is listed as a nest member");
+          return true;
+        }
+        else {
+          // same name but different klass!
+          log_trace(class, nestmates)(" - klass comparison failed!");
+          // can't have two names the same, so we're done
+          return false;
+        }
       }
     }
   }
@@ -275,19 +285,25 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
 
       if (log_is_enabled(Trace, class, nestmates)) {
         ResourceMark rm(THREAD);
-        log_trace(class, nestmates)("Type %s is not a nest member of resolved type %s: %s",
-                                    this->external_name(),
-                                    k->external_name(),
-                                    error);
+        log_trace(class, nestmates)
+          ("Type %s (loader: %s) is not a nest member of "
+           "resolved type %s (loader: %s): %s",
+           this->external_name(),
+           this->class_loader_data()->loader_name_and_id(),
+           k->external_name(),
+           k->class_loader_data()->loader_name_and_id(),
+           error);
       }
 
       if (validationException != NULL) {
         ResourceMark rm(THREAD);
         Exceptions::fthrow(THREAD_AND_LOCATION,
                            validationException,
-                           "Type %s is not a nest member of %s: %s",
+                           "Type %s (loader: %s) is not a nest member of %s (loader: %s): %s",
                            this->external_name(),
+                           this->class_loader_data()->loader_name_and_id(),
                            k->external_name(),
+                           k->class_loader_data()->loader_name_and_id(),
                            error
                            );
       }
@@ -464,6 +480,10 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
     assert(NULL == _methods, "underlying memory not zeroed?");
     assert(is_instance_klass(), "is layout incorrect?");
     assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
+
+    if (DumpSharedSpaces) {
+      SystemDictionaryShared::init_dumptime_info(this);
+    }
 }
 
 void InstanceKlass::deallocate_methods(ClassLoaderData* loader_data,
@@ -610,6 +630,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_metadata(loader_data, annotations());
   }
   set_annotations(NULL);
+
+  if (DumpSharedSpaces) {
+    SystemDictionaryShared::remove_dumptime_info(this);
+  }
 }
 
 bool InstanceKlass::should_be_initialized() const {
@@ -684,7 +708,7 @@ void InstanceKlass::eager_initialize_impl() {
   if (!is_not_initialized()) return;  // note: not equivalent to is_initialized()
 
   ClassState old_state = init_state();
-  link_class_impl(true, THREAD);
+  link_class_impl(THREAD);
   if (HAS_PENDING_EXCEPTION) {
     CLEAR_PENDING_EXCEPTION;
     // Abort if linking the class throws an exception.
@@ -722,26 +746,15 @@ void InstanceKlass::initialize(TRAPS) {
 }
 
 
-bool InstanceKlass::verify_code(bool throw_verifyerror, TRAPS) {
+bool InstanceKlass::verify_code(TRAPS) {
   // 1) Verify the bytecodes
-  Verifier::Mode mode =
-    throw_verifyerror ? Verifier::ThrowException : Verifier::NoException;
-  return Verifier::verify(this, mode, should_verify_class(), THREAD);
-}
-
-
-// Used exclusively by the shared spaces dump mechanism to prevent
-// classes mapped into the shared regions in new VMs from appearing linked.
-
-void InstanceKlass::unlink_class() {
-  assert(is_linked(), "must be linked");
-  _init_state = loaded;
+  return Verifier::verify(this, should_verify_class(), THREAD);
 }
 
 void InstanceKlass::link_class(TRAPS) {
   assert(is_loaded(), "must be loaded");
   if (!is_linked()) {
-    link_class_impl(true, CHECK);
+    link_class_impl(CHECK);
   }
 }
 
@@ -750,12 +763,12 @@ void InstanceKlass::link_class(TRAPS) {
 bool InstanceKlass::link_class_or_fail(TRAPS) {
   assert(is_loaded(), "must be loaded");
   if (!is_linked()) {
-    link_class_impl(false, CHECK_false);
+    link_class_impl(CHECK_false);
   }
   return is_linked();
 }
 
-bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
+bool InstanceKlass::link_class_impl(TRAPS) {
   if (DumpSharedSpaces && is_in_error_state()) {
     // This is for CDS dumping phase only -- we use the in_error_state to indicate that
     // the class has failed verification. Throwing the NoClassDefFoundError here is just
@@ -797,7 +810,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
     }
 
     InstanceKlass* ik_super = InstanceKlass::cast(super_klass);
-    ik_super->link_class_impl(throw_verifyerror, CHECK_false);
+    ik_super->link_class_impl(CHECK_false);
   }
 
   // link all interfaces implemented by this class before linking this class
@@ -805,7 +818,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
   int num_interfaces = interfaces->length();
   for (int index = 0; index < num_interfaces; index++) {
     InstanceKlass* interk = interfaces->at(index);
-    interk->link_class_impl(throw_verifyerror, CHECK_false);
+    interk->link_class_impl(CHECK_false);
   }
 
 
@@ -843,7 +856,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
           Symbol* symb = sig;
           if (ss.is_array()) {
             int i=0;
-            while (sig->byte_at(i) == '[') i++;
+            while (sig->char_at(i) == '[') i++;
             if (i == sig->utf8_length() - 1 ) continue; // primitive array
             symb = SymbolTable::lookup(sig->as_C_string() + i + 1,
                                        sig->utf8_length() - 3, CHECK_false);
@@ -896,7 +909,7 @@ bool InstanceKlass::link_class_impl(bool throw_verifyerror, TRAPS) {
     if (!is_linked()) {
       if (!is_rewritten()) {
         {
-          bool verify_ok = verify_code(throw_verifyerror, THREAD);
+          bool verify_ok = verify_code(THREAD);
           if (!verify_ok) {
             return false;
           }
@@ -1326,14 +1339,7 @@ bool InstanceKlass::is_same_or_direct_interface(Klass *k) const {
 }
 
 objArrayOop InstanceKlass::allocate_objArray(int n, int length, TRAPS) {
-  if (length < 0)  {
-    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
-  }
-  if (length > arrayOopDesc::max_array_length(T_OBJECT)) {
-    report_java_out_of_memory("Requested array size exceeds VM limit");
-    JvmtiExport::post_array_size_exhausted();
-    THROW_OOP_0(Universe::out_of_memory_error_array_size());
-  }
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
   Klass* ak = array_klass(n, CHECK_NULL);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
@@ -1395,7 +1401,6 @@ Klass* InstanceKlass::array_klass_impl(bool or_null, int n, TRAPS) {
     JavaThread *jt = (JavaThread *)THREAD;
     {
       // Atomic creation of array_klasses
-      MutexLocker mc(Compile_lock, THREAD);   // for vtables
       MutexLocker ma(MultiArray_lock, THREAD);
 
       // Check if update has already taken place
@@ -2416,10 +2421,12 @@ void InstanceKlass::remove_unshareable_info() {
     return;
   }
 
-  // Unlink the class
-  if (is_linked()) {
-    unlink_class();
-  }
+  // Reset to the 'allocated' state to prevent any premature accessing to
+  // a shared class at runtime while the class is still being loaded and
+  // restored. A class' init_state is set to 'loaded' at runtime when it's
+  // being added to class hierarchy (see SystemDictionary:::add_to_hierarchy()).
+  _init_state = allocated;
+
   {
     MutexLocker ml(Compile_lock);
     init_implementor();
@@ -2466,6 +2473,10 @@ void InstanceKlass::remove_java_mirror() {
 }
 
 void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
+  // SystemDictionary::add_to_hierarchy() sets the init_state to loaded
+  // before the InstanceKlass is added to the SystemDictionary. Make
+  // sure the current state is <loaded.
+  assert(!is_loaded(), "invalid init state");
   set_package(loader_data, CHECK);
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
 
@@ -2533,7 +2544,10 @@ static void clear_all_breakpoints(Method* m) {
 }
 #endif
 
-void InstanceKlass::notify_unload_class(InstanceKlass* ik) {
+void InstanceKlass::unload_class(InstanceKlass* ik) {
+  // Release dependencies.
+  ik->dependencies().remove_all_dependents();
+
   // notify the debugger
   if (JvmtiExport::should_post_class_unload()) {
     JvmtiExport::post_class_unload(ik);
@@ -2578,16 +2592,8 @@ void InstanceKlass::release_C_heap_structures() {
     FreeHeap(jmeths);
   }
 
-  // Release dependencies.
-  // It is desirable to use DC::remove_all_dependents() here, but, unfortunately,
-  // it is not safe (see JDK-8143408). The problem is that the klass dependency
-  // context can contain live dependencies, since there's a race between nmethod &
-  // klass unloading. If the klass is dead when nmethod unloading happens, relevant
-  // dependencies aren't removed from the context associated with the class (see
-  // nmethod::flush_dependencies). It ends up during klass unloading as seemingly
-  // live dependencies pointing to unloaded nmethods and causes a crash in
-  // DC::remove_all_dependents() when it touches unloaded nmethod.
-  dependencies().wipe();
+  assert(_dep_context == DependencyContext::EMPTY,
+         "dependencies should already be cleaned");
 
 #if INCLUDE_JVMTI
   // Deallocate breakpoint records
@@ -2879,48 +2885,6 @@ void InstanceKlass::check_prohibited_package(Symbol* class_name,
     }
   }
   return;
-}
-
-// tell if two classes have the same enclosing class (at package level)
-bool InstanceKlass::is_same_package_member(const Klass* class2, TRAPS) const {
-  if (class2 == this) return true;
-  if (!class2->is_instance_klass())  return false;
-
-  // must be in same package before we try anything else
-  if (!is_same_class_package(class2))
-    return false;
-
-  // As long as there is an outer_this.getEnclosingClass,
-  // shift the search outward.
-  const InstanceKlass* outer_this = this;
-  for (;;) {
-    // As we walk along, look for equalities between outer_this and class2.
-    // Eventually, the walks will terminate as outer_this stops
-    // at the top-level class around the original class.
-    bool ignore_inner_is_member;
-    const Klass* next = outer_this->compute_enclosing_class(&ignore_inner_is_member,
-                                                            CHECK_false);
-    if (next == NULL)  break;
-    if (next == class2)  return true;
-    outer_this = InstanceKlass::cast(next);
-  }
-
-  // Now do the same for class2.
-  const InstanceKlass* outer2 = InstanceKlass::cast(class2);
-  for (;;) {
-    bool ignore_inner_is_member;
-    Klass* next = outer2->compute_enclosing_class(&ignore_inner_is_member,
-                                                    CHECK_false);
-    if (next == NULL)  break;
-    // Might as well check the new outer against all available values.
-    if (next == this)  return true;
-    if (next == outer_this)  return true;
-    outer2 = InstanceKlass::cast(next);
-  }
-
-  // If by this point we have not found an equality between the
-  // two classes, we know they are in separate package members.
-  return false;
 }
 
 bool InstanceKlass::find_inner_classes_attr(int* ooff, int* noff, TRAPS) const {

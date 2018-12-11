@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,10 @@ public class CDSOptions {
     public String archiveName;
     public ArrayList<String> prefix = new ArrayList<String>();
     public ArrayList<String> suffix = new ArrayList<String>();
+    public boolean useSystemArchive = false;
+
+    // classes to be archived
+    public String[] classList;
 
     // Indicate whether to append "-version" when using CDS Archive.
     // Most of tests will use '-version'
@@ -68,4 +72,21 @@ public class CDSOptions {
         this.useVersion = use;
         return this;
     }
+
+    public CDSOptions setUseSystemArchive(boolean use) {
+        this.useSystemArchive = use;
+        return this;
+    }
+
+    public CDSOptions setClassList(String[] list) {
+        this.classList = list;
+        return this;
+    }
+    public CDSOptions setClassList(ArrayList<String> list) {
+        String array[] = new String[list.size()];
+        list.toArray(array);
+        this.classList = array;
+        return this;
+    }
+
 }

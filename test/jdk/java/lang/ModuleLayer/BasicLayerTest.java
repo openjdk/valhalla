@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,10 @@
 
 /**
  * @test
- * @library /lib/testlibrary
- * @modules java.base/jdk.internal.misc
- * @build BasicLayerTest ModuleUtils
+ * @library /test/lib
+ * @modules java.base/jdk.internal.access
+ * @build BasicLayerTest
+ *        jdk.test.lib.util.ModuleUtils
  * @compile layertest/Test.java
  * @run testng BasicLayerTest
  * @summary Basic tests for java.lang.ModuleLayer
@@ -37,11 +38,12 @@ import java.lang.module.ModuleDescriptor.Requires;
 import java.lang.module.ModuleFinder;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import jdk.internal.misc.SharedSecrets;
+import jdk.test.lib.util.ModuleUtils;
+
+import jdk.internal.access.SharedSecrets;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

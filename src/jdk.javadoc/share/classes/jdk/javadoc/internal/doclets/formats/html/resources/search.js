@@ -132,30 +132,24 @@ $.widget("custom.catcomplete", $.ui.autocomplete, {
         } else {
             label = item.l;
         }
-        $li = $("<li/>").appendTo(ul);
+        var li = $("<li/>").appendTo(ul);
         if (item.category === catSearchTags) {
             if (item.d) {
-                $("<a/>").attr("href", "#")
-                        .html(label + "<span class=\"searchTagHolderResult\"> (" + item.h + ")</span><br><span class=\"searchTagDescResult\">"
-                                + item.d + "</span><br>")
-                        .appendTo($li);
+                li.html(label + "<span class=\"searchTagHolderResult\"> (" + item.h + ")</span><br><span class=\"searchTagDescResult\">"
+                                + item.d + "</span><br>");
             } else {
-                $("<a/>").attr("href", "#")
-                        .html(label + "<span class=\"searchTagHolderResult\"> (" + item.h + ")</span>")
-                        .appendTo($li);
+                li.html(label + "<span class=\"searchTagHolderResult\"> (" + item.h + ")</span>");
             }
         } else {
-            $("<a/>").attr("href", "#")
-                    .html(label)
-                    .appendTo($li);
+            li.html(label);
         }
-        return $li;
+        return li;
     }
 });
 $(function() {
     $("#search").catcomplete({
         minLength: 1,
-        delay: 100,
+        delay: 300,
         source: function(request, response) {
             var result = new Array();
             var presult = new Array();
@@ -328,6 +322,7 @@ $(function() {
                 } else {
                     window.location.href = pathtoroot + url;
                 }
+                $("#search").focus();
             }
         }
     });

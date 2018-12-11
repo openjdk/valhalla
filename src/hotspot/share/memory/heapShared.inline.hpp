@@ -27,10 +27,17 @@
 
 #include "oops/compressedOops.inline.hpp"
 #include "memory/heapShared.hpp"
+#if INCLUDE_G1GC
+#include "gc/g1/g1Allocator.inline.hpp"
+#endif
 
 #if INCLUDE_CDS_JAVA_HEAP
 
-inline oop HeapShared::decode_with_archived_oop_encoding_mode(narrowOop v) {
+bool HeapShared::is_archived_object(oop p) {
+  return (p == NULL) ? false : G1ArchiveAllocator::is_archived_object(p);
+}
+
+inline oop HeapShared::decode_from_archive(narrowOop v) {
   assert(!CompressedOops::is_null(v), "narrow oop value can never be zero");
   oop result = (oop)(void*)((uintptr_t)_narrow_oop_base + ((uintptr_t)v << _narrow_oop_shift));
   assert(check_obj_alignment(result), "address not aligned: " INTPTR_FORMAT, p2i((void*) result));

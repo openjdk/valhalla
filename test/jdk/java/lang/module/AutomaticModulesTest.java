@@ -23,8 +23,10 @@
 
 /**
  * @test
- * @library /lib/testlibrary
- * @build AutomaticModulesTest ModuleUtils JarUtils
+ * @library /test/lib
+ * @build AutomaticModulesTest
+ *        jdk.test.lib.util.JarUtils
+ *        jdk.test.lib.util.ModuleUtils
  * @run testng AutomaticModulesTest
  * @summary Basic tests for automatic modules
  */
@@ -47,6 +49,9 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import jdk.test.lib.util.JarUtils;
+import jdk.test.lib.util.ModuleUtils;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;

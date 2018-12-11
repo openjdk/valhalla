@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "jfr/leakprofiler/utilities/saveRestore.hpp"
 #include "oops/oop.inline.hpp"
 
@@ -69,12 +69,12 @@ CLDClaimContext::CLDClaimContext() : _cld(NULL) {}
 
 CLDClaimContext::CLDClaimContext(ClassLoaderData* cld) : _cld(cld) {
   assert(_cld->claimed(), "invariant");
-  _cld->clear_claimed();
+  _cld->clear_claim();
 }
 
 CLDClaimContext::~CLDClaimContext() {
   if (_cld != NULL) {
-    _cld->claim();
+    _cld->try_claim(ClassLoaderData::_claim_strong);
     assert(_cld->claimed(), "invariant");
   }
 }
@@ -103,6 +103,7 @@ void CLDClaimStateClosure::do_cld(ClassLoaderData* cld) {
 }
 
 SaveRestoreCLDClaimBits::SaveRestoreCLDClaimBits() : _claim_state_closure() {
+  // interferes with GC, so walk all oops that GC would.
   ClassLoaderDataGraph::cld_do(&_claim_state_closure);
 }
 

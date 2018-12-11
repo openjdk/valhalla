@@ -158,6 +158,9 @@ class nmethod : public CompiledMethod {
   // counter is decreased (by 1) while sweeping.
   int _hotness_counter;
 
+  // Local state used to keep track of whether unloading is happening or not
+  volatile uint8_t _is_unloading_state;
+
   // These are used for compiled synchronized native methods to
   // locate the owner and stack slot for the BasicLock so that we can
   // properly revoke the bias of the owner if necessary. They are
@@ -323,6 +326,10 @@ class nmethod : public CompiledMethod {
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
 
+  void clear_unloading_state();
+  virtual bool is_unloading();
+  virtual void do_unloading(bool unloading_occurred);
+
 #if INCLUDE_RTM_OPT
   // rtm state accessing and manipulating
   RTMState  rtm_state() const                     { return _rtm_state; }
@@ -349,7 +356,7 @@ class nmethod : public CompiledMethod {
     return _state;
   }
 
-  void  make_unloaded(oop cause);
+  void  make_unloaded();
 
   bool has_dependencies()                         { return dependencies_size() != 0; }
   void flush_dependencies(bool delete_immediately);
@@ -363,7 +370,7 @@ class nmethod : public CompiledMethod {
 
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
-  oop   oop_at(int index) const                   { return index == 0 ? (oop) NULL: *oop_addr_at(index); }
+  oop   oop_at(int index) const;
   oop*  oop_addr_at(int index) const {  // for GC
     // relocation indexes are biased by 1 (because 0 is reserved)
     assert(index > 0 && index <= oops_count(), "must be a valid non-zero index");
@@ -483,20 +490,6 @@ public:
  public:
 #endif
 
- protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive);
-#if INCLUDE_JVMCI
-  // See comment for _jvmci_installed_code_triggers_invalidation field.
-  // Returns whether this nmethod was unloaded.
-  virtual bool do_unloading_jvmci();
-#endif
-
- private:
-  bool do_unloading_scopes(BoolObjectClosure* is_alive);
-  //  Unload a nmethod if the *root object is dead.
-  bool can_unload(BoolObjectClosure* is_alive, oop* root);
-  bool unload_if_dead_at(RelocIterator *iter_at_oop, BoolObjectClosure* is_alive);
-
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
   void oops_do(OopClosure* f, bool allow_zombie);
@@ -555,7 +548,7 @@ public:
   // Logging
   void log_identity(xmlStream* log) const;
   void log_new_nmethod() const;
-  void log_state_change(oop cause = NULL) const;
+  void log_state_change() const;
 
   // Prints block-level comments, including nmethod specific block labels:
   virtual void print_block_comment(outputStream* stream, address block_begin) const {

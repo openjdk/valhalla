@@ -328,13 +328,6 @@ static Klass* basic_type_mirror_to_arrayklass(oop basic_type_mirror, TRAPS) {
   }
 }
 
-#ifdef ASSERT
-static oop basic_type_arrayklass_to_mirror(Klass* basic_type_arrayklass, TRAPS) {
-  BasicType type = TypeArrayKlass::cast(basic_type_arrayklass)->element_type();
-  return Universe::java_mirror(type);
-}
-#endif
-
 arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
   if (element_mirror == NULL) {
     THROW_0(vmSymbols::java_lang_NullPointerException());
@@ -397,35 +390,6 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
   return arrayOop(obj);
 }
 
-
-oop Reflection::array_component_type(oop mirror, TRAPS) {
-  if (java_lang_Class::is_primitive(mirror)) {
-    return NULL;
-  }
-
-  Klass* klass = java_lang_Class::as_Klass(mirror);
-  if (!klass->is_array_klass()) {
-    return NULL;
-  }
-
-  oop result = java_lang_Class::component_mirror(mirror);
-#ifdef ASSERT
-  oop result2 = NULL;
-  if (ArrayKlass::cast(klass)->dimension() == 1) {
-    if (klass->is_typeArray_klass()) {
-      result2 = basic_type_arrayklass_to_mirror(klass, CHECK_NULL);
-    } else {
-      result2 = ObjArrayKlass::cast(klass)->element_klass()->java_mirror();
-    }
-  } else {
-    Klass* lower_dim = ArrayKlass::cast(klass)->lower_dimension();
-    assert(lower_dim->is_array_klass(), "just checking");
-    result2 = lower_dim->java_mirror();
-  }
-  assert(oopDesc::equals(result, result2), "results must be consistent");
-#endif //ASSERT
-  return result;
-}
 
 static bool under_unsafe_anonymous_host(const InstanceKlass* ik, const InstanceKlass* unsafe_anonymous_host) {
   DEBUG_ONLY(int inf_loop_check = 1000 * 1000 * 1000);
@@ -505,7 +469,8 @@ Reflection::VerifyClassAccessResults Reflection::verify_class_access(
   }
   // Allow all accesses from jdk/internal/reflect/MagicAccessorImpl subclasses to
   // succeed trivially.
-  if (current_class->is_subclass_of(SystemDictionary::reflect_MagicAccessorImpl_klass())) {
+  if (SystemDictionary::reflect_MagicAccessorImpl_klass_is_loaded() &&
+      current_class->is_subclass_of(SystemDictionary::reflect_MagicAccessorImpl_klass())) {
     return ACCESS_OK;
   }
 
@@ -752,10 +717,12 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
   InnerClassesIterator iter(outer);
   constantPoolHandle cp   (THREAD, outer->constants());
   for (; !iter.done(); iter.next()) {
-     int ioff = iter.inner_class_info_index();
-     int ooff = iter.outer_class_info_index();
+    int ioff = iter.inner_class_info_index();
+    int ooff = iter.outer_class_info_index();
 
-     if (inner_is_member && ioff != 0 && ooff != 0) {
+    if (inner_is_member && ioff != 0 && ooff != 0) {
+      if (cp->klass_name_at_matches(outer, ooff) &&
+          cp->klass_name_at_matches(inner, ioff)) {
         Klass* o = cp->klass_at(ooff, CHECK);
         if (o == outer) {
           Klass* i = cp->klass_at(ioff, CHECK);
@@ -763,14 +730,16 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
             return;
           }
         }
-     }
-     if (!inner_is_member && ioff != 0 && ooff == 0 &&
-         cp->klass_name_at_matches(inner, ioff)) {
-        Klass* i = cp->klass_at(ioff, CHECK);
-        if (i == inner) {
-          return;
-        }
-     }
+      }
+    }
+
+    if (!inner_is_member && ioff != 0 && ooff == 0 &&
+        cp->klass_name_at_matches(inner, ioff)) {
+      Klass* i = cp->klass_at(ioff, CHECK);
+      if (i == inner) {
+        return;
+      }
+    }
   }
 
   // 'inner' not declared as an inner klass in outer
@@ -910,28 +879,17 @@ oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_ac
   java_lang_reflect_Method::set_exception_types(mh(), exception_types());
   java_lang_reflect_Method::set_modifiers(mh(), modifiers);
   java_lang_reflect_Method::set_override(mh(), false);
-  if (java_lang_reflect_Method::has_signature_field() &&
-      method->generic_signature() != NULL) {
+  if (method->generic_signature() != NULL) {
     Symbol*  gs = method->generic_signature();
     Handle sig = java_lang_String::create_from_symbol(gs, CHECK_NULL);
     java_lang_reflect_Method::set_signature(mh(), sig());
   }
-  if (java_lang_reflect_Method::has_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
-    java_lang_reflect_Method::set_annotations(mh(), an_oop);
-  }
-  if (java_lang_reflect_Method::has_parameter_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
-    java_lang_reflect_Method::set_parameter_annotations(mh(), an_oop);
-  }
-  if (java_lang_reflect_Method::has_annotation_default_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->annotation_default(), CHECK_NULL);
-    java_lang_reflect_Method::set_annotation_default(mh(), an_oop);
-  }
-  if (java_lang_reflect_Method::has_type_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->type_annotations(), CHECK_NULL);
-    java_lang_reflect_Method::set_type_annotations(mh(), an_oop);
-  }
+  typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
+  java_lang_reflect_Method::set_annotations(mh(), an_oop);
+  an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
+  java_lang_reflect_Method::set_parameter_annotations(mh(), an_oop);
+  an_oop = Annotations::make_java_array(method->annotation_default(), CHECK_NULL);
+  java_lang_reflect_Method::set_annotation_default(mh(), an_oop);
   return mh();
 }
 
@@ -960,24 +918,15 @@ oop Reflection::new_constructor(const methodHandle& method, TRAPS) {
   java_lang_reflect_Constructor::set_exception_types(ch(), exception_types());
   java_lang_reflect_Constructor::set_modifiers(ch(), modifiers);
   java_lang_reflect_Constructor::set_override(ch(), false);
-  if (java_lang_reflect_Constructor::has_signature_field() &&
-      method->generic_signature() != NULL) {
+  if (method->generic_signature() != NULL) {
     Symbol*  gs = method->generic_signature();
     Handle sig = java_lang_String::create_from_symbol(gs, CHECK_NULL);
     java_lang_reflect_Constructor::set_signature(ch(), sig());
   }
-  if (java_lang_reflect_Constructor::has_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
-    java_lang_reflect_Constructor::set_annotations(ch(), an_oop);
-  }
-  if (java_lang_reflect_Constructor::has_parameter_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
-    java_lang_reflect_Constructor::set_parameter_annotations(ch(), an_oop);
-  }
-  if (java_lang_reflect_Constructor::has_type_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(method->type_annotations(), CHECK_NULL);
-    java_lang_reflect_Constructor::set_type_annotations(ch(), an_oop);
-  }
+  typeArrayOop an_oop = Annotations::make_java_array(method->annotations(), CHECK_NULL);
+  java_lang_reflect_Constructor::set_annotations(ch(), an_oop);
+  an_oop = Annotations::make_java_array(method->parameter_annotations(), CHECK_NULL);
+  java_lang_reflect_Constructor::set_parameter_annotations(ch(), an_oop);
   return ch();
 }
 
@@ -1005,20 +954,13 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   }
   java_lang_reflect_Field::set_modifiers(rh(), modifiers);
   java_lang_reflect_Field::set_override(rh(), false);
-  if (java_lang_reflect_Field::has_signature_field() &&
-      fd->has_generic_signature()) {
+  if (fd->has_generic_signature()) {
     Symbol*  gs = fd->generic_signature();
     Handle sig = java_lang_String::create_from_symbol(gs, CHECK_NULL);
     java_lang_reflect_Field::set_signature(rh(), sig());
   }
-  if (java_lang_reflect_Field::has_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(fd->annotations(), CHECK_NULL);
-    java_lang_reflect_Field::set_annotations(rh(), an_oop);
-  }
-  if (java_lang_reflect_Field::has_type_annotations_field()) {
-    typeArrayOop an_oop = Annotations::make_java_array(fd->type_annotations(), CHECK_NULL);
-    java_lang_reflect_Field::set_type_annotations(rh(), an_oop);
-  }
+  typeArrayOop an_oop = Annotations::make_java_array(fd->annotations(), CHECK_NULL);
+  java_lang_reflect_Field::set_annotations(rh(), an_oop);
   return rh();
 }
 

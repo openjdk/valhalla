@@ -107,7 +107,7 @@ void Parse::array_load(BasicType bt) {
       alloc->initialization()->set_complete_with_arraycopy();
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       // Unknown value type so might have reference fields
-      if (!bs->array_copy_requires_gc_barriers(T_OBJECT)) {
+      if (!bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing)) {
         int base_off = sizeof(instanceOopDesc);
         Node* dst_base = basic_plus_adr(alloc_obj, base_off);
         Node* countx = obj_size;
@@ -123,7 +123,7 @@ void Parse::array_load(BasicType bt) {
         Node* scale = _gvn.transform(new LShiftXNode(idx, elem_shift));
         Node* adr = basic_plus_adr(ary, base, scale);
 
-        access_clone(control(), adr, dst_base, countx, false);
+        access_clone(adr, dst_base, countx, false);
       } else {
         ideal.sync_kit(this);
         ideal.make_leaf_call(OptoRuntime::load_unknown_value_Type(),
@@ -218,7 +218,7 @@ void Parse::array_store(BasicType bt) {
 
           const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
           elemtype = ary_t->elem()->make_oopptr();
-          access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          access_store_at(ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           ideal.sync_kit(this);
         } ideal.else_(); {
           // flattened
@@ -272,7 +272,7 @@ void Parse::array_store(BasicType bt) {
 
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
 
-  access_store_at(control(), ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+  access_store_at(ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }
 
 
@@ -1514,7 +1514,7 @@ float Parse::dynamic_branch_prediction(float &cnt, BoolTest::mask btest, Node* t
     if (prob <= PROB_MIN)  prob_str = (prob == PROB_MIN) ? "min" : "never";
     char prob_str_buf[30];
     if (prob_str == NULL) {
-      sprintf(prob_str_buf, "%g", prob);
+      jio_snprintf(prob_str_buf, sizeof(prob_str_buf), "%20.2f", prob);
       prob_str = prob_str_buf;
     }
     C->log()->elem("branch target_bci='%d' taken='%d' not_taken='%d' cnt='%f' prob='%s'",
@@ -3036,8 +3036,8 @@ void Parse::do_one_bytecode() {
   handle_if_acmp:
     // If this is a backwards branch in the bytecodes, add Safepoint
     maybe_add_safepoint(iter().get_dest());
-    a = pop();
-    b = pop();
+    a = access_resolve(pop(), 0);
+    b = access_resolve(pop(), 0);
     do_acmp(btest, a, b);
     break;
 
@@ -3147,7 +3147,7 @@ void Parse::do_one_bytecode() {
   IdealGraphPrinter *printer = C->printer();
   if (printer && printer->should_print(1)) {
     char buffer[256];
-    sprintf(buffer, "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
+    jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();
     printer->set_traverse_outs(true);
     printer->print_method(buffer, 4);

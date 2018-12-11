@@ -145,7 +145,7 @@ DEF_JNI_OnLoad(JavaVM *jvm, void *reserved) {
     return JNI_ERR;
   }
   CLS_GSSNameElement = (*env)->NewGlobalRef(env, cls);
-  if (CLS_GSSException == NULL) {
+  if (CLS_GSSNameElement == NULL) {
     return JNI_ERR;
   }
   cls = (*env)->FindClass(env, "sun/security/jgss/wrapper/GSSCredElement");
@@ -724,17 +724,14 @@ jobject getJavaOID(JNIEnv *env, gss_OID cOid) {
   if (jbytes == NULL) {
     return NULL;
   }
-  (*env)->SetByteArrayRegion(env, jbytes, 0, 2, (jbyte *) oidHdr);
-  if ((*env)->ExceptionCheck(env)) {
-    return NULL;
+  if (!(*env)->ExceptionCheck(env)) {
+    (*env)->SetByteArrayRegion(env, jbytes, 0, 2, (jbyte *) oidHdr);
   }
-  (*env)->SetByteArrayRegion(env, jbytes, 2, cLen, (jbyte *) cOid->elements);
-  if ((*env)->ExceptionCheck(env)) {
-    return NULL;
+  if (!(*env)->ExceptionCheck(env)) {
+    (*env)->SetByteArrayRegion(env, jbytes, 2, cLen, (jbyte *) cOid->elements);
   }
-  result = (*env)->NewObject(env, CLS_Oid, MID_Oid_ctor1, jbytes);
-  if ((*env)->ExceptionCheck(env)) {
-    return NULL;
+  if (!(*env)->ExceptionCheck(env)) {
+    result = (*env)->NewObject(env, CLS_Oid, MID_Oid_ctor1, jbytes);
   }
   (*env)->DeleteLocalRef(env, jbytes);
   return result;

@@ -37,9 +37,7 @@
    frame within FieldAccess/FieldModification callback.
 
 */
-#ifdef __cplusplus
 extern "C" {
-#endif
 #define DIR_NAME "newclass"
 #define PATH_FORMAT "%s%02d/%s"
 
@@ -62,21 +60,18 @@ JNIEXPORT void JNICALL callbackClassPrepare(jvmtiEnv *jvmti_env,
     redefineNumber=0;
     className=NULL;
     generic=NULL;
-    if ( ! NSK_JVMTI_VERIFY ( NSK_CPP_STUB4(GetClassSignature,
-                    jvmti_env, klass, &className, &generic) ) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetClassSignature(klass, &className, &generic))) {
         nsk_printf("#error Agent :: while getting classname Signature.\n");
         nsk_jvmti_agentFailed();
     } else {
         if (strcmp(className,CLASS_NAME) == 0) {
             jfieldID field;
             /* get the field id and set watch on that .*/
-            if (! NSK_JNI_VERIFY(jni, (field = NSK_CPP_STUB4(GetFieldID,
-                                jni, klass, FIELDNAME, TYPE)) != NULL) ) {
-                nsk_printf(" Agent :: (*JNI)->GetFieldID(jni, ... ) returns `null`.\n");
+            if (!NSK_JNI_VERIFY(jni, (field = jni->GetFieldID(klass, FIELDNAME, TYPE)) != NULL)) {
+                nsk_printf(" Agent :: (*JNI)->GetFieldID(jni, ...) returns `null`.\n");
                 nsk_jvmti_agentFailed();
-            } else  if ( ! NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetFieldAccessWatch,
-                            jvmti_env, klass, field) ) ) {
-                nsk_printf("#error Agent :: occured while jvmti->SetFieldAccessWatch(... ) .\n");
+            } else  if (!NSK_JVMTI_VERIFY(jvmti_env->SetFieldAccessWatch(klass, field))) {
+                nsk_printf("#error Agent :: occured while jvmti->SetFieldAccessWatch(...) .\n");
                 nsk_jvmti_agentFailed();
             }
         }
@@ -98,20 +93,20 @@ JNIEXPORT void JNICALL callbackFieldAccess(jvmtiEnv *jvmti_env,
         return;
     }
     redefineNumber=0;
-    if (! NSK_JNI_VERIFY(jni, (clas = NSK_CPP_STUB2(FindClass, jni, SEARCH_NAME)) != NULL) ) {
+    if (!NSK_JNI_VERIFY(jni, (clas = jni->FindClass(SEARCH_NAME)) != NULL)) {
         nsk_printf(" Agent :: (*JNI)->FindClass(jni, %s) returns `null`.\n",SEARCH_NAME);
         nsk_jvmti_agentFailed();
     } else  {
         nsk_jvmti_getFileName(redefineNumber, FILE_NAME, fileName,
                                 sizeof(fileName)/sizeof(char));
-        if ( nsk_jvmti_redefineClass(jvmti_env, clas, fileName ) != NSK_TRUE) {
+        if (nsk_jvmti_redefineClass(jvmti_env, clas, fileName) != NSK_TRUE) {
             nsk_printf(" Agent :: Failed to redefine.\n");
             nsk_jvmti_agentFailed();
         } else {
             nsk_printf(" Agent :: Redefined.\n");
             nsk_printf(" Agent :: Suspendeding thread.\n");
             /* pop the current working frame. */
-            if ( ! NSK_JVMTI_VERIFY( NSK_CPP_STUB2(SuspendThread, jvmti_env, thread) ) ) {
+            if (!NSK_JVMTI_VERIFY(jvmti_env->SuspendThread(thread))) {
                 nsk_printf("#error Agent :: occured suspending Thread.\n");
                 nsk_jvmti_agentFailed();
             } else {
@@ -133,14 +128,13 @@ JNIEXPORT jint JNI_OnLoad_hs203t003(JavaVM *jvm, char *options, void *reserved) 
 }
 #endif
 jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
-    if ( ! NSK_VERIFY ( JNI_OK == NSK_CPP_STUB3(GetEnv, vm,
-                    (void **)&jvmti, JVMTI_VERSION_1_1) ) ) {
+    if (!NSK_VERIFY(JNI_OK == vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1))) {
         nsk_printf(" Agent :: Could not load JVMTI interface.\n");
         return JNI_ERR;
     } else {
         jvmtiCapabilities caps;
         jvmtiEventCallbacks eventCallbacks;
-        if (nsk_jvmti_parseOptions(options) == NSK_FALSE ) {
+        if (nsk_jvmti_parseOptions(options) == NSK_FALSE) {
             nsk_printf("#error Agent :: Failed to parse options.\n");
             return JNI_ERR;
         }
@@ -150,23 +144,21 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
         caps.can_pop_frame=1;
         caps.can_generate_all_class_hook_events=1;
         caps.can_generate_field_access_events=1;
-        if (! NSK_JVMTI_VERIFY ( NSK_CPP_STUB2(AddCapabilities, jvmti, &caps) )) {
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
             nsk_printf("#error Agent :: while adding capabilities.\n");
             return JNI_ERR;
         }
         memset(&eventCallbacks, 0, sizeof(eventCallbacks));
         eventCallbacks.ClassPrepare =callbackClassPrepare;
         eventCallbacks.FieldAccess= callbackFieldAccess;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                    &eventCallbacks, sizeof(eventCallbacks)))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             nsk_printf("#error Agent :: while setting event callbacks.\n");
             return JNI_ERR;
         }
-        if ( ( nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_CLASS_PREPARE, NULL)
-                    == NSK_TRUE ) &&
-                ( nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_FIELD_ACCESS, NULL)
-                  == NSK_TRUE )  ) {
+        if ((nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_CLASS_PREPARE, NULL)
+                    == NSK_TRUE) &&
+                (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_FIELD_ACCESS, NULL)
+                  == NSK_TRUE)) {
             nsk_printf(" Agent :: Notifications are enabled.\n");
         } else {
             nsk_printf("#error Agent :: Eanableing Notifications.\n");
@@ -176,6 +168,23 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     return JNI_OK;
 }
 
+JNIEXPORT jboolean JNICALL
+Java_nsk_jvmti_scenarios_hotswap_HS203_hs203t003_hs203t003_isSuspended(JNIEnv * jni,
+        jclass clas,
+        jthread thread) {
+    jboolean retvalue;
+    jint state;
+    retvalue = JNI_FALSE;
+    if (!NSK_JVMTI_VERIFY(jvmti->GetThreadState(thread, &state))) {
+        nsk_printf(" Agent :: Error while getting thread state.\n");
+        nsk_jvmti_agentFailed();
+    } else {
+        if (state & JVMTI_THREAD_STATE_SUSPENDED) {
+          retvalue = JNI_TRUE;
+        }
+    }
+    return retvalue;
+}
 
 JNIEXPORT jboolean JNICALL
 Java_nsk_jvmti_scenarios_hotswap_HS203_hs203t003_hs203t003_popThreadFrame(JNIEnv * jni,
@@ -184,18 +193,18 @@ Java_nsk_jvmti_scenarios_hotswap_HS203_hs203t003_hs203t003_popThreadFrame(JNIEnv
     jboolean retvalue;
     jint state;
     retvalue = JNI_FALSE;
-    if ( ! NSK_JVMTI_VERIFY( NSK_CPP_STUB3(GetThreadState, jvmti, thread, &state) )  ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetThreadState(thread, &state))) {
         nsk_printf(" Agent :: Error while getting thread state.\n");
         nsk_jvmti_agentFailed();
     } else {
-        if ( state & JVMTI_THREAD_STATE_SUSPENDED) {
-            if ( ! NSK_JVMTI_VERIFY ( NSK_CPP_STUB2( PopFrame, jvmti, thread) ) ) {
+        if (state & JVMTI_THREAD_STATE_SUSPENDED) {
+            if (!NSK_JVMTI_VERIFY(jvmti->PopFrame(thread))) {
                 nsk_printf("#error Agent :: while poping thread's frame.\n");
                 nsk_jvmti_agentFailed();
             } else {
                 nsk_printf(" Agent :: poped thread frame.\n");
-                if ( ! NSK_JVMTI_VERIFY ( NSK_CPP_STUB4 (SetEventNotificationMode, jvmti,
-                                JVMTI_DISABLE, JVMTI_EVENT_FIELD_ACCESS, NULL) ) ) {
+                if (!NSK_JVMTI_VERIFY(
+                        jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_FIELD_ACCESS, NULL))) {
                     nsk_printf("#error Agent :: failed to disable notification JVMTI_EVENT_FIELD ACCESS.\n");
                     nsk_jvmti_agentFailed();
                 } else {
@@ -217,7 +226,7 @@ Java_nsk_jvmti_scenarios_hotswap_HS203_hs203t003_hs203t003_resumeThread(JNIEnv *
         jthread thread) {
     jboolean retvalue;
     retvalue = JNI_FALSE;
-    if ( !NSK_JVMTI_VERIFY( NSK_CPP_STUB2 ( ResumeThread, jvmti, thread)) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(thread))) {
         nsk_printf("#error Agent :: while resuming thread.\n");
         nsk_jvmti_agentFailed();
     } else {
@@ -227,6 +236,4 @@ Java_nsk_jvmti_scenarios_hotswap_HS203_hs203t003_hs203t003_resumeThread(JNIEnv *
     return retvalue;
 }
 
-#ifdef __cplusplus
 }
-#endif

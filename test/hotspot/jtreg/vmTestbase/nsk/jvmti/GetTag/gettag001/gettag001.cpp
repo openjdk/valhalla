@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -63,7 +61,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY1("Find debugee class: %s\n", DEBUGEE_CLASS_NAME);
             if (!NSK_JNI_VERIFY(jni, (debugeeClass =
-                    NSK_CPP_STUB2(FindClass, jni, DEBUGEE_CLASS_NAME)) != NULL)) {
+                    jni->FindClass(DEBUGEE_CLASS_NAME)) != NULL)) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -71,8 +69,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY1("Find static field: %s\n", OBJECT_FIELD_NAME);
             if (!NSK_JNI_VERIFY(jni, (objectField =
-                    NSK_CPP_STUB4(GetStaticFieldID, jni, debugeeClass,
-                                    OBJECT_FIELD_NAME, OBJECT_CLASS_SIG)) != NULL)) {
+                    jni->GetStaticFieldID(debugeeClass, OBJECT_FIELD_NAME, OBJECT_CLASS_SIG)) != NULL)) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -80,8 +77,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY1("Get object from static field: %s\n", OBJECT_FIELD_NAME);
             if (!NSK_JNI_VERIFY(jni, (testedObject =
-                    NSK_CPP_STUB3(GetStaticObjectField, jni, debugeeClass,
-                                                            objectField)) != NULL)) {
+                    jni->GetStaticObjectField(debugeeClass, objectField)) != NULL)) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -89,7 +85,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY1("Create global reference for object: 0x%p\n", (void*)testedObject);
             if (!NSK_JNI_VERIFY(jni, (testedObject =
-                    NSK_CPP_STUB2(NewGlobalRef, jni, testedObject)) != NULL)) {
+                    jni->NewGlobalRef(testedObject)) != NULL)) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -102,7 +98,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY1("Get tag for object: 0x%p\n", (void*)testedObject);
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB3(GetTag, jvmti, testedObject, &objectTag))) {
+                    jvmti->GetTag(testedObject, &objectTag))) {
                 nsk_jvmti_setFailStatus();
                 return;
             }
@@ -122,7 +118,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         NSK_DISPLAY0(">>> Clean used data\n");
         {
             NSK_DISPLAY1("Delete object reference: 0x%p\n", (void*)testedObject);
-            NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, testedObject));
+            NSK_TRACE(jni->DeleteGlobalRef(testedObject));
         }
     }
 
@@ -166,7 +162,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&caps, 0, sizeof(caps));
         caps.can_tag_objects = 1;
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+                jvmti->AddCapabilities(&caps))) {
             return JNI_ERR;
         }
     }
@@ -180,6 +176,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

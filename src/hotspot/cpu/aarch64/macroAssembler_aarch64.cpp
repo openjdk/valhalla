@@ -288,10 +288,6 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
   return address(((uint64_t)insn_addr + (offset << 2)));
 }
 
-void MacroAssembler::serialize_memory(Register thread, Register tmp) {
-  dsb(Assembler::SY);
-}
-
 void MacroAssembler::safepoint_poll(Label& slow_path) {
   if (SafepointMechanism::uses_thread_local_poll()) {
     ldr(rscratch1, Address(rthread, Thread::polling_page_offset()));
@@ -820,6 +816,15 @@ address MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
 
   end_a_stub();
   return stub_start_addr;
+}
+
+void MacroAssembler::c2bool(Register x) {
+  // implements x == 0 ? 0 : 1
+  // note: must only look at least-significant byte of x
+  //       since C-style booleans are stored in one byte
+  //       only! (was bug)
+  tst(x, 0xff);
+  cset(x, Assembler::NE);
 }
 
 address MacroAssembler::ic_call(address entry, jint method_index) {
@@ -1496,7 +1501,7 @@ void MacroAssembler::movptr(Register r, uintptr_t imm64) {
 #ifndef PRODUCT
   {
     char buffer[64];
-    snprintf(buffer, sizeof(buffer), "0x%"PRIX64, imm64);
+    snprintf(buffer, sizeof(buffer), "0x%" PRIX64, imm64);
     block_comment(buffer);
   }
 #endif
@@ -1559,7 +1564,7 @@ void MacroAssembler::mov_immediate64(Register dst, u_int64_t imm64)
 #ifndef PRODUCT
   {
     char buffer[64];
-    snprintf(buffer, sizeof(buffer), "0x%"PRIX64, imm64);
+    snprintf(buffer, sizeof(buffer), "0x%" PRIX64, imm64);
     block_comment(buffer);
   }
 #endif
@@ -1672,7 +1677,7 @@ void MacroAssembler::mov_immediate32(Register dst, u_int32_t imm32)
 #ifndef PRODUCT
     {
       char buffer[64];
-      snprintf(buffer, sizeof(buffer), "0x%"PRIX32, imm32);
+      snprintf(buffer, sizeof(buffer), "0x%" PRIX32, imm32);
       block_comment(buffer);
     }
 #endif
@@ -2358,21 +2363,18 @@ void MacroAssembler::cmpxchg(Register addr, Register expected,
                              bool weak,
                              Register result) {
   if (result == noreg)  result = rscratch1;
+  BLOCK_COMMENT("cmpxchg {");
   if (UseLSE) {
     mov(result, expected);
     lse_cas(result, new_val, addr, size, acquire, release, /*not_pair*/ true);
-    cmp(result, expected);
+    compare_eq(result, expected, size);
   } else {
-    BLOCK_COMMENT("cmpxchg {");
     Label retry_load, done;
     if ((VM_Version::features() & VM_Version::CPU_STXR_PREFETCH))
       prfm(Address(addr), PSTL1STRM);
     bind(retry_load);
     load_exclusive(result, addr, size, acquire);
-    if (size == xword)
-      cmp(result, expected);
-    else
-      cmpw(result, expected);
+    compare_eq(result, expected, size);
     br(Assembler::NE, done);
     store_exclusive(rscratch1, new_val, addr, size, release);
     if (weak) {
@@ -2381,9 +2383,27 @@ void MacroAssembler::cmpxchg(Register addr, Register expected,
       cbnzw(rscratch1, retry_load);
     }
     bind(done);
-    BLOCK_COMMENT("} cmpxchg");
+  }
+  BLOCK_COMMENT("} cmpxchg");
+}
+
+// A generic comparison. Only compares for equality, clobbers rscratch1.
+void MacroAssembler::compare_eq(Register rm, Register rn, enum operand_size size) {
+  if (size == xword) {
+    cmp(rm, rn);
+  } else if (size == word) {
+    cmpw(rm, rn);
+  } else if (size == halfword) {
+    eorw(rscratch1, rm, rn);
+    ands(zr, rscratch1, 0xffff);
+  } else if (size == byte) {
+    eorw(rscratch1, rm, rn);
+    ands(zr, rscratch1, 0xff);
+  } else {
+    ShouldNotReachHere();
   }
 }
+
 
 static bool different(Register a, RegisterOrConstant b, Register c) {
   if (b.is_constant())
@@ -5431,7 +5451,7 @@ void MacroAssembler::zero_words(Register ptr, Register cnt)
 
   BLOCK_COMMENT("zero_words {");
   cmp(cnt, (u1)zero_words_block_size);
-  Label around, done, done16;
+  Label around;
   br(LO, around);
   {
     RuntimeAddress zero_blocks =  RuntimeAddress(StubRoutines::aarch64::zero_blocks());

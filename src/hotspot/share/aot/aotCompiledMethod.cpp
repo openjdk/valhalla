@@ -75,10 +75,6 @@ address* AOTCompiledMethod::orig_pc_addr(const frame* fr) {
   return (address*) ((address)fr->unextended_sp() + _meta->orig_pc_offset());
 }
 
-bool AOTCompiledMethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive) {
-  return false;
-}
-
 oop AOTCompiledMethod::oop_at(int index) const {
   if (index == 0) { // 0 is reserved
     return NULL;
@@ -243,16 +239,6 @@ bool AOTCompiledMethod::make_entrant() {
 }
 #endif // TIERED
 
-// We don't have full dependencies for AOT methods, so flushing is
-// more conservative than for nmethods.
-void AOTCompiledMethod::flush_evol_dependents_on(InstanceKlass* dependee) {
-  if (is_java_method()) {
-    clear_inline_caches();
-    mark_for_deoptimization();
-    make_not_entrant();
-  }
-}
-
 // Iterate over metadata calling this function.   Used by RedefineClasses
 // Copied from nmethod::metadata_do
 void AOTCompiledMethod::metadata_do(void f(Metadata*)) {
@@ -362,7 +348,7 @@ void AOTCompiledMethod::log_identity(xmlStream* log) const {
   log->print(" aot='%2d'", _heap->dso_id());
 }
 
-void AOTCompiledMethod::log_state_change(oop cause) const {
+void AOTCompiledMethod::log_state_change() const {
   if (LogCompilation) {
     ResourceMark m;
     if (xtty != NULL) {

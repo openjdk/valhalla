@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* scaffold objects */
 static jlong timeout = 0;
@@ -71,9 +69,7 @@ int readNewBytecode(jvmtiEnv* jvmti) {
     classDef.class_byte_count = ftell(bytecode);
     rewind(bytecode);
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(Allocate, jvmti,
-                                classDef.class_byte_count,
-                                &newClassBytes))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->Allocate(classDef.class_byte_count, &newClassBytes))) {
         NSK_COMPLAIN0("buffer couldn't be allocated\n");
         return NSK_FALSE;
     }
@@ -101,14 +97,14 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         return;
 
     NSK_DISPLAY1("Find class: %s\n", TESTED_CLASS_NAME);
-    if (!NSK_JNI_VERIFY(jni, (classDef.klass =
-            NSK_CPP_STUB2(FindClass, jni, TESTED_CLASS_NAME)) != NULL)) {
+    classDef.klass = jni->FindClass(TESTED_CLASS_NAME);
+    if (!NSK_JNI_VERIFY(jni, classDef.klass != NULL)) {
         nsk_jvmti_setFailStatus();
         return;
     }
 
-    if (!NSK_JNI_VERIFY(jni, (classDef.klass = (jclass)
-            NSK_CPP_STUB2(NewGlobalRef, jni, classDef.klass)) != NULL)) {
+    classDef.klass = (jclass) jni->NewGlobalRef(classDef.klass);
+    if (!NSK_JNI_VERIFY(jni, classDef.klass != NULL)) {
         nsk_jvmti_setFailStatus();
         return;
     }
@@ -122,13 +118,12 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         nsk_printHexBytes("   ", 16, classDef.class_byte_count,
                                 classDef.class_bytes);
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(RedefineClasses, jvmti, 1, &classDef))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RedefineClasses(1, &classDef))) {
         nsk_jvmti_setFailStatus();
         return;
     }
 
-    NSK_CPP_STUB2(DeleteGlobalRef, jni, classDef.klass);
+    jni->DeleteGlobalRef(classDef.klass);
 
     if (!nsk_jvmti_resumeSync())
         return;
@@ -156,7 +151,8 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     timeout = nsk_jvmti_getWaitTime() * 60 * 1000;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     {
@@ -165,7 +161,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
         caps.can_redefine_classes = 1;
         caps.can_redefine_any_class = 1;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
             return JNI_ERR;
     }
 
@@ -181,6 +177,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 /* ============================================================================= */
 
 
-#ifdef __cplusplus
 }
-#endif

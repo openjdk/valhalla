@@ -33,19 +33,8 @@
 # modules to compile into the JDK.
 AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VARIANT],
 [
-  AC_MSG_CHECKING([which variant of the JDK to build])
-  AC_ARG_WITH([jdk-variant], [AS_HELP_STRING([--with-jdk-variant],
-      [JDK variant to build (normal) @<:@normal@:>@])])
-
-  if test "x$with_jdk_variant" = xnormal || test "x$with_jdk_variant" = x; then
-    JDK_VARIANT="normal"
-  else
-    AC_MSG_ERROR([The available JDK variants are: normal])
-  fi
-
-  AC_SUBST(JDK_VARIANT)
-
-  AC_MSG_RESULT([$JDK_VARIANT])
+  # Deprecated in JDK 12
+  BASIC_DEPRECATED_ARG_WITH([jdk-variant])
 ])
 
 ###############################################################################
@@ -538,7 +527,7 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
 
   # Check if it's likely that it's possible to generate the classlist. Depending
   # on exact jvm configuration it could be possible anyway.
-  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client)); then
+  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client) || HOTSPOT_CHECK_JVM_FEATURE(cds)); then
     ENABLE_GENERATE_CLASSLIST_POSSIBLE="true"
   else
     ENABLE_GENERATE_CLASSLIST_POSSIBLE="false"
@@ -615,4 +604,38 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
   fi
 
   AC_SUBST(BUILD_MANPAGES)
+])
+
+################################################################################
+#
+# Disable the default CDS archive generation
+#   cross compilation - disabled
+#
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
+[
+  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
+      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
+
+  AC_MSG_CHECKING([if a default CDS archive should be generated])
+  if test "x$ENABLE_CDS" = "xfalse"; then
+    AC_MSG_RESULT([no, because CDS is disabled])
+    BUILD_CDS_ARCHIVE="false"
+  elif test "x$COMPILE_TYPE" = "xcross"; then
+    AC_MSG_RESULT([no, not possible with cross compilation])
+    BUILD_CDS_ARCHIVE="false"
+  elif test "x$enable_cds_archive" = "xyes"; then
+    AC_MSG_RESULT([yes, forced])
+    BUILD_CDS_ARCHIVE="true"
+  elif test "x$enable_cds_archive" = "x"; then
+    AC_MSG_RESULT([yes])
+    BUILD_CDS_ARCHIVE="true"
+  elif test "x$enable_cds_archive" = "xno"; then
+    AC_MSG_RESULT([no, forced])
+    BUILD_CDS_ARCHIVE="false"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([--enable-cds_archive can only be yes/no or empty])
+  fi
+
+  AC_SUBST(BUILD_CDS_ARCHIVE)
 ])

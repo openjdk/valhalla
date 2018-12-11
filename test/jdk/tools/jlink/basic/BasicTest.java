@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,13 +25,14 @@
  * @test
  * @summary Basic test of jlink to create jmods and images
  * @author Andrei Eremeev
- * @library /lib/testlibrary /test/lib
+ * @library /test/lib
  * @modules java.base/jdk.internal.module
  *          jdk.jlink
  *          jdk.compiler
- * @build jdk.testlibrary.ProcessTools
- *        jdk.testlibrary.OutputAnalyzer
- *        JarUtils jdk.test.lib.compiler.CompilerUtils
+ * @build jdk.test.lib.process.ProcessTools
+ *        jdk.test.lib.process.OutputAnalyzer
+ *        jdk.test.lib.compiler.CompilerUtils
+ *        jdk.test.lib.util.JarUtils
  * @run main BasicTest
  */
 
@@ -46,8 +47,9 @@ import java.util.List;
 import java.util.spi.ToolProvider;
 
 import jdk.test.lib.compiler.CompilerUtils;
-import jdk.testlibrary.OutputAnalyzer;
-import jdk.testlibrary.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.util.JarUtils;
 
 public class BasicTest {
     static final ToolProvider JMOD_TOOL = ToolProvider.findFirst("jmod")

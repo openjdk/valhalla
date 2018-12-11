@@ -26,9 +26,6 @@ package jdk.test.lib.apps;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -43,7 +40,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.UUID;
 import jdk.test.lib.process.OutputBuffer;
-import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.StreamPumper;
 
 /**
@@ -137,6 +133,14 @@ public class LingeredApp {
     }
 
     /**
+     * @return the LingeredApp's output.
+     * Can be called after the app is run.
+     */
+    public String getProcessStdout() {
+        return stdoutBuffer.toString();
+    }
+
+    /**
      *
      * @return OutputBuffer object for the LingeredApp's output. Can only be called
      * after LingeredApp has exited.
@@ -146,7 +150,7 @@ public class LingeredApp {
             throw new RuntimeException("Process is still alive. Can't get its output.");
         }
         if (output == null) {
-            output = new OutputBuffer(stdoutBuffer.toString(), stderrBuffer.toString());
+            output = OutputBuffer.of(stdoutBuffer.toString(), stderrBuffer.toString());
         }
         return output;
     }

@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -55,7 +53,7 @@ static int checkProperty(jvmtiEnv* jvmti, const char phase[], PropertyDesc* desc
 
     NSK_DISPLAY1("Get value of tested property: %s\n", desc->name);
     if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(GetSystemProperty, jvmti, desc->name, &value))) {
+            jvmti->GetSystemProperty(desc->name, &value))) {
         return NSK_FALSE;
     }
     NSK_DISPLAY1("  ... got value: \"%s\"\n", nsk_null_string(value));
@@ -75,7 +73,7 @@ static int checkProperty(jvmtiEnv* jvmti, const char phase[], PropertyDesc* desc
     }
 
     if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)value))) {
+            jvmti->Deallocate((unsigned char*)value))) {
         success = NSK_FALSE;
     }
 
@@ -156,6 +154,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

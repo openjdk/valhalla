@@ -57,7 +57,7 @@ public final class EventClassBuilder {
 
     public EventClassBuilder(List<AnnotationElement> annotationElements, List<ValueDescriptor> fields) {
         this.fullClassName = "jdk.jfr.DynamicEvent" + idCounter.incrementAndGet();
-        this.type = Type.getType(fullClassName.replace(".", "/"));
+        this.type = Type.getType("L" + fullClassName.replace(".", "/") + ";");
         this.fields = fields;
         this.annotationElements = annotationElements;
     }
@@ -70,7 +70,7 @@ public final class EventClassBuilder {
         endClass();
         byte[] bytes = classWriter.toByteArray();
         ASMToolkit.logASM(fullClassName, bytes);
-        return SecuritySupport.defineClass(type.getInternalName(), bytes, Event.class.getClassLoader()).asSubclass(Event.class);
+        return SecuritySupport.defineClass(Event.class, bytes).asSubclass(Event.class);
     }
 
     private void endClass() {

@@ -28,9 +28,7 @@
 #include "jvmti_tools.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -148,12 +146,12 @@ int checkEvents(int step) {
 static void
 changeCount(jvmtiEvent event, int *currentCounts) {
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(RawMonitorEnter, jvmti, syncLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(syncLock)))
         nsk_jvmti_setFailStatus();
 
     currentCounts[event - JVMTI_MIN_EVENT_TYPE_VAL]++;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(RawMonitorExit, jvmti, syncLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(syncLock)))
         nsk_jvmti_setFailStatus();
 
 }
@@ -173,8 +171,7 @@ cbVMDeath(jvmtiEnv* jvmti, JNIEnv* jni_env) {
     if (!checkEvents(STEP_AMOUNT))
         nsk_jvmti_setFailStatus();
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(DestroyRawMonitor, jvmti, syncLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->DestroyRawMonitor(syncLock)))
         nsk_jvmti_setFailStatus();
 
 }
@@ -312,7 +309,7 @@ cbNativeMethodBind(jvmtiEnv *jvmti_env, JNIEnv* jni_env,jthread thread,
     char *genc;
     jvmtiPhase phase;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetPhase, jvmti_env, &phase))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetPhase(&phase))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -320,9 +317,7 @@ cbNativeMethodBind(jvmtiEnv *jvmti_env, JNIEnv* jni_env,jthread thread,
         return;
     }
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(
-                GetMethodName, jvmti_env, method, &name, &sign, &genc))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodName(method, &name, &sign, &genc))) {
         return;
     }
 
@@ -333,17 +328,14 @@ cbNativeMethodBind(jvmtiEnv *jvmti_env, JNIEnv* jni_env,jthread thread,
         changeCount(JVMTI_EVENT_NATIVE_METHOD_BIND, &eventCount[0]);
     }
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-            jvmti_env, (unsigned char*)name))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*)name))) {
         nsk_jvmti_setFailStatus();
     }
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-            jvmti_env, (unsigned char*)sign))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*)sign))) {
         nsk_jvmti_setFailStatus();
     }
     if (genc != NULL)
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-                jvmti_env, (unsigned char*)genc))) {
+        if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*)genc))) {
             nsk_jvmti_setFailStatus();
         }
 }
@@ -357,7 +349,7 @@ cbNewNativeMethodBind(jvmtiEnv *jvmti_env, JNIEnv* jni_env,jthread thread,
 
     jvmtiPhase phase;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetPhase, jvmti_env, &phase))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetPhase(&phase))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -365,9 +357,7 @@ cbNewNativeMethodBind(jvmtiEnv *jvmti_env, JNIEnv* jni_env,jthread thread,
         return;
     }
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB5(
-                GetMethodName, jvmti_env, method, &name, &sign, &genc))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodName(method, &name, &sign, &genc))) {
         return;
     }
 
@@ -378,17 +368,14 @@ cbNewNativeMethodBind(jvmtiEnv *jvmti_env, JNIEnv* jni_env,jthread thread,
         changeCount(JVMTI_EVENT_NATIVE_METHOD_BIND, &newEventCount[0]);
     }
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-            jvmti_env, (unsigned char*)name))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*)name))) {
         nsk_jvmti_setFailStatus();
     }
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-            jvmti_env, (unsigned char*)sign))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*)sign))) {
         nsk_jvmti_setFailStatus();
     }
     if (genc != NULL)
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-                jvmti_env, (unsigned char*)genc))) {
+        if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*)genc))) {
             nsk_jvmti_setFailStatus();
         }
 }
@@ -400,16 +387,13 @@ static int enableEvent(jvmtiEvent event) {
     if (nsk_jvmti_isOptionalEvent(event)
             && (event != JVMTI_EVENT_NATIVE_METHOD_BIND)) {
         if (!NSK_JVMTI_VERIFY_CODE(JVMTI_ERROR_MUST_POSSESS_CAPABILITY,
-                NSK_CPP_STUB4(SetEventNotificationMode, jvmti,
-                    JVMTI_ENABLE, event, NULL))) {
+                jvmti->SetEventNotificationMode(JVMTI_ENABLE, event, NULL))) {
             NSK_COMPLAIN1("Unexpected error enabling %s\n",
                 TranslateEvent(event));
             return NSK_FALSE;
         }
     } else {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB4(SetEventNotificationMode, jvmti,
-                    JVMTI_ENABLE, event, NULL))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, event, NULL))) {
             NSK_COMPLAIN1("Unexpected error enabling %s\n",
                 TranslateEvent(event));
             return NSK_FALSE;
@@ -507,10 +491,7 @@ setCallBacks(int step) {
             break;
 
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                &eventCallbacks,
-                                sizeof(eventCallbacks))))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks))))
         return NSK_FALSE;
 
     return NSK_TRUE;
@@ -573,11 +554,11 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     timeout = nsk_jvmti_getWaitTime() * 60 * 1000;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(CreateRawMonitor, jvmti, "_syncLock", &syncLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("_syncLock", &syncLock))) {
         nsk_jvmti_setFailStatus();
         return JNI_ERR;
     }
@@ -587,7 +568,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&caps, 0, sizeof(caps));
 
         caps.can_generate_native_method_bind_events = 1;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
             return JNI_ERR;
     }
 
@@ -610,6 +591,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 /* ============================================================================= */
 
 
-#ifdef __cplusplus
 }
-#endif

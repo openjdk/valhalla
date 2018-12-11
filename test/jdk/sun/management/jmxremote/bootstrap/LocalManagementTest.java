@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import jdk.testlibrary.ProcessTools;
-import jdk.testlibrary.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.Utils;
 
 /**
  * @test
@@ -38,12 +38,12 @@ import jdk.testlibrary.Utils;
  *          TestManager will attempt a connection to the address obtained from
  *          both agent properties and jvmstat buffer.
  *
- * @library /lib/testlibrary
+ * @library /test/lib
  * @modules java.management
  *          jdk.attach
  *          jdk.management.agent/jdk.internal.agent
  *
- * @build jdk.testlibrary.* TestManager TestApplication
+ * @build TestManager TestApplication
  * @run main/othervm/timeout=300 LocalManagementTest
  */
 public class LocalManagementTest {

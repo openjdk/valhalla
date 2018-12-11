@@ -25,6 +25,10 @@
 #ifndef SHARE_UTILITIES_CONCURRENT_HASH_TABLE_HPP
 #define SHARE_UTILITIES_CONCURRENT_HASH_TABLE_HPP
 
+#include "memory/allocation.hpp"
+#include "utilities/globalCounter.hpp"
+#include "utilities/globalDefinitions.hpp"
+
 // A mostly concurrent-hash-table where the read-side is wait-free, inserts are
 // CAS and deletes mutual exclude each other on per bucket-basis. VALUE is the
 // type kept inside each Node and CONFIG contains hash and allocation methods.
@@ -247,6 +251,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
    protected:
     Thread* _thread;
     ConcurrentHashTable<VALUE, CONFIG, F>* _cht;
+    GlobalCounter::CSContext _cs_context;
    public:
     ScopedCS(Thread* thread, ConcurrentHashTable<VALUE, CONFIG, F>* cht);
     ~ScopedCS();
@@ -466,6 +471,12 @@ class ConcurrentHashTable : public CHeapObj<F> {
   // Visit all items with SCAN_FUNC when the resize lock is obtained.
   template <typename SCAN_FUNC>
   void do_scan(Thread* thread, SCAN_FUNC& scan_f);
+
+  // Visit all items with SCAN_FUNC without any protection.
+  // It will assume there is no other thread accessing this
+  // table during the safepoint. Must be called with VM thread.
+  template <typename SCAN_FUNC>
+  void do_safepoint_scan(SCAN_FUNC& scan_f);
 
   // Destroying items matching EVALUATE_FUNC, before destroying items
   // DELETE_FUNC is called, if resize lock is obtained. Else returns false.

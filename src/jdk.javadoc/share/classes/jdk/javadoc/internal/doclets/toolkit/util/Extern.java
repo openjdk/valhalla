@@ -25,18 +25,29 @@
 
 package jdk.javadoc.internal.doclets.toolkit.util;
 
-import java.io.*;
-import java.net.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.tools.Diagnostic;
+import javax.tools.Diagnostic.Kind;
 import javax.tools.DocumentationTool;
 
 import jdk.javadoc.doclet.Reporter;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.Resources;
 
 /**
  * Process and manage "-link" and "-linkoffline" to external packages. The
@@ -59,12 +70,17 @@ public class Extern {
      * Map element names onto Extern Item objects.
      * Lazily initialized.
      */
-    private Map<String, Item> elementToItemMap;
+    private Map<String, Item> moduleItems = new HashMap<>();
+    private Map<String, Map<String, Item>> packageItems = new HashMap<>();
 
     /**
      * The global configuration information for this run.
      */
     private final BaseConfiguration configuration;
+
+    private final Resources resources;
+
+    private final Utils utils;
 
     /**
      * True if we are using -linkoffline and false if -link is used instead.
@@ -77,7 +93,7 @@ public class Extern {
     private class Item {
 
         /**
-         * Element name, found in the "element-list" file in the {@link path}.
+         * Element name, found in the "element-list" file in the {@link #path}.
          */
         final String elementName;
 
@@ -85,17 +101,12 @@ public class Extern {
          * The URL or the directory path at which the element documentation will be
          * avaliable.
          */
-        final String path;
+        final DocPath path;
 
         /**
          * If given path is directory path then true else if it is a URL then false.
          */
         final boolean relative;
-
-        /**
-         * If the item is a module then true else if it is a package then false.
-         */
-        boolean isModule = false;
 
         /**
          * Constructor to build a Extern Item object and map it with the element name.
@@ -106,19 +117,11 @@ public class Extern {
          * @param path        URL or Directory path from where the "element-list"
          * file is picked.
          * @param relative    True if path is URL, false if directory path.
-         * @param isModule    True if the item is a module. False if it is a package.
          */
-        Item(String elementName, String path, boolean relative, boolean isModule) {
+        Item(String elementName, DocPath path, boolean relative) {
             this.elementName = elementName;
             this.path = path;
             this.relative = relative;
-            this.isModule = isModule;
-            if (elementToItemMap == null) {
-                elementToItemMap = new HashMap<>();
-            }
-            if (!elementToItemMap.containsKey(elementName)) { // save the previous
-                elementToItemMap.put(elementName, this);        // mapped location
-            }
         }
 
         /**
@@ -126,12 +129,14 @@ public class Extern {
          */
         @Override
         public String toString() {
-            return elementName + (relative? " -> " : " => ") + path;
+            return elementName + (relative? " -> " : " => ") + path.getPath();
         }
     }
 
     public Extern(BaseConfiguration configuration) {
         this.configuration = configuration;
+        this.resources = configuration.getResources();
+        this.utils = configuration.utils;
     }
 
     /**
@@ -141,14 +146,15 @@ public class Extern {
      * @return true if the element is externally documented
      */
     public boolean isExternal(Element element) {
-        if (elementToItemMap == null) {
+        if (packageItems.isEmpty()) {
             return false;
         }
-        PackageElement pe = configuration.utils.containingPackage(element);
+        PackageElement pe = utils.containingPackage(element);
         if (pe.isUnnamed()) {
             return false;
         }
-        return elementToItemMap.get(configuration.utils.getPackageName(pe)) != null;
+
+        return findElementItem(pe) != null;
     }
 
     /**
@@ -158,25 +164,25 @@ public class Extern {
      * @return true if the element is a module
      */
     public boolean isModule(String elementName) {
-        Item elem = findElementItem(elementName);
-        return (elem == null) ? false : elem.isModule;
+        Item elem = moduleItems.get(elementName);
+        return elem != null;
     }
 
     /**
      * Convert a link to be an external link if appropriate.
      *
-     * @param elemName The element name.
+     * @param element The element .
      * @param relativepath    The relative path.
      * @param filename    The link to convert.
      * @return if external return converted link else return null
      */
-    public DocLink getExternalLink(String elemName, DocPath relativepath, String filename) {
-        return getExternalLink(elemName, relativepath, filename, null);
+    public DocLink getExternalLink(Element element, DocPath relativepath, String filename) {
+        return getExternalLink(element, relativepath, filename, null);
     }
 
-    public DocLink getExternalLink(String elemName, DocPath relativepath, String filename,
+    public DocLink getExternalLink(Element element, DocPath relativepath, String filename,
             String memberName) {
-        Item fnd = findElementItem(elemName);
+        Item fnd = findElementItem(element);
         if (fnd == null)
             return null;
 
@@ -184,7 +190,7 @@ public class Extern {
         // to contain external URLs!
         DocPath p = fnd.relative ?
                 relativepath.resolve(fnd.path).resolve(filename) :
-                DocPath.create(fnd.path).resolve(filename);
+                fnd.path.resolve(filename);
         return new DocLink(p, "is-external=true", memberName);
     }
 
@@ -247,14 +253,6 @@ public class Extern {
         }
     }
 
-    private URL toURL(String url) throws Fault {
-        try {
-            return new URL(url);
-        } catch (MalformedURLException e) {
-            throw new Fault(configuration.getText("doclet.MalformedURL", url), e);
-        }
-    }
-
     private class Fault extends Exception {
         private static final long serialVersionUID = 0;
 
@@ -266,13 +264,20 @@ public class Extern {
     /**
      * Get the Extern Item object associated with this element name.
      *
-     * @param elemName Element name.
+     * @param element Element
      */
-    private Item findElementItem(String elemName) {
-        if (elementToItemMap == null) {
-            return null;
+    private Item findElementItem(Element element) {
+        Item item = null;
+        if (element instanceof ModuleElement) {
+            item = moduleItems.get(utils.getModuleName((ModuleElement)element));
         }
-        return elementToItemMap.get(elemName);
+        else if (element instanceof PackageElement) {
+            PackageElement packageElement = (PackageElement)element;
+            ModuleElement moduleElement = utils.containingModule(packageElement);
+            Map<String, Item> pkgMap = packageItems.get(utils.getModuleName(moduleElement));
+            item = (pkgMap != null) ? pkgMap.get(utils.getPackageName(packageElement)) : null;
+        }
+        return item;
     }
 
     /**
@@ -291,9 +296,11 @@ public class Extern {
     private void readElementListFromURL(String urlpath, URL elemlisturlpath) throws Fault {
         try {
             URL link = elemlisturlpath.toURI().resolve(DocPaths.ELEMENT_LIST.getPath()).toURL();
-            readElementList(link.openStream(), urlpath, false);
+            try (InputStream in = open(link)) {
+                readElementList(in, urlpath, false);
+            }
         } catch (URISyntaxException | MalformedURLException exc) {
-            throw new Fault(configuration.getText("doclet.MalformedURL", elemlisturlpath.toString()), exc);
+            throw new Fault(resources.getText("doclet.MalformedURL", elemlisturlpath.toString()), exc);
         } catch (IOException exc) {
             readAlternateURL(urlpath, elemlisturlpath);
         }
@@ -308,11 +315,13 @@ public class Extern {
     private void readAlternateURL(String urlpath, URL elemlisturlpath) throws Fault {
         try {
             URL link = elemlisturlpath.toURI().resolve(DocPaths.PACKAGE_LIST.getPath()).toURL();
-            readElementList(link.openStream(), urlpath, false);
+            try (InputStream in = open(link)) {
+                readElementList(in, urlpath, false);
+            }
         } catch (URISyntaxException | MalformedURLException exc) {
-            throw new Fault(configuration.getText("doclet.MalformedURL", elemlisturlpath.toString()), exc);
+            throw new Fault(resources.getText("doclet.MalformedURL", elemlisturlpath.toString()), exc);
         } catch (IOException exc) {
-            throw new Fault(configuration.getText("doclet.URL_error", elemlisturlpath.toString()), exc);
+            throw new Fault(resources.getText("doclet.URL_error", elemlisturlpath.toString()), exc);
         }
     }
 
@@ -340,7 +349,7 @@ public class Extern {
             if (file1.exists()) {
                 readElementList(file1, path);
             } else {
-                throw new Fault(configuration.getText("doclet.File_error", file.getPath()), null);
+                throw new Fault(resources.getText("doclet.File_error", file.getPath()), null);
             }
         }
     }
@@ -353,10 +362,10 @@ public class Extern {
                         && !DocFile.createFileForInput(configuration, path).isAbsolute();
                 readElementList(file.openInputStream(), path, pathIsRelative);
             } else {
-                throw new Fault(configuration.getText("doclet.File_error", file.getPath()), null);
+                throw new Fault(resources.getText("doclet.File_error", file.getPath()), null);
             }
         } catch (IOException exc) {
-           throw new Fault(configuration.getText("doclet.File_error", file.getPath()), exc);
+            throw new Fault(resources.getText("doclet.File_error", file.getPath()), exc);
         }
     }
 
@@ -370,34 +379,128 @@ public class Extern {
      * @throws IOException if there is a problem reading or closing the stream
      */
     private void readElementList(InputStream input, String path, boolean relative)
-                         throws IOException {
+                         throws Fault, IOException {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(input))) {
-            in.lines().forEach((elemname) -> {
+            String elemname;
+            DocPath elempath;
+            String moduleName = null;
+            DocPath basePath  = DocPath.create(path);
+            while ((elemname = in.readLine()) != null) {
                 if (elemname.length() > 0) {
-                    boolean module;
-                    String elempath;
+                    elempath = basePath;
                     if (elemname.startsWith(DocletConstants.MODULE_PREFIX)) {
-                        elemname = elemname.replace(DocletConstants.MODULE_PREFIX, "");
-                        elempath = path;
-                        module = true;
+                        moduleName = elemname.replace(DocletConstants.MODULE_PREFIX, "");
+                        Item item = new Item(moduleName, elempath, relative);
+                        moduleItems.put(moduleName, item);
                     } else {
-                        elempath = path + elemname.replace('.', '/') + '/';
-                        module = false;
+                        DocPath pkgPath = DocPath.create(elemname.replace('.', '/'));
+                        if (configuration.useModuleDirectories && moduleName != null) {
+                            elempath = elempath.resolve(DocPath.create(moduleName).resolve(pkgPath));
+                        } else {
+                            elempath = elempath.resolve(pkgPath);
+                        }
+                        checkLinkCompatibility(elemname, moduleName, path);
+                        Item item = new Item(elemname, elempath, relative);
+                        packageItems.computeIfAbsent(moduleName == null ?
+                            DocletConstants.DEFAULT_ELEMENT_NAME : moduleName, k -> new TreeMap<>())
+                            .put(elemname, item);
                     }
-                    Item ignore = new Item(elemname, elempath, relative, module);
                 }
-            });
+            }
+        }
+    }
+
+    private void checkLinkCompatibility(String packageName, String moduleName, String path) throws Fault {
+        PackageElement pe = utils.elementUtils.getPackageElement(packageName);
+        if (pe != null) {
+            ModuleElement me = (ModuleElement)pe.getEnclosingElement();
+            if (me == null || me.isUnnamed()) {
+                if (moduleName != null) {
+                    throw new Fault(resources.getText("doclet.linkMismatch_PackagedLinkedtoModule",
+                            path), null);
+                }
+            } else if (moduleName == null) {
+                throw new Fault(resources.getText("doclet.linkMismatch_ModuleLinkedtoPackage",
+                        path), null);
+            }
         }
     }
 
     public boolean isUrl (String urlCandidate) {
         try {
-            URL ignore = new URL(urlCandidate);
+            new URL(urlCandidate);
             //No exception was thrown, so this must really be a URL.
             return true;
         } catch (MalformedURLException e) {
             //Since exception is thrown, this must be a directory path.
             return false;
         }
+    }
+
+    private URL toURL(String url) throws Fault {
+        try {
+            return new URL(url);
+        } catch (MalformedURLException e) {
+            throw new Fault(resources.getText("doclet.MalformedURL", url), e);
+        }
+    }
+
+    /**
+     * Open a stream to a URL, following a limited number of redirects
+     * if necessary.
+     *
+     * @param url the URL
+     * @return the stream
+     * @throws IOException if an error occurred accessing the URL
+     */
+    private InputStream open(URL url) throws IOException {
+        URLConnection conn = url.openConnection();
+
+        boolean redir;
+        int redirects = 0;
+        InputStream in;
+
+        do {
+            // Open the input stream before getting headers,
+            // because getHeaderField() et al swallow IOExceptions.
+            in = conn.getInputStream();
+            redir = false;
+
+            if (conn instanceof HttpURLConnection) {
+                HttpURLConnection http = (HttpURLConnection)conn;
+                int stat = http.getResponseCode();
+                // See:
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+                // https://en.wikipedia.org/wiki/List_of_HTTP_status_codes#3xx_Redirection
+                switch (stat) {
+                    case 300: // Multiple Choices
+                    case 301: // Moved Permanently
+                    case 302: // Found (previously Moved Temporarily)
+                    case 303: // See Other
+                    case 307: // Temporary Redirect
+                    case 308: // Permanent Redirect
+                        URL base = http.getURL();
+                        String loc = http.getHeaderField("Location");
+                        URL target = null;
+                        if (loc != null) {
+                            target = new URL(base, loc);
+                        }
+                        http.disconnect();
+                        if (target == null || redirects >= 5) {
+                            throw new IOException("illegal URL redirect");
+                        }
+                        redir = true;
+                        conn = target.openConnection();
+                        redirects++;
+                }
+            }
+        } while (redir);
+
+        if (!url.equals(conn.getURL())) {
+            configuration.getReporter().print(Kind.WARNING,
+                    resources.getText("doclet.urlRedirected", url, conn.getURL()));
+        }
+
+        return in;
     }
 }

@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -648,9 +649,6 @@ void GenCollectedHeap::do_collection(bool           full,
     // a whole heap collection.
     complete = complete || collected_old;
 
-    print_heap_change(young_prev_used, old_prev_used);
-    MetaspaceUtils::print_metaspace_change(metadata_prev_used);
-
     // Adjust generation sizes.
     if (collected_old) {
       _old_gen->compute_new_size();
@@ -665,6 +663,9 @@ void GenCollectedHeap::do_collection(bool           full,
       MetaspaceGC::compute_new_size();
       update_full_collections_completed();
     }
+
+    print_heap_change(young_prev_used, old_prev_used);
+    MetaspaceUtils::print_metaspace_change(metadata_prev_used);
 
     // Track memory usage and detect low memory after GC finishes
     MemoryService::track_memory_usage();
@@ -1293,7 +1294,6 @@ void GenCollectedHeap::gc_prologue(bool full) {
   assert(InlineCacheBuffer::is_empty(), "should have cleaned up ICBuffer");
 
   // Fill TLAB's and such
-  CollectedHeap::accumulate_statistics_all_tlabs();
   ensure_parsability(true);   // retire TLABs
 
   // Walk generations

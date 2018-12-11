@@ -34,9 +34,7 @@
 3. Upon accessing the field by the initializer, redefine the class and pop a currently executed
  frame of the initializer within incoming FieldAccess callback.
 */
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define METHOD_NAME "loadClass"
 #define SIGNATURE "(Ljava/lang/String;)Ljava/lang/Class;"
@@ -69,7 +67,7 @@ callbackClassLoad(jvmtiEnv *jvmti_env,
                 if (err == JVMTI_ERROR_NONE) {
                     nsk_printf("Agent:: NO ERRORS FOUND \n");
                     err= jvmti->SetBreakpoint(method, start+1);
-                    if ( err == JVMTI_ERROR_NONE) {
+                    if (err == JVMTI_ERROR_NONE) {
                         nsk_printf("Agent:: Breakpoint set \n");
                     } else {
                         nsk_printf("Agent:: ***ERROR OCCURED ... in SET BREAK POINT ERROR \n");
@@ -99,7 +97,7 @@ void JNICALL callbackBreakpoint(jvmtiEnv *jvmti_env,
     /* Redefine the class loader and then pop the
        frame and resume the thread..*/
     nsk_jvmti_getFileName(redefineNumber, FILE_NAME, fileName, sizeof(fileName)/sizeof(char));
-    if ( nsk_jvmti_redefineClass( jvmti_env, clas, fileName) == NSK_TRUE) {
+    if (nsk_jvmti_redefineClass(jvmti_env, clas, fileName) == NSK_TRUE) {
         nsk_printf("\nMyClass :: Successfully redefined..\n");
     } else {
         nsk_printf("\nMyClass :: Failed to redefine ..\n");
@@ -110,9 +108,9 @@ void JNICALL callbackBreakpoint(jvmtiEnv *jvmti_env,
         nsk_printf("Agent:: Succeded in suspending..\n");
     } else if (err == JVMTI_ERROR_THREAD_SUSPENDED) {
         nsk_printf("Agent:: JVMTI_ERROR_THREAD_SUSPENDED \n");
-    } else if ( err == JVMTI_ERROR_INVALID_THREAD) {
+    } else if (err == JVMTI_ERROR_INVALID_THREAD) {
         nsk_printf("Agent:: JVMTI_ERROR_INVALID_THREAD \n");
-    } else if ( err == JVMTI_ERROR_THREAD_NOT_ALIVE) {
+    } else if (err == JVMTI_ERROR_THREAD_NOT_ALIVE) {
         nsk_printf("Agent:: JVMTI_ERROR_THREAD_NOT_ALIVE \n");
     } else {
         nsk_printf(" Else error ");
@@ -135,7 +133,7 @@ jint   Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
       jint rc ;
       nsk_printf("Agent:: VM.. Started..\n");
       rc=vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1);
-      if ( rc!= JNI_OK ) {
+      if (rc!= JNI_OK) {
           nsk_printf("Agent:: Could not load JVMTI interface \n");
           return JNI_ERR;
       } else {
@@ -176,10 +174,10 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t004_hs204t004_popFrame(JNIEnv * jni
     nsk_printf("Agent:: POPING THE FRAME....\n");
     retvalue = JNI_FALSE;
     jvmti->GetThreadState(thread, &state);
-    if ( state & JVMTI_THREAD_STATE_IN_NATIVE) nsk_printf("JVMTI_THREAD_STATE_IN_NATIVE");
-    if ( state & JVMTI_THREAD_STATE_INTERRUPTED) nsk_printf( "JVMTI_THREAD_STATE_INTERRUPTED");
-    if ( state & JVMTI_THREAD_STATE_WAITING) nsk_printf(" JVMTI_THREAD_STATE_WAITING");
-    if ( state & JVMTI_THREAD_STATE_SUSPENDED) {
+    if (state & JVMTI_THREAD_STATE_IN_NATIVE) nsk_printf("JVMTI_THREAD_STATE_IN_NATIVE");
+    if (state & JVMTI_THREAD_STATE_INTERRUPTED) nsk_printf("JVMTI_THREAD_STATE_INTERRUPTED");
+    if (state & JVMTI_THREAD_STATE_WAITING) nsk_printf(" JVMTI_THREAD_STATE_WAITING");
+    if (state & JVMTI_THREAD_STATE_SUSPENDED) {
         nsk_printf("Agent:: Thread state .. JVMTI_THREAD_STATE_SUSPENDED \n");
         err = jvmti->PopFrame(thread);
         if (err == JVMTI_ERROR_NONE) {
@@ -200,6 +198,4 @@ Java_nsk_jvmti_scenarios_hotswap_HS204_hs204t004_hs204t004_popFrame(JNIEnv * jni
 }
 
 
-#ifdef __cplusplus
 }
-#endif

@@ -585,7 +585,7 @@ void dumpAddr (char *str, void *addr) {
  * The more complicated case is when the requested address is ::0 or 0.0.0.0.
  *
  * Two further cases:
- * 2. If the reqeusted port is 0 (ie. any port) then we try to bind in v4 space
+ * 2. If the requested port is 0 (ie. any port) then we try to bind in v4 space
  *    first with a wild-card port argument. We then try to bind in v6 space
  *    using the returned port number. If this fails, we repeat the process
  *    until a free port common to both spaces becomes available.
@@ -903,7 +903,7 @@ NET_IsEqual(jbyte* caddr1, jbyte* caddr2) {
  * It returns the time left from the timeout, or -1 if it expired.
  */
 
-JNIEXPORT jint JNICALL
+jint
 NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout)
 {
     jlong prevTime = JVM_CurrentTimeMillis(env, 0);

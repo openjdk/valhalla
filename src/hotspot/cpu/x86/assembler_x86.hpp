@@ -871,11 +871,6 @@ private:
   void clear_managed(void) { _is_managed = false; }
   bool is_managed(void) { return _is_managed; }
 
-  // Following functions are for stub code use only
-  void set_vector_masking(void) { _vector_masking = true; }
-  void clear_vector_masking(void) { _vector_masking = false; }
-  bool is_vector_masking(void) { return _vector_masking; }
-
   void lea(Register dst, Address src);
 
   void mov(Register dst, Register src);
@@ -1350,40 +1345,38 @@ private:
 
   // Serializes memory and blows flags
   void membar(Membar_mask_bits order_constraint) {
-    if (os::is_MP()) {
-      // We only have to handle StoreLoad
-      if (order_constraint & StoreLoad) {
-        // All usable chips support "locked" instructions which suffice
-        // as barriers, and are much faster than the alternative of
-        // using cpuid instruction. We use here a locked add [esp-C],0.
-        // This is conveniently otherwise a no-op except for blowing
-        // flags, and introducing a false dependency on target memory
-        // location. We can't do anything with flags, but we can avoid
-        // memory dependencies in the current method by locked-adding
-        // somewhere else on the stack. Doing [esp+C] will collide with
-        // something on stack in current method, hence we go for [esp-C].
-        // It is convenient since it is almost always in data cache, for
-        // any small C.  We need to step back from SP to avoid data
-        // dependencies with other things on below SP (callee-saves, for
-        // example). Without a clear way to figure out the minimal safe
-        // distance from SP, it makes sense to step back the complete
-        // cache line, as this will also avoid possible second-order effects
-        // with locked ops against the cache line. Our choice of offset
-        // is bounded by x86 operand encoding, which should stay within
-        // [-128; +127] to have the 8-byte displacement encoding.
-        //
-        // Any change to this code may need to revisit other places in
-        // the code where this idiom is used, in particular the
-        // orderAccess code.
+    // We only have to handle StoreLoad
+    if (order_constraint & StoreLoad) {
+      // All usable chips support "locked" instructions which suffice
+      // as barriers, and are much faster than the alternative of
+      // using cpuid instruction. We use here a locked add [esp-C],0.
+      // This is conveniently otherwise a no-op except for blowing
+      // flags, and introducing a false dependency on target memory
+      // location. We can't do anything with flags, but we can avoid
+      // memory dependencies in the current method by locked-adding
+      // somewhere else on the stack. Doing [esp+C] will collide with
+      // something on stack in current method, hence we go for [esp-C].
+      // It is convenient since it is almost always in data cache, for
+      // any small C.  We need to step back from SP to avoid data
+      // dependencies with other things on below SP (callee-saves, for
+      // example). Without a clear way to figure out the minimal safe
+      // distance from SP, it makes sense to step back the complete
+      // cache line, as this will also avoid possible second-order effects
+      // with locked ops against the cache line. Our choice of offset
+      // is bounded by x86 operand encoding, which should stay within
+      // [-128; +127] to have the 8-byte displacement encoding.
+      //
+      // Any change to this code may need to revisit other places in
+      // the code where this idiom is used, in particular the
+      // orderAccess code.
 
-        int offset = -VM_Version::L1_line_size();
-        if (offset < -128) {
-          offset = -128;
-        }
-
-        lock();
-        addl(Address(rsp, offset), 0);// Assert the lock# signal here
+      int offset = -VM_Version::L1_line_size();
+      if (offset < -128) {
+        offset = -128;
       }
+
+      lock();
+      addl(Address(rsp, offset), 0);// Assert the lock# signal here
     }
   }
 
@@ -2097,6 +2090,7 @@ private:
 
   // Andn packed integers
   void pandn(XMMRegister dst, XMMRegister src);
+  void vpandn(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   // Or packed integers
   void por(XMMRegister dst, XMMRegister src);
@@ -2134,6 +2128,7 @@ private:
   void vextracti32x4(Address dst, XMMRegister src, uint8_t imm8);
   void vextracti64x2(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vextracti64x4(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vextracti64x4(Address dst, XMMRegister src, uint8_t imm8);
 
   // vextractf forms
   void vextractf128(XMMRegister dst, XMMRegister src, uint8_t imm8);
@@ -2144,28 +2139,24 @@ private:
   void vextractf64x4(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vextractf64x4(Address dst, XMMRegister src, uint8_t imm8);
 
-  // legacy xmm sourced word/dword replicate
-  void vpbroadcastw(XMMRegister dst, XMMRegister src);
-  void vpbroadcastd(XMMRegister dst, XMMRegister src);
-
   // xmm/mem sourced byte/word/dword/qword replicate
-  void evpbroadcastb(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastb(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastw(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastw(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastd(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastd(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastq(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastq(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastb(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastb(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastw(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastw(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastd(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastd(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastq(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastq(XMMRegister dst, Address src, int vector_len);
 
   void evbroadcasti64x2(XMMRegister dst, XMMRegister src, int vector_len);
   void evbroadcasti64x2(XMMRegister dst, Address src, int vector_len);
 
   // scalar single/double precision replicate
-  void evpbroadcastss(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastss(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastsd(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastsd(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastss(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastss(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastsd(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastsd(XMMRegister dst, Address src, int vector_len);
 
   // gpr sourced byte/word/dword/qword replicate
   void evpbroadcastb(XMMRegister dst, Register src, int vector_len);
@@ -2212,7 +2203,7 @@ public:
     int vector_len,     // The length of vector to be applied in encoding - for both AVX and EVEX
     bool rex_vex_w,     // Width of data: if 32-bits or less, false, else if 64-bit or specially defined, true
     bool legacy_mode,   // Details if either this instruction is conditionally encoded to AVX or earlier if true else possibly EVEX
-    bool no_reg_mask,   // when true, k0 is used when EVEX encoding is chosen, else k1 is used under the same condition
+    bool no_reg_mask,   // when true, k0 is used when EVEX encoding is chosen, else embedded_opmask_register_specifier is used
     bool uses_vl)       // This instruction may have legacy constraints based on vector length for EVEX
     :
       _avx_vector_len(vector_len),
@@ -2227,7 +2218,7 @@ public:
       _evex_encoding(0),
       _is_clear_context(true),
       _is_extended_context(false),
-      _embedded_opmask_register_specifier(1), // hard code k1, it will be initialized for now
+      _embedded_opmask_register_specifier(0), // hard code k0
       _current_assembler(NULL) {
     if (UseAVX < 3) _legacy_mode = true;
   }

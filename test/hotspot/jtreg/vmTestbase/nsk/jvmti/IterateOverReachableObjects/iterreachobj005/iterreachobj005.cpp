@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -45,18 +43,17 @@ static jvmtiTimerInfo timer_info1, timer_info2;
 
 /* jvmtiHeapRootCallback */
 jvmtiIterationControl JNICALL
-heapRootCallback( jvmtiHeapRootKind root_kind,
-                  jlong class_tag,
-                  jlong size,
-                  jlong* tag_ptr,
-                  void* user_data) {
+heapRootCallback(jvmtiHeapRootKind root_kind,
+                 jlong class_tag,
+                 jlong size,
+                 jlong* tag_ptr,
+                 void* user_data) {
 
     *tag_ptr = (jlong)++objCounter;
 
     if (!nsk_jvmti_isFailStatus()) {
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetCurrentThreadCpuTimerInfo, st_jvmti, &timer_info1 ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetCurrentThreadCpuTimerInfo(&timer_info1))) {
             nsk_jvmti_setFailStatus();
         }
         /* Check the returned jvmtiTimerInfo structure */
@@ -74,14 +71,12 @@ heapRootCallback( jvmtiHeapRootKind root_kind,
         }
         /* ---------------------------------------------------------------------- */
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetCurrentThreadCpuTime, st_jvmti, &nanos ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetCurrentThreadCpuTime(&nanos))) {
             nsk_jvmti_setFailStatus();
         }
         /* ---------------------------------------------------------------------- */
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetTimerInfo, st_jvmti, &timer_info2 ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetTimerInfo(&timer_info2))) {
             nsk_jvmti_setFailStatus();
         }
         /* Check the returned jvmtiTimerInfo structure */
@@ -100,8 +95,7 @@ heapRootCallback( jvmtiHeapRootKind root_kind,
         /* ---------------------------------------------------------------------- */
 
         nanos = 0;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetTime, st_jvmti, &nanos ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetTime(&nanos))) {
             nsk_jvmti_setFailStatus();
         }
     }
@@ -114,22 +108,21 @@ heapRootCallback( jvmtiHeapRootKind root_kind,
 
 /* jvmtiStackReferenceCallback */
 jvmtiIterationControl JNICALL
-stackReferenceCallback( jvmtiHeapRootKind root_kind,
-                        jlong     class_tag,
-                        jlong     size,
-                        jlong*    tag_ptr,
-                        jlong     thread_tag,
-                        jint      depth,
-                        jmethodID method,
-                        jint      slot,
-                        void*     user_data) {
+stackReferenceCallback(jvmtiHeapRootKind root_kind,
+                       jlong     class_tag,
+                       jlong     size,
+                       jlong*    tag_ptr,
+                       jlong     thread_tag,
+                       jint      depth,
+                       jmethodID method,
+                       jint      slot,
+                       void*     user_data) {
 
     *tag_ptr = (jlong)++objCounter;
 
     if (!nsk_jvmti_isFailStatus()) {
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetCurrentThreadCpuTimerInfo, st_jvmti, &timer_info1 ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetCurrentThreadCpuTimerInfo(&timer_info1))) {
             nsk_jvmti_setFailStatus();
         }
         /* Check the returned jvmtiTimerInfo structure */
@@ -147,14 +140,12 @@ stackReferenceCallback( jvmtiHeapRootKind root_kind,
         }
         /* ---------------------------------------------------------------------- */
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetCurrentThreadCpuTime, st_jvmti, &nanos ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetCurrentThreadCpuTime(&nanos))) {
             nsk_jvmti_setFailStatus();
         }
         /* ---------------------------------------------------------------------- */
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetTimerInfo, st_jvmti, &timer_info2 ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetTimerInfo(&timer_info2))) {
             nsk_jvmti_setFailStatus();
         }
         /* Check the returned jvmtiTimerInfo structure */
@@ -173,8 +164,7 @@ stackReferenceCallback( jvmtiHeapRootKind root_kind,
         /* ---------------------------------------------------------------------- */
 
         nanos = 0;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(GetTime, st_jvmti, &nanos ))) {
+        if (!NSK_JVMTI_VERIFY(st_jvmti->GetTime(&nanos))) {
             nsk_jvmti_setFailStatus();
         }
    }
@@ -188,18 +178,17 @@ stackReferenceCallback( jvmtiHeapRootKind root_kind,
 
 /* jvmtiObjectReferenceCallback */
 jvmtiIterationControl JNICALL
-objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
-                         jlong  class_tag,
-                         jlong  size,
-                         jlong* tag_ptr,
-                         jlong  referrer_tag,
-                         jint   referrer_index,
-                         void*  user_data) {
+objectReferenceCallback(jvmtiObjectReferenceKind reference_kind,
+                        jlong  class_tag,
+                        jlong  size,
+                        jlong* tag_ptr,
+                        jlong  referrer_tag,
+                        jint   referrer_index,
+                        void*  user_data) {
 
     *tag_ptr = (jlong)++objCounter;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetCurrentThreadCpuTimerInfo, st_jvmti, &timer_info1 ))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->GetCurrentThreadCpuTimerInfo(&timer_info1))) {
         nsk_jvmti_setFailStatus();
     }
     /* Check the returned jvmtiTimerInfo structure */
@@ -217,15 +206,13 @@ objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
     }
     /* ---------------------------------------------------------------------- */
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetCurrentThreadCpuTime, st_jvmti, &nanos ))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->GetCurrentThreadCpuTime(&nanos))) {
         nsk_jvmti_setFailStatus();
     }
     /* ---------------------------------------------------------------------- */
 
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetTimerInfo, st_jvmti, &timer_info2 ))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->GetTimerInfo(&timer_info2))) {
         nsk_jvmti_setFailStatus();
     }
     /* Check the returned jvmtiTimerInfo structure */
@@ -244,8 +231,7 @@ objectReferenceCallback( jvmtiObjectReferenceKind reference_kind,
     /* ---------------------------------------------------------------------- */
 
     nanos = 0;
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetTime, st_jvmti, &nanos ))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->GetTime(&nanos))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -267,13 +253,10 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         do {
             NSK_DISPLAY0("Calling IterateOverReachableObjects\n");
             {
-                if (!NSK_JVMTI_VERIFY(
-                        NSK_CPP_STUB5(IterateOverReachableObjects,
-                                      jvmti,
-                                      heapRootCallback,
-                                      stackReferenceCallback,
-                                      objectReferenceCallback,
-                                      &userData))) {
+                if (!NSK_JVMTI_VERIFY(jvmti->IterateOverReachableObjects(heapRootCallback,
+                                                                         stackReferenceCallback,
+                                                                         objectReferenceCallback,
+                                                                         &userData))) {
                     nsk_jvmti_setFailStatus();
                     break;
                 }
@@ -332,8 +315,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&caps, 0, sizeof(caps));
         caps.can_tag_objects = 1;
         caps.can_get_current_thread_cpu_time = 1;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
             return JNI_ERR;
         }
     }
@@ -346,6 +328,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

@@ -47,8 +47,8 @@ import java.util.stream.StreamSupport;
 
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.ClassLoaders;
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.ServicesCatalog.ServiceProvider;
@@ -938,8 +938,7 @@ public final class ServiceLoader<S>
                     List<ModuleLayer> parents = layer.parents();
                     for (int i = parents.size() - 1; i >= 0; i--) {
                         ModuleLayer parent = parents.get(i);
-                        if (!visited.contains(parent)) {
-                            visited.add(parent);
+                        if (visited.add(parent)) {
                             stack.push(parent);
                         }
                     }

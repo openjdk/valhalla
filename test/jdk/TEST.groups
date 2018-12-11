@@ -35,8 +35,7 @@ tier1_part1 = \
     :jdk_lang
 
 tier1_part2 = \
-    :jdk_util \
-    -java/util/Arrays/TimSortStackSize2.java
+    :jdk_util
 
 tier1_part3 = \
     :jdk_math \
@@ -67,9 +66,7 @@ tier2_part2 = \
     -sun/nio/cs/ISO8859x.java \
     :jdk_other \
     :jdk_text \
-    :jdk_time \
-    java/util/Arrays/TimSortStackSize2.java
-
+    :jdk_time
 
 tier2_part3 = \
     :jdk_net
@@ -224,8 +221,7 @@ jdk_security3 = \
     -sun/security/krb5 \
     -sun/security/jgss \
     javax/net \
-    com/sun/net/ssl \
-    lib/security
+    com/sun/net/ssl
 
 jdk_security4 = \
     com/sun/security/jgss \
@@ -265,11 +261,7 @@ jdk_jdi = \
 jdk_native_sanity = \
     native_sanity
 
-# java launcher specific tests, Note: do not include this group into any groups
-# that potentially could be included into a jprt test rule, as the complementary
-# closed  group includes awt SplashScreen and these tests may not run
-# satisfactorily on all platforms and  profiles thus this group must always
-# be a stand-alone group
+# java launcher specific tests.
 jdk_launcher = \
     tools/launcher \
     sun/tools
@@ -357,7 +349,6 @@ jdk_svc = \
 
 jdk_awt = \
     java/awt \
-    com/sun/awt \
     com/apple/eawt \
     com/apple/laf \
     sun/awt
@@ -414,9 +405,6 @@ jdk_desktop_core = \
 #
 # These groups specify a subset of Serviceability tests that are supposed to
 # guard against breakage of Serviceability features by other component teams.
-# They are added to the "hotspot" testset in JPRT so that they will run on all
-# full-forest pushes through JPRT.
-#
 
 jdk_svc_sanity = \
     :jdk_management_sanity \
@@ -478,7 +466,9 @@ jdk_jfr_sanity = \
     jdk/jfr/event/runtime/TestClassLoadEvent.java \
     jdk/jfr/event/runtime/TestJavaBlockedEvent.java \
     jdk/jfr/event/gc/collection/TestGCWithFasttime.java \
-    jdk/jfr/event/gc/configuration/TestGCConfigurationEvent.java
+    jdk/jfr/event/gc/configuration/TestGCConfigurationEvent.java \
+    jdk/jfr/event/metadata/TestDefaultConfigurations.java \
+    jdk/jfr/startupargs/TestDumpOnExit.java
 
 svc_tools_sanity =
 
@@ -495,8 +485,7 @@ jdk_stable = \
     :jdk_sound \
     :jdk_sctp \
     javax/accessibility \
-    com/sun/java/swing \
-    com/sun/awt
+    com/sun/java/swing
 
 needs_g1gc = \
   jdk/jfr/event/gc/refstat/TestRefStatEventWithG1ConcurrentMark.java \
@@ -510,6 +499,7 @@ needs_g1gc = \
   jdk/jfr/event/gc/collection/TestYoungGarbageCollectionEventWithG1New.java \
   jdk/jfr/event/gc/collection/TestGCEventMixedWithG1FullCollection.java \
   jdk/jfr/event/gc/collection/TestGCEventMixedWithG1ConcurrentMark.java \
+  jdk/jfr/event/gc/collection/TestG1ParallelPhases.java \
   jdk/jfr/event/gc/objectcount/TestObjectCountAfterGCEventWithG1FullCollection.java \
   jdk/jfr/event/gc/objectcount/TestObjectCountAfterGCEventWithG1ConcurrentMark.java \
   jdk/jfr/event/gc/heapsummary/TestHeapSummaryEventG1.java

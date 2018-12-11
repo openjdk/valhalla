@@ -27,9 +27,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -56,21 +54,20 @@ static ObjectDesc *objectDescBuf;
 
 /** jvmtiObjectReferenceCallback for first iteration. */
 jvmtiIterationControl JNICALL
-objectReferenceCallback1( jvmtiObjectReferenceKind reference_kind,
-                          jlong  class_tag,
-                          jlong  size,
-                          jlong* tag_ptr,
-                          jlong  referrer_tag,
-                          jint   referrer_index,
-                          void*  user_data) {
+objectReferenceCallback1(jvmtiObjectReferenceKind reference_kind,
+                         jlong  class_tag,
+                         jlong  size,
+                         jlong* tag_ptr,
+                         jlong  referrer_tag,
+                         jint   referrer_index,
+                         void*  user_data) {
 
     objectCount++;
     /* Set tag */
     *tag_ptr = objectCount;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(Allocate, st_jvmti, (sizeof(ObjectDesc)),
-                             (unsigned char**)&objectDescBuf))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->Allocate((sizeof(ObjectDesc)),
+                                             (unsigned char**)&objectDescBuf))) {
         nsk_jvmti_setFailStatus();
         allocationError = 1;
     }
@@ -83,18 +80,17 @@ objectReferenceCallback1( jvmtiObjectReferenceKind reference_kind,
 
 /** jvmtiObjectReferenceCallback for second iteration. */
 jvmtiIterationControl JNICALL
-objectReferenceCallback2( jvmtiObjectReferenceKind reference_kind,
-                          jlong  class_tag,
-                          jlong  size,
-                          jlong* tag_ptr,
-                          jlong  referrer_tag,
-                          jint   referrer_index,
-                          void*  user_data) {
+objectReferenceCallback2(jvmtiObjectReferenceKind reference_kind,
+                         jlong  class_tag,
+                         jlong  size,
+                         jlong* tag_ptr,
+                         jlong  referrer_tag,
+                         jint   referrer_index,
+                         void*  user_data) {
 
     objectCount--;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(Deallocate, st_jvmti, (unsigned char*)objectDescBuf))) {
+    if (!NSK_JVMTI_VERIFY(st_jvmti->Deallocate((unsigned char*)objectDescBuf))) {
         nsk_jvmti_setFailStatus();
     }
 
@@ -125,29 +121,23 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
             }
 
             NSK_DISPLAY1("Find static field in debugee class: %s\n", objectFieldName);
-            if (!NSK_JNI_VERIFY(jni, (objectField =
-                    NSK_CPP_STUB4(GetStaticFieldID, jni, debugeeClass,
-                                     objectFieldName, debugeeClassSignature)) != NULL)) {
+            if (!NSK_JNI_VERIFY(jni, (objectField = jni->GetStaticFieldID(
+                    debugeeClass, objectFieldName, debugeeClassSignature)) != NULL)) {
                 nsk_jvmti_setFailStatus();
                 break;
             }
 
             NSK_DISPLAY1("Find value of static field in debugee class: %s\n", objectFieldName);
             if (!NSK_JNI_VERIFY(jni, (object =
-                    NSK_CPP_STUB3(GetStaticObjectField, jni, debugeeClass,
-                                     objectField)) != NULL)) {
+                    jni->GetStaticObjectField(debugeeClass, objectField)) != NULL)) {
                 nsk_jvmti_setFailStatus();
                 break;
             }
 
             NSK_DISPLAY0("Calling IterateOverObjectsReachableFromObject with allocation\n");
             {
-                if (!NSK_JVMTI_VERIFY(
-                        NSK_CPP_STUB4(IterateOverObjectsReachableFromObject,
-                            jvmti,
-                            object,
-                            objectReferenceCallback1,
-                            &userData))) {
+                if (!NSK_JVMTI_VERIFY(jvmti->IterateOverObjectsReachableFromObject(
+                        object, objectReferenceCallback1, &userData))) {
                     nsk_jvmti_setFailStatus();
                     break;
                 }
@@ -163,12 +153,8 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
             NSK_DISPLAY0("Calling IterateOverObjectsReachableFromObject with deallocation\n");
             {
-                if (!NSK_JVMTI_VERIFY(
-                        NSK_CPP_STUB4(IterateOverObjectsReachableFromObject,
-                            jvmti,
-                            object,
-                            objectReferenceCallback2,
-                            &userData))) {
+                if (!NSK_JVMTI_VERIFY(jvmti->IterateOverObjectsReachableFromObject(
+                        object, objectReferenceCallback2, &userData))) {
                     nsk_jvmti_setFailStatus();
                     break;
                 }
@@ -223,8 +209,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
         memset(&caps, 0, sizeof(caps));
         caps.can_tag_objects = 1;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &caps))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
             return JNI_ERR;
         }
     }
@@ -237,6 +222,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

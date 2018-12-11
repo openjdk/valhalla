@@ -25,6 +25,7 @@
  * @test
  * @bug 8141492 8071982 8141636 8147890 8166175 8168965 8176794 8175218 8147881
  *      8181622 8182263 8074407 8187521 8198522 8182765 8199278 8196201 8196202
+ *      8184205
  * @summary Test the search feature of javadoc.
  * @author bpatel
  * @library ../lib
@@ -361,6 +362,44 @@ public class TestSearch extends JavadocTester {
         checkSearchIndex(false);
     }
 
+    @Test
+    void testJapaneseLocale() {
+        javadoc("-locale", "ja_JP",
+                "-d", "out-jp",
+                "--no-module-directories",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "pkg", "pkg1", "pkg2", "pkg3");
+        checkExit(Exit.OK);
+        checkOutput(Output.OUT, true,
+                "\u30d1\u30c3\u30b1\u30fc\u30b8pkg\u306e\u30bd\u30fc\u30b9\u30fb\u30d5\u30a1" +
+                        "\u30a4\u30eb\u3092\u8aad\u307f\u8fbc\u3093\u3067\u3044\u307e\u3059...\n",
+                "\u30d1\u30c3\u30b1\u30fc\u30b8pkg1\u306e\u30bd\u30fc\u30b9\u30fb\u30d5\u30a1" +
+                        "\u30a4\u30eb\u3092\u8aad\u307f\u8fbc\u3093\u3067\u3044\u307e\u3059...\n");
+        checkSearchJS();
+        checkSearchIndex(true);
+    }
+
+    @Test
+    void testChineseLocale() {
+        javadoc("-locale", "zh_CN",
+                "-d", "out-cn",
+                "--no-module-directories",
+                "-Xdoclint:none",
+                "-sourcepath", testSrc,
+                "-use",
+                "pkg", "pkg1", "pkg2", "pkg3");
+        checkExit(Exit.OK);
+        checkOutput(Output.OUT, true,
+                "\u6b63\u5728\u52a0\u8f7d\u7a0b\u5e8f\u5305pkg\u7684\u6e90\u6587\u4ef6...\n",
+                "\u6b63\u5728\u52a0\u8f7d\u7a0b\u5e8f\u5305pkg1\u7684\u6e90\u6587\u4ef6...\n",
+                "\u6b63\u5728\u52a0\u8f7d\u7a0b\u5e8f\u5305pkg2\u7684\u6e90\u6587\u4ef6...\n",
+                "\u6b63\u5728\u52a0\u8f7d\u7a0b\u5e8f\u5305pkg3\u7684\u6e90\u6587\u4ef6...\n");
+        checkSearchJS();
+        checkSearchIndex(true);
+    }
+
     void checkDocLintErrors() {
         checkOutput(Output.OUT, true,
                 "A sample method. Testing search tag for {@index \"unclosed quote}.",
@@ -695,19 +734,27 @@ public class TestSearch extends JavadocTester {
 
     void checkAllPkgsAllClasses() {
         checkOutput("allclasses-index.html", true,
-                "<table class=\"typeSummary\">\n"
-                + "<caption><span id=\"t0\" class=\"activeTableTab\"><span>All Classes</span>"
-                + "<span class=\"tabEnd\">&nbsp;</span></span><span id=\"t1\" class=\"tableTab\">"
-                + "<span><a href=\"javascript:show(1);\">Interface Summary</a></span><span class=\"tabEnd\">"
-                + "&nbsp;</span></span><span id=\"t2\" class=\"tableTab\"><span><a href=\"javascript:show(2);\">"
-                + "Class Summary</a></span><span class=\"tabEnd\">&nbsp;</span></span><span id=\"t3\" class=\"tableTab\">"
-                + "<span><a href=\"javascript:show(4);\">Enum Summary</a></span><span class=\"tabEnd\">&nbsp;"
-                + "</span></span><span id=\"t4\" class=\"tableTab\"><span><a href=\"javascript:show(8);\">"
-                + "Exception Summary</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t5\" class=\"tableTab\"><span><a href=\"javascript:show(16);\">"
-                + "Error Summary</a></span><span class=\"tabEnd\">&nbsp;</span></span>"
-                + "<span id=\"t6\" class=\"tableTab\"><span><a href=\"javascript:show(32);\">Annotation Types Summary"
-                + "</a></span><span class=\"tabEnd\">&nbsp;</span></span></caption>\n"
+                "<div class=\"typeSummary\">\n"
+                + "<div role=\"tablist\" aria-orientation=\"horizontal\"><button role=\"tab\""
+                + " aria-selected=\"true\" aria-controls=\"typeSummary_tabpanel\" tabindex=\"0\""
+                + " onkeydown=\"switchTab(event)\" id=\"t0\" class=\"activeTableTab\">All Classes</button>"
+                + "<button role=\"tab\" aria-selected=\"false\" aria-controls=\"typeSummary_tabpanel\""
+                + " tabindex=\"-1\" onkeydown=\"switchTab(event)\" id=\"t1\" class=\"tableTab\""
+                + " onclick=\"show(1);\">Interface Summary</button><button role=\"tab\" aria-selected=\"false\""
+                + " aria-controls=\"typeSummary_tabpanel\" tabindex=\"-1\" onkeydown=\"switchTab(event)\""
+                + " id=\"t2\" class=\"tableTab\" onclick=\"show(2);\">Class Summary</button><button role=\"tab\""
+                + " aria-selected=\"false\" aria-controls=\"typeSummary_tabpanel\" tabindex=\"-1\""
+                + " onkeydown=\"switchTab(event)\" id=\"t3\" class=\"tableTab\" onclick=\"show(4);\">"
+                + "Enum Summary</button><button role=\"tab\" aria-selected=\"false\""
+                + " aria-controls=\"typeSummary_tabpanel\" tabindex=\"-1\" onkeydown=\"switchTab(event)\""
+                + " id=\"t4\" class=\"tableTab\" onclick=\"show(8);\">Exception Summary</button><button role=\"tab\""
+                + " aria-selected=\"false\" aria-controls=\"typeSummary_tabpanel\" tabindex=\"-1\""
+                + " onkeydown=\"switchTab(event)\" id=\"t5\" class=\"tableTab\" onclick=\"show(16);\">"
+                + "Error Summary</button><button role=\"tab\" aria-selected=\"false\""
+                + " aria-controls=\"typeSummary_tabpanel\" tabindex=\"-1\" onkeydown=\"switchTab(event)\""
+                + " id=\"t6\" class=\"tableTab\" onclick=\"show(32);\">Annotation Types Summary</button></div>\n"
+                + "<div id=\"typeSummary_tabpanel\" role=\"tabpanel\">\n"
+                + "<table aria-labelledby=\"t0\">\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
@@ -715,7 +762,7 @@ public class TestSearch extends JavadocTester {
                 "var data = {\"i0\":32,\"i1\":2,\"i2\":4,\"i3\":2,\"i4\":2,\"i5\":1,\"i6\":2,\"i7\":32,"
                 + "\"i8\":2,\"i9\":4,\"i10\":16,\"i11\":16,\"i12\":8,\"i13\":8,\"i14\":1,\"i15\":2};");
         checkOutput("allpackages-index.html", true,
-                "<table class=\"packagesSummary\">\n"
+                "<div class=\"packagesSummary\">\n<table>\n"
                 + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"

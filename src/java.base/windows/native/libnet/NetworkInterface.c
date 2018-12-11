@@ -202,8 +202,9 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
 
         JNU_ThrowByName(env, "java/lang/Error",
                 "IP Helper Library GetIfTable function failed");
-
-        return -1;
+        // this different error code is to handle the case when we call
+        // GetIpAddrTable in pure IPv6 environment
+        return -2;
     }
 
     /*
@@ -280,6 +281,7 @@ int enumInterfaces(JNIEnv *env, netif **netifPP)
             if (curr->name == NULL || curr->displayName == NULL) {
                 if (curr->name) free(curr->name);
                 if (curr->displayName) free(curr->displayName);
+                free(curr);
                 curr = NULL;
             }
         }
@@ -399,7 +401,9 @@ int enumAddresses_win(JNIEnv *env, netif *netifP, netaddr **netaddrPP)
         }
         JNU_ThrowByName(env, "java/lang/Error",
                 "IP Helper Library GetIpAddrTable function failed");
-        return -1;
+        // this different error code is to handle the case when we call
+        // GetIpAddrTable in pure IPv6 environment
+        return -2;
     }
 
     /*
@@ -556,7 +560,7 @@ jobject createNetworkInterface
      */
     if (netaddrCount < 0) {
         netaddrCount = enumAddresses_win(env, ifs, &netaddrP);
-        if (netaddrCount == -1) {
+        if (netaddrCount < 0) {
             return NULL;
         }
     }
@@ -586,7 +590,10 @@ jobject createNetworkInterface
             /* default ctor will set family to AF_INET */
 
             setInetAddress_addr(env, iaObj, ntohl(addrs->addr.sa4.sin_addr.s_addr));
-            JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+            if ((*env)->ExceptionCheck(env)) {
+                free_netaddr(netaddrP);
+                return NULL;
+            }
             if (addrs->mask != -1) {
               ibObj = (*env)->NewObject(env, ni_ibcls, ni_ibctrID);
               if (ibObj == NULL) {
@@ -600,7 +607,10 @@ jobject createNetworkInterface
                 return NULL;
               }
               setInetAddress_addr(env, ia2Obj, ntohl(addrs->brdcast.sa4.sin_addr.s_addr));
-              JNU_CHECK_EXCEPTION_RETURN(env, NULL);
+              if ((*env)->ExceptionCheck(env)) {
+                  free_netaddr(netaddrP);
+                  return NULL;
+              }
               (*env)->SetObjectField(env, ibObj, ni_ibbroadcastID, ia2Obj);
               (*env)->SetShortField(env, ibObj, ni_ibmaskID, addrs->mask);
               (*env)->SetObjectArrayElement(env, bindsArr, bind_index++, ibObj);
@@ -611,6 +621,7 @@ jobject createNetworkInterface
             if (iaObj) {
                 jboolean ret = setInet6Address_ipaddress(env, iaObj,  (jbyte *)&(addrs->addr.sa6.sin6_addr.s6_addr));
                 if (ret == JNI_FALSE) {
+                    free_netaddr(netaddrP);
                     return NULL;
                 }
 

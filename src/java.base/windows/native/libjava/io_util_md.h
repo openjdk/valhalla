@@ -38,7 +38,7 @@
  */
 WCHAR* pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE);
 WCHAR* fileToNTPath(JNIEnv *env, jobject file, jfieldID id);
-WCHAR* getPrefixed(const WCHAR* path, int pathlen);
+__declspec(dllexport) WCHAR* getPrefixed(const WCHAR* path, int pathlen);
 WCHAR* currentDir(int di);
 int currentDirLength(const WCHAR* path, int pathlen);
 int handleAvailable(FD fd, jlong *pbytes);
@@ -56,8 +56,7 @@ handleLseek(FD fd, jlong offset, jint whence);
  * Returns an opaque handle to file named by "path".  If an error occurs,
  * returns -1 and an exception is pending.
  */
-JNIEXPORT FD JNICALL
-winFileHandleOpen(JNIEnv *env, jstring path, int flags);
+FD winFileHandleOpen(JNIEnv *env, jstring path, int flags);
 
 /*
  * Macros to set/get fd from the java.io.FileDescriptor.

@@ -33,9 +33,7 @@
 #include "JVMTITools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 #define PASSED  0
 #define STATUS_FAILED  2
@@ -81,10 +79,10 @@ static jrawMonitorID countLock;
 static void initCounters() {
     size_t i;
 
-    for(i=0; i<EXP_SIG_NUM; i++)
+    for (i=0; i<EXP_SIG_NUM; i++)
         clsEvents[i] = 0;
 
-    for(i=0; i<UNEXP_SIG_NUM; i++)
+    for (i=0; i<UNEXP_SIG_NUM; i++)
         primClsEvents[i] = 0;
 }
 
@@ -100,17 +98,13 @@ static int findSig(char *sig, int expected) {
 }
 
 static void lock(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(RawMonitorEnter,
-            jvmti_env, countLock)))
-        NSK_CPP_STUB2(FatalError, jni_env,
-                "failed to enter a raw monitor\n");
+    if (!NSK_JVMTI_VERIFY(jvmti_env->RawMonitorEnter(countLock)))
+        jni_env->FatalError("failed to enter a raw monitor\n");
 }
 
 static void unlock(jvmtiEnv *jvmti_env, JNIEnv *jni_env) {
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(RawMonitorExit,
-        jvmti_env, countLock)))
-        NSK_CPP_STUB2(FatalError, jni_env,
-                "failed to exit a raw monitor\n");
+    if (!NSK_JVMTI_VERIFY(jvmti_env->RawMonitorExit(countLock)))
+        jni_env->FatalError("failed to exit a raw monitor\n");
 }
 
 /** callback functions **/
@@ -121,23 +115,27 @@ ClassLoad(jvmtiEnv *jvmti_env, JNIEnv *env, jthread thread, jclass klass) {
 
     lock(jvmti_env, env);
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature,
-            jvmti_env, klass, &sig, &generic))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetClassSignature(klass, &sig, &generic))) {
         result = STATUS_FAILED;
         NSK_COMPLAIN0("TEST FAILURE: unable to obtain a class signature\n");
     }
 
-    if ((i = findSig(sig, 1)) != -1) {
+    i = findSig(sig, 1);
+    if (i != -1) {
         clsEvents[i]++;
         NSK_DISPLAY1("CHECK PASSED: ClassLoad event received for the class \"%s\" as expected\n",
             sig);
     }
-    else if ((i = findSig(sig, 0)) != -1) {
+    else {
+      i = findSig(sig, 0);
+      if (i != -1) {
         result = STATUS_FAILED;
         primClsEvents[i]++;
-        NSK_COMPLAIN1("TEST FAILED: JVMTI_EVENT_CLASS_LOAD event received for\n\
-\t a primitive class/array of primitive types with the signature \"%s\"\n",
+        NSK_COMPLAIN1(
+            "TEST FAILED: JVMTI_EVENT_CLASS_LOAD event received for\n"
+            "\t a primitive class/array of primitive types with the signature \"%s\"\n",
             sig);
+      }
     }
 
     unlock(jvmti_env, env);
@@ -186,26 +184,21 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     initCounters();
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(CreateRawMonitor,
-            jvmti, "_counter_lock", &countLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("_counter_lock", &countLock)))
         return JNI_ERR;
 
     NSK_DISPLAY0("setting event callbacks ...\n");
     (void) memset(&callbacks, 0, sizeof(callbacks));
     callbacks.ClassLoad = &ClassLoad;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks,
-            jvmti, &callbacks, sizeof(callbacks))))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks))))
         return JNI_ERR;
 
     NSK_DISPLAY0("setting event callbacks done\nenabling ClassLoad event ...\n");
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL)))
         return JNI_ERR;
     NSK_DISPLAY0("the event enabled\n");
 
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

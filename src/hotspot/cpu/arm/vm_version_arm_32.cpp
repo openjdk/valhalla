@@ -260,6 +260,8 @@ void VM_Version::initialize() {
     if (FLAG_IS_DEFAULT(UsePopCountInstruction)) {
       FLAG_SET_DEFAULT(UsePopCountInstruction, true);
     }
+  } else {
+    FLAG_SET_DEFAULT(UsePopCountInstruction, false);
   }
 
   if (FLAG_IS_DEFAULT(AllocatePrefetchDistance)) {
@@ -294,6 +296,9 @@ void VM_Version::initialize() {
     Tier3MinInvocationThreshold = 500;
   }
 
+  UNSUPPORTED_OPTION(TypeProfileLevel);
+  UNSUPPORTED_OPTION(CriticalJNINatives);
+
   FLAG_SET_DEFAULT(TypeProfileLevel, 0); // unsupported
 
   // This machine does not allow unaligned memory accesses
@@ -317,21 +322,4 @@ bool VM_Version::use_biased_locking() {
   // Therefore the Biased Locking is enabled on ARMv5 and ARM MP only.
   //
   return (!os::is_MP() && (arm_arch() > 5)) ? false : true;
-}
-
-#define EXP
-
-// Temporary override for experimental features
-// Copied from Abstract_VM_Version
-const char* VM_Version::vm_info_string() {
-  switch (Arguments::mode()) {
-    case Arguments::_int:
-      return UseSharedSpaces ? "interpreted mode, sharing" EXP : "interpreted mode" EXP;
-    case Arguments::_mixed:
-      return UseSharedSpaces ? "mixed mode, sharing" EXP    :  "mixed mode" EXP;
-    case Arguments::_comp:
-      return UseSharedSpaces ? "compiled mode, sharing" EXP   : "compiled mode" EXP;
-  };
-  ShouldNotReachHere();
-  return "";
 }

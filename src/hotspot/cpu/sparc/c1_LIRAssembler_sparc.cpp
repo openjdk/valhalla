@@ -502,7 +502,7 @@ void LIR_Assembler::emit_op3(LIR_Op3* op) {
         __ and3(Rscratch, divisor - 1, Rscratch);
       }
       __ add(Rdividend, Rscratch, Rscratch);
-      __ sra(Rscratch, log2_intptr(divisor), Rresult);
+      __ sra(Rscratch, log2_int(divisor), Rresult);
       return;
     } else {
       if (divisor == 2) {
@@ -3024,7 +3024,9 @@ void LIR_Assembler::emit_delay(LIR_OpDelay* op) {
 }
 
 
-void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
+void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest, LIR_Opr tmp) {
+  // tmp must be unused
+  assert(tmp->is_illegal(), "wasting a register if tmp is allocated");
   assert(left->is_register(), "can only handle registers");
 
   if (left->is_single_cpu()) {

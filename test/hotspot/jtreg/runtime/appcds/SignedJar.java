@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  *          java.management
  *          jdk.jartool/sun.tools.jar
  * @compile test-classes/Hello.java
- * @run main SignedJar
+ * @run driver SignedJar
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
@@ -46,7 +46,7 @@ public class SignedJar {
         String signedJar = TestCommon.getTestJar("signed_hello.jar");
         OutputAnalyzer output;
         output = TestCommon.dump(signedJar, TestCommon.list("Hello"));
-        TestCommon.checkDump(output, "Preload Warning: Skipping Hello from signed JAR");
+        TestCommon.checkDump(output, "Skipping Hello: Signed JAR");
 
         // At runtime, the Hello class should be loaded from the jar file
         // instead of from the shared archive since a class from a signed
@@ -63,6 +63,6 @@ public class SignedJar {
         // Test class exists in both signed JAR and unsigned JAR
         String jars = signedJar + System.getProperty("path.separator") + unsignedJar;
         output = TestCommon.dump(jars, TestCommon.list("Hello"));
-        TestCommon.checkDump(output, "Preload Warning: Skipping Hello from signed JAR");
+        TestCommon.checkDump(output, "Skipping Hello: Signed JAR");
     }
 }

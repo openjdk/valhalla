@@ -34,9 +34,7 @@
  *3. Upon reaching the breakpoint, redefine the class and pop
  *a currently executed frame of the static initializer.
 */
-#ifdef __cplusplus
 extern "C" {
-#endif
 #define FILE_NAME "nsk/jvmti/scenarios/hotswap/HS204/hs204t002/MyThread"
 
 #define SEARCH_NAME "nsk/jvmti/scenarios/hotswap/HS204/hs204t002/MyThread"
@@ -56,7 +54,7 @@ callbackClassPrepare(jvmtiEnv *jvmti,
     redefineNumber=0;
     jvmti->GetClassSignature(klass, &className, &generic);
     /* printf("Agent::Class Name %s \n",className); */
-    if( (strcmp(className, CLASS_NAME) == 0 ) ) {
+    if ((strcmp(className, CLASS_NAME) == 0)) {
         jclass cls;
         cls = jni->FindClass(SEARCH_NAME);
         if (cls == NULL) {
@@ -71,7 +69,7 @@ callbackClassPrepare(jvmtiEnv *jvmti,
                 jlocation end;
                 jvmtiError err ;
                 err=jvmti->GetMethodLocation(method, &start, &end);
-                if ( err != JVMTI_ERROR_NONE) {
+                if (err != JVMTI_ERROR_NONE) {
                     printf("Agent::Errors in finding start and end for the method \n");
                 } else {
                     printf("Agent Start = %" LL "d and end = %" LL "d \n", start , end);
@@ -79,11 +77,11 @@ callbackClassPrepare(jvmtiEnv *jvmti,
                     err= jvmti->SetBreakpoint(method, start+1);
                     if (err == JVMTI_ERROR_DUPLICATE) {
                         printf("Agent::JVMTI_ERROR_DUPLICATE");
-                    } else if (err ==JVMTI_ERROR_INVALID_METHODID ) {
+                    } else if (err ==JVMTI_ERROR_INVALID_METHODID) {
                         printf("Agent::JVMTI_ERROR_INVALID_METHODID ");
-                    } else if ( err == JVMTI_ERROR_INVALID_LOCATION) {
+                    } else if (err == JVMTI_ERROR_INVALID_LOCATION) {
                         printf("Agent::JVMTI_ERROR_INVALID_LOCATION ");
-                    } else if ( err == JVMTI_ERROR_NONE) {
+                    } else if (err == JVMTI_ERROR_NONE) {
                         printf("Agent::NO ERRORS ");
                     } else {
                         printf("Agent::VERY VERY INVALID STATE ");
@@ -106,7 +104,7 @@ void JNICALL callbackBreakpoint(jvmtiEnv *jvmti_env,
                         sizeof(fileName)/sizeof(char));
     cls = jni->FindClass(SEARCH_NAME);
     printf("Agent::  Break Pont Reached..");
-    if ( nsk_jvmti_redefineClass(jvmti, cls, fileName ) == NSK_TRUE) {
+    if (nsk_jvmti_redefineClass(jvmti, cls, fileName) == NSK_TRUE) {
         nsk_printf("\nMyClass :: Successfully redefined..\n");
     } else {
         nsk_printf("\nMyClass :: Failed to redefine ..\n");
@@ -130,7 +128,7 @@ jint Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint rc ;
     printf("Agent:: VM.. Started..\n");
     rc=vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1);
-    if ( rc!= JNI_OK ) {
+    if (rc!= JNI_OK) {
         printf("Agent:: Could not load JVMTI interface \n");
         return JNI_ERR;
     } else {
@@ -166,6 +164,4 @@ jint Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     return JNI_OK;
 }
 
-#ifdef __cplusplus
 }
-#endif

@@ -119,6 +119,9 @@ public interface LangReflectAccess {
     /** Gets the root of the given AccessibleObject object; null if arg is the root */
     public <T extends AccessibleObject> T getRoot(T obj);
 
+    /** Returns a new instance created by the given constructor with access check */
+    public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
+        throws IllegalAccessException, InstantiationException, InvocationTargetException;
     /**
      * A field is flattenable if ACC_FLATTENABLE is set in its modifier
      * and the field type is present in ValueType attribute.

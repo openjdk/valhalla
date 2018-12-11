@@ -28,9 +28,7 @@
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 /* ============================================================================= */
 
@@ -195,8 +193,7 @@ static int checkCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* initCaps, const
     memset(&caps, 0, sizeof(jvmtiCapabilities));
 
     NSK_DISPLAY0("GetCapabilities() for current JVMTI env\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetCapabilities, jvmti, &caps))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps))) {
         return NSK_FALSE;
     }
 
@@ -219,8 +216,7 @@ static int checkCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* initCaps, const
  */
 static int addCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* caps) {
     NSK_DISPLAY0("AddCapabilities() for current JVMTI env\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(AddCapabilities, jvmti, caps))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(caps))) {
         return NSK_FALSE;
     }
     NSK_DISPLAY0("  ... set\n");
@@ -234,8 +230,7 @@ static int addCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* caps) {
  */
 static int removeCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* caps, const char where[]) {
     NSK_DISPLAY0("RelinquishCapabilities() for current JVMTI env\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(RelinquishCapabilities, jvmti, caps))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RelinquishCapabilities(caps))) {
         return NSK_FALSE;
     }
     NSK_DISPLAY0("  ... relinguished\n");
@@ -249,8 +244,7 @@ static int removeCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* caps, const ch
  */
 static int getPotentialCapabilities(jvmtiEnv* jvmti, jvmtiCapabilities* caps) {
     NSK_DISPLAY0("GetPotentialCapabilities() for current JVMTI env\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GetPotentialCapabilities, jvmti, caps))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetPotentialCapabilities(caps))) {
         return NSK_FALSE;
     }
 
@@ -351,9 +345,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&eventCallbacks, 0, sizeof(eventCallbacks));
         eventCallbacks.VMInit = callbackVMInit;
         eventCallbacks.VMDeath = callbackVMDeath;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                    &eventCallbacks, sizeof(eventCallbacks)))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             return JNI_ERR;
         }
 
@@ -381,6 +373,4 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
 /* ============================================================================= */
 
-#ifdef __cplusplus
 }
-#endif

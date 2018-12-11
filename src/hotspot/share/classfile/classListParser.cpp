@@ -273,9 +273,9 @@ void ClassListParser::error(const char *msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS)))
-  // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit
-  //
+#if !(defined(_LP64) && (defined(LINUX)|| defined(SOLARIS) || defined(__APPLE__)))
+  // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit and
+  // (3) MacOSX/64-bit
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
   // method in test/lib/jdk/test/lib/Platform.java.
   error("AppCDS custom class loaders not supported on this platform");
@@ -287,7 +287,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   if (!is_id_specified()) {
     error("If source location is specified, id must be also specified");
   }
-  InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source, THREAD);
+  InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source, CHECK_NULL);
 
   if (strncmp(_class_name, "java/", 5) == 0) {
     log_info(cds)("Prohibited package for non-bootstrap classes: %s.class from %s",
@@ -303,8 +303,9 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
             _interfaces->length(), k->local_interfaces()->length());
     }
 
-    if (!SystemDictionaryShared::add_non_builtin_klass(class_name, ClassLoaderData::the_null_class_loader_data(),
-                                                       k, THREAD)) {
+    bool added = SystemDictionaryShared::add_unregistered_class(k, CHECK_NULL);
+    if (!added) {
+      // We allow only a single unregistered class for each unique name.
       error("Duplicated class %s", _class_name);
     }
 
@@ -353,7 +354,7 @@ Klass* ClassListParser::load_current_class(TRAPS) {
                               vmSymbols::loadClass_name(),
                               vmSymbols::string_class_signature(),
                               ext_class_name,
-                              THREAD);
+                              THREAD); // <-- failure is handled below
     } else {
       // array classes are not supported in class list.
       THROW_NULL(vmSymbols::java_lang_ClassNotFoundException());
@@ -388,8 +389,8 @@ Klass* ClassListParser::load_current_class(TRAPS) {
     InstanceKlass* ik = InstanceKlass::cast(klass);
     int id = this->id();
     SystemDictionaryShared::update_shared_entry(ik, id);
-    InstanceKlass* old = table()->lookup(id);
-    if (old != NULL && old != ik) {
+    InstanceKlass** old_ptr = table()->lookup(id);
+    if (old_ptr != NULL) {
       error("Duplicated ID %d for class %s", id, _class_name);
     }
     table()->add(id, ik);
@@ -403,11 +404,12 @@ bool ClassListParser::is_loading_from_source() {
 }
 
 InstanceKlass* ClassListParser::lookup_class_by_id(int id) {
-  InstanceKlass* klass = table()->lookup(id);
-  if (klass == NULL) {
+  InstanceKlass** klass_ptr = table()->lookup(id);
+  if (klass_ptr == NULL) {
     error("Class ID %d has not been defined", id);
   }
-  return klass;
+  assert(*klass_ptr != NULL, "must be");
+  return *klass_ptr;
 }
 
 

@@ -26,7 +26,6 @@
 #include "jvm.h"
 #include "classfile/classLoaderHierarchyDCmd.hpp"
 #include "classfile/classLoaderStats.hpp"
-#include "classfile/compactHashtable.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/directivesParser.hpp"
 #include "gc/shared/vmGCOperations.hpp"
@@ -213,8 +212,8 @@ int HelpDCmd::num_arguments() {
 }
 
 void VersionDCmd::execute(DCmdSource source, TRAPS) {
-  output()->print_cr("%s version %s", Abstract_VM_Version::vm_name(),
-          Abstract_VM_Version::vm_release());
+  output()->print_cr("%s version %s", VM_Version::vm_name(),
+          VM_Version::vm_release());
   JDK_Version jdk_version = JDK_Version::current();
   if (jdk_version.patch_version() > 0) {
     output()->print_cr("JDK %d.%d.%d.%d", jdk_version.major_version(),

@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define METH_NUM 4 /* overall number of methods */
 
@@ -106,8 +93,8 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    if ((res = JNI_ENV_PTR(vm)->GetEnv(JNI_ENV_ARG(vm, (void **) &jvmti),
-            JVMTI_VERSION_1_1)) != JNI_OK) {
+    res = vm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
+    if (res != JNI_OK) {
         printf("%s: Failed to call GetEnv: error=%d\n", __FILE__, res);
         return JNI_ERR;
     }
@@ -156,27 +143,25 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
     }
 
     for (i=0; i<METH_NUM; i++) {
-/* get the JNI method ID for a method with name m_name and
-   signature m_sign */
-        if (methodsInfo[i].inst) /* an instance method */
-            methodsInfo[i].mid =
-                JNI_ENV_PTR(env)->GetMethodID(JNI_ENV_ARG(env, redefCls),
+        /* get the JNI method ID for a method with name m_name and
+           signature m_sign */
+        if (methodsInfo[i].inst) { /* an instance method */
+            methodsInfo[i].mid = env->GetMethodID(redefCls,
                     methodsInfo[i].m_name, methodsInfo[i].m_sign);
-        else                     /* a static method */
-            methodsInfo[i].mid =
-                JNI_ENV_PTR(env)->GetStaticMethodID(JNI_ENV_ARG(env, redefCls),
+        } else {                   /* a static method */
+            methodsInfo[i].mid = env->GetStaticMethodID(redefCls,
                     methodsInfo[i].m_name, methodsInfo[i].m_sign);
+        }
         if (methodsInfo[i].mid == NULL) {
-            printf("%s: Failed to get the method ID for the%s%s method\
- \"%s\", signature \"%s\"\n",
+            printf("%s: Failed to get the method ID for the%s%s method \"%s\", signature \"%s\"\n",
                 __FILE__, (vrb==2)?" original ":" ", methodsInfo[i].inst?"instance":"static",
                 methodsInfo[i].m_name, methodsInfo[i].m_sign);
             return STATUS_FAILED;
         }
 
-/* get the LineNumberTable attribute */
-        if ((err = (jvmti->GetLineNumberTable(methodsInfo[i].mid,
-                &count, &ln_table))) != JVMTI_ERROR_NONE) {
+        /* get the LineNumberTable attribute */
+        err = jvmti->GetLineNumberTable(methodsInfo[i].mid, &count, &ln_table);
+        if (err != JVMTI_ERROR_NONE) {
             printf("%s: Failed to call GetLineNumberTable(): error=%d: %s\n",
                 __FILE__, err, TranslateError(err));
             printf("\tfor the%s%s method \"%s\", signature \"%s\"\n\n",
@@ -185,8 +170,8 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
             return STATUS_FAILED;
         } else {
             if (count != methodsInfo[i].lcount) {
-                printf("TEST %s %s method \"%s\", signature \"%s\":\
- found %d lines in the LineNumberTable, expected %d\n",
+                printf(
+                    "TEST %s %s method \"%s\", signature \"%s\": found %d lines in the LineNumberTable, expected %d\n",
                     (vrb==2)?"BUG: original ":"FAILED:",
                     methodsInfo[i].inst?"instance":"static",
                     methodsInfo[i].m_name, methodsInfo[i].m_sign,
@@ -195,8 +180,9 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
                 continue;
             }
             else if (vrb == 1)
-                printf("\nChecking line numbers in the LineNumberTable of the %s method\
- \"%s\", signature \"%s\" ...\n\toverall number of lines: %d as expected\n",
+                printf(
+                    "\nChecking line numbers in the LineNumberTable of the %s method \"%s\", signature \"%s\" ...\n"
+                    "\toverall number of lines: %d as expected\n",
                     methodsInfo[i].inst?"instance":"static",
                     methodsInfo[i].m_name, methodsInfo[i].m_sign, count);
 
@@ -207,8 +193,9 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
                     chkval = redf_ln[i][j];
 
                 if (ln_table[j].line_number != chkval) {
-                    printf("TEST %s %s method \"%s\", signature \"%s\": entry #%d\
- has value %d in the LineNumberTable, expected %d\n",
+                    printf(
+                        "TEST %s %s method \"%s\", signature \"%s\": "
+                        "entry #%d has value %d in the LineNumberTable, expected %d\n",
                         (vrb==2)?"BUG: original":"FAILED:",
                         methodsInfo[i].inst?"instance":"static",
                         methodsInfo[i].m_name, methodsInfo[i].m_sign,
@@ -228,9 +215,7 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
 JNIEXPORT jint JNICALL
 Java_nsk_jvmti_RedefineClasses_redefclass010_checkOrigAttr(JNIEnv *env,
         jclass cls, jobject redefObj) {
-    jclass redefCls =
-        JNI_ENV_PTR(env)->GetObjectClass(JNI_ENV_ARG(env, redefObj));
-
+    jclass redefCls = env->GetObjectClass(redefObj);
     return checkAttr(env, redefCls, origMethInfo, 2);
 }
 
@@ -249,17 +234,16 @@ Java_nsk_jvmti_RedefineClasses_redefclass010_makeRedefinition(JNIEnv *env,
         return PASSED;
     }
 
-/* fill the structure jvmtiClassDefinition */
+    /* fill the structure jvmtiClassDefinition */
     classDef.klass = redefCls;
-    classDef.class_byte_count =
-        JNI_ENV_PTR(env)->GetArrayLength(JNI_ENV_ARG(env, classBytes));
-    classDef.class_bytes = (unsigned char *)
-        JNI_ENV_PTR(env)->GetByteArrayElements(JNI_ENV_ARG(env, classBytes), NULL);
+    classDef.class_byte_count = env->GetArrayLength(classBytes);
+    classDef.class_bytes = (unsigned char *) env->GetByteArrayElements(classBytes, NULL);
 
     if (vrb)
         printf("\n>>>>>>>> Invoke RedefineClasses():\n\tnew class byte count=%d\n",
             classDef.class_byte_count);
-    if ((err = (jvmti->RedefineClasses(1, &classDef))) != JVMTI_ERROR_NONE) {
+    err = jvmti->RedefineClasses(1, &classDef);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call RedefineClasses(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         printf("\tFor more info about this error see the JVMTI spec.\n");
@@ -274,12 +258,8 @@ Java_nsk_jvmti_RedefineClasses_redefclass010_makeRedefinition(JNIEnv *env,
 JNIEXPORT jint JNICALL
 Java_nsk_jvmti_RedefineClasses_redefclass010_getResult(JNIEnv *env,
     jclass cls, jint vrb, jobject redefObj) {
-    jclass redefCls =
-        JNI_ENV_PTR(env)->GetObjectClass(JNI_ENV_ARG(env, redefObj));
-
+    jclass redefCls = env->GetObjectClass(redefObj);
     return checkAttr(env, redefCls, redefMethInfo, vrb);
 }
 
-#ifdef __cplusplus
 }
-#endif

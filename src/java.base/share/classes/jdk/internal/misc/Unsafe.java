@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,9 @@
 package jdk.internal.misc;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.ref.Cleaner;
 import jdk.internal.vm.annotation.ForceInline;
+import sun.nio.ch.DirectBuffer;
 
 import java.lang.reflect.Field;
 import java.security.ProtectionDomain;
@@ -194,7 +196,7 @@ public final class Unsafe {
      * @see #getInt(Object, long)
      */
     @HotSpotIntrinsicCandidate
-    public native Object getObject(Object o, long offset);
+    public native Object getReference(Object o, long offset);
 
     /**
      * Stores a reference value into a given Java variable.
@@ -209,7 +211,7 @@ public final class Unsafe {
      * @see #putInt(Object, long, int)
      */
     @HotSpotIntrinsicCandidate
-    public native void putObject(Object o, long offset, Object x);
+    public native void putReference(Object o, long offset, Object x);
 
     /**
      * Fetches a value of type {@code <V>} from a given Java variable.
@@ -1353,9 +1355,9 @@ public final class Unsafe {
      * @return {@code true} if successful
      */
     @HotSpotIntrinsicCandidate
-    public final native boolean compareAndSetObject(Object o, long offset,
-                                                    Object expected,
-                                                    Object x);
+    public final native boolean compareAndSetReference(Object o, long offset,
+                                                       Object expected,
+                                                       Object x);
 
     @ForceInline
     public final <V> boolean compareAndSetValue(Object o, long offset,
@@ -1375,9 +1377,9 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final native Object compareAndExchangeObject(Object o, long offset,
-                                                        Object expected,
-                                                        Object x);
+    public final native Object compareAndExchangeReference(Object o, long offset,
+                                                           Object expected,
+                                                           Object x);
     @ForceInline
     public final <V> Object compareAndExchangeValue(Object o, long offset,
                                                     Class<?> valueType,
@@ -1393,10 +1395,10 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final Object compareAndExchangeObjectAcquire(Object o, long offset,
-                                                        Object expected,
-                                                        Object x) {
-        return compareAndExchangeObject(o, offset, expected, x);
+    public final Object compareAndExchangeReferenceAcquire(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndExchangeReference(o, offset, expected, x);
     }
 
     @ForceInline
@@ -1408,10 +1410,10 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final Object compareAndExchangeObjectRelease(Object o, long offset,
-                                                        Object expected,
-                                                        Object x) {
-        return compareAndExchangeObject(o, offset, expected, x);
+    public final Object compareAndExchangeReferenceRelease(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndExchangeReference(o, offset, expected, x);
     }
 
     @ForceInline
@@ -1423,10 +1425,10 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObjectPlain(Object o, long offset,
-                                                      Object expected,
-                                                      Object x) {
-        return compareAndSetObject(o, offset, expected, x);
+    public final boolean weakCompareAndSetReferencePlain(Object o, long offset,
+                                                         Object expected,
+                                                         Object x) {
+        return compareAndSetReference(o, offset, expected, x);
     }
 
     @ForceInline
@@ -1438,10 +1440,10 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObjectAcquire(Object o, long offset,
-                                                        Object expected,
-                                                        Object x) {
-        return compareAndSetObject(o, offset, expected, x);
+    public final boolean weakCompareAndSetReferenceAcquire(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndSetReference(o, offset, expected, x);
     }
 
     @ForceInline
@@ -1453,10 +1455,10 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObjectRelease(Object o, long offset,
-                                                        Object expected,
-                                                        Object x) {
-        return compareAndSetObject(o, offset, expected, x);
+    public final boolean weakCompareAndSetReferenceRelease(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndSetReference(o, offset, expected, x);
     }
 
     @ForceInline
@@ -1468,10 +1470,10 @@ public final class Unsafe {
     }
 
     @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObject(Object o, long offset,
-                                                 Object expected,
-                                                 Object x) {
-        return compareAndSetObject(o, offset, expected, x);
+    public final boolean weakCompareAndSetReference(Object o, long offset,
+                                                    Object expected,
+                                                    Object x) {
+        return compareAndSetReference(o, offset, expected, x);
     }
 
     @ForceInline
@@ -2092,10 +2094,10 @@ public final class Unsafe {
 
     /**
      * Fetches a reference value from a given Java variable, with volatile
-     * load semantics. Otherwise identical to {@link #getObject(Object, long)}
+     * load semantics. Otherwise identical to {@link #getReference(Object, long)}
      */
     @HotSpotIntrinsicCandidate
-    public native Object getObjectVolatile(Object o, long offset);
+    public native Object getReferenceVolatile(Object o, long offset);
 
     /**
      * Global lock for atomic and volatile strength access to any value of
@@ -2112,10 +2114,10 @@ public final class Unsafe {
 
     /**
      * Stores a reference value into a given Java variable, with
-     * volatile store semantics. Otherwise identical to {@link #putObject(Object, long, Object)}
+     * volatile store semantics. Otherwise identical to {@link #putReference(Object, long, Object)}
      */
     @HotSpotIntrinsicCandidate
-    public native void    putObjectVolatile(Object o, long offset, Object x);
+    public native void putReferenceVolatile(Object o, long offset, Object x);
 
     public final <V> void putValueVolatile(Object o, long offset, Class<?> valueType, V x) {
         synchronized (valueLock) {
@@ -2189,10 +2191,10 @@ public final class Unsafe {
 
 
 
-    /** Acquire version of {@link #getObjectVolatile(Object, long)} */
+    /** Acquire version of {@link #getReferenceVolatile(Object, long)} */
     @HotSpotIntrinsicCandidate
-    public final Object getObjectAcquire(Object o, long offset) {
-        return getObjectVolatile(o, offset);
+    public final Object getReferenceAcquire(Object o, long offset) {
+        return getReferenceVolatile(o, offset);
     }
 
     public final <V> Object getValueAcquire(Object base, long offset, Class<?> valueType) {
@@ -2248,7 +2250,7 @@ public final class Unsafe {
     }
 
     /*
-      * Versions of {@link #putObjectVolatile(Object, long, Object)}
+      * Versions of {@link #putReferenceVolatile(Object, long, Object)}
       * that do not guarantee immediate visibility of the store to
       * other threads. This method is generally only useful if the
       * underlying field is a Java volatile (or if an array cell, one
@@ -2257,10 +2259,10 @@ public final class Unsafe {
       * Corresponds to C11 atomic_store_explicit(..., memory_order_release).
       */
 
-    /** Release version of {@link #putObjectVolatile(Object, long, Object)} */
+    /** Release version of {@link #putReferenceVolatile(Object, long, Object)} */
     @HotSpotIntrinsicCandidate
-    public final void putObjectRelease(Object o, long offset, Object x) {
-        putObjectVolatile(o, offset, x);
+    public final void putReferenceRelease(Object o, long offset, Object x) {
+        putReferenceVolatile(o, offset, x);
     }
 
     public final <V> void putValueRelease(Object o, long offset, Class<?> valueType, V x) {
@@ -2317,10 +2319,10 @@ public final class Unsafe {
 
     // ------------------------------ Opaque --------------------------------------
 
-    /** Opaque version of {@link #getObjectVolatile(Object, long)} */
+    /** Opaque version of {@link #getReferenceVolatile(Object, long)} */
     @HotSpotIntrinsicCandidate
-    public final Object getObjectOpaque(Object o, long offset) {
-        return getObjectVolatile(o, offset);
+    public final Object getReferenceOpaque(Object o, long offset) {
+        return getReferenceVolatile(o, offset);
     }
 
     public final <V> Object getValueOpaque(Object base, long offset, Class<?> valueType) {
@@ -2375,10 +2377,10 @@ public final class Unsafe {
         return getDoubleVolatile(o, offset);
     }
 
-    /** Opaque version of {@link #putObjectVolatile(Object, long, Object)} */
+    /** Opaque version of {@link #putReferenceVolatile(Object, long, Object)} */
     @HotSpotIntrinsicCandidate
-    public final void putObjectOpaque(Object o, long offset, Object x) {
-        putObjectVolatile(o, offset, x);
+    public final void putReferenceOpaque(Object o, long offset, Object x) {
+        putReferenceVolatile(o, offset, x);
     }
 
     public final <V> void putValueOpaque(Object o, long offset, Class<?> valueType, V x) {
@@ -2811,11 +2813,11 @@ public final class Unsafe {
      * @since 1.8
      */
     @HotSpotIntrinsicCandidate
-    public final Object getAndSetObject(Object o, long offset, Object newValue) {
+    public final Object getAndSetReference(Object o, long offset, Object newValue) {
         Object v;
         do {
-            v = getObjectVolatile(o, offset);
-        } while (!weakCompareAndSetObject(o, offset, v, newValue));
+            v = getReferenceVolatile(o, offset);
+        } while (!weakCompareAndSetReference(o, offset, v, newValue));
         return v;
     }
 
@@ -2829,11 +2831,11 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final Object getAndSetObjectRelease(Object o, long offset, Object newValue) {
+    public final Object getAndSetReferenceRelease(Object o, long offset, Object newValue) {
         Object v;
         do {
-            v = getObject(o, offset);
-        } while (!weakCompareAndSetObjectRelease(o, offset, v, newValue));
+            v = getReference(o, offset);
+        } while (!weakCompareAndSetReferenceRelease(o, offset, v, newValue));
         return v;
     }
 
@@ -2843,11 +2845,11 @@ public final class Unsafe {
     }
 
     @ForceInline
-    public final Object getAndSetObjectAcquire(Object o, long offset, Object newValue) {
+    public final Object getAndSetReferenceAcquire(Object o, long offset, Object newValue) {
         Object v;
         do {
-            v = getObjectAcquire(o, offset);
-        } while (!weakCompareAndSetObjectAcquire(o, offset, v, newValue));
+            v = getReferenceAcquire(o, offset);
+        } while (!weakCompareAndSetReferenceAcquire(o, offset, v, newValue));
         return v;
     }
 
@@ -3904,4 +3906,115 @@ public final class Unsafe {
     private native int getLoadAverage0(double[] loadavg, int nelems);
     private native boolean unalignedAccess0();
     private native boolean isBigEndian0();
+
+
+    /**
+     * Invokes the given direct byte buffer's cleaner, if any.
+     *
+     * @param directBuffer a direct byte buffer
+     * @throws NullPointerException     if {@code directBuffer} is null
+     * @throws IllegalArgumentException if {@code directBuffer} is non-direct,
+     *                                  or is a {@link java.nio.Buffer#slice slice}, or is a
+     *                                  {@link java.nio.Buffer#duplicate duplicate}
+     */
+    public void invokeCleaner(java.nio.ByteBuffer directBuffer) {
+        if (!directBuffer.isDirect())
+            throw new IllegalArgumentException("buffer is non-direct");
+
+        DirectBuffer db = (DirectBuffer) directBuffer;
+        if (db.attachment() != null)
+            throw new IllegalArgumentException("duplicate or slice");
+
+        Cleaner cleaner = db.cleaner();
+        if (cleaner != null) {
+            cleaner.clean();
+        }
+    }
+
+    // The following deprecated methods are used by JSR 166.
+
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObject(Object o, long offset) {
+        return getReference(o, offset);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObjectVolatile(Object o, long offset) {
+        return getReferenceVolatile(o, offset);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObjectAcquire(Object o, long offset) {
+        return getReferenceAcquire(o, offset);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObjectOpaque(Object o, long offset) {
+        return getReferenceOpaque(o, offset);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObject(Object o, long offset, Object x) {
+        putReference(o, offset, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObjectVolatile(Object o, long offset, Object x) {
+        putReferenceVolatile(o, offset, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObjectOpaque(Object o, long offset, Object x) {
+        putReferenceOpaque(o, offset, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObjectRelease(Object o, long offset, Object x) {
+        putReferenceRelease(o, offset, x);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getAndSetObject(Object o, long offset, Object newValue) {
+        return getAndSetReference(o, offset, newValue);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getAndSetObjectAcquire(Object o, long offset, Object newValue) {
+        return getAndSetReferenceAcquire(o, offset, newValue);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getAndSetObjectRelease(Object o, long offset, Object newValue) {
+        return getAndSetReferenceRelease(o, offset, newValue);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean compareAndSetObject(Object o, long offset, Object expected, Object x) {
+        return compareAndSetReference(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object compareAndExchangeObject(Object o, long offset, Object expected, Object x) {
+        return compareAndExchangeReference(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object compareAndExchangeObjectAcquire(Object o, long offset, Object expected, Object x) {
+        return compareAndExchangeReferenceAcquire(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object compareAndExchangeObjectRelease(Object o, long offset, Object expected, Object x) {
+        return compareAndExchangeReferenceRelease(o, offset, expected, x);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObject(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReference(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObjectAcquire(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReferenceAcquire(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObjectPlain(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReferencePlain(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObjectRelease(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReferenceRelease(o, offset, expected, x);
+    }
 }

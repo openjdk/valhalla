@@ -114,8 +114,8 @@ class java_lang_String : AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
   // Instance creation
-  static Handle create_from_unicode(jchar* unicode, int len, TRAPS);
-  static oop    create_oop_from_unicode(jchar* unicode, int len, TRAPS);
+  static Handle create_from_unicode(const jchar* unicode, int len, TRAPS);
+  static oop    create_oop_from_unicode(const jchar* unicode, int len, TRAPS);
   static Handle create_from_str(const char* utf8_str, TRAPS);
   static oop    create_oop_from_str(const char* utf8_str, TRAPS);
   static Handle create_from_symbol(Symbol* symbol, TRAPS);
@@ -189,7 +189,7 @@ class java_lang_String : AllStatic {
 
   static unsigned int hash_code(oop java_string);
 
-  static bool equals(oop java_string, jchar* chars, int len);
+  static bool equals(oop java_string, const jchar* chars, int len);
   static bool equals(oop str1, oop str2);
 
   // Conversion between '.' and '/' formats
@@ -610,10 +610,8 @@ class java_lang_reflect_Method : public java_lang_reflect_AccessibleObject {
   static int annotations_offset;
   static int parameter_annotations_offset;
   static int annotation_default_offset;
-  static int type_annotations_offset;
 
   static void compute_offsets();
-
  public:
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
@@ -624,7 +622,6 @@ class java_lang_reflect_Method : public java_lang_reflect_AccessibleObject {
   static oop clazz(oop reflect);
   static void set_clazz(oop reflect, oop value);
 
-  static oop name(oop method);
   static void set_name(oop method, oop value);
 
   static oop return_type(oop method);
@@ -633,34 +630,15 @@ class java_lang_reflect_Method : public java_lang_reflect_AccessibleObject {
   static oop parameter_types(oop method);
   static void set_parameter_types(oop method, oop value);
 
-  static oop exception_types(oop method);
-  static void set_exception_types(oop method, oop value);
-
   static int slot(oop reflect);
   static void set_slot(oop reflect, int value);
 
-  static int modifiers(oop method);
+  static void set_exception_types(oop method, oop value);
   static void set_modifiers(oop method, int value);
-
-  static bool has_signature_field();
-  static oop signature(oop method);
   static void set_signature(oop method, oop value);
-
-  static bool has_annotations_field();
-  static oop annotations(oop method);
   static void set_annotations(oop method, oop value);
-
-  static bool has_parameter_annotations_field();
-  static oop parameter_annotations(oop method);
   static void set_parameter_annotations(oop method, oop value);
-
-  static bool has_annotation_default_field();
-  static oop annotation_default(oop method);
   static void set_annotation_default(oop method, oop value);
-
-  static bool has_type_annotations_field();
-  static oop type_annotations(oop method);
-  static void set_type_annotations(oop method, oop value);
 
   // Debugging
   friend class JavaClasses;
@@ -681,10 +659,8 @@ class java_lang_reflect_Constructor : public java_lang_reflect_AccessibleObject 
   static int signature_offset;
   static int annotations_offset;
   static int parameter_annotations_offset;
-  static int type_annotations_offset;
 
   static void compute_offsets();
-
  public:
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
@@ -698,30 +674,14 @@ class java_lang_reflect_Constructor : public java_lang_reflect_AccessibleObject 
   static oop parameter_types(oop constructor);
   static void set_parameter_types(oop constructor, oop value);
 
-  static oop exception_types(oop constructor);
-  static void set_exception_types(oop constructor, oop value);
-
   static int slot(oop reflect);
   static void set_slot(oop reflect, int value);
 
-  static int modifiers(oop constructor);
+  static void set_exception_types(oop constructor, oop value);
   static void set_modifiers(oop constructor, int value);
-
-  static bool has_signature_field();
-  static oop signature(oop constructor);
   static void set_signature(oop constructor, oop value);
-
-  static bool has_annotations_field();
-  static oop annotations(oop constructor);
   static void set_annotations(oop constructor, oop value);
-
-  static bool has_parameter_annotations_field();
-  static oop parameter_annotations(oop method);
   static void set_parameter_annotations(oop method, oop value);
-
-  static bool has_type_annotations_field();
-  static oop type_annotations(oop constructor);
-  static void set_type_annotations(oop constructor, oop value);
 
   // Debugging
   friend class JavaClasses;
@@ -741,7 +701,6 @@ class java_lang_reflect_Field : public java_lang_reflect_AccessibleObject {
   static int modifiers_offset;
   static int signature_offset;
   static int annotations_offset;
-  static int type_annotations_offset;
 
   static void compute_offsets();
 
@@ -767,25 +726,10 @@ class java_lang_reflect_Field : public java_lang_reflect_AccessibleObject {
   static int modifiers(oop field);
   static void set_modifiers(oop field, int value);
 
-  static bool has_signature_field();
-  static oop signature(oop constructor);
   static void set_signature(oop constructor, oop value);
-
-  static bool has_annotations_field();
-  static oop annotations(oop constructor);
   static void set_annotations(oop constructor, oop value);
-
-  static bool has_parameter_annotations_field();
-  static oop parameter_annotations(oop method);
   static void set_parameter_annotations(oop method, oop value);
-
-  static bool has_annotation_default_field();
-  static oop annotation_default(oop method);
   static void set_annotation_default(oop method, oop value);
-
-  static bool has_type_annotations_field();
-  static oop type_annotations(oop field);
-  static void set_type_annotations(oop field, oop value);
 
   // Debugging
   friend class JavaClasses;
@@ -976,6 +920,7 @@ class java_lang_ref_Reference: AllStatic {
   static inline oop queue(oop ref);
   static inline void set_queue(oop ref, oop value);
   static bool is_referent_field(oop obj, ptrdiff_t offset);
+  static inline bool is_final(oop ref);
   static inline bool is_phantom(oop ref);
 };
 
@@ -1249,7 +1194,7 @@ public:
   static void         set_target(          oop site, oop target);
   static void         set_target_volatile( oop site, oop target);
 
-  static oop              context(oop site);
+  static oop context_no_keepalive(oop site);
 
   // Testers
   static bool is_subclass(Klass* klass) {
@@ -1304,8 +1249,6 @@ class java_security_AccessControlContext: AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
   static oop create(objArrayHandle context, bool isPrivileged, Handle privileged_context, TRAPS);
 
-  static bool is_authorized(Handle context);
-
   // Debugging/initialization
   friend class JavaClasses;
 };
@@ -1330,9 +1273,9 @@ class java_lang_ClassLoader : AllStatic {
   static void compute_offsets();
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
-  static ClassLoaderData* loader_data(oop loader);
+  static ClassLoaderData* loader_data_acquire(oop loader);
   static ClassLoaderData* loader_data_raw(oop loader);
-  static ClassLoaderData* cmpxchg_loader_data(ClassLoaderData* new_data, oop loader, ClassLoaderData* expected_data);
+  static void release_set_loader_data(oop loader, ClassLoaderData* new_data);
 
   static oop parent(oop loader);
   static oop name(oop loader);
@@ -1378,8 +1321,6 @@ class java_lang_System : AllStatic {
   static int  in_offset_in_bytes();
   static int out_offset_in_bytes();
   static int err_offset_in_bytes();
-
-  static bool has_security_manager();
 
   static void compute_offsets();
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;

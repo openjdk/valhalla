@@ -557,7 +557,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
         BasicType type) {
     address entry = __ pc();
   switch (type) {
-  case T_BOOLEAN: __ uxtb(r0, r0);        break;
+  case T_BOOLEAN: __ c2bool(r0);         break;
   case T_CHAR   : __ uxth(r0, r0);       break;
   case T_BYTE   : __ sxtb(r0, r0);        break;
   case T_SHORT  : __ sxth(r0, r0);        break;
@@ -1394,18 +1394,8 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
   __ stlrw(rscratch1, rscratch2);
 
-  if (os::is_MP()) {
-    if (UseMembar) {
-      // Force this write out before the read below
-      __ dmb(Assembler::ISH);
-    } else {
-      // Write serialization page so VM thread can do a pseudo remote membar.
-      // We use the current thread pointer to calculate a thread specific
-      // offset to write to within the page. This minimizes bus traffic
-      // due to cache line collision.
-      __ serialize_memory(rthread, rscratch2);
-    }
-  }
+  // Force this write out before the read below
+  __ dmb(Assembler::ISH);
 
   // check for safepoint operation in progress and/or pending suspend requests
   {
@@ -1450,7 +1440,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // and result handler will pick it up
 
   {
-    Label no_oop, not_weak, store_result;
+    Label no_oop;
     __ adr(t, ExternalAddress(AbstractInterpreter::result_handler(T_OBJECT)));
     __ cmp(t, result_handler);
     __ br(Assembler::NE, no_oop);
@@ -1912,8 +1902,8 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
     Label L_done;
 
     __ ldrb(rscratch1, Address(rbcp, 0));
-    __ cmpw(r1, Bytecodes::_invokestatic);
-    __ br(Assembler::EQ, L_done);
+    __ cmpw(rscratch1, Bytecodes::_invokestatic);
+    __ br(Assembler::NE, L_done);
 
     // The member name argument must be restored if _invokestatic is re-executed after a PopFrame call.
     // Detect such a case in the InterpreterRuntime function and return the member name argument, or NULL.
@@ -1948,7 +1938,6 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   // remove the activation (without doing throws on illegalMonitorExceptions)
   __ remove_activation(vtos, false, true, false);
   // restore exception
-  // restore exception
   __ get_vm_result(r0, rthread);
 
   // In between activations - previous activation type unknown yet
@@ -1957,9 +1946,8 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   //
   // r0: exception
   // lr: return address/pc that threw exception
-  // rsp: expression stack of caller
+  // esp: expression stack of caller
   // rfp: fp of caller
-  // FIXME: There's no point saving LR here because VM calls don't trash it
   __ stp(r0, lr, Address(__ pre(sp, -2 * wordSize)));  // save exception & return address
   __ super_call_VM_leaf(CAST_FROM_FN_PTR(address,
                           SharedRuntime::exception_handler_for_return_address),

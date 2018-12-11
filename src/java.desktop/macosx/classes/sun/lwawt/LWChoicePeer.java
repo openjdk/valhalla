@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,19 @@
  * questions.
  */
 
-
 package sun.lwawt;
 
-import java.awt.*;
+import java.awt.Point;
+import java.awt.Choice;
+
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.peer.ChoicePeer;
 
 import javax.accessibility.Accessible;
-import javax.swing.*;
+import javax.swing.JComboBox;
+import javax.swing.SwingUtilities;
+import javax.swing.JPopupMenu;
 
 /**
  * Lightweight implementation of {@link ChoicePeer}. Delegates most of the work
@@ -135,12 +138,6 @@ final class LWChoicePeer extends LWComponentPeer<Choice, JComboBox<String>>
     @SuppressWarnings("serial")// Safe: outer class is non-serializable.
     private final class JComboBoxDelegate extends JComboBox<String> {
 
-        // Empty non private constructor was added because access to this
-        // class shouldn't be emulated by a synthetic accessor method.
-        JComboBoxDelegate() {
-            super();
-        }
-
         @Override
         public boolean hasFocus() {
             return getTarget().hasFocus();
@@ -150,19 +147,6 @@ final class LWChoicePeer extends LWComponentPeer<Choice, JComboBox<String>>
         @Override
         public Point getLocationOnScreen() {
             return LWChoicePeer.this.getLocationOnScreen();
-        }
-
-        /**
-         * We should post ITEM_STATE_CHANGED event when the same element is
-         * reselected.
-         */
-        @Override
-        public void setSelectedItem(final Object anObject) {
-            final Object oldSelection = selectedItemReminder;
-            if (oldSelection != null && oldSelection.equals(anObject)) {
-                selectedItemChanged();
-            }
-            super.setSelectedItem(anObject);
         }
 
         @Override

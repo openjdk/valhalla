@@ -178,7 +178,7 @@ void Management::get_optional_support(jmmOptionalSupport* support) {
 
 InstanceKlass* Management::load_and_initialize_klass(Symbol* sh, TRAPS) {
   Klass* k = SystemDictionary::resolve_or_fail(sh, true, CHECK_NULL);
-  return initialize_klass(k, CHECK_NULL);
+  return initialize_klass(k, THREAD);
 }
 
 InstanceKlass* Management::load_and_initialize_klass_or_null(Symbol* sh, TRAPS) {
@@ -186,7 +186,7 @@ InstanceKlass* Management::load_and_initialize_klass_or_null(Symbol* sh, TRAPS) 
   if (k == NULL) {
      return NULL;
   }
-  return initialize_klass(k, CHECK_NULL);
+  return initialize_klass(k, THREAD);
 }
 
 InstanceKlass* Management::initialize_klass(Klass* k, TRAPS) {
@@ -1642,6 +1642,12 @@ void ThreadTimesClosure::do_thread(Thread* thread) {
 
   // exclude externally visible JavaThreads
   if (thread->is_Java_thread() && !thread->is_hidden_from_external_view()) {
+    return;
+  }
+
+  // NonJavaThread instances may not be fully initialized yet, so we need to
+  // skip any that aren't - check for zero stack_size()
+  if (!thread->is_Java_thread() && thread->stack_size() == 0) {
     return;
   }
 

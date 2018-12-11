@@ -53,145 +53,14 @@
 // ClassLoaderData are stored in the runtime representation of classes,
 // and provides iterators for root tracing and other GC operations.
 
-class ClassLoaderData;
+class ClassLoaderDataGraph;
 class JNIMethodBlock;
-class Metadebug;
 class ModuleEntry;
 class PackageEntry;
 class ModuleEntryTable;
 class PackageEntryTable;
 class DictionaryEntry;
 class Dictionary;
-
-// GC root for walking class loader data created
-
-class ClassLoaderDataGraph : public AllStatic {
-  friend class ClassLoaderData;
-  friend class ClassLoaderDataGraphMetaspaceIterator;
-  friend class ClassLoaderDataGraphKlassIteratorAtomic;
-  friend class ClassLoaderDataGraphKlassIteratorStatic;
-  friend class ClassLoaderDataGraphIterator;
-  friend class VMStructs;
- private:
-  // All CLDs (except the null CLD) can be reached by walking _head->_next->...
-  static ClassLoaderData* _head;
-  static ClassLoaderData* _unloading;
-  // CMS support.
-  static ClassLoaderData* _saved_head;
-  static ClassLoaderData* _saved_unloading;
-  static bool _should_purge;
-
-  // Set if there's anything to purge in the deallocate lists or previous versions
-  // during a safepoint after class unloading in a full GC.
-  static bool _should_clean_deallocate_lists;
-  static bool _safepoint_cleanup_needed;
-
-  // OOM has been seen in metaspace allocation. Used to prevent some
-  // allocations until class unloading
-  static bool _metaspace_oom;
-
-  static volatile size_t  _num_instance_classes;
-  static volatile size_t  _num_array_classes;
-
-  static ClassLoaderData* add_to_graph(Handle class_loader, bool is_unsafe_anonymous);
-  static ClassLoaderData* add(Handle class_loader, bool is_unsafe_anonymous);
-
- public:
-  static ClassLoaderData* find_or_create(Handle class_loader);
-  static void clean_module_and_package_info();
-  static void purge();
-  static void clear_claimed_marks();
-  // Iteration through CLDG inside a safepoint; GC support
-  static void cld_do(CLDClosure* cl);
-  static void cld_unloading_do(CLDClosure* cl);
-  static void roots_cld_do(CLDClosure* strong, CLDClosure* weak);
-  static void always_strong_cld_do(CLDClosure* cl);
-  // klass do
-  // Walking classes through the ClassLoaderDataGraph include array classes.  It also includes
-  // classes that are allocated but not loaded, classes that have errors, and scratch classes
-  // for redefinition.  These classes are removed during the next class unloading.
-  // Walking the ClassLoaderDataGraph also includes unsafe anonymous classes.
-  static void classes_do(KlassClosure* klass_closure);
-  static void classes_do(void f(Klass* const));
-  static void methods_do(void f(Method*));
-  static void modules_do(void f(ModuleEntry*));
-  static void modules_unloading_do(void f(ModuleEntry*));
-  static void packages_do(void f(PackageEntry*));
-  static void packages_unloading_do(void f(PackageEntry*));
-  static void loaded_classes_do(KlassClosure* klass_closure);
-  static void unlocked_loaded_classes_do(KlassClosure* klass_closure);
-  static void classes_unloading_do(void f(Klass* const));
-  static bool do_unloading(bool do_cleaning);
-
-  // Expose state to avoid logging overhead in safepoint cleanup tasks.
-  static inline bool should_clean_metaspaces_and_reset();
-  static void set_should_clean_deallocate_lists() { _should_clean_deallocate_lists = true; }
-  static void clean_deallocate_lists(bool purge_previous_versions);
-  static void walk_metadata_and_clean_metaspaces();
-
-  // dictionary do
-  // Iterate over all klasses in dictionary, but
-  // just the classes from defining class loaders.
-  static void dictionary_classes_do(void f(InstanceKlass*));
-  // Added for initialize_itable_for_klass to handle exceptions.
-  static void dictionary_classes_do(void f(InstanceKlass*, TRAPS), TRAPS);
-
-  // VM_CounterDecay iteration support
-  static InstanceKlass* try_get_next_class();
-
-  static void verify_dictionary();
-  static void print_dictionary(outputStream* st);
-  static void print_dictionary_statistics(outputStream* st);
-
-  // CMS support.
-  static void remember_new_clds(bool remember) { _saved_head = (remember ? _head : NULL); }
-  static GrowableArray<ClassLoaderData*>* new_clds();
-
-  static void set_should_purge(bool b) { _should_purge = b; }
-  static void purge_if_needed() {
-    // Only purge the CLDG for CMS if concurrent sweep is complete.
-    if (_should_purge) {
-      purge();
-      // reset for next time.
-      set_should_purge(false);
-    }
-  }
-
-  static int resize_if_needed();
-
-  static bool has_metaspace_oom()           { return _metaspace_oom; }
-  static void set_metaspace_oom(bool value) { _metaspace_oom = value; }
-
-  static void print_on(outputStream * const out) PRODUCT_RETURN;
-  static void print() { print_on(tty); }
-  static void verify();
-
-  // instance and array class counters
-  static inline size_t num_instance_classes();
-  static inline size_t num_array_classes();
-  static inline void inc_instance_classes(size_t count);
-  static inline void dec_instance_classes(size_t count);
-  static inline void inc_array_classes(size_t count);
-  static inline void dec_array_classes(size_t count);
-
-#ifndef PRODUCT
-  static bool contains_loader_data(ClassLoaderData* loader_data);
-#endif
-};
-
-class LockedClassesDo : public KlassClosure {
-  typedef void (*classes_do_func_t)(Klass*);
-  classes_do_func_t _function;
-public:
-  LockedClassesDo();  // For callers who provide their own do_klass
-  LockedClassesDo(classes_do_func_t function);
-  ~LockedClassesDo();
-
-  void do_klass(Klass* k) {
-    (*_function)(k);
-  }
-};
-
 
 // ClassLoaderData class
 
@@ -259,9 +128,8 @@ class ClassLoaderData : public CHeapObj<mtClass> {
                            // loader. _keep_alive does not need to be volatile or
                            // atomic since there is one unique CLD per unsafe anonymous class.
 
-  volatile int _claimed;   // true if claimed, for example during GC traces.
-                           // To avoid applying oop closure more than once.
-                           // Has to be an int because we cas it.
+  volatile int _claim; // non-zero if claimed, for example during GC traces.
+                       // To avoid applying oop closure more than once.
   ChunkedHandleList _handles; // Handles to constant pool arrays, Modules, etc, which
                               // have the same life cycle of the corresponding ClassLoader.
 
@@ -307,13 +175,14 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   void accumulate_modified_oops()        { if (has_modified_oops()) _accumulated_modified_oops = true; }
   void clear_accumulated_modified_oops() { _accumulated_modified_oops = false; }
   bool has_accumulated_modified_oops()   { return _accumulated_modified_oops; }
- private:
+  oop holder_no_keepalive() const;
 
+ private:
   void unload();
   bool keep_alive() const       { return _keep_alive > 0; }
 
   oop holder_phantom() const;
-  void classes_do(void f(Klass*));
+  void classes_do(void f(Klass* const));
   void loaded_classes_do(KlassClosure* klass_closure);
   void classes_do(void f(InstanceKlass*));
   void value_classes_do(void f(ValueKlass*));
@@ -331,12 +200,25 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   Dictionary* create_dictionary();
 
   void initialize_name(Handle class_loader);
+
  public:
   // GC interface.
-  void clear_claimed() { _claimed = 0; }
-  bool claimed() const { return _claimed == 1; }
-  bool claim();
 
+  // The "claim" is typically used to check if oops_do needs to be applied on
+  // the CLD or not. Most GCs only perform strong marking during the marking phase.
+  enum {
+    _claim_none        = 0,
+    _claim_finalizable = 2,
+    _claim_strong      = 3
+  };
+  void clear_claim() { _claim = 0; }
+  bool claimed() const { return _claim != 0; }
+  bool try_claim(int claim);
+  int get_claim() const { return _claim; }
+  void set_claim(int claim) { _claim = claim; }
+
+  // Computes if the CLD is alive or not. This is safe to call in concurrent
+  // contexts.
   bool is_alive() const;
 
   // Accessors
@@ -378,6 +260,9 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   inline oop class_loader() const;
 
   // Returns true if this class loader data is for a loader going away.
+  // Note that this is only safe after the GC has computed if the CLD is
+  // unloading or not. In concurrent contexts where there are no such
+  // guarantees, is_alive() should be used instead.
   bool is_unloading() const     {
     assert(!(is_the_null_class_loader_data() && _unloading), "The null class loader can never be unloaded");
     return _unloading;
@@ -390,7 +275,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   void initialize_holder(Handle holder);
 
-  void oops_do(OopClosure* f, bool must_claim, bool clear_modified_oops = false);
+  void oops_do(OopClosure* f, int claim_value, bool clear_modified_oops = false);
 
   void classes_do(KlassClosure* klass_closure);
   Klass* klasses() { return _klasses; }
@@ -443,31 +328,4 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   JFR_ONLY(DEFINE_TRACE_ID_METHODS;)
 };
 
-// An iterator that distributes Klasses to parallel worker threads.
-class ClassLoaderDataGraphKlassIteratorAtomic : public StackObj {
- Klass* volatile _next_klass;
- public:
-  ClassLoaderDataGraphKlassIteratorAtomic();
-  Klass* next_klass();
- private:
-  static Klass* next_klass_in_cldg(Klass* klass);
-};
-
-class ClassLoaderDataGraphMetaspaceIterator : public StackObj {
-  ClassLoaderData* _data;
- public:
-  ClassLoaderDataGraphMetaspaceIterator();
-  ~ClassLoaderDataGraphMetaspaceIterator();
-  bool repeat() { return _data != NULL; }
-  ClassLoaderMetaspace* get_next() {
-    assert(_data != NULL, "Should not be NULL in call to the iterator");
-    ClassLoaderMetaspace* result = _data->metaspace_or_null();
-    _data = _data->next();
-    // This result might be NULL for class loaders without metaspace
-    // yet.  It would be nice to return only non-null results but
-    // there is no guarantee that there will be a non-null result
-    // down the list so the caller is going to have to check.
-    return result;
-  }
-};
 #endif // SHARE_VM_CLASSFILE_CLASSLOADERDATA_HPP

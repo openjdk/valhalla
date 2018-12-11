@@ -21,9 +21,6 @@
  * questions.
  */
 
-/*
- */
-
 #include <stdio.h>
 #include <string.h>
 #include "jvmti.h"
@@ -31,30 +28,15 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
 
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
-
-#define PASSED 0
+#define STATUS_PASSED 0
 #define STATUS_FAILED 2
 
 static jvmtiEnv *jvmti = NULL;
-static jvmtiCapabilities caps;
-static jint result = PASSED;
+static jint result = STATUS_PASSED;
 static jboolean printdump = JNI_FALSE;
-static jmethodID mid = NULL;
 
 void print_LocalVariableEntry(jvmtiLocalVariableEntry *lvt_elem) {
   printf("\n Var name: %s, slot: %d", lvt_elem->name, lvt_elem->slot);
@@ -77,13 +59,13 @@ JNIEXPORT jint JNI_OnLoad_getlocal004(JavaVM *jvm, char *options, void *reserved
 jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
+    static jvmtiCapabilities caps;
 
     if (options != NULL && strcmp(options, "printdump") == 0) {
         printdump = JNI_TRUE;
     }
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong result of a valid call to GetEnv!\n");
         return JNI_ERR;
@@ -112,30 +94,31 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     if (!caps.can_access_local_variables) {
         printf("Warning: Access to local variables is not implemented\n");
+        return JNI_ERR;
     }
-
+    if (!caps.can_access_local_variables) {
+        printf("Warning: Access to local variables is not implemented\n");
+        return JNI_ERR;
+    }
     return JNI_OK;
 }
 
 JNIEXPORT void JNICALL
 Java_nsk_jvmti_unit_GetLocalVariable_getlocal004_getMeth(JNIEnv *env, jclass cls) {
+    jmethodID mid = NULL;
+
     if (jvmti == NULL) {
         printf("JVMTI client was not properly loaded!\n");
         result = STATUS_FAILED;
         return;
     }
 
-    if (!caps.can_access_local_variables ||
-        !caps.can_generate_method_exit_events) return;
-
-    mid = JNI_ENV_PTR(env)->GetStaticMethodID(JNI_ENV_ARG(env, cls),
-                                              "staticMeth", "(I)I");
+    mid = env->GetStaticMethodID(cls, "staticMeth", "(I)I");
     if (mid == NULL) {
         printf("Cannot find Method ID for staticMeth\n");
         result = STATUS_FAILED;
         return;
     }
-
     fflush(stdout);
 }
 
@@ -243,6 +226,4 @@ Java_nsk_jvmti_unit_GetLocalVariable_getlocal004_getRes(JNIEnv *env, jclass cls)
     return result;
 }
 
-#ifdef __cplusplus
 }
-#endif

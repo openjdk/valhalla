@@ -27,21 +27,8 @@
 #include "agent_common.h"
 #include "JVMTITools.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
-#ifndef JNI_ENV_ARG
-
-#ifdef __cplusplus
-#define JNI_ENV_ARG(x, y) y
-#define JNI_ENV_PTR(x) x
-#else
-#define JNI_ENV_ARG(x,y) x, y
-#define JNI_ENV_PTR(x) (*x)
-#endif
-
-#endif
 
 #define STATUS_FAILED 2
 #define PASSED 0
@@ -98,8 +85,8 @@ Java_nsk_jvmti_unit_ForceEarlyReturn_earlyretbase_suspThread(JNIEnv *env,
     }
 
     printf(">>>>>>>> Invoke SuspendThread()\n");
-    if ((err = (jvmti->SuspendThread(earlyretThr)))
-                                         != JVMTI_ERROR_NONE) {
+    err = jvmti->SuspendThread(earlyretThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call SuspendThread(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         return JNI_ERR;
@@ -119,8 +106,8 @@ Java_nsk_jvmti_unit_ForceEarlyReturn_earlyretbase_resThread(JNIEnv *env,
     }
 
     printf(">>>>>>>> Invoke ResumeThread()\n");
-    if ((err = (jvmti->ResumeThread(earlyretThr)))
-                                        != JVMTI_ERROR_NONE) {
+    err = jvmti->ResumeThread(earlyretThr);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call ResumeThread(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         return JNI_ERR;
@@ -174,16 +161,15 @@ Java_nsk_jvmti_unit_ForceEarlyReturn_earlyretbase_doForceEarlyReturn(JNIEnv *env
     printf(">>>>>>>> Invoke ForceEarlyReturn()\n");
 
     printf("Before call to GetMethodID(%s, %s)\n", name_exp, sig_exp);
-    midActiveMethod = JNI_ENV_PTR(env)->GetMethodID(JNI_ENV_ARG(env, targCls),
-                                                    name_exp, sig_exp);
+    midActiveMethod = env->GetMethodID(targCls, name_exp, sig_exp);
     if (midActiveMethod == NULL) {
         printf("Cannot find Method ID for method %s\n", name_exp);
         RETURN_FAILED;
     }
     printf("After call to GetMethodID(%s, %s)\n", name_exp, sig_exp);
 
-    if ((err = (jvmti->ForceEarlyReturnLong(earlyretThr, valToRet)))
-                                                          != JVMTI_ERROR_NONE) {
+    err = jvmti->ForceEarlyReturnLong(earlyretThr, valToRet);
+    if (err != JVMTI_ERROR_NONE) {
         printf("TEST FAILED: the function ForceEarlyReturn()"
                " returned the error %d: %s\n",
                err, TranslateError(err));
@@ -211,8 +197,7 @@ jint  Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    res = JNI_ENV_PTR(jvm)->GetEnv(JNI_ENV_ARG(jvm, (void **) &jvmti),
-        JVMTI_VERSION_1_1);
+    res = jvm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
     if (res != JNI_OK || jvmti == NULL) {
         printf("Wrong error code from a valid call to GetEnv!\n");
         return JNI_ERR;
@@ -288,6 +273,4 @@ Java_nsk_jvmti_unit_ForceEarlyReturn_earlyretbase_check(JNIEnv *env, jclass cls)
     return errCode;
 }
 
-#ifdef __cplusplus
 }
-#endif

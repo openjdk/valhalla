@@ -100,7 +100,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
  * is {@code String}.  The access mode type for {@code compareAndSet} on this
  * VarHandle instance would be
  * {@code (String[] c1, int c2, String expectedValue, String newValue)boolean}.
- * Such a VarHandle instance may produced by the
+ * Such a VarHandle instance may be produced by the
  * {@link MethodHandles#arrayElementVarHandle(Class) array factory method} and
  * access array elements as follows:
  * <pre> {@code
@@ -2004,7 +2004,7 @@ public abstract class VarHandle {
     /*non-public*/
     final void updateVarForm(VarForm newVForm) {
         if (vform == newVForm) return;
-        UNSAFE.putObject(this, VFORM_OFFSET, newVForm);
+        UNSAFE.putReference(this, VFORM_OFFSET, newVForm);
         UNSAFE.fullFence();
     }
 

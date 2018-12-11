@@ -28,6 +28,7 @@
 #include "ci/ciUtilities.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/barrierSetNMethod.hpp"
 #include "interpreter/interpreter.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/instanceOop.hpp"
@@ -254,10 +255,7 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(r13_save, r13);
     __ movptr(r14_save, r14);
     __ movptr(r15_save, r15);
-    if (UseAVX > 2) {
-      __ movl(rbx, 0xffff);
-      __ kmovwl(k1, rbx);
-    }
+
 #ifdef _WIN64
     int last_reg = 15;
     if (UseAVX > 2) {
@@ -612,7 +610,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movl(rax, c_rarg2);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ cmpxchgl(c_rarg0, Address(c_rarg1, 0));
     __ ret(0);
 
@@ -638,7 +636,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movsbq(rax, c_rarg2);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ cmpxchgb(c_rarg0, Address(c_rarg1, 0));
     __ ret(0);
 
@@ -664,7 +662,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movq(rax, c_rarg2);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ cmpxchgq(c_rarg0, Address(c_rarg1, 0));
     __ ret(0);
 
@@ -685,7 +683,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movl(rax, c_rarg0);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ xaddl(Address(c_rarg1, 0), c_rarg0);
     __ addl(rax, c_rarg0);
     __ ret(0);
@@ -707,7 +705,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movptr(rax, c_rarg0); // Copy to eax we need a return value anyhow
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ xaddptr(Address(c_rarg1, 0), c_rarg0);
     __ addptr(rax, c_rarg0);
     __ ret(0);
@@ -1180,6 +1178,8 @@ class StubGenerator: public StubCodeGenerator {
   // Registers r9 and r10 are used to save rdi and rsi on Windows, which latter
   // are non-volatile.  r9 and r10 should not be used by the caller.
   //
+  DEBUG_ONLY(bool regs_in_thread;)
+
   void setup_arg_regs(int nargs = 3) {
     const Register saved_rdi = r9;
     const Register saved_rsi = r10;
@@ -1200,9 +1200,11 @@ class StubGenerator: public StubCodeGenerator {
     assert(c_rarg0 == rdi && c_rarg1 == rsi && c_rarg2 == rdx && c_rarg3 == rcx,
            "unexpected argument registers");
 #endif
+    DEBUG_ONLY(regs_in_thread = false;)
   }
 
   void restore_arg_regs() {
+    assert(!regs_in_thread, "wrong call to restore_arg_regs");
     const Register saved_rdi = r9;
     const Register saved_rsi = r10;
 #ifdef _WIN64
@@ -1211,6 +1213,38 @@ class StubGenerator: public StubCodeGenerator {
 #endif
   }
 
+  // This is used in places where r10 is a scratch register, and can
+  // be adapted if r9 is needed also.
+  void setup_arg_regs_using_thread() {
+    const Register saved_r15 = r9;
+#ifdef _WIN64
+    __ mov(saved_r15, r15);  // r15 is callee saved and needs to be restored
+    __ get_thread(r15_thread);
+    assert(c_rarg0 == rcx && c_rarg1 == rdx && c_rarg2 == r8 && c_rarg3 == r9,
+           "unexpected argument registers");
+    __ movptr(Address(r15_thread, in_bytes(JavaThread::windows_saved_rdi_offset())), rdi);
+    __ movptr(Address(r15_thread, in_bytes(JavaThread::windows_saved_rsi_offset())), rsi);
+
+    __ mov(rdi, rcx); // c_rarg0
+    __ mov(rsi, rdx); // c_rarg1
+    __ mov(rdx, r8);  // c_rarg2
+#else
+    assert(c_rarg0 == rdi && c_rarg1 == rsi && c_rarg2 == rdx && c_rarg3 == rcx,
+           "unexpected argument registers");
+#endif
+    DEBUG_ONLY(regs_in_thread = true;)
+  }
+
+  void restore_arg_regs_using_thread() {
+    assert(regs_in_thread, "wrong call to restore_arg_regs");
+    const Register saved_r15 = r9;
+#ifdef _WIN64
+    __ get_thread(r15_thread);
+    __ movptr(rsi, Address(r15_thread, in_bytes(JavaThread::windows_saved_rsi_offset())));
+    __ movptr(rdi, Address(r15_thread, in_bytes(JavaThread::windows_saved_rdi_offset())));
+    __ mov(r15, saved_r15);  // r15 is callee saved and needs to be restored
+#endif
+  }
 
   // Copy big chunks forward
   //
@@ -1230,10 +1264,6 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
     if (UseUnalignedLoadStores) {
       Label L_end;
-      if (UseAVX > 2) {
-        __ movl(to, 0xffff);
-        __ kmovwl(k1, to);
-      }
       // Copy 64-bytes per iteration
       __ BIND(L_loop);
       if (UseAVX > 2) {
@@ -1314,10 +1344,6 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
     if (UseUnalignedLoadStores) {
       Label L_end;
-      if (UseAVX > 2) {
-        __ movl(to, 0xffff);
-        __ kmovwl(k1, to);
-      }
       // Copy 64-bytes per iteration
       __ BIND(L_loop);
       if (UseAVX > 2) {
@@ -1838,8 +1864,8 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("Entry:");
     }
 
-    setup_arg_regs(); // from => rdi, to => rsi, count => rdx
-                      // r9 and r10 may be used to save non-volatile registers
+    setup_arg_regs_using_thread(); // from => rdi, to => rsi, count => rdx
+                                   // r9 is used to save r15_thread
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
@@ -1879,7 +1905,7 @@ class StubGenerator: public StubCodeGenerator {
 
   __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, dword_count);
-    restore_arg_regs();
+    restore_arg_regs_using_thread();
     inc_counter_np(SharedRuntime::_jint_array_copy_ctr); // Update counter after rscratch1 is free
     __ vzeroupper();
     __ xorptr(rax, rax); // return 0
@@ -1915,7 +1941,7 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", name);
     address start = __ pc();
 
-    Label L_copy_bytes, L_copy_8_bytes, L_copy_2_bytes, L_exit;
+    Label L_copy_bytes, L_copy_8_bytes, L_exit;
     const Register from        = rdi;  // source array address
     const Register to          = rsi;  // destination array address
     const Register count       = rdx;  // elements count
@@ -1932,8 +1958,8 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     array_overlap_test(nooverlap_target, Address::times_4);
-    setup_arg_regs(); // from => rdi, to => rsi, count => rdx
-                      // r9 and r10 may be used to save non-volatile registers
+    setup_arg_regs_using_thread(); // from => rdi, to => rsi, count => rdx
+                                   // r9 is used to save r15_thread
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY;
     if (dest_uninitialized) {
@@ -1972,7 +1998,7 @@ class StubGenerator: public StubCodeGenerator {
     if (is_oop) {
       __ jmp(L_exit);
     }
-    restore_arg_regs();
+    restore_arg_regs_using_thread();
     inc_counter_np(SharedRuntime::_jint_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
     __ vzeroupper();
@@ -1984,7 +2010,7 @@ class StubGenerator: public StubCodeGenerator {
 
   __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, dword_count);
-    restore_arg_regs();
+    restore_arg_regs_using_thread();
     inc_counter_np(SharedRuntime::_jint_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
     __ vzeroupper();
@@ -2035,8 +2061,8 @@ class StubGenerator: public StubCodeGenerator {
       BLOCK_COMMENT("Entry:");
     }
 
-    setup_arg_regs(); // from => rdi, to => rsi, count => rdx
-                      // r9 and r10 may be used to save non-volatile registers
+    setup_arg_regs_using_thread(); // from => rdi, to => rsi, count => rdx
+                                     // r9 is used to save r15_thread
     // 'from', 'to' and 'qword_count' are now valid
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_DISJOINT;
@@ -2067,7 +2093,7 @@ class StubGenerator: public StubCodeGenerator {
     if (is_oop) {
       __ jmp(L_exit);
     } else {
-      restore_arg_regs();
+      restore_arg_regs_using_thread();
       inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); // Update counter after rscratch1 is free
       __ xorptr(rax, rax); // return 0
       __ vzeroupper();
@@ -2080,7 +2106,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, qword_count);
-    restore_arg_regs();
+    restore_arg_regs_using_thread();
     if (is_oop) {
       inc_counter_np(SharedRuntime::_oop_array_copy_ctr); // Update counter after rscratch1 is free
     } else {
@@ -2128,8 +2154,8 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     array_overlap_test(nooverlap_target, Address::times_8);
-    setup_arg_regs(); // from => rdi, to => rsi, count => rdx
-                      // r9 and r10 may be used to save non-volatile registers
+    setup_arg_regs_using_thread(); // from => rdi, to => rsi, count => rdx
+                                   // r9 is used to save r15_thread
     // 'from', 'to' and 'qword_count' are now valid
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_DISJOINT;
@@ -2156,7 +2182,7 @@ class StubGenerator: public StubCodeGenerator {
     if (is_oop) {
       __ jmp(L_exit);
     } else {
-      restore_arg_regs();
+      restore_arg_regs_using_thread();
       inc_counter_np(SharedRuntime::_jlong_array_copy_ctr); // Update counter after rscratch1 is free
       __ xorptr(rax, rax); // return 0
       __ vzeroupper();
@@ -2169,7 +2195,7 @@ class StubGenerator: public StubCodeGenerator {
 
     __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, qword_count);
-    restore_arg_regs();
+    restore_arg_regs_using_thread();
     if (is_oop) {
       inc_counter_np(SharedRuntime::_oop_array_copy_ctr); // Update counter after rscratch1 is free
     } else {
@@ -2285,11 +2311,22 @@ class StubGenerator: public StubCodeGenerator {
     enum {
       saved_r13_offset,
       saved_r14_offset,
+      saved_r10_offset,
       saved_rbp_offset
     };
     __ subptr(rsp, saved_rbp_offset * wordSize);
     __ movptr(Address(rsp, saved_r13_offset * wordSize), r13);
     __ movptr(Address(rsp, saved_r14_offset * wordSize), r14);
+    __ movptr(Address(rsp, saved_r10_offset * wordSize), r10);
+
+#ifdef ASSERT
+      Label L2;
+      __ get_thread(r14);
+      __ cmpptr(r15_thread, r14);
+      __ jcc(Assembler::equal, L2);
+      __ stop("StubRoutines::call_stub: r15_thread is modified by call");
+      __ bind(L2);
+#endif // ASSERT
 
     // check that int operands are properly extended to size_t
     assert_clean_int(length, rax);
@@ -2381,6 +2418,7 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(L_done);
     __ movptr(r13, Address(rsp, saved_r13_offset * wordSize));
     __ movptr(r14, Address(rsp, saved_r14_offset * wordSize));
+    __ movptr(r10, Address(rsp, saved_r10_offset * wordSize));
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_checkcast_array_copy_ctr); // Update counter after rscratch1 is free
     __ leave(); // required for proper stackwalking of RuntimeStub frame
@@ -2966,14 +3004,6 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
 
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
-
     // keylen could be only {11, 13, 15} * 4 = {44, 52, 60}
     __ movl(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
 
@@ -3067,14 +3097,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_temp4  = xmm5;
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
     // keylen could be only {11, 13, 15} * 4 = {44, 52, 60}
     __ movl(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
@@ -3187,14 +3209,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_key13  = as_XMMRegister(XMM_REG_NUM_KEY_FIRST+13);
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
 #ifdef _WIN64
     // on win64, fill len_reg from stack position
@@ -3388,14 +3402,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_key_last  = as_XMMRegister(XMM_REG_NUM_KEY_LAST);
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
 #ifdef _WIN64
     // on win64, fill len_reg from stack position
@@ -3857,19 +3863,11 @@ class StubGenerator: public StubCodeGenerator {
     Label L__incCounter[3][6]; //for 6 blocks
     Label L__incCounter_single[3]; //for single block, key128, key192, key256
     Label L_processTail_insr[3], L_processTail_4_insr[3], L_processTail_2_insr[3], L_processTail_1_insr[3], L_processTail_exit_insr[3];
-    Label L_processTail_extr[3], L_processTail_4_extr[3], L_processTail_2_extr[3], L_processTail_1_extr[3], L_processTail_exit_extr[3];
+    Label L_processTail_4_extr[3], L_processTail_2_extr[3], L_processTail_1_extr[3], L_processTail_exit_extr[3];
 
     Label L_exit;
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-        __ movl(rax, 0xffff);
-        __ kmovql(k1, rax);
-    }
 
 #ifdef _WIN64
     // allocate spill slots for r13, r14
@@ -4445,14 +4443,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
 
     __ enter();
 
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
-
     __ movdqu(xmm_temp10, ExternalAddress(StubRoutines::x86::ghash_long_swap_mask_addr()));
 
     __ movdqu(xmm_temp0, Address(state, 0));
@@ -4722,7 +4712,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ push(r13);
     __ push(r14);
     __ push(r15);
-    __ push(rbx);
 
     // arguments
     const Register source = c_rarg0; // Source Array
@@ -4751,8 +4740,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ cmpl(length, 0);
     __ jcc(Assembler::lessEqual, L_exit);
 
-    // Save k1 value in rbx
-    __ kmovql(rbx, k1);
     __ lea(r11, ExternalAddress(StubRoutines::x86::base64_charset_addr()));
     // check if base64 charset(isURL=0) or base64 url charset(isURL=1) needs to be loaded
     __ cmpl(isURL, 0);
@@ -4763,7 +4750,7 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ BIND(L_processdata);
     __ movdqu(xmm16, ExternalAddress(StubRoutines::x86::base64_gather_mask_addr()));
     // Set 64 bits of K register.
-    __ evpcmpeqb(k1, xmm16, xmm16, Assembler::AVX_512bit);
+    __ evpcmpeqb(k3, xmm16, xmm16, Assembler::AVX_512bit);
     __ evmovdquq(xmm12, ExternalAddress(StubRoutines::x86::base64_bswap_mask_addr()), Assembler::AVX_256bit, r13);
     __ evmovdquq(xmm13, ExternalAddress(StubRoutines::x86::base64_right_shift_mask_addr()), Assembler::AVX_512bit, r13);
     __ evmovdquq(xmm14, ExternalAddress(StubRoutines::x86::base64_left_shift_mask_addr()), Assembler::AVX_512bit, r13);
@@ -4842,17 +4829,17 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ vextracti64x4(xmm4, xmm5, 1);
     __ vpmovzxwd(xmm7, xmm4, Assembler::AVX_512bit);
 
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm4, k2, Address(r11, xmm0, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm5, k2, Address(r11, xmm1, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm8, k2, Address(r11, xmm2, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm9, k2, Address(r11, xmm3, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm10, k2, Address(r11, xmm6, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm11, k2, Address(r11, xmm7, Address::times_4, 0), Assembler::AVX_512bit);
 
     //Down convert dword to byte. Final output is 16*6 = 96 bytes long
@@ -4888,9 +4875,9 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ vpmovzxwd(xmm6, xmm9, Assembler::AVX_512bit);
     __ vextracti64x4(xmm9, xmm1, 1);
     __ vpmovzxwd(xmm5, xmm9,  Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm8, k2, Address(r11, xmm6, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm10, k2, Address(r11, xmm5, Address::times_4, 0), Assembler::AVX_512bit);
     __ evpmovdb(Address(dest, dp, Address::times_1, 0), xmm8, Assembler::AVX_512bit);
     __ evpmovdb(Address(dest, dp, Address::times_1, 16), xmm10, Assembler::AVX_512bit);
@@ -4946,9 +4933,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ addq(source, 3);
     __ jmp(L_process3);
     __ BIND(L_exit);
-    // restore k1 register value
-    __ kmovql(k1, rbx);
-    __ pop(rbx);
     __ pop(r15);
     __ pop(r14);
     __ pop(r13);
@@ -5206,9 +5190,9 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     BLOCK_COMMENT("Entry:");
     __ enter(); // required for proper stackwalking of RuntimeStub frame
 
-       setup_arg_regs(4); // x => rdi, len => rsi, z => rdx
-                          // zlen => rcx
-                          // r9 and r10 may be used to save non-volatile registers
+    setup_arg_regs(4); // x => rdi, len => rsi, z => rdx
+                       // zlen => rcx
+                       // r9 and r10 may be used to save non-volatile registers
     __ movptr(r8, rdx);
     __ square_to_len(x, len, z, zlen, tmp1, tmp2, tmp3, tmp4, tmp5, rdx, rax);
 
@@ -5216,6 +5200,83 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
 
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
+
+    return start;
+  }
+
+  address generate_method_entry_barrier() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "nmethod_entry_barrier");
+
+    Label deoptimize_label;
+
+    address start = __ pc();
+
+    __ push(-1); // cookie, this is used for writing the new rsp when deoptimizing
+
+    BLOCK_COMMENT("Entry:");
+    __ enter(); // save rbp
+
+    // save c_rarg0, because we want to use that value.
+    // We could do without it but then we depend on the number of slots used by pusha
+    __ push(c_rarg0);
+
+    __ lea(c_rarg0, Address(rsp, wordSize * 3)); // 1 for cookie, 1 for rbp, 1 for c_rarg0 - this should be the return address
+
+    __ pusha();
+
+    // The method may have floats as arguments, and we must spill them before calling
+    // the VM runtime.
+    assert(Argument::n_float_register_parameters_j == 8, "Assumption");
+    const int xmm_size = wordSize * 2;
+    const int xmm_spill_size = xmm_size * Argument::n_float_register_parameters_j;
+    __ subptr(rsp, xmm_spill_size);
+    __ movdqu(Address(rsp, xmm_size * 7), xmm7);
+    __ movdqu(Address(rsp, xmm_size * 6), xmm6);
+    __ movdqu(Address(rsp, xmm_size * 5), xmm5);
+    __ movdqu(Address(rsp, xmm_size * 4), xmm4);
+    __ movdqu(Address(rsp, xmm_size * 3), xmm3);
+    __ movdqu(Address(rsp, xmm_size * 2), xmm2);
+    __ movdqu(Address(rsp, xmm_size * 1), xmm1);
+    __ movdqu(Address(rsp, xmm_size * 0), xmm0);
+
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(address*)>(BarrierSetNMethod::nmethod_stub_entry_barrier)), 1);
+
+    __ movdqu(xmm0, Address(rsp, xmm_size * 0));
+    __ movdqu(xmm1, Address(rsp, xmm_size * 1));
+    __ movdqu(xmm2, Address(rsp, xmm_size * 2));
+    __ movdqu(xmm3, Address(rsp, xmm_size * 3));
+    __ movdqu(xmm4, Address(rsp, xmm_size * 4));
+    __ movdqu(xmm5, Address(rsp, xmm_size * 5));
+    __ movdqu(xmm6, Address(rsp, xmm_size * 6));
+    __ movdqu(xmm7, Address(rsp, xmm_size * 7));
+    __ addptr(rsp, xmm_spill_size);
+
+    __ cmpl(rax, 1); // 1 means deoptimize
+    __ jcc(Assembler::equal, deoptimize_label);
+
+    __ popa();
+    __ pop(c_rarg0);
+
+    __ leave();
+
+    __ addptr(rsp, 1 * wordSize); // cookie
+    __ ret(0);
+
+
+    __ BIND(deoptimize_label);
+
+    __ popa();
+    __ pop(c_rarg0);
+
+    __ leave();
+
+    // this can be taken out, but is good for verification purposes. getting a SIGSEGV
+    // here while still having a correct stack is valuable
+    __ testptr(rsp, Address(rsp, 0));
+
+    __ movptr(rsp, Address(rsp, 0)); // new rsp was written in the barrier
+    __ jmp(Address(rsp, -1 * wordSize)); // jmp target should be callers verified_entry_point
 
     return start;
   }
@@ -6000,6 +6061,11 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
                                                        &StubRoutines::_safefetchN_fault_pc,
                                                        &StubRoutines::_safefetchN_continuation_pc);
+
+    BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+    if (bs_nm != NULL) {
+      StubRoutines::x86::_method_entry_barrier = generate_method_entry_barrier();
+    }
 #ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();

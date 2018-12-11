@@ -25,6 +25,7 @@
 #define SHARE_GC_Z_ZOOPCLOSURES_HPP
 
 #include "memory/iterator.hpp"
+#include "gc/z/zRootsIterator.hpp"
 
 class ZLoadBarrierOopClosure : public BasicOopIterateClosure {
 public:
@@ -36,18 +37,6 @@ public:
     return false;
   }
 #endif
-};
-
-class ZMarkRootOopClosure : public OopClosure {
-public:
-  virtual void do_oop(oop* p);
-  virtual void do_oop(narrowOop* p);
-};
-
-class ZRelocateRootOopClosure : public OopClosure {
-public:
-  virtual void do_oop(oop* p);
-  virtual void do_oop(narrowOop* p);
 };
 
 template <bool finalizable>
@@ -70,39 +59,33 @@ public:
   virtual bool do_object_b(oop o);
 };
 
-class ZPhantomKeepAliveOopClosure : public OopClosure {
+class ZPhantomKeepAliveOopClosure : public ZRootsIteratorClosure {
 public:
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 };
 
-class ZPhantomCleanOopClosure : public OopClosure {
+class ZPhantomCleanOopClosure : public ZRootsIteratorClosure {
 public:
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
 };
 
-class ZVerifyHeapOopClosure : public BasicOopIterateClosure {
+class ZVerifyOopClosure : public ZRootsIteratorClosure, public BasicOopIterateClosure {
 public:
-  virtual ReferenceIterationMode reference_iteration_mode();
-
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
+
+  virtual ReferenceIterationMode reference_iteration_mode() {
+    return DO_FIELDS;
+  }
 
 #ifdef ASSERT
-  // Verification handled by the closure itself.
+  // Verification handled by the closure itself
   virtual bool should_verify_oops() {
     return false;
   }
 #endif
-};
-
-class ZVerifyRootOopClosure : public OopClosure {
-public:
-  ZVerifyRootOopClosure();
-
-  virtual void do_oop(oop* p);
-  virtual void do_oop(narrowOop* p);
 };
 
 class ZVerifyObjectClosure : public ObjectClosure {
