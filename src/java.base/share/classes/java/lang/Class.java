@@ -192,7 +192,7 @@ public final class Class<T> implements java.io.Serializable,
     public String toString() {
         return (isValue() ? "value " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName();
+               + getName() + (isValue() && isBoxType() ? "/box" : "");
     }
 
     /**
@@ -534,7 +534,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the box type of this class if this class is a value class;
      *         otherwise, this class.
      */
-    public Class<?> asBoxType() {
+    public Class<T> asBoxType() {
         return isValue() ? boxType : this;
     }
 
@@ -551,7 +551,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the unbox value type of this class if this class is a value class;
      *         otherwise, {@code null}.
      */
-    public Class<?> asValueType() {
+    public Class<T> asValueType() {
         return isValue() ? valueType : null;
     }
 
@@ -563,8 +563,8 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // set by VM if this class is a value type
-    private transient Class<?> boxType;
-    private transient Class<?> valueType;
+    private transient Class<T> boxType;
+    private transient Class<T> valueType;
 
     /**
      * Creates a new instance of the class represented by this {@code Class}

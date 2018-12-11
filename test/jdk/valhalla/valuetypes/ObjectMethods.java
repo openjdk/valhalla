@@ -39,7 +39,7 @@ public class ObjectMethods {
     @DataProvider(name="hashcodeTests")
     Object[][] hashcodeTests() {
         return new Object[][] {
-            { Point.makePoint(100, 200), hash(Point.class, 100, 200) },
+            { Point.makePoint(100, 200), hash(Point.class.asValueType(), 100, 200) },
  //           { Line.makeLine(1, 2, 3, 4), hash(Line.class, 1, 2, 3, 4)}
         };
     }

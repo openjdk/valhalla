@@ -55,7 +55,7 @@ public class ValueBootstrapMethodsTest {
         }
 
         private List<Object> values() {
-            return List.of(Value.class, i, d, s, l);
+            return List.of(Value.class.asValueType(), i, d, s, l);
         }
 
         public int localHashCode() {
@@ -72,7 +72,7 @@ public class ValueBootstrapMethodsTest {
 
         public String localToString() {
             System.out.println(l);
-            return String.format("[%s, %s, %s, %s, %s]", Value.class,
+            return String.format("[%s, %s, %s, %s, %s]", Value.class.asValueType(),
                                  i, String.valueOf(d), s, l.toString());
         }
     }

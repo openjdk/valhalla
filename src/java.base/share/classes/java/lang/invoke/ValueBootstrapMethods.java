@@ -161,7 +161,7 @@ public final class ValueBootstrapMethods {
          */
         static MethodHandle build(MethodHandles.Lookup lookup) {
             // build a MethodHandle[] { Class, getter1, getter2, ...} for the lookup class
-            Class<?> c = lookup.lookupClass();
+            Class<?> c = lookup.lookupClass().asValueType();
             MethodHandle valueClass =
                 MethodHandles.dropArguments(MethodHandles.constant(Class.class, c), 0, Object.class);
             MethodHandle[] getters = Stream.concat(Stream.of(valueClass), fields(lookup))
