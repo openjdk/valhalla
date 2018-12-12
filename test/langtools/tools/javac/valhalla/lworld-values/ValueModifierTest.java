@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8211910
+ * @bug 8211910 8215246
  * @summary Reinstate support for local value classes.
  * @compile/fail/ref=ValueModifierTest.out -XDrawDiagnostics -XDdev ValueModifierTest.java
  */

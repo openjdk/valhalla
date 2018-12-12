@@ -19,7 +19,7 @@
 
 /**
  * @test
- * @bug 8211138
+ * @bug 8211138 8215246
  * @summary Missing Flag enum constants
  * @library /tools/javac/lib
  * @modules jdk.compiler/com.sun.tools.javac.code

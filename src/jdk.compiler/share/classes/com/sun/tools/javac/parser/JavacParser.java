@@ -2301,14 +2301,13 @@ public class JavacParser implements Parser {
             return e;
         } else if (token.kind == LPAREN) {
             long badModifiers = mods.flags & ~(Flags.VALUE | Flags.FINAL);
-            if (badModifiers != 0) {
+            if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
-            }
             // handle type annotations for instantiations and anonymous classes
             if (newAnnotations.nonEmpty()) {
                 t = insertAnnotationsToMostInner(t, newAnnotations, false);
             }
-            JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t);
+            JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
                 badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
@@ -2338,7 +2337,7 @@ public class JavacParser implements Parser {
             t = typeArguments(t, true);
             mode = oldmode;
         }
-        return classCreatorRest(newpos, encl, typeArgs, t);
+        return classCreatorRest(newpos, encl, typeArgs, t, 0);
     }
 
     /** ArrayCreatorRest = [Annotations] "[" ( "]" BracketsOpt ArrayInitializer
@@ -2420,14 +2419,15 @@ public class JavacParser implements Parser {
     JCNewClass classCreatorRest(int newpos,
                                   JCExpression encl,
                                   List<JCExpression> typeArgs,
-                                  JCExpression t)
+                                  JCExpression t,
+                                  long flags)
     {
         List<JCExpression> args = arguments();
         JCClassDecl body = null;
         if (token.kind == LBRACE) {
             int pos = token.pos;
             List<JCTree> defs = classOrInterfaceBody(names.empty, false);
-            JCModifiers mods = F.at(Position.NOPOS).Modifiers(0);
+            JCModifiers mods = F.at(Position.NOPOS).Modifiers(flags);
             body = toP(F.at(pos).AnonymousClassDef(mods, defs));
         }
         JCNewClass newClass = toP(F.at(newpos).NewClass(encl, typeArgs, t, args, body));
