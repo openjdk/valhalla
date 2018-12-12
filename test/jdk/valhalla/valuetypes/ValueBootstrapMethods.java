@@ -60,19 +60,16 @@ public class ValueBootstrapMethods {
         Class<?> test = valueTestClass();
         Value value = Value.make(10, 5.03, "foo", "bar", "goo");
 
-        Method hashCode = test.getMethod("hashCode", Object.class);
+        Class<?> valueClass = Value.class.asValueType();
+        Method hashCode = test.getMethod("hashCode", valueClass);
         int hash = (int)hashCode.invoke(null, value);
         assertEquals(hash, value.hashCode());
 
-        Method longHashCode = test.getMethod("longHashCode", Object.class);
-        long lHash = (long)longHashCode.invoke(null, value);
-        assertEquals(lHash, value.longHashCode());
-
-        Method toString = test.getMethod("toString", Object.class);
+        Method toString = test.getMethod("toString", valueClass);
         String s = (String)toString.invoke(null, value);
         assertEquals(s, value.toString());
 
-        Method equals = test.getMethod("equals", Object.class, Object.class);
+        Method equals = test.getMethod("equals", valueClass, Object.class);
         boolean rc = (boolean)equals.invoke(null, value, value);
         if (!rc) {
             throw new RuntimeException("expected equals");
@@ -107,14 +104,6 @@ public class ValueBootstrapMethods {
             return values().hashCode();
         }
 
-        public long longHashCode() {
-            long hash = 1;
-            for (Object o : values()) {
-                hash = 31 * hash + o.hashCode();
-            }
-            return hash;
-        }
-
         public String toString() {
             System.out.println(l);
             return String.format("[%s, %s, %s, %s, %s]", Value.class.asValueType(),
@@ -127,7 +116,7 @@ public class ValueBootstrapMethods {
      */
     private static Class<?> valueTestClass() throws Exception {
         Path path = Paths.get(TEST_CLASSES, "ValueTest.class");
-        generate(Value.class, "ValueTest", path);
+        generate(Value.class.asValueType(), "ValueTest", path);
         return Class.forName("ValueTest");
     }
 
@@ -137,7 +126,7 @@ public class ValueBootstrapMethods {
         }
     }
 
-    static final int CLASSFILE_VERSION = 55;
+    static final int CLASSFILE_VERSION = 56;
     static void generate(Class<?> c, String className, Path path) throws IOException {
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
 
@@ -159,7 +148,7 @@ public class ValueBootstrapMethods {
         MethodVisitor mv = cw.visitMethod(
             ACC_PUBLIC + ACC_STATIC + ACC_FINAL,
             "hashCode",
-            "(Ljava/lang/Object;)I",
+            Type.getMethodDescriptor(Type.INT_TYPE, type),
             null,
             null);
 
@@ -173,29 +162,15 @@ public class ValueBootstrapMethods {
 
         mv = cw.visitMethod(
             ACC_PUBLIC + ACC_STATIC + ACC_FINAL,
-            "longHashCode",
-            "(Ljava/lang/Object;)J",
-            null,
-            null);
-
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitInvokeDynamicInsn("longHashCode", "(Ljava/lang/Object;)J",
-            bootstrap, type);
-        mv.visitInsn(LRETURN);
-
-        mv.visitMaxs(-1, -1);
-        mv.visitEnd();
-
-        mv = cw.visitMethod(
-            ACC_PUBLIC + ACC_STATIC + ACC_FINAL,
             "equals",
-            "(Ljava/lang/Object;Ljava/lang/Object;)Z",
+            Type.getMethodDescriptor(Type.BOOLEAN_TYPE, type, Type.getType(Object.class)),
             null,
             null);
 
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 1);
-        mv.visitInvokeDynamicInsn("equals", "(Ljava/lang/Object;Ljava/lang/Object;)Z",
+        mv.visitInvokeDynamicInsn("equals",
+            Type.getMethodDescriptor(Type.BOOLEAN_TYPE, type, Type.getType(Object.class)),
             bootstrap, type);
         mv.visitInsn(IRETURN);
         mv.visitMaxs(-1, -1);
@@ -204,12 +179,13 @@ public class ValueBootstrapMethods {
         mv = cw.visitMethod(
             ACC_PUBLIC + ACC_STATIC + ACC_FINAL,
             "toString",
-            "(Ljava/lang/Object;)Ljava/lang/String;",
+            Type.getMethodDescriptor(Type.getType(String.class), type),
             null,
             null);
 
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitInvokeDynamicInsn("toString", "(Ljava/lang/Object;)Ljava/lang/String;",
+        mv.visitInvokeDynamicInsn("toString",
+            Type.getMethodDescriptor(Type.getType(String.class), type),
             bootstrap,  type);
         mv.visitInsn(ARETURN);
         mv.visitMaxs(-1, -1);

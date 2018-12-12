@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
+import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
 
 /**
@@ -111,9 +112,6 @@ public final class ValueBootstrapMethods {
             case "valueHashCode":
                 mt = methodType(int.class, MethodHandle.class, Object.class);
                 break;
-            case "longHashCode":
-                mt = methodType(long.class, MethodHandle.class, Object.class);
-                break;
             case "equals":
                 mt = methodType(boolean.class, MethodHandle.class, Object.class, Object.class);
                 break;
@@ -127,7 +125,7 @@ public final class ValueBootstrapMethods {
             // return the method handle that implements the named method
             // which first invokes the getters method handle of a value object
             // and then compute the result
-            return IMPL_LOOKUP.findStatic(ValueBootstrapMethods.class, name, mt).bindTo(mh);
+            return IMPL_LOOKUP.findStatic(ValueBootstrapMethods.class, name, mt).bindTo(mh).asType(type);
         } catch (ReflectiveOperationException e) {
             throw new BootstrapMethodError(e);
         }
@@ -161,17 +159,15 @@ public final class ValueBootstrapMethods {
          */
         static MethodHandle build(MethodHandles.Lookup lookup) {
             // build a MethodHandle[] { Class, getter1, getter2, ...} for the lookup class
-            Class<?> c = lookup.lookupClass().asValueType();
-            MethodHandle valueClass =
-                MethodHandles.dropArguments(MethodHandles.constant(Class.class, c), 0, Object.class);
+            Class<?> type = lookup.lookupClass().asValueType();
+            MethodHandle valueClass = dropArguments(constant(Class.class, type), 0, Object.class);
             MethodHandle[] getters = Stream.concat(Stream.of(valueClass), fields(lookup))
                                            .toArray(MethodHandle[]::new);
 
-            MethodHandle iterations =
-                MethodHandles.dropArguments(MethodHandles.constant(int.class, getters.length), 0, Object.class);
+            MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, Object.class);
             MethodHandle init = ValueBsmFactory.NEW_ARRAY.bindTo(getters);
             MethodHandle body = ValueBsmFactory.GET_FIELD_VALUE.bindTo(getters);
-            return MethodHandles.countedLoop(iterations, init, body);
+            return countedLoop(iterations, init, body);
         }
 
         static Object[] newObjectArray(MethodHandle[] getters) {
@@ -202,19 +198,6 @@ public final class ValueBootstrapMethods {
 
     private static int hashCode(MethodHandle getters, Object obj) {
         return isValue(obj) ? valueHashCode(getters, obj) : obj.hashCode();
-    }
-
-    private static long longHashCode(MethodHandle getters, Object obj) {
-        if (isValue(obj)) {
-            Object[] values = invoke(getters, obj);
-            long hash = 1;
-            for (Object o : values) {
-                hash = 31 * hash + o.hashCode();
-            }
-            return hash;
-        } else {
-            return obj.hashCode();
-        }
     }
 
     private static int valueHashCode(MethodHandle getters, Object obj) {
@@ -268,5 +251,4 @@ public final class ValueBootstrapMethods {
             throw new InternalError(e);
         }
     }
-
 }

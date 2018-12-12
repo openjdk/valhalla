@@ -1023,22 +1023,17 @@ public class Gen extends JCTree.Visitor {
             switch (methodDecl.name.toString()) {
                 case "hashCode":
                     name = names.hashCode;
-                    argTypes = List.of(syms.objectType);
+                    argTypes = List.of(methodDecl.sym.owner.type);
                     resType = methodDecl.restype.type;
                     break;
                 case "equals":
                     name = names.equals;
-                    argTypes = List.of(syms.objectType, syms.objectType);
+                    argTypes = List.of(methodDecl.sym.owner.type, syms.objectType);
                     resType = methodDecl.restype.type;
                     break;
                 case "toString":
                     name = names.toString;
-                    argTypes = List.of(syms.objectType);
-                    resType = methodDecl.restype.type;
-                    break;
-                case "longHashCode":
-                    name = names.fromString("longHashCode");
-                    argTypes = List.of(syms.objectType);
+                    argTypes = List.of(methodDecl.sym.owner.type);
                     resType = methodDecl.restype.type;
                     break;
                 default:
@@ -1085,11 +1080,6 @@ public class Gen extends JCTree.Visitor {
                     code.emitop0(aload_0);
                     items.makeDynamicItem(dynSym).invoke();
                     code.emitop0(areturn);
-                    return;
-                case "longHashCode":
-                    code.emitop0(aload_0);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(lreturn);
                     return;
             }
         }

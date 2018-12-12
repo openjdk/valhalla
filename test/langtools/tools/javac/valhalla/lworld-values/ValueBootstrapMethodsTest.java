@@ -62,14 +62,6 @@ public class ValueBootstrapMethodsTest {
             return values().hashCode();
         }
 
-        public long localLongHashCode() {
-            long hash = 1;
-            for (Object o : values()) {
-                hash = 31 * hash + o.hashCode();
-            }
-            return hash;
-        }
-
         public String localToString() {
             System.out.println(l);
             return String.format("[%s, %s, %s, %s, %s]", Value.class.asValueType(),
@@ -88,7 +80,6 @@ public class ValueBootstrapMethodsTest {
         Value value = Value.make(10, 5.03, "foo", "bar", "goo");
 
         assertEquals(value.localHashCode(), value.hashCode());
-        assertEquals(value.localLongHashCode(), value.longHashCode());
         assertEquals(value.localToString(), value.toString());
 
         if (!value.equals(value)) {

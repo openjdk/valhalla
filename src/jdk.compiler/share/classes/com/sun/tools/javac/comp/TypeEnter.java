@@ -1008,7 +1008,7 @@ public class TypeEnter implements Completer {
          */
         private void addValueMembers(JCClassDecl tree, Env<AttrContext> env) {
 
-            boolean requireHashCode = true, requireEquals = true, requireToString = true, requireLongHashCode = true;
+            boolean requireHashCode = true, requireEquals = true, requireToString = true;
 
             for (JCTree def : tree.defs) {
                 if (def.getTag() == METHODDEF) {
@@ -1025,8 +1025,6 @@ public class TypeEnter implements Completer {
                                     requireHashCode = false;
                                 else if (name.equals("toString"))
                                     requireToString = false;
-                                else if (name.equals("longHashCode"))
-                                    requireLongHashCode = false;
                                 break;
                             case 1:
                                 name = methodDecl.name.toString();
@@ -1092,20 +1090,6 @@ public class TypeEnter implements Completer {
                 tree.defs = tree.defs.append(toString);
             }
 
-            if (requireLongHashCode) {
-                // public long longHashCode() { throw new RuntimeException(message); }
-                JCMethodDecl longHashCode = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.fromString("longHashCode"),
-                                make.TypeIdent(TypeTag.LONG),
-                                List.nil(),
-                                List.nil(),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(longHashCode, env);
-                tree.defs = tree.defs.append(longHashCode);
-            }
         }
     }
 
