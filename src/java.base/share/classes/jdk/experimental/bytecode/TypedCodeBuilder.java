@@ -200,6 +200,14 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
         }
 
         @Override
+        public C anewvaluearray(S s) {
+            super.anewvaluearray(s);
+            state.pop();
+            state.push(typeHelper.arrayOf(typeHelper.valueType(s)));
+            return thisBuilder();
+        }
+
+        @Override
         public C aconst_null() {
             super.aconst_null();
             state.pop();
@@ -963,6 +971,11 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             public int putClass(S symbol) {
                 type = typeHelper.type(symbol);
                 return poolHelper.putClass(symbol);
+            }
+
+            @Override
+            public int putValueClass(S symbol) {
+                throw new IllegalStateException();
             }
 
             @Override

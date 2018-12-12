@@ -180,9 +180,21 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
+    public C anewvaluearray(S array) {
+        emitOp(Opcode.ANEWARRAY, array);
+        code.writeChar(poolHelper.putValueClass(array));
+        return thisBuilder();
+    }
+
     public C checkcast(S target) {
         emitOp(Opcode.CHECKCAST);
         code.writeChar(poolHelper.putClass(target));
+        return thisBuilder();
+    }
+
+    public C checkvaluecast(S target) {
+        emitOp(Opcode.CHECKCAST);
+        code.writeChar(poolHelper.putValueClass(target));
         return thisBuilder();
     }
 
@@ -403,6 +415,10 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
         public C anewarray(S s) {
             return CodeBuilder.this.anewarray(s);
+        }
+
+        public C anewvaluearray(S s) {
+            return CodeBuilder.this.anewvaluearray(s);
         }
 
         public C aconst_null() {
@@ -1277,7 +1293,8 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
                     } else {
                         //TODO: uninit this, top?
                         stackmaps.writeByte(7);
-                        stackmaps.writeChar(poolHelper.putClass(typeHelper.symbol(t)));
+                        stackmaps.writeChar(typeHelper.isValue(t) ?
+                                poolHelper.putValueClass(typeHelper.symbol(t)) : poolHelper.putClass(typeHelper.symbol(t)));
                     }
                     break;
                 default:

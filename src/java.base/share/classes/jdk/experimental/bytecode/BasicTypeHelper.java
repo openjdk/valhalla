@@ -48,8 +48,18 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
     }
 
     @Override
+    public boolean isValue(String t) {
+        return t.charAt(0) == 'Q' && t.endsWith(";");
+    }
+
+    @Override
     public String type(String s) {
         return "L" + s + ";";
+    }
+
+    @Override
+    public String valueType(String s) {
+        return "Q" + s + ";";
     }
 
     @Override

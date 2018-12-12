@@ -55,6 +55,11 @@ public class IsolatedMethodBuilder extends MethodBuilder<Class<?>, String, Objec
         }
 
         @Override
+        public int putValueClass(Class<?> symbol) {
+            return putIfAbsent(symbol);
+        }
+
+        @Override
         public int putFieldRef(Class<?> owner, CharSequence name, String type) {
             try {
                 Field f = owner.getDeclaredField(name.toString()); //TODO: we should unreflect for a var handle

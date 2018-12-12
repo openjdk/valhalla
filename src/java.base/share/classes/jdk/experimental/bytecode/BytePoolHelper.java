@@ -373,6 +373,11 @@ public class BytePoolHelper<S, T> implements PoolHelper<S, T, byte[]> {
         return putClassInternal(symbolToString.apply(symbol));
     }
 
+    @Override
+    public int putValueClass(S symbol) {
+        return putClassInternal("Q" + symbolToString.apply(symbol) + ";");
+    }
+
     private int putClassInternal(String symbol) {
         key.setClass(symbol);
         PoolKey poolKey = entries.lookup(key);

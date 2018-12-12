@@ -407,7 +407,11 @@ class LambdaFormBuilder extends MethodHandleBuilder {
                 }
             }
             if (InvokerBytecodeGenerator.isStaticallyNameable(cls)) {
-                checkcast(cls);
+                if (cls.isValue()) {
+                    checkvaluecast(cls);
+                } else {
+                    checkcast(cls);
+                }
             } else {
                 ldc(cls)
                     .checkcast(Class.class)

@@ -174,8 +174,14 @@ public class MethodHandleBuilder {
                 if (aClass.isArray()) {
                     return classToInternalName(aClass);
                 } else {
-                    return "L" + classToInternalName(aClass) + ";";
+                    return (aClass.isValue() ? "Q" : "L") + classToInternalName(aClass) + ";";
                 }
+            }
+
+            @Override
+            public boolean isValue(String desc) {
+                Class<?> aClass = symbol(desc);
+                return aClass != null && aClass.isValue();
             }
 
             @Override

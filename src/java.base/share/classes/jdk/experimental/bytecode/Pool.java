@@ -335,6 +335,8 @@ public abstract class Pool {
             String name = getName();
             if (name.startsWith("[")) {
                 int index = name.indexOf("[L");
+                if (index == -1)
+                    index = name.indexOf("[Q");
                 if (index == -1) {
                     return null;
                 }
