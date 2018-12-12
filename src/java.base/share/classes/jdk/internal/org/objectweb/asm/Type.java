@@ -334,7 +334,8 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            if (methodDescriptor.charAt(currentOffset++) == 'L') {
+            char c = methodDescriptor.charAt(currentOffset++);
+            if (c == 'L' || c == 'Q') {
                 // Skip the argument descriptor content.
                 currentOffset = methodDescriptor.indexOf(';', currentOffset) + 1;
             }
@@ -352,7 +353,8 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            if (methodDescriptor.charAt(currentOffset++) == 'L') {
+            char c = methodDescriptor.charAt(currentOffset++);
+            if (c == 'L' || c == 'Q') {
                 // Skip the argument descriptor content.
                 currentOffset = methodDescriptor.indexOf(';', currentOffset) + 1;
             }
@@ -401,7 +403,8 @@ public final class Type {
             while (methodDescriptor.charAt(currentOffset) == '[') {
                 currentOffset++;
             }
-            if (methodDescriptor.charAt(currentOffset++) == 'L') {
+            char c = methodDescriptor.charAt(currentOffset++);
+            if (c == 'L' || c == 'Q') {
                 // Skip the argument descriptor content.
                 currentOffset = methodDescriptor.indexOf(';', currentOffset) + 1;
             }
@@ -774,7 +777,8 @@ public final class Type {
                 while (methodDescriptor.charAt(currentOffset) == '[') {
                     currentOffset++;
                 }
-                if (methodDescriptor.charAt(currentOffset++) == 'L') {
+                char c = methodDescriptor.charAt(currentOffset++);
+                if (c == 'L' || c == 'Q') {
                     // Skip the argument descriptor content.
                     currentOffset = methodDescriptor.indexOf(';', currentOffset) + 1;
                 }

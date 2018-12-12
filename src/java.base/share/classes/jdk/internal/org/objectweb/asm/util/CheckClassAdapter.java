@@ -624,7 +624,7 @@ public class CheckClassAdapter extends ClassVisitor {
             pos = checkTypeParameters(signature, pos);
         }
         pos = checkChar('(', signature, pos);
-        while ("ZCBSIFJDL[T".indexOf(getChar(signature, pos)) != -1) {
+        while ("ZCBSIFJDLQ[T".indexOf(getChar(signature, pos)) != -1) {
             pos = checkJavaTypeSignature(signature, pos);
         }
         pos = checkChar(')', signature, pos);
@@ -635,7 +635,7 @@ public class CheckClassAdapter extends ClassVisitor {
         }
         while (getChar(signature, pos) == '^') {
             ++pos;
-            if (getChar(signature, pos) == 'L') {
+            if (getChar(signature, pos) == 'L' || getChar(signature, pos) == 'Q') {
                 pos = checkClassTypeSignature(signature, pos);
             } else {
                 pos = checkTypeVariableSignature(signature, pos);
@@ -751,7 +751,12 @@ public class CheckClassAdapter extends ClassVisitor {
         // ClassTypeSignatureSuffix:
         //   . SimpleClassTypeSignature
         int pos = startPos;
-        pos = checkChar('L', signature, pos);
+        if (getChar(signature, pos) == 'L' || getChar(signature, pos) == 'Q') {
+            pos = pos + 1;
+        } else {
+            throw new IllegalArgumentException(signature + ": 'L' or 'Q' expected at index " + pos);
+        }
+
         pos = checkSignatureIdentifier(signature, pos);
         while (getChar(signature, pos) == '/') {
             pos = checkSignatureIdentifier(signature, pos + 1);
