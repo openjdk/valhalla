@@ -25,7 +25,7 @@
  * @test
  * @summary test that the right exceptions get thrown for bad value type
  *          class files.
- * @compile verifierTests.jcod
+ * @compile verifierTests.jcod NoArrayCov.jcod NoArrayCovIntf.jcod NoNullVT.jcod
  * @run main/othervm -verify -XX:+EnableValhalla VerifierValueTypes
  */
 
@@ -95,5 +95,17 @@ public class VerifierValueTypes {
 
         // Test VerifyError is thrown if a withfield's class operand is not a value type.
         runTestVerifyError("withfieldObj", "Bad type on operand stack");
+
+        // Test that an array of value types is not assignable to [Ljava/lang/Object;.
+        runTestVerifyError("NoArrayCov",
+            "Type '[QNoArrayCov;' (current frame, stack[1]) is not assignable to '[Ljava/lang/Object;'");
+
+        // Test that an array of value types is not assignable to an array of interfaces.
+        runTestVerifyError("NoArrayCovIntf",
+            "Type '[QNoArrayCovIntf;' (current frame, stack[1]) is not assignable to '[LII;'");
+
+        // Test that null is not assignable to a value type.
+        runTestVerifyError("NoNullVT",
+            "Type null (current frame, stack[1]) is not assignable to 'QNoNullVT;'");
     }
 }

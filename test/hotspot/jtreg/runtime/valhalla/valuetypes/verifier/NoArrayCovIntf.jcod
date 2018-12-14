@@ -1,0 +1,499 @@
+/*
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ *
+ */
+
+// Test that a VerifyError exception is thrown when trying to pass a value
+// type array when the formal parameter is an array of an interface type.
+//
+// // Java program emulating the jcod contents.
+// interface II { }
+//
+// public value final class NoArrayCovIntf {
+//     final int x;
+//     final int y;
+//
+//     private NoArrayCovIntf() {
+//         x = 0;
+//         y = 0;
+//     }
+//
+//     public int getX() { return x; }
+//     public int getY() { return y; }
+//
+//     public String toString() {
+//         return "NoArrayCovIntf: x=" + getX() + " y=" + getY();
+//     }
+//
+//     public void iiArray(ii[] oArr) {
+//         System.out.println("In iiArray");
+//     }
+//
+//     public static NoArrayCovIntf createNoArrayCovIntf(int x, int y) {
+//         NoArrayCovIntf p = NoArrayCovIntf.default;
+//         p = __WithField(p.x, x);
+//         p = __WithField(p.y, y);
+//         return p;
+//     }
+//
+//     public static void main(String[] args) {
+//         NoArrayCovIntf a = createNoArrayCovIntf(3, 4);
+//         NoArrayCovIntf b = createNoArrayCovIntf(2, 4);
+//         NoArrayCovIntf pa[] = new NoArrayCovIntf[2];
+//         pa[0] = a;
+//         pa[1] = b;
+//         a.iiArray(pa); // Should throw VerifyError.
+//     }
+// }
+
+
+class II {
+  0xCAFEBABE;
+  0; // minor version
+  56; // version
+  [7] { // Constant Pool
+    ; // first element is empty
+    class #5; // #1     at 0x0A
+    class #6; // #2     at 0x0D
+    Utf8 "SourceFile"; // #3     at 0x10
+    Utf8 "II.java"; // #4     at 0x1D
+    Utf8 "II"; // #5     at 0x33
+    Utf8 "java/lang/Object"; // #6     at 0x37
+  } // Constant Pool
+
+  0x0600; // access [ ACC_INTERFACE ]
+  #1;// this_cpx
+  #2;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [0] { // fields
+  } // fields
+
+  [0] { // methods
+  } // methods
+
+  [1] { // Attributes
+    Attr(#3, 2) { // SourceFile at 0x58
+      #4;
+    } // end SourceFile
+  } // Attributes
+} // end class II
+
+
+class NoArrayCovIntf {
+  0xCAFEBABE;
+  0; // minor version
+  56; // version
+  [99] { // Constant Pool
+    ; // first element is empty
+    String #58; // #1     at 0x0A
+    Method #66 #19; // #2     at 0x0D
+    InvokeDynamic 3s #63; // #3     at 0x12
+    class #38; // #4     at 0x17
+    class #39; // #5     at 0x1A
+    Method #24 #50; // #6     at 0x1D
+    Method #4 #85; // #7     at 0x22
+    InvokeDynamic 1s #36; // #8     at 0x27
+    Method #4 #73; // #9     at 0x2C
+    Field #65 #89; // #10     at 0x31
+    InvokeDynamic 2s #30; // #11     at 0x36
+    Method #4 #57; // #12     at 0x3B
+    Field #4 #34; // #13     at 0x40
+    Field #4 #56; // #14     at 0x45
+    InvokeDynamic 0s #93; // #15     at 0x4A
+    Method #4 #32; // #16     at 0x4F
+    Utf8 "java/io/PrintStream"; // #17     at 0x54
+    Utf8 "NoArrayCovIntf.jasm"; // #18     at 0x6A
+    NameAndType #88 #62; // #19     at 0x80
+    Utf8 "([LII;)V"; // #20     at 0x85
+    Utf8 "java/lang/invoke/ValueBootstrapMethods"; // #21     at 0x8F
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #22     at 0xB8
+    MethodHandle 6b #43; // #23     at 0xE0
+    class #17; // #24     at 0xE4
+    Utf8 "SourceFile"; // #25     at 0xE7
+    Utf8 "iiArray"; // #26     at 0xF4
+    class #21; // #27     at 0xFF
+    Utf8 "Lookup"; // #28     at 0x0102
+    class #22; // #29     at 0x010B
+    NameAndType #60 #40; // #30     at 0x010E
+    Utf8 "hashCode"; // #31     at 0x0113
+    NameAndType #77 #75; // #32     at 0x011E
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"; // #33     at 0x0123
+    NameAndType #95 #35; // #34     at 0x01BE
+    Utf8 "I"; // #35     at 0x01C3
+    NameAndType #31 #68; // #36     at 0x01C7
+    Utf8 "Code"; // #37     at 0x01CC
+    Utf8 "NoArrayCovIntf"; // #38     at 0x01D3
+    Utf8 "QNoArrayCovIntf;"; // #39     at 0x01E4
+    Utf8 "(Ljava/lang/Object;Ljava/lang/Object;)Z"; // #40     at 0x01F7
+    NameAndType #91 #33; // #41     at 0x0221
+    Utf8 "createNoArrayCovIntf"; // #42     at 0x0226
+    Method #96 #41; // #43     at 0x023D
+    Utf8 "([Ljava/lang/String;)V"; // #44     at 0x0242
+    Utf8 "out"; // #45     at 0x025B
+    Utf8 "$makeValue$"; // #46     at 0x0261
+    Utf8 "BootstrapMethods"; // #47     at 0x026F
+    String #67; // #48     at 0x0282
+    Utf8 "toString"; // #49     at 0x0285
+    NameAndType #53 #69; // #50     at 0x0290
+    Utf8 "java/lang/invoke/MethodHandles"; // #51     at 0x0295
+    Utf8 "(Ljava/lang/Object;)Z"; // #52     at 0x02B6
+    Utf8 "println"; // #53     at 0x02CE
+    Utf8 "java/lang/Object"; // #54     at 0x02D8
+    Utf8 "java/lang/System"; // #55     at 0x02EB
+    NameAndType #92 #35; // #56     at 0x02FE
+    NameAndType #26 #20; // #57     at 0x0303
+    Utf8 "In iiArray"; // #58     at 0x0308
+    class #51; // #59     at 0x0316
+    Utf8 "equals"; // #60     at 0x0319
+    NameAndType #72 #79; // #61     at 0x0322
+    Utf8 "()V"; // #62     at 0x0327
+    NameAndType #97 #64; // #63     at 0x032D
+    Utf8 "(Ljava/lang/Object;)J"; // #64     at 0x0332
+    class #55; // #65     at 0x034A
+    class #54; // #66     at 0x034D
+    Utf8 "NoArrayCovIntf: x= y="; // #67     at 0x0350
+    Utf8 "(Ljava/lang/Object;)I"; // #68     at 0x036A
+    Utf8 "(Ljava/lang/String;)V"; // #69     at 0x0382
+    Utf8 "main"; // #70     at 0x039A
+    Method #27 #61; // #71     at 0x03A1
+    Utf8 "makeBootstrapMethod"; // #72     at 0x03A6
+    NameAndType #42 #78; // #73     at 0x03BC
+    Utf8 "()J"; // #74     at 0x03C1
+    Utf8 "()I"; // #75     at 0x03C7
+    Utf8 "getY"; // #76     at 0x03CD
+    Utf8 "getX"; // #77     at 0x03D4
+    Utf8 "(II)QNoArrayCovIntf;"; // #78     at 0x03DB
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"; // #79     at 0x03F2
+    Utf8 "InnerClasses"; // #80     at 0x0468
+    Utf8 "()QNoArrayCovIntf;"; // #81     at 0x0477
+    MethodHandle 6b #71; // #82     at 0x048C
+    MethodHandle 6b #71; // #83     at 0x0490
+    MethodHandle 6b #71; // #84     at 0x0494
+    NameAndType #76 #75; // #85     at 0x0498
+    Utf8 "Ljava/io/PrintStream;"; // #86     at 0x049D
+    Utf8 "java/lang/invoke/StringConcatFactory"; // #87     at 0x04B5
+    Utf8 "<init>"; // #88     at 0x04DC
+    NameAndType #45 #86; // #89     at 0x04E5
+    Utf8 "()Ljava/lang/String;"; // #90     at 0x04EA
+    Utf8 "makeConcatWithConstants"; // #91     at 0x0501
+    Utf8 "y"; // #92     at 0x051B
+    NameAndType #91 #98; // #93     at 0x051F
+    Utf8 "ValueTypes"; // #94     at 0x0524
+    Utf8 "x"; // #95     at 0x0531
+    class #87; // #96     at 0x0535
+    Utf8 "longHashCode"; // #97     at 0x0538
+    Utf8 "(I)Ljava/lang/String;"; // #98     at 0x0547
+  } // Constant Pool
+
+  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  #4;// this_cpx
+  #66;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // fields
+    { // Member at 0x056A
+      0x0010; // access
+      #95; // name_cpx
+      #35; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0572
+      0x0010; // access
+      #92; // name_cpx
+      #35; // sig_cpx
+      [0] { // Attributes
+      } // Attributes
+    } // Member
+  } // fields
+
+  [11] { // methods
+    { // Member at 0x057C
+      0x0002; // access
+      #88; // name_cpx
+      #62; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 17) { // Code at 0x0584
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB70002B1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x059B
+      0x0001; // access
+      #77; // name_cpx
+      #75; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 17) { // Code at 0x05A3
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB4000DAC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x05BA
+      0x0001; // access
+      #76; // name_cpx
+      #75; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 17) { // Code at 0x05C2
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB4000EAC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x05D9
+      0x0001; // access
+      #49; // name_cpx
+      #90; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 26) { // Code at 0x05E1
+          2; // max_stack
+          1; // max_locals
+          Bytes[14]{
+            0x2AB600102AB60007;
+            0xBA000F0000B0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0601
+      0x0001; // access
+      #26; // name_cpx
+      #20; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 21) { // Code at 0x0609
+          2; // max_stack
+          2; // max_locals
+          Bytes[9]{
+            0xB2000A1201B60006;
+            0xB1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0624
+      0x0009; // access
+      #42; // name_cpx
+      #78; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 32) { // Code at 0x062C
+          2; // max_stack
+          3; // max_locals
+          Bytes[20]{
+            0xCB00044D1A2C5FCC;
+            0x000D4D1B2C5FCC00;
+            0x0E4D2CB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0652
+      0x0009; // access
+      #70; // name_cpx
+      #44; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 43) { // Code at 0x065A
+          3; // max_stack
+          4; // max_locals
+          Bytes[31]{
+            0x0607B800094C0507;
+            0xB800094D05BD0005;
+            0x4E2D032B532D042C;
+            0x532B2DB6000CB1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x068B
+      0x0011; // access
+      #31; // name_cpx
+      #75; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 19) { // Code at 0x0693
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00080000AC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x06AC
+      0x0011; // access
+      #60; // name_cpx
+      #52; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 20) { // Code at 0x06B4
+          2; // max_stack
+          2; // max_locals
+          Bytes[8]{
+            0x2A2BBA000B0000AC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x06CE
+      0x0011; // access
+      #97; // name_cpx
+      #74; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 19) { // Code at 0x06D6
+          2; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00030000AD;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x06EF
+      0x100A; // access
+      #46; // name_cpx
+      #81; // sig_cpx
+      [1] { // Attributes
+        Attr(#37, 32) { // Code at 0x06F7
+          2; // max_stack
+          1; // max_locals
+          Bytes[20]{
+            0xCB00044B032A5FCC;
+            0x000D4B032A5FCC00;
+            0x0E4B2AB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [0] { // Attributes
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+  } // methods
+
+  [4] { // Attributes
+    Attr(#25, 2) { // SourceFile at 0x071F
+      #18;
+    } // end SourceFile
+    ;
+    Attr(#80, 10) { // InnerClasses at 0x0727
+      [1] { // InnerClasses
+        #29 #59 #28 25; //  at 0x0737
+      }
+    } // end InnerClasses
+    ;
+    Attr(#47, 20) { // BootstrapMethods at 0x0737
+      [4] { // bootstrap_methods
+        {  //  bootstrap_method
+          #23; // bootstrap_method_ref
+          [1] { // bootstrap_arguments
+            #48; //  at 0x0745
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+        ;
+        {  //  bootstrap_method
+          #84; // bootstrap_method_ref
+          [0] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+        ;
+        {  //  bootstrap_method
+          #83; // bootstrap_method_ref
+          [0] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+        ;
+        {  //  bootstrap_method
+          #82; // bootstrap_method_ref
+          [0] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+      }
+    } // end BootstrapMethods
+    ;
+    Attr(#94, 4) { // ValueTypes at 0x0751
+      0x00010004;
+    } // end ValueTypes
+  } // Attributes
+} // end class NoArrayCovIntf
