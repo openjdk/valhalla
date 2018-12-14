@@ -40,6 +40,9 @@ import java.util.Arrays;
  *                               compiler.valhalla.valuetypes.TestArrays
  */
 public class TestArrays extends ValueTypeTest {
+    // Deopt of System.arraycopy is not implemented in C1
+    static boolean DEOPT_ARRAY_COPY = !(ValueTypeTest.TEST_C1);
+
     // Extra VM parameters for some test scenarios. See ValueTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {
@@ -932,7 +935,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test38");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
                 throw new RuntimeException("Type check should have caused it to deoptimize");
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -983,7 +986,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test40");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
                 throw new RuntimeException("Type check should have caused it to deoptimize");
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1117,7 +1120,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test46");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
                 throw new RuntimeException("Type check should have caused it to deoptimize");
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1166,7 +1169,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test48");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
                 throw new RuntimeException("Type check should have caused it to deoptimize");
             }
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1326,22 +1329,27 @@ public class TestArrays extends ValueTypeTest {
         verify(result, va);
     }
 
-    @Test
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
+   @Test
     public Object[] test57(Object[] va, Class klass) {
+        // Arrays.copyOf returns a MyValue1[], which cannot be
+        // type-casted to Object[] without array co-variance.
         return Arrays.copyOf(va, va.length, klass);
     }
 
     @DontCompile
     public void test57_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-//        Object[] va = new MyValue1[len];
-        Object[] va = new Object[len];
+        Object[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
         Object[] result = test57(va, MyValue1[].class);
         verify(va, result);
     }
+*/
+
 
 // TODO Re-enable if value type arrays become covariant with object arrays
 /*
@@ -1386,16 +1394,20 @@ public class TestArrays extends ValueTypeTest {
     }
 */
 
+
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     @Test
     public Object[] test60(Object[] va, Class klass) {
+        // Arrays.copyOf returns a MyValue1[], which cannot be
+        // type-casted to Object[] without array co-variance.
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
     @DontCompile
     public void test60_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-// TODO Re-enable if value type arrays become covariant with object arrays
-//        MyValue1[] va = new MyValue1[len];
+        MyValue1[] va = new MyValue1[len];
         Object[] va = new Object[len];
         MyValue1[] verif = new MyValue1[len+1];
         for (int i = 0; i < len; ++i) {
@@ -1423,6 +1435,8 @@ public class TestArrays extends ValueTypeTest {
             Asserts.assertEQ(va[i], result[i]);
         }
     }
+*/
+
 
 // TODO Re-enable if value type arrays become covariant with object arrays
 /*
