@@ -345,7 +345,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     @Test()
     public int test21(MyValue1 v) {
-        return U.getInt(v, X_OFFSET);
+       return U.getInt(v, X_OFFSET);
     }
 
     @DontCompile
@@ -357,7 +357,12 @@ public class TestIntrinsics extends ValueTypeTest {
 
     @Test()
     public void test22(MyValue1 v) {
-        U.putInt(v, X_OFFSET, 0);
+        try {
+            v = U.makePrivateBuffer(v);
+            U.putInt(v, X_OFFSET, 0);
+        } finally {
+            v = U.finishPrivateBuffer(v);
+        }
     }
 
     @DontCompile

@@ -658,7 +658,7 @@ class DirectMethodHandle extends MethodHandle {
     private static LambdaForm preparedFieldLambdaForm(MemberName m) {
         Class<?> ftype = m.getFieldType();
         boolean isVolatile = m.isVolatile();
-        boolean isFlatValue = m.isFlatValue();
+        boolean isFlatValue = m.isFlattened();
         boolean canBeNull = m.canBeNull();
         byte formOp;
         switch (m.getReferenceKind()) {

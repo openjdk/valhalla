@@ -122,15 +122,4 @@ public interface LangReflectAccess {
     /** Returns a new instance created by the given constructor with access check */
     public <T> T newInstance(Constructor<T> ctor, Object[] args, Class<?> caller)
         throws IllegalAccessException, InstantiationException, InvocationTargetException;
-    /**
-     * A field is flattenable if ACC_FLATTENABLE is set in its modifier
-     * and the field type is present in ValueType attribute.
-     */
-    public boolean isFlattenable(Field f);
-
-    /** A field is flattenable and is flattened. */
-    public boolean isFlatValue(Field f);
-
-    /** A field can be set to null */
-    public boolean canBeNull(Field f);
 }

@@ -106,7 +106,9 @@
 //    reference doesn't use the lowest bit ("2 << thread_shift"), we can use
 //    this illegal thread pointer alignment to denote "always locked" pattern.
 //
-//    [ <unused> |1| epoch | age | 1 | 01]       permanently locked
+//    [ <unused> | larval |1| epoch | age | 1 | 01]       permanently locked
+//
+//    A private buffered value is always locked and can be in a larval state.
 //
 
 class BasicLock;
@@ -126,7 +128,9 @@ class markOopDesc: public oopDesc {
          max_hash_bits            = BitsPerWord - age_bits - lock_bits - biased_lock_bits,
          hash_bits                = max_hash_bits > 31 ? 31 : max_hash_bits,
          cms_bits                 = LP64_ONLY(1) NOT_LP64(0),
-         epoch_bits               = 2
+         epoch_bits               = 2,
+         always_locked_bits       = 1,
+         larval_bits              = 1
   };
 
   // The biased locking code currently requires that the age bits be
@@ -137,7 +141,8 @@ class markOopDesc: public oopDesc {
          cms_shift                = age_shift + age_bits,
          hash_shift               = cms_shift + cms_bits,
          epoch_shift              = hash_shift,
-         thread_shift             = epoch_shift + epoch_bits
+         thread_shift             = epoch_shift + epoch_bits,
+         larval_shift             = thread_shift + always_locked_bits
   };
 
   enum { lock_mask                = right_n_bits(lock_bits),
@@ -150,11 +155,13 @@ class markOopDesc: public oopDesc {
          epoch_mask               = right_n_bits(epoch_bits),
          epoch_mask_in_place      = epoch_mask << epoch_shift,
          cms_mask                 = right_n_bits(cms_bits),
-         cms_mask_in_place        = cms_mask << cms_shift
+         cms_mask_in_place        = cms_mask << cms_shift,
 #ifndef _WIN64
-         ,hash_mask               = right_n_bits(hash_bits),
-         hash_mask_in_place       = (address_word)hash_mask << hash_shift
+         hash_mask                = right_n_bits(hash_bits),
+         hash_mask_in_place       = (address_word)hash_mask << hash_shift,
 #endif
+         larval_mask              = right_n_bits(larval_bits),
+         larval_mask_in_place     = larval_mask << larval_shift
   };
 
   // Alignment of JavaThread pointers encoded in object header required by biased locking
@@ -185,6 +192,8 @@ class markOopDesc: public oopDesc {
   enum { max_age                  = age_mask };
 
   enum { max_bias_epoch           = epoch_mask };
+
+  enum { larval_state_pattern     = (1 << larval_shift) };
 
   static markOop always_locked_prototype() {
     return markOop(always_locked_pattern);
@@ -369,6 +378,17 @@ class markOopDesc: public oopDesc {
 
   bool has_no_hash() const {
     return hash() == no_hash;
+  }
+
+  // private buffered value operations
+  markOop enter_larval_state() const {
+    return markOop((value() & ~larval_mask_in_place) | larval_state_pattern);
+  }
+  markOop exit_larval_state() const {
+    return markOop(value() & ~larval_mask_in_place);
+  }
+  bool is_larval_state() const {
+    return (value() & larval_mask_in_place) == larval_state_pattern;
   }
 
   // Prototype mark for initialization

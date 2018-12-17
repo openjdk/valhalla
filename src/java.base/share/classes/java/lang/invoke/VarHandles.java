@@ -33,7 +33,7 @@ final class VarHandles {
         if (!f.isStatic()) {
             long foffset = MethodHandleNatives.objectFieldOffset(f);
             if (!type.isPrimitive()) {
-                if (f.isFlatValue()) {
+                if (f.isFlattened()) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                         ? new VarHandleReferences.FlatValueFieldInstanceReadOnly(refc, foffset, type)
                         : new VarHandleReferences.FlatValueFieldInstanceReadWrite(refc, foffset, type);
@@ -100,7 +100,7 @@ final class VarHandles {
             Object base = MethodHandleNatives.staticFieldBase(f);
             long foffset = MethodHandleNatives.staticFieldOffset(f);
             if (!type.isPrimitive()) {
-                assert(!f.isFlatValue());   // static field is not flattened
+                assert(!f.isFlattened());   // static field is not flattened
                 return f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldStaticReadOnly(base, foffset, type)
                        : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.canBeNull());

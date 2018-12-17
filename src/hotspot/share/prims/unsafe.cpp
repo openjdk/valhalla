@@ -31,6 +31,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -148,7 +149,6 @@ jlong Unsafe_field_offset_from_byte_offset(jlong byte_offset) {
   return byte_offset;
 }
 
-
 ///// Data read/writes on the Java heap and in native (off-heap) memory
 
 /**
@@ -233,10 +233,10 @@ public:
       GuardUnsafeAccess guard(_thread);
       RawAccess<>::store(addr(), normalize_for_write(x));
     } else {
+      assert(!_obj->is_value() || _obj->mark()->is_larval_state(), "must be an object instance or a larval value");
       HeapAccess<>::store_at(_obj, _offset, normalize_for_write(x));
     }
   }
-
 
   T get_volatile() {
     if (_obj == NULL) {
@@ -281,16 +281,22 @@ static bool get_field_descriptor(oop p, jlong offset, fieldDescriptor* fd) {
 }
 #endif // ASSERT
 
-static void assert_and_log_unsafe_value_type_access(oop p, jlong offset, ValueKlass* vk) {
+static void assert_and_log_unsafe_value_access(oop p, jlong offset, ValueKlass* vk) {
   Klass* k = p->klass();
-
 #ifdef ASSERT
   if (k->is_instance_klass()) {
     assert_field_offset_sane(p, offset);
     fieldDescriptor fd;
     bool found = get_field_descriptor(p, offset, &fd);
-    assert(found, "value field not found");
-    assert(fd.is_flattened(), "field not flat");
+    if (found) {
+      assert(found, "value field not found");
+      assert(fd.is_flattened(), "field not flat");
+    } else {
+      if (log_is_enabled(Trace, valuetypes)) {
+        log_trace(valuetypes)("not a field in %s at offset " SIZE_FORMAT_HEX,
+                              p->klass()->external_name(), offset);
+      }
+    }
   } else if (k->is_valueArray_klass()) {
     ValueArrayKlass* vak = ValueArrayKlass::cast(k);
     int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
@@ -300,17 +306,17 @@ static void assert_and_log_unsafe_value_type_access(oop p, jlong offset, ValueKl
     ShouldNotReachHere();
   }
 #endif // ASSERT
-
   if (log_is_enabled(Trace, valuetypes)) {
     if (k->is_valueArray_klass()) {
       ValueArrayKlass* vak = ValueArrayKlass::cast(k);
       int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
       address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
-      log_trace(valuetypes)("array type %s index %d element size %d offset " SIZE_FORMAT_HEX " at " INTPTR_FORMAT,
-                            vak->external_name(), index, vak->element_byte_size(), offset, p2i(dest));
+      log_trace(valuetypes)("%s array type %s index %d element size %d offset " SIZE_FORMAT_HEX " at " INTPTR_FORMAT,
+                            p->klass()->external_name(), vak->external_name(),
+                            index, vak->element_byte_size(), offset, p2i(dest));
     } else {
-      log_trace(valuetypes)("field type %s at offset " SIZE_FORMAT_HEX,
-                            vk->external_name(), offset);
+      log_trace(valuetypes)("%s field type %s at offset " SIZE_FORMAT_HEX,
+                            p->klass()->external_name(), vk->external_name(), offset);
     }
   }
 }
@@ -329,7 +335,14 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
+  assert(!p->is_value() || p->mark()->is_larval_state(), "must be an object instance or a larval value");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
+} UNSAFE_END
+
+UNSAFE_ENTRY(jlong, Unsafe_ValueHeaderSize(JNIEnv *env, jobject unsafe, jclass c)) {
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
+  ValueKlass* vk = ValueKlass::cast(k);
+  return vk->first_field_offset();
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
@@ -337,28 +350,49 @@ UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jcla
   return k->is_valueArray_klass();
 } UNSAFE_END
 
-UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass c)) {
-  oop p = JNIHandles::resolve(obj);
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
+UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass vc)) {
+  oop base = JNIHandles::resolve(obj);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
   ValueKlass* vk = ValueKlass::cast(k);
-  assert_and_log_unsafe_value_type_access(p, offset, vk);
-  Handle p_h(THREAD, p);
+  assert_and_log_unsafe_value_access(base, offset, vk);
+  Handle base_h(THREAD, base);
   oop v = vk->allocate_instance(CHECK_NULL); // allocate instance
   vk->initialize(CHECK_NULL); // If field is a default value, value class might not be initialized yet
-  vk->value_store(((char*)(oopDesc*)p_h()) + offset,
+  vk->value_store(((address)(oopDesc*)base_h()) + offset,
                   vk->data_for_oop(v),
                   true, true);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
-UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass c, jobject value)) {
-  oop v = JNIHandles::resolve(value);
-  oop p = JNIHandles::resolve(obj);
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
+UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass vc, jobject value)) {
+  oop base = JNIHandles::resolve(obj);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
   ValueKlass* vk = ValueKlass::cast(k);
-  assert_and_log_unsafe_value_type_access(p, offset, vk);
+  assert(!base->is_value() || base->mark()->is_larval_state(), "must be an object instance or a larval value");
+  assert_and_log_unsafe_value_access(base, offset, vk);
+  oop v = JNIHandles::resolve(value);
   vk->value_store(vk->data_for_oop(v),
-                 ((char*)(oopDesc*)p) + offset, true, true);
+                 ((address)(oopDesc*)base) + offset, true, true);
+} UNSAFE_END
+
+UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
+  oop v = JNIHandles::resolve_non_null(value);
+  assert(v->is_value(), "must be a value instance");
+  Handle vh(THREAD, v);
+  ValueKlass* vk = ValueKlass::cast(v->klass());
+  instanceOop new_value = vk->allocate_instance(CHECK_NULL);
+  vk->value_store(vk->data_for_oop(vh()), vk->data_for_oop(new_value), true, false);
+  markOop mark = new_value->mark();
+  new_value->set_mark(mark->enter_larval_state());
+  return JNIHandles::make_local(env, new_value);
+} UNSAFE_END
+
+UNSAFE_ENTRY(jobject, Unsafe_FinishPrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
+  oop v = JNIHandles::resolve(value);
+  assert(v->mark()->is_larval_state(), "must be a larval value");
+  markOop mark = v->mark();
+  v->set_mark(mark->exit_larval_state());
+  return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_GetReferenceVolatile(JNIEnv *env, jobject unsafe, jobject obj, jlong offset)) {
@@ -1122,10 +1156,10 @@ UNSAFE_ENTRY(jint, Unsafe_GetLoadAverage0(JNIEnv *env, jobject unsafe, jdoubleAr
 #define FN_PTR(f) CAST_FROM_FN_PTR(void*, &f)
 
 #define DECLARE_GETPUTOOP(Type, Desc) \
-    {CC "get" #Type,      CC "(" OBJ "J)" #Desc,       FN_PTR(Unsafe_Get##Type)}, \
-    {CC "put" #Type,      CC "(" OBJ "J" #Desc ")V",   FN_PTR(Unsafe_Put##Type)}, \
-    {CC "get" #Type "Volatile",      CC "(" OBJ "J)" #Desc,       FN_PTR(Unsafe_Get##Type##Volatile)}, \
-    {CC "put" #Type "Volatile",      CC "(" OBJ "J" #Desc ")V",   FN_PTR(Unsafe_Put##Type##Volatile)}
+    {CC "get"  #Type,      CC "(" OBJ "J)" #Desc,                 FN_PTR(Unsafe_Get##Type)}, \
+    {CC "put"  #Type,      CC "(" OBJ "J" #Desc ")V",             FN_PTR(Unsafe_Put##Type)}, \
+    {CC "get"  #Type "Volatile",      CC "(" OBJ "J)" #Desc,      FN_PTR(Unsafe_Get##Type##Volatile)}, \
+    {CC "put"  #Type "Volatile",      CC "(" OBJ "J" #Desc ")V",  FN_PTR(Unsafe_Put##Type##Volatile)}
 
 
 static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
@@ -1134,9 +1168,12 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "getReferenceVolatile", CC "(" OBJ "J)" OBJ,      FN_PTR(Unsafe_GetReferenceVolatile)},
     {CC "putReferenceVolatile", CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutReferenceVolatile)},
 
-    {CC "isFlattenedArray", CC "(" CLS ")Z",               FN_PTR(Unsafe_IsFlattenedArray)},
-    {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ "", FN_PTR(Unsafe_GetValue)},
-    {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",   FN_PTR(Unsafe_PutValue)},
+    {CC "isFlattenedArray", CC "(" CLS ")Z",                     FN_PTR(Unsafe_IsFlattenedArray)},
+    {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ,          FN_PTR(Unsafe_GetValue)},
+    {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",         FN_PTR(Unsafe_PutValue)},
+    {CC "makePrivateBuffer",     CC "(" OBJ ")" OBJ,             FN_PTR(Unsafe_MakePrivateBuffer)},
+    {CC "finishPrivateBuffer",   CC "(" OBJ ")" OBJ,             FN_PTR(Unsafe_FinishPrivateBuffer)},
+    {CC "valueHeaderSize",       CC "(" CLS ")J",                FN_PTR(Unsafe_ValueHeaderSize)},
 
     {CC "getUncompressedObject", CC "(" ADR ")" OBJ,  FN_PTR(Unsafe_GetUncompressedObject)},
 

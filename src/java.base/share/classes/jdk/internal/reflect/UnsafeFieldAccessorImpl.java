@@ -38,13 +38,10 @@ import jdk.internal.misc.Unsafe;
 
 abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     static final Unsafe unsafe = Unsafe.getUnsafe();
-    private static final int FLAT_VALUE = 0x01;
-    private static final int CAN_BE_NULL = 0x10;
 
     protected final Field   field;
     protected final long    fieldOffset;
     protected final boolean isFinal;
-    protected final int     flags;
 
     UnsafeFieldAccessorImpl(Field field) {
         this.field = field;
@@ -53,13 +50,6 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
         else
             this.fieldOffset = unsafe.objectFieldOffset(field);
         this.isFinal = Modifier.isFinal(field.getModifiers());
-
-        int flags = 0;
-        if (ReflectionFactory.langReflectAccess().isFlatValue(field))
-            flags |= FLAT_VALUE;
-        if (ReflectionFactory.langReflectAccess().canBeNull(field))
-            flags |= CAN_BE_NULL;
-        this.flags = flags;
     }
 
     protected void ensureObj(Object o) {
@@ -69,12 +59,12 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
         }
     }
 
-    protected boolean isFlatValue() {
-        return (flags & FLAT_VALUE) == FLAT_VALUE;
+    protected boolean isFlattened() {
+        return unsafe.isFlattened(field);
     }
 
     protected boolean canBeNull() {
-        return (flags & CAN_BE_NULL) == CAN_BE_NULL;
+        return field.getType() == field.getType().asBoxType();
     }
 
     protected Object checkValue(Object value) {

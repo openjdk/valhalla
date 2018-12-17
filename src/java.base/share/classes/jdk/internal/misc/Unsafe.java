@@ -183,6 +183,15 @@ public final class Unsafe {
         return c.isValue() && c == c.asValueType();
     }
 
+    private static final int JVM_ACC_FLATTENED = 0x00008000; // HotSpot-specific bit
+
+    /**
+     * Returns true if the given field is flattened.
+     */
+    public boolean isFlattened(Field f) {
+        return (f.getModifiers() & JVM_ACC_FLATTENED) == JVM_ACC_FLATTENED;
+    }
+
     /**
      * Returns true if the given class is a flattened array.
      */
@@ -236,8 +245,7 @@ public final class Unsafe {
      * Stores the given value into a given Java variable.
      *
      * Unless the reference {@code o} being stored is either null
-     * or matches the field type and not in a value container,
-     * the results are undefined.
+     * or matches the field type, the results are undefined.
      *
      * @param o Java heap object in which the variable resides, if any, else
      *        null
@@ -251,6 +259,33 @@ public final class Unsafe {
      *         {@link NullPointerException}
      */
     public native <V> void putValue(Object o, long offset, Class<?> vc, V v);
+
+    /**
+     * Returns an object instance with a private buffered value whose layout
+     * and contents is exactly the given value instance.  The return object
+     * is in the larval state that can be updated using the unsafe put operation.
+     *
+     * @param value a value instance
+     * @param <V> the type of the given value instance
+     */
+    public native <V> V makePrivateBuffer(V value);
+
+    /**
+     * Exits the larval state and returns a value instance.
+     *
+     * @param value a value instance
+     * @param <V> the type of the given value instance
+     */
+    public native <V> V finishPrivateBuffer(V value);
+
+    /**
+     * Returns the header size of the given value class
+     *
+     * @param vc Value class
+     * @param <V> value clas
+     * @return the header size of the value class
+     */
+    public native <V> long valueHeaderSize(Class<V> vc);
 
     /** @see #getInt(Object, long) */
     @HotSpotIntrinsicCandidate

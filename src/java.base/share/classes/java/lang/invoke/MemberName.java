@@ -455,7 +455,6 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     static final int SYNTHETIC   = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
     static final int ENUM        = 0x00004000;
-    static final int FLATTENABLE = 0x00000100;
     static final int FLATTENED   = 0x00008000;
 
     /** Utility method to query the modifier flags of this member; returns false if the member is not a method. */
@@ -471,19 +470,17 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         return testAllFlags(SYNTHETIC);
     }
 
-    /*
-     * Query whether this member is a flattenable field.
-     *
-     * A flattenable field whose type must be of value class with ACC_FLATTENABLE flag set.
-     * A field of value type may or may not be flattenable.
-     */
-    public boolean isFlattenable() { return (flags & FLATTENABLE) == FLATTENABLE; }
-
-    /** Query whether this member is a flat value field */
-    public boolean isFlatValue() { return (flags & FLATTENED) == FLATTENED; }
+    /** Query whether this member is a flattened field */
+    public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
     /** Query whether this member can be assigned to null. */
-    public boolean canBeNull()  { return !isFlattenable(); }
+    public boolean canBeNull()  {
+        if (isField()) {
+            Class<?> type = getFieldType();
+            return type == type.asBoxType();
+        }
+        return false;
+    }
 
     static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
 

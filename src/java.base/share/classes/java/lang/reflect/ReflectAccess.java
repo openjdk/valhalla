@@ -165,19 +165,4 @@ class ReflectAccess implements jdk.internal.reflect.LangReflectAccess {
     {
         return ctor.newInstanceWithCaller(args, true, caller);
     }
-    /*
-     * With a Field object for C.f of type T, T should have been resolved
-     * and T must be present in ValueType attribute.
-     */
-    public boolean isFlattenable(Field f) {
-        return (f.getModifiers() & Modifier.FLATTENABLE) == Modifier.FLATTENABLE;
-    }
-
-    public boolean isFlatValue(Field f) {
-        return (f.getModifiers() & Modifier.FLATTENED) == Modifier.FLATTENED;
-    }
-
-    public boolean canBeNull(Field f) {
-        return !isFlattenable(f);
-    }
 }
