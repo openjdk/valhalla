@@ -861,7 +861,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
             symb = SymbolTable::lookup(sig->as_C_string() + i + 1,
                                        sig->utf8_length() - 3, CHECK_false);
           }
-          if (symb->is_Q_signature()) {
+          if (ss.type() == T_VALUETYPE) {
             oop loader = class_loader();
             oop protection_domain = this->protection_domain();
             Klass* klass = SystemDictionary::resolve_or_fail(symb,
