@@ -381,6 +381,10 @@ class Compile : public Phase {
   int                   _orig_pc_slot;
   int                   _orig_pc_slot_offset_in_bytes;
 
+  // For value type calling convention
+  int                   _sp_inc_slot;
+  int                   _sp_inc_slot_offset_in_bytes;
+
   int                   _major_progress;        // Count of something big happening
   bool                  _inlining_progress;     // progress doing incremental inlining?
   bool                  _inlining_incrementally;// Are we doing incremental inlining (post parse)
@@ -714,6 +718,12 @@ class Compile : public Phase {
   bool          profile_rtm() const              { return _rtm_state == ProfileRTM; }
   uint              max_node_limit() const       { return (uint)_max_node_limit; }
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
+
+  // Support for scalarized value type calling convention
+  bool              has_scalarized_args() const  { return _method != NULL && _method->get_Method()->has_scalarized_args(); }
+  bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->needs_stack_repair(); }
+  SigEntry          get_res_entry()       const  { return _method->get_Method()->get_res_entry(); }
+  int               sp_inc_offset()       const  { return _sp_inc_slot_offset_in_bytes; }
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(const char * option) {

@@ -2229,6 +2229,9 @@ void PhaseChaitin::dump_frame() const {
           _matcher._parm_regs[j].second() == reg ) {
         tty->print("parm %d: ",j);
         domain->field_at(j + TypeFunc::Parms)->dump();
+        if (j == C->get_res_entry()._offset) {
+          tty->print(" [RESERVED] ");
+        }
         tty->cr();
         break;
       }

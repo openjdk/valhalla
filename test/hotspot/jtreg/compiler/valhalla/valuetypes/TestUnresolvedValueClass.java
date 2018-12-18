@@ -25,7 +25,6 @@
  * @test
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to resolve a value type argument
- * @requires vm.compMode != "Xint"
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers TestUnresolvedValueClass.java
  * @run main/othervm -XX:+EnableValhalla TestUnresolvedValueClass
@@ -58,10 +57,7 @@ public class TestUnresolvedValueClass {
             // Adapter creation for TestUnresolvedValueClass::test1 should fail with a
             // ClassNotFoundException because the class for argument 'vt' was not found.
             String output = oa.getOutput();
-            if (!output.contains("ValueTypePassFieldsAsArgs is not supported on this platform")) {
-                oa.shouldContain("java.lang.ClassNotFoundException: SimpleValueType");
-                oa.shouldHaveExitValue(1);
-            }
+            oa.shouldContain("java.lang.NoClassDefFoundError: SimpleValueType");
         }
     }
 }

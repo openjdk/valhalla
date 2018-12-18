@@ -1320,6 +1320,7 @@ void CodeInstaller::site_Mark(CodeBuffer& buffer, jint pc_offset, Handle site, T
         break;
       case VERIFIED_ENTRY:
         _offsets.set_value(CodeOffsets::Verified_Entry, pc_offset);
+        _offsets.set_value(CodeOffsets::Verified_Value_Entry, pc_offset);
         break;
       case OSR_ENTRY:
         _offsets.set_value(CodeOffsets::OSR_Entry, pc_offset);

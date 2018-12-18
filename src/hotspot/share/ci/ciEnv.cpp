@@ -554,7 +554,7 @@ ciKlass* ciEnv::get_klass_by_index_impl(const constantPoolHandle& cpool,
     klass_name = cpool->symbol_at(index);
   } else {
     // Check if it's resolved if it's not a symbol constant pool entry.
-    klass =  ConstantPool::klass_at_if_loaded(cpool, index);
+    klass = ConstantPool::klass_at_if_loaded(cpool, index);
     // Try to look it up by name.
     if (klass == NULL) {
       klass_name = cpool->klass_name_at(index);

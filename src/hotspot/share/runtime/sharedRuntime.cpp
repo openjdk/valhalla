@@ -1151,7 +1151,8 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    if (ValueTypePassFieldsAsArgs && callee->method_holder()->is_value()) {
+    // TODO for now, don't scalarize value type receivers because of interface calls
+    if (ValueTypePassFieldsAsArgs && callee->method_holder()->is_value() && false) {
       // If the receiver is a value type that is passed as fields, no oop is available.
       // Resolve the call without receiver null checking.
       assert(bc == Bytecodes::_invokevirtual, "only allowed with invokevirtual");
@@ -2296,9 +2297,6 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         return ValueTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
       }
 
-      case T_VALUETYPEPTR:
-        return T_VALUETYPE; // TODO hack because we don't have enough bits to represent T_VALUETYPEPTR.
-
       case T_OBJECT:
       case T_ARRAY:
         // In other words, we assume that any register good enough for
@@ -2323,7 +2321,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
   }
 
  public:
-  AdapterFingerPrint(int total_args_passed, BasicType* sig_bt) {
+  AdapterFingerPrint(int total_args_passed, const GrowableArray<SigEntry>* sig) {
     // The fingerprint is based on the BasicType signature encoded
     // into an array of ints with eight entries per int.
     int* ptr;
@@ -2350,7 +2348,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
       for (int byte = 0; byte < _basic_types_per_int; byte++) {
         int bt = 0;
         if (sig_index < total_args_passed) {
-          BasicType sbt = sig_bt[sig_index++];
+          BasicType sbt = sig->at(sig_index++)._bt;
           if (ValueTypePassFieldsAsArgs && sbt == T_VALUETYPE) {
             // Found start of value type in signature
             vt_count++;
@@ -2454,9 +2452,9 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
     : BasicHashtable<mtCode>(293, (DumpSharedSpaces ? sizeof(CDSAdapterHandlerEntry) : sizeof(AdapterHandlerEntry))) { }
 
   // Create a new entry suitable for insertion in the table
-  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry, Symbol* sig_extended) {
+  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_unverified_entry) {
     AdapterHandlerEntry* entry = (AdapterHandlerEntry*)BasicHashtable<mtCode>::new_entry(fingerprint->compute_hash());
-    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, sig_extended);
+    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_unverified_entry);
     if (DumpSharedSpaces) {
       ((CDSAdapterHandlerEntry*)entry)->init();
     }
@@ -2475,9 +2473,9 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
   }
 
   // Find a entry with the same fingerprint if it exists
-  AdapterHandlerEntry* lookup(int total_args_passed, BasicType* sig_bt) {
+  AdapterHandlerEntry* lookup(int total_args_passed, const GrowableArray<SigEntry>* sig) {
     NOT_PRODUCT(_lookups++);
-    AdapterFingerPrint fp(total_args_passed, sig_bt);
+    AdapterFingerPrint fp(total_args_passed, sig);
     unsigned int hash = fp.compute_hash();
     int index = hash_to_index(hash);
     for (AdapterHandlerEntry* e = bucket(index); e != NULL; e = e->next()) {
@@ -2599,19 +2597,19 @@ void AdapterHandlerLibrary::initialize() {
   address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
   _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(0, NULL),
                                                               StubRoutines::throw_AbstractMethodError_entry(),
-                                                              wrong_method_abstract, wrong_method_abstract);
+                                                              wrong_method_abstract, wrong_method_abstract, wrong_method_abstract);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
                                                       address i2c_entry,
                                                       address c2i_entry,
-                                                      address c2i_unverified_entry,
-                                                      Symbol* sig_extended) {
-  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, sig_extended);
+                                                      address c2i_value_entry,
+                                                      address c2i_unverified_entry) {
+  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_unverified_entry);
 }
 
-AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method, TRAPS) {
-  AdapterHandlerEntry* entry = get_adapter0(method, CHECK_NULL);
+AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
+  AdapterHandlerEntry* entry = get_adapter0(method);
   if (method->is_shared()) {
     // See comments around Method::link_method()
     MutexLocker mu(AdapterHandlerLibrary_lock);
@@ -2634,7 +2632,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   return entry;
 }
 
-AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& method, TRAPS) {
+AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& method) {
   // Use customized signature handler.  Need to lock around updates to
   // the AdapterHandlerTable (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
@@ -2655,68 +2653,101 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       return _abstract_method_handler;
     }
 
-    // Fill in the signature array, for the calling-convention call.
-    GrowableArray<SigEntry> sig_extended;
-    {
+    bool has_value_arg = false;
+    GrowableArray<SigEntry> sig(method->size_of_parameters());
+    if (!method->is_static()) {
+      // TODO for now, don't scalarize value type receivers because of interface calls
+      //has_value_arg |= method->method_holder()->is_value();
+      SigEntry::add_entry(&sig, T_OBJECT);
+    }
+    for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+      BasicType bt = ss.type();
+      if (bt == T_VALUETYPE) {
+        has_value_arg = true;
+        bt = T_OBJECT;
+      }
+      SigEntry::add_entry(&sig, bt);
+    }
+
+    // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
+    VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, sig.length());
+    int args_on_stack = SharedRuntime::java_calling_convention(&sig, regs);
+
+    // Now compute the scalarized calling convention if there are value types in the signature
+    GrowableArray<SigEntry> sig_cc = sig;
+    VMRegPair* regs_cc = regs;
+    SigEntry reserved_entry;
+    int args_on_stack_cc = args_on_stack;
+
+    if (ValueTypePassFieldsAsArgs && has_value_arg) {
       MutexUnlocker mul(AdapterHandlerLibrary_lock);
+      InstanceKlass* holder = method->method_holder();
+
+      sig_cc = GrowableArray<SigEntry>(method->size_of_parameters());
+      if (!method->is_static()) {
+        // TODO for now, don't scalarize value type receivers because of interface calls
+        if (false && holder->is_value()) {
+          sig_cc.appendAll(ValueKlass::cast(holder)->extended_sig());
+        } else {
+          SigEntry::add_entry(&sig_cc, T_OBJECT);
+        }
+      }
       Thread* THREAD = Thread::current();
-      Klass* holder = method->method_holder();
-      GrowableArray<BasicType> sig_bt_tmp;
-
-      int i = 0;
-      if (!method->is_static()) {  // Pass in receiver first
-        if (holder->is_value()) {
-          ValueKlass* vk = ValueKlass::cast(holder);
-          if (!ValueTypePassFieldsAsArgs) {
-            // If we don't pass value types as arguments or if the holder of
-            // the method is __Value, we must pass a reference.
-            sig_extended.push(SigEntry(T_VALUETYPEPTR));
-          } else {
-            const Array<SigEntry>* sig_vk = vk->extended_sig();
-            sig_extended.appendAll(sig_vk);
-          }
-        } else {
-          sig_extended.push(SigEntry(T_OBJECT));
-        }
-      }
       for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-        Symbol* sym = ss.as_symbol_or_null();
-        if (sym != NULL && sym->is_Q_signature()) {
-          if (!ValueTypePassFieldsAsArgs) {
-            sig_extended.push(SigEntry(T_VALUETYPEPTR));
-          } else {
-            // Method handle intrinsics with a __Value argument may be created during
-            // compilation. Only do a full system dictionary lookup if the argument name
-            // is not __Value, to avoid lookups from the compiler thread.
-            Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
-                                   Handle(THREAD, holder->protection_domain()),
-                                   SignatureStream::ReturnNull, CHECK_NULL);
-            const Array<SigEntry>* sig_vk = ValueKlass::cast(k)->extended_sig();
-            sig_extended.appendAll(sig_vk);
-          }
+        if (ss.type() == T_VALUETYPE) {
+          Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
+                                 Handle(THREAD, holder->protection_domain()),
+                                 SignatureStream::ReturnNull, THREAD);
+          assert(k != NULL && !HAS_PENDING_EXCEPTION, "value klass should have been pre-loaded");
+          sig_cc.appendAll(ValueKlass::cast(k)->extended_sig());
         } else {
-          sig_extended.push(SigEntry(ss.type()));
-          if (ss.type() == T_LONG || ss.type() == T_DOUBLE) {
-            sig_extended.push(SigEntry(T_VOID));
-          }
+          SigEntry::add_entry(&sig_cc, ss.type());
         }
       }
+      regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc.length() + 2);
+      args_on_stack_cc = SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
+
+      // This stack slot is occupied by the return address with the unscalarized calling
+      // convention. Don't use it for argument with the scalarized calling convention.
+      int ret_addr_slot = args_on_stack_cc - args_on_stack;
+      if (ret_addr_slot > 0) {
+        // Make sure stack of the scalarized calling convention with
+        // the reserved entry (2 slots) is 16-byte (4 slots) aligned.
+        int alignment = StackAlignmentInBytes/VMRegImpl::stack_slot_size;
+        ret_addr_slot = align_up(ret_addr_slot + 2, alignment) - 2;
+        // Find index in signature that belongs to return address slot
+        reserved_entry._offset = 0;
+        int sig_idx = 0;
+        for (; sig_idx < sig_cc.length(); ++sig_idx) {
+          if (SigEntry::skip_value_delimiters(&sig_cc, sig_idx)) {
+            VMReg first = regs_cc[reserved_entry._offset].first();
+            if (first->is_stack()) {
+              // Select a type for the reserved entry that will end up on the stack
+              reserved_entry._bt = sig_cc.at(sig_idx)._bt;
+              if ((int)first->reg2stack() == ret_addr_slot) {
+                break;
+              }
+            }
+            reserved_entry._offset++;
+          }
+        }
+        // Insert reserved entry and re-compute calling convention
+        SigEntry::insert_reserved_entry(&sig_cc, sig_idx, reserved_entry._bt);
+        args_on_stack_cc = SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
+      }
+      // Upper bound on stack arguments to avoid hitting the argument limit and
+      // bailing out of compilation ("unsupported incoming calling sequence").
+      // TODO we need a reasonable limit (flag?) here
+      if (args_on_stack_cc > 50) {
+        // Don't scalarize value type arguments
+        sig_cc = sig;
+        regs_cc = regs;
+        args_on_stack_cc = args_on_stack;
+      }
     }
-
-    int total_args_passed_cc = ValueTypePassFieldsAsArgs ? SigEntry::count_fields(sig_extended) : sig_extended.length();
-    BasicType* sig_bt_cc = NEW_RESOURCE_ARRAY(BasicType, total_args_passed_cc);
-    SigEntry::fill_sig_bt(sig_extended, sig_bt_cc, total_args_passed_cc, ValueTypePassFieldsAsArgs);
-
-    int total_args_passed_fp = sig_extended.length();
-    BasicType* sig_bt_fp = NEW_RESOURCE_ARRAY(BasicType, total_args_passed_fp);
-    for (int i = 0; i < sig_extended.length(); i++) {
-      sig_bt_fp[i] = sig_extended.at(i)._bt;
-    }
-
-    VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, total_args_passed_cc);
 
     // Lookup method signature's fingerprint
-    entry = _adapters->lookup(total_args_passed_fp, sig_bt_fp);
+    entry = _adapters->lookup(sig_cc.length(), &sig_cc);
 
 #ifdef ASSERT
     AdapterHandlerEntry* shared_entry = NULL;
@@ -2731,11 +2762,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       return entry;
     }
 
-    // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
-    int comp_args_on_stack = SharedRuntime::java_calling_convention(sig_bt_cc, regs, total_args_passed_cc, false);
-
     // Make a C heap allocated version of the fingerprint to store in the adapter
-    fingerprint = new AdapterFingerPrint(total_args_passed_fp, sig_bt_fp);
+    fingerprint = new AdapterFingerPrint(sig_cc.length(), &sig_cc);
 
     // StubRoutines::code2() is initialized after this function can be called. As a result,
     // VerifyAdapterCalls and VerifyAdapterSharing can fail if we re-use code that generated
@@ -2753,11 +2781,23 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
       MacroAssembler _masm(&buffer);
       entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
-                                                     comp_args_on_stack,
-                                                     sig_extended,
+                                                     args_on_stack,
+                                                     args_on_stack_cc,
+                                                     &sig,
                                                      regs,
+                                                     &sig_cc,
+                                                     regs_cc,
                                                      fingerprint,
                                                      new_adapter);
+
+      if (regs != regs_cc) {
+        // Save a C heap allocated version of the scalarized signature and store it in the adapter
+        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal)GrowableArray<SigEntry>(method->size_of_parameters(), true);
+        heap_sig->appendAll(&sig_cc);
+        entry->set_sig_cc(heap_sig);
+        entry->set_res_entry(reserved_entry);
+      }
+
 #ifdef ASSERT
       if (VerifyAdapterSharing) {
         if (shared_entry != NULL) {
@@ -2826,6 +2866,7 @@ address AdapterHandlerEntry::base_address() {
   address base = _i2c_entry;
   if (base == NULL)  base = _c2i_entry;
   assert(base <= _c2i_entry || _c2i_entry == NULL, "");
+  assert(base <= _c2i_value_entry || _c2i_value_entry == NULL, "");
   assert(base <= _c2i_unverified_entry || _c2i_unverified_entry == NULL, "");
   return base;
 }
@@ -2838,6 +2879,8 @@ void AdapterHandlerEntry::relocate(address new_base) {
     _i2c_entry += delta;
   if (_c2i_entry != NULL)
     _c2i_entry += delta;
+  if (_c2i_value_entry != NULL)
+    _c2i_value_entry += delta;
   if (_c2i_unverified_entry != NULL)
     _c2i_unverified_entry += delta;
   assert(base_address() == new_base, "");
@@ -2846,6 +2889,9 @@ void AdapterHandlerEntry::relocate(address new_base) {
 
 void AdapterHandlerEntry::deallocate() {
   delete _fingerprint;
+  if (_sig_cc != NULL) {
+    delete _sig_cc;
+  }
 #ifdef ASSERT
   if (_saved_code) FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
 #endif
@@ -2918,19 +2964,6 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       SignatureStream ss(method->signature());
       for (; !ss.at_return_type(); ss.next()) {
         BasicType bt = ss.type();
-        if (bt == T_VALUETYPE) {
-#ifdef ASSERT
-          Thread* THREAD = Thread::current();
-          // Avoid class loading from compiler thread
-          if (THREAD->can_call_java()) {
-            Handle class_loader(THREAD, method->method_holder()->class_loader());
-            Handle protection_domain(THREAD, method->method_holder()->protection_domain());
-            Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
-            assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
-          }
-#endif
-          bt = T_VALUETYPEPTR;
-        }
         sig_bt[i++] = bt;  // Collect remaining bits of signature
         if (ss.type() == T_LONG || ss.type() == T_DOUBLE)
           sig_bt[i++] = T_VOID;   // Longs & doubles take 2 Java slots
@@ -3196,9 +3229,9 @@ void AdapterHandlerLibrary::print_handler_on(outputStream* st, const CodeBlob* b
 }
 
 void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
-  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iUV: " INTPTR_FORMAT,
+  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iMH: " INTPTR_FORMAT " c2iUV: " INTPTR_FORMAT,
                p2i(this), fingerprint()->as_string(),
-               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_unverified_entry()));
+               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_value_entry()), p2i(get_c2i_unverified_entry()));
 
 }
 
@@ -3305,12 +3338,15 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
   methodHandle callee(callee_method);
 
   int nb_slots = 0;
-  bool has_value_receiver = !callee->is_static() && callee->method_holder()->is_value();
+  InstanceKlass* holder = callee->method_holder();
+  // TODO for now, don't scalarize value type receivers because of interface calls
+  //bool has_value_receiver = !callee->is_static() && holder->is_value();
+  bool has_value_receiver = false;
   if (has_value_receiver) {
     nb_slots++;
   }
-  Handle class_loader(THREAD, callee->method_holder()->class_loader());
-  Handle protection_domain(THREAD, callee->method_holder()->protection_domain());
+  Handle class_loader(THREAD, holder->class_loader());
+  Handle protection_domain(THREAD, holder->protection_domain());
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_VALUETYPE) {
       nb_slots++;
@@ -3320,7 +3356,7 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
   objArrayHandle array(THREAD, array_oop);
   int i = 0;
   if (has_value_receiver) {
-    ValueKlass* vk = ValueKlass::cast(callee->method_holder());
+    ValueKlass* vk = ValueKlass::cast(holder);
     oop res = vk->allocate_instance(CHECK);
     array->obj_at_put(i, res);
     i++;
@@ -3377,7 +3413,7 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
 
   ValueKlass* vk = ValueKlass::cast(res->klass());
 
-  const Array<SigEntry>* sig_vk = vk->extended_sig() ;
+  const Array<SigEntry>* sig_vk = vk->extended_sig();
   const Array<VMRegPair>* regs = vk->return_regs();
 
   if (regs == NULL) {
@@ -3399,44 +3435,43 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
       continue;
     }
     int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     address loc = reg_map.location(pair.first());
     switch(bt) {
     case T_BOOLEAN:
-      *(intptr_t*)loc = *(jboolean*)((address)res + off);
+      *(jboolean*)loc = res->bool_field(off);
       break;
     case T_CHAR:
-      *(intptr_t*)loc = *(jchar*)((address)res + off);
+      *(jchar*)loc = res->char_field(off);
       break;
     case T_BYTE:
-      *(intptr_t*)loc = *(jbyte*)((address)res + off);
+      *(jbyte*)loc = res->byte_field(off);
       break;
     case T_SHORT:
-      *(intptr_t*)loc = *(jshort*)((address)res + off);
+      *(jshort*)loc = res->short_field(off);
       break;
     case T_INT: {
-      jint v = *(jint*)((address)res + off);
-      *(intptr_t*)loc = v;
+      *(jint*)loc = res->int_field(off);
       break;
     }
     case T_LONG:
 #ifdef _LP64
-      *(intptr_t*)loc = *(jlong*)((address)res + off);
+      *(intptr_t*)loc = res->long_field(off);
 #else
       Unimplemented();
 #endif
       break;
     case T_OBJECT:
     case T_ARRAY: {
-      oop v = HeapAccess<>::oop_load_at(res, off);
-      *(oop*)loc = v;
+      *(oop*)loc = res->obj_field(off);
       break;
     }
     case T_FLOAT:
-      *(jfloat*)loc = *(jfloat*)((address)res + off);
+      *(jfloat*)loc = res->float_field(off);
       break;
     case T_DOUBLE:
-      *(jdouble*)loc = *(jdouble*)((address)res + off);
+      *(jdouble*)loc = res->double_field(off);
       break;
     default:
       ShouldNotReachHere();
@@ -3483,35 +3518,19 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
   assert(verif_vk == vk, "broken calling convention");
   assert(Metaspace::contains((void*)res), "should be klass");
 
-  // Allocate handles for every oop fields so they are safe in case of
+  // Allocate handles for every oop field so they are safe in case of
   // a safepoint when allocating
   GrowableArray<Handle> handles;
   vk->save_oop_fields(reg_map, handles);
 
   // It's unsafe to safepoint until we are here
-
-  Handle new_vt;
   JRT_BLOCK;
   {
     Thread* THREAD = thread;
     oop vt = vk->realloc_result(reg_map, handles, CHECK);
-    new_vt = Handle(thread, vt);
-
-#ifdef ASSERT
-    javaVFrame* vf = javaVFrame::cast(vframe::new_vframe(&callerFrame, &reg_map, thread));
-    Method* m = vf->method();
-    int bci = vf->bci();
-    Bytecode_invoke inv(m, bci);
-
-    methodHandle callee = inv.static_target(thread);
-    assert(!thread->has_pending_exception(), "call resolution should work");
-    ValueKlass* verif_vk2 = callee->returned_value_type(thread);
-    assert(verif_vk == verif_vk2, "Bad value klass");
-#endif
+    thread->set_vm_result(vt);
   }
   JRT_BLOCK_END;
-
-  thread->set_vm_result(new_vt());
 }
 JRT_END
 

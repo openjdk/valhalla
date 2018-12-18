@@ -2497,7 +2497,7 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   _igvn.replace_node(_memproj_fallthrough, mem_phi);
 }
 
-// A value type is returned from the call but we don't know its
+// A value type might be returned from the call but we don't know its
 // type. Either we get a buffered value (and nothing needs to be done)
 // or one of the values being returned is the klass of the value type
 // and we need to allocate a value type instance of that type and
@@ -2505,18 +2505,16 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
 // first try a fast path allocation and initialize the value with the
 // value klass's pack handler or we fall back to a runtime call.
 void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
-  Node* ret = call->proj_out(TypeFunc::Parms);
+  assert(call->method()->is_method_handle_intrinsic(), "must be a method handle intrinsic call");
+  Node* ret = call->proj_out_or_null(TypeFunc::Parms);
   if (ret == NULL) {
     return;
   }
-  // TODO fix this with the calling convention changes
-  //assert(ret->bottom_type()->is_valuetypeptr()->is__Value(), "unexpected return type from MH intrinsic");
   const TypeFunc* tf = call->_tf;
   const TypeTuple* domain = OptoRuntime::store_value_type_fields_Type()->domain_cc();
   const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
   call->_tf = new_tf;
-  // Make sure the change of type is applied before projections are
-  // processed by igvn
+  // Make sure the change of type is applied before projections are processed by igvn
   _igvn.set_type(call, call->Value(&_igvn));
   _igvn.set_type(ret, ret->Value(&_igvn));
 
@@ -2541,7 +2539,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* allocation_ctl = transform_later(new IfTrueNode(allocation_iff));
   Node* no_allocation_ctl = transform_later(new IfFalseNode(allocation_iff));
 
-  Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeInstPtr::NOTNULL));
+  Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeInstPtr::BOTTOM));
 
   Node* mask2 = MakeConX(-2);
   Node* masked2 = transform_later(new AndXNode(cast, mask2));
@@ -2622,7 +2620,8 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   if (UseCompressedClassPointers) {
     rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
   }
-  Node* pack_handler = make_load(slowpath_false, rawmem, klass_node, in_bytes(ValueKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+  Node* fixed_block  = make_load(slowpath_false, rawmem, klass_node, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+  Node* pack_handler = make_load(slowpath_false, rawmem, fixed_block, in_bytes(ValueKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
 
   CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_value_type_Type(),
                                                         NULL,
@@ -2665,7 +2664,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* r = new RegionNode(4);
   Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
   Node* io_phi = new PhiNode(r, Type::ABIO);
-  Node* res_phi = new PhiNode(r, ret->bottom_type());
+  Node* res_phi = new PhiNode(r, TypeInstPtr::BOTTOM);
 
   r->init_req(1, no_allocation_ctl);
   mem_phi->init_req(1, mem);

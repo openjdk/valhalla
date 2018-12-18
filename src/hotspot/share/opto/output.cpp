@@ -71,12 +71,14 @@ void Compile::Output() {
   const StartNode *start = entry->head()->as_Start();
 
   // Replace StartNode with prolog
-  MachPrologNode *prolog = new MachPrologNode();
+  Label verified_entry;
+  MachPrologNode* prolog = new MachPrologNode(&verified_entry);
   entry->map_node(prolog, 0);
   _cfg->map_node_to_block(prolog, entry);
   _cfg->unmap_node_from_block(start); // start is no longer in any block
 
   // Virtual methods need an unverified entry point
+  bool has_value_entry = false;
   if (is_osr_compilation()) {
     if (PoisonOSREntry) {
       // TODO: Should use a ShouldNotReachHereNode...
@@ -86,6 +88,11 @@ void Compile::Output() {
     if (_method && !_method->flags().is_static()) {
       // Insert unvalidated entry point
       _cfg->insert(broot, 0, new MachUEPNode());
+    }
+    if (_method && _method->get_Method()->has_scalarized_args()) {
+      // Insert value type entry point
+      _cfg->insert(broot, 0, new MachVVEPNode(&verified_entry));
+      has_value_entry = true;
     }
   }
 
@@ -120,6 +127,18 @@ void Compile::Output() {
 
   if (cb == NULL || failing()) {
     return;
+  }
+
+  if (has_value_entry) {
+    // We added an entry point for unscalarized value types
+    // Compute offset of "normal" entry point
+    _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, 0);
+    uint entry_offset = -1; // will be patched later
+    if (!_method->flags().is_static()) {
+      MachVVEPNode* vvep = (MachVVEPNode*)broot->get_node(0);
+      entry_offset = vvep->size(_regalloc);
+    }
+    _code_offsets.set_value(CodeOffsets::Entry, entry_offset);
   }
 
   ScheduleAndBundle();
@@ -972,6 +991,10 @@ CodeBuffer* Compile::init_buffer(uint* blk_starts) {
   // Compute the byte offset where we can store the deopt pc.
   if (fixed_slots() != 0) {
     _orig_pc_slot_offset_in_bytes = _regalloc->reg2offset(OptoReg::stack2reg(_orig_pc_slot));
+  }
+  if (C->needs_stack_repair()) {
+    // Compute the byte offset of the stack increment value
+    _sp_inc_slot_offset_in_bytes = _regalloc->reg2offset(OptoReg::stack2reg(_sp_inc_slot));
   }
 
   // Compute prolog code size

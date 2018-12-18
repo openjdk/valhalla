@@ -144,13 +144,16 @@ bool frame::safe_for_sender(JavaThread *thread) {
       if ((address)sender_sp >= thread->stack_base()) {
         return false;
       }
-      sender_unextended_sp = sender_sp;
       // On Intel the return_address is always the word on the stack
       sender_pc = (address) *(sender_sp-1);
       // Note: frame::sender_sp_offset is only valid for compiled frame
-      saved_fp = (intptr_t*) *(sender_sp - frame::sender_sp_offset);
-    }
+      intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
+      saved_fp = *saved_fp_addr;
 
+      // Repair the sender sp if this is a method with scalarized value type args
+      sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
+      sender_unextended_sp = sender_sp;
+    }
 
     // If the potential sender is the interpreter then we can do some more checking
     if (Interpreter::contains(sender_pc)) {
@@ -454,7 +457,6 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // frame owned by optimizing compiler
   assert(_cb->frame_size() >= 0, "must have non-zero frame size");
   intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
-  intptr_t* unextended_sp = sender_sp;
 
   // On Intel the return_address is always the word on the stack
   address sender_pc = (address) *(sender_sp-1);
@@ -462,6 +464,9 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // This is the saved value of EBP which may or may not really be an FP.
   // It is only an FP if the sender is an interpreter frame (or C1?).
   intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
+
+  // Repair the sender sp if this is a method with scalarized value type args
+  sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
@@ -479,7 +484,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   }
 
   assert(sender_sp != sp(), "must have changed");
-  return frame(sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
+  return frame(sender_sp, sender_sp, *saved_fp_addr, sender_pc);
 }
 
 
@@ -686,6 +691,22 @@ frame::frame(void* sp, void* fp, void* pc) {
 
 void frame::pd_ps() {}
 #endif
+
+// Check for a method with scalarized value type arguments that needs
+// a stack repair and return the repaired sender stack pointer.
+intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
+  CompiledMethod* cm = _cb->as_compiled_method_or_null();
+  if (cm != NULL && cm->method()->needs_stack_repair()) {
+    // The stack increment resides just below the saved rbp on the stack
+    // and does not account for the return address.
+    intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
+    int sp_inc = (*sp_inc_addr) / wordSize;
+    int real_frame_size = sp_inc + 1; // Add size of return address
+    assert(real_frame_size >= _cb->frame_size(), "invalid frame size");
+    sender_sp = unextended_sp() + real_frame_size;
+  }
+  return sender_sp;
+}
 
 void JavaFrameAnchor::make_walkable(JavaThread* thread) {
   // last frame set?

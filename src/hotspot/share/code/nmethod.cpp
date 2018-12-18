@@ -598,6 +598,7 @@ nmethod::nmethod(
     _comp_level              = CompLevel_none;
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
+    _verified_value_entry_point = _verified_entry_point;
     _osr_entry_point         = NULL;
     _exception_cache         = NULL;
     _pc_desc_container.reset_to(NULL);
@@ -758,6 +759,7 @@ nmethod::nmethod(
     _nmethod_end_offset      = _nul_chk_table_offset + align_up(nul_chk_table->size_in_bytes(), oopSize);
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
+    _verified_value_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry);
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
     _exception_cache         = NULL;
 
@@ -2515,7 +2517,7 @@ ScopeDesc* nmethod::scope_desc_in(address begin, address end) {
 }
 
 void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) const {
-  address low = entry_point();
+  address low = verified_value_entry_point() != NULL ? verified_value_entry_point() : entry_point();
   if (block_begin == low) {
     // Print method arguments before the method entry
     methodHandle m = method();
@@ -2531,18 +2533,15 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
       VMRegPair* regs   = NEW_RESOURCE_ARRAY(VMRegPair, 256);
       Symbol* sig = m->signature();
       bool has_value_arg = false;
-      if (ValueTypePassFieldsAsArgs && m->adapter()->get_sig_extended() != NULL) {
+      if (m->has_scalarized_args()) {
         // Use extended signature if value type arguments are passed as fields
-        sig = m->adapter()->get_sig_extended();
+        sig = SigEntry::create_symbol(m->adapter()->get_sig_cc());
         has_value_arg = true;
       } else if (!m->is_static()) {
         sig_bt[sizeargs++] = T_OBJECT; // 'this'
       }
       for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
         BasicType t = ss.type();
-        if (!ValueTypePassFieldsAsArgs && t == T_VALUETYPE) {
-          t = T_VALUETYPEPTR; // Pass value types by reference
-        }
         sig_bt[sizeargs++] = t;
         if (type2size[t] == 2) {
           sig_bt[sizeargs++] = T_VOID;
@@ -2557,13 +2556,11 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
       int sig_index = 0;
       int arg_index = ((m->is_static() || has_value_arg) ? 0 : -1);
       bool did_old_sp = false;
+      SigEntry res_entry = m->get_res_entry();
       for (SignatureStream ss(sig); !ss.at_return_type(); ) {
         bool at_this = (arg_index == -1);
         bool at_old_sp = false;
         BasicType t = (at_this ? T_OBJECT : ss.type());
-        if (!ValueTypePassFieldsAsArgs && t == T_VALUETYPE) {
-          t = T_VALUETYPEPTR; // Pass value types by reference
-        }
         assert(t == sig_bt[sig_index], "sigs in sync");
         if (at_this) {
           stream->print("  # this: ");
@@ -2602,6 +2599,9 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
           if (!did_name)
             stream->print("%s", type2name(t));
         }
+        if (sig_index == res_entry._offset) {
+          stream->print(" [RESERVED] ");
+        }
         if (at_old_sp) {
           stream->print("  (%s of caller)", spname);
           did_old_sp = true;
@@ -2623,6 +2623,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
 
   if (block_begin == entry_point())             stream->print_cr("[Entry Point]");
   if (block_begin == verified_entry_point())    stream->print_cr("[Verified Entry Point]");
+  if (block_begin == verified_value_entry_point()) stream->print_cr("[Verified Value Entry Point]");
   if (JVMCI_ONLY(_exception_offset >= 0 &&) block_begin == exception_begin())         stream->print_cr("[Exception Handler]");
   if (block_begin == stub_begin())              stream->print_cr("[Stub Code]");
   if (JVMCI_ONLY(_deopt_handler_begin != NULL &&) block_begin == deopt_handler_begin())     stream->print_cr("[Deopt Handler Code]");

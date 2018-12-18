@@ -267,10 +267,10 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
 // the offset of each field in the value type: i2c and c2i adapters
 // need that to load or store fields. Finally, the list of fields is
 // sorted in order of increasing offsets: the adapters and the
-// compiled code need and agreed upon order of fields.
+// compiled code need to agree upon the order of fields.
 //
 // The list of basic types that is returned starts with a T_VALUETYPE
-// and ends with an extra T_VOID. T_VALUETYPE/T_VOID are used as
+// and ends with an extra T_VOID. T_VALUETYPE/T_VOID pairs are used as
 // delimiters. Every entry between the two is a field of the value
 // type. If there's an embedded value type in the list, it also starts
 // with a T_VALUETYPE and ends with a T_VOID. This is so we can
@@ -280,74 +280,58 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
 // T_VALUETYPE, drop everything until and including the closing
 // T_VOID) or the compiler point of view (each field of the value
 // types is an argument: drop all T_VALUETYPE/T_VOID from the list).
-GrowableArray<SigEntry> ValueKlass::collect_fields(int base_off) const {
-  GrowableArray<SigEntry> sig_extended;
-  sig_extended.push(SigEntry(T_VALUETYPE, base_off));
+int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) const {
+  int count = 0;
+  SigEntry::add_entry(sig, T_VALUETYPE, base_off);
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
-    fieldDescriptor& fd = fs.field_descriptor();
-    BasicType bt = fd.field_type();
-    int offset = base_off + fd.offset() - (base_off > 0 ? first_field_offset() : 0);
-    if (bt == T_VALUETYPE) {
-      if (fd.is_flattened()) {
-        Symbol* signature = fd.signature();
-        JavaThread* THREAD = JavaThread::current();
-        oop loader = class_loader();
-        oop domain = protection_domain();
-        ResetNoHandleMark rnhm;
-        HandleMark hm;
-        NoSafepointVerifier nsv;
-        Klass* klass = SystemDictionary::resolve_or_null(signature,
-                                                         Handle(THREAD, loader), Handle(THREAD, domain),
-                                                         THREAD);
-        assert(klass != NULL && !HAS_PENDING_EXCEPTION, "lookup shouldn't fail");
-        const GrowableArray<SigEntry>& embedded = ValueKlass::cast(klass)->collect_fields(offset);
-        sig_extended.appendAll(&embedded);
-      } else {
-        sig_extended.push(SigEntry(T_VALUETYPEPTR, offset));
-      }
+    int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
+    if (fs.is_flattened()) {
+      // Resolve klass of flattened value type field and recursively collect fields
+      Klass* vk = get_value_field_klass(fs.index());
+      count += ValueKlass::cast(vk)->collect_fields(sig, offset);
     } else {
-      sig_extended.push(SigEntry(bt, offset));
-      if (bt == T_LONG || bt == T_DOUBLE) {
-        sig_extended.push(SigEntry(T_VOID, offset));
+      BasicType bt = FieldType::basic_type(fs.signature());
+      if (bt == T_VALUETYPE) {
+        bt = T_OBJECT;
       }
+      SigEntry::add_entry(sig, bt, offset);
+      count += type2size[bt];
     }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? first_field_offset() : 0);
-  sig_extended.push(SigEntry(T_VOID, offset)); // hack: use T_VOID to mark end of value type fields
+  SigEntry::add_entry(sig, T_VOID, offset);
   if (base_off == 0) {
-    sig_extended.sort(SigEntry::compare);
+    sig->sort(SigEntry::compare);
   }
-  assert(sig_extended.at(0)._bt == T_VALUETYPE && sig_extended.at(sig_extended.length()-1)._bt == T_VOID, "broken structure");
-  return sig_extended;
+  assert(sig->at(0)._bt == T_VALUETYPE && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
+  return count;
 }
 
-void ValueKlass::initialize_calling_convention() {
+void ValueKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since value type klasses do
   // not have a vtable, the vtable offset is used to store these addresses.
-  //guarantee(vtable_length() == 0, "vtables are not supported in value klasses");
   if (ValueTypeReturnedAsFields || ValueTypePassFieldsAsArgs) {
-    Thread* THREAD = Thread::current();
-    assert(!HAS_PENDING_EXCEPTION, "should have no exception");
     ResourceMark rm;
-    const GrowableArray<SigEntry>& sig_vk = collect_fields();
-    int nb_fields = SigEntry::count_fields(sig_vk)+1;
-    Array<SigEntry>* extended_sig = MetadataFactory::new_array<SigEntry>(class_loader_data(), sig_vk.length(), CHECK_AND_CLEAR);
+    GrowableArray<SigEntry> sig_vk;
+    int nb_fields = collect_fields(&sig_vk);
+    Array<SigEntry>* extended_sig = MetadataFactory::new_array<SigEntry>(class_loader_data(), sig_vk.length(), CHECK);
     *((Array<SigEntry>**)adr_extended_sig()) = extended_sig;
     for (int i = 0; i < sig_vk.length(); i++) {
       extended_sig->at_put(i, sig_vk.at(i));
     }
 
     if (ValueTypeReturnedAsFields) {
+      nb_fields++;
       BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, nb_fields);
       sig_bt[0] = T_METADATA;
-      SigEntry::fill_sig_bt(sig_vk, sig_bt+1, nb_fields-1, true);
+      SigEntry::fill_sig_bt(&sig_vk, sig_bt+1);
       VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, nb_fields);
       int total = SharedRuntime::java_return_convention(sig_bt, regs, nb_fields);
 
       if (total > 0) {
-        Array<VMRegPair>* return_regs = MetadataFactory::new_array<VMRegPair>(class_loader_data(), nb_fields, CHECK_AND_CLEAR);
+        Array<VMRegPair>* return_regs = MetadataFactory::new_array<VMRegPair>(class_loader_data(), nb_fields, CHECK);
         *((Array<VMRegPair>**)adr_return_regs()) = return_regs;
         for (int i = 0; i < nb_fields; i++) {
           return_regs->at_put(i, regs[i]);
@@ -401,8 +385,7 @@ void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handl
 
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
-      int off = sig_vk->at(i)._offset;
+    if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
       address loc = reg_map.location(pair.first());
       oop v = *(oop*)loc;
@@ -434,7 +417,6 @@ void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>
   for (int i = 0, k = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
-      int off = sig_vk->at(i)._offset;
       VMRegPair pair = regs->at(j);
       address loc = reg_map.location(pair.first());
       *(oop*)loc = handles.at(k++)();
@@ -455,7 +437,6 @@ void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>
 // Fields are in registers. Create an instance of the value type and
 // initialize it with the values of the fields.
 oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS) {
-
   oop new_vt = allocate_instance(CHECK_NULL);
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
@@ -475,58 +456,50 @@ oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<H
       continue;
     }
     int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     address loc = reg_map.location(pair.first());
     switch(bt) {
     case T_BOOLEAN: {
-      jboolean v = *(intptr_t*)loc;
-      *(jboolean*)((address)new_vt + off) = v;
+      new_vt->bool_field_put(off, *(jboolean*)loc);
       break;
     }
     case T_CHAR: {
-      jchar v = *(intptr_t*)loc;
-      *(jchar*)((address)new_vt + off) = v;
+      new_vt->char_field_put(off, *(jchar*)loc);
       break;
     }
     case T_BYTE: {
-      jbyte v = *(intptr_t*)loc;
-      *(jbyte*)((address)new_vt + off) = v;
+      new_vt->byte_field_put(off, *(jbyte*)loc);
       break;
     }
     case T_SHORT: {
-      jshort v = *(intptr_t*)loc;
-      *(jshort*)((address)new_vt + off) = v;
+      new_vt->short_field_put(off, *(jshort*)loc);
       break;
     }
     case T_INT: {
-      jint v = *(intptr_t*)loc;
-      *(jint*)((address)new_vt + off) = v;
+      new_vt->int_field_put(off, *(jint*)loc);
       break;
     }
     case T_LONG: {
 #ifdef _LP64
-      jlong v = *(intptr_t*)loc;
-      *(jlong*)((address)new_vt + off) = v;
+      new_vt->double_field_put(off,  *(jdouble*)loc);
 #else
       Unimplemented();
 #endif
       break;
     }
     case T_OBJECT:
-    case T_VALUETYPEPTR:
     case T_ARRAY: {
       Handle handle = handles.at(k++);
-      HeapAccess<>::oop_store_at(new_vt, off, handle());
+      new_vt->obj_field_put(off, handle());
       break;
     }
     case T_FLOAT: {
-      jfloat v = *(jfloat*)loc;
-      *(jfloat*)((address)new_vt + off) = v;
+      new_vt->float_field_put(off,  *(jfloat*)loc);
       break;
     }
     case T_DOUBLE: {
-      jdouble v = *(jdouble*)loc;
-      *(jdouble*)((address)new_vt + off) = v;
+      new_vt->double_field_put(off, *(jdouble*)loc);
       break;
     }
     default:

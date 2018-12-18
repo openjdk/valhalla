@@ -254,8 +254,9 @@ void ValueTypeBaseNode::make_scalar_in_safepoints(Node* root, PhaseGVN* gvn) {
   }
 }
 
-void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, int base_input, bool in) {
+void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, uint& base_input, bool in) {
   assert(base_offset >= 0, "offset in value type must be positive");
+  assert(base_input >= TypeFunc::Parms, "invalid base input");
   PhaseGVN& gvn = kit->gvn();
   for (uint i = 0; i < field_count(); i++) {
     ciType* ft = field_type(i);
@@ -263,7 +264,8 @@ void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass
     if (field_is_flattened(i)) {
       // Flattened value type field
       ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, ft->as_value_klass());
-      vt->initialize(kit, multi, vk, offset - value_klass()->first_field_offset(), base_input, in);
+      uint base = base_input;
+      vt->initialize(kit, multi, vk, offset - value_klass()->first_field_offset(), base, in);
       set_field_value(i, gvn.transform(vt));
     } else {
       int j = 0; int extra = 0;
@@ -280,26 +282,40 @@ void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass
       }
       assert(j != vk->nof_nonstatic_fields(), "must find");
       Node* parm = NULL;
+      int index = base_input + j + extra;
+
+      ciMethod* method = multi->is_Start()? kit->C->method() : multi->as_CallStaticJava()->method();
+      SigEntry res_entry = method->get_Method()->get_res_entry();
+      if (res_entry._offset != -1 && (index - TypeFunc::Parms) >= res_entry._offset) {
+        // Skip reserved entry
+        index += type2size[res_entry._bt];
+      }
       if (multi->is_Start()) {
         assert(in, "return from start?");
-        parm = gvn.transform(new ParmNode(multi->as_Start(), base_input + j + extra));
+        parm = gvn.transform(new ParmNode(multi->as_Start(), index));
       } else {
         if (in) {
-          parm = multi->as_Call()->in(base_input + j + extra);
+          parm = multi->as_Call()->in(index);
         } else {
-          parm = gvn.transform(new ProjNode(multi->as_Call(), base_input + j + extra));
+          parm = gvn.transform(new ProjNode(multi->as_Call(), index));
         }
       }
-      if (ft->is_valuetype()) {
-        // Non-flattened value type field
-        assert(!gvn.type(parm)->maybe_null(), "should never be null");
-        parm = ValueTypeNode::make_from_oop(kit, parm, ft->as_value_klass());
+
+      if (field_is_flattenable(i)) {
+        // Non-flattened but flattenable value type
+        if (ft->as_value_klass()->is_scalarizable()) {
+          parm = ValueTypeNode::make_from_oop(kit, parm, ft->as_value_klass());
+        } else {
+          parm = kit->null2default(parm, ft->as_value_klass());
+        }
       }
+
       set_field_value(i, parm);
       // Record all these guys for later GVN.
       gvn.record_for_igvn(parm);
     }
   }
+  base_input += vk->value_arg_slots();
 }
 
 const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, PhaseGVN& gvn) const {
@@ -602,7 +618,7 @@ ValueTypeNode* ValueTypeNode::make_from_flattened(GraphKit* kit, ciValueKlass* v
   return kit->gvn().transform(vt)->as_ValueType();
 }
 
-ValueTypeNode* ValueTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_input, bool in) {
+ValueTypeNode* ValueTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, uint& base_input, bool in) {
   ValueTypeNode* vt = ValueTypeNode::make_uninitialized(kit->gvn(), vk);
   vt->initialize(kit, multi, vk, 0, base_input, in);
   return kit->gvn().transform(vt)->as_ValueType();
@@ -686,11 +702,8 @@ Node* ValueTypeNode::tagged_klass(PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void ValueTypeNode::pass_klass(Node* n, uint pos, const GraphKit& kit) {
-  n->init_req(pos, tagged_klass(kit.gvn()));
-}
-
 uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool assert_allocated, ciValueKlass* base_vk, int base_offset) {
+  assert(base_input >= TypeFunc::Parms, "invalid base input");
   ciValueKlass* vk = value_klass();
   if (base_vk == NULL) {
     base_vk = vk;
@@ -721,12 +734,28 @@ uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool ass
         assert(!assert_allocated || vt->is_allocated(&kit.gvn()), "value type field should be allocated");
         arg = vt->allocate(&kit)->get_oop();
       }
-      n->init_req(base_input + j + extra, arg);
+
+      int index = base_input + j + extra;
+      n->init_req(index++, arg);
       edges++;
       BasicType bt = field_type(i)->basic_type();
       if (bt == T_LONG || bt == T_DOUBLE) {
-        n->init_req(base_input + j + extra + 1, kit.top());
+        n->init_req(index++, kit.top());
         edges++;
+      }
+      if (n->isa_CallJava()) {
+        Method* m = n->as_CallJava()->method()->get_Method();
+        SigEntry res_entry = m->get_res_entry();
+        if ((index - TypeFunc::Parms) == res_entry._offset) {
+          // Skip reserved entry
+          int size = type2size[res_entry._bt];
+          n->init_req(index++, kit.top());
+          if (size == 2) {
+            n->init_req(index++, kit.top());
+          }
+          base_input += size;
+          edges += size;
+        }
       }
     }
   }

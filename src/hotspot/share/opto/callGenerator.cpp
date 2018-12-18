@@ -123,14 +123,14 @@ class DirectCallGenerator : public CallGenerator {
  public:
   DirectCallGenerator(ciMethod* method, bool separate_io_proj)
     : CallGenerator(method),
+      _call_node(NULL),
       _separate_io_proj(separate_io_proj)
   {
-    // TODO fix this with the calling convention changes
-    if (false /*method->signature()->return_type()->is__Value()*/) {
-      // If that call has not been optimized by the time optimizations
-      // are over, we'll need to add a call to create a value type
-      // instance from the klass returned by the call. Separating
-      // memory and I/O projections for exceptions is required to
+    if (ValueTypeReturnedAsFields && method->is_method_handle_intrinsic()) {
+      // If that call has not been optimized by the time optimizations are over,
+      // we'll need to add a call to create a value type instance from the klass
+      // returned by the call (see PhaseMacroExpand::expand_mh_intrinsic_return).
+      // Separating memory and I/O projections for exceptions is required to
       // perform that graph transformation.
       _separate_io_proj = true;
     }
@@ -436,24 +436,27 @@ void LateInlineCallGenerator::do_late_inline() {
   uint j = TypeFunc::Parms;
   for (uint i1 = 0; i1 < nargs; i1++) {
     const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-    if (!ValueTypePassFieldsAsArgs) {
-      Node* arg = call->in(TypeFunc::Parms + i1);
-      map->set_argument(jvms, i1, arg);
-    } else {
-      assert(false, "FIXME");
-      // TODO move this into Parse::Parse because we might need to deopt
-      /*
+    if (method()->get_Method()->has_scalarized_args()) {
       GraphKit arg_kit(jvms, &gvn);
-      if (t->is_valuetypeptr()) {
-        ciValueKlass* vk = t->value_klass();
-        ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, vk, j, true);
-        arg_kit.set_argument(i1, vt);
-        j += vk->value_arg_slots();
+      // TODO for now, don't scalarize value type receivers because of interface calls
+      if (t->is_valuetypeptr() && (method()->is_static() || i1 != 0)) {
+        arg_kit.set_control(map->control());
+        ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, t->value_klass(), j, true);
+        map->set_control(arg_kit.control());
+        map->set_argument(jvms, i1, vt);
       } else {
-        arg_kit.set_argument(i1, call->in(j));
+        int index = j;
+        SigEntry res_entry = method()->get_Method()->get_res_entry();
+        if (res_entry._offset != -1 && (index - TypeFunc::Parms) >= res_entry._offset) {
+          // Skip reserved entry
+          index += type2size[res_entry._bt];
+        }
+        map->set_argument(jvms, i1, call->in(index));
         j++;
       }
-      */
+    } else {
+      Node* arg = call->in(TypeFunc::Parms + i1);
+      map->set_argument(jvms, i1, arg);
     }
   }
 
@@ -502,20 +505,18 @@ void LateInlineCallGenerator::do_late_inline() {
   bool returned_as_fields = call->tf()->returns_value_type_as_fields();
   if (result->is_ValueType()) {
     ValueTypeNode* vt = result->as_ValueType();
-    if (!returned_as_fields) {
-      result = ValueTypePtrNode::make_from_value_type(&kit, vt);
-    } else {
-      assert(false, "FIXME");
+    if (returned_as_fields) {
       // Return of multiple values (the fields of a value type)
       vt->replace_call_results(&kit, call, C);
-      if (gvn.type(vt->get_oop()) == TypePtr::NULL_PTR) {
-        result = vt->tagged_klass(gvn);
-      } else {
+      if (vt->is_allocated(&gvn) && !StressValueTypeReturnedAsFields) {
         result = vt->get_oop();
+      } else {
+        result = vt->tagged_klass(gvn);
       }
+    } else {
+      result = ValueTypePtrNode::make_from_value_type(&kit, vt);
     }
   } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
-    assert(false, "FIXME");
     const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
     Node* cast = new CheckCastPPNode(NULL, result, vt_t);
     gvn.record_for_igvn(cast);

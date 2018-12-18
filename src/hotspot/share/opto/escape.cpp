@@ -2125,9 +2125,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       }
     }
   }
-  // TODO enable when using T_VALUETYPEPTR
-  //assert(bt != T_VALUETYPE, "should not have valuetype here");
-  return (bt == T_OBJECT || bt == T_VALUETYPE || bt == T_VALUETYPEPTR || bt == T_NARROWOOP || bt == T_ARRAY);
+  return (bt == T_OBJECT || bt == T_VALUETYPE || bt == T_NARROWOOP || bt == T_ARRAY);
 }
 
 // Returns unique pointed java object or NULL.

@@ -1500,8 +1500,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
   BAD_ALLOCATION_TYPE, // T_METADATA    = 18,
   BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 19,
-  BAD_ALLOCATION_TYPE, // T_VALUETYPEPTR= 20,
-  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 21,
+  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 20,
   BAD_ALLOCATION_TYPE, // 0
   BAD_ALLOCATION_TYPE, // 1
   BAD_ALLOCATION_TYPE, // 2
@@ -1522,8 +1521,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
   BAD_ALLOCATION_TYPE, // T_METADATA    = 18,
   BAD_ALLOCATION_TYPE, // T_NARROWKLASS = 19,
-  BAD_ALLOCATION_TYPE, // T_VALUETYPEPTR= 20,
-  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 21,
+  BAD_ALLOCATION_TYPE, // T_CONFLICT    = 20
 };
 
 static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_flattenable) {
@@ -6021,11 +6019,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
                                              CHECK);
   }
 
-  if (is_value_type()) {
-    ValueKlass* vk = ValueKlass::cast(ik);
-    vk->initialize_calling_convention();
-  }
-
   // Add read edges to the unnamed modules of the bootstrap and app class loaders.
   if (changed_by_loadhook && !module_handle.is_null() && module_entry->is_named() &&
       !module_entry->has_default_read_edges()) {
@@ -6037,7 +6030,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   int nfields = ik->java_fields_count();
   if (ik->is_value()) nfields++;
-  for(int i = 0; i < nfields; i++) {
+  for (int i = 0; i < nfields; i++) {
     if (ik->field_access_flags(i) & JVM_ACC_FLATTENABLE) {
       Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
       // Value classes must have been pre-loaded
@@ -6052,6 +6045,10 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
         && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
       ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
+  }
+
+  if (is_value_type()) {
+    ValueKlass::cast(ik)->initialize_calling_convention(CHECK);
   }
 
   // Update the loader_data graph.

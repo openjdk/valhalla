@@ -115,7 +115,6 @@ void basic_types_init() {
       case T_NARROWKLASS: // compressed klass pointer
       case T_CONFLICT:    // might as well support a bottom type
       case T_VOID:        // padding or other unaddressed word
-      case T_VALUETYPEPTR:
         // layout type must map to itself
         assert(vt == ft, "");
         break;
@@ -180,7 +179,7 @@ void basic_types_init() {
 
 
 // Map BasicType to signature character
-char type2char_tab[T_CONFLICT+1]={ 0, 0, 0, 0, 'Z', 'C', 'F', 'D', 'B', 'S', 'I', 'J', 'L', '[', 'Q', 'V', 0, 0, 0, 0, 0, 0};
+char type2char_tab[T_CONFLICT+1]={ 0, 0, 0, 0, 'Z', 'C', 'F', 'D', 'B', 'S', 'I', 'J', 'L', '[', 'Q', 'V', 0, 0, 0, 0, 0};
 
 // Map BasicType to Java type name
 const char* type2name_tab[T_CONFLICT+1] = {
@@ -201,7 +200,6 @@ const char* type2name_tab[T_CONFLICT+1] = {
   "*narrowoop*",
   "*metadata*",
   "*narrowklass*",
-  "valuetypeptr",
   "*conflict*"
 };
 
@@ -216,7 +214,7 @@ BasicType name2type(const char* name) {
 }
 
 // Map BasicType to size in words
-int type2size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 1, 1, 1, -1};
+int type2size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, 1, 1, 1, -1};
 
 BasicType type2field[T_CONFLICT+1] = {
   (BasicType)0,            // 0,
@@ -239,8 +237,7 @@ BasicType type2field[T_CONFLICT+1] = {
   T_NARROWOOP,             // T_NARROWOOP= 17,
   T_METADATA,              // T_METADATA = 18,
   T_NARROWKLASS,           // T_NARROWKLASS = 19,
-  T_VALUETYPEPTR,          // T_VALUETYPEPTR = 20,
-  T_CONFLICT               // T_CONFLICT = 21,
+  T_CONFLICT               // T_CONFLICT = 20
 };
 
 
@@ -265,8 +262,7 @@ BasicType type2wfield[T_CONFLICT+1] = {
   T_NARROWOOP, // T_NARROWOOP  = 17,
   T_METADATA,  // T_METADATA   = 18,
   T_NARROWKLASS, // T_NARROWKLASS  = 19,
-  T_VALUETYPEPTR,// T_VALUETYPEPTR = 20,
-  T_CONFLICT // T_CONFLICT = 21,
+  T_CONFLICT // T_CONFLICT = 20
 };
 
 
@@ -291,8 +287,7 @@ int _type2aelembytes[T_CONFLICT+1] = {
   T_NARROWOOP_aelem_bytes,   // T_NARROWOOP= 17,
   T_OBJECT_aelem_bytes,      // T_METADATA = 18,
   T_NARROWKLASS_aelem_bytes, // T_NARROWKLASS= 19,
-  T_VALUETYPEPTR_aelem_bytes,// T_VALUETYPEPTR = 20,
-  0                          // T_CONFLICT = 21,
+  0                          // T_CONFLICT = 20
 };
 
 #ifdef ASSERT

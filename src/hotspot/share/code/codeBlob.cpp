@@ -272,27 +272,27 @@ void BufferBlob::free(BufferBlob *blob) {
   MemoryService::track_code_cache_memory_usage();
 }
 
-BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps)
-  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, frame_complete, frame_size, oop_maps)
+BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments)
+  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments)
 {}
 
 
 //----------------------------------------------------------------------------------------------------
 // Implementation of AdapterBlob
 
-AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps) :
-  BufferBlob("I2C/C2I adapters", size, cb, frame_complete, frame_size, oop_maps) {
+AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) :
+  BufferBlob("I2C/C2I adapters", size, cb, frame_complete, frame_size, oop_maps, caller_must_gc_arguments) {
   CodeCache::commit(this);
 }
 
-AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps) {
+AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   AdapterBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(AdapterBlob));
   {
     MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) AdapterBlob(size, cb, frame_complete, frame_size, oop_maps);
+    blob = new (size) AdapterBlob(size, cb, frame_complete, frame_size, oop_maps, caller_must_gc_arguments);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();

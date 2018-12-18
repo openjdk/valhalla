@@ -609,15 +609,10 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   for (uint i = 0; i < (uint)arg_size_sig; i++) {
     Node* parm = map()->in(i);
     const Type* t = _gvn.type(parm);
-    if (!ValueTypePassFieldsAsArgs) {
-      if (t->is_valuetypeptr() && t->value_klass()->is_scalarizable() && !t->maybe_null()) {
-        // Create ValueTypeNode from the oop and replace the parameter
-        Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass());
-        map()->replace_edge(parm, vt);
-      }
-    } else {
-      assert(false, "FIXME");
-      // TODO move the code from build_start_state and do_late_inline here
+    if (t->is_valuetypeptr() && t->value_klass()->is_scalarizable() && !t->maybe_null()) {
+      // Create ValueTypeNode from the oop and replace the parameter
+      Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass());
+      map()->replace_edge(parm, vt);
     }
   }
 
@@ -842,12 +837,14 @@ void Parse::build_exits() {
 // Construct a state which contains only the incoming arguments from an
 // unknown caller.  The method & bci will be NULL & InvocationEntryBci.
 JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
-  int        arg_size_sig = tf->domain_sig()->cnt();
-  int        max_size = MAX2(arg_size_sig, (int)tf->range_cc()->cnt());
+  int        arg_size = tf->domain_sig()->cnt();
+  int        max_size = MAX2(arg_size, (int)tf->range_cc()->cnt());
   JVMState*  jvms     = new (this) JVMState(max_size - TypeFunc::Parms);
   SafePointNode* map  = new SafePointNode(max_size, NULL);
+  map->set_jvms(jvms);
+  jvms->set_map(map);
   record_for_igvn(map);
-  assert(arg_size_sig == TypeFunc::Parms + (is_osr_compilation() ? 1 : method()->arg_size()), "correct arg_size");
+  assert(arg_size == TypeFunc::Parms + (is_osr_compilation() ? 1 : method()->arg_size()), "correct arg_size");
   Node_Notes* old_nn = default_node_notes();
   if (old_nn != NULL && has_method()) {
     Node_Notes* entry_nn = old_nn->clone(this);
@@ -859,56 +856,41 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   }
   PhaseGVN& gvn = *initial_gvn();
   uint j = 0;
-  for (uint i = 0; i < (uint)arg_size_sig; i++) {
-    assert(j >= i, "less actual arguments than in the signature?");
-    if (ValueTypePassFieldsAsArgs) {
-      assert(false, "FIXME");
-      // TODO move this into Parse::Parse because we might need to deopt
-      /*
-      if (i < TypeFunc::Parms) {
-        assert(i == j, "no change before the actual arguments");
-        Node* parm = gvn.transform(new ParmNode(start, i));
-        map->init_req(i, parm);
-        // Record all these guys for later GVN.
-        record_for_igvn(parm);
-        j++;
-      } else {
-        // Value type arguments are not passed by reference: we get an
-        // argument per field of the value type. Build ValueTypeNodes
-        // from the value type arguments.
-        const Type* t = tf->domain_sig()->field_at(i);
-        if (t->is_valuetypeptr()) {
-          ciValueKlass* vk = t->value_klass();
-          GraphKit kit(jvms, &gvn);
-          kit.set_control(map->control());
-          ValueTypeNode* vt = ValueTypeNode::make_from_multi(&kit, start, vk, j, true);
-          map->set_control(kit.control());
-          map->init_req(i, vt);
-          j += vk->value_arg_slots();
-        } else {
-          Node* parm = gvn.transform(new ParmNode(start, j));
-          map->init_req(i, parm);
-          // Record all these guys for later GVN.
-          record_for_igvn(parm);
-          j++;
-        }
-      }
-      */
+  for (uint i = 0; i < (uint)arg_size; i++) {
+    const Type* t = tf->domain_sig()->field_at(i);
+    Node* parm = NULL;
+    // TODO for now, don't scalarize value type receivers because of interface calls
+    if (has_scalarized_args() && t->is_valuetypeptr() && (method()->is_static() || i != TypeFunc::Parms)) {
+      // Value type arguments are not passed by reference: we get an argument per
+      // field of the value type. Build ValueTypeNodes from the value type arguments.
+      GraphKit kit(jvms, &gvn);
+      kit.set_control(map->control());
+      Node* old_mem = map->memory();
+      // Use immutable memory for value type loads and restore it below
+      // TODO make sure value types are always loaded from immutable memory
+      kit.set_all_memory(C->immutable_memory());
+      parm = ValueTypeNode::make_from_multi(&kit, start, t->value_klass(), j, true);
+      map->set_control(kit.control());
+      map->set_memory(old_mem);
     } else {
-      Node* parm = gvn.transform(new ParmNode(start, i));
-      map->init_req(i, parm);
-      // Record all these guys for later GVN.
-      record_for_igvn(parm);
+      int index = j;
+      SigEntry res_slot = get_res_entry();
+      if (res_slot._offset != -1 && (index - TypeFunc::Parms) >= res_slot._offset) {
+        // Skip reserved entry
+        index += type2size[res_slot._bt];
+      }
+      parm = gvn.transform(new ParmNode(start, index));
       j++;
     }
+    map->init_req(i, parm);
+    // Record all these guys for later GVN.
+    record_for_igvn(parm);
   }
   for (; j < map->req(); j++) {
     map->init_req(j, top());
   }
   assert(jvms->argoff() == TypeFunc::Parms, "parser gets arguments here");
   set_default_node_notes(old_nn);
-  map->set_jvms(jvms);
-  jvms->set_map(map);
   return jvms;
 }
 
@@ -943,10 +925,14 @@ void Compile::return_values(JVMState* jvms) {
     if (tf()->returns_value_type_as_fields()) {
       // Multiple return values (value type fields): add as many edges
       // to the Return node as returned values.
-      assert(res->is_ValueType(), "what else supports multi value return");
+      assert(res->is_ValueType(), "what else supports multi value return?");
       ValueTypeNode* vt = res->as_ValueType();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
-      vt->pass_klass(ret, TypeFunc::Parms, kit);
+      if (vt->is_allocated(&kit.gvn()) && !StressValueTypeReturnedAsFields) {
+        ret->init_req(TypeFunc::Parms, vt->get_oop());
+      } else {
+        ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
+      }
       vt->pass_fields(ret, TypeFunc::Parms+1, kit, /* assert_allocated */ true);
     } else {
       ret->add_req(res);
@@ -2324,12 +2310,6 @@ void Parse::decrement_age() {
 //------------------------------return_current---------------------------------
 // Append current _map to _exit_return
 void Parse::return_current(Node* value) {
-  if (tf()->returns_value_type_as_fields()) {
-    assert(false, "Fix this with the calling convention changes");
-    // Value type is returned as fields, make sure non-flattened value type fields are allocated
-    // value = value->as_ValueType()->allocate_fields(this);
-  }
-
   if (RegisterFinalizersAtInit &&
       method()->intrinsic_id() == vmIntrinsics::_Object_init) {
     call_register_finalizer();
@@ -2350,9 +2330,19 @@ void Parse::return_current(Node* value) {
   if (value != NULL) {
     Node* phi = _exits.argument(0);
     const TypeOopPtr* tr = phi->bottom_type()->isa_oopptr();
+    if (tf()->returns_value_type_as_fields() && !_caller->has_method() && !value->is_ValueType()) {
+      // TODO there should be a checkcast in between, right?
+      value = ValueTypeNode::make_from_oop(this, value, phi->bottom_type()->is_valuetype()->value_klass());
+    }
     if (value->is_ValueType() && !_caller->has_method()) {
-      // Value type is returned as oop from root method, make sure it's allocated
-      value = value->as_ValueType()->allocate(this)->get_oop();
+      // Value type is returned as oop from root method
+      if (tf()->returns_value_type_as_fields()) {
+        // Make sure non-flattened value type fields are allocated
+        value = value->as_ValueType()->allocate_fields(this);
+      } else {
+        // Make sure value type is allocated
+        value = value->as_ValueType()->allocate(this)->get_oop();
+      }
     } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.

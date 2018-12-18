@@ -503,7 +503,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
     caller_adjustment = last_frame_adjust(callee_parameters, callee_locals);
   }
 
-  // If the sender is deoptimized the we must retrieve the address of the handler
+  // If the sender is deoptimized we must retrieve the address of the handler
   // since the frame will "magically" show the original pc before the deopt
   // and we'd undo the deopt.
 
@@ -1008,17 +1008,15 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     if (!fs.access_flags().is_static() && (!skip_internal || !fs.access_flags().is_internal())) {
       ReassignedField field;
       field._offset = fs.offset();
-      field._type = fs.is_flattened() ? T_VALUETYPE : FieldType::basic_type(fs.signature());
+      field._type = FieldType::basic_type(fs.signature());
       if (field._type == T_VALUETYPE) {
-        if (fs.is_flattened()) {
-          // Resolve klass of flattened value type field
-          Klass* vk = klass->get_value_field_klass(fs.index());
-          assert(vk->is_value(), "must be a ValueKlass");
-          field._klass = InstanceKlass::cast(vk);
-        } else {
-          // Non-flattened value type field
-          field._type = T_VALUETYPEPTR;
-        }
+        field._type = T_OBJECT;
+      }
+      if (fs.is_flattened()) {
+        // Resolve klass of flattened value type field
+        Klass* vk = klass->get_value_field_klass(fs.index());
+        field._klass = ValueKlass::cast(vk);
+        field._type = T_VALUETYPE;
       }
       fields->append(field);
     }
@@ -1032,7 +1030,6 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     BasicType type = fields->at(i)._type;
     switch (type) {
       case T_OBJECT:
-      case T_VALUETYPEPTR:
       case T_ARRAY:
         assert(value->type() == T_OBJECT, "Agreement.");
         obj->obj_field_put(offset, value->get_obj()());

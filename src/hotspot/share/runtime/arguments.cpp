@@ -2063,16 +2063,12 @@ bool Arguments::check_vm_args_consistency() {
     }
   }
 
-  // FIXME
-  //if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
-  if (!FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
+  if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
     FLAG_SET_CMDLINE(bool, ValueTypePassFieldsAsArgs, false);
     warning("ValueTypePassFieldsAsArgs is not supported on this platform");
   }
 
-  // FIXME
-  //if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
-  if (!FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
+  if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
     FLAG_SET_CMDLINE(bool, ValueTypeReturnedAsFields, false);
     warning("ValueTypeReturnedAsFields is not supported on this platform");
   }
@@ -2088,6 +2084,14 @@ bool Arguments::check_vm_args_consistency() {
       if (TieredStopAtLevel > 1) {
         warning("C1 doesn't work with C2 yet. Forcing TieredStopAtLevel=1");
         FLAG_SET_CMDLINE(intx, TieredStopAtLevel, 1);
+      }
+      if (ValueTypePassFieldsAsArgs) {
+        warning("C1 doesn't work with ValueTypePassFieldsAsArgs yet. Forcing ValueTypePassFieldsAsArgs=false");
+        FLAG_SET_CMDLINE(bool, ValueTypePassFieldsAsArgs, false);
+      }
+      if (ValueTypeReturnedAsFields) {
+        warning("C1 doesn't work with ValueTypeReturnedAsFields yet. Forcing ValueTypeReturnedAsFields=false");
+        FLAG_SET_CMDLINE(bool, ValueTypeReturnedAsFields, false);
       }
     }
   } else {

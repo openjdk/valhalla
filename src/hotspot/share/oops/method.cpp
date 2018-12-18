@@ -471,7 +471,6 @@ BasicType Method::result_type() const {
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
 ValueKlass* Method::returned_value_type(Thread* thread) const {
-  assert(is_returning_vt(), "method return type should be value type");
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
     ss.next();
@@ -488,8 +487,16 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
 }
 #endif
 
-bool Method::has_value_args() const {
-  return adapter()->get_sig_extended() != NULL;
+bool Method::has_scalarized_args() const {
+  return adapter() != NULL ? (adapter()->get_sig_cc() != NULL) : false;
+}
+
+bool Method::needs_stack_repair() const {
+  return adapter() != NULL ? (adapter()->get_res_entry()._offset != -1) : false;
+}
+
+SigEntry Method::get_res_entry() const {
+  return adapter() != NULL ? adapter()->get_res_entry() : SigEntry();
 }
 
 bool Method::is_empty_method() const {
@@ -941,7 +948,7 @@ void Method::clear_code(bool acquire_lock /* = true */) {
     _from_compiled_value_entry = NULL;
   } else {
     _from_compiled_entry    = adapter()->get_c2i_entry();
-    _from_compiled_value_entry = adapter()->get_c2i_entry();
+    _from_compiled_value_entry = adapter()->get_c2i_value_entry();
   }
   OrderAccess::storestore();
   _from_interpreted_entry = _i2i_entry;
@@ -1104,7 +1111,7 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   // Adapters for compiled code are made eagerly here.  They are fairly
   // small (generally < 100 bytes) and quick to make (and cached and shared)
   // so making them eagerly shouldn't be too expensive.
-  AdapterHandlerEntry* adapter = AdapterHandlerLibrary::get_adapter(mh, CHECK_0);
+  AdapterHandlerEntry* adapter = AdapterHandlerLibrary::get_adapter(mh);
   if (adapter == NULL ) {
     if (!is_init_completed()) {
       // Don't throw exceptions during VM initialization because java.lang.* classes
@@ -1123,7 +1130,7 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   } else {
     mh->set_adapter_entry(adapter);
     mh->_from_compiled_entry = adapter->get_c2i_entry();
-    mh->_from_compiled_value_entry = adapter->get_c2i_entry();
+    mh->_from_compiled_value_entry = adapter->get_c2i_value_entry();
   }
   return adapter->get_c2i_entry();
 }
@@ -1192,7 +1199,7 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
 
   OrderAccess::storestore();
   mh->_from_compiled_entry = code->verified_entry_point();
-  mh->_from_compiled_value_entry = code->verified_entry_point();
+  mh->_from_compiled_value_entry = code->verified_value_entry_point();
   OrderAccess::storestore();
   // Instantly compiled code can execute.
   if (!mh->is_method_handle_intrinsic())

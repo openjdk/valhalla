@@ -492,9 +492,20 @@ void Matcher::init_first_stack_mask() {
   // At first, start with the empty mask
   C->FIRST_STACK_mask().Clear();
 
+  // Check if method has a reserved entry in the argument stack area that
+  // should not be used for spilling because it holds the return address.
+  OptoRegPair res_entry;
+  if (C->needs_stack_repair()) {
+    int res_idx = C->get_res_entry()._offset;
+    res_entry = _parm_regs[res_idx];
+  }
+
   // Add in the incoming argument area
   OptoReg::Name init_in = OptoReg::add(_old_SP, C->out_preserve_stack_slots());
   for (i = init_in; i < _in_arg_limit; i = OptoReg::add(i,1)) {
+    if (i == res_entry.first() || i == res_entry.second()) {
+      continue; // Skip reserved slot to avoid spilling
+    }
     C->FIRST_STACK_mask().Insert(i);
   }
   // Add in all bits past the outgoing argument area

@@ -727,9 +727,9 @@ public:
         method != NULL &&
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&
-        r->field_at(TypeFunc::Parms)->is_valuetypeptr() &&
-        // TODO fix this with the calling convention changes
-        false /*r->field_at(TypeFunc::Parms)->is_valuetypeptr()->is__Value()*/) {
+        r->field_at(TypeFunc::Parms)->isa_oopptr() &&
+        r->field_at(TypeFunc::Parms)->is_oopptr()->can_be_value_type()) {
+      // Make sure this call is processed by PhaseMacroExpand::expand_mh_intrinsic_return
       init_flags(Flag_is_macro);
       C->add_macro_node(this);
     }

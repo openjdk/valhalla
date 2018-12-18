@@ -907,10 +907,8 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
   MacroAssembler _masm(&cbuf);
 
-  int framesize = C->frame_size_in_bytes();
-  int bangsize = C->bang_size_in_bytes();
-
-  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, false, C->stub_function() != NULL);
+  __ verified_entry(C);
+  __ bind(*_verified_entry);
 
   C->set_frame_complete(cbuf.insts_size());
 
@@ -984,29 +982,8 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     __ vzeroupper();
   }
 
-  int framesize = C->frame_size_in_bytes();
-  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
-  // Remove word for return adr already pushed
-  // and RBP
-  framesize -= 2*wordSize;
+  __ restore_stack(C);
 
-  // Note that VerifyStackAtCalls' Majik cookie does not change the frame size popped here
-
-  if (framesize) {
-    emit_opcode(cbuf, Assembler::REX_W);
-    if (framesize < 0x80) {
-      emit_opcode(cbuf, 0x83); // addq rsp, #framesize
-      emit_rm(cbuf, 0x3, 0x00, RSP_enc);
-      emit_d8(cbuf, framesize);
-    } else {
-      emit_opcode(cbuf, 0x81); // addq rsp, #framesize
-      emit_rm(cbuf, 0x3, 0x00, RSP_enc);
-      emit_d32(cbuf, framesize);
-    }
-  }
-
-  // popq rbp
-  emit_opcode(cbuf, 0x58 | RBP_enc);
 
   if (StackReservedPages > 0 && C->has_reserved_stack_access()) {
     __ reserved_stack_check();
@@ -1575,6 +1552,28 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const
 {
   int offset = ra_->reg2offset(in_RegMask(0).find_first_elem());
   return (offset < 0x80) ? 5 : 8; // REX
+}
+
+//=============================================================================
+#ifndef PRODUCT
+void MachVVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
+{
+  st->print_cr("MachVVEPNode");
+}
+#endif
+
+void MachVVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
+{
+  // Unpack all value type args passed as oop and then jump to
+  // the verified entry point (skipping the unverified entry).
+  MacroAssembler masm(&cbuf);
+  masm.unpack_value_args(ra_->C);
+  masm.jmp(*_verified_entry);
+}
+
+uint MachVVEPNode::size(PhaseRegAlloc* ra_) const
+{
+  return MachNode::size(ra_); // too many variables; just compute it the hard way
 }
 
 //=============================================================================

@@ -101,7 +101,6 @@ public:
     RawPtr,                     // Raw (non-oop) pointers
     OopPtr,                     // Any and all Java heap entities
     InstPtr,                    // Instance pointers (non-array objects)
-    ValueTypePtr,               // Oop to heap allocated value type
     AryPtr,                     // Array pointers
     // (Ptr order matters:  See is_ptr, isa_ptr, is_oopptr, isa_oopptr.)
 
@@ -692,7 +691,7 @@ public:
   static const TypeTuple *make( uint cnt, const Type **fields );
   static const TypeTuple *make_range(ciSignature* sig, bool ret_vt_fields = false);
   static const TypeTuple *make_range(ciType* return_type, bool never_null = false, bool ret_vt_fields = false);
-  static const TypeTuple *make_domain(ciInstanceKlass* recv, ciSignature *sig, bool vt_fields_as_args = false);
+  static const TypeTuple *make_domain(ciMethod* method, bool vt_fields_as_args = false);
 
   // Subroutine call type with space allocated for argument types
   // Memory for Control, I_O, Memory, FramePtr, and ReturnAdr is allocated implicitly

@@ -43,6 +43,7 @@ import java.lang.reflect.Method;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
+ *                               -DVerifyIR=false
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestMethodHandles
  */
@@ -51,7 +52,10 @@ public class TestMethodHandles extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
+        // Prevent inlining through MethodHandle linkTo adapters to stress the calling convention
+        case 2: return new String[] {"-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
         case 3: return new String[] {"-XX:-ValueArrayFlatten"};
+        case 4: return new String[] {"-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
         }
         return null;
     }

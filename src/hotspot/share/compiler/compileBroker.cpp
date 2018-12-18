@@ -1188,18 +1188,6 @@ nmethod* CompileBroker::compile_method(const methodHandle& method, int osr_bci,
   assert(WhiteBoxAPI || TieredCompilation || comp_level == CompLevel_highest_tier, "only CompLevel_highest_tier must be used in non-tiered");
   // return quickly if possible
 
-  // Lambda forms with an Object in their signature can be passed a
-  // value type. If compiled as root of a compilation, C2 has no way
-  // to know a value type is passed.
-  if (ValueTypePassFieldsAsArgs && method->is_compiled_lambda_form()) {
-    ResourceMark rm;
-    for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-      if (ss.type() == T_VALUETYPE) {
-        return NULL;
-      }
-    }
-  }
-
   // lock, make sure that the compilation
   // isn't prohibited in a straightforward way.
   AbstractCompiler* comp = CompileBroker::compiler(comp_level);

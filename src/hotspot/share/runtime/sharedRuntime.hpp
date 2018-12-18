@@ -372,6 +372,11 @@ class SharedRuntime: AllStatic {
   // will be just above it. (
   // return value is the maximum number of VMReg stack slots the convention will use.
   static int java_calling_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed, int is_outgoing);
+  static int java_calling_convention(const GrowableArray<SigEntry>* sig, VMRegPair* regs) {
+    BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig->length());
+    int total_args_passed = SigEntry::fill_sig_bt(sig, sig_bt);
+    return java_calling_convention(sig_bt, regs, total_args_passed, false);
+  }
   static int java_return_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed);
   static const uint java_return_convention_max_int;
   static const uint java_return_convention_max_float;
@@ -424,14 +429,17 @@ class SharedRuntime: AllStatic {
 
   static AdapterHandlerEntry* generate_i2c2i_adapters(MacroAssembler *masm,
                                                       int comp_args_on_stack,
-                                                      const GrowableArray<SigEntry>& sig_extended,
-                                                      const VMRegPair *regs,
+                                                      int comp_args_on_stack_cc,
+                                                      const GrowableArray<SigEntry>* sig,
+                                                      const VMRegPair* regs,
+                                                      const GrowableArray<SigEntry>* sig_cc,
+                                                      const VMRegPair* regs_cc,
                                                       AdapterFingerPrint* fingerprint,
                                                       AdapterBlob*& new_adapter);
 
   static void gen_i2c_adapter(MacroAssembler *_masm,
                               int comp_args_on_stack,
-                              const GrowableArray<SigEntry>& sig_extended,
+                              const GrowableArray<SigEntry>* sig,
                               const VMRegPair *regs);
 
   // OSR support
@@ -640,8 +648,12 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   AdapterFingerPrint* _fingerprint;
   address _i2c_entry;
   address _c2i_entry;
+  address _c2i_value_entry;
   address _c2i_unverified_entry;
-  Symbol* _sig_extended;
+
+  // Support for scalarized value type calling convention
+  const GrowableArray<SigEntry>* _sig_cc;
+  SigEntry _res_sig_entry;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -650,12 +662,14 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry, Symbol* sig_extended) {
+  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_unverified_entry) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
+    _c2i_value_entry = c2i_value_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
-    _sig_extended = sig_extended;
+    _sig_cc = NULL;
+    _res_sig_entry = SigEntry();
 #ifdef ASSERT
     _saved_code = NULL;
     _saved_code_length = 0;
@@ -670,10 +684,16 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
  public:
   address get_i2c_entry()            const { return _i2c_entry; }
   address get_c2i_entry()            const { return _c2i_entry; }
+  address get_c2i_value_entry()      const { return _c2i_value_entry; }
   address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
-  Symbol* get_sig_extended()         const { return _sig_extended; }
   address base_address();
   void relocate(address new_base);
+
+  // Support for scalarized value type calling convention
+  void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
+  const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
+  void     set_res_entry(SigEntry res_sig_entry)       { _res_sig_entry = res_sig_entry; }
+  SigEntry get_res_entry()                       const { return _res_sig_entry; }
 
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }
 
@@ -712,15 +732,14 @@ class AdapterHandlerLibrary: public AllStatic {
   static AdapterHandlerEntry* _abstract_method_handler;
   static BufferBlob* buffer_blob();
   static void initialize();
-  static AdapterHandlerEntry* get_adapter0(const methodHandle& method, TRAPS);
+  static AdapterHandlerEntry* get_adapter0(const methodHandle& method);
 
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
-                                        address i2c_entry, address c2i_entry, address c2i_unverified_entry,
-                                        Symbol* sig_extended = NULL);
+                                        address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_unverified_entry);
   static void create_native_wrapper(const methodHandle& method);
-  static AdapterHandlerEntry* get_adapter(const methodHandle& method, TRAPS);
+  static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 
   static void print_handler(const CodeBlob* b) { print_handler_on(tty, b); }
   static void print_handler_on(outputStream* st, const CodeBlob* b);

@@ -956,8 +956,7 @@ void InterpreterMacroAssembler::remove_activation(
         Register ret_addr,
         bool throw_monitor_exception,
         bool install_monitor_exception,
-        bool notify_jvmdi,
-        bool load_values) {
+        bool notify_jvmdi) {
   // Note: Registers rdx xmm0 may be in use for the
   // result check if synchronized method
   Label unlocked, unlock, no_unlock;
@@ -975,7 +974,7 @@ void InterpreterMacroAssembler::remove_activation(
   movbool(rbx, do_not_unlock_if_synchronized);
   movbool(do_not_unlock_if_synchronized, false); // reset the flag
 
- // get method access flags
+  // get method access flags
   movptr(rcx, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
   movl(rcx, Address(rcx, Method::access_flags_offset()));
   testl(rcx, JVM_ACC_SYNCHRONIZED);
@@ -1128,26 +1127,32 @@ void InterpreterMacroAssembler::remove_activation(
   movptr(rbx,
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
-  if (load_values) {
+  if (state == atos && ValueTypeReturnedAsFields) {
+    Label skip;
+    // Test if the return type is a value type
+    movptr(rdi, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
+    movptr(rdi, Address(rdi, Method::const_offset()));
+    load_unsigned_byte(rdi, Address(rdi, ConstMethod::result_type_offset()));
+    cmpl(rdi, T_VALUETYPE);
+    jcc(Assembler::notEqual, skip);
+
     // We are returning a value type, load its fields into registers
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_value_type_fields_in_regs());
 #else
+    // Load fields from a buffered value with a value class specific handler
     load_klass(rdi, rax);
+    movptr(rdi, Address(rdi, InstanceKlass::adr_valueklass_fixed_block_offset()));
     movptr(rdi, Address(rdi, ValueKlass::unpack_handler_offset()));
 
-    Label skip;
     testptr(rdi, rdi);
     jcc(Assembler::equal, skip);
 
-    // Load fields from a buffered value with a value class specific
-    // handler
     call(rdi);
-
-    bind(skip);
 #endif
     // call above kills the value in rbx. Reload it.
     movptr(rbx, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
+    bind(skip);
   }
   leave();                           // remove frame anchor
   pop(ret_addr);                     // get return address

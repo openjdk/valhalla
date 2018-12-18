@@ -1544,7 +1544,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   }
   ld = _gvn.transform(ld);
 
-  if (((bt == T_OBJECT || bt == T_VALUETYPE || bt == T_VALUETYPEPTR) && C->do_escape_analysis()) || C->eliminate_boxing()) {
+  if (((bt == T_OBJECT || bt == T_VALUETYPE) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
   }
@@ -1791,7 +1791,8 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
     if (arg->is_ValueType()) {
       assert(t->is_oopptr()->can_be_value_type(), "wrong argument type");
       ValueTypeNode* vt = arg->as_ValueType();
-      if (ValueTypePassFieldsAsArgs) {
+      // TODO for now, don't scalarize value type receivers because of interface calls
+      if (call->method()->get_Method()->has_scalarized_args() && t->is_valuetypeptr() && (call->method()->is_static() || i != TypeFunc::Parms)) {
         // We don't pass value type arguments by reference but instead
         // pass each field of the value type
         idx += vt->pass_fields(call, idx, *this);
@@ -1805,8 +1806,16 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
         arg = vt->allocate(this)->get_oop();
       }
     }
-    call->init_req(idx, arg);
-    idx++;
+    call->init_req(idx++, arg);
+
+    SigEntry res_entry = call->method()->get_Method()->get_res_entry();
+    if ((int)(idx - TypeFunc::Parms) == res_entry._offset) {
+      // Skip reserved entry
+      call->init_req(idx++, top());
+      if (res_entry._bt == T_DOUBLE || res_entry._bt == T_LONG) {
+        call->init_req(idx++, top());
+      }
+    }
   }
 }
 
@@ -1862,18 +1871,15 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   if (call->method() == NULL ||
       call->method()->return_type()->basic_type() == T_VOID) {
     ret = top();
+  } else if (call->tf()->returns_value_type_as_fields()) {
+    // Return of multiple values (value type fields): we create a
+    // ValueType node, each field is a projection from the call.
+    const TypeTuple* range_sig = call->tf()->range_sig();
+    const Type* t = range_sig->field_at(TypeFunc::Parms);
+    uint base_input = TypeFunc::Parms + 1;
+    ret = ValueTypeNode::make_from_multi(this, call, t->value_klass(), base_input, false);
   } else {
-    if (!call->tf()->returns_value_type_as_fields()) {
-      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-    } else {
-      // Return of multiple values (value type fields): we create a
-      // ValueType node, each field is a projection from the call.
-      const TypeTuple* range_sig = call->tf()->range_sig();
-      const Type* t = range_sig->field_at(TypeFunc::Parms);
-      assert(t->is_valuetypeptr(), "only value types for multiple return values");
-      ciValueKlass* vk = t->value_klass();
-      ret = ValueTypeNode::make_from_multi(this, call, vk, TypeFunc::Parms+1, false);
-    }
+    ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
 
   return ret;

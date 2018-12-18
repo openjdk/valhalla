@@ -394,7 +394,7 @@ class BufferBlob: public RuntimeBlob {
   // Creation support
   BufferBlob(const char* name, int size);
   BufferBlob(const char* name, int size, CodeBuffer* cb);
-  BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps);
+  BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
   // This ordinary operator delete is needed even though not used, so the
   // below two-argument operator delete will be treated as a placement
@@ -427,14 +427,15 @@ class BufferBlob: public RuntimeBlob {
 
 class AdapterBlob: public BufferBlob {
 private:
-  AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps);
+  AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
 public:
   // Creation
   static AdapterBlob* create(CodeBuffer* cb,
                              int frame_complete,
                              int frame_size,
-                             OopMapSet* oop_maps);
+                             OopMapSet* oop_maps,
+                             bool caller_must_gc_arguments = false);
 
   // Typing
   virtual bool is_adapter_blob() const { return true; }

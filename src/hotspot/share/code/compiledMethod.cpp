@@ -357,27 +357,12 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
       has_receiver = !(callee->access_flags().is_static());
       has_appendix = false;
       signature = callee->signature();
-    }
 
-    // If value types are passed as fields, use the extended signature
-    // which contains the types of all (oop) fields of the value type.
-    if (ValueTypePassFieldsAsArgs && callee != NULL) {
-      // Get the extended signature from the callee's adapter through the attached method
-      Symbol* sig_ext = callee->adapter()->get_sig_extended();
-#ifdef ASSERT
-      // Check if receiver or one of the arguments is a value type
-      bool has_value_receiver = has_receiver && callee->method_holder()->is_value();
-      bool has_value_argument = has_value_receiver;
-      for (SignatureStream ss(signature); !has_value_argument && !ss.at_return_type(); ss.next()) {
-        if (ss.type() == T_VALUETYPE) {
-          has_value_argument = true;
-          break;
-        }
-      }
-      assert(has_value_argument == (sig_ext != NULL), "Signature is inconsistent");
-#endif
-      if (sig_ext != NULL) {
-        signature = sig_ext;
+      // If value types are passed as fields, use the extended signature
+      // which contains the types of all (oop) fields of the value type.
+      if (callee->has_scalarized_args()) {
+        const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
+        signature = SigEntry::create_symbol(sig);
         has_receiver = false; // The extended signature contains the receiver type
       }
     }

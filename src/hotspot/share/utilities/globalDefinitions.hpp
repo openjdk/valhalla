@@ -585,8 +585,7 @@ enum BasicType {
   T_NARROWOOP   = 17,
   T_METADATA    = 18,
   T_NARROWKLASS = 19,
-  T_VALUETYPEPTR= 20, // the compiler needs a way to identify buffered values
-  T_CONFLICT    = 21, // for stack value type with conflicting contents
+  T_CONFLICT    = 20, // for stack value type with conflicting contents
   T_ILLEGAL     = 99
 };
 
@@ -684,12 +683,7 @@ enum ArrayElementSize {
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
-  T_VOID_aelem_bytes        = 0,
-#ifdef _LP64
-  T_VALUETYPEPTR_aelem_bytes= 8
-#else
-  T_VALUETYPEPTR_aelem_bytes= 4
-#endif
+  T_VOID_aelem_bytes        = 0
 };
 
 extern int _type2aelembytes[T_CONFLICT+1]; // maps a BasicType to nof bytes used by its array element

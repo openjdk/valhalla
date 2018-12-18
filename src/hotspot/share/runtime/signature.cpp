@@ -523,29 +523,70 @@ bool SignatureVerifier::invalid_name_char(char c) {
   }
 }
 
-int SigEntry::count_fields(const GrowableArray<SigEntry>& sig_extended) {
-  int values = 0;
-  for (int i = 0; i < sig_extended.length(); i++) {
-    if (sig_extended.at(i)._bt == T_VALUETYPE) {
-      values++;
-    }
+// Adds an argument to the signature
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset) {
+  sig->append(SigEntry(bt, offset));
+  if (bt == T_LONG || bt == T_DOUBLE) {
+    sig->append(SigEntry(T_VOID, offset)); // Longs and doubles take two stack slots
   }
-  return sig_extended.length() - 2 * values;
 }
 
-void SigEntry::fill_sig_bt(const GrowableArray<SigEntry>& sig_extended, BasicType* sig_bt_cc, int total_args_passed_cc, bool skip_vt) {
-  int j = 0;
-  for (int i = 0; i < sig_extended.length(); i++) {
-    if (!skip_vt) {
-      BasicType bt = sig_extended.at(i)._bt;
-      // assert(bt != T_VALUETYPE, "value types should be passed as fields or reference");
-      sig_bt_cc[j++] = bt;
-    } else if (sig_extended.at(i)._bt != T_VALUETYPE &&
-               (sig_extended.at(i)._bt != T_VOID ||
-                sig_extended.at(i-1)._bt == T_LONG ||
-                sig_extended.at(i-1)._bt == T_DOUBLE)) {
-      sig_bt_cc[j++] = sig_extended.at(i)._bt;
+// Inserts a reserved argument at position 'i'
+void SigEntry::insert_reserved_entry(GrowableArray<SigEntry>* sig, int i, BasicType bt) {
+  if (bt == T_OBJECT || bt == T_ARRAY || bt == T_VALUETYPE) {
+    // Treat this as INT to not confuse the GC
+    bt = T_INT;
+  } else if (bt == T_LONG || bt == T_DOUBLE) {
+    // Longs and doubles take two stack slots
+    sig->insert_before(i, SigEntry(T_VOID, SigEntry::ReservedOffset));
+  }
+  sig->insert_before(i, SigEntry(bt, SigEntry::ReservedOffset));
+}
+
+// Returns true if the argument at index 'i' is a reserved argument
+bool SigEntry::is_reserved_entry(const GrowableArray<SigEntry>* sig, int i) {
+  return sig->at(i)._offset == SigEntry::ReservedOffset;
+}
+
+// Returns true if the argument at index 'i' is not a value type delimiter
+bool SigEntry::skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i) {
+  return (sig->at(i)._bt != T_VALUETYPE &&
+          (sig->at(i)._bt != T_VOID || sig->at(i-1)._bt == T_LONG || sig->at(i-1)._bt == T_DOUBLE));
+}
+
+// Fill basic type array from signature array
+int SigEntry::fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt) {
+  int count = 0;
+  for (int i = 0; i < sig->length(); i++) {
+    if (skip_value_delimiters(sig, i)) {
+      sig_bt[count++] = sig->at(i)._bt;
     }
   }
-  assert(j == total_args_passed_cc, "bad number of arguments");
+  return count;
+}
+
+// Create a temporary symbol from the signature array
+TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
+  ResourceMark rm;
+  int length = sig->length();
+  char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
+  int idx = 0;
+  sig_str[idx++] = '(';
+  for (int i = 0; i < length; i++) {
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_VALUETYPE || bt == T_VOID) {
+      // Ignore
+    } else {
+      if (bt == T_ARRAY) {
+        bt = T_OBJECT; // We don't know the element type, treat as Object
+      }
+      sig_str[idx++] = type2char(bt);
+      if (bt == T_OBJECT) {
+        sig_str[idx++] = ';';
+      }
+    }
+  }
+  sig_str[idx++] = ')';
+  sig_str[idx++] = '\0';
+  return SymbolTable::new_symbol(sig_str, Thread::current());
 }

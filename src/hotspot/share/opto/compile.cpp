@@ -547,6 +547,12 @@ void Compile::init_scratch_buffer_blob(int const_size) {
     ResourceMark rm;
     _scratch_const_size = const_size;
     int size = C2Compiler::initial_code_buffer_size(const_size);
+#ifdef ASSERT
+    if (C->has_scalarized_args()) {
+      // Oop verification for loading object fields from scalarized value types in the new entry point requires lots of space
+      size += 5120;
+    }
+#endif
     blob = BufferBlob::create("Compile::scratch_buffer", size);
     // Record the buffer blob for next time.
     set_scratch_buffer_blob(blob);
@@ -611,6 +617,9 @@ uint Compile::scratch_emit_size(const Node* n) {
     masm.bind(fakeL);
     n->as_MachBranch()->save_label(&saveL, &save_bnum);
     n->as_MachBranch()->label_set(&fakeL, 0);
+  } else if (n->is_MachProlog()) {
+    saveL = ((MachPrologNode*)n)->_verified_entry;
+    ((MachPrologNode*)n)->_verified_entry = &fakeL;
   }
   n->emit(buf, this->regalloc());
 
@@ -620,6 +629,8 @@ uint Compile::scratch_emit_size(const Node* n) {
   // Restore label.
   if (is_branch) {
     n->as_MachBranch()->label_set(saveL, save_bnum);
+  } else if (n->is_MachProlog()) {
+    ((MachPrologNode*)n)->_verified_entry = saveL;
   }
 
   // End scratch_emit_size section.
@@ -653,6 +664,8 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _max_node_limit(MaxNodeLimit),
                   _orig_pc_slot(0),
                   _orig_pc_slot_offset_in_bytes(0),
+                  _sp_inc_slot(0),
+                  _sp_inc_slot_offset_in_bytes(0),
                   _inlining_progress(false),
                   _inlining_incrementally(false),
                   _has_reserved_stack_access(target->has_reserved_stack_access()),
@@ -912,8 +925,15 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   // Now that we know the size of all the monitors we can add a fixed slot
   // for the original deopt pc.
 
-  _orig_pc_slot =  fixed_slots();
+  _orig_pc_slot = fixed_slots();
   int next_slot = _orig_pc_slot + (sizeof(address) / VMRegImpl::stack_slot_size);
+
+  if (method()->get_Method()->needs_stack_repair()) {
+    // One extra slot for the special stack increment value
+    _sp_inc_slot = next_slot;
+    next_slot += 2;
+  }
+
   set_fixed_slots(next_slot);
 
   // Compute when to use implicit null checks. Used by matching trap based
@@ -939,6 +959,13 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
+      if (_code_offsets.value(CodeOffsets::Verified_Value_Entry) == -1) {
+        _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, _first_block_size);
+      }
+      if (_code_offsets.value(CodeOffsets::Entry) == -1) {
+        // We emitted a value type entry point, adjust normal entry
+        _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);
+      }
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
     }
 
@@ -984,6 +1011,8 @@ Compile::Compile( ciEnv* ci_env,
     _max_node_limit(MaxNodeLimit),
     _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
+    _sp_inc_slot(0),
+    _sp_inc_slot_offset_in_bytes(0),
     _inlining_progress(false),
     _inlining_incrementally(false),
     _has_reserved_stack_access(false),

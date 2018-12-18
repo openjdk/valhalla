@@ -104,7 +104,7 @@ class Method : public Metadata {
   // Entry point for calling from compiled code, to compiled code if it exists
   // or else the interpreter.
   volatile address _from_compiled_entry;        // Cache of: _code ? _code->entry_point() : _adapter->c2i_entry()
-  volatile address _from_compiled_value_entry;  // Cache of: _code ? _code->value_entry_point() : _adapter->c2i_entry()
+  volatile address _from_compiled_value_entry;  // Cache of: _code ? _code->value_entry_point() : _adapter->c2i_value_entry()
   // The entry point for calling both from and to compiled code is
   // "_code->entry_point()".  Because of tiered compilation and de-opt, this
   // field can come and go.  It can transition from NULL to not-null at any
@@ -576,11 +576,14 @@ class Method : public Metadata {
   Symbol* klass_name() const;                    // returns the name of the method holder
   BasicType result_type() const;                 // type of the method result
   bool may_return_oop() const                    { BasicType r = result_type(); return (r == T_OBJECT || r == T_ARRAY ||  r == T_VALUETYPE); }
-  bool is_returning_vt() const                   { BasicType r = result_type(); return r == T_VALUETYPE; }
 #ifdef ASSERT
   ValueKlass* returned_value_type(Thread* thread) const;
 #endif
-  bool has_value_args() const;
+
+  // Support for scalarized value type calling convention
+  bool has_scalarized_args() const;
+  bool needs_stack_repair() const;
+  SigEntry get_res_entry() const;
 
   // Checked exceptions thrown by this method (resolved to mirrors)
   objArrayHandle resolved_checked_exceptions(TRAPS) { return resolved_checked_exceptions_impl(this, THREAD); }

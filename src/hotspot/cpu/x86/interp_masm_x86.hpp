@@ -215,8 +215,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void remove_activation(TosState state, Register ret_addr,
                          bool throw_monitor_exception = true,
                          bool install_monitor_exception = true,
-                         bool notify_jvmdi = true,
-                         bool load_values = false);
+                         bool notify_jvmdi = true);
   void get_method_counters(Register method, Register mcs, Label& skip);
 
   // Object locking

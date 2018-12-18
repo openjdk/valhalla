@@ -492,8 +492,6 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_VALUETYPE:
-    case T_VALUETYPEPTR:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -576,7 +574,6 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
-    case T_VALUETYPEPTR:
       if (int_args < Argument::n_int_register_parameters_j+1) {
         regs[i].set2(INT_ArgReg[int_args]->as_VMReg());
         int_args++;
@@ -656,12 +653,14 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 // the value type. This utility function computes the number of
 // arguments for the call if value types are passed by reference (the
 // calling convention the interpreter expects).
-static int compute_total_args_passed_int(const GrowableArray<SigEntry>& sig_extended) {
+static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
   if (ValueTypePassFieldsAsArgs) {
-    for (int i = 0; i < sig_extended.length(); i++) {
-      BasicType bt = sig_extended.at(i)._bt;
-      if (bt == T_VALUETYPE) {
+    for (int i = 0; i < sig_extended->length(); i++) {
+      BasicType bt = sig_extended->at(i)._bt;
+      if (SigEntry::is_reserved_entry(sig_extended, i)) {
+        // Ignore reserved entry
+      } else if (bt == T_VALUETYPE) {
         // In sig_extended, a value type argument starts with:
         // T_VALUETYPE, followed by the types of the fields of the
         // value type and T_VOID to mark the end of the value
@@ -675,8 +674,8 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>& sig_exte
         int vt = 1;
         do {
           i++;
-          BasicType bt = sig_extended.at(i)._bt;
-          BasicType prev_bt = sig_extended.at(i-1)._bt;
+          BasicType bt = sig_extended->at(i)._bt;
+          BasicType prev_bt = sig_extended->at(i-1)._bt;
           if (bt == T_VALUETYPE) {
             vt++;
           } else if (bt == T_VOID &&
@@ -690,7 +689,7 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>& sig_exte
       }
     }
   } else {
-    total_args_passed = sig_extended.length();
+    total_args_passed = sig_extended->length();
   }
   return total_args_passed;
 }
@@ -742,7 +741,14 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
       val = r_1->as_Register();
     }
     if (is_oop) {
-      __ store_heap_oop(to, val);
+      // We don't need barriers because the destination is a newly allocated object.
+      // Also, we cannot use store_heap_oop(to, val) because it uses r8 as tmp.
+      if (UseCompressedOops) {
+        __ encode_heap_oop(val);
+        __ movl(to, val);
+      } else {
+        __ movptr(to, val);
+      }
     } else {
       __ store_sized_value(to, val, size_in_bytes);
     }
@@ -756,7 +762,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
 }
 
 static void gen_c2i_adapter(MacroAssembler *masm,
-                            const GrowableArray<SigEntry>& sig_extended,
+                            const GrowableArray<SigEntry>* sig_extended,
                             const VMRegPair *regs,
                             Label& skip_fixup,
                             address start,
@@ -775,8 +781,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   bool has_value_argument = false;
   if (ValueTypePassFieldsAsArgs) {
     // Is there a value type argument?
-    for (int i = 0; i < sig_extended.length() && !has_value_argument; i++) {
-      has_value_argument = (sig_extended.at(i)._bt == T_VALUETYPE);
+    for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
+      has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
     }
     if (has_value_argument) {
       // There is at least a value type argument: we're coming from
@@ -853,17 +859,20 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // interpreter point of view (value types are passed by reference).
   bool has_oop_field = false;
   for (int next_arg_comp = 0, ignored = 0, next_vt_arg = 0, next_arg_int = 0;
-       next_arg_comp < sig_extended.length(); next_arg_comp++) {
-    assert(ignored <= next_arg_comp, "shouldn't skip over more slot than there are arguments");
-    assert(next_arg_int < total_args_passed, "more arguments for the interpreter than expected?");
-    BasicType bt = sig_extended.at(next_arg_comp)._bt;
+       next_arg_comp < sig_extended->length(); next_arg_comp++) {
+    assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
+    assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
+    BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
     if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+      if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
+        continue; // Ignore reserved entry
+      }
       int next_off = st_off - Interpreter::stackElementSize;
       const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];
       size_t size_in_bytes = reg_pair.second()->is_valid() ? 8 : 4;
-      gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
+      gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended->at(next_arg_comp-1)._bt : T_ILLEGAL,
                              size_in_bytes, reg_pair, Address(rsp, offset), extraspace, false);
       next_arg_int++;
 #ifdef ASSERT
@@ -888,8 +897,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // sig_extended contains a field offset in the buffer.
       do {
         next_arg_comp++;
-        BasicType bt = sig_extended.at(next_arg_comp)._bt;
-        BasicType prev_bt = sig_extended.at(next_arg_comp-1)._bt;
+        BasicType bt = sig_extended->at(next_arg_comp)._bt;
+        BasicType prev_bt = sig_extended->at(next_arg_comp-1)._bt;
         if (bt == T_VALUETYPE) {
           vt++;
           ignored++;
@@ -898,13 +907,15 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                    prev_bt != T_DOUBLE) {
           vt--;
           ignored++;
+        } else if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
+          // Ignore reserved entry
         } else {
-          int off = sig_extended.at(next_arg_comp)._offset;
+          int off = sig_extended->at(next_arg_comp)._offset;
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
-          bool is_oop = (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY);
+          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
           has_oop_field = has_oop_field || is_oop;
-          gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
+          gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended->at(next_arg_comp-1)._bt : T_ILLEGAL,
                                  size_in_bytes, regs[next_arg_comp-ignored], Address(r11, off), extraspace, is_oop);
         }
       } while (vt != 0);
@@ -1001,7 +1012,7 @@ static void gen_i2c_adapter_helper(MacroAssembler* masm,
 
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
                                     int comp_args_on_stack,
-                                    const GrowableArray<SigEntry>& sig_extended,
+                                    const GrowableArray<SigEntry>* sig,
                                     const VMRegPair *regs) {
 
   // Note: r13 contains the senderSP on entry. We must preserve it since
@@ -1079,7 +1090,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
     __ subptr(rsp, comp_words_on_stack * wordSize);
   }
 
-
   // Ensure compiled code always sees stack at proper alignment
   __ andptr(rsp, -16);
 
@@ -1093,7 +1103,13 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
-  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_offset())));
+  if (StressValueTypePassFieldsAsArgs) {
+    // For stress testing, don't unpack value types in the i2c adapter but
+    // call the value type entry point and let it take care of unpacking.
+    __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
+  } else {
+    __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_offset())));
+  }
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI || UseAOT) {
@@ -1107,7 +1123,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   }
 #endif // INCLUDE_JVMCI
 
-  int total_args_passed = compute_total_args_passed_int(sig_extended);
+  int total_args_passed = compute_total_args_passed_int(sig);
   // Now generate the shuffle code.  Pick up all register args and move the
   // rest through the floating point stack top.
 
@@ -1118,19 +1134,22 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // to mark the end of the value type. ignored counts the number of
   // T_VALUETYPE/T_VOID. next_arg_int is the next argument from the
   // interpreter point of view (value types are passed by reference).
-  for (int next_arg_comp = 0, ignored = 0, next_arg_int = 0; next_arg_comp < sig_extended.length(); next_arg_comp++) {
-    assert(ignored <= next_arg_comp, "shouldn't skip over more slot than there are arguments");
-    assert(next_arg_int < total_args_passed, "more arguments from the interpreter than expected?");
-    BasicType bt = sig_extended.at(next_arg_comp)._bt;
+  for (int next_arg_comp = 0, ignored = 0, next_arg_int = 0; next_arg_comp < sig->length(); next_arg_comp++) {
+    assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
+    assert(next_arg_int <= total_args_passed, "more arguments from the interpreter than expected?");
+    BasicType bt = sig->at(next_arg_comp)._bt;
     int ld_off = (total_args_passed - next_arg_int)*Interpreter::stackElementSize;
     if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
       // Load in argument order going down.
       // Point to interpreter value (vs. tag)
+      if (SigEntry::is_reserved_entry(sig, next_arg_comp)) {
+        continue; // Ignore reserved entry
+      }
       int next_off = ld_off - Interpreter::stackElementSize;
       int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : ld_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];
       size_t size_in_bytes = reg_pair.second()->is_valid() ? 8 : 4;
-      gen_i2c_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended.at(next_arg_comp-1)._bt : T_ILLEGAL,
+      gen_i2c_adapter_helper(masm, bt, next_arg_comp > 0 ? sig->at(next_arg_comp-1)._bt : T_ILLEGAL,
                              size_in_bytes, reg_pair, Address(saved_sp, offset), false);
       next_arg_int++;
     } else {
@@ -1147,8 +1166,8 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       // field offset in the buffer.
       do {
         next_arg_comp++;
-        BasicType bt = sig_extended.at(next_arg_comp)._bt;
-        BasicType prev_bt = sig_extended.at(next_arg_comp-1)._bt;
+        BasicType bt = sig->at(next_arg_comp)._bt;
+        BasicType prev_bt = sig->at(next_arg_comp-1)._bt;
         if (bt == T_VALUETYPE) {
           vt++;
           ignored++;
@@ -1157,11 +1176,13 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
                    prev_bt != T_DOUBLE) {
           vt--;
           ignored++;
+        } else if (SigEntry::is_reserved_entry(sig, next_arg_comp)) {
+          // Ignore reserved entry
         } else {
-          int off = sig_extended.at(next_arg_comp)._offset;
+          int off = sig->at(next_arg_comp)._offset;
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
-          bool is_oop = (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY);
+          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
           gen_i2c_adapter_helper(masm, bt, prev_bt, size_in_bytes, regs[next_arg_comp - ignored], Address(r10, off), is_oop);
         }
       } while (vt != 0);
@@ -1190,13 +1211,22 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                                                             int comp_args_on_stack,
-                                                            const GrowableArray<SigEntry>& sig_extended,
-                                                            const VMRegPair *regs,
+                                                            int comp_args_on_stack_cc,
+                                                            const GrowableArray<SigEntry>* sig,
+                                                            const VMRegPair* regs,
+                                                            const GrowableArray<SigEntry>* sig_cc,
+                                                            const VMRegPair* regs_cc,
                                                             AdapterFingerPrint* fingerprint,
                                                             AdapterBlob*& new_adapter) {
   address i2c_entry = __ pc();
 
-  gen_i2c_adapter(masm, comp_args_on_stack, sig_extended, regs);
+  if (StressValueTypePassFieldsAsArgs) {
+    // For stress testing, don't unpack value types in the i2c adapter but
+    // call the value type entry point and let it take care of unpacking.
+    gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
+  } else {
+    gen_i2c_adapter(masm, comp_args_on_stack_cc, sig_cc, regs_cc);
+  }
 
   // -------------------------------------------------------------------------
   // Generate a C2I adapter.  On entry we know rbx holds the Method* during calls
@@ -1232,54 +1262,28 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   }
 
   address c2i_entry = __ pc();
+  address c2i_value_entry = c2i_entry;
 
   OopMapSet* oop_maps = NULL;
   int frame_complete = CodeOffsets::frame_never_safe;
   int frame_size_in_words = 0;
-  gen_c2i_adapter(masm, sig_extended, regs, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
+  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
+
+  if (regs != regs_cc) {
+    // Non-scalarized c2i adapter
+    c2i_value_entry = __ pc();
+    Label unused;
+    gen_c2i_adapter(masm, sig, regs, unused, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
+  }
 
   __ flush();
-  new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps);
 
-  // If the method has value types arguments, save the extended signature as symbol in
-  // the AdapterHandlerEntry to be used for scalarization of value type arguments.
-  Symbol* extended_signature = NULL;
-  bool has_value_argument = false;
-  Thread* THREAD = Thread::current();
-  ResourceMark rm(THREAD);
-  int length = sig_extended.length();
-  char* sig_str = NEW_RESOURCE_ARRAY(char, 2*length + 3);
-  int idx = 0;
-  sig_str[idx++] = '(';
-  for (int index = 0; index < length; index++) {
-    BasicType bt = sig_extended.at(index)._bt;
-    if (bt == T_VALUETYPE) {
-      has_value_argument = true;
-    } else if (bt == T_VALUETYPEPTR) {
-      has_value_argument = true;
-      // non-flattened value type field
-      sig_str[idx++] = type2char(T_VALUETYPE);
-      sig_str[idx++] = ';';
-    } else if (bt == T_VOID) {
-      // Ignore
-    } else {
-      if (bt == T_ARRAY) {
-        bt = T_OBJECT; // We don't know the element type, treat as Object
-      }
-      sig_str[idx++] = type2char(bt);
-      if (bt == T_OBJECT) {
-        sig_str[idx++] = ';';
-      }
-    }
-  }
-  sig_str[idx++] = ')';
-  sig_str[idx++] = '\0';
-  if (has_value_argument) {
-    // Extended signature is only required if a value type argument is passed
-    extended_signature = SymbolTable::new_permanent_symbol(sig_str, THREAD);
-  }
+  // The c2i adapter might safepoint and trigger a GC. The caller must make sure that
+  // the GC knows about the location of oop argument locations passed to the c2i adapter.
+  bool caller_must_gc_arguments = (regs != regs_cc);
+  new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, extended_signature);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_unverified_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -4348,8 +4352,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
                                          sizeof(buffer_locs)/sizeof(relocInfo));
 
-  MacroAssembler _masm(&buffer);
-  MacroAssembler* masm = &_masm;
+  MacroAssembler* masm = new MacroAssembler(&buffer);
 
   const Array<SigEntry>* sig_vk = vk->extended_sig();
   const Array<VMRegPair>* regs = vk->return_regs();
@@ -4370,6 +4373,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       continue;
     }
     int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     VMReg r_1 = pair.first();
     VMReg r_2 = pair.second();
@@ -4378,10 +4382,21 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movflt(to, r_1->as_XMMRegister());
     } else if (bt == T_DOUBLE) {
       __ movdbl(to, r_1->as_XMMRegister());
-    } else if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
-      __ store_heap_oop(to, r_1->as_Register());
+    } else if (bt == T_OBJECT || bt == T_ARRAY) {
+      Register val = r_1->as_Register();
+      assert_different_registers(rax, val);
+      // We don't need barriers because the destination is a newly allocated object.
+      // Also, we cannot use store_heap_oop(to, val) because it uses r8 as tmp.
+      if (UseCompressedOops) {
+        __ encode_heap_oop(val);
+        __ movl(to, val);
+      } else {
+        __ movptr(to, val);
+      }
+
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
+      assert_different_registers(rax, r_1->as_Register());
       size_t size_in_bytes = type2aelembytes(bt);
       __ store_sized_value(to, r_1->as_Register(), size_in_bytes);
     }
@@ -4407,6 +4422,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       continue;
     }
     int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     VMReg r_1 = pair.first();
     VMReg r_2 = pair.second();
@@ -4415,10 +4431,12 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movflt(r_1->as_XMMRegister(), from);
     } else if (bt == T_DOUBLE) {
       __ movdbl(r_1->as_XMMRegister(), from);
-    } else if (bt == T_OBJECT || bt == T_VALUETYPEPTR || bt == T_ARRAY) {
+    } else if (bt == T_OBJECT || bt == T_ARRAY) {
+      assert_different_registers(rax, r_1->as_Register());
       __ load_heap_oop(r_1->as_Register(), from);
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
+      assert_different_registers(rax, r_1->as_Register());
       size_t size_in_bytes = type2aelembytes(bt);
       __ load_sized_value(r_1->as_Register(), from, size_in_bytes, bt != T_CHAR && bt != T_BOOLEAN);
     }

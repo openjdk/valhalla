@@ -47,6 +47,7 @@
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
+#include "vmreg_x86.inline.hpp"
 #include "crc32c.h"
 #ifdef COMPILER2
 #include "opto/intrinsicnode.hpp"
@@ -5494,7 +5495,12 @@ void MacroAssembler::reinit_heapbase() {
 #endif // _LP64
 
 // C2 compiled method's prolog code.
-void MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b, bool is_stub) {
+void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+  int framesize = C->frame_size_in_bytes();
+  int bangsize = C->bang_size_in_bytes();
+  bool fp_mode_24b = C->in_24_bit_fp_mode();
+  int stack_bang_size = C->need_stack_bang(bangsize) ? bangsize : 0;
+  bool is_stub = C->stub_function() != NULL;
 
   // WARNING: Initial instruction MUST be 5 bytes or longer so that
   // NativeJump::patch_verified_entry will be able to patch out the entry
@@ -5545,6 +5551,12 @@ void MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool fp_
         addptr(rbp, framesize);
       }
     }
+  }
+
+  if (C->needs_stack_repair()) {
+    // Save stack increment (also account for fixed framesize and rbp)
+    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
+    movptr(Address(rsp, C->sp_inc_offset()), sp_inc + framesize + wordSize);
   }
 
   if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
@@ -5634,6 +5646,271 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   decrement(cnt);
   jccb(Assembler::greaterEqual, L_sloop);
   BIND(L_end);
+}
+
+// Move a value between registers/stack slots and update the reg_state
+bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
+  if (reg_state[to->value()] == reg_written) {
+    return true; // Already written
+  }
+  if (from != to && bt != T_VOID) {
+    if (reg_state[to->value()] == reg_readonly) {
+      return false; // Not yet writable
+    }
+    if (from->is_reg()) {
+      if (to->is_reg()) {
+        if (from->is_XMMRegister()) {
+          if (bt == T_DOUBLE) {
+            movdbl(to->as_XMMRegister(), from->as_XMMRegister());
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            movflt(to->as_XMMRegister(), from->as_XMMRegister());
+          }
+        } else {
+          movq(to->as_Register(), from->as_Register());
+        }
+      } else {
+        Address to_addr = Address(rsp, to->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
+        if (from->is_XMMRegister()) {
+          if (bt == T_DOUBLE) {
+            movdbl(to_addr, from->as_XMMRegister());
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            movflt(to_addr, from->as_XMMRegister());
+          }
+        } else {
+          movq(to_addr, from->as_Register());
+        }
+      }
+    } else {
+      Address from_addr = Address(rsp, from->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
+      if (to->is_reg()) {
+        if (to->is_XMMRegister()) {
+          if (bt == T_DOUBLE) {
+            movdbl(to->as_XMMRegister(), from_addr);
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            movflt(to->as_XMMRegister(), from_addr);
+          }
+        } else {
+          movq(to->as_Register(), from_addr);
+        }
+      } else {
+        movq(r13, from_addr);
+        movq(Address(rsp, to->reg2stack() * VMRegImpl::stack_slot_size + wordSize), r13);
+      }
+    }
+  }
+  // Update register states
+  reg_state[from->value()] = reg_writable;
+  reg_state[to->value()] = reg_written;
+  return true;
+}
+
+// Read all fields from a value type oop and store the values in registers/stack slots
+bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[]) {
+  Register fromReg = from->is_reg() ? from->as_Register() : noreg;
+
+  int vt = 1;
+  bool done = true;
+  bool mark_done = true;
+  do {
+    sig_index--;
+    BasicType bt = sig->at(sig_index)._bt;
+    if (bt == T_VALUETYPE) {
+      vt--;
+    } else if (bt == T_VOID &&
+               sig->at(sig_index-1)._bt != T_LONG &&
+               sig->at(sig_index-1)._bt != T_DOUBLE) {
+      vt++;
+    } else if (SigEntry::is_reserved_entry(sig, sig_index)) {
+      to_index--; // Ignore this
+    } else {
+      assert(to_index >= 0, "invalid to_index");
+      VMRegPair pair_to = regs_to[to_index--];
+      VMReg r_1 = pair_to.first();
+
+      if (bt == T_VOID) continue;
+
+      int idx = (int)r_1->value();
+      assert(idx >= 0 && idx <= 1000, "out of bounds");
+      if (reg_state[idx] == reg_readonly) {
+         if (idx != from->value()) {
+           mark_done = false;
+         }
+         done = false;
+         continue;
+      } else if (reg_state[idx] == reg_written) {
+        continue;
+      } else {
+        assert(reg_state[idx] == reg_writable, "must be writable");
+        reg_state[idx] = reg_written;
+       }
+
+      if (fromReg == noreg) {
+        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(r10, Address(rsp, st_off));
+        fromReg = r10;
+      }
+
+      int off = sig->at(sig_index)._offset;
+      assert(off > 0, "offset in object should be positive");
+      bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+
+      Address fromAddr = Address(fromReg, off);
+      bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
+      if (!r_1->is_XMMRegister()) {
+        Register dst = r_1->is_stack() ? r13 : r_1->as_Register();
+        if (is_oop) {
+          load_heap_oop(dst, fromAddr);
+        } else {
+          load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
+        }
+        if (r_1->is_stack()) {
+          int st_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+          movq(Address(rsp, st_off), dst);
+        }
+      } else {
+        if (bt == T_DOUBLE) {
+          movdbl(r_1->as_XMMRegister(), fromAddr);
+        } else {
+          assert(bt == T_FLOAT, "must be float");
+          movflt(r_1->as_XMMRegister(), fromAddr);
+        }
+      }
+    }
+  } while (vt != 0);
+  if (mark_done && reg_state[from->value()] != reg_written) {
+    // This is okay because no one else will write to that slot
+    reg_state[from->value()] = reg_writable;
+  }
+  return done;
+}
+
+// Unpack all value type arguments passed as oops
+void MacroAssembler::unpack_value_args(Compile* C) {
+  assert(C->has_scalarized_args(), "value type argument scalarization is disabled");
+  Method* method = C->method()->get_Method();
+  const GrowableArray<SigEntry>* sig_cc = method->adapter()->get_sig_cc();
+  assert(sig_cc != NULL, "must have scalarized signature");
+
+  // Get unscalarized calling convention
+  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
+  int args_passed = 0;
+  if (!method->is_static()) {
+    sig_bt[args_passed++] = T_OBJECT;
+  }
+  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+    BasicType bt = ss.type();
+    if (bt == T_VALUETYPE) {
+      bt = T_OBJECT;
+    }
+    sig_bt[args_passed++] = bt;
+    if (type2size[bt] == 2) {
+      sig_bt[args_passed++] = T_VOID;
+    }
+  }
+  VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, args_passed);
+  int args_on_stack = SharedRuntime::java_calling_convention(sig_bt, regs, args_passed, false);
+
+  // Get scalarized calling convention
+  int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
+  VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length());
+  int args_on_stack_cc = SharedRuntime::java_calling_convention(sig_bt, regs_cc, args_passed_cc, false);
+
+  // Check if we need to extend the stack for unpacking
+  int sp_inc = (args_on_stack_cc - args_on_stack) * VMRegImpl::stack_slot_size;
+  if (sp_inc > 0) {
+    // Save the return address, adjust the stack (make sure it is properly
+    // 16-byte aligned) and copy the return address to the new top of the stack.
+    pop(r13);
+    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+    subptr(rsp, sp_inc);
+    push(r13);
+  } else {
+    // The scalarized calling convention needs less stack space than the unscalarized one.
+    // No need to extend the stack, the caller will take care of these adjustments.
+    sp_inc = 0;
+  }
+
+  // Initialize register/stack slot states (make all writable)
+  int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_cc);
+  int max_reg = VMRegImpl::stack2reg(max_stack)->value();
+  RegState* reg_state = NEW_RESOURCE_ARRAY(RegState, max_reg);
+  for (int i = 0; i < max_reg; ++i) {
+    reg_state[i] = reg_writable;
+  }
+  // Set all source registers/stack slots to readonly to prevent accidental overwriting
+  for (int i = 0; i < args_passed; ++i) {
+    VMReg reg = regs[i].first();
+    if (!reg->is_valid()) continue;
+    if (reg->is_stack()) {
+      // Update source stack location by adding stack increment
+      reg = VMRegImpl::stack2reg(reg->reg2stack() + sp_inc/VMRegImpl::stack_slot_size);
+      regs[i] = reg;
+    }
+    assert(reg->value() >= 0 && reg->value() < max_reg, "reg value out of bounds");
+    reg_state[reg->value()] = reg_readonly;
+  }
+
+  // Emit code for unpacking value type arguments
+  // We try multiple times and eventually start spilling to resolve (circular) dependencies
+  bool done = false;
+  for (int i = 0; i < 2*args_passed_cc && !done; ++i) {
+    done = true;
+    bool spill = (i > args_passed_cc); // Start spilling?
+    // Iterate over all arguments (in reverse)
+    for (int from_index = args_passed-1, to_index = args_passed_cc-1, sig_index = sig_cc->length()-1; sig_index >= 0; sig_index--) {
+      if (SigEntry::is_reserved_entry(sig_cc, sig_index)) {
+        to_index--; // Skipp reserved entry
+      } else {
+        assert(from_index >= 0, "index out of bounds");
+        VMReg reg = regs[from_index--].first();
+        if (spill && reg->is_valid() && reg_state[reg->value()] == reg_readonly) {
+          // Spill argument to be able to write the source and resolve circular dependencies
+          VMReg spill_reg = reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
+          bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state);
+          assert(res, "Spilling should not fail");
+          // Set spill_reg as new source and update state
+          reg = spill_reg;
+          regs[from_index+1].set1(reg);
+          reg_state[reg->value()] = reg_readonly;
+          spill = false; // Do not spill again in this round
+        }
+        if (SigEntry::skip_value_delimiters(sig_cc, sig_index)) {
+          BasicType bt = sig_cc->at(sig_index)._bt;
+          assert(to_index >= 0, "index out of bounds");
+          done &= move_helper(reg, regs_cc[to_index].first(), bt, reg_state);
+          to_index--;
+        } else {
+          done &= unpack_value_helper(sig_cc, sig_index, reg, regs_cc, to_index, reg_state);
+        }
+      }
+    }
+  }
+  guarantee(done, "Could not resolve circular dependency when unpacking value type arguments");
+
+  // Emit code for verified entry and save increment for stack repair on return
+  verified_entry(C, sp_inc);
+}
+
+// Restores the stack on return
+void MacroAssembler::restore_stack(Compile* C) {
+  int framesize = C->frame_size_in_bytes();
+  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
+  // Remove word for return addr already pushed and RBP
+  framesize -= 2*wordSize;
+
+  if (C->needs_stack_repair()) {
+    // Restore rbp and repair rsp by adding the stack increment
+    movq(rbp, Address(rsp, framesize));
+    addq(rsp, Address(rsp, C->sp_inc_offset()));
+  } else {
+    if (framesize > 0) {
+      addq(rsp, framesize);
+    }
+    pop(rbp);
+  }
 }
 
 void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool word_copy_only) {

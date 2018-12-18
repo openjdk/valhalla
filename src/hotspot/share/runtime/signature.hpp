@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_RUNTIME_SIGNATURE_HPP
 #define SHARE_VM_RUNTIME_SIGNATURE_HPP
 
+#include "classfile/symbolTable.hpp"
 #include "memory/allocation.hpp"
 #include "oops/method.hpp"
 
@@ -441,7 +442,9 @@ class SigEntry {
  public:
   BasicType _bt;
   int _offset;
-    
+
+  enum { ReservedOffset = -2 }; // Special offset to mark the reserved entry
+
   SigEntry()
     : _bt(T_ILLEGAL), _offset(-1) {
   }
@@ -450,7 +453,7 @@ class SigEntry {
 
   SigEntry(BasicType bt)
     : _bt(bt), _offset(-1) {}
-  
+
   static int compare(SigEntry* e1, SigEntry* e2) {
     if (e1->_offset != e2->_offset) {
       return e1->_offset - e2->_offset;
@@ -473,8 +476,12 @@ class SigEntry {
     ShouldNotReachHere();
     return 0;
   }
-  static int count_fields(const GrowableArray<SigEntry>& sig_extended);
-  static void fill_sig_bt(const GrowableArray<SigEntry>& sig_extended, BasicType* sig_bt_cc, int total_args_passed_cc, bool skip_vt);
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset = -1);
+  static void insert_reserved_entry(GrowableArray<SigEntry>* sig, int i, BasicType bt);
+  static bool is_reserved_entry(const GrowableArray<SigEntry>* sig, int i);
+  static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
+  static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
+  static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);
 };
 
 #endif // SHARE_VM_RUNTIME_SIGNATURE_HPP

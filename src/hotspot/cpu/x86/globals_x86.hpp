@@ -102,8 +102,8 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
 define_pd_global(bool, ThreadLocalHandshakes, false);
 #endif
 
-define_pd_global(bool, ValueTypePassFieldsAsArgs, LP64_ONLY(false) NOT_LP64(false));
-define_pd_global(bool, ValueTypeReturnedAsFields, LP64_ONLY(false) NOT_LP64(false));
+define_pd_global(bool, ValueTypePassFieldsAsArgs, LP64_ONLY(true) NOT_LP64(false));
+define_pd_global(bool, ValueTypeReturnedAsFields, LP64_ONLY(true) NOT_LP64(false));
 
 #define ARCH_FLAGS(develop, \
                    product, \

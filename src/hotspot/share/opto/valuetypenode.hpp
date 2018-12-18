@@ -51,7 +51,7 @@ protected:
   int make_scalar_in_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt, Node* root, PhaseGVN* gvn);
 
   // Initialize the value type fields with the inputs or outputs of a MultiNode
-  void initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset = 0, int base_input = TypeFunc::Parms+1, bool in = false);
+  void initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, uint& base_input, bool in);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, PhaseGVN& gvn) const;
 
@@ -125,7 +125,7 @@ public:
   // Create and initialize by loading the field values from a flattened field or array
   static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
-  static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_input, bool in);
+  static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, uint& base_input, bool in);
 
   // Returns the constant oop of the default value type allocation
   static Node* default_oop(PhaseGVN& gvn, ciValueKlass* vk);
@@ -134,7 +134,6 @@ public:
   Node* allocate_fields(GraphKit* kit);
 
   Node* tagged_klass(PhaseGVN& gvn);
-  void pass_klass(Node* n, uint pos, const GraphKit& kit);
   uint pass_fields(Node* call, int base_input, GraphKit& kit, bool assert_allocated = false, ciValueKlass* base_vk = NULL, int base_offset = 0);
 
   // Allocation optimizations

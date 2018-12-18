@@ -206,11 +206,11 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // and NULL it as marker that esp is now tos until next java call
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
 
-  if (/*state == qtos*/ false && ValueTypeReturnedAsFields) {
+  if (state == atos && ValueTypeReturnedAsFields) {
 #ifndef _LP64
     __ super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
 #else
-    // A value type is being returned. If fields are in registers we
+    // A value type might be returned. If fields are in registers we
     // need to allocate a value type instance and initialize it with
     // the value of the fields.
     Label skip, slow_case;
@@ -230,14 +230,8 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
       __ cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
       __ jcc(Assembler::above, slow_case);
       __ movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
+      __ movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markOopDesc::always_locked_prototype());
 
-      if (UseBiasedLocking) {
-        __ movptr(rax, Address(rbx, Klass::prototype_header_offset()));
-        __ movptr(Address(r13, oopDesc::mark_offset_in_bytes ()), rax);
-      } else {
-        __ movptr(Address(r13, oopDesc::mark_offset_in_bytes ()),
-                  (intptr_t)markOopDesc::prototype());
-      }
       __ xorl(rax, rax); // use zero reg to clear memory (shorter code)
       __ store_klass_gap(r13, rax);  // zero klass gap for compressed oops
       __ mov(rax, rbx);
@@ -245,7 +239,8 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
 
       // We have our new buffered value, initialize its fields with a
       // value class specific handler
-      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_offset()));
+      __ movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
+      __ movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
       __ mov(rax, r13);
       __ call(rbx);
       __ jmp(skip);

@@ -115,7 +115,7 @@ public abstract class ValueTypeTest {
         "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly");
     private static final List<String> verifyFlags = Arrays.asList(
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
-        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing", "-XX:+StressValueTypeReturnedAsFields");
+        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing");
 
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final int ValueTypePassFieldsAsArgsOn = 0x1;
@@ -145,7 +145,7 @@ public abstract class ValueTypeTest {
     protected static final String ALLOCA = "(.*precise klass \\[Lcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
     protected static final String LOAD   = START + "Load(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOADK  = START + "LoadK" + MID + END;
-    protected static final String STORE  = START + "Store(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
+    protected static final String STORE  = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOOP   = START + "Loop" + MID + "" + END;
     protected static final String TRAP   = START + "CallStaticJava" + MID + "uncommon_trap.*(unstable_if|predicate)" + END;
     protected static final String RETURN = START + "Return" + MID + "returns" + END;
@@ -219,7 +219,9 @@ public abstract class ValueTypeTest {
                 "-XX:-ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:+ValueTypeReturnedAsFields"};
+                "-XX:+ValueTypeReturnedAsFields",
+                "-XX:+StressValueTypePassFieldsAsArgs",
+                "-XX:+StressValueTypeReturnedAsFields"};
         case 3: return new String[] {
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
@@ -235,7 +237,8 @@ public abstract class ValueTypeTest {
                 "-XX:+ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields"};
+                "-XX:-ValueTypeReturnedAsFields",
+                "-XX:+StressValueTypePassFieldsAsArgs"};
         }
 
         return null;

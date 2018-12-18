@@ -2631,13 +2631,16 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Enable C1 compiler for Valhalla")                                \
                                                                             \
   product_pd(bool, ValueTypePassFieldsAsArgs,                               \
-             "Pass each value type field as an argument at calls")          \
+          "Pass each value type field as an argument at calls")             \
                                                                             \
   product_pd(bool, ValueTypeReturnedAsFields,                               \
-            "return fields instead of a value type reference")              \
+          "Return fields instead of a value type reference")                \
+                                                                            \
+  develop(bool, StressValueTypePassFieldsAsArgs, false,                     \
+          "Stress passing each value type field as an argument at calls")   \
                                                                             \
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
-          "stress return of fields instead of a value type reference")      \
+          "Stress return of fields instead of a value type reference")      \
                                                                             \
   develop(bool, ScalarizeValueTypes, true,                                  \
           "Scalarize value types in compiled code")                         \

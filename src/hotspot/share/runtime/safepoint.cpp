@@ -1169,16 +1169,23 @@ void ThreadSafepointState::handle_polling_page_exception() {
 
     GrowableArray<Handle> return_values;
     ValueKlass* vk = NULL;
-    if (method->is_returning_vt() && ValueTypeReturnedAsFields) {
-      // Check if value type is returned as fields
-      vk = ValueKlass::returned_value_klass(map);
-      if (vk != NULL) {
-        // We're at a safepoint at the return of a method that returns
-        // multiple values. We must make sure we preserve the oop values
-        // across the safepoint.
-        assert(vk == method->returned_value_type(thread()), "bad value klass");
-        vk->save_oop_fields(map, return_values);
-        return_oop = false;
+
+    if (return_oop && ValueTypeReturnedAsFields) {
+      SignatureStream ss(method->signature());
+      while (!ss.at_return_type()) {
+        ss.next();
+      }
+      if (ss.type() == T_VALUETYPE) {
+        // Check if value type is returned as fields
+        vk = ValueKlass::returned_value_klass(map);
+        if (vk != NULL) {
+          // We're at a safepoint at the return of a method that returns
+          // multiple values. We must make sure we preserve the oop values
+          // across the safepoint.
+          assert(vk == method->returned_value_type(thread()), "bad value klass");
+          vk->save_oop_fields(map, return_values);
+          return_oop = false;
+        }
       }
     }
 

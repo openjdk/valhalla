@@ -2774,7 +2774,7 @@ void TemplateTable::_return(TosState state) {
     __ narrow(rax);
   }
 
-  __ remove_activation(state, rbcp, true, true, true, /*state == qtos*/ false && ValueTypeReturnedAsFields);
+  __ remove_activation(state, rbcp, true, true, true);
 
   __ jmp(rbcp);
 }

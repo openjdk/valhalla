@@ -50,7 +50,6 @@ ConNode *ConNode::make(const Type *t) {
   case T_FLOAT:       return new ConFNode( t->is_float_constant() );
   case T_DOUBLE:      return new ConDNode( t->is_double_constant() );
   case T_VOID:        return new ConNode ( Type::TOP );
-  case T_VALUETYPEPTR:
   case T_OBJECT:      return new ConPNode( t->is_ptr() );
   case T_ARRAY:       return new ConPNode( t->is_aryptr() );
   case T_ADDRESS:     return new ConPNode( t->is_ptr() );

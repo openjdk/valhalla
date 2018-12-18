@@ -28,6 +28,7 @@
 #include "asm/assembler.hpp"
 #include "utilities/macros.hpp"
 #include "runtime/rtmLocking.hpp"
+#include "runtime/signature.hpp"
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -1596,7 +1597,19 @@ public:
   void movl2ptr(Register dst, Register src) { LP64_ONLY(movslq(dst, src)) NOT_LP64(if (dst != src) movl(dst, src)); }
 
   // C2 compiled method's prolog code.
-  void verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b, bool is_stub);
+  void verified_entry(Compile* C, int sp_inc = 0);
+
+  enum RegState {
+    reg_readonly,
+    reg_writable,
+    reg_written
+  };
+
+  // Unpack all value type arguments passed as oops
+  void unpack_value_args(Compile* C);
+  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
+  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[]);
+  void restore_stack(Compile* C);
 
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop
