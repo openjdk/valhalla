@@ -27,7 +27,7 @@
  * @summary test value bootstrap methods
  * @modules java.base/jdk.internal.org.objectweb.asm
  * @compile -XDallowWithFieldOperator ValueBootstrapMethods.java
- * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethods
+ * @run main/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ValueBootstrapMethods
  */
 
 import java.io.IOException;
@@ -106,7 +106,7 @@ public class ValueBootstrapMethods {
 
         public String toString() {
             System.out.println(l);
-            return String.format("[%s, %s, %s, %s, %s]", Value.class.asValueType(),
+            return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
                                  i, String.valueOf(d), s, l.toString());
         }
     }
@@ -153,7 +153,8 @@ public class ValueBootstrapMethods {
             null);
 
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitInvokeDynamicInsn("hashCode", "(Ljava/lang/Object;)I",
+        mv.visitInvokeDynamicInsn("hashCode",
+            Type.getMethodDescriptor(Type.INT_TYPE, type),
             bootstrap, type);
         mv.visitInsn(IRETURN);
 

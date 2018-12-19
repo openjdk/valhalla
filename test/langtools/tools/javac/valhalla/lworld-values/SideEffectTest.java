@@ -55,12 +55,12 @@ public class SideEffectTest {
 		V v = new V();
         if (!v.output.equals("1234"))
             throw new AssertionError("Broken");
-        if (!v.toString().equals("[value class SideEffectTest$V, 1234]"))
+        if (!v.toString().equals("[SideEffectTest$V x=1234]"))
             throw new AssertionError("Broken");
 		v = new V(8765);
         if (!v.output.equals("12349999"))
             throw new AssertionError("Broken");
-        if (!v.toString().equals("[value class SideEffectTest$V, 8765]"))
+        if (!v.toString().equals("[SideEffectTest$V x=8765]"))
             throw new AssertionError("Broken");
 	}
 }

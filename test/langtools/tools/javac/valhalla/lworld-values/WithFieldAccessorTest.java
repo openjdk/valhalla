@@ -46,7 +46,7 @@ public class WithFieldAccessorTest {
 
     public static void main(String... args) throws Throwable {
         V v = __WithField(V.make(10).i, 20);
-        if (!v.toString().equals("[value class WithFieldAccessorTest$V, 20]"))
+        if (!v.toString().equals("[WithFieldAccessorTest$V i=20]"))
             throw new AssertionError("Withfield didn't work!" + v.toString());
     }
 }

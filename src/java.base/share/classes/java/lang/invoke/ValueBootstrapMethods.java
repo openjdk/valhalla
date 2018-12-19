@@ -26,25 +26,26 @@
 package java.lang.invoke;
 
 import sun.invoke.util.Wrapper;
+import sun.security.action.GetIntegerAction;
 import sun.security.action.GetPropertyAction;
 
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
+import static java.lang.invoke.ValueBootstrapMethods.MethodHandleBuilder.*;
+
 
 /**
  * Bootstrap methods for value types
  */
 public final class ValueBootstrapMethods {
     private ValueBootstrapMethods() {}
-    // lookup() throws IAE as privileged
-    // private static final MethodHandles.Lookup THIS_LOOKUP = MethodHandles.lookup();
     private static final boolean VERBOSE =
         GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
 
@@ -84,202 +85,42 @@ public final class ValueBootstrapMethods {
         return new ConstantCallSite(generateTarget(lookup, name, type));
     }
 
-    /*
-     * Produces a MethodHandle for the specified method.
-     *
-     * If the method handle is invoked with an value object, the implementation
-     * of the specified method is equivalent to calling
-     *     List.of(Class, f1, f2, f3...).$name
-     *
-     *  extracts the field values as follows:
-     *
-     * Object[] objs = new Object[numFields+1];
-     * objs[0] = c;
-     * for (int i=1; i <= numFields; i++) {
-     *      MethodHandle mh = getters[i];
-     *      objs[i] = mh.invokeExact(param);
-     * }
-     */
-    private static MethodHandle generateTarget(MethodHandles.Lookup lookup, String name, MethodType type) {
+    private static MethodHandle generateTarget(Lookup lookup, String name, MethodType methodType) {
         if (VERBOSE) {
             System.out.println("generate BSM for " + lookup + "::" + name);
         }
-
-        // build MethodHandle to get the field values of a value class
-        MethodHandle mh = ValueBsmFactory.build(lookup);
-        MethodType mt;
         switch (name) {
             case "hashCode":
-            case "valueHashCode":
-                mt = methodType(int.class, MethodHandle.class, Object.class);
-                break;
+                return hashCodeInvoker(lookup, name, methodType);
             case "equals":
-                mt = methodType(boolean.class, MethodHandle.class, Object.class, Object.class);
-                break;
+                return equalsInvoker(lookup, name, methodType);
             case "toString":
-                mt = methodType(String.class, MethodHandle.class, Object.class);
-                break;
+                return toStringInvoker(lookup, name, methodType);
             default:
                 throw new IllegalArgumentException(name + " not valid method name");
-        }
-        try {
-            // return the method handle that implements the named method
-            // which first invokes the getters method handle of a value object
-            // and then compute the result
-            return IMPL_LOOKUP.findStatic(ValueBootstrapMethods.class, name, mt).bindTo(mh).asType(type);
-        } catch (ReflectiveOperationException e) {
-            throw new BootstrapMethodError(e);
-        }
-    }
-
-    static class ValueBsmFactory {
-        private static final MethodHandle NEW_ARRAY;
-        private static final MethodHandle GET_FIELD_VALUE;
-
-        static {
-            try {
-                GET_FIELD_VALUE = IMPL_LOOKUP.findStatic(ValueBsmFactory.class, "getFieldValue",
-                            methodType(Object[].class, MethodHandle[].class, Object[].class, int.class, Object.class));
-                NEW_ARRAY = IMPL_LOOKUP.findStatic(ValueBsmFactory.class, "newObjectArray",
-                            methodType(Object[].class, MethodHandle[].class));
-            } catch (ReflectiveOperationException e) {
-                throw new BootstrapMethodError(e);
-            }
-        }
-
-        /*
-         * Produce a MethodHandle that returns
-         *    new Object[] { Class, field1, field2, ... }
-         *
-         * int size = getters.length;
-         * Object[] result = new Object[size];
-         * for (int i=0; i < size; ++i) {
-         *     result[i] = getters.invoke(obj);
-         * }
-         * return result;
-         */
-        static MethodHandle build(MethodHandles.Lookup lookup) {
-            // build a MethodHandle[] { Class, getter1, getter2, ...} for the lookup class
-            Class<?> type = lookup.lookupClass().asValueType();
-            MethodHandle valueClass = dropArguments(constant(Class.class, type), 0, Object.class);
-            MethodHandle[] getters = Stream.concat(Stream.of(valueClass), fields(lookup))
-                                           .toArray(MethodHandle[]::new);
-
-            MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, Object.class);
-            MethodHandle init = ValueBsmFactory.NEW_ARRAY.bindTo(getters);
-            MethodHandle body = ValueBsmFactory.GET_FIELD_VALUE.bindTo(getters);
-            return countedLoop(iterations, init, body);
-        }
-
-        static Object[] newObjectArray(MethodHandle[] getters) {
-            return new Object[getters.length];
-        }
-
-        /*
-         * Set the value of the field value at index {@code i} in the given
-         * {@code values} array.
-         */
-        static Object[] getFieldValue(MethodHandle[] getters, Object[] values, int i, Object o) throws Throwable {
-            values[i] = getters[i].invoke(o);
-            return values;
-        }
-
-        static Stream<MethodHandle> fields(MethodHandles.Lookup lookup) {
-            return Arrays.stream(lookup.lookupClass().getDeclaredFields())
-                         .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                         .map(f -> {
-                            try {
-                                return lookup.unreflectGetter(f);
-                            } catch (IllegalAccessException e) {
-                                throw new BootstrapMethodError(e);
-                            }
-                         });
-        }
-    }
-
-    private static int hashCode(MethodHandle getters, Object obj) {
-        return isValue(obj) ? valueHashCode(getters, obj) : obj.hashCode();
-    }
-
-    private static int valueHashCode(MethodHandle getters, Object obj) {
-        if (!isValue(obj)) {
-            throw new IllegalArgumentException(obj + " not value type");
-        }
-        Object[] values = invoke(getters, obj);
-        return List.of(values).hashCode();
-    }
-
-    /**
-     * Returns a string representation of the specified object.
-     */
-    private static String toString(MethodHandle getters, Object obj) {
-        if (isValue(obj)) {
-            Object[] values = invoke(getters, obj);
-            return Arrays.stream(values)
-                         .map(Object::toString)
-                         .collect(Collectors.joining(", ", "[", "]"));
-        } else {
-            return obj.toString();
-        }
-    }
-
-    /**
-     * Returns true if o1 equals o2.
-     */
-    private static boolean equals(MethodHandle getters, Object o1, Object o2) {
-        if (o1 == o2) return true;
-        if (o1 == null || o2 == null) return false;
-        if (o1.getClass() == o2.getClass() && isValue(o1)) {
-            Object[] values1 = invoke(getters, o1);
-            Object[] values2 = invoke(getters, o2);
-            return Arrays.equals(values1, values2);
-        }
-        return o1.equals(o2);
-    }
-
-
-    private static boolean isValue(Object obj) {
-        return obj.getClass().isValue();
-    }
-
-    private static Object[] invoke(MethodHandle getters, Object obj) {
-        try {
-            Object[] values = (Object[]) getters.invoke(obj);
-            if (VERBOSE) {
-                System.out.println(Arrays.toString(values));
-            }
-            return values;
-        } catch (Throwable e) {
-            throw new InternalError(e);
         }
     }
 
     static class MethodHandleBuilder {
         static MethodHandle[] getters(Lookup lookup) {
+            return getters(lookup, null);
+        }
+
+        static MethodHandle[] getters(Lookup lookup, Comparator<MethodHandle> comparator) {
             Class<?> type = lookup.lookupClass().asValueType();
-            return Arrays.stream(type.getDeclaredFields())
-                         .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                         .map(f -> {
-                             try {
-                                 return lookup.unreflectGetter(f);
-                             } catch (IllegalAccessException e) {
-                                 throw newLinkageError(e);
-                             }
-                         }).sorted((mh1, mh2) -> {
-                             // sort the getters with the return type
-                             Class<?> t1 = mh1.type().returnType();
-                             Class<?> t2 = mh2.type().returnType();
-                             if (t1.isPrimitive()) {
-                                 if (!t2.isPrimitive()) {
-                                     return 1;
-                                 }
-                             } else {
-                                 if (t2.isPrimitive()) {
-                                     return -1;
-                                 }
-                             }
-                             return -1;
-                         }).toArray(MethodHandle[]::new);
+            Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
+                .filter(f -> !Modifier.isStatic(f.getModifiers()))
+                .map(f -> {
+                    try {
+                        return lookup.unreflectGetter(f);
+                    } catch (IllegalAccessException e) {
+                        throw newLinkageError(e);
+                    }
+                });
+            if (comparator != null) {
+                s = s.sorted(comparator);
+            }
+            return s.toArray(MethodHandle[]::new);
         }
 
         static MethodHandle primitiveEquals(Class<?> primitiveType) {
@@ -289,6 +130,27 @@ public final class ValueBootstrapMethods {
 
         static MethodHandle referenceEquals(Class<?> type) {
             return EQUALS[Wrapper.OBJECT.ordinal()].asType(methodType(boolean.class, type, type));
+        }
+
+        static MethodHandle referenceEq() {
+            return EQUALS[Wrapper.OBJECT.ordinal()];
+        }
+
+        static MethodHandle hashCodeForType(Class<?> type) {
+            if (type.isPrimitive()) {
+                int index = Wrapper.forPrimitiveType(type).ordinal();
+                return HASHCODE[index];
+            } else {
+                return HASHCODE[Wrapper.OBJECT.ordinal()].asType(methodType(int.class, type));
+            }
+        }
+
+        static MethodHandle equalsForType(Class<?> type) {
+            if (type.isPrimitive()) {
+                return primitiveEquals(type);
+            } else {
+                return OBJECTS_EQUALS.asType(methodType(boolean.class, type, type));
+            }
         }
 
         /*
@@ -303,7 +165,6 @@ public final class ValueBootstrapMethods {
             assert type.isInterface() || type == Object.class;
             MethodType mt = methodType(boolean.class, type, type);
             return guardWithTest(IS_SAME_VALUE_CLASS.asType(mt), VALUE_EQUALS.asType(mt), referenceEquals(type));
-            // return INTERFACE_EQUALS.asType(methodType(boolean.class, type, type));
         }
 
         /*
@@ -314,7 +175,7 @@ public final class ValueBootstrapMethods {
             assert c.isValue();
             Class<?> type = c.asValueType();
             MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
-            MethodHandle[] getters = getters(lookup);
+            MethodHandle[] getters = getters(lookup, TYPE_SORTER);
 
             MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class)
                 .asType(methodType(boolean.class, type, type));
@@ -327,6 +188,7 @@ public final class ValueBootstrapMethods {
             return accumulator;
         }
 
+        // ------ utility methods ------
         private static boolean eq(byte a, byte b)       { return a == b; }
         private static boolean eq(short a, short b)     { return a == b; }
         private static boolean eq(char a, char b)       { return a == b; }
@@ -339,8 +201,8 @@ public final class ValueBootstrapMethods {
 
         private static boolean isSameValueClass(Object a, Object b) {
             return (a != null && b != null
-                    && a.getClass().asBoxType() == b.getClass().asBoxType()
-                    && a.getClass().isValue());
+                    && a.getClass().isValue()
+                    && a.getClass().asBoxType() == b.getClass().asBoxType());
         }
 
         private static boolean valueEq(Object a, Object b) {
@@ -353,14 +215,58 @@ public final class ValueBootstrapMethods {
             }
         }
 
-        static final MethodHandle[] EQUALS = initEquals();
+        private static String toString(Object o) {
+            return o != null ? o.toString() : "null";
+        }
+
+        private static MethodHandle toString(Class<?> type) {
+            if (type.isArray()) {
+                Class<?> componentType = type.getComponentType();
+                if (componentType.isPrimitive()) {
+                    int index = Wrapper.forPrimitiveType(componentType).ordinal();
+                    return ARRAYS_TO_STRING[index];
+                } else {
+                    return ARRAYS_TO_STRING[Wrapper.OBJECT.ordinal()].asType(methodType(String.class, type));
+                }
+            } else {
+                return TO_STRING.asType(methodType(String.class, type));
+            }
+        }
+
+        private static int hashCombiner(int accumulator, int value) {
+            return accumulator * 31 + value;
+        }
+
+        private static int computeHashCode(MethodHandle[] hashers, int v, int i, Object o) {
+            try {
+                int hc = (int)hashers[i].invoke(o);
+                return hashCombiner(v, hc);
+            } catch (Throwable e) {
+                throw new InternalError(e);
+            }
+        }
+
+        private static final MethodHandle[] EQUALS = initEquals();
+        private static final MethodHandle[] ARRAYS_TO_STRING = initArraysToString();
+        private static final MethodHandle[] HASHCODE = initHashCode();
+
         static final MethodHandle IS_SAME_VALUE_CLASS =
             findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle VALUE_EQUALS =
-            findStatic("valueEq", methodType(boolean.class, Object.class, Object.class));
+             findStatic("valueEq", methodType(boolean.class, Object.class, Object.class));
+        static final MethodHandle TO_STRING =
+            findStatic("toString", methodType(String.class, Object.class));
+        static final MethodHandle OBJECTS_EQUALS =
+            findStatic(Objects.class, "equals", methodType(boolean.class, Object.class, Object.class));
+
         static final MethodHandle FALSE = constant(boolean.class, false);
         static final MethodHandle TRUE = constant(boolean.class, true);
-        static MethodHandle[] initEquals() {
+        static final MethodHandle HASH_COMBINER =
+            findStatic("hashCombiner", methodType(int.class, int.class, int.class));
+        static final MethodHandle COMPUTE_HASH =
+            findStatic("computeHashCode", methodType(int.class, MethodHandle[].class, int.class, int.class, Object.class));
+
+        private static MethodHandle[] initEquals() {
             MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
             for (Wrapper wrapper : Wrapper.values()) {
                 if (wrapper == Wrapper.VOID) continue;
@@ -371,13 +277,141 @@ public final class ValueBootstrapMethods {
             return mhs;
         }
 
+        private static MethodHandle[] initArraysToString() {
+            MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
+            for (Wrapper wrapper : Wrapper.values()) {
+                if (wrapper == Wrapper.VOID) continue;
+
+                Class<?> arrayType = wrapper.arrayType();
+                mhs[wrapper.ordinal()] = findStatic(Arrays.class, "toString", methodType(String.class, arrayType));
+            }
+            return mhs;
+        }
+
+        private static MethodHandle[] initHashCode() {
+            MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
+            for (Wrapper wrapper : Wrapper.values()) {
+                if (wrapper == Wrapper.VOID) continue;
+                Class<?> cls = wrapper == Wrapper.OBJECT ? Objects.class : wrapper.wrapperType();
+                mhs[wrapper.ordinal()] = findStatic(cls, "hashCode",
+                                                    methodType(int.class, wrapper.primitiveType()));
+            }
+            return mhs;
+        }
+
         private static MethodHandle findStatic(String name, MethodType methodType) {
+            return findStatic(MethodHandleBuilder.class, name, methodType);
+        }
+        private static MethodHandle findStatic(Class<?> cls, String name, MethodType methodType) {
             try {
-                return IMPL_LOOKUP.findStatic(MethodHandleBuilder.class, name, methodType);
+                return IMPL_LOOKUP.findStatic(cls, name, methodType);
             } catch (NoSuchMethodException|IllegalAccessException e) {
                 throw newLinkageError(e);
             }
         }
+
+        /**
+         * A "salt" value used for this internal hashcode implementation that
+         * needs to vary sufficiently from one run to the next so that
+         * the default hashcode for value types will vary between JVM runs.
+         */
+        static final int SALT;
+        static {
+            long nt = System.nanoTime();
+            int value = (int)((nt >>> 32) ^ nt);
+            SALT = GetIntegerAction.privilegedGetProperty("value.bsm.salt", value);
+        }
+    }
+
+    /*
+     * Produces a method handle that computes the hashcode
+     */
+    private static MethodHandle hashCodeInvoker(Lookup lookup, String name, MethodType mt) {
+        Class<?> type = lookup.lookupClass().asValueType();
+        MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
+        MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
+        MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
+        MethodHandle combiner = filterArguments(HASH_COMBINER, 0, target, classHashCode);
+        // int v = SALT * 31 + type.hashCode();
+        MethodHandle init = permuteArguments(combiner, target.type(), 0, 0);
+        MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
+        MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, type);
+        MethodHandle[] hashers = new MethodHandle[getters.length];
+        for (int i=0; i < getters.length; i++) {
+            MethodHandle getter = getters[i];
+            MethodHandle hasher = hashCodeForType(getter.type().returnType());
+            hashers[i] = filterReturnValue(getter, hasher);
+        }
+
+        // for (int i=0; i < getters.length; i++) {
+        //   v = computeHash(v, i, a);
+        // }
+        MethodHandle body = COMPUTE_HASH.bindTo(hashers)
+                                        .asType(methodType(int.class, int.class, int.class, type));
+        return countedLoop(iterations, init, body);
+    }
+
+    /*
+     * Produces a method handle that invokes the toString method of a value object.
+     */
+    private static MethodHandle toStringInvoker(Lookup lookup, String name, MethodType mt) {
+        Class<?> type = lookup.lookupClass().asValueType();
+        MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
+        int length = getters.length;
+        StringBuilder format = new StringBuilder();
+        Class<?>[] parameterTypes = new Class<?>[length];
+        // append the value class name
+        format.append("[").append(type.getName());
+        String separator = " ";
+        for (int i = 0; i < length; i++) {
+            MethodHandle getter = getters[i];
+            MethodHandleInfo fieldInfo = lookup.revealDirect(getter);
+            Class<?> ftype = fieldInfo.getMethodType().returnType();
+            format.append(separator)
+                  .append(fieldInfo.getName())
+                  .append("=\1");
+            getters[i]= filterReturnValue(getter, MethodHandleBuilder.toString(ftype));
+            parameterTypes[i] = String.class;
+        }
+        format.append("]");
+        try {
+            MethodHandle target = StringConcatFactory.makeConcatWithConstants(lookup, "toString",
+                    methodType(String.class, parameterTypes), format.toString()).dynamicInvoker();
+            // apply getters
+            target = filterArguments(target, 0, getters);
+            // duplicate "this" argument from o::toString for each getter invocation
+            target = permuteArguments(target, methodType(String.class, type), new int[length]);
+            return target;
+        } catch (StringConcatException e) {
+            throw newLinkageError(e);
+        }
+    }
+
+    /*
+     * Produces a method handle that tests if two arguments are equals.
+     */
+    private static MethodHandle equalsInvoker(Lookup lookup, String name, MethodType mt) {
+        Class<?> type = lookup.lookupClass().asValueType();
+        // MethodHandle to compare all fields of two value objects
+        MethodHandle[] getters = MethodHandleBuilder.getters(lookup, TYPE_SORTER);
+        MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
+        MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class)
+                                        .asType(methodType(boolean.class, type, type));
+        for (MethodHandle getter : getters) {
+            MethodHandle eq = equalsForType(getter.type().returnType());
+            MethodHandle thisFieldEqual = filterArguments(eq, 0, getter, getter);
+            accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
+        }
+
+        // if o1 == o2 return true;
+        // if (o1 and o2 are same value class) return accumulator;
+        // return false;
+        MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
+        return guardWithTest(referenceEq().asType(mt),
+                             instanceTrue.asType(mt),
+                             guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
+                                           accumulator.asType(mt),
+                                           dropArguments(FALSE, 0, type, Object.class)));
     }
 
     private static LinkageError newLinkageError(Throwable e) {
@@ -516,8 +550,23 @@ public final class ValueBootstrapMethods {
     // store the method handle for value types in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> c) {
-            return MethodHandleBuilder.valueEquals(c);
+        return MethodHandleBuilder.valueEquals(c);
         }
     };
 
+    private static final Comparator<MethodHandle> TYPE_SORTER = (mh1, mh2) -> {
+        // sort the getters with the return type
+        Class<?> t1 = mh1.type().returnType();
+        Class<?> t2 = mh2.type().returnType();
+        if (t1.isPrimitive()) {
+            if (!t2.isPrimitive()) {
+                return 1;
+            }
+        } else {
+            if (t2.isPrimitive()) {
+                return -1;
+            }
+        }
+        return -1;
+    };
 }

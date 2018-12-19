@@ -26,7 +26,7 @@
  * @test
  * @summary test value bootstrap methods
  * @compile -XDallowWithFieldOperator ValueBootstrapMethodsTest.java
- * @run main/othervm -XX:+EnableValhalla ValueBootstrapMethodsTest
+ * @run main/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
  */
 
 import java.util.List;
@@ -64,7 +64,7 @@ public class ValueBootstrapMethodsTest {
 
         public String localToString() {
             System.out.println(l);
-            return String.format("[%s, %s, %s, %s, %s]", Value.class.asValueType(),
+            return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
                                  i, String.valueOf(d), s, l.toString());
         }
     }

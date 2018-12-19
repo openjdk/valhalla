@@ -48,7 +48,7 @@ public class QualifiedSuperCtor extends A.Inner {
     }
 
     public static void main(String [] args) {
-        if (!new QualifiedSuperCtor(new A()).getADotThis().equals("[value class A, 1000000]"))
+        if (!new QualifiedSuperCtor(new A()).getADotThis().equals("[A x=1000000]"))
             throw new AssertionError("Broken");
     }
 }

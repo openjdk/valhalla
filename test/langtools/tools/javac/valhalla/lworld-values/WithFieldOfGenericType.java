@@ -45,7 +45,7 @@ public final value class WithFieldOfGenericType<E> {
 
   public static void main(String[] args) {
      WithFieldOfGenericType<String> w = create();
-     if (!w.toString().equals("[value class WithFieldOfGenericType, true]"))
+     if (!w.toString().equals("[WithFieldOfGenericType value=true]"))
         throw new AssertionError("Withfield didn't work!");
   }
 }

@@ -56,7 +56,7 @@ public value class CtorChain {
 
     public static void main(String [] args) {
         String o = new CtorChain().toString();
-        if (!o.equals("[value class CtorChain, 10, 20, 30, 40, 50]"))
+        if (!o.equals("[CtorChain x1=10 x2=20 x3=30 x4=40 x5=50]"))
             throw new AssertionError("Broken");
     }
 }

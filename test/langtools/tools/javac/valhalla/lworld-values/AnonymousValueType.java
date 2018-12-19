@@ -38,7 +38,7 @@ public class AnonymousValueType {
                 return 0;
             }
         };
-        if (!o.toString().equals("[value class AnonymousValueType$1, 10]"))
+        if (!o.toString().equals("[AnonymousValueType$1 x=10]"))
             throw new AssertionError("Broken");
     }
 }

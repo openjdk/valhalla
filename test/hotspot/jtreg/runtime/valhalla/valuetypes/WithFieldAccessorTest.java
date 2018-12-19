@@ -54,15 +54,15 @@ public class WithFieldAccessorTest {
 
     public static void main(String... args) throws Throwable {
         V v = __WithField(V.make('a', 5, 10).c, 'b');
-        if (!v.toString().equals("[value class WithFieldAccessorTest$V, b, 5, 10]")) {
+        if (!v.toString().equals("[WithFieldAccessorTest$V c=b l=5 i=10]")) {
             throw new AssertionError("Withfield of 'c' didn't work!" + v.toString());
         }
         v = __WithField(V.make('a', 5, 10).l, 25);
-        if (!v.toString().equals("[value class WithFieldAccessorTest$V, a, 25, 10]")) {
+        if (!v.toString().equals("[WithFieldAccessorTest$V c=a l=25 i=10]")) {
             throw new AssertionError("Withfield of 'l' didn't work!" + v.toString());
         }
         v = __WithField(V.make('a', 5, 10).i, 20);
-        if (!v.toString().equals("[value class WithFieldAccessorTest$V, a, 5, 20]")) {
+        if (!v.toString().equals("[WithFieldAccessorTest$V c=a l=5 i=20]")) {
             throw new AssertionError("Withfield of 'i' didn't work!" + v.toString());
         }
     }

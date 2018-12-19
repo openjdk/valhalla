@@ -64,7 +64,6 @@ public value class Value {
     }
 
     static class Builder {
-        private static final Object REF = new Object();
         private char c;
         private byte b;
         private boolean z;
@@ -73,9 +72,9 @@ public value class Value {
         private long l;
         private double d;
         private float f;
-        private Number n = Number.intValue(0);
+        private Number n;
         private Point p = Point.makePoint(0,0);
-        private Object ref = REF;
+        private Object ref;
 
         public Builder() {}
         Builder setChar(char c) {
@@ -176,6 +175,11 @@ public value class Value {
 
         public int intValue() {
             return i;
+        }
+
+        @Override
+        public String toString() {
+            return Integer.toString(i);
         }
     }
 }
