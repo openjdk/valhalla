@@ -457,9 +457,10 @@ public final class ValueBootstrapMethods {
      * @see Float#equals(Object)
      * @see Double#equals(Object)
      */
-    public static <T> boolean isSubstitutable(T a, T b) {
+    public static <T> boolean isSubstitutable(T a, Object b) {
         if (a == b) return true;
         if (a == null || b == null) return false;
+        if (a.getClass() != b.getClass()) return false;
 
         try {
             Class<?> type = a.getClass().isValue() ? a.getClass().asValueType() : a.getClass();

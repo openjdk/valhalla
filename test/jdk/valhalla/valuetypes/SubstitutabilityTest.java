@@ -81,6 +81,7 @@ public class SubstitutabilityTest {
         return new Object[][] {
             new Object[] { Point.makePoint(10, 10), Point.makePoint(10, 20)},
             new Object[] { mpath, MutablePath.makePath(10, 20, 30, 40)},
+            new Object[] { point, mpath},
             new Object[] { valueBuilder().setFloat(+0.0f).setDouble(+0.0).build(),
                            valueBuilder().setFloat(-0.0f).setDouble(+0.0).build() },
             new Object[] { valueBuilder().setFloat(+0.0f).setDouble(+0.0).build(),
