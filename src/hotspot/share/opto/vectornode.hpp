@@ -67,6 +67,9 @@ class VectorNode : public TypeNode {
   static int  opcode(int opc, BasicType bt);
   static bool implemented(int opc, uint vlen, BasicType bt);
   static bool is_shift(Node* n);
+  static bool is_type_transition_short_to_int(Node* n);
+  static bool is_type_transition_to_int(Node* n);
+  static bool is_muladds2i(Node* n);
   static bool is_invariant_vector(Node* n);
   // [Start, end) half-open range defining which operands are vectors
   static void vector_operands(Node* n, uint* start, uint* end);
@@ -259,6 +262,14 @@ class MulVDNode : public VectorNode {
 public:
   MulVDNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
   virtual int Opcode() const;
+};
+
+//------------------------------MulAddVS2VINode--------------------------------
+// Vector multiply shorts to int and add adjacent ints.
+class MulAddVS2VINode : public VectorNode {
+  public:
+    MulAddVS2VINode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+    virtual int Opcode() const;
 };
 
 //------------------------------FmaVDNode--------------------------------------
@@ -553,6 +564,7 @@ class LoadVectorNode : public LoadNode {
   LoadVectorNode(Node* c, Node* mem, Node* adr, const TypePtr* at, const TypeVect* vt, ControlDependency control_dependency = LoadNode::DependsOnlyOnTest)
     : LoadNode(c, mem, adr, at, vt, MemNode::unordered, control_dependency) {
     init_class_id(Class_LoadVector);
+    set_mismatched_access();
   }
 
   const TypeVect* vect_type() const { return type()->is_vect(); }
@@ -581,6 +593,7 @@ class StoreVectorNode : public StoreNode {
     : StoreNode(c, mem, adr, at, val, MemNode::unordered) {
     assert(val->is_Vector() || val->is_LoadVector(), "sanity");
     init_class_id(Class_StoreVector);
+    set_mismatched_access();
   }
 
   const TypeVect* vect_type() const { return in(MemNode::ValueIn)->bottom_type()->is_vect(); }

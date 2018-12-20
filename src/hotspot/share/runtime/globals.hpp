@@ -501,6 +501,13 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   diagnostic(bool, AbortVMOnSafepointTimeout, false,                        \
           "Abort upon failure to reach safepoint (see SafepointTimeout)")   \
                                                                             \
+  diagnostic(bool, AbortVMOnVMOperationTimeout, false,                      \
+          "Abort upon failure to complete VM operation promptly")           \
+                                                                            \
+  diagnostic(intx, AbortVMOnVMOperationTimeoutDelay, 1000,                  \
+          "Delay in milliseconds for option AbortVMOnVMOperationTimeout")   \
+          range(0, max_intx)                                                \
+                                                                            \
   /* 50 retries * (5 * current_retry_count) millis = ~6.375 seconds */      \
   /* typically, at most a few retries are needed                    */      \
   product(intx, SuspendRetryCount, 50,                                      \
@@ -722,6 +729,9 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, PrintCodeCacheOnCompilation, false,                         \
           "Print the code cache memory usage each time a method is "        \
           "compiled")                                                       \
+                                                                            \
+  diagnostic(bool, PrintCodeHeapAnalytics, false,                           \
+          "Print code heap usage statistics on exit and on full condition") \
                                                                             \
   diagnostic(bool, PrintStubCode, false,                                    \
           "Print generated stub code")                                      \
@@ -1316,16 +1326,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, DelayCompilationDuringStartup, true,                        \
           "Delay invoking the compiler until main application class is "    \
           "loaded")                                                         \
-                                                                            \
-  develop(bool, CompileTheWorld, false,                                     \
-          "Compile all methods in all classes in bootstrap class path "     \
-            "(stress test)")                                                \
-                                                                            \
-  develop(bool, CompileTheWorldPreloadClasses, true,                        \
-          "Preload all classes used by a class before start loading")       \
-                                                                            \
-  notproduct(intx, CompileTheWorldSafepointInterval, 100,                   \
-          "Force a safepoint every n compiles so sweeper can keep up")      \
                                                                             \
   develop(bool, FillDelaySlots, true,                                       \
           "Fill delay slots (on SPARC only)")                               \
@@ -2108,13 +2108,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   experimental(bool, UseCriticalCMSThreadPriority, false,                   \
           "ConcurrentMarkSweep thread runs at critical scheduling priority")\
                                                                             \
-  /* compiler debugging */                                                  \
-  notproduct(intx, CompileTheWorldStartAt,     1,                           \
-          "First class to consider when using +CompileTheWorld")            \
-                                                                            \
-  notproduct(intx, CompileTheWorldStopAt, max_jint,                         \
-          "Last class to consider when using +CompileTheWorld")             \
-                                                                            \
   develop(intx, NewCodeParameter,      0,                                   \
           "Testing Only: Create a dedicated integer parameter before "      \
           "putback")                                                        \
@@ -2585,7 +2578,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, VerifyMetaspace, false,                                     \
           "Verify metaspace on chunk movements.")                           \
                                                                             \
-  diagnostic(bool, ShowRegistersOnAssert, false,                            \
+  diagnostic(bool, ShowRegistersOnAssert, true,                             \
           "On internal errors, include registers in error report.")         \
                                                                             \
   experimental(bool, UseSwitchProfiling, true,                              \

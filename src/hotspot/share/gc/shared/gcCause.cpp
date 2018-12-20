@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,9 @@ const char* GCCause::to_string(GCCause::Cause cause) {
     case _wb_full_gc:
       return "WhiteBox Initiated Full GC";
 
+    case _archive_time_gc:
+      return "Full GC for -Xshare:dump";
+
     case _no_gc:
       return "No GC";
 
@@ -102,8 +105,26 @@ const char* GCCause::to_string(GCCause::Cause cause) {
     case _g1_humongous_allocation:
       return "G1 Humongous Allocation";
 
+    case _g1_periodic_collection:
+      return "G1 Periodic Collection";
+
     case _dcmd_gc_run:
       return "Diagnostic Command";
+
+    case _shenandoah_allocation_failure_evac:
+      return "Allocation Failure During Evacuation";
+
+    case _shenandoah_stop_vm:
+      return "Stopping VM";
+
+    case _shenandoah_concurrent_gc:
+      return "Concurrent GC";
+
+    case _shenandoah_traversal_gc:
+      return "Traversal GC";
+
+    case _shenandoah_upgrade_to_full_gc:
+      return "Upgrade To Full GC";
 
     case _z_timer:
       return "Timer";

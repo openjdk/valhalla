@@ -186,7 +186,6 @@ java/awt/event/KeyEvent/KeyMaskTest/KeyMaskTest.java 8129778 generic-all
 java/awt/event/MouseEvent/MouseButtonsAndKeyMasksTest/MouseButtonsAndKeyMasksTest.java 8129778 generic-all
 
 java/awt/dnd/URIListToFileListBetweenJVMsTest/URIListToFileListBetweenJVMsTest.html 8194947 generic-all
-java/awt/dnd/ImageTransferTest/ImageTransferTest.java 8176556 generic-all
 java/awt/Frame/SetMaximizedBounds/SetMaximizedBounds.java 8196006 windows-all
 java/awt/Frame/FramesGC/FramesGC.java 8079069 macosx-all
 java/awt/FullScreen/AltTabCrashTest/AltTabCrashTest.java 8047218 generic-all
@@ -252,7 +251,6 @@ java/awt/print/PrinterJob/Margins.java 8196301 windows-all
 java/awt/print/PrinterJob/PSQuestionMark.java 7003378 generic-all
 java/awt/print/PrinterJob/GlyphPositions.java 7003378 generic-all
 java/awt/Choice/PopupPosTest/PopupPosTest.html 8192930 windows-all
-java/awt/Choice/ChoiceKeyEventReaction/ChoiceKeyEventReaction.html 6849922 macosx-all
 java/awt/Choice/ChoiceMouseWheelTest/ChoiceMouseWheelTest.java 7100044 macosx-all,linux-all
 java/awt/Component/CreateImage/CreateImage.java 8198334  windows-all
 java/awt/Component/GetScreenLocTest/GetScreenLocTest.java 4753654 generic-all
@@ -517,17 +515,7 @@ java/beans/XMLEncoder/Test6570354.java 8015593 macosx-all
 # jdk_lang
 
 java/lang/StringCoding/CheckEncodings.sh                        7008363 generic-all
-java/lang/ProcessBuilder/PipelineTest.java                      8211844 aix-ppc64
 java/lang/ProcessHandle/InfoTest.java                           8211847 aix-ppc64
-
-# jdk_lang failures in nestmates branches
-
-java/lang/System/LoggerFinder/internal/BaseDefaultLoggerFinderTest/BaseDefaultLoggerFinderTest.java	8213402 generic-all
-java/lang/System/LoggerFinder/internal/BaseLoggerBridgeTest/BaseLoggerBridgeTest.java			8213402 generic-all
-java/lang/System/LoggerFinder/internal/BasePlatformLoggerTest/BasePlatformLoggerTest.java		8213402 generic-all
-java/lang/System/LoggerFinder/internal/LoggerBridgeTest/LoggerBridgeTest.java				8213402 generic-all
-java/lang/System/LoggerFinder/internal/LoggerFinderLoaderTest/LoggerFinderLoaderTest.java		8213402 generic-all
-java/lang/System/LoggerFinder/internal/PlatformLoggerBridgeTest/PlatformLoggerBridgeTest.java		8213402 generic-all
 
 ############################################################################
 
@@ -726,8 +714,7 @@ javax/sound/midi/Sequencer/Recording.java 8167580 linux-all,solaris-all
 
 com/sun/java/swing/plaf/windows/Test8173145.java 8198334 windows-all
 
-javax/swing/border/Test6981576.java 8198339 generic-all
-javax/swing/border/TestTitledBorderLeak.java: 8213531 linux-all
+javax/swing/border/TestTitledBorderLeak.java 8213531 linux-all
 javax/swing/JComponent/7154030/bug7154030.java 7190978 generic-all
 javax/swing/JComboBox/ConsumedKeyTest/ConsumedKeyTest.java 8067986 generic-all
 javax/swing/JComponent/6683775/bug6683775.java 8172337 generic-all
@@ -789,8 +776,6 @@ javax/swing/UITest/UITest.java 8198392 generic-all
 javax/swing/plaf/basic/BasicComboBoxEditor/Test8015336.java 8198394 generic-all
 javax/swing/plaf/metal/MetalLookAndFeel/Test8039750.java 8198395 generic-all
 javax/swing/text/DevanagariEditor.java 8198397 generic-all
-javax/swing/JColorChooser/Test6199676.java 8198398 generic-all
-javax/swing/JTable/6735286/bug6735286.java 8198398 generic-all
 javax/swing/SpringLayout/4726194/bug4726194.java 8198399 generic-all
 javax/swing/SwingUtilities/6797139/bug6797139.java 8198400 generic-all
 javax/swing/text/html/parser/Parser/6836089/bug6836089.java 8198401 generic-all
@@ -826,7 +811,6 @@ javax/swing/JPopupMenu/8075063/ContextMenuScrollTest.java 202880 linux-all
 javax/swing/JPopupMenu/6583251/bug6583251.java 8213564 linux-all
 javax/swing/dnd/8139050/NativeErrorsInTableDnD.java 8202765  macosx-all,linux-all
 javax/swing/Popup/TaskbarPositionTest.java 8065097 macosx-all,linux-all
-javax/swing/GraphicsConfigNotifier/StalePreferredSize.java 8213121 macosx-all,linux-all
 javax/swing/JButton/4368790/bug4368790.java 8213123 macosx-all
 javax/swing/JEditorPane/6917744/bug6917744.java 8213124 macosx-all
 javax/swing/JTable/6263446/bug6263446.java 8169959 macosx-all
@@ -896,4 +880,3 @@ javax/rmi/ssl/SSLSocketParametersTest.sh                        8162906 generic-
 # jdk_jfr
 
 jdk/jfr/event/io/TestInstrumentation.java                       8202142    generic-all
-jdk/jfr/event/sampling/TestNative.java                          8202142    generic-all

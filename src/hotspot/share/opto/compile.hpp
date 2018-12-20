@@ -93,6 +93,8 @@ struct Final_Reshape_Counts;
 enum LoopOptsMode {
   LoopOptsDefault,
   LoopOptsNone,
+  LoopOptsShenandoahExpand,
+  LoopOptsShenandoahPostExpand,
   LoopOptsSkipSplitIf,
   LoopOptsVerify,
   LoopOptsLastRound
@@ -369,7 +371,6 @@ class Compile : public Phase {
   address               _stub_entry_point;      // Compile code entry for generated stub, or NULL
 
   // Control of this compilation.
-  int                   _num_loop_opts;         // Number of iterations for doing loop optimiztions
   int                   _max_inline_size;       // Max inline size for this compilation
   int                   _freq_inline_size;      // Max hot method inline size for this compilation
   int                   _fixed_slots;           // count of frame slots not allocated by the register
@@ -413,6 +414,7 @@ class Compile : public Phase {
   // JSR 292
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
+  int                   _loop_opts_cnt;         // loop opts round
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
@@ -653,8 +655,6 @@ class Compile : public Phase {
   int               inlining_incrementally() const { return _inlining_incrementally; }
   void          set_major_progress()            { _major_progress++; }
   void        clear_major_progress()            { _major_progress = 0; }
-  int               num_loop_opts() const       { return _num_loop_opts; }
-  void          set_num_loop_opts(int n)        { _num_loop_opts = n; }
   int               max_inline_size() const     { return _max_inline_size; }
   void          set_freq_inline_size(int n)     { _freq_inline_size = n; }
   int               freq_inline_size() const    { return _freq_inline_size; }
@@ -1087,7 +1087,7 @@ class Compile : public Phase {
   void inline_incrementally(PhaseIterGVN& igvn);
   void inline_string_calls(bool parse_time);
   void inline_boxing_calls(PhaseIterGVN& igvn);
-  bool optimize_loops(int& loop_opts_cnt, PhaseIterGVN& igvn, LoopOptsMode mode);
+  bool optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode);
 
   // Matching, CFG layout, allocation, code generation
   PhaseCFG*         cfg()                       { return _cfg; }

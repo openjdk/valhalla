@@ -432,7 +432,7 @@ extern "C" {
                 put_u1(SAME_FRAME_EXTENDED);
                 put_u2(calculateOffsetDelta(i, (u2) frame_type));
 
-            } else if ((frame_type >= SAME_LOCALS_1_STACK_ITEM_BEGIN) && (frame_type<=SAME_LOCALS_1_STACK_ITEM_END)) {
+            } else if ((frame_type >= SAME_LOCALS_1_STACK_ITEM_BEGIN) && (frame_type <= SAME_LOCALS_1_STACK_ITEM_END)) {
                 // same_locals_1_stack_item_frame {
                 //         u1 frame_type = SAME_LOCALS_1_STACK_ITEM;/* 64-127 */
                 //         verification_type_info stack[1];
@@ -494,7 +494,7 @@ extern "C" {
                 //    verification_type_info locals[number_of_locals];
                 //    u2 number_of_stack_items;
                 //    verification_type_info stack[number_of_stack_items];
-                //}
+                // }
 
                 put_u1(FULL_FRAME);
                 frameOffsetDelta = get_u2();

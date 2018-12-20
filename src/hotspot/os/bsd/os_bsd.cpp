@@ -316,7 +316,11 @@ void os::init_system_properties_values() {
   //        ...
   //        7: The default directories, normally /lib and /usr/lib.
 #ifndef DEFAULT_LIBPATH
-  #define DEFAULT_LIBPATH "/lib:/usr/lib"
+  #ifndef OVERRIDE_LIBPATH
+    #define DEFAULT_LIBPATH "/lib:/usr/lib"
+  #else
+    #define DEFAULT_LIBPATH OVERRIDE_LIBPATH
+  #endif
 #endif
 
 // Base path of extensions installed on the system.
@@ -3384,7 +3388,7 @@ bool os::message_box(const char* title, const char* message) {
 static inline struct timespec get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
-  assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
+  assert(ret == 0, "failed to stat() file '%s': %s", filename, os::strerror(errno));
 #ifdef __APPLE__
   return st.st_mtimespec;
 #else

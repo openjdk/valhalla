@@ -44,13 +44,15 @@ class ciInstanceKlass : public ciKlass {
   friend class ciField;
 
 private:
+  enum SubklassValue { subklass_unknown, subklass_false, subklass_true };
+
   jobject                _loader;
   jobject                _protection_domain;
 
   InstanceKlass::ClassState _init_state;           // state of class
   bool                   _is_shared;
   bool                   _has_finalizer;
-  bool                   _has_subklass;
+  SubklassValue          _has_subklass;
   bool                   _has_nonstatic_fields;
   bool                   _has_nonstatic_concrete_methods;
   bool                   _is_unsafe_anonymous;
@@ -140,14 +142,15 @@ public:
     return _has_finalizer; }
   bool                   has_subklass()   {
     assert(is_loaded(), "must be loaded");
-    if (_is_shared && !_has_subklass) {
+    if (_has_subklass == subklass_unknown ||
+        (_is_shared && _has_subklass == subklass_false)) {
       if (flags().is_final()) {
         return false;
       } else {
         return compute_shared_has_subklass();
       }
     }
-    return _has_subklass;
+    return _has_subklass == subklass_true;
   }
   jint                   size_helper()  {
     return (Klass::layout_helper_size_in_bytes(layout_helper())
@@ -276,6 +279,11 @@ public:
 
   // Dump the current state of this klass for compilation replay.
   virtual void dump_replay_data(outputStream* out);
+
+#ifdef ASSERT
+  bool debug_final_field_at(int offset);
+  bool debug_stable_field_at(int offset);
+#endif
 };
 
 #endif // SHARE_VM_CI_CIINSTANCEKLASS_HPP

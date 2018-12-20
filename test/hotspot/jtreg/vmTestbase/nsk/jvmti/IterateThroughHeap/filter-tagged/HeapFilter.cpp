@@ -61,14 +61,13 @@ static int reported_objects = 0;
 //expected values
 #define INT_ARRAY_LENGTH 2
 
-static jint TAGGED_STATIC_INT_VALUE = 0xC0DE01;
-static jint TAGGED_INT_VALUE = 0xC0DE02;
-static jint UNTAGGED_STATIC_INT_VALUE = 0xC0DE03;
-static jint UNTAGGED_INT_VALUE = 0xC0DE04;
-static jint TAGGED_INT_ARRAY_VALUE[] = {0xC0DE01,
-                                                 0xC0DE01+1};
-static jint UNTAGGED_INT_ARRAY_VALUE[] = {0xC0DE03,
-                                                   0xC0DE03+1};
+static jint POISON = 0x1234;
+static jint TAGGED_STATIC_INT_VALUE = 0xC0DE01 + POISON;
+static jint TAGGED_INT_VALUE = 0xC0DE02 + POISON;
+static jint UNTAGGED_STATIC_INT_VALUE = 0xC0DE03 + POISON;
+static jint UNTAGGED_INT_VALUE = 0xC0DE04 + POISON;
+static jint TAGGED_INT_ARRAY_VALUE[] = { 0xC0DE01, 0xC0DE01 + 1 };
+static jint UNTAGGED_INT_ARRAY_VALUE[] = { 0xC0DE03, 0xC0DE03 + 1 };
 static const wchar_t *TAGGED_STRING_VALUE = L"I'm a tagged string";
 static const wchar_t *UNTAGGED_STRING_VALUE = L"I'm an untagged string";
 
@@ -229,7 +228,7 @@ jint JNICALL array_callback(jlong class_tag,
         int matched = 1;
         int i;
         for (i = 0; i < element_count && matched; i++) {
-          matched = ((jint*)objects_info[object].fields[field].value)[i]==
+          matched = ((jint*)objects_info[object].fields[field].value)[i] ==
             ((jint*)elements)[i];
         }
         if (matched)
@@ -269,22 +268,18 @@ void set_expected_value(field_info_t *field, int tagged, int is_static) {
   if (field->primitive) {
     field->size = (int) sizeof(jint);
     if (is_static) {
-      field->value = (void*)(tagged ? &TAGGED_STATIC_INT_VALUE:
-                             &UNTAGGED_STATIC_INT_VALUE);
+      field->value = (void*)(tagged ? &TAGGED_STATIC_INT_VALUE : &UNTAGGED_STATIC_INT_VALUE);
     } else {
-      field->value = (void*)(tagged ? &TAGGED_INT_VALUE:
-                             &UNTAGGED_INT_VALUE);
+      field->value = (void*)(tagged ? &TAGGED_INT_VALUE : &UNTAGGED_INT_VALUE);
     }
     field->type = TYPE_FIELD;
-  } else if (0==strcmp(field->signature,STRING_SIGNATURE)) {
-    field->value = (void*)(tagged ? TAGGED_STRING_VALUE:
-                           UNTAGGED_STRING_VALUE);
+  } else if (0 == strcmp(field->signature,STRING_SIGNATURE)) {
+    field->value = (void*)(tagged ? TAGGED_STRING_VALUE : UNTAGGED_STRING_VALUE);
     field->size = (int) wcslen((wchar_t*)field->value);
     field->type = TYPE_STRING;
-  } else if (0==strcmp(field->signature,INT_ARRAY_SIGNATURE)) {
+  } else if (0 == strcmp(field->signature,INT_ARRAY_SIGNATURE)) {
     field->size = INT_ARRAY_LENGTH;
-    field->value = (void*)(tagged ? TAGGED_INT_ARRAY_VALUE:
-                           UNTAGGED_INT_ARRAY_VALUE);
+    field->value = (void*)(tagged ? TAGGED_INT_ARRAY_VALUE : UNTAGGED_INT_ARRAY_VALUE);
     field->type = TYPE_ARRAY;
   }
 }
@@ -352,6 +347,14 @@ int tag_objects(jvmtiEnv *jvmti, JNIEnv *jni) {
       if (is_primitive_type(objects_info[object].fields[field].signature)) {
         objects_info[object].fields[field].primitive = 1;
         is_primitive = 1;
+        // Add POISON to all int fields to make the values opaque to the JIT compiler.
+        if (is_static) {
+          jint value = jni->GetStaticIntField(targetClass, targetFields[field]);
+          jni->SetStaticIntField(targetClass, targetFields[field], value + POISON);
+        } else {
+          jint value = jni->GetIntField(target, targetFields[field]);
+          jni->SetIntField(target, targetFields[field], value + POISON);
+        }
       } else {
         jobject value;
         if (!NSK_JVMTI_VERIFY(jvmti->GetFieldModifiers(
@@ -420,7 +423,7 @@ void release_object_info(jvmtiEnv *jvmti, JNIEnv *jni) {
 void verify_objects(int reachable) {
   int object;
   int field;
-  for (object = 0; object < (reachable?TEST_OBJECTS_COUNT:TAGGED_OBJECTS); object++) {
+  for (object = 0; object < (reachable ? TEST_OBJECTS_COUNT : TAGGED_OBJECTS); object++) {
     for (field = 0; field < objects_info[object].fields_count; field++) {
       // If primitive field of object that was not collected or
       // non primitive field that was not collected was not found
@@ -461,7 +464,7 @@ agent(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
   }
 
   NSK_DISPLAY0("Tagging fields.\n");
-  if (!NSK_VERIFY(JNI_OK==tag_objects(jvmti, jni))) {
+  if (!NSK_VERIFY(JNI_OK == tag_objects(jvmti, jni))) {
     return;
   }
 

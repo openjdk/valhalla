@@ -3,7 +3,7 @@
  * @bug 8206986
  * @summary Check expression switch works.
  * @compile/fail/ref=ExpressionSwitch-old.out -source 9 -Xlint:-options -XDrawDiagnostics ExpressionSwitch.java
- * @compile --enable-preview -source 12 ExpressionSwitch.java
+ * @compile --enable-preview -source 13 ExpressionSwitch.java
  * @run main/othervm --enable-preview ExpressionSwitch
  */
 
@@ -23,6 +23,14 @@ public class ExpressionSwitch {
         assertEquals(scopesIsolated(T.B), "B");
         assertEquals(lambdas1(T.B).get(), "B");
         assertEquals(lambdas2(T.B).get(), "B");
+        assertEquals(convert1("A"), 0);
+        assertEquals(convert1("B"), 0);
+        assertEquals(convert1("C"), 1);
+        assertEquals(convert1(""), -1);
+        assertEquals(convert2("A"), 0);
+        assertEquals(convert2("B"), 0);
+        assertEquals(convert2("C"), 1);
+        assertEquals(convert2(""), -1);
         localClass(T.A);
     }
 
@@ -73,6 +81,22 @@ public class ExpressionSwitch {
             case A: break () -> "A";
             case B: { break () -> "B"; }
             default: break () -> "default";
+        };
+    }
+
+    private int convert1(String s) {
+        return switch (s) {
+            case "A", "B" -> 0;
+            case "C" -> { break 1; }
+            default -> -1;
+        };
+    }
+
+    private int convert2(String s) {
+        return switch (s) {
+            case "A", "B": break 0;
+            case "C": break 1;
+            default: break -1;
         };
     }
 

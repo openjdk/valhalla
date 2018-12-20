@@ -54,12 +54,12 @@ typedef struct {
 
 /* descriptions of tested threads */
 static ThreadDesc threadsDesc[THREADS_COUNT] = {
-    {"threadRunning", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION},
-    {"threadEntering", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION},
-    {"threadWaiting", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION},
-    {"threadSleeping", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION},
-    {"threadRunningInterrupted", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION},
-    {"threadRunningNative", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION}
+    { "threadRunning", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION },
+    { "threadEntering", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION },
+    { "threadWaiting", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION },
+    { "threadSleeping", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION },
+    { "threadRunningInterrupted", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION },
+    { "threadRunningNative", "testedMethod", "()V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION }
 };
 
 /* indexes of known threads */
@@ -310,7 +310,8 @@ static int checkThreads(int suspended, const char* kind) {
                                         (long)frameStack[j].location);
             /* query frame location */
             if (!NSK_JVMTI_VERIFY(
-                    jvmti->GetFrameLocation(threadsDesc[i].thread, j, &qMethod, &qLocation))) {
+                    jvmti->GetFrameLocation(threadsDesc[i].thread, j, &qMethod, &qLocation))
+                && (suspended == NSK_TRUE)) {
                 nsk_jvmti_setFailStatus();
                 continue;
             }
@@ -318,8 +319,8 @@ static int checkThreads(int suspended, const char* kind) {
             NSK_DISPLAY2("      queried: method: %p, location: %ld\n",
                                         (void*)qMethod, (long)qLocation);
 
-            /* check frame equalaty */
-            if (frameStack[j].method != qMethod) {
+            /* check frame equality */
+            if ((suspended == NSK_TRUE) && (frameStack[j].method != qMethod)) {
                 NSK_COMPLAIN6("Different method in stack frame #%d for %s thread #%d (%s):\n"
                             "#   GetStackTrace():    %p\n"
                             "#   GetFrameLocation(): %p\n",

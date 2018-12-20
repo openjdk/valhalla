@@ -46,7 +46,6 @@ typedef struct {
 #endif
 
     nchar *tmp_dir;
-    nchar *font_dir;
     nchar *user_dir;
 
     char *file_separator;
@@ -69,7 +68,6 @@ typedef struct {
     char *sun_stdout_encoding;
     char *sun_stderr_encoding;
 
-    char *printerJob;
     char *graphics_env;
     char *awt_toolkit;
 
@@ -105,10 +103,6 @@ typedef struct {
     int socksProxyEnabled;
     char *socksHost;
     char *socksPort;
-
-    int gopherProxyEnabled;
-    char *gopherHost;
-    char *gopherPort;
 
     char *exceptionList;
 

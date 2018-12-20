@@ -44,30 +44,30 @@ typedef struct {   /* local variable info */
 
 /* expected local variable info are below */
 static localVar constr_lv[] = { /* constructor's local variables */
-    {(char*) "this", (char*) "Lnsk/jvmti/GetLocalVariableTable/localtab004a;"},
-    {(char*) "constr_i", (char*) "I"},
-    {(char*) "constr_l", (char*) "J"},
-    {(char*) "constr_d", (char*) "D"},
-    {(char*) "constr_f", (char*) "F"},
-    {(char*) "constr_c", (char*) "C"}
+    { (char*) "this", (char*) "Lnsk/jvmti/GetLocalVariableTable/localtab004a;" },
+    { (char*) "constr_i", (char*) "I" },
+    { (char*) "constr_l", (char*) "J" },
+    { (char*) "constr_d", (char*) "D" },
+    { (char*) "constr_f", (char*) "F" },
+    { (char*) "constr_c", (char*) "C" }
 };
 
 static localVar finMeth_lv[] = { /* finMethod()'s local variables */
-    {(char*) "this", (char*) "Lnsk/jvmti/GetLocalVariableTable/localtab004a;"},
-    {(char*) "fin_c", (char*) "C"},
-    {(char*) "fin_i", (char*) "J"},
-    {(char*) "fin_j", (char*) "I"},
-    {(char*) "fin_k", (char*) "J"},
-    {(char*) "fin_l", (char*) "J"},
-    {(char*) "fin_f", (char*) "F"}
+    { (char*) "this", (char*) "Lnsk/jvmti/GetLocalVariableTable/localtab004a;" },
+    { (char*) "fin_c", (char*) "C" },
+    { (char*) "fin_i", (char*) "J" },
+    { (char*) "fin_j", (char*) "I" },
+    { (char*) "fin_k", (char*) "J" },
+    { (char*) "fin_l", (char*) "J" },
+    { (char*) "fin_f", (char*) "F" }
 };
 
 static localVar statMeth_lv[] = { /* statMethod()'s local variables */
-    {(char*) "stat_x", (char*) "I"},
-    {(char*) "stat_y", (char*) "I"},
-    {(char*) "stat_z", (char*) "I"},
-    {(char*) "stat_j", (char*) "D"},
-    {(char*) "stat_i", (char*) "I"}
+    { (char*) "stat_x", (char*) "I" },
+    { (char*) "stat_y", (char*) "I" },
+    { (char*) "stat_z", (char*) "I" },
+    { (char*) "stat_j", (char*) "D" },
+    { (char*) "stat_i", (char*) "I" }
 };
 
 typedef struct {    /* local variables of a method */
@@ -81,9 +81,9 @@ typedef struct {    /* local variables of a method */
 
 /* list of tested methods */
 static methodInfo methInfo[] = {
-    {1, (char*) "<init>", (char*) "()V", 6, constr_lv, NULL},
-    {1, (char*) "finMethod", (char*) "(CJIJ)V", 7, finMeth_lv, NULL},
-    {0, (char*) "statMethod", (char*) "(III)D", 5, statMeth_lv, NULL}
+    { 1, (char*) "<init>", (char*) "()V", 6, constr_lv, NULL },
+    { 1, (char*) "finMethod", (char*) "(CJIJ)V", 7, finMeth_lv, NULL },
+    { 0, (char*) "statMethod", (char*) "(III)D", 5, statMeth_lv, NULL }
 };
 
 static jvmtiEnv *jvmti = NULL;
@@ -104,7 +104,7 @@ static int checkAttr(JNIEnv *jni_env, jclass testedCls) {
             methInfo[i].mid = jni_env->GetStaticMethodID(testedCls, methInfo[i].m_name, methInfo[i].m_sign);
         if (methInfo[i].mid == NULL) {
             NSK_COMPLAIN3("TEST FAILURE: unable to get the method ID for the %s method \"%s\", signature \"%s\"\n\n",
-                methInfo[i].inst?"instance":"static",
+                methInfo[i].inst ? "instance" : "static",
                 methInfo[i].m_name, methInfo[i].m_sign);
             return STATUS_FAILED;
         }
@@ -112,7 +112,7 @@ static int checkAttr(JNIEnv *jni_env, jclass testedCls) {
 /* get the LocalVariableTable attribute */
         if (!NSK_JVMTI_VERIFY(jvmti->GetLocalVariableTable(methInfo[i].mid, &count, &lv_table))) {
             NSK_COMPLAIN3("TEST FAILED: unable to get local variable table\n\tfor the %s method \"%s\", signature \"%s\"\n\n",
-                methInfo[i].inst?"instance":"static",
+                methInfo[i].inst ? "instance" : "static",
                 methInfo[i].m_name, methInfo[i].m_sign);
             return STATUS_FAILED;
         } else {
@@ -121,7 +121,7 @@ static int checkAttr(JNIEnv *jni_env, jclass testedCls) {
                 NSK_COMPLAIN5(
                     "TEST FAILED: %s method \"%s\", signature \"%s\": found %d vars in the LocalVariableTable, expected %d\n"
                     "\tHere are the found vars:\n",
-                    methInfo[i].inst?"instance":"static",
+                    methInfo[i].inst ? "instance" : "static",
                     methInfo[i].m_name, methInfo[i].m_sign,
                     count, methInfo[i].vcount);
                 for (j=0; j<count; j++)
@@ -135,7 +135,7 @@ static int checkAttr(JNIEnv *jni_env, jclass testedCls) {
                 NSK_DISPLAY4(
                     "Checking vars in the LocalVariableTable of the %s method \"%s\", signature \"%s\" ...\n"
                     "\tfound %d local vars as expected\n",
-                    methInfo[i].inst?"instance":"static",
+                    methInfo[i].inst ? "instance" : "static",
                     methInfo[i].m_name, methInfo[i].m_sign, count);
             }
 
@@ -146,7 +146,7 @@ static int checkAttr(JNIEnv *jni_env, jclass testedCls) {
                             NSK_COMPLAIN6(
                                 "TEST FAILED: %s method: \"%s\", signature: \"%s\": var \"%s\" "
                                 "has signature \"%s\" in the LocalVariableTable, expected \"%s\"\n\n",
-                                methInfo[i].inst?"instance":"static",
+                                methInfo[i].inst ? "instance" : "static",
                                 methInfo[i].m_name, methInfo[i].m_sign,
                                 lv_table[j].name, lv_table[j].signature,
                                 methInfo[i].vars[k].v_sign);

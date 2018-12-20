@@ -658,8 +658,6 @@ Node* ZBarrierSetC2::load_barrier(GraphKit* kit, Node* val, Node* adr, bool weak
       kit->set_control(gvn.transform(new ProjNode(barrier, LoadBarrierNode::Control)));
     }
     Node* result = gvn.transform(new ProjNode(transformed_barrier, LoadBarrierNode::Oop));
-    assert(is_gc_barrier_node(result), "sanity");
-    assert(step_over_gc_barrier(result) == val, "sanity");
     return result;
   } else {
     return val;
@@ -996,15 +994,13 @@ void ZBarrierSetC2::expand_loadbarrier_optimized(PhaseMacroExpand* phase, LoadBa
   return;
 }
 
-bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
-  Compile* C = Compile::current();
-  PhaseIterGVN &igvn = macro->igvn();
+bool ZBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
   ZBarrierSetC2State* s = state();
   if (s->load_barrier_count() > 0) {
+    PhaseMacroExpand macro(igvn);
 #ifdef ASSERT
     verify_gc_barriers(false);
 #endif
-    igvn.set_delay_transform(true);
     int skipped = 0;
     while (s->load_barrier_count() > skipped) {
       int load_barrier_count = s->load_barrier_count();
@@ -1018,7 +1014,7 @@ bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
         skipped++;
         continue;
       }
-      expand_loadbarrier_node(macro, n);
+      expand_loadbarrier_node(&macro, n);
       assert(s->load_barrier_count() < load_barrier_count, "must have deleted a node from load barrier list");
       if (C->failing())  return true;
     }
@@ -1027,7 +1023,7 @@ bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
       LoadBarrierNode* n = s->load_barrier_node(load_barrier_count - 1);
       assert(!(igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())), "should have been processed already");
       assert(!n->can_be_eliminated(), "should have been processed already");
-      expand_loadbarrier_node(macro, n);
+      expand_loadbarrier_node(&macro, n);
       assert(s->load_barrier_count() < load_barrier_count, "must have deleted a node from load barrier list");
       if (C->failing())  return true;
     }

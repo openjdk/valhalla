@@ -541,7 +541,11 @@ query_multipage_support_end:
 
 void os::init_system_properties_values() {
 
-#define DEFAULT_LIBPATH "/lib:/usr/lib"
+#ifndef OVERRIDE_LIBPATH
+  #define DEFAULT_LIBPATH "/lib:/usr/lib"
+#else
+  #define DEFAULT_LIBPATH OVERRIDE_LIBPATH
+#endif
 #define EXTENSIONS_DIR  "/lib/ext"
 
   // Buffer that fits several sprintfs.
@@ -4355,7 +4359,7 @@ bool os::start_debugging(char *buf, int buflen) {
 static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
-  assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
+  assert(ret == 0, "failed to stat() file '%s': %s", filename, os::strerror(errno));
   return st.st_mtime;
 }
 
