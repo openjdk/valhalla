@@ -690,7 +690,6 @@ public:
 
   static const TypeTuple *make( uint cnt, const Type **fields );
   static const TypeTuple *make_range(ciSignature* sig, bool ret_vt_fields = false);
-  static const TypeTuple *make_range(ciType* return_type, bool never_null = false, bool ret_vt_fields = false);
   static const TypeTuple *make_domain(ciMethod* method, bool vt_fields_as_args = false);
 
   // Subroutine call type with space allocated for argument types

@@ -1945,14 +1945,10 @@ static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uin
 // Make a TypeTuple from the range of a method signature
 const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   ciType* return_type = sig->return_type();
-  return make_range(return_type, sig->returns_never_null(), ret_vt_fields);
-}
+  bool never_null = sig->returns_never_null();
 
-const TypeTuple *TypeTuple::make_range(ciType* return_type, bool never_null, bool ret_vt_fields) {
   uint arg_cnt = 0;
-  if (ret_vt_fields) {
-    ret_vt_fields = return_type->is_valuetype() && ((ciValueKlass*)return_type)->can_be_returned_as_fields();
-  }
+  ret_vt_fields = ret_vt_fields && never_null && return_type->is_valuetype() && ((ciValueKlass*)return_type)->can_be_returned_as_fields();
   if (ret_vt_fields) {
     ciValueKlass* vk = (ciValueKlass*)return_type;
     arg_cnt = vk->value_arg_slots()+1;

@@ -467,4 +467,16 @@ public class TestCallingConvention extends ValueTypeTest {
         Asserts.assertEQ(res1, res2);
         Asserts.assertEQ(res2, res3);
     }
+
+    // Should not return a nullable value type as fields
+    @Test
+    public MyValue2.box test24() {
+        return null;
+    }
+
+    @DontCompile
+    public void test24_verifier(boolean warmup) {
+        MyValue2.box vt = test24();
+        Asserts.assertEQ(vt, null);
+    }
 }
