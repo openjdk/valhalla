@@ -492,6 +492,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
+    case T_VALUETYPE:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {

@@ -1532,10 +1532,18 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    // Emit an explicit null check because the offset is too large.
-    // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
-    // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
-    __ null_check(object.result(), new CodeEmitInfo(info), /* deoptimize */ needs_patching);
+    if (needs_patching && field_type == T_VALUETYPE) {
+      // We are storing a "Q" field, but the holder class is not yet loaded.
+      CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
+                                          Deoptimization::Reason_unloaded,
+                                          Deoptimization::Action_make_not_entrant);
+      __ branch(lir_cond_always, T_ILLEGAL, stub);
+    } else {
+      // Emit an explicit null check because the offset is too large.
+      // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
+      // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
+      __ null_check(object.result(), new CodeEmitInfo(info), /* deoptimize */ needs_patching);
+    }
   }
 
   DecoratorSet decorators = IN_HEAP;
@@ -1851,15 +1859,23 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()) ||
        stress_deopt)) {
-    LIR_Opr obj = object.result();
-    if (stress_deopt) {
-      obj = new_register(T_OBJECT);
-      __ move(LIR_OprFact::oopConst(NULL), obj);
+    if (needs_patching && field_type == T_VALUETYPE) {
+      // We are loading a "Q" field, but the holder class is not yet loaded.
+      CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
+                                          Deoptimization::Reason_unloaded,
+                                          Deoptimization::Action_make_not_entrant);
+      __ branch(lir_cond_always, T_ILLEGAL, stub);
+    } else {
+      LIR_Opr obj = object.result();
+      if (stress_deopt) {
+        obj = new_register(T_OBJECT);
+        __ move(LIR_OprFact::oopConst(NULL), obj);
+      }
+      // Emit an explicit null check because the offset is too large.
+      // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
+      // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
+      __ null_check(obj, new CodeEmitInfo(info), /* deoptimize */ needs_patching);
     }
-    // Emit an explicit null check because the offset is too large.
-    // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
-    // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
-    __ null_check(obj, new CodeEmitInfo(info), /* deoptimize */ needs_patching);
   }
 
   DecoratorSet decorators = IN_HEAP;

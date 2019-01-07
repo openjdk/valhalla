@@ -81,7 +81,7 @@ private:
 
 protected:
   ciInstanceKlass(Klass* k);
-  ciInstanceKlass(ciSymbol* name, jobject loader, jobject protection_domain);
+  ciInstanceKlass(ciSymbol* name, jobject loader, jobject protection_domain, BasicType bt = T_OBJECT); // for unloaded klasses
 
   InstanceKlass* get_instanceKlass() const {
     return InstanceKlass::cast(get_Klass());

@@ -116,8 +116,9 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
 
 // Version for unloaded classes:
 ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
-                                 jobject loader, jobject protection_domain)
-  : ciKlass(name, T_OBJECT)
+                                 jobject loader, jobject protection_domain,
+                                 BasicType bt)
+  : ciKlass(name, bt)
 {
   assert(name->char_at(0) != '[', "not an instance klass");
   _init_state = (InstanceKlass::ClassState)0;

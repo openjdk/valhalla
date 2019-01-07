@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -236,6 +236,8 @@ public class TestIntrinsics extends ValueTypeTest {
         }
     }
 
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
     // value type array creation via reflection
     @Test()
     public void test14(int len, long hash) {
@@ -251,6 +253,7 @@ public class TestIntrinsics extends ValueTypeTest {
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
         test14(len, hash);
     }
+*/
 
     // Test hashCode() method
     @Test()
