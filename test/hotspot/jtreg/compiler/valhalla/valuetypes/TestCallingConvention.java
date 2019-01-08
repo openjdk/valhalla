@@ -479,4 +479,27 @@ public class TestCallingConvention extends ValueTypeTest {
         MyValue2.box vt = test24();
         Asserts.assertEQ(vt, null);
     }
+
+    // Same as test24 but with control flow and inlining
+    @ForceInline
+    public MyValue2.box test26_callee(boolean b) {
+        if (b) {
+            return null;
+        } else {
+            return MyValue2.createWithFieldsInline(rI, true);
+        }
+    }
+
+    @Test
+    public MyValue2.box test26(boolean b) {
+        return test26_callee(b);
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        MyValue2.box vt = test26(true);
+        Asserts.assertEQ(vt, null);
+        vt = test26(false);
+        Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, true).hash());
+    }
 }

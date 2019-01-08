@@ -48,7 +48,7 @@ protected:
   // Get the klass defining the field layout of the value type
   virtual ciValueKlass* value_klass() const = 0;
 
-  int make_scalar_in_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt, Node* root, PhaseGVN* gvn);
+  int make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
   // Initialize the value type fields with the inputs or outputs of a MultiNode
   void initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, uint& base_input, bool in);
@@ -78,7 +78,7 @@ public:
   bool          field_is_flattenable(uint index) const;
 
   // Replace ValueTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
-  void make_scalar_in_safepoints(Node* root, PhaseGVN* gvn);
+  void make_scalar_in_safepoints(PhaseIterGVN* igvn);
 
   // Store the value type as a flattened (headerless) representation
   void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0) const;

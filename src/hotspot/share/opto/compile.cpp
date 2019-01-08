@@ -2071,7 +2071,7 @@ void Compile::process_value_types(PhaseIterGVN &igvn) {
   // Make value types scalar in safepoints
   while (_value_type_nodes->size() != 0) {
     ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
-    vt->make_scalar_in_safepoints(igvn.C->root(), &igvn);
+    vt->make_scalar_in_safepoints(&igvn);
     if (vt->is_ValueTypePtr()) {
       igvn.replace_node(vt, vt->get_oop());
     }

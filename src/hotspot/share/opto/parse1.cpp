@@ -1118,12 +1118,7 @@ void Parse::do_exits() {
       BasicType ret_bt = method()->return_type()->basic_type();
       ret_phi = mask_int_value(ret_phi, ret_bt, &_gvn);
     }
-    if (_caller->has_method() && ret_type->is_valuetypeptr()) {
-      // Inlined methods return a ValueTypeNode
-      _exits.push_node(T_VALUETYPE, ret_phi);
-    } else {
-      _exits.push_node(ret_type->basic_type(), ret_phi);
-    }
+    _exits.push_node(ret_type->basic_type(), ret_phi);
   }
 
   // Note:  Logic for creating and optimizing the ReturnNode is in Compile.
@@ -2329,20 +2324,23 @@ void Parse::return_current(Node* value) {
   // frame pointer is always same, already captured
   if (value != NULL) {
     Node* phi = _exits.argument(0);
-    const TypeOopPtr* tr = phi->bottom_type()->isa_oopptr();
-    if (tf()->returns_value_type_as_fields() && !_caller->has_method() && !value->is_ValueType()) {
-      // TODO there should be a checkcast in between, right?
-      value = ValueTypeNode::make_from_oop(this, value, phi->bottom_type()->is_valuetype()->value_klass());
-    }
-    if (value->is_ValueType() && !_caller->has_method()) {
-      // Value type is returned as oop from root method
-      if (tf()->returns_value_type_as_fields()) {
-        // Make sure non-flattened value type fields are allocated
-        value = value->as_ValueType()->allocate_fields(this);
-      } else {
-        // Make sure value type is allocated
-        value = value->as_ValueType()->allocate(this)->get_oop();
+    const Type* return_type = phi->bottom_type();
+    const TypeOopPtr* tr = return_type->isa_oopptr();
+    if (return_type->isa_valuetype()) {
+      // Value type is returned as fields, make sure it is scalarized
+      if (!value->is_ValueType()) {
+        value = ValueTypeNode::make_from_oop(this, value, return_type->is_valuetype()->value_klass());
       }
+      if (!_caller->has_method()) {
+        // Value type is returned as fields from root method, make
+        // sure all non-flattened value type fields are allocated.
+        assert(tf()->returns_value_type_as_fields(), "must be returned as fields");
+        value = value->as_ValueType()->allocate_fields(this);
+      }
+    } else if (value->is_ValueType()) {
+      // Value type is returned as oop, make sure it is allocated
+      assert(tr && tr->can_be_value_type(), "must return a value type pointer");
+      value = ValueTypePtrNode::make_from_value_type(this, value->as_ValueType());
     } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.
@@ -2358,10 +2356,10 @@ void Parse::return_current(Node* value) {
       // Handle returns of oop-arrays to an arrays-of-interface return
       const TypeInstPtr* phi_tip;
       const TypeInstPtr* val_tip;
-      Type::get_arrays_base_elements(phi->bottom_type(), value->bottom_type(), &phi_tip, &val_tip);
+      Type::get_arrays_base_elements(return_type, value->bottom_type(), &phi_tip, &val_tip);
       if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->klass()->is_interface() &&
           val_tip != NULL && val_tip->is_loaded() && !val_tip->klass()->is_interface()) {
-        value = _gvn.transform(new CheckCastPPNode(0, value, phi->bottom_type()));
+        value = _gvn.transform(new CheckCastPPNode(0, value, return_type));
       }
     }
     phi->add_req(value);

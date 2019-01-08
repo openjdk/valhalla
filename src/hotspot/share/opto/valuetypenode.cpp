@@ -195,7 +195,7 @@ bool ValueTypeBaseNode::field_is_flattenable(uint index) const {
   return field->is_flattenable();
 }
 
-int ValueTypeBaseNode::make_scalar_in_safepoint(Unique_Node_List& worklist, SafePointNode* sfpt, Node* root, PhaseGVN* gvn) {
+int ValueTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciValueKlass* vk = value_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
@@ -209,48 +209,45 @@ int ValueTypeBaseNode::make_scalar_in_safepoint(Unique_Node_List& worklist, Safe
                                                                   NULL,
 #endif
                                                                   first_ind, nfields);
-  sobj->init_req(0, root);
+  sobj->init_req(0, igvn->C->root());
   // Iterate over the value type fields in order of increasing
   // offset and add the field values to the safepoint.
   for (uint j = 0; j < nfields; ++j) {
     int offset = vk->nonstatic_field_at(j)->offset();
     Node* value = field_value_by_offset(offset, true /* include flattened value type fields */);
     if (value->is_ValueType()) {
-      if (value->as_ValueType()->is_allocated(gvn)) {
-        value = value->as_ValueType()->get_oop();
-      } else {
-        // Add non-flattened value type field to the worklist to process later
-        worklist.push(value);
-      }
+      // Add value type field to the worklist to process later
+      worklist.push(value);
     }
     sfpt->add_req(value);
   }
   jvms->set_endoff(sfpt->req());
-  if (gvn != NULL) {
-    sobj = gvn->transform(sobj)->as_SafePointScalarObject();
-    gvn->igvn_rehash_node_delayed(sfpt);
-  }
+  sobj = igvn->transform(sobj)->as_SafePointScalarObject();
+  igvn->rehash_node_delayed(sfpt);
   return sfpt->replace_edges_in_range(this, sobj, start, end);
 }
 
-void ValueTypeBaseNode::make_scalar_in_safepoints(Node* root, PhaseGVN* gvn) {
+void ValueTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn) {
   // Process all safepoint uses and scalarize value type
   Unique_Node_List worklist;
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-    Node* u = fast_out(i);
-    if (u->is_SafePoint() && !u->is_CallLeaf() && (!u->is_Call() || u->as_Call()->has_debug_use(this))) {
-      SafePointNode* sfpt = u->as_SafePoint();
-      Node* in_oop = get_oop();
-      const Type* oop_type = in_oop->bottom_type();
-      assert(Opcode() == Op_ValueTypePtr || !isa_ValueType()->is_allocated(gvn), "already heap allocated value types should be linked directly");
-      int nb = make_scalar_in_safepoint(worklist, sfpt, root, gvn);
+    SafePointNode* sfpt = fast_out(i)->isa_SafePoint();
+    if (sfpt != NULL && !sfpt->is_CallLeaf() && (!sfpt->is_Call() || sfpt->as_Call()->has_debug_use(this))) {
+      int nb = 0;
+      if (is_allocated(igvn) && get_oop()->is_Con()) {
+        // Value type is allocated with a constant oop, link it directly
+        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end());
+        igvn->rehash_node_delayed(sfpt);
+      } else {
+        nb = make_scalar_in_safepoint(igvn, worklist, sfpt);
+      }
       --i; imax -= nb;
     }
   }
   // Now scalarize non-flattened fields
   for (uint i = 0; i < worklist.size(); ++i) {
     Node* vt = worklist.at(i);
-    vt->as_ValueType()->make_scalar_in_safepoints(root, gvn);
+    vt->as_ValueType()->make_scalar_in_safepoints(igvn);
   }
 }
 
@@ -810,13 +807,7 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
                 StoreNode* store = addp->fast_out(k)->isa_Store();
                 if (store != NULL && store->outcnt() != 0) {
                   // Remove the useless store
-                  Node* mem = store->in(MemNode::Memory);
-                  Node* val = store->in(MemNode::ValueIn);
-                  val = val->is_EncodeP() ? val->in(1) : val;
-                  const Type* val_type = igvn->type(val);
-                  assert(val_type->is_zero_type() || (val->is_Con() && val_type->make_ptr()->is_valuetypeptr()),
-                         "must be zero-type or default value store");
-                  igvn->replace_in_uses(store, mem);
+                  igvn->replace_in_uses(store, store->in(MemNode::Memory));
                 }
               }
             }

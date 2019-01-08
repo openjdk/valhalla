@@ -966,7 +966,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   // Scalarize value types that were added to the safepoint
   for (uint i = 0; i < value_worklist.size(); ++i) {
     Node* vt = value_worklist.at(i);
-    vt->as_ValueType()->make_scalar_in_safepoints(C->root(), &_igvn);
+    vt->as_ValueType()->make_scalar_in_safepoints(&_igvn);
   }
   return true;
 }

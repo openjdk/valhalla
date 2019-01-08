@@ -1194,31 +1194,7 @@ SafePointNode* SafePointNode::next_exception() const {
 //------------------------------Ideal------------------------------------------
 // Skip over any collapsed Regions
 Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (remove_dead_region(phase, can_reshape)) {
-    return this;
-  }
-  if (jvms() != NULL) {
-    bool progress = false;
-    // A ValueTypeNode that was already heap allocated in the debug
-    // info?  Reference the object directly. Helps removal of useless
-    // value type allocations with incremental inlining.
-    for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
-      Node *arg = in(i);
-      if (arg->is_ValueType()) {
-        ValueTypeNode* vt = arg->as_ValueType();
-        Node* in_oop = vt->get_oop();
-        const Type* oop_type = phase->type(in_oop);
-        if (!TypePtr::NULL_PTR->higher_equal(oop_type)) {
-          set_req(i, in_oop);
-          progress = true;
-        }
-      }
-    }
-    if (progress) {
-      return this;
-    }
-  }
-  return NULL;
+  return remove_dead_region(phase, can_reshape) ? this : NULL;
 }
 
 //------------------------------Identity---------------------------------------
