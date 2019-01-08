@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,14 +45,14 @@ public class ClassLoaderData extends VMObject {
     classLoaderField = type.getAddressField("_class_loader");
     nextField = type.getAddressField("_next");
     klassesField = new MetadataField(type.getAddressField("_klasses"), 0);
-    isUnsafeAnonymousField = new CIntField(type.getCIntegerField("_is_unsafe_anonymous"), 0);
+    isShortlivedField = new CIntField(type.getCIntegerField("_is_shortlived"), 0);
     dictionaryField = type.getAddressField("_dictionary");
   }
 
   private static AddressField   classLoaderField;
   private static AddressField nextField;
   private static MetadataField  klassesField;
-  private static CIntField isUnsafeAnonymousField;
+  private static CIntField isShortlivedField;
   private static AddressField dictionaryField;
 
   public ClassLoaderData(Address addr) {
@@ -81,8 +81,8 @@ public class ClassLoaderData extends VMObject {
     return null;
   }
 
-  public boolean getisUnsafeAnonymous() {
-    return isUnsafeAnonymousField.getValue(this) != 0;
+  public boolean getisShortlived() {
+    return isShortlivedField.getValue(this) != 0;
   }
 
   public ClassLoaderData next() {
