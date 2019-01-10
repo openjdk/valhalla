@@ -2333,8 +2333,9 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 void GraphBuilder::check_cast(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
+  bool never_null = stream()->is_klass_never_null();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
-  CheckCast* c = new CheckCast(klass, apop(), state_before);
+  CheckCast* c = new CheckCast(klass, apop(), state_before, never_null);
   apush(append_split(c));
   c->set_direct_compare(direct_compare(klass));
 

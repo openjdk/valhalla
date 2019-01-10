@@ -629,7 +629,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     do_null_assert(klass);
   } else {
     pop_object();
-    if (str->get_never_null()) {
+    if (str->is_klass_never_null()) {
       // Casting to a Q-Type contains a NULL check
       assert(klass->is_valuetype(), "must be a value type");
       push(outer()->mark_as_never_null(klass));

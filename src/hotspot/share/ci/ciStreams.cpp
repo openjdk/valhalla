@@ -192,13 +192,13 @@ ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
 }
 
 // ------------------------------------------------------------------
-// ciBytecodeStream::get_never_null
+// ciBytecodeStream::is_klass_never_null
 //
 // Get information about nullability from the constant pool.
-bool ciBytecodeStream::get_never_null() const {
+bool ciBytecodeStream::is_klass_never_null() const {
   VM_ENTRY_MARK;
   constantPoolHandle cpool(_method->get_Method()->constants());
-  return CURRENT_ENV->get_never_null(cpool, get_klass_index());
+  return CURRENT_ENV->is_klass_never_null(cpool, get_klass_index());
 }
 
 // ------------------------------------------------------------------

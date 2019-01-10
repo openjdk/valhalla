@@ -1562,11 +1562,12 @@ class LIR_OpTypeCheck: public LIR_Op {
   ciMethod*     _profiled_method;
   int           _profiled_bci;
   bool          _should_profile;
+  bool          _need_null_check;
 
 public:
   LIR_OpTypeCheck(LIR_Code code, LIR_Opr result, LIR_Opr object, ciKlass* klass,
                   LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,
-                  CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub);
+                  CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub, bool need_null_check = true);
   LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array,
                   LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, CodeEmitInfo* info_for_exception);
 
@@ -1588,7 +1589,7 @@ public:
   ciMethod* profiled_method() const              { return _profiled_method;   }
   int       profiled_bci() const                 { return _profiled_bci;      }
   bool      should_profile() const               { return _should_profile;    }
-
+  bool      need_null_check() const              { return _need_null_check;   }
   virtual bool is_patching() { return _info_for_patch != NULL; }
   virtual void emit_code(LIR_Assembler* masm);
   virtual LIR_OpTypeCheck* as_OpTypeCheck() { return this; }
@@ -2257,7 +2258,7 @@ class LIR_List: public CompilationResourceObj {
   void checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
                   LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,
                   CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub,
-                  ciMethod* profiled_method, int profiled_bci);
+                  ciMethod* profiled_method, int profiled_bci, bool is_never_null);
   // MethodData* profiling
   void profile_call(ciMethod* method, int bci, ciMethod* callee, LIR_Opr mdo, LIR_Opr recv, LIR_Opr t1, ciKlass* cha_klass) {
     append(new LIR_OpProfileCall(method, bci, callee, mdo, recv, t1, cha_klass));

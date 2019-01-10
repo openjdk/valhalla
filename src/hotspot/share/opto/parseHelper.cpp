@@ -68,7 +68,7 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
 void Parse::do_checkcast() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  bool never_null = iter().get_never_null();
+  bool never_null = iter().is_klass_never_null();
 
   Node *obj = peek();
 

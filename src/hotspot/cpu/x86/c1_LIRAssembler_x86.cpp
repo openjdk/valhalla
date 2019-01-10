@@ -1679,20 +1679,22 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
 
   assert_different_registers(obj, k_RInfo, klass_RInfo);
 
-  __ cmpptr(obj, (int32_t)NULL_WORD);
-  if (op->should_profile()) {
-    Label not_null;
-    __ jccb(Assembler::notEqual, not_null);
-    // Object is null; update MDO and exit
-    Register mdo  = klass_RInfo;
-    __ mov_metadata(mdo, md->constant_encoding());
-    Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
-    int header_bits = BitData::null_seen_byte_constant();
-    __ orb(data_addr, header_bits);
-    __ jmp(*obj_is_null);
-    __ bind(not_null);
-  } else {
-    __ jcc(Assembler::equal, *obj_is_null);
+  if (op->need_null_check()) {
+    __ cmpptr(obj, (int32_t)NULL_WORD);
+    if (op->should_profile()) {
+      Label not_null;
+      __ jccb(Assembler::notEqual, not_null);
+      // Object is null; update MDO and exit
+      Register mdo  = klass_RInfo;
+      __ mov_metadata(mdo, md->constant_encoding());
+      Address data_addr(mdo, md->byte_offset_of_slot(data, DataLayout::flags_offset()));
+      int header_bits = BitData::null_seen_byte_constant();
+      __ orb(data_addr, header_bits);
+      __ jmp(*obj_is_null);
+      __ bind(not_null);
+    } else {
+      __ jcc(Assembler::equal, *obj_is_null);
+    }
   }
 
   if (!k->is_loaded()) {

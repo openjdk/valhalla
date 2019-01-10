@@ -313,7 +313,7 @@ void LIR_OpBranch::negate_cond() {
 LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr result, LIR_Opr object, ciKlass* klass,
                                  LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3,
                                  bool fast_check, CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch,
-                                 CodeStub* stub)
+                                 CodeStub* stub, bool need_null_check)
 
   : LIR_Op(code, result, NULL)
   , _object(object)
@@ -329,6 +329,7 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr result, LIR_Opr object, 
   , _profiled_method(NULL)
   , _profiled_bci(-1)
   , _should_profile(false)
+  , _need_null_check(need_null_check)
 {
   if (code == lir_checkcast) {
     assert(info_for_exception != NULL, "checkcast throws exceptions");
@@ -356,6 +357,7 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array, L
   , _profiled_method(NULL)
   , _profiled_bci(-1)
   , _should_profile(false)
+  , _need_null_check(true)
 {
   if (code == lir_store_check) {
     _stub = new ArrayStoreExceptionStub(object, info_for_exception);
@@ -1389,7 +1391,10 @@ void check_LIR() {
 void LIR_List::checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
                           LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,
                           CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub,
-                          ciMethod* profiled_method, int profiled_bci) {
+                          ciMethod* profiled_method, int profiled_bci, bool is_never_null) {
+  // If klass is non-nullable,  LIRGenerator::do_CheckCast has already performed null-check
+  // on the object.
+  bool need_null_check = !is_never_null;
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_checkcast, result, object, klass,
                                            tmp1, tmp2, tmp3, fast_check, info_for_exception, info_for_patch, stub);
   if (profiled_method != NULL) {

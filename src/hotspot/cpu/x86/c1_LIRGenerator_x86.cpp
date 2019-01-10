@@ -1373,6 +1373,10 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
       (x->needs_exception_state() ? state_for(x) :
                                     state_for(x, x->state_before(), true /*ignore_xhandler*/));
 
+  if (x->is_never_null()) {
+    __ null_check(obj.result(), new CodeEmitInfo(info_for_exception));
+  }
+
   CodeStub* stub;
   if (x->is_incompatible_class_change_check()) {
     assert(patching_info == NULL, "can't patch this");
@@ -1391,7 +1395,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
-               x->profiled_method(), x->profiled_bci());
+               x->profiled_method(), x->profiled_bci(), x->is_never_null());
 }
 
 

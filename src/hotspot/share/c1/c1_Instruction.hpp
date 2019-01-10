@@ -1502,10 +1502,11 @@ BASE(TypeCheck, StateSplit)
 
 
 LEAF(CheckCast, TypeCheck)
+  bool _is_never_null;
  public:
   // creation
-  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before)
-  : TypeCheck(klass, obj, objectType, state_before) {}
+  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool never_null = false)
+  : TypeCheck(klass, obj, objectType, state_before), _is_never_null(never_null) {}
 
   void set_incompatible_class_change_check() {
     set_flag(ThrowIncompatibleClassChangeErrorFlag, true);
@@ -1518,6 +1519,9 @@ LEAF(CheckCast, TypeCheck)
   }
   bool is_invokespecial_receiver_check() const {
     return check_flag(InvokeSpecialReceiverCheckFlag);
+  }
+  bool is_never_null() const {
+    return _is_never_null;
   }
 
   virtual bool needs_exception_state() const {
