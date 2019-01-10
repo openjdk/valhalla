@@ -1876,6 +1876,14 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
       __ null_check(obj, new CodeEmitInfo(info), /* deoptimize */ needs_patching);
     }
+  } else if (x->value_klass() != NULL && x->default_value() == NULL) {
+    assert(x->is_static() && !x->value_klass()->is_loaded(), "must be");
+    assert(needs_patching, "must be");
+    // The value klass was not loaded so we don't know what its default value should be
+    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
+                                        Deoptimization::Reason_unloaded,
+                                        Deoptimization::Action_make_not_entrant);
+    __ branch(lir_cond_always, T_ILLEGAL, stub);
   }
 
   DecoratorSet decorators = IN_HEAP;
@@ -1890,6 +1898,18 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   access_load_at(decorators, field_type,
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : NULL, info);
+
+  if (x->value_klass() != NULL && x->default_value() != NULL) {
+    LabelObj* L_end = new LabelObj();
+    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
+    __ branch(lir_cond_notEqual, T_OBJECT, L_end->label());
+
+    LIRItem default_value(x->default_value(), this);
+    default_value.load_item();
+    __ move(default_value.result(), result);
+
+    __ branch_destination(L_end->label());
+  }
 }
 
 
