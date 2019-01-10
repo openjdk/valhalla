@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,6 +111,9 @@ bool VerificationType::is_reference_assignable_from(
     VerificationType comp_this = get_component(context, CHECK_false);
     VerificationType comp_from = from.get_component(context, CHECK_false);
 
+    // This code implements non-covariance between value type arrays and both
+    // arrays of objects and arrays of interface types.  If covariance is
+    // supported for value type arrays then this code should be removed.
     if (comp_from.is_valuetype() && !comp_this.is_null() && comp_this.is_reference()) {
       // An array of value types is not assignable to an array of java.lang.Objects.
       if (comp_this.name() == vmSymbols::java_lang_Object()) {

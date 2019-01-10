@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,9 +35,10 @@ public class VerifierValueTypes {
         System.out.println("Testing: " + test_name);
         try {
             Class newClass = Class.forName(test_name);
+            throw new RuntimeException("Expected VerifyError exception not thrown");
         } catch (java.lang.VerifyError e) {
             if (!e.getMessage().contains(message)) {
-                throw new RuntimeException( "Wrong VerifyError: " + e.getMessage());
+                throw new RuntimeException("Wrong VerifyError: " + e.getMessage());
             }
         }
     }
@@ -46,9 +47,10 @@ public class VerifierValueTypes {
         System.out.println("Testing: " + test_name);
         try {
             Class newClass = Class.forName(test_name);
+            throw new RuntimeException("Expected ClassFormatError exception not thrown");
         } catch (java.lang.ClassFormatError e) {
             if (!e.getMessage().contains(message)) {
-                throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
+                throw new RuntimeException("Wrong ClassFormatError: " + e.getMessage());
             }
         }
     }
@@ -96,11 +98,11 @@ public class VerifierValueTypes {
         // Test VerifyError is thrown if a withfield's class operand is not a value type.
         runTestVerifyError("withfieldObj", "Bad type on operand stack");
 
-        // Test that an array of value types is not assignable to [Ljava/lang/Object;.
+        // Test that an array of value types is not assignable to [Ljava/lang/Object; (Non-covariance).
         runTestVerifyError("NoArrayCov",
             "Type '[QNoArrayCov;' (current frame, stack[1]) is not assignable to '[Ljava/lang/Object;'");
 
-        // Test that an array of value types is not assignable to an array of interfaces.
+        // Test that an array of value types is not assignable to an array of interfaces (Non-covariance).
         runTestVerifyError("NoArrayCovIntf",
             "Type '[QNoArrayCovIntf;' (current frame, stack[1]) is not assignable to '[LII;'");
 
