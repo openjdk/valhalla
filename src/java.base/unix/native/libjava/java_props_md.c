@@ -391,13 +391,6 @@ GetJavaProperties(JNIEnv *env)
     }
 #endif /* MACOSX */
 
-    /* Printing properties */
-#ifdef MACOSX
-    sprops.printerJob = "sun.lwawt.macosx.CPrinterJob";
-#else
-    sprops.printerJob = "sun.print.PSPrinterJob";
-#endif
-
     /* patches/service packs installed */
     sprops.patch_level = NULL;      // leave it undefined
 
@@ -413,10 +406,6 @@ GetJavaProperties(JNIEnv *env)
     sprops.graphics_env = "sun.awt.X11GraphicsEnvironment";
     sprops.awt_toolkit = "sun.awt.X11.XToolkit";
 #endif
-
-    /* This is used only for debugging of font problems. */
-    v = getenv("JAVA2D_FONTPATH");
-    sprops.font_dir = v ? v : NULL;
 
 #ifdef SI_ISALIST
     /* supported instruction sets */

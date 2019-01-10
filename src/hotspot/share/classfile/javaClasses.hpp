@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -240,6 +240,7 @@ class java_lang_Class : AllStatic {
   static int _class_loader_offset;
   static int _module_offset;
   static int _component_mirror_offset;
+  static int _name_offset;
   static int _box_mirror_offset;
   static int _value_mirror_offset;
 
@@ -317,6 +318,8 @@ class java_lang_Class : AllStatic {
   static oop box_mirror(oop java_class);
   static void set_value_mirror(oop java_class, oop mirror);
   static oop value_mirror(oop java_class);
+
+  static oop name(Handle java_class, TRAPS);
 
   static int oop_size(oop java_class);
   static int oop_size_raw(oop java_class);
@@ -1209,7 +1212,8 @@ public:
 // Interface to java.lang.invoke.MethodHandleNatives$CallSiteContext objects
 
 #define CALLSITECONTEXT_INJECTED_FIELDS(macro) \
-  macro(java_lang_invoke_MethodHandleNatives_CallSiteContext, vmdependencies, intptr_signature, false)
+  macro(java_lang_invoke_MethodHandleNatives_CallSiteContext, vmdependencies, intptr_signature, false) \
+  macro(java_lang_invoke_MethodHandleNatives_CallSiteContext, last_cleanup, long_signature, false)
 
 class DependencyContext;
 
@@ -1218,6 +1222,7 @@ class java_lang_invoke_MethodHandleNatives_CallSiteContext : AllStatic {
 
 private:
   static int _vmdependencies_offset;
+  static int _last_cleanup_offset;
 
   static void compute_offsets();
 

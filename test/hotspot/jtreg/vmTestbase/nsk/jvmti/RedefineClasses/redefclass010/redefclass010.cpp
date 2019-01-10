@@ -37,18 +37,18 @@ extern "C" {
 
 /* line number matrix of original methods */
 static int orig_ln[METH_NUM][8] = {
-    {34, 0, 0, 0, 0, 0, 0, 0}, /* <init> */
-    {40,41,43, 0, 0, 0, 0, 0}, /* checkIt */
-    {55, 0, 0, 0, 0, 0, 0, 0}, /* finMethod */
-    {48,50,51,50,52, 0, 0, 0}  /* statMethod */
+    { 34, 0, 0, 0, 0, 0, 0, 0 }, /* <init> */
+    { 40,41,43, 0, 0, 0, 0, 0 }, /* checkIt */
+    { 55, 0, 0, 0, 0, 0, 0, 0 }, /* finMethod */
+    { 48,50,51,50,52, 0, 0, 0 }  /* statMethod */
 };
 
 /* line number matrix of redefined methods */
 static int redf_ln[METH_NUM][8] = {
-    {38,39,40,41,42,43,44,46}, /* <init> */
-    {51,53,55, 0, 0, 0, 0, 0}, /* checkIt */
-    {64,66,67,68,69,70,72, 0}, /* finMethod */
-    {60, 0, 0, 0, 0, 0, 0, 0}  /* statMethod */
+    { 38,39,40,41,42,43,44,46 }, /* <init> */
+    { 51,53,55, 0, 0, 0, 0, 0 }, /* checkIt */
+    { 64,66,67,68,69,70,72, 0 }, /* finMethod */
+    { 60, 0, 0, 0, 0, 0, 0, 0 }  /* statMethod */
 };
 
 typedef struct {   /* line numbers of a method */
@@ -61,18 +61,18 @@ typedef struct {   /* line numbers of a method */
 
 /* list of original methods */
 static methInfo origMethInfo[] = {
-    {1, (char*) "<init>", (char*) "()V", 1, NULL},
-    {1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 3, NULL},
-    {1, (char*) "finMethod", (char*) "(CJIJ)V", 1, NULL},
-    {0, (char*) "statMethod", (char*) "(III)D", 5, NULL}
+    { 1, (char*) "<init>", (char*) "()V", 1, NULL },
+    { 1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 3, NULL },
+    { 1, (char*) "finMethod", (char*) "(CJIJ)V", 1, NULL },
+    { 0, (char*) "statMethod", (char*) "(III)D", 5, NULL }
 };
 
 /* list of redefined methods */
 static methInfo redefMethInfo[] = {
-    {1, (char*) "<init>", (char*) "()V", 8, NULL},
-    {1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 3, NULL},
-    {1, (char*) "finMethod", (char*) "(CJIJ)V", 7, NULL},
-    {0, (char*) "statMethod", (char*) "(III)D", 1, NULL}
+    { 1, (char*) "<init>", (char*) "()V", 8, NULL },
+    { 1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 3, NULL },
+    { 1, (char*) "finMethod", (char*) "(CJIJ)V", 7, NULL },
+    { 0, (char*) "statMethod", (char*) "(III)D", 1, NULL }
 };
 
 static jvmtiEnv *jvmti = NULL;
@@ -154,7 +154,8 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
         }
         if (methodsInfo[i].mid == NULL) {
             printf("%s: Failed to get the method ID for the%s%s method \"%s\", signature \"%s\"\n",
-                __FILE__, (vrb==2)?" original ":" ", methodsInfo[i].inst?"instance":"static",
+                __FILE__, (vrb == 2) ? " original " : " ",
+                methodsInfo[i].inst ? "instance" : "static",
                 methodsInfo[i].m_name, methodsInfo[i].m_sign);
             return STATUS_FAILED;
         }
@@ -165,15 +166,16 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
             printf("%s: Failed to call GetLineNumberTable(): error=%d: %s\n",
                 __FILE__, err, TranslateError(err));
             printf("\tfor the%s%s method \"%s\", signature \"%s\"\n\n",
-                (vrb==2)?" original ":" ", methodsInfo[i].inst?"instance":"static",
+                (vrb == 2) ? " original " : " ",
+                methodsInfo[i].inst ? "instance" : "static",
                 methodsInfo[i].m_name, methodsInfo[i].m_sign);
             return STATUS_FAILED;
         } else {
             if (count != methodsInfo[i].lcount) {
                 printf(
                     "TEST %s %s method \"%s\", signature \"%s\": found %d lines in the LineNumberTable, expected %d\n",
-                    (vrb==2)?"BUG: original ":"FAILED:",
-                    methodsInfo[i].inst?"instance":"static",
+                    (vrb == 2) ? "BUG: original " : "FAILED:",
+                    methodsInfo[i].inst ? "instance" : "static",
                     methodsInfo[i].m_name, methodsInfo[i].m_sign,
                     count, methodsInfo[i].lcount);
                 totRes = STATUS_FAILED;
@@ -183,7 +185,7 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
                 printf(
                     "\nChecking line numbers in the LineNumberTable of the %s method \"%s\", signature \"%s\" ...\n"
                     "\toverall number of lines: %d as expected\n",
-                    methodsInfo[i].inst?"instance":"static",
+                    methodsInfo[i].inst ? "instance" : "static",
                     methodsInfo[i].m_name, methodsInfo[i].m_sign, count);
 
             for (j=0; j<count; j++) {
@@ -196,8 +198,8 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[], jint vrb) {
                     printf(
                         "TEST %s %s method \"%s\", signature \"%s\": "
                         "entry #%d has value %d in the LineNumberTable, expected %d\n",
-                        (vrb==2)?"BUG: original":"FAILED:",
-                        methodsInfo[i].inst?"instance":"static",
+                        (vrb == 2) ? "BUG: original" : "FAILED:",
+                        methodsInfo[i].inst ? "instance" : "static",
                         methodsInfo[i].m_name, methodsInfo[i].m_sign,
                         j, ln_table[j].line_number, chkval);
                     totRes = STATUS_FAILED;

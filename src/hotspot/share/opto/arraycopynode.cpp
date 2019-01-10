@@ -556,7 +556,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization) ||
              (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
 #endif
-      assert(!is_clonebasic(), "added control for clone?");
+      assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);
       return false;
     }

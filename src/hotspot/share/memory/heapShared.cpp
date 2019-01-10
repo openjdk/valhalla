@@ -71,10 +71,7 @@ static ArchivableStaticFieldInfo closed_archive_subgraph_entry_fields[] = {
 };
 // Entry fields for subgraphs archived in the open archive heap region.
 static ArchivableStaticFieldInfo open_archive_subgraph_entry_fields[] = {
-  {"jdk/internal/module/ArchivedModuleGraph",  "archivedSystemModules"},
-  {"jdk/internal/module/ArchivedModuleGraph",  "archivedModuleFinder"},
-  {"jdk/internal/module/ArchivedModuleGraph",  "archivedMainModule"},
-  {"jdk/internal/module/ArchivedModuleGraph",  "archivedConfiguration"},
+  {"jdk/internal/module/ArchivedModuleGraph",  "archivedModuleGraph"},
   {"java/util/ImmutableCollections$ListN",     "EMPTY_LIST"},
   {"java/util/ImmutableCollections$MapN",      "EMPTY_MAP"},
   {"java/util/ImmutableCollections$SetN",      "EMPTY_SET"},
@@ -192,6 +189,8 @@ void HeapShared::archive_java_heap_objects(GrowableArray<MemRegion> *closed,
     }
     return;
   }
+
+  G1HeapVerifier::verify_ready_for_archiving();
 
   {
     NoSafepointVerifier nsv;
@@ -581,7 +580,7 @@ void HeapShared::check_closed_archive_heap_region_object(InstanceKlass* k,
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (!fs.access_flags().is_static()) {
       BasicType ft = fs.field_descriptor().field_type();
-      if (!fs.access_flags().is_final() && (ft == T_ARRAY || T_OBJECT)) {
+      if (!fs.access_flags().is_final() && (ft == T_ARRAY || ft == T_OBJECT)) {
         ResourceMark rm(THREAD);
         log_warning(cds, heap)(
           "Please check reference field in %s instance in closed archive heap region: %s %s",

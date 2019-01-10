@@ -376,16 +376,8 @@ GetJavaProperties(JNIEnv* env)
         sprops.tmp_dir = _wcsdup(tmpdir);
     }
 
-    /* Printing properties */
-    sprops.printerJob = "sun.awt.windows.WPrinterJob";
-
     /* Java2D properties */
     sprops.graphics_env = "sun.awt.Win32GraphicsEnvironment";
-
-    {    /* This is used only for debugging of font problems. */
-        WCHAR *path = _wgetenv(L"JAVA2D_FONTPATH");
-        sprops.font_dir = (path != NULL) ? _wcsdup(path) : NULL;
-    }
 
     /* OS properties */
     {

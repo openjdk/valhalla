@@ -68,7 +68,7 @@ Java_nsk_stress_jni_JNIter003_jniInitArrays (JNIEnv *env, jobject jobj, jint siz
     arrayArray[DOUBLE]=env->NewDoubleArray(SIZE); CE
 
     for (i=0;i<8;i++)
-    {env->SetObjectArrayElement(objectsArray,i,arrayArray[i]); CE }
+    { env->SetObjectArrayElement(objectsArray,i,arrayArray[i]); CE }
 
     boolBuf=(jboolean *)malloc(SIZE*sizeof(jboolean));
     byteBuf=(jbyte *)malloc(SIZE*sizeof(jbyte));
@@ -80,7 +80,7 @@ Java_nsk_stress_jni_JNIter003_jniInitArrays (JNIEnv *env, jobject jobj, jint siz
     doubleBuf=(jdouble *)malloc(SIZE*sizeof(jdouble));
 
     for (i=0;i<SIZE;i++) {
-    if (i%2==0) boolBuf[i]=JNI_TRUE;
+    if (i%2 == 0) boolBuf[i]=JNI_TRUE;
     else boolBuf[i]=JNI_FALSE;
     /*
       byteBuf[i]=(jbyte)random();
@@ -140,7 +140,7 @@ Java_nsk_stress_jni_JNIter003_jniBodyChangeArray (JNIEnv *env, jobject jobj,
     jdouble *doubleOrig, *doubleClone;
     int i;
 
-    if ((orig==NULL) || (clone==NULL)) {
+    if ((orig == NULL) || (clone == NULL)) {
     fprintf(stderr,"JNI received a NULL array from Java\n");
     return JNI_FALSE;
     }

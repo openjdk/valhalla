@@ -75,7 +75,6 @@ class ValueArrayKlass : public ArrayKlass {
   bool can_be_primary_super_slow() const;
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
                                                   Array<InstanceKlass*>* transitive_interfaces);
-  bool compute_is_subtype_of(Klass* k);
 
   int element_byte_size() const { return 1 << layout_helper_log2_element_size(_layout_helper); }
 

@@ -404,15 +404,6 @@ GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_s
   }
 }
 
-bool ValueArrayKlass::compute_is_subtype_of(Klass* k) {
-  if (k->is_valueArray_klass() || k->is_objArray_klass()) {
-    return element_klass()->is_subtype_of(ArrayKlass::cast(k)->element_klass());
-  } else {
-    return ArrayKlass::compute_is_subtype_of(k);
-  }
-}
-
-
 void ValueArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   assert(!is_objArray_klass(), "Unimplemented");

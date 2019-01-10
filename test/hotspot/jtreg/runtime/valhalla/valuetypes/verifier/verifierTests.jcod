@@ -60,7 +60,7 @@
 class defValBadCP {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -262,7 +262,7 @@ class defValBadMajorVersion {
 class defValWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -363,7 +363,7 @@ class defValWrongCPType {
 class wthFldBadCP {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -481,7 +481,7 @@ class wthFldBadCP {
 class wthFldBadFldVal {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -598,7 +598,7 @@ class wthFldBadFldVal {
 class wthFldBadFldRef {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -817,7 +817,7 @@ class wthFldBadMajorVersion {
 class wthFldWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -936,7 +936,7 @@ class wthFldWrongCPType {
 class wthFldObject {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [22] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1058,7 +1058,7 @@ class wthFldObject {
 class monEnterVT {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1176,7 +1176,7 @@ class monEnterVT {
 class defValueObj {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1294,7 +1294,7 @@ class defValueObj {
 class withfieldObj {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [23] { // Constant Pool
     ; // first element is empty
     Method #5 #19; // #1     at 0x0A

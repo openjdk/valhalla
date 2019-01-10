@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -189,6 +189,15 @@ LoadBarrierNode::LoadBarrierNode(Compile* C,
   bs->register_potential_barrier_node(this);
 }
 
+uint LoadBarrierNode::size_of() const {
+  return sizeof(*this);
+}
+
+uint LoadBarrierNode::cmp(const Node& n) const {
+  ShouldNotReachHere();
+  return 0;
+}
+
 const Type *LoadBarrierNode::bottom_type() const {
   const Type** floadbarrier = (const Type **)(Compile::current()->type_arena()->Amalloc_4((Number_of_Outputs)*sizeof(Type*)));
   Node* in_oop = in(Oop);
@@ -196,6 +205,11 @@ const Type *LoadBarrierNode::bottom_type() const {
   floadbarrier[Memory] = Type::MEMORY;
   floadbarrier[Oop] = in_oop == NULL ? Type::TOP : in_oop->bottom_type();
   return TypeTuple::make(Number_of_Outputs, floadbarrier);
+}
+
+const TypePtr* LoadBarrierNode::adr_type() const {
+  ShouldNotReachHere();
+  return NULL;
 }
 
 const Type *LoadBarrierNode::Value(PhaseGVN *phase) const {
@@ -441,6 +455,11 @@ Node *LoadBarrierNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   return NULL;
 }
 
+uint LoadBarrierNode::match_edge(uint idx) const {
+  ShouldNotReachHere();
+  return 0;
+}
+
 void LoadBarrierNode::fix_similar_in_uses(PhaseIterGVN* igvn) {
   Node* out_res = proj_out_or_null(Oop);
   if (out_res == NULL) {
@@ -658,8 +677,6 @@ Node* ZBarrierSetC2::load_barrier(GraphKit* kit, Node* val, Node* adr, bool weak
       kit->set_control(gvn.transform(new ProjNode(barrier, LoadBarrierNode::Control)));
     }
     Node* result = gvn.transform(new ProjNode(transformed_barrier, LoadBarrierNode::Oop));
-    assert(is_gc_barrier_node(result), "sanity");
-    assert(step_over_gc_barrier(result) == val, "sanity");
     return result;
   } else {
     return val;
@@ -996,15 +1013,13 @@ void ZBarrierSetC2::expand_loadbarrier_optimized(PhaseMacroExpand* phase, LoadBa
   return;
 }
 
-bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
-  Compile* C = Compile::current();
-  PhaseIterGVN &igvn = macro->igvn();
+bool ZBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
   ZBarrierSetC2State* s = state();
   if (s->load_barrier_count() > 0) {
+    PhaseMacroExpand macro(igvn);
 #ifdef ASSERT
     verify_gc_barriers(false);
 #endif
-    igvn.set_delay_transform(true);
     int skipped = 0;
     while (s->load_barrier_count() > skipped) {
       int load_barrier_count = s->load_barrier_count();
@@ -1018,7 +1033,7 @@ bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
         skipped++;
         continue;
       }
-      expand_loadbarrier_node(macro, n);
+      expand_loadbarrier_node(&macro, n);
       assert(s->load_barrier_count() < load_barrier_count, "must have deleted a node from load barrier list");
       if (C->failing())  return true;
     }
@@ -1027,7 +1042,7 @@ bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
       LoadBarrierNode* n = s->load_barrier_node(load_barrier_count - 1);
       assert(!(igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())), "should have been processed already");
       assert(!n->can_be_eliminated(), "should have been processed already");
-      expand_loadbarrier_node(macro, n);
+      expand_loadbarrier_node(&macro, n);
       assert(s->load_barrier_count() < load_barrier_count, "must have deleted a node from load barrier list");
       if (C->failing())  return true;
     }
@@ -1155,7 +1170,7 @@ static bool split_barrier_thru_phi(PhaseIdealLoop* phase, LoadBarrierNode* lb) {
   if (lb->in(LoadBarrierNode::Oop)->is_Phi()) {
     Node* oop_phi = lb->in(LoadBarrierNode::Oop);
 
-    if (oop_phi->in(2) == oop_phi) {
+    if ((oop_phi->req() != 3) || (oop_phi->in(2) == oop_phi)) {
       // Ignore phis with only one input
       return false;
     }

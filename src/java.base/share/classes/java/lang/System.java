@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,7 @@ import jdk.internal.misc.VM;
 import jdk.internal.logger.LoggerFinderLoader;
 import jdk.internal.logger.LazyLoggers;
 import jdk.internal.logger.LocalizedLoggerWrapper;
+import jdk.internal.util.SystemProps;
 import jdk.internal.vm.annotation.Stable;
 import sun.reflect.annotation.AnnotationType;
 import sun.nio.ch.Interruptible;
@@ -607,7 +608,6 @@ public final class System {
      */
 
     private static Properties props;
-    private static native Properties initProperties(Properties props);
 
     /**
      * Determines the current system properties.
@@ -801,10 +801,11 @@ public final class System {
         if (sm != null) {
             sm.checkPropertiesAccess();
         }
+
         if (props == null) {
-            props = new Properties();
-            initProperties(props);
-            VersionProps.init(props);
+            Map<String, String> tempProps = SystemProps.initProperties();
+            VersionProps.init(tempProps);
+            props = createProperties(tempProps);
         }
         System.props = props;
     }
@@ -972,7 +973,7 @@ public final class System {
         if (key == null) {
             throw new NullPointerException("key can't be null");
         }
-        if (key.equals("")) {
+        if (key.isEmpty()) {
             throw new IllegalArgumentException("key can't be empty");
         }
     }
@@ -985,7 +986,7 @@ public final class System {
      * <p>If a security manager exists, its
      * {@link SecurityManager#checkPermission checkPermission}
      * method is called with a
-     * {@code {@link RuntimePermission}("getenv."+name)}
+     * {@link RuntimePermission RuntimePermission("getenv."+name)}
      * permission.  This may result in a {@link SecurityException}
      * being thrown.  If no exception is thrown the value of the
      * variable {@code name} is returned.
@@ -1056,7 +1057,7 @@ public final class System {
      * <p>If a security manager exists, its
      * {@link SecurityManager#checkPermission checkPermission}
      * method is called with a
-     * {@code {@link RuntimePermission}("getenv.*")} permission.
+     * {@link RuntimePermission RuntimePermission("getenv.*")} permission.
      * This may result in a {@link SecurityException} being thrown.
      *
      * <p>When passing information to a Java subprocess,
@@ -1962,21 +1963,41 @@ public final class System {
     }
 
     /**
+     * Create the Properties object from a map - masking out system properties
+     * that are not intended for public access.
+     */
+    private static Properties createProperties(Map<String, String> initialProps) {
+        Properties properties = new Properties(initialProps.size());
+        for (var entry : initialProps.entrySet()) {
+            String prop = entry.getKey();
+            switch (prop) {
+                // Do not add private system properties to the Properties
+                case "sun.nio.MaxDirectMemorySize":
+                case "sun.nio.PageAlignDirectMemory":
+                    // used by java.lang.Integer.IntegerCache
+                case "java.lang.Integer.IntegerCache.high":
+                    // used by sun.launcher.LauncherHelper
+                case "sun.java.launcher.diag":
+                    // used by jdk.internal.loader.ClassLoaders
+                case "jdk.boot.class.path.append":
+                    break;
+                default:
+                    properties.put(prop, entry.getValue());
+            }
+        }
+        return properties;
+    }
+
+    /**
      * Initialize the system class.  Called after thread initialization.
      */
     private static void initPhase1() {
-
         // VM might invoke JNU_NewStringPlatform() to set those encoding
         // sensitive properties (user.home, user.name, boot.class.path, etc.)
-        // during "props" initialization, in which it may need access, via
-        // System.getProperty(), to the related system encoding property that
-        // have been initialized (put into "props") at early stage of the
-        // initialization. So make sure the "props" is available at the
-        // very beginning of the initialization and all system properties to
-        // be put into it directly.
-        props = new Properties(84);
-        initProperties(props);  // initialized by the VM
-        VersionProps.init(props);
+        // during "props" initialization.
+        // The charset is initialized in System.c and does not depend on the Properties.
+        Map<String, String> tempProps = SystemProps.initProperties();
+        VersionProps.init(tempProps);
 
         // There are certain system configurations that may be controlled by
         // VM options such as the maximum amount of direct memory and
@@ -1984,18 +2005,16 @@ public final class System {
         // of autoboxing.  Typically, the library will obtain these values
         // from the properties set by the VM.  If the properties are for
         // internal implementation use only, these properties should be
-        // removed from the system properties.
-        //
-        // See java.lang.Integer.IntegerCache and the
-        // VM.saveAndRemoveProperties method for example.
+        // masked from the system properties.
         //
         // Save a private copy of the system properties object that
-        // can only be accessed by the internal implementation.  Remove
-        // certain system properties that are not intended for public access.
-        VM.saveAndRemoveProperties(props);
+        // can only be accessed by the internal implementation.
+        VM.saveProperties(tempProps);
+        props = createProperties(tempProps);
+
+        StaticProperty.javaHome();          // Load StaticProperty to cache the property values
 
         lineSeparator = props.getProperty("line.separator");
-        StaticProperty.javaHome();          // Load StaticProperty to cache the property values
 
         FileInputStream fdIn = new FileInputStream(FileDescriptor.in);
         FileOutputStream fdOut = new FileOutputStream(FileDescriptor.out);

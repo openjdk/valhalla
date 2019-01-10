@@ -69,7 +69,7 @@
 class NoNullVT {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [86] { // Constant Pool
     ; // first element is empty
     Method #54 #13; // #1     at 0x0A

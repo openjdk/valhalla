@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 
 class DepChange;
 class DirectiveSet;
+class DebugInformationRecorder;
 
 // nmethods (native methods) are the compiled code versions of Java methods.
 //
@@ -257,6 +258,14 @@ class nmethod : public CompiledMethod {
                               jweak speculation_log = NULL
 #endif
   );
+
+  // Only used for unit tests.
+  nmethod()
+    : CompiledMethod(),
+      _is_unloading_state(0),
+      _native_receiver_sp_offset(in_ByteSize(-1)),
+      _native_basic_lock_sp_offset(in_ByteSize(-1)) {}
+
 
   static nmethod* new_native_nmethod(const methodHandle& method,
                                      int compile_id,

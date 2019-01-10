@@ -1537,9 +1537,11 @@ public class Pretty extends JCTree.Visitor {
         try {
             print("@");
             printExpr(tree.annotationType);
-            print("(");
-            printExprs(tree.args);
-            print(")");
+            if (!tree.args.isEmpty()) {
+                print("(");
+                printExprs(tree.args);
+                print(")");
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

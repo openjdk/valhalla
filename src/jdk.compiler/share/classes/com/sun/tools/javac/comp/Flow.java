@@ -303,7 +303,7 @@ public class Flow {
      * Base visitor class for all visitors implementing dataflow analysis logic.
      * This class define the shared logic for handling jumps (break/continue statements).
      */
-    static abstract class BaseAnalyzer<P extends BaseAnalyzer.PendingExit> extends TreeScanner {
+    static abstract class BaseAnalyzer extends TreeScanner {
 
         enum JumpKind {
             BREAK(JCTree.Tag.BREAK) {
@@ -331,7 +331,7 @@ public class Flow {
         /** The currently pending exits that go from current inner blocks
          *  to an enclosing block, in source order.
          */
-        ListBuffer<P> pendingExits;
+        ListBuffer<PendingExit> pendingExits;
 
         /** A pending exit.  These are the statements return, break, and
          *  continue.  In addition, exception-throwing expressions or
@@ -354,20 +354,20 @@ public class Flow {
         abstract void markDead();
 
         /** Record an outward transfer of control. */
-        void recordExit(P pe) {
+        void recordExit(PendingExit pe) {
             pendingExits.append(pe);
             markDead();
         }
 
         /** Resolve all jumps of this statement. */
         private Liveness resolveJump(JCTree tree,
-                         ListBuffer<P> oldPendingExits,
+                         ListBuffer<PendingExit> oldPendingExits,
                          JumpKind jk) {
             boolean resolved = false;
-            List<P> exits = pendingExits.toList();
+            List<PendingExit> exits = pendingExits.toList();
             pendingExits = oldPendingExits;
             for (; exits.nonEmpty(); exits = exits.tail) {
-                P exit = exits.head;
+                PendingExit exit = exits.head;
                 if (exit.tree.hasTag(jk.treeTag) &&
                         jk.getTarget(exit.tree) == tree) {
                     exit.resolveJump();
@@ -381,11 +381,11 @@ public class Flow {
 
         /** Resolve all continues of this statement. */
         Liveness resolveContinues(JCTree tree) {
-            return resolveJump(tree, new ListBuffer<P>(), JumpKind.CONTINUE);
+            return resolveJump(tree, new ListBuffer<PendingExit>(), JumpKind.CONTINUE);
         }
 
         /** Resolve all breaks of this statement. */
-        Liveness resolveBreaks(JCTree tree, ListBuffer<P> oldPendingExits) {
+        Liveness resolveBreaks(JCTree tree, ListBuffer<PendingExit> oldPendingExits) {
             return resolveJump(tree, oldPendingExits, JumpKind.BREAK);
         }
 
@@ -415,7 +415,7 @@ public class Flow {
      * The output of this analysis pass are used by other analyzers. This analyzer
      * sets the 'finallyCanCompleteNormally' field in the JCTry class.
      */
-    class AliveAnalyzer extends BaseAnalyzer<BaseAnalyzer.PendingExit> {
+    class AliveAnalyzer extends BaseAnalyzer {
 
         /** A flag that indicates whether the last statement could
          *  complete normally.
@@ -834,7 +834,7 @@ public class Flow {
      * thrown is declared or caught. The analyzer uses some info that has been set by
      * the liveliness analyzer.
      */
-    class FlowAnalyzer extends BaseAnalyzer<FlowAnalyzer.FlowPendingExit> {
+    class FlowAnalyzer extends BaseAnalyzer {
 
         /** A flag that indicates whether the last statement could
          *  complete normally.
@@ -854,11 +854,11 @@ public class Flow {
          */
         List<Type> caught;
 
-        class FlowPendingExit extends BaseAnalyzer.PendingExit {
+        class ThrownPendingExit extends BaseAnalyzer.PendingExit {
 
             Type thrown;
 
-            FlowPendingExit(JCTree tree, Type thrown) {
+            ThrownPendingExit(JCTree tree, Type thrown) {
                 super(tree);
                 this.thrown = thrown;
             }
@@ -874,21 +874,23 @@ public class Flow {
         /** Complain that pending exceptions are not caught.
          */
         void errorUncaught() {
-            for (FlowPendingExit exit = pendingExits.next();
+            for (PendingExit exit = pendingExits.next();
                  exit != null;
                  exit = pendingExits.next()) {
+                Assert.check(exit instanceof ThrownPendingExit);
+                ThrownPendingExit thrownExit = (ThrownPendingExit) exit;
                 if (classDef != null &&
                     classDef.pos == exit.tree.pos) {
                     log.error(exit.tree.pos(),
-                              Errors.UnreportedExceptionDefaultConstructor(exit.thrown));
+                              Errors.UnreportedExceptionDefaultConstructor(thrownExit.thrown));
                 } else if (exit.tree.hasTag(VARDEF) &&
                         ((JCVariableDecl)exit.tree).sym.isResourceVariable()) {
                     log.error(exit.tree.pos(),
-                              Errors.UnreportedExceptionImplicitClose(exit.thrown,
+                              Errors.UnreportedExceptionImplicitClose(thrownExit.thrown,
                                                                       ((JCVariableDecl)exit.tree).sym.name));
                 } else {
                     log.error(exit.tree.pos(),
-                              Errors.UnreportedExceptionNeedToCatchOrThrow(exit.thrown));
+                              Errors.UnreportedExceptionNeedToCatchOrThrow(thrownExit.thrown));
                 }
             }
         }
@@ -899,7 +901,7 @@ public class Flow {
         void markThrown(JCTree tree, Type exc) {
             if (!chk.isUnchecked(tree.pos(), exc)) {
                 if (!chk.isHandled(exc, caught)) {
-                    pendingExits.append(new FlowPendingExit(tree, exc));
+                    pendingExits.append(new ThrownPendingExit(tree, exc));
                 }
                 thrown = chk.incl(exc, thrown);
             }
@@ -917,7 +919,7 @@ public class Flow {
             JCClassDecl classDefPrev = classDef;
             List<Type> thrownPrev = thrown;
             List<Type> caughtPrev = caught;
-            ListBuffer<FlowPendingExit> pendingExitsPrev = pendingExits;
+            ListBuffer<PendingExit> pendingExitsPrev = pendingExits;
             Lint lintPrev = lint;
             boolean anonymousClass = tree.name == names.empty;
             pendingExits = new ListBuffer<>();
@@ -1027,12 +1029,12 @@ public class Flow {
 
                 scan(tree.body);
 
-                List<FlowPendingExit> exits = pendingExits.toList();
+                List<PendingExit> exits = pendingExits.toList();
                 pendingExits = new ListBuffer<>();
                 while (exits.nonEmpty()) {
-                    FlowPendingExit exit = exits.head;
+                    PendingExit exit = exits.head;
                     exits = exits.tail;
-                    if (exit.thrown == null) {
+                    if (!(exit instanceof ThrownPendingExit)) {
                         Assert.check(exit.tree.hasTag(RETURN));
                     } else {
                         // uncaught throws will be reported later
@@ -1062,7 +1064,7 @@ public class Flow {
         }
 
         public void visitDoLoop(JCDoWhileLoop tree) {
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             scan(tree.body);
             resolveContinues(tree);
@@ -1071,7 +1073,7 @@ public class Flow {
         }
 
         public void visitWhileLoop(JCWhileLoop tree) {
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             scan(tree.cond);
             scan(tree.body);
@@ -1080,7 +1082,7 @@ public class Flow {
         }
 
         public void visitForLoop(JCForLoop tree) {
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             scan(tree.init);
             pendingExits = new ListBuffer<>();
             if (tree.cond != null) {
@@ -1094,7 +1096,7 @@ public class Flow {
 
         public void visitForeachLoop(JCEnhancedForLoop tree) {
             visitVarDef(tree.var);
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             scan(tree.expr);
             pendingExits = new ListBuffer<>();
             scan(tree.body);
@@ -1103,7 +1105,7 @@ public class Flow {
         }
 
         public void visitLabelled(JCLabeledStatement tree) {
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             scan(tree.body);
             resolveBreaks(tree, prevPendingExits);
@@ -1119,7 +1121,7 @@ public class Flow {
         }
 
         private void handleSwitch(JCTree tree, JCExpression selector, List<JCCase> cases) {
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             scan(selector);
             for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
@@ -1143,7 +1145,7 @@ public class Flow {
                 }
             }
 
-            ListBuffer<FlowPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             for (JCTree resource : tree.resources) {
                 if (resource instanceof JCVariableDecl) {
@@ -1207,7 +1209,7 @@ public class Flow {
             if (tree.finalizer != null) {
                 List<Type> savedThrown = thrown;
                 thrown = List.nil();
-                ListBuffer<FlowPendingExit> exits = pendingExits;
+                ListBuffer<PendingExit> exits = pendingExits;
                 pendingExits = prevPendingExits;
                 scan(tree.finalizer);
                 if (!tree.finallyCanCompleteNormally) {
@@ -1224,7 +1226,7 @@ public class Flow {
                 }
             } else {
                 thrown = chk.union(thrown, chk.diff(thrownInTry, caughtInTry));
-                ListBuffer<FlowPendingExit> exits = pendingExits;
+                ListBuffer<PendingExit> exits = pendingExits;
                 pendingExits = prevPendingExits;
                 while (exits.nonEmpty()) pendingExits.append(exits.next());
             }
@@ -1270,16 +1272,16 @@ public class Flow {
         public void visitBreak(JCBreak tree) {
             if (tree.isValueBreak())
                 scan(tree.value);
-            recordExit(new FlowPendingExit(tree, null));
+            recordExit(new PendingExit(tree));
         }
 
         public void visitContinue(JCContinue tree) {
-            recordExit(new FlowPendingExit(tree, null));
+            recordExit(new PendingExit(tree));
         }
 
         public void visitReturn(JCReturn tree) {
             scan(tree.expr);
-            recordExit(new FlowPendingExit(tree, null));
+            recordExit(new PendingExit(tree));
         }
 
         public void visitThrow(JCThrow tree) {
@@ -1346,18 +1348,18 @@ public class Flow {
             }
             List<Type> prevCaught = caught;
             List<Type> prevThrown = thrown;
-            ListBuffer<FlowPendingExit> prevPending = pendingExits;
+            ListBuffer<PendingExit> prevPending = pendingExits;
             try {
                 pendingExits = new ListBuffer<>();
                 caught = tree.getDescriptorType(types).getThrownTypes();
                 thrown = List.nil();
                 scan(tree.body);
-                List<FlowPendingExit> exits = pendingExits.toList();
+                List<PendingExit> exits = pendingExits.toList();
                 pendingExits = new ListBuffer<>();
                 while (exits.nonEmpty()) {
-                    FlowPendingExit exit = exits.head;
+                    PendingExit exit = exits.head;
                     exits = exits.tail;
-                    if (exit.thrown == null) {
+                    if (!(exit instanceof ThrownPendingExit)) {
                         Assert.check(exit.tree.hasTag(RETURN));
                     } else {
                         // uncaught throws will be reported later
@@ -1491,7 +1493,7 @@ public class Flow {
             }
             List<Type> prevCaught = caught;
             List<Type> prevThrown = thrown;
-            ListBuffer<FlowPendingExit> prevPending = pendingExits;
+            ListBuffer<PendingExit> prevPending = pendingExits;
             inLambda = true;
             try {
                 pendingExits = new ListBuffer<>();
@@ -1529,7 +1531,7 @@ public class Flow {
      * effectively-final local variables/parameters.
      */
 
-    public class AssignAnalyzer extends BaseAnalyzer<AssignAnalyzer.AssignPendingExit> {
+    public class AssignAnalyzer extends BaseAnalyzer {
 
         /** The set of definitely assigned variables.
          */
@@ -1646,7 +1648,7 @@ public class Flow {
         protected boolean trackable(VarSymbol sym) {
             return
                 sym.pos >= startPos &&
-                ((sym.owner.kind == MTH ||
+                ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
                 isFinalUninitializedField(sym)));
         }
 
@@ -1874,7 +1876,7 @@ public class Flow {
                 JCClassDecl classDefPrev = classDef;
                 int firstadrPrev = firstadr;
                 int nextadrPrev = nextadr;
-                ListBuffer<AssignPendingExit> pendingExitsPrev = pendingExits;
+                ListBuffer<PendingExit> pendingExitsPrev = pendingExits;
 
                 pendingExits = new ListBuffer<>();
                 if (tree.name != names.empty) {
@@ -2018,14 +2020,15 @@ public class Flow {
                             }
                         }
                     }
-                    List<AssignPendingExit> exits = pendingExits.toList();
+                    List<PendingExit> exits = pendingExits.toList();
                     pendingExits = new ListBuffer<>();
                     while (exits.nonEmpty()) {
-                        AssignPendingExit exit = exits.head;
+                        PendingExit exit = exits.head;
                         exits = exits.tail;
                         Assert.check(exit.tree.hasTag(RETURN), exit.tree);
                         if (isInitialConstructor) {
-                            inits.assign(exit.exit_inits);
+                            Assert.check(exit instanceof AssignPendingExit);
+                            inits.assign(((AssignPendingExit) exit).exit_inits);
                             for (int i = firstadr; i < nextadr; i++) {
                                 checkInit(exit.tree.pos(), vardecls[i].sym);
                             }
@@ -2055,7 +2058,7 @@ public class Flow {
             lint = lint.augment(tree.sym);
             try{
                 boolean track = trackable(tree.sym);
-                if (track && tree.sym.owner.kind == MTH) {
+                if (track && (tree.sym.owner.kind == MTH || tree.sym.owner.kind == VAR)) {
                     newVar(tree);
                 }
                 if (tree.init != null) {
@@ -2076,7 +2079,7 @@ public class Flow {
         }
 
         public void visitDoLoop(JCDoWhileLoop tree) {
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
             final Bits initsSkip = new Bits(true);
@@ -2108,7 +2111,7 @@ public class Flow {
         }
 
         public void visitWhileLoop(JCWhileLoop tree) {
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
             final Bits initsSkip = new Bits(true);
@@ -2144,7 +2147,7 @@ public class Flow {
         }
 
         public void visitForLoop(JCForLoop tree) {
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
             int nextadrPrev = nextadr;
@@ -2192,7 +2195,7 @@ public class Flow {
         public void visitForeachLoop(JCEnhancedForLoop tree) {
             visitVarDef(tree.var);
 
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             FlowKind prevFlowKind = flowKind;
             flowKind = FlowKind.NORMAL;
             int nextadrPrev = nextadr;
@@ -2223,7 +2226,7 @@ public class Flow {
         }
 
         public void visitLabelled(JCLabeledStatement tree) {
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             scan(tree.body);
             resolveBreaks(tree, prevPendingExits);
@@ -2238,7 +2241,7 @@ public class Flow {
         }
 
         private void handleSwitch(JCTree tree, JCExpression selector, List<JCCase> cases) {
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             int nextadrPrev = nextadr;
             scanExpr(selector);
@@ -2294,7 +2297,7 @@ public class Flow {
         public void visitTry(JCTry tree) {
             ListBuffer<JCVariableDecl> resourceVarDecls = new ListBuffer<>();
             final Bits uninitsTryPrev = new Bits(uninitsTry);
-            ListBuffer<AssignPendingExit> prevPendingExits = pendingExits;
+            ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             final Bits initsTry = new Bits(inits);
             uninitsTry.assign(uninits);
@@ -2351,7 +2354,7 @@ public class Flow {
             if (tree.finalizer != null) {
                 inits.assign(initsTry);
                 uninits.assign(uninitsTry);
-                ListBuffer<AssignPendingExit> exits = pendingExits;
+                ListBuffer<PendingExit> exits = pendingExits;
                 pendingExits = prevPendingExits;
                 scan(tree.finalizer);
                 if (!tree.finallyCanCompleteNormally) {
@@ -2361,10 +2364,10 @@ public class Flow {
                     // FIX: this doesn't preserve source order of exits in catch
                     // versus finally!
                     while (exits.nonEmpty()) {
-                        AssignPendingExit exit = exits.next();
-                        if (exit.exit_inits != null) {
-                            exit.exit_inits.orSet(inits);
-                            exit.exit_uninits.andSet(uninits);
+                        PendingExit exit = exits.next();
+                        if (exit instanceof AssignPendingExit) {
+                            ((AssignPendingExit) exit).exit_inits.orSet(inits);
+                            ((AssignPendingExit) exit).exit_uninits.andSet(uninits);
                         }
                         pendingExits.append(exit);
                     }
@@ -2373,7 +2376,7 @@ public class Flow {
             } else {
                 inits.assign(initsEnd);
                 uninits.assign(uninitsEnd);
-                ListBuffer<AssignPendingExit> exits = pendingExits;
+                ListBuffer<PendingExit> exits = pendingExits;
                 pendingExits = prevPendingExits;
                 while (exits.nonEmpty()) pendingExits.append(exits.next());
             }
@@ -2439,8 +2442,34 @@ public class Flow {
 
         @Override
         public void visitBreak(JCBreak tree) {
-            if (tree.isValueBreak())
+            if (tree.isValueBreak()) {
+                if (tree.target.hasTag(SWITCH_EXPRESSION)) {
+                    JCSwitchExpression expr = (JCSwitchExpression) tree.target;
+                    if (expr.type.hasTag(BOOLEAN)) {
+                        scanCond(tree.value);
+                        Bits initsAfterBreakWhenTrue = new Bits(initsWhenTrue);
+                        Bits initsAfterBreakWhenFalse = new Bits(initsWhenFalse);
+                        Bits uninitsAfterBreakWhenTrue = new Bits(uninitsWhenTrue);
+                        Bits uninitsAfterBreakWhenFalse = new Bits(uninitsWhenFalse);
+                        PendingExit exit = new PendingExit(tree) {
+                            @Override
+                            void resolveJump() {
+                                if (!inits.isReset()) {
+                                    split(true);
+                                }
+                                initsWhenTrue.andSet(initsAfterBreakWhenTrue);
+                                initsWhenFalse.andSet(initsAfterBreakWhenFalse);
+                                uninitsWhenTrue.andSet(uninitsAfterBreakWhenTrue);
+                                uninitsWhenFalse.andSet(uninitsAfterBreakWhenFalse);
+                            }
+                        };
+                        merge();
+                        recordExit(exit);
+                        return ;
+                    }
+                }
                 scan(tree.value);
+            }
             recordExit(new AssignPendingExit(tree, inits, uninits));
         }
 
@@ -2488,7 +2517,7 @@ public class Flow {
             final Bits prevInits = new Bits(inits);
             int returnadrPrev = returnadr;
             int nextadrPrev = nextadr;
-            ListBuffer<AssignPendingExit> prevPending = pendingExits;
+            ListBuffer<PendingExit> prevPending = pendingExits;
             try {
                 returnadr = nextadr;
                 pendingExits = new ListBuffer<>();
@@ -2691,7 +2720,7 @@ public class Flow {
      * As effectively final variables are marked as such during DA/DU, this pass must run after
      * AssignAnalyzer.
      */
-    class CaptureAnalyzer extends BaseAnalyzer<BaseAnalyzer.PendingExit> {
+    class CaptureAnalyzer extends BaseAnalyzer {
 
         JCTree currentTree; //local class or lambda
 

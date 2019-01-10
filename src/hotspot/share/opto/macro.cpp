@@ -48,9 +48,13 @@
 #include "opto/type.hpp"
 #include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/macros.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/g1ThreadLocalData.hpp"
 #endif // INCLUDE_G1GC
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
+#endif
 
 
 //
@@ -682,6 +686,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
           if (!n->is_Store() && n->Opcode() != Op_CastP2X &&
+              SHENANDOAHGC_ONLY((!UseShenandoahGC || !ShenandoahBarrierSetC2::is_shenandoah_wb_pre_call(n)) &&)
               !(n->is_ArrayCopy() &&
                 n->as_ArrayCopy()->is_clonebasic() &&
                 n->in(ArrayCopyNode::Dest) == use)) {
@@ -2903,6 +2908,5 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   _igvn.set_delay_transform(false);
   _igvn.optimize();
   if (C->failing())  return true;
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  return bs->expand_macro_nodes(this);
+  return false;
 }

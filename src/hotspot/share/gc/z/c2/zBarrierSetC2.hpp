@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,10 +62,14 @@ public:
                   bool oop_reload_allowed);
 
   virtual int Opcode() const;
+  virtual uint size_of() const;
+  virtual uint cmp(const Node& n) const;
   virtual const Type *bottom_type() const;
+  virtual const TypePtr* adr_type() const;
   virtual const Type *Value(PhaseGVN *phase) const;
   virtual Node *Identity(PhaseGVN *phase);
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual uint match_edge(uint idx) const;
 
   LoadBarrierNode* has_dominating_barrier(PhaseIdealLoop* phase,
                                           bool linear_only,
@@ -200,9 +204,9 @@ public:
   virtual void unregister_potential_barrier_node(Node* node) const;
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, ArrayCopyPhase phase) const;
   virtual Node* step_over_gc_barrier(Node* c) const;
-  // If the BarrierSetC2 state has kept macro nodes in its compilation unit state to be
+  // If the BarrierSetC2 state has kept barrier nodes in its compilation unit state to be
   // expanded later, then now is the time to do so.
-  virtual bool expand_macro_nodes(PhaseMacroExpand* macro) const;
+  virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
 
   static void find_dominating_barriers(PhaseIterGVN& igvn);
   static void loop_optimize_gc_barrier(PhaseIdealLoop* phase, Node* node, bool last_round);

@@ -29,8 +29,8 @@
 extern "C" {
 
 
-#define JVMTI_ERROR_CHECK(str,res) if (res != JVMTI_ERROR_NONE) { printf(str); printf("%d\n",res); return res;}
-#define JVMTI_ERROR_CHECK_EXPECTED_ERROR(str,res,err) if (res != err) { printf(str); printf("unexpected error %d\n",res); return res;}
+#define JVMTI_ERROR_CHECK(str,res) if (res != JVMTI_ERROR_NONE) { printf(str); printf("%d\n",res); return res; }
+#define JVMTI_ERROR_CHECK_EXPECTED_ERROR(str,res,err) if (res != err) { printf(str); printf("unexpected error %d\n",res); return res; }
 
 #define JVMTI_ERROR_CHECK_VOID(str,res) if (res != JVMTI_ERROR_NONE) { printf(str); printf("%d\n",res); iGlobalStatus = 2; }
 
@@ -170,7 +170,7 @@ Java_nsk_jvmti_unit_functions_nosuspendMonitorInfo_JvmtiTest_CheckMonitorInfo(JN
         iGlobalStatus = 2;
     }
 
-    if (expected_count !=0) {
+    if (expected_count != 0) {
 
         ret = jvmti->GetCurrentContendedMonitor(thr, owned_monitor);
         if (ret != JVMTI_ERROR_NONE) {

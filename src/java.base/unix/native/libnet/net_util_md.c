@@ -305,12 +305,12 @@ jint  IPv6_supported()
     }
 
     /*
-     * If fd 0 is a socket it means we've been launched from inetd or
+     * If fd 0 is a socket it means we may have been launched from inetd or
      * xinetd. If it's a socket then check the family - if it's an
      * IPv4 socket then we need to disable IPv6.
      */
     if (getsockname(0, &sa.sa, &sa_len) == 0) {
-        if (sa.sa.sa_family != AF_INET6) {
+        if (sa.sa.sa_family == AF_INET) {
             close(fd);
             return JNI_FALSE;
         }
@@ -803,12 +803,8 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
 
 #ifdef __linux__
         /*
-         * On Linux if we are connecting to a
-         *
-         *   - link-local address
-         *   - multicast interface-local or link-local address
-         *
-         * we need to specify the interface in the scope_id.
+         * On Linux if we are connecting to a link-local address
+         * we need to specify the interface in the scope_id (2.4 kernel only)
          *
          * If the scope was cached then we use the cached value. If not cached but
          * specified in the Inet6Address we use that, but we first check if the
@@ -818,9 +814,7 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
          * we try to determine a value from the routing table. In all these
          * cases the used value is cached for further use.
          */
-        if (IN6_IS_ADDR_LINKLOCAL(&sa->sa6.sin6_addr)
-            || IN6_IS_ADDR_MC_NODELOCAL(&sa->sa6.sin6_addr)
-            || IN6_IS_ADDR_MC_LINKLOCAL(&sa->sa6.sin6_addr)) {
+        if (IN6_IS_ADDR_LINKLOCAL(&sa->sa6.sin6_addr)) {
             unsigned int cached_scope_id = 0, scope_id = 0;
 
             if (ia6_cachedscopeidID) {

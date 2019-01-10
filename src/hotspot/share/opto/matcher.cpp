@@ -1257,9 +1257,7 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
   // Allocate a private array of RegMasks.  These RegMasks are not shared.
   msfpt->_in_rms = NEW_RESOURCE_ARRAY( RegMask, cnt );
   // Empty them all.
-  for (uint i = 0; i < cnt; i++) {
-    msfpt->_in_rms[i] = RegMask();
-  }
+  for (uint i = 0; i < cnt; i++) ::new (&(msfpt->_in_rms[i])) RegMask();
 
   // Do all the pre-defined non-Empty register masks
   msfpt->_in_rms[TypeFunc::ReturnAdr] = _return_addr_mask;
@@ -2405,6 +2403,15 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       Node* pair = new BinaryNode(n->in(1), n->in(2));
       n->set_req(2, pair);
       n->set_req(1, n->in(3));
+      n->del_req(3);
+      break;
+    }
+    case Op_MulAddS2I: {
+      Node* pair1 = new BinaryNode(n->in(1), n->in(2));
+      Node* pair2 = new BinaryNode(n->in(3), n->in(4));
+      n->set_req(1, pair1);
+      n->set_req(2, pair2);
+      n->del_req(4);
       n->del_req(3);
       break;
     }

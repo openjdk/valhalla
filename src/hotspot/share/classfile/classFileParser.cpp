@@ -120,7 +120,9 @@
 
 #define JAVA_12_VERSION                   56
 
-#define CONSTANT_CLASS_DESCRIPTORS        56
+#define JAVA_13_VERSION                   57
+
+#define CONSTANT_CLASS_DESCRIPTORS        57
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == 19 || bad_constant == 20) && _major_version >= JAVA_9_VERSION,
@@ -6067,7 +6069,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
         ik->major_version() != JAVA_MIN_SUPPORTED_VERSION &&
         log_is_enabled(Info, class, preview)) {
       ResourceMark rm;
-      log_info(class, preview)("Loading preview feature type %s", ik->external_name());
+      log_info(class, preview)("Loading class %s that depends on preview features (class file version %d.65535)",
+                               ik->external_name(), ik->major_version());
     }
 
     if (log_is_enabled(Debug, class, resolve))  {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -693,7 +693,7 @@ public class Main {
             usageError(getMsg("error.bad.cflag"));
             return false;
         } else if (uflag) {
-            if ((mname != null) || (ename != null)) {
+            if ((mname != null) || (ename != null) || moduleVersion != null) {
                 /* just want to update the manifest */
                 return true;
             } else {
@@ -1180,7 +1180,7 @@ public class Main {
         String name = entry.name;
         boolean isDir = entry.isDir;
 
-        if (name.equals("") || name.equals(".") || name.equals(zname)) {
+        if (name.isEmpty() || name.equals(".") || name.equals(zname)) {
             return;
         } else if ((name.equals(MANIFEST_DIR) || name.equals(MANIFEST_NAME))
                    && !Mflag) {
@@ -1886,7 +1886,7 @@ public class Main {
                 .map(ModuleInfoEntry::name)
                 .map(Main::versionFromEntryName)
                 .collect(joining(" "));
-        if (!releases.equals(""))
+        if (!releases.isEmpty())
             output("releases: " + releases + "\n");
 
         // Describe the operative descriptor for the specified --release, if any
@@ -1955,7 +1955,7 @@ public class Main {
 
         sb.append(md.toNameAndVersion());
 
-        if (!uriString.equals(""))
+        if (!uriString.isEmpty())
             sb.append(" ").append(uriString);
         if (md.isOpen())
             sb.append(" open");

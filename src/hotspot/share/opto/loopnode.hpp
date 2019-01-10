@@ -38,6 +38,8 @@ class IdealLoopTree;
 class LoopNode;
 class Node;
 class OuterStripMinedLoopEndNode;
+class ShenandoahBarrierNode;
+class ShenandoahWriteBarrierNode;
 class PathFrequency;
 class PhaseIdealLoop;
 class CountedLoopReserveKit;
@@ -300,7 +302,7 @@ public:
   void set_slp_max_unroll(int unroll_factor) { _slp_maximum_unroll_factor = unroll_factor; }
   int  slp_max_unroll() const                { return _slp_maximum_unroll_factor; }
 
-  virtual LoopNode* skip_strip_mined(int expect_opaq = 1);
+  virtual LoopNode* skip_strip_mined(int expect_skeleton = 1);
   OuterStripMinedLoopNode* outer_loop() const;
   virtual IfTrueNode* outer_loop_tail() const;
   virtual OuterStripMinedLoopEndNode* outer_loop_end() const;
@@ -636,6 +638,8 @@ class PhaseIdealLoop : public PhaseTransform {
   friend class IdealLoopTree;
   friend class SuperWord;
   friend class CountedLoopReserveKit;
+  friend class ShenandoahBarrierNode;
+  friend class ShenandoahWriteBarrierNode;
 
   // Pre-computed def-use info
   PhaseIterGVN &_igvn;
@@ -863,7 +867,8 @@ private:
   // Place Data nodes in some loop nest
   void build_loop_early( VectorSet &visited, Node_List &worklist, Node_Stack &nstack );
   void build_loop_late ( VectorSet &visited, Node_List &worklist, Node_Stack &nstack );
-  void build_loop_late_post ( Node* n );
+  void build_loop_late_post_work(Node* n, bool pinned);
+  void build_loop_late_post(Node* n);
   void verify_strip_mined_scheduling(Node *n, Node* least);
 
   // Array of immediate dominance info for each CFG node indexed by node idx
@@ -1185,7 +1190,7 @@ public:
   // loop.  Scale_con, offset and limit are all loop invariant.
   void add_constraint( int stride_con, int scale_con, Node *offset, Node *low_limit, Node *upper_limit, Node *pre_ctrl, Node **pre_limit, Node **main_limit );
   // Helper function for add_constraint().
-  Node* adjust_limit( int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl );
+  Node* adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl, bool round_up);
 
   // Partially peel loop up through last_peel node.
   bool partial_peel( IdealLoopTree *loop, Node_List &old_new );
@@ -1243,6 +1248,9 @@ public:
   // moved out.  We'd like to do all associative operators, but it's especially
   // important (common) to do address expressions.
   Node *remix_address_expressions( Node *n );
+
+  // Convert add to muladd to generate MuladdS2I under certain criteria
+  Node * convert_add_to_muladd(Node * n);
 
   // Attempt to use a conditional move instead of a phi/branch
   Node *conditional_move( Node *n );
@@ -1309,7 +1317,6 @@ public:
 #ifndef PRODUCT
   void dump( ) const;
   void dump( IdealLoopTree *loop, uint rpo_idx, Node_List &rpo_list ) const;
-  void rpo( Node *start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list ) const;
   void verify() const;          // Major slow  :-)
   void verify_compare( Node *n, const PhaseIdealLoop *loop_verify, VectorSet &visited ) const;
   IdealLoopTree *get_loop_idx(Node* n) const {
@@ -1321,6 +1328,7 @@ public:
   static int _loop_invokes;     // Count of PhaseIdealLoop invokes
   static int _loop_work;        // Sum of PhaseIdealLoop x _unique
 #endif
+  void rpo( Node *start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list ) const;
 };
 
 // This kit may be used for making of a reserved copy of a loop before this loop

@@ -69,7 +69,7 @@
 class II {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [7] { // Constant Pool
     ; // first element is empty
     class #5; // #1     at 0x0A
@@ -104,7 +104,7 @@ class II {
 class NoArrayCovIntf {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [99] { // Constant Pool
     ; // first element is empty
     String #58; // #1     at 0x0A

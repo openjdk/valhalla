@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 // A CALLBACK_FUNC and LOOKUP_FUNC needs to be provided for get and insert.
 
 class Thread;
+class Mutex;
 
 template <typename VALUE, typename CONFIG, MEMFLAGS F>
 class ConcurrentHashTable : public CHeapObj<F> {
@@ -313,8 +314,13 @@ class ConcurrentHashTable : public CHeapObj<F> {
 
   // Insert which handles a number of cases.
   template <typename LOOKUP_FUNC, typename VALUE_FUNC, typename CALLBACK_FUNC>
-  bool internal_insert(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& value_f,
-                       CALLBACK_FUNC& callback, bool* grow_hint = NULL, bool* clean_hint = NULL);
+  bool internal_get_insert(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& value_f,
+                           CALLBACK_FUNC& callback_f, bool* grow_hint = NULL, bool* clean_hint = NULL);
+
+  // Plain insert.
+  template <typename LOOKUP_FUNC>
+  bool internal_insert(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
+                       bool* grow_hint, bool* clean_hint);
 
   // Returns true if an item matching LOOKUP_FUNC is removed.
   // Calls DELETE_FUNC before destroying the node.
@@ -402,7 +408,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
   template <typename LOOKUP_FUNC, typename VALUE_FUNC, typename CALLBACK_FUNC>
   bool get_insert_lazy(Thread* thread, LOOKUP_FUNC& lookup_f, VALUE_FUNC& val_f,
                        CALLBACK_FUNC& callback_f, bool* grow_hint = NULL, bool* clean_hint = NULL) {
-    return !internal_insert(thread, lookup_f, val_f, callback_f, grow_hint, clean_hint);
+    return !internal_get_insert(thread, lookup_f, val_f, callback_f, grow_hint, clean_hint);
   }
 
   // Same without CALLBACK_FUNC.
@@ -442,8 +448,7 @@ class ConcurrentHashTable : public CHeapObj<F> {
   template <typename LOOKUP_FUNC>
   bool insert(Thread* thread, LOOKUP_FUNC& lookup_f, const VALUE& value,
               bool* grow_hint = NULL, bool* clean_hint = NULL) {
-    LazyValueRetrieve vp(value);
-    return internal_insert(thread, lookup_f, vp, noOp, grow_hint, clean_hint);
+    return internal_insert(thread, lookup_f, value, grow_hint, clean_hint);
   }
 
   // This does a fast unsafe insert and can thus only be used when there is no

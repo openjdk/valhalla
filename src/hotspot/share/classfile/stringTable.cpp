@@ -54,13 +54,13 @@
 #include "utilities/macros.hpp"
 
 // We prefer short chains of avg 2
-#define PREF_AVG_LIST_LEN   2
+const double PREF_AVG_LIST_LEN = 2.0;
 // 2^24 is max size
-#define END_SIZE           24
+const size_t END_SIZE = 24;
 // If a chain gets to 32 something might be wrong
-#define REHASH_LEN         32
+const size_t REHASH_LEN = 32;
 // If we have as many dead items as 50% of the number of bucket
-#define CLEAN_DEAD_HIGH_WATER_MARK 0.5
+const double CLEAN_DEAD_HIGH_WATER_MARK = 0.5;
 
 #if INCLUDE_CDS_JAVA_HEAP
 inline oop read_string_from_compact_hashtable(address base_address, u4 offset) {
@@ -206,11 +206,17 @@ StringTable::StringTable() : _local_table(NULL), _current_size(0), _has_work(0),
   _local_table = new StringTableHash(start_size_log_2, END_SIZE, REHASH_LEN);
 }
 
+void StringTable::update_needs_rehash(bool rehash) {
+  if (rehash) {
+    _needs_rehashing = true;
+  }
+}
+
 size_t StringTable::item_added() {
   return Atomic::add((size_t)1, &(the_table()->_items_count));
 }
 
-size_t StringTable::add_items_count_to_clean(size_t ndead) {
+size_t StringTable::add_items_to_clean(size_t ndead) {
   size_t total = Atomic::add((size_t)ndead, &(the_table()->_uncleaned_items_count));
   log_trace(stringtable)(
      "Uncleaned items:" SIZE_FORMAT " added: " SIZE_FORMAT " total:" SIZE_FORMAT,
@@ -222,11 +228,11 @@ void StringTable::item_removed() {
   Atomic::add((size_t)-1, &(the_table()->_items_count));
 }
 
-double StringTable::get_load_factor() {
+double StringTable::get_load_factor() const {
   return (double)_items_count/_current_size;
 }
 
-double StringTable::get_dead_factor() {
+double StringTable::get_dead_factor() const {
   return (double)_uncleaned_items_count/_current_size;
 }
 
@@ -281,9 +287,7 @@ oop StringTable::do_lookup(const jchar* name, int len, uintx hash) {
   StringTableGet stg(thread);
   bool rehash_warning;
   _local_table->get(thread, lookup, stg, &rehash_warning);
-  if (rehash_warning) {
-    _needs_rehashing = true;
-  }
+  update_needs_rehash(rehash_warning);
   return stg.get_res_oop();
 }
 
@@ -334,30 +338,6 @@ oop StringTable::intern(Handle string_or_null_h, const jchar* name, int len, TRA
                                              hash, CHECK_NULL);
 }
 
-class StringTableCreateEntry : public StackObj {
- private:
-   Thread* _thread;
-   Handle  _return;
-   Handle  _store;
- public:
-  StringTableCreateEntry(Thread* thread, Handle store)
-    : _thread(thread), _store(store) {}
-
-  WeakHandle<vm_string_table_data> operator()() { // No dups found
-    WeakHandle<vm_string_table_data> wh =
-      WeakHandle<vm_string_table_data>::create(_store);
-    return wh;
-  }
-  void operator()(bool inserted, WeakHandle<vm_string_table_data>* val) {
-    oop result = val->resolve();
-    assert(result != NULL, "Result should be reachable");
-    _return = Handle(_thread, result);
-  }
-  oop get_return() const {
-    return _return();
-  }
-};
-
 oop StringTable::do_intern(Handle string_or_null_h, const jchar* name,
                            int len, uintx hash, TRAPS) {
   HandleMark hm(THREAD);  // cleanup strings created
@@ -377,15 +357,23 @@ oop StringTable::do_intern(Handle string_or_null_h, const jchar* name,
   assert(java_lang_String::equals(string_h(), name, len),
          "string must be properly initialized");
   assert(len == java_lang_String::length(string_h()), "Must be same length");
+
   StringTableLookupOop lookup(THREAD, hash, string_h);
-  StringTableCreateEntry stc(THREAD, string_h);
+  StringTableGet stg(THREAD);
 
   bool rehash_warning;
-  _local_table->get_insert_lazy(THREAD, lookup, stc, stc, &rehash_warning);
-  if (rehash_warning) {
-    _needs_rehashing = true;
-  }
-  return stc.get_return();
+  do {
+    if (_local_table->get(THREAD, lookup, stg, &rehash_warning)) {
+      update_needs_rehash(rehash_warning);
+      return stg.get_res_oop();
+    }
+    WeakHandle<vm_string_table_data> wh = WeakHandle<vm_string_table_data>::create(string_h);
+    // The hash table takes ownership of the WeakHandle, even if it's not inserted.
+    if (_local_table->insert(THREAD, lookup, wh, &rehash_warning)) {
+      update_needs_rehash(rehash_warning);
+      return wh.resolve();
+    }
+  } while(true);
 }
 
 // GC support
@@ -444,7 +432,7 @@ void StringTable::possibly_parallel_unlink(
   _par_state_string->weak_oops_do(&stiac, &dnc);
 
   // Accumulate the dead strings.
-  the_table()->add_items_count_to_clean(stiac._count);
+  the_table()->add_items_to_clean(stiac._count);
 
   *processed = stiac._count_total;
   *removed = stiac._count;

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,15 @@ if test $? = 0; then
       OUT=$REAL_CPU`echo $OUT | sed -e 's/[^-]*//'`
       ;;
   esac
+fi
+
+# Test and fix wsl
+echo $OUT | grep x86_64-unknown-linux-gnu > /dev/null 2> /dev/null
+if test $? = 0; then
+  uname -r | grep Microsoft > /dev/null 2> /dev/null
+  if test $? = 0; then
+    OUT="x86_64-pc-wsl"
+  fi
 fi
 
 # Test and fix architecture string on AIX

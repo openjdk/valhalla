@@ -48,7 +48,7 @@
 class ValueAbstract {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -204,7 +204,7 @@ class ValueAbstract {
 class ValueEnum {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -360,7 +360,7 @@ class ValueEnum {
 class ValueFieldNotFinal {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -516,7 +516,7 @@ class ValueFieldNotFinal {
 class ValueFlatArray {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [32] { // Constant Pool
     ; // first element is empty
     Method #8 #26; // #1     at 0x0A
@@ -685,7 +685,7 @@ class ValueFlatArray {
 class ValueInitMethod {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -841,7 +841,7 @@ class ValueInitMethod {
 class ValueInterface {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -940,7 +940,7 @@ class ValueInterface {
 class ValueMethodSynch {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [29] { // Constant Pool
     ; // first element is empty
     Method #7 #24; // #1     at 0x0A
@@ -1121,7 +1121,7 @@ class ValueMethodSynch {
 class ValueSuperClass {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [30] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -1312,7 +1312,7 @@ class ValueSuperClass {
 class Circ {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [69] { // Constant Pool
     ; // first element is empty
     Method #13 #39; // #1     at 0x0A
@@ -1647,7 +1647,7 @@ class Circ {
 class Circ2 {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [68] { // Constant Pool
     ; // first element is empty
     Method #12 #38; // #1     at 0x0A
@@ -2018,7 +2018,7 @@ class Circ2 {
 class CircStaticA {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [69] { // Constant Pool
     ; // first element is empty
     Method #13 #39; // #1     at 0x0A
@@ -2353,7 +2353,7 @@ class CircStaticA {
 class CircStaticB {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [69] { // Constant Pool
     ; // first element is empty
     Method #13 #39; // #1     at 0x0A
@@ -2697,7 +2697,7 @@ class CircStaticB {
 class ValueCloneable {
   0xCAFEBABE;
   0; // minor version
-  56; // version
+  57; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #14; // #1     at 0x0A

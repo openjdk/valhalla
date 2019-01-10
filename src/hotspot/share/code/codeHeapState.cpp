@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -38,7 +38,7 @@
 // Aggregation condenses the information of a piece of the CodeHeap
 // (4096 bytes by default) into an analysis granule. These granules
 // contain enough detail to gain initial insight while keeping the
-// internal sttructure sizes in check.
+// internal structure sizes in check.
 //
 // The CodeHeap is a living thing. Therefore, the aggregate is collected
 // under the CodeCache_lock. The subsequent print steps are only locked
@@ -63,15 +63,12 @@
 //
 // If you are (only) interested in how the CodeHeap looks like after running
 // a sample workload, you can use the command line option
-//   -Xlog:codecache=Trace
+//   -XX:+PrintCodeHeapAnalytics
+// It will cause a full analysis to be written to tty. In addition, a full
+// analysis will be written the first time a "CodeCache full" condition is
+// detected.
 //
-// To see the CodeHeap state in case of a "CodeCache full" condition, start the
-// VM with the
-//   -Xlog:codecache=Debug
-// command line option. It will produce output only for the first time the
-// condition is recognized.
-//
-// Both command line option variants produce output identical to the jcmd function
+// The command line option produces output identical to the jcmd function
 //   jcmd <pid> Compiler.CodeHeap_Analytics all 4096
 // ---------------------------------------------------------------------------------
 
@@ -1979,7 +1976,7 @@ void CodeHeapState::print_age(outputStream* out, CodeHeap* heap) {
     ast->print_cr("  The age of a compiled method in the CodeHeap is not available as a\n"
                   "  time stamp. Instead, a relative age is deducted from the method's compilation ID.\n"
                   "  Age information is available for tier1 and tier2 methods only. There is no\n"
-                  "  age information for stubs and blobs, because they have no compilation ID assigned.\n"
+                  "  age information for stubs and blobs, because they have no compilation ID assigned.\n"
                   "  Information for the youngest method (highest ID) in the granule is printed.\n"
                   "  Refer to the legend to learn how method age is mapped to the displayed digit.");
     print_age_legend(ast);

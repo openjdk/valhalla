@@ -46,7 +46,7 @@
 #include "runtime/os.hpp"
 #include "runtime/sweeper.hpp"
 #include "runtime/thread.inline.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/events.hpp"
 #include "utilities/xmlstream.hpp"
@@ -149,7 +149,7 @@ long     NMethodSweeper::_time_counter                 = 0;    // Virtual time u
 long     NMethodSweeper::_last_sweep                   = 0;    // Value of _time_counter when the last sweep happened
 int      NMethodSweeper::_seen                         = 0;    // Nof. nmethod we have currently processed in current pass of CodeCache
 
-volatile bool NMethodSweeper::_should_sweep            = true; // Indicates if we should invoke the sweeper
+volatile bool NMethodSweeper::_should_sweep            = false;// Indicates if we should invoke the sweeper
 volatile bool NMethodSweeper::_force_sweep             = false;// Indicates if we should force a sweep
 volatile int  NMethodSweeper::_bytes_changed           = 0;    // Counts the total nmethod size if the nmethod changed from:
                                                                //   1) alive       -> not_entrant
@@ -699,7 +699,6 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
     // But still remember to clean-up inline caches for alive nmethods
     if (cm->is_alive() && !cm->is_unloading()) {
       // Clean inline caches that point to zombie/non-entrant/unloaded nmethods
-      CompiledICLocker ml(cm);
       cm->cleanup_inline_caches(false);
       SWEEP(cm);
     }
@@ -718,12 +717,6 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
     // stack we can safely convert it to a zombie method
     OrderAccess::loadload(); // _stack_traversal_mark and _state
     if (cm->can_convert_to_zombie()) {
-      // Clear ICStubs to prevent back patching stubs of zombie or flushed
-      // nmethods during the next safepoint (see ICStub::finalize).
-      {
-        CompiledICLocker ml(cm);
-        cm->clear_ic_stubs();
-      }
       // Code cache state change is tracked in make_zombie()
       cm->make_zombie();
       SWEEP(cm);
@@ -745,19 +738,16 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
       }
     } else {
       // Still alive, clean up its inline caches
-      CompiledICLocker ml(cm);
       cm->cleanup_inline_caches(false);
       SWEEP(cm);
     }
   } else if (cm->is_unloaded()) {
     // Code is unloaded, so there are no activations on the stack.
     // Convert the nmethod to zombie or flush it directly in the OSR case.
-    {
-      // Clean ICs of unloaded nmethods as well because they may reference other
-      // unloaded nmethods that may be flushed earlier in the sweeper cycle.
-      CompiledICLocker ml(cm);
-      cm->cleanup_inline_caches(false);
-    }
+
+    // Clean ICs of unloaded nmethods as well because they may reference other
+    // unloaded nmethods that may be flushed earlier in the sweeper cycle.
+    cm->cleanup_inline_caches(false);
     if (cm->is_osr_method()) {
       SWEEP(cm);
       // No inline caches will ever point to osr methods, so we can just remove it
@@ -776,7 +766,6 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
       possibly_flush((nmethod*)cm);
     }
     // Clean inline caches that point to zombie/non-entrant/unloaded nmethods
-    CompiledICLocker ml(cm);
     cm->cleanup_inline_caches(false);
     SWEEP(cm);
   }

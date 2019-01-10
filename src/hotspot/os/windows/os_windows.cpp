@@ -1563,7 +1563,7 @@ int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
 static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
-  assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
+  assert(ret == 0, "failed to stat() file '%s': %s", filename, os::strerror(errno));
   return st.st_mtime;
 }
 
@@ -3510,6 +3510,43 @@ int os::sleep(Thread* thread, jlong ms, bool interruptable) {
 void os::naked_short_sleep(jlong ms) {
   assert(ms < 1000, "Un-interruptable sleep, short time use only");
   Sleep(ms);
+}
+
+void os::naked_short_nanosleep(jlong ns) {
+  assert(ns > -1 && ns < NANOUNITS, "Un-interruptable sleep, short time use only");
+  LARGE_INTEGER hundreds_nanos = { 0 };
+  HANDLE wait_timer = ::CreateWaitableTimer(NULL /* attributes*/,
+                                            true /* manual reset */,
+                                            NULL /* name */ );
+  if (wait_timer == NULL) {
+    log_warning(os)("Failed to CreateWaitableTimer: %u", GetLastError());
+    return;
+  }
+
+  // We need a minimum of one hundred nanos.
+  ns = ns > 100 ? ns : 100;
+
+  // Round ns to the nearst hundred of nanos.
+  // Negative values indicate relative time.
+  hundreds_nanos.QuadPart = -((ns + 50) / 100);
+
+  if (::SetWaitableTimer(wait_timer /* handle */,
+                         &hundreds_nanos /* due time */,
+                         0 /* period */,
+                         NULL /* comp func */,
+                         NULL /* comp func args */,
+                         FALSE /* resume */)) {
+    DWORD res = ::WaitForSingleObject(wait_timer /* handle */, INFINITE /* timeout */);
+    if (res != WAIT_OBJECT_0) {
+      if (res == WAIT_FAILED) {
+        log_warning(os)("Failed to WaitForSingleObject: %u", GetLastError());
+      } else {
+        log_warning(os)("Unexpected return from WaitForSingleObject: %s",
+                        res == WAIT_ABANDONED ? "WAIT_ABANDONED" : "WAIT_TIMEOUT");
+      }
+    }
+  }
+  ::CloseHandle(wait_timer /* handle */);
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION

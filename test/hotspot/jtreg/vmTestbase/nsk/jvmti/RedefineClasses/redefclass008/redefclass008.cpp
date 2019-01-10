@@ -45,11 +45,11 @@ typedef struct {
 
 /* list of breakpoints */
 static breakpoint breakpoints[] = {
-    {1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 0, NULL},
-    {1, (char*) "finMethod", (char*) "(JIJ)V", 5, NULL},
-    {1, (char*) "finMethod", (char*) "(JIJ)V", 4, NULL},
-    {1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 1, NULL},
-    {0, (char*) "statMethod", (char*) "(III)I", 1, NULL}
+    { 1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 0, NULL },
+    { 1, (char*) "finMethod", (char*) "(JIJ)V", 5, NULL },
+    { 1, (char*) "finMethod", (char*) "(JIJ)V", 4, NULL },
+    { 1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 1, NULL },
+    { 0, (char*) "statMethod", (char*) "(III)I", 1, NULL }
 };
 
 static jclass redefCls; /* JNI's Java class object */
@@ -163,7 +163,7 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_setBreakpoints(JNIEnv *env,
                 ">>>>>>>> #%d Invoke SetBreakpoint():\n"
                 "\tbreakpoint in the %s method: name=\"%s\"; "
                 "signature=\"%s\"; location=%d\n",
-                i, breakpoints[i].inst?"instance":"static",
+                i, breakpoints[i].inst ? "instance" : "static",
                 breakpoints[i].m_name, breakpoints[i].m_sign, breakpoints[i].loc);
         }
 
@@ -268,7 +268,7 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_getResult(JNIEnv *env,
                 "TEST FAILED: Breakpoint #%d in the %s method:\n"
                 "\tname=\"%s\"; signature=\"%s\"; location=%d was not cleared:\n"
                 "\tClearBreakpoint() returned the error %d: %s\n\n",
-                i, breakpoints[i].inst?"instance":"static",
+                i, breakpoints[i].inst ? "instance" : "static",
                 breakpoints[i].m_name, breakpoints[i].m_sign,
                 breakpoints[i].loc, err, TranslateError(err));
             totRes = STATUS_FAILED;
@@ -278,7 +278,7 @@ Java_nsk_jvmti_RedefineClasses_redefclass008_getResult(JNIEnv *env,
                     "Check #%d PASSED: Breakpoint in the %s method:\n"
                     "\tname=\"%s\"; signature=\"%s\"; location=%d was cleared:\n"
                     "\tClearBreakpoint() returned the error %d: %s\n\n",
-                    i, breakpoints[i].inst?"instance":"static",
+                    i, breakpoints[i].inst ? "instance" : "static",
                     breakpoints[i].m_name, breakpoints[i].m_sign,
                     breakpoints[i].loc, err, TranslateError(err));
             }

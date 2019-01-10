@@ -26,6 +26,7 @@
 package com.sun.tools.javac.comp;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 import javax.tools.JavaFileManager;
 
@@ -1952,7 +1953,7 @@ public class Check {
         if (!isDeprecatedOverrideIgnorable(other, origin)) {
             Lint prevLint = setLint(lint.augment(m));
             try {
-                checkDeprecated(TreeInfo.diagnosticPositionFor(m, tree), m, other);
+                checkDeprecated(() -> TreeInfo.diagnosticPositionFor(m, tree), m, other);
             } finally {
                 setLint(prevLint);
             }
@@ -2944,7 +2945,7 @@ public class Check {
         class AnnotationValidator extends TreeScanner {
             @Override
             public void visitAnnotation(JCAnnotation tree) {
-                if (!tree.type.isErroneous()) {
+                if (!tree.type.isErroneous() && tree.type.tsym.isAnnotationType()) {
                     super.visitAnnotation(tree);
                     validateAnnotation(tree);
                 }
@@ -3461,10 +3462,14 @@ public class Check {
     }
 
     void checkDeprecated(final DiagnosticPosition pos, final Symbol other, final Symbol s) {
+        checkDeprecated(() -> pos, other, s);
+    }
+
+    void checkDeprecated(Supplier<DiagnosticPosition> pos, final Symbol other, final Symbol s) {
         if ( (s.isDeprecatedForRemoval()
                 || s.isDeprecated() && !other.isDeprecated())
                 && (s.outermostClass() != other.outermostClass() || s.outermostClass() == null)) {
-            deferredLintHandler.report(() -> warnDeprecated(pos, s));
+            deferredLintHandler.report(() -> warnDeprecated(pos.get(), s));
         }
     }
 

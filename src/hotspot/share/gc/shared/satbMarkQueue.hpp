@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "memory/allocation.hpp"
 
 class JavaThread;
+class Monitor;
 class SATBMarkQueueSet;
 
 // Base class for processing the contents of a SATB buffer.
@@ -110,7 +111,7 @@ protected:
 
   void initialize(Monitor* cbl_mon,
                   BufferNode::Allocator* allocator,
-                  int process_completed_threshold,
+                  size_t process_completed_buffers_threshold,
                   uint buffer_enqueue_threshold_percentage,
                   Mutex* lock);
 

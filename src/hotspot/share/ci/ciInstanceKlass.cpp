@@ -59,7 +59,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   AccessFlags access_flags = ik->access_flags();
   _flags = ciFlags(access_flags);
   _has_finalizer = access_flags.has_finalizer();
-  _has_subklass = ik->subklass() != NULL;
+  _has_subklass = flags().is_final() ? subklass_false : subklass_unknown;
   _init_state = ik->init_state();
   _nonstatic_field_size = ik->nonstatic_field_size();
   _has_nonstatic_fields = ik->has_nonstatic_fields();
@@ -75,7 +75,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   // by the GC but need to be strong roots if reachable from a current compilation.
   // InstanceKlass are created for both weak and strong metadata.  Ensuring this metadata
   // alive covers the cases where there are weak roots without performance cost.
-  oop holder = ik->holder_phantom();
+  oop holder = ik->klass_holder();
   if (ik->is_unsafe_anonymous()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
     // VM unsafe anonymous classes alive (loader == NULL). Klass holder should
@@ -152,8 +152,8 @@ void ciInstanceKlass::compute_shared_init_state() {
 bool ciInstanceKlass::compute_shared_has_subklass() {
   GUARDED_VM_ENTRY(
     InstanceKlass* ik = get_instanceKlass();
-    _has_subklass = ik->subklass() != NULL;
-    return _has_subklass;
+    _has_subklass = ik->subklass() != NULL ? subklass_true : subklass_false;
+    return _has_subklass == subklass_true;
   )
 }
 
@@ -605,7 +605,7 @@ bool ciInstanceKlass::is_leaf_type() {
   if (is_shared()) {
     return is_final();  // approximately correct
   } else {
-    return !_has_subklass && (nof_implementors() == 0);
+    return !has_subklass() && (nof_implementors() == 0);
   }
 }
 
@@ -807,3 +807,27 @@ void ciInstanceKlass::dump_replay_data(outputStream* out) {
     ik->do_local_static_fields(&sffp);
   }
 }
+
+#ifdef ASSERT
+bool ciInstanceKlass::debug_final_field_at(int offset) {
+  GUARDED_VM_ENTRY(
+    InstanceKlass* ik = get_instanceKlass();
+    fieldDescriptor fd;
+    if (ik->find_field_from_offset(offset, false, &fd)) {
+      return fd.is_final();
+    }
+  );
+  return false;
+}
+
+bool ciInstanceKlass::debug_stable_field_at(int offset) {
+  GUARDED_VM_ENTRY(
+    InstanceKlass* ik = get_instanceKlass();
+    fieldDescriptor fd;
+    if (ik->find_field_from_offset(offset, false, &fd)) {
+      return fd.is_stable();
+    }
+  );
+  return false;
+}
+#endif

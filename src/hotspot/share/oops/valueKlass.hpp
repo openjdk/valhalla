@@ -69,7 +69,7 @@ class ValueKlass: public InstanceKlass {
       return (ValueKlassFixedBlock*)(adr_host + 1);
     }
 
-    Klass** adr_impl = adr_implementor();
+    Klass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
       return (ValueKlassFixedBlock*)(adr_impl + 1);
     }

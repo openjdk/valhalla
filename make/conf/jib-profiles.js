@@ -243,11 +243,12 @@ var getJibProfilesCommon = function (input, data) {
 
     // These are the base setttings for all the main build profiles.
     common.main_profile_base = {
-        dependencies: ["boot_jdk", "gnumake", "jtreg", "jib", "autoconf", "jmh"],
+        dependencies: ["boot_jdk", "gnumake", "jtreg", "jib", "autoconf", "jmh", "jcov"],
         default_make_targets: ["product-bundles", "test-bundles"],
         configure_args: concat(["--enable-jtreg-failure-handler"],
             "--with-exclude-translations=de,es,fr,it,ko,pt_BR,sv,ca,tr,cs,sk,ja_JP_A,ja_JP_HA,ja_JP_HI,ja_JP_I,zh_TW,zh_HK",
             "--disable-manpages",
+            "--with-jvm-features=-shenandoahgc",
             versionArgs(input, common))
     };
     // Extra settings for debug profiles
@@ -401,7 +402,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "macosx-x64": {
             target_os: "macosx",
             target_cpu: "x64",
-            dependencies: ["devkit", "graalunit_lib"],
+            dependencies: ["devkit", "pandoc", "graalunit_lib"],
             configure_args: concat(common.configure_args_64bit, "--with-zlib=system",
                 "--with-macosx-version-max=10.9.0"),
         },
@@ -425,7 +426,7 @@ var getJibProfilesProfiles = function (input, common, data) {
         "windows-x64": {
             target_os: "windows",
             target_cpu: "x64",
-            dependencies: ["devkit", "graalunit_lib"],
+            dependencies: ["devkit", "pandoc", "graalunit_lib"],
             configure_args: concat(common.configure_args_64bit),
         },
 
@@ -688,14 +689,6 @@ var getJibProfilesProfiles = function (input, common, data) {
                        profiles[openName].artifacts["jdk"].remote));
     });
 
-    // Enable ZGC in linux-x64-open builds
-    [ "linux-x64-open" ].forEach(function (name) {
-        var configureArgs = { configure_args: [ "--with-jvm-features=zgc" ] };
-        var debugName = name + common.debug_suffix;
-        profiles[name] = concatObjects(profiles[name], configureArgs);
-        profiles[debugName] = concatObjects(profiles[debugName], configureArgs);
-    });
-
     // Generate cmp-baseline profiles for each main profile and their
     // corresponding debug profile. This profile does a compare build run with no
     // changes to verify that the compare script has a clean baseline
@@ -898,6 +891,14 @@ var getJibProfilesDependencies = function (input, common) {
             revision: "1.21+1.0"
         },
 
+        jcov: {
+            server: "jpg",
+            product: "jcov",
+            version: "3.0",
+            build_number: "b07",
+            file: "bundles/jcov-3_0.zip",
+        },
+
         gnumake: {
             organization: common.organization,
             ext: "tar.gz",
@@ -939,7 +940,7 @@ var getJibProfilesDependencies = function (input, common) {
         pandoc: {
             organization: common.organization,
             ext: "tar.gz",
-            revision: "1.17.2+1.0",
+            revision: "2.3.1+1.0",
             module: "pandoc-" + input.target_platform,
             configure_args: "PANDOC=" + input.get("pandoc", "install_path") + "/pandoc/pandoc",
             environment_path: input.get("pandoc", "install_path") + "/pandoc"

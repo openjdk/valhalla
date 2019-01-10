@@ -541,7 +541,11 @@ query_multipage_support_end:
 
 void os::init_system_properties_values() {
 
-#define DEFAULT_LIBPATH "/lib:/usr/lib"
+#ifndef OVERRIDE_LIBPATH
+  #define DEFAULT_LIBPATH "/lib:/usr/lib"
+#else
+  #define DEFAULT_LIBPATH OVERRIDE_LIBPATH
+#endif
 #define EXTENSIONS_DIR  "/lib/ext"
 
   // Buffer that fits several sprintfs.
@@ -2598,23 +2602,6 @@ size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
   return ::pread(fd, buf, nBytes, offset);
 }
 
-void os::naked_short_sleep(jlong ms) {
-  struct timespec req;
-
-  assert(ms < 1000, "Un-interruptable sleep, short time use only");
-  req.tv_sec = 0;
-  if (ms > 0) {
-    req.tv_nsec = (ms % 1000) * 1000000;
-  }
-  else {
-    req.tv_nsec = 1;
-  }
-
-  nanosleep(&req, NULL);
-
-  return;
-}
-
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
 void os::infinite_sleep() {
   while (true) {    // sleep forever ...
@@ -4355,7 +4342,7 @@ bool os::start_debugging(char *buf, int buflen) {
 static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
-  assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
+  assert(ret == 0, "failed to stat() file '%s': %s", filename, os::strerror(errno));
   return st.st_mtime;
 }
 
