@@ -108,8 +108,9 @@ public final class ValueBootstrapMethods {
 
         static MethodHandle[] getters(Lookup lookup, Comparator<MethodHandle> comparator) {
             Class<?> type = lookup.lookupClass().asValueType();
+            // filter static fields and synthetic fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
-                .filter(f -> !Modifier.isStatic(f.getModifiers()))
+                .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
                 .map(f -> {
                     try {
                         return lookup.unreflectGetter(f);
@@ -174,18 +175,25 @@ public final class ValueBootstrapMethods {
         static MethodHandle valueEquals(Class<?> c) {
             assert c.isValue();
             Class<?> type = c.asValueType();
+            MethodType mt = methodType(boolean.class, type, type);
             MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
             MethodHandle[] getters = getters(lookup, TYPE_SORTER);
-
-            MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class)
-                .asType(methodType(boolean.class, type, type));
+            MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class).asType(mt);
             MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
             for (MethodHandle getter : getters) {
-                MethodHandle eq = substitutableInvoker(getter.type().returnType());
+                Class<?> ftype = getter.type().returnType();
+                MethodHandle eq = substitutableInvoker(ftype).asType(methodType(boolean.class, ftype, ftype));
                 MethodHandle thisFieldEqual = filterArguments(eq, 0, getter, getter);
                 accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
             }
-            return accumulator;
+            // if both arguments are null, return true;
+            // otherwise return accumulator;
+            MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
+            return guardWithTest(IS_NULL.asType(mt),
+                                 instanceTrue.asType(mt),
+                                 guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
+                                               accumulator,
+                                               instanceFalse));
         }
 
         // ------ utility methods ------
@@ -199,16 +207,23 @@ public final class ValueBootstrapMethods {
         private static boolean eq(boolean a, boolean b) { return a == b; }
         private static boolean eq(Object a, Object b)   { return a == b; }
 
+        private static boolean isNull(Object a, Object b) {
+            // avoid acmp that will call isSubstitutable
+            if (a != null) return false;
+            if (b != null) return false;
+            return true;
+        }
+
         private static boolean isSameValueClass(Object a, Object b) {
-            return (a != null && b != null
-                    && a.getClass().isValue()
-                    && a.getClass().asBoxType() == b.getClass().asBoxType());
+            if (a == null || b == null)
+                return false;
+            return a.getClass().isValue() && a.getClass().asBoxType() == b.getClass().asBoxType();
         }
 
         private static boolean valueEq(Object a, Object b) {
             assert isSameValueClass(a, b);
             try {
-                Class<?> type = a.getClass().asValueType();
+                Class<?> type = a.getClass();
                 return (boolean) valueEquals(type).invoke(type.cast(a), type.cast(b));
             } catch (Throwable e) {
                 throw new InternalError(e);
@@ -254,6 +269,8 @@ public final class ValueBootstrapMethods {
             findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle VALUE_EQUALS =
              findStatic("valueEq", methodType(boolean.class, Object.class, Object.class));
+        static final MethodHandle IS_NULL =
+            findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle TO_STRING =
             findStatic("toString", methodType(String.class, Object.class));
         static final MethodHandle OBJECTS_EQUALS =
@@ -542,7 +559,7 @@ public final class ValueBootstrapMethods {
             return MethodHandleBuilder.interfaceEquals(type);
 
         if (type.isValue())
-            return SUBST_TEST_METHOD_HANDLES.get(type.asValueType());
+            return SUBST_TEST_METHOD_HANDLES.get(type);
 
         return MethodHandleBuilder.referenceEquals(type);
     }
