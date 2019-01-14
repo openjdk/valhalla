@@ -1027,7 +1027,7 @@ void ShenandoahBarrierNode::verify(RootNode* root) {
 
       if (call->is_call_to_arraycopystub()) {
         Node* dest = NULL;
-        const TypeTuple* args = n->as_Call()->_tf->domain();
+        const TypeTuple* args = n->as_Call()->_tf->domain_sig();
         for (uint i = TypeFunc::Parms, j = 0; i < args->cnt(); i++) {
           if (args->field_at(i)->isa_ptr()) {
             j++;
@@ -1153,7 +1153,7 @@ void ShenandoahBarrierNode::verify(RootNode* root) {
           break;
         }
       }
-      uint stop = n->is_Call() ? n->as_Call()->tf()->domain()->cnt() : n->req();
+      uint stop = n->is_Call() ? n->as_Call()->tf()->domain_sig()->cnt() : n->req();
       if (i != others_len) {
         const uint inputs_len = sizeof(others[0].inputs) / sizeof(others[0].inputs[0]);
         for (uint j = 0; j < inputs_len; j++) {
@@ -2310,18 +2310,17 @@ Node* ShenandoahWriteBarrierNode::find_bottom_mem(Node* ctrl, PhaseIdealLoop* ph
       }
     } else {
       if (c->is_Call() && c->as_Call()->adr_type() != NULL) {
-        CallProjections projs;
-        c->as_Call()->extract_projections(&projs, true, false);
-        if (projs.fallthrough_memproj != NULL) {
-          if (projs.fallthrough_memproj->adr_type() == TypePtr::BOTTOM) {
-            if (projs.catchall_memproj == NULL) {
-              mem = projs.fallthrough_memproj;
+        CallProjections* projs = c->as_Call()->extract_projections(true, false);
+        if (projs->fallthrough_memproj != NULL) {
+          if (projs->fallthrough_memproj->adr_type() == TypePtr::BOTTOM) {
+            if (projs->catchall_memproj == NULL) {
+              mem = projs->fallthrough_memproj;
             } else {
-              if (phase->is_dominator(projs.fallthrough_catchproj, ctrl)) {
-                mem = projs.fallthrough_memproj;
+              if (phase->is_dominator(projs->fallthrough_catchproj, ctrl)) {
+                mem = projs->fallthrough_memproj;
               } else {
-                assert(phase->is_dominator(projs.catchall_catchproj, ctrl), "one proj must dominate barrier");
-                mem = projs.catchall_memproj;
+                assert(phase->is_dominator(projs->catchall_catchproj, ctrl), "one proj must dominate barrier");
+                mem = projs->catchall_memproj;
               }
             }
           }
@@ -3742,14 +3741,13 @@ Node* MemoryGraphFixer::get_ctrl(Node* n) const {
   if (n->is_Proj() && n->in(0) != NULL && n->in(0)->is_Call()) {
     assert(c == n->in(0), "");
     CallNode* call = c->as_Call();
-    CallProjections projs;
-    call->extract_projections(&projs, true, false);
-    if (projs.catchall_memproj != NULL) {
-      if (projs.fallthrough_memproj == n) {
-        c = projs.fallthrough_catchproj;
+    CallProjections* projs = call->extract_projections(true, false);
+    if (projs->catchall_memproj != NULL) {
+      if (projs->fallthrough_memproj == n) {
+        c = projs->fallthrough_catchproj;
       } else {
-        assert(projs.catchall_memproj == n, "");
-        c = projs.catchall_catchproj;
+        assert(projs->catchall_memproj == n, "");
+        c = projs->catchall_catchproj;
       }
     }
   }

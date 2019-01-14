@@ -1162,7 +1162,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
 
 Node* ShenandoahBarrierSetC2::ideal_node(PhaseGVN* phase, Node* n, bool can_reshape) const {
   if (is_shenandoah_wb_pre_call(n)) {
-    uint cnt = ShenandoahBarrierSetC2::write_ref_field_pre_entry_Type()->domain()->cnt();
+    uint cnt = ShenandoahBarrierSetC2::write_ref_field_pre_entry_Type()->domain_sig()->cnt();
     if (n->req() > cnt) {
       Node* addp = n->in(cnt);
       if (has_only_shenandoah_wb_pre_uses(addp)) {
@@ -1286,9 +1286,9 @@ bool ShenandoahBarrierSetC2::flatten_gc_alias_type(const TypePtr*& adr_type) con
   int offset = adr_type->offset();
   if (offset == ShenandoahBrooksPointer::byte_offset()) {
     if (adr_type->isa_aryptr()) {
-      adr_type = TypeAryPtr::make(adr_type->ptr(), adr_type->isa_aryptr()->ary(), adr_type->isa_aryptr()->klass(), false, offset);
+      adr_type = TypeAryPtr::make(adr_type->ptr(), adr_type->isa_aryptr()->ary(), adr_type->isa_aryptr()->klass(), false, Type::Offset(offset));
     } else if (adr_type->isa_instptr()) {
-      adr_type = TypeInstPtr::make(adr_type->ptr(), ciEnv::current()->Object_klass(), false, NULL, offset);
+      adr_type = TypeInstPtr::make(adr_type->ptr(), ciEnv::current()->Object_klass(), false, NULL, Type::Offset(offset));
     }
     return true;
   } else {
@@ -1303,7 +1303,7 @@ bool ShenandoahBarrierSetC2::final_graph_reshaping(Compile* compile, Node* n, ui
       assert (n->is_Call(), "");
       CallNode *call = n->as_Call();
       if (ShenandoahBarrierSetC2::is_shenandoah_wb_pre_call(call)) {
-        uint cnt = ShenandoahBarrierSetC2::write_ref_field_pre_entry_Type()->domain()->cnt();
+        uint cnt = ShenandoahBarrierSetC2::write_ref_field_pre_entry_Type()->domain_sig()->cnt();
         if (call->req() > cnt) {
           assert(call->req() == cnt + 1, "only one extra input");
           Node *addp = call->in(cnt);
