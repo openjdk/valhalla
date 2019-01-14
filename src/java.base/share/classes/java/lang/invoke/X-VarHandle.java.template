@@ -118,10 +118,10 @@ final class VarHandle$Type$s {
 #if[Object]
         final boolean needsNullCheck;
 #end[Object]
-        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean canBeNull}) {
+        FieldInstanceReadWrite(Class<?> receiverType, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean notNullable}) {
             super(receiverType, fieldOffset{#if[Object]?, fieldType}, FieldInstanceReadWrite.FORM);
 #if[Object]
-            this.needsNullCheck = !canBeNull;
+            this.needsNullCheck = notNullable;
 #end[Object]
         }
 
@@ -425,10 +425,10 @@ final class VarHandle$Type$s {
 #if[Object]
         final boolean needsNullCheck;
 #end[Object]
-        FieldStaticReadWrite(Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean canBeNull}) {
+        FieldStaticReadWrite(Object base, long fieldOffset{#if[Object]?, Class<?> fieldType, boolean notNullable}) {
             super(base, fieldOffset{#if[Object]?, fieldType}, FieldStaticReadWrite.FORM);
 #if[Object]
-            this.needsNullCheck = !canBeNull;
+            this.needsNullCheck = notNullable;
 #end[Object]
         }
 

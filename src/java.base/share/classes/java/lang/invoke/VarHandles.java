@@ -43,7 +43,7 @@ final class VarHandles {
                 } else {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type)
-                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.canBeNull());
+                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isValue());
                 }
             }
             else if (type == boolean.class) {
@@ -106,7 +106,7 @@ final class VarHandles {
                 assert(!f.isFlattened());   // static field is not flattened
                 return f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldStaticReadOnly(base, foffset, type)
-                       : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.canBeNull());
+                       : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.isValue());
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields

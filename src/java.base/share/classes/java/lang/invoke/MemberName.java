@@ -473,11 +473,11 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     /** Query whether this member is a flattened field */
     public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
-    /** Query whether this member can be assigned to null. */
-    public boolean canBeNull()  {
+    /** Query whether this member is a field of normal value type. */
+    public boolean isValue()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type == type.asBoxType();
+            return type == type.asValueType();
         }
         return false;
     }
