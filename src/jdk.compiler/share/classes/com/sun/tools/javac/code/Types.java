@@ -1059,6 +1059,8 @@ public class Types {
             if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
                 if (((ArrayType)t).elemtype.isPrimitive()) {
                     return isSameType(elemtype(t), elemtype(s));
+                } else if (isValue(((ArrayType)t).elemtype) || isValue(((ArrayType)s).elemtype)) {
+                    return isSameType(elemtype(t), elemtype(s));
                 } else {
                     return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
                 }
@@ -1849,6 +1851,8 @@ public class Types {
                 case ARRAY:
                     if (elemtype(t).isPrimitive() || elemtype(s).isPrimitive()) {
                         return elemtype(t).hasTag(elemtype(s).getTag());
+                    } else if (isValue(t.elemtype) || isValue(((ArrayType)s).elemtype)) {
+                        return isSameType(elemtype(t), elemtype(s));
                     } else {
                         return visit(elemtype(t), elemtype(s));
                     }
