@@ -32,7 +32,7 @@
 public class CheckSeparateCompile {
 	public static void main(String[] args) {
 		String s = new CheckSeparateCompile0().new O().new M().new I().foo();
-        if (!s.equals("[CheckSeparateCompile0$O$M$I i=0 this$2=o = 456 m = 789 x = 123]"))
+        if (!s.equals("[CheckSeparateCompile0$O$M$I i=0]"))
             throw new AssertionError(s);
 	}
 }

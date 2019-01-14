@@ -27,10 +27,14 @@
  * @summary test Object methods on value types
  * @compile -XDallowWithFieldOperator ObjectMethods.java
  * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
  */
 
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -38,6 +42,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class ObjectMethods {
+    static final int SALT = 1;
     static final Point P1 = Point.makePoint(1, 2);
     static final Point P2 = Point.makePoint(30, 40);
     static final Line LINE1 = Line.makeLine(1, 2, 3, 4);
@@ -77,6 +82,10 @@ public class ObjectMethods {
             { MUTABLE_PATH, MutablePath.makePath(10, 20, 30, 40), false},
             { MIXED_VALUES, MIXED_VALUES, true},
             { MIXED_VALUES, new MixedValues(P1, LINE1, MUTABLE_PATH, "value"), false},
+            // uninitialized default value
+            { MyValue1.default, MyValue1.default, true},
+            { MyValue1.default, MyValue1.make(0,0, null), true},
+            { MyValue1.make(10, 20, P1), MyValue1.make(10, 20, Point.makePoint(1,2)), true},
         };
     }
 
@@ -104,13 +113,17 @@ public class ObjectMethods {
                 .setReference(List.of("ref"))
                 .setNumber(new Value.IntNumber(99)).build(),
               "[Value char_v=\u0000 byte_v=0 boolean_v=false int_v=0 short_v=0 long_v=0 double_v=0.0 " +
-              "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] ref_v=[ref]]" }
+              "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] ref_v=[ref]]" },
+            // enclosing instance field `this$0` should be filtered
+            { MyValue1.default, "[ObjectMethods$MyValue1 p=[Point x=0 y=0] box=null]" },
+            { MyValue1.make(0,0, null), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] box=null]" },
+            { MyValue1.make(0,0, P1), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] box=[Point x=1 y=2]]" },
         };
     }
 
     @Test(dataProvider="toStringTests")
     public void testToString(Object o, String s) {
-        assertTrue(o.toString().equals(s));
+        assertTrue(o.toString().equals(s), o.toString());
     }
 
     @DataProvider(name="hashcodeTests")
@@ -126,25 +139,55 @@ public class ObjectMethods {
                            .setPoint(Point.makePoint(200, 200))
                            .setNumber(Value.Number.intValue(10))
                            .setReference(new Object()).build();
-
+        // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return new Object[][]{
-            { P1,           hash(Point.class.asValueType(), 100, 200) },
-            { LINE1,        hash(Line.class.asValueType(), 1, 2, 3, 4) },
-            { v, hash(Value.class.asValueType(), v.char_v, v.boolean_v, v.byte_v, v.short_v,
-                      v.long_v, v.float_v, v.double_v, v.int_v, v.point_v, v.number_v, v.ref_v) }
+            { P1,                   hash(Point.class.asValueType(), 1, 2) },
+            { LINE1,                hash(Line.class.asValueType(), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
+            { v,                    hash(hashCodeComponents(v))},
+            { Point.makePoint(0,0), hash(Point.class.asValueType(), 0, 0) },
+            { Point.default,        hash(Point.class.asValueType(), 0, 0) },
+            { MyValue1.default,     hash(MyValue1.class.asValueType(), Point.default, null) },
+            { MyValue1.make(0,0, null), hash(MyValue1.class.asValueType(), Point.makePoint(0,0), null) },
         };
     }
 
     @Test(dataProvider="hashcodeTests")
     public void testHashCode(Object o, int hash) {
-        assertTrue(o.hashCode() != hash);
+        assertEquals(o.hashCode(), hash);
+    }
+
+    private static Object[] hashCodeComponents(Object o) {
+        Class<?> type = o.getClass().asValueType();
+        // filter static fields and synthetic fields
+        Stream<Object> fields = Arrays.stream(type.getDeclaredFields())
+            .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
+            .map(f -> {
+                try {
+                    return f.get(o);
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
     }
 
     private static int hash(Object... values) {
-        int hc = 1;
+        int hc = SALT;
         for (Object o : values) {
-            hc = 31 * hc + o.hashCode();
+            hc = 31 * hc + (o != null ? o.hashCode() : 0);
         }
         return hc;
+    }
+
+    static value class MyValue1 {
+        Point p = Point.default;
+        Point.box box = Point.default;
+
+        static MyValue1 make(int x, int y, Point.box box) {
+            MyValue1 v = MyValue1.default;
+            v = __WithField(v.p, Point.makePoint(x, y));
+            v = __WithField(v.box, box);
+            return v;
+        }
     }
 }

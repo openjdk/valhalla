@@ -261,6 +261,38 @@ public final class Unsafe {
     public native <V> void putValue(Object o, long offset, Class<?> vc, V v);
 
     /**
+     * Fetches a reference value of type {@code vc} from a given Java variable.
+     * This method can return a reference to a value or a null reference
+     * for a boxed value type.
+     *
+     * @param vc value class
+     */
+    public Object getReference(Object o, long offset, Class<?> vc) {
+        Object ref = getReference(o, offset);
+        if (ref == null && isValueType(vc)) {
+            // If the type of the returned reference is a normal value type
+            // return an uninitialized default value if null
+            ref = uninitializedDefaultValue(vc);
+        }
+        return ref;
+    }
+
+    public Object getReferenceVolatile(Object o, long offset, Class<?> vc) {
+        Object ref = getReferenceVolatile(o, offset);
+        if (ref == null && isValueType(vc)) {
+            // If the type of the returned reference is a normal value type
+            // return an uninitialized default value if null
+            ref = uninitializedDefaultValue(vc);
+        }
+        return ref;
+    }
+
+    /**
+     * Returns an uninitialized default value of the given value class.
+     */
+    public native <V> V uninitializedDefaultValue(Class<?> vc);
+
+    /**
      * Returns an object instance with a private buffered value whose layout
      * and contents is exactly the given value instance.  The return object
      * is in the larval state that can be updated using the unsafe put operation.

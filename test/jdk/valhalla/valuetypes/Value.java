@@ -36,15 +36,15 @@ public value class Value {
 
     Value() {
         char_v = 'z';
-        boolean_v = true;
         byte_v = 0;
+        boolean_v = true;
         int_v = 1;
         short_v = 2;
         long_v = 3;
         float_v = 0.1f;
         double_v = 0.2d;
-        point_v = Point.makePoint(0,0);
         number_v = null;
+        point_v = Point.makePoint(0,0);
         ref_v = null;
     }
     static Value makeValue(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Object o) {
