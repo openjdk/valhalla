@@ -111,10 +111,8 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertTrue(test4(), "test4 failed");
     }
 
-// Disabled until 8206274 is fixed
-/*
     // Test toString() method
-    @Test(failOn = ALLOC + STORE + LOAD)
+    @Test()
     public String test5(MyValue1 v) {
         return v.toString();
     }
@@ -124,7 +122,6 @@ public class TestIntrinsics extends ValueTypeTest {
         MyValue1 v = MyValue1.createDefaultInline();
         test5(v);
     }
-*/
 
     // Test hashCode() method
     @Test()
