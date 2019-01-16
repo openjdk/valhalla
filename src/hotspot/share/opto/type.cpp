@@ -2083,10 +2083,11 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       field_array[pos++] = TypeInt::INT;
       break;
     case T_VALUETYPE: {
-      if (vt_fields_as_args) {
+      bool never_null = sig->is_never_null_at(i);
+      if (vt_fields_as_args && never_null) {
         collect_value_fields(type->as_value_klass(), field_array, pos, &res_entry);
       } else {
-        field_array[pos++] = get_const_type(type)->join_speculative(sig->is_never_null_at(i) ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+        field_array[pos++] = get_const_type(type)->join_speculative(never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
       }
       break;
     }

@@ -1792,7 +1792,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
       assert(t->is_oopptr()->can_be_value_type(), "wrong argument type");
       ValueTypeNode* vt = arg->as_ValueType();
       // TODO for now, don't scalarize value type receivers because of interface calls
-      if (call->method()->get_Method()->has_scalarized_args() && t->is_valuetypeptr() && (call->method()->is_static() || i != TypeFunc::Parms)) {
+      if (call->method()->get_Method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null() && (call->method()->is_static() || i != TypeFunc::Parms)) {
         // We don't pass value type arguments by reference but instead
         // pass each field of the value type
         idx += vt->pass_fields(call, idx, *this);

@@ -860,7 +860,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
     // TODO for now, don't scalarize value type receivers because of interface calls
-    if (has_scalarized_args() && t->is_valuetypeptr() && (method()->is_static() || i != TypeFunc::Parms)) {
+    if (has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null() && (method()->is_static() || i != TypeFunc::Parms)) {
       // Value type arguments are not passed by reference: we get an argument per
       // field of the value type. Build ValueTypeNodes from the value type arguments.
       GraphKit kit(jvms, &gvn);

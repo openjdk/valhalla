@@ -91,7 +91,8 @@ class Method : public Metadata {
     _has_injected_profile  = 1 << 4,
     _running_emcp          = 1 << 5,
     _intrinsic_candidate   = 1 << 6,
-    _reserved_stack_access = 1 << 7
+    _reserved_stack_access = 1 << 7,
+    _scalarized_args       = 1 << 8
   };
   mutable u2 _flags;
 
@@ -582,7 +583,6 @@ class Method : public Metadata {
 #endif
 
   // Support for scalarized value type calling convention
-  bool has_scalarized_args() const;
   bool needs_stack_repair() const;
   SigEntry get_res_entry() const;
 
@@ -896,6 +896,14 @@ class Method : public Metadata {
 
   void set_has_reserved_stack_access(bool x) {
     _flags = x ? (_flags | _reserved_stack_access) : (_flags & ~_reserved_stack_access);
+  }
+
+  bool has_scalarized_args() {
+    return (_flags & _scalarized_args) != 0;
+  }
+
+  void set_has_scalarized_args(bool x) {
+    _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
   }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)

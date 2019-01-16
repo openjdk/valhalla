@@ -1153,7 +1153,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       }
     }
     // TODO for now, don't scalarize value type receivers because of interface calls
-    if (ValueTypePassFieldsAsArgs && callee->method_holder()->is_value() && false) {
+    if (callee->has_scalarized_args() && callee->method_holder()->is_value() && false) {
       // If the receiver is a value type that is passed as fields, no oop is available.
       // Resolve the call without receiver null checking.
       assert(bc == Bytecodes::_invokevirtual, "only allowed with invokevirtual");
@@ -2711,10 +2711,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
     // make sure data structure is initialized
     initialize();
 
-    if (method->is_abstract()) {
-      return _abstract_method_handler;
-    }
-
     bool has_value_arg = false;
     GrowableArray<SigEntry> sig(method->size_of_parameters());
     if (!method->is_static()) {
@@ -2729,6 +2725,11 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
         bt = T_OBJECT;
       }
       SigEntry::add_entry(&sig, bt);
+    }
+
+    // Process abstract method if it has value type args to set has_scalarized_args accordingly
+    if (!has_value_arg && method->is_abstract()) {
+      return _abstract_method_handler;
     }
 
     // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
@@ -2805,7 +2806,13 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
         sig_cc = sig;
         regs_cc = regs;
         args_on_stack_cc = args_on_stack;
+      } else {
+        method->set_has_scalarized_args(true);
       }
+    }
+
+    if (method->is_abstract()) {
+      return _abstract_method_handler;
     }
 
     // Lookup method signature's fingerprint
@@ -2854,7 +2861,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
       if (regs != regs_cc) {
         // Save a C heap allocated version of the scalarized signature and store it in the adapter
-        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal)GrowableArray<SigEntry>(method->size_of_parameters(), true);
+        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(method->size_of_parameters(), true);
         heap_sig->appendAll(&sig_cc);
         entry->set_sig_cc(heap_sig);
         entry->set_res_entry(reserved_entry);

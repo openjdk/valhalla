@@ -436,27 +436,24 @@ void LateInlineCallGenerator::do_late_inline() {
   uint j = TypeFunc::Parms;
   for (uint i1 = 0; i1 < nargs; i1++) {
     const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-    if (method()->get_Method()->has_scalarized_args()) {
+    // TODO for now, don't scalarize value type receivers because of interface calls
+    if (method()->get_Method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null() && (method()->is_static() || i1 != 0)) {
+      // Value type arguments are not passed by reference: we get an argument per
+      // field of the value type. Build ValueTypeNodes from the value type arguments.
       GraphKit arg_kit(jvms, &gvn);
-      // TODO for now, don't scalarize value type receivers because of interface calls
-      if (t->is_valuetypeptr() && (method()->is_static() || i1 != 0)) {
-        arg_kit.set_control(map->control());
-        ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, t->value_klass(), j, true);
-        map->set_control(arg_kit.control());
-        map->set_argument(jvms, i1, vt);
-      } else {
-        int index = j;
-        SigEntry res_entry = method()->get_Method()->get_res_entry();
-        if (res_entry._offset != -1 && (index - TypeFunc::Parms) >= res_entry._offset) {
-          // Skip reserved entry
-          index += type2size[res_entry._bt];
-        }
-        map->set_argument(jvms, i1, call->in(index));
-        j++;
-      }
+      arg_kit.set_control(map->control());
+      ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, t->value_klass(), j, true);
+      map->set_control(arg_kit.control());
+      map->set_argument(jvms, i1, vt);
     } else {
-      Node* arg = call->in(TypeFunc::Parms + i1);
-      map->set_argument(jvms, i1, arg);
+      int index = j;
+      SigEntry res_entry = method()->get_Method()->get_res_entry();
+      if (res_entry._offset != -1 && (index - TypeFunc::Parms) >= res_entry._offset) {
+        // Skip reserved entry
+        index += type2size[res_entry._bt];
+      }
+      map->set_argument(jvms, i1, call->in(index));
+      j++;
     }
   }
 

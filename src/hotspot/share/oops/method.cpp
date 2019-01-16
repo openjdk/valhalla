@@ -487,10 +487,6 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
 }
 #endif
 
-bool Method::has_scalarized_args() const {
-  return adapter() != NULL ? (adapter()->get_sig_cc() != NULL) : false;
-}
-
 bool Method::needs_stack_repair() const {
   return adapter() != NULL ? (adapter()->get_res_entry()._offset != -1) : false;
 }
