@@ -231,6 +231,9 @@ public class ValueTypeArray {
     }
 
     void testSanityCheckcasts() {
+// TODO Re-enable if value type arrays become covariant with object arrays
+/*
+
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
@@ -250,6 +253,7 @@ public class ValueTypeArray {
         MyOtherInt[][] matrix = new MyOtherInt[1][1];
         assertTrue(matrix[0] instanceof MyOtherInt[]);
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
+*/
     }
 
 /*
