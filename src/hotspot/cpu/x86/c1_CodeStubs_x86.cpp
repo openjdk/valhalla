@@ -235,16 +235,28 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of MonitorAccessStubs
 
-MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info)
+MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info, CodeStub* throw_imse_stub, LIR_Opr scratch_reg)
 : MonitorAccessStub(obj_reg, lock_reg)
 {
   _info = new CodeEmitInfo(info);
+  _throw_imse_stub = throw_imse_stub;
+  _scratch_reg = scratch_reg;
+  if (_throw_imse_stub != NULL) {
+    assert(_scratch_reg != LIR_OprFact::illegalOpr, "must be");
+  }
 }
 
 
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
+  if (_throw_imse_stub != NULL) {
+    // When we come here, _obj_reg has already been checked to be non-null.
+    Register mark = _scratch_reg->as_register();
+    __ movptr(mark, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
+    __ testl(mark, markOopDesc::always_locked_pattern);
+    __ jcc(Assembler::notZero, *_throw_imse_stub->entry());
+  }
   ce->store_parameter(_obj_reg->as_register(),  1);
   ce->store_parameter(_lock_reg->as_register(), 0);
   Runtime1::StubID enter_id;

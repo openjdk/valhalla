@@ -286,7 +286,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for biased locking on x86
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking) {
+  if (UseBiasedLocking || x->maybe_valuetype()) {
     scratch = new_register(T_INT);
   }
 
@@ -294,11 +294,17 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   if (x->needs_null_check()) {
     info_for_exception = state_for(x);
   }
+
+  CodeStub* throw_imse_stub = x->maybe_valuetype() ?
+      new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id,
+                              LIR_OprFact::illegalOpr, state_for(x))
+    : NULL;
+
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
   monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
-                        x->monitor_no(), info_for_exception, info);
+                x->monitor_no(), info_for_exception, info, throw_imse_stub);
 }
 
 

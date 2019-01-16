@@ -321,15 +321,20 @@ class MonitorAccessStub: public CodeStub {
 class MonitorEnterStub: public MonitorAccessStub {
  private:
   CodeEmitInfo* _info;
+  CodeStub* _throw_imse_stub;
+  LIR_Opr _scratch_reg;
 
  public:
-  MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info);
+  MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info, CodeStub* throw_imse_stub = NULL, LIR_Opr scratch_reg = LIR_OprFact::illegalOpr);
 
   virtual void emit_code(LIR_Assembler* e);
   virtual CodeEmitInfo* info() const             { return _info; }
   virtual void visit(LIR_OpVisitState* visitor) {
     visitor->do_input(_obj_reg);
     visitor->do_input(_lock_reg);
+    if (_scratch_reg != LIR_OprFact::illegalOpr) {
+      visitor->do_temp(_scratch_reg);
+    }
     visitor->do_slow_case(_info);
   }
 #ifndef PRODUCT

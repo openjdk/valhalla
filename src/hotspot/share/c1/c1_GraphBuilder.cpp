@@ -2398,9 +2398,28 @@ void GraphBuilder::instance_of(int klass_index) {
 
 
 void GraphBuilder::monitorenter(Value x, int bci) {
+  bool maybe_valuetype = false;
+  if (bci == InvocationEntryBci) {
+    // Called by GraphBuilder::inline_sync_entry.
+#ifdef ASSERT
+    ciType* obj_type = x->declared_type();
+    assert(obj_type == NULL || !obj_type->is_valuetype(), "valuetypes cannot have synchronized methods");
+#endif
+  } else {
+    // We are compiling a monitorenter bytecode
+    if (EnableValhalla) {
+      ciType* obj_type = x->declared_type();
+      if (obj_type == NULL || obj_type->is_valuetype() || obj_type->as_klass()->is_java_lang_Object()) {
+        // If we're (possibly) locking on a valuetype, check for markOopDesc::always_locked_pattern
+        // and throw IMSE. (obj_type is null for Phi nodes, so let's just be conservative).
+        maybe_valuetype = true;
+      }
+    }
+  }
+
   // save state before locking in case of deoptimization after a NullPointerException
   ValueStack* state_before = copy_state_for_exception_with_bci(bci);
-  append_with_bci(new MonitorEnter(x, state()->lock(x), state_before), bci);
+  append_with_bci(new MonitorEnter(x, state()->lock(x), state_before, maybe_valuetype), bci);
   kill_all();
 }
 

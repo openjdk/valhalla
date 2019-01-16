@@ -1481,6 +1481,11 @@ public class TestNewAcmp {
     }
 
     public static void main(String[] args) throws Exception {
+        if (Boolean.getBoolean("test.c1")) {
+            System.out.println("new acmp is not implemented for C1");
+            return;
+        }
+
         int nullMode = Integer.valueOf(args[0]);
         TestNewAcmp t = new TestNewAcmp();
         t.run(nullMode);

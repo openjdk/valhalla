@@ -47,9 +47,24 @@ import jdk.test.lib.Asserts;
  *                               compiler.valhalla.valuetypes.TestLWorld
  */
 public class TestLWorld extends ValueTypeTest {
+    public int getNumScenarios() {
+        if (TEST_C1) {
+            return 2;
+        } else {
+            return super.getNumScenarios();
+        }
+    }
+
     // Extra VM parameters for some test scenarios. See ValueTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {
+        if (TEST_C1) {
+            switch (scenario) {
+            case 1:  return new String[] {"-XX:-UseBiasedLocking"};
+            }
+            return null;
+        }
+
         switch (scenario) {
         case 1: return new String[] {"-XX:-UseOptoBiasInlining"};
         case 2: return new String[] {"-XX:-UseBiasedLocking"};
@@ -1159,6 +1174,9 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test39_verifier(boolean warmup) {
+        if (!ENABLE_VALUE_ARRAY_COVARIANCE) {
+            return;
+        }
         int index = Math.abs(rI) % 3;
         MyValue1[] va = new MyValue1[42];
         Object result = test39(null, testValue1, index, index, 0);

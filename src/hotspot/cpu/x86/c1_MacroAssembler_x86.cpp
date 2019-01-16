@@ -62,6 +62,10 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   movptr(hdr, Address(obj, hdr_offset));
   // and mark it as unlocked
   orptr(hdr, markOopDesc::unlocked_value);
+  if (EnableValhalla && !UseBiasedLocking) {
+    // Mask always_locked bit such that we go to the slow path if object is a value type
+    andptr(hdr, ~markOopDesc::biased_lock_bit_in_place);
+  }
   // save unlocked object header into the displaced header location on the stack
   movptr(Address(disp_hdr, 0), hdr);
   // test if object header is still the same (i.e. unlocked), and if so, store the

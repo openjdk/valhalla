@@ -87,6 +87,9 @@ public abstract class ValueTypeTest {
     // Run "jtreg -Dtest.c1=true" to enable experimental C1 testing.
     static final boolean TEST_C1 = Boolean.getBoolean("test.c1");
 
+    // Should we execute tests that assume (ValueType[] <: Object[])?
+    static final boolean ENABLE_VALUE_ARRAY_COVARIANCE = Boolean.getBoolean("ValueArrayCovariance");
+
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
     public static final long rL = Utils.getRandomInstance().nextLong() % 1000;

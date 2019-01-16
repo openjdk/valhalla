@@ -127,6 +127,7 @@ int Runtime1::_throw_div0_exception_count = 0;
 int Runtime1::_throw_null_pointer_exception_count = 0;
 int Runtime1::_throw_class_cast_exception_count = 0;
 int Runtime1::_throw_incompatible_class_change_error_count = 0;
+int Runtime1::_throw_illegal_monitor_state_exception_count = 0;
 int Runtime1::_throw_array_store_exception_count = 0;
 int Runtime1::_throw_count = 0;
 
@@ -693,6 +694,13 @@ JRT_ENTRY(void, Runtime1::throw_incompatible_class_change_error(JavaThread* thre
   NOT_PRODUCT(_throw_incompatible_class_change_error_count++;)
   ResourceMark rm(thread);
   SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_IncompatibleClassChangeError());
+JRT_END
+
+
+JRT_ENTRY(void, Runtime1::throw_illegal_monitor_state_exception(JavaThread* thread))
+  NOT_PRODUCT(_throw_illegal_monitor_state_exception_count++;)
+  ResourceMark rm(thread);
+  SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_IllegalMonitorStateException());
 JRT_END
 
 
@@ -1502,6 +1510,7 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _throw_null_pointer_exception_count:           %d:", _throw_null_pointer_exception_count);
   tty->print_cr(" _throw_class_cast_exception_count:             %d:", _throw_class_cast_exception_count);
   tty->print_cr(" _throw_incompatible_class_change_error_count:  %d:", _throw_incompatible_class_change_error_count);
+  tty->print_cr(" _throw_illegal_monitor_state_exception_count:  %d:", _throw_illegal_monitor_state_exception_count);
   tty->print_cr(" _throw_array_store_exception_count:            %d:", _throw_array_store_exception_count);
   tty->print_cr(" _throw_count:                                  %d:", _throw_count);
 

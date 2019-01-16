@@ -1788,20 +1788,23 @@ class LIR_OpLock: public LIR_Op {
   LIR_Opr _lock;
   LIR_Opr _scratch;
   CodeStub* _stub;
+  CodeStub* _throw_imse_stub;
  public:
-  LIR_OpLock(LIR_Code code, LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info)
+  LIR_OpLock(LIR_Code code, LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_imse_stub=NULL)
     : LIR_Op(code, LIR_OprFact::illegalOpr, info)
     , _hdr(hdr)
     , _obj(obj)
     , _lock(lock)
     , _scratch(scratch)
-    , _stub(stub)                      {}
+    , _stub(stub)
+    , _throw_imse_stub(throw_imse_stub)                    {}
 
   LIR_Opr hdr_opr() const                        { return _hdr; }
   LIR_Opr obj_opr() const                        { return _obj; }
   LIR_Opr lock_opr() const                       { return _lock; }
   LIR_Opr scratch_opr() const                    { return _scratch; }
   CodeStub* stub() const                         { return _stub; }
+  CodeStub* throw_imse_stub() const              { return _throw_imse_stub; }
 
   virtual void emit_code(LIR_Assembler* masm);
   virtual LIR_OpLock* as_OpLock() { return this; }
@@ -2240,7 +2243,7 @@ class LIR_List: public CompilationResourceObj {
 
   void load_stack_address_monitor(int monitor_ix, LIR_Opr dst)  { append(new LIR_Op1(lir_monaddr, LIR_OprFact::intConst(monitor_ix), dst)); }
   void unlock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub);
-  void lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info);
+  void lock_object(LIR_Opr hdr, LIR_Opr obj, LIR_Opr lock, LIR_Opr scratch, CodeStub* stub, CodeEmitInfo* info, CodeStub* throw_imse_stub=NULL);
 
   void set_24bit_fpu()                                               { append(new LIR_Op0(lir_24bit_FPU )); }
   void restore_fpu()                                                 { append(new LIR_Op0(lir_reset_FPU )); }

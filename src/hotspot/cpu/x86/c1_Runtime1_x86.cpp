@@ -1318,8 +1318,14 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     case throw_incompatible_class_change_error_id:
-      { StubFrame f(sasm, "throw_incompatible_class_cast_exception", dont_gc_arguments);
+      { StubFrame f(sasm, "throw_incompatible_class_change_error", dont_gc_arguments);
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_incompatible_class_change_error), false);
+      }
+      break;
+
+    case throw_illegal_monitor_state_exception_id:
+      { StubFrame f(sasm, "throw_illegal_monitor_state_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_illegal_monitor_state_exception), false);
       }
       break;
 
