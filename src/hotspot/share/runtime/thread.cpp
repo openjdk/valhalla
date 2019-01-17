@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1672,6 +1672,8 @@ void JavaThread::initialize() {
   if (SafepointMechanism::uses_thread_local_poll()) {
     SafepointMechanism::initialize_header(this);
   }
+
+  _class_to_be_initialized = NULL;
 
   pd_initialize();
 }
@@ -3721,16 +3723,16 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Timing (must come after argument parsing)
   TraceTime timer("Create VM", TRACETIME_LOG(Info, startuptime));
 
+  // Initialize the os module after parsing the args
+  jint os_init_2_result = os::init_2();
+  if (os_init_2_result != JNI_OK) return os_init_2_result;
+
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   // Initialize assert poison page mechanism.
   if (ShowRegistersOnAssert) {
     initialize_assert_poison();
   }
 #endif // CAN_SHOW_REGISTERS_ON_ASSERT
-
-  // Initialize the os module after parsing the args
-  jint os_init_2_result = os::init_2();
-  if (os_init_2_result != JNI_OK) return os_init_2_result;
 
   SafepointMechanism::initialize();
 

@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_OOPSHIERARCHY_HPP
-#define SHARE_VM_OOPS_OOPSHIERARCHY_HPP
+#ifndef SHARE_OOPS_OOPSHIERARCHY_HPP
+#define SHARE_OOPS_OOPSHIERARCHY_HPP
 
 #include "metaprogramming/integralConstant.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
@@ -224,4 +224,4 @@ class     ObjArrayKlass;
 class     TypeArrayKlass;
 class     ValueArrayKlass;
 
-#endif // SHARE_VM_OOPS_OOPSHIERARCHY_HPP
+#endif // SHARE_OOPS_OOPSHIERARCHY_HPP

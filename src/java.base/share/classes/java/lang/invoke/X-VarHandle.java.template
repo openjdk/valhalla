@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,17 +61,6 @@ final class VarHandle$Type$s {
         @Override
         final MethodType accessModeTypeUncached(AccessMode accessMode) {
             return accessMode.at.accessModeType(receiverType, {#if[Object]?fieldType:$type$.class});
-        }
-
-        @Override
-        final boolean internalEquals(VarHandle vh) {
-            FieldInstanceReadOnly that = (FieldInstanceReadOnly) vh;
-            return fieldOffset == that.fieldOffset;
-        }
-
-        @Override
-        final int internalHashCode() {
-            return Long.hashCode(fieldOffset);
         }
 
         @Override
@@ -361,17 +350,6 @@ final class VarHandle$Type$s {
 #if[Object]
             this.fieldType = fieldType;
 #end[Object]
-        }
-
-        @Override
-        final boolean internalEquals(VarHandle vh) {
-            FieldStaticReadOnly that = (FieldStaticReadOnly) vh;
-            return base == that.base && fieldOffset == that.fieldOffset;
-        }
-
-        @Override
-        final int internalHashCode() {
-            return 31 * Long.hashCode(fieldOffset) + base.hashCode();
         }
 
         @Override
@@ -670,17 +648,6 @@ final class VarHandle$Type$s {
             return accessMode.at.accessModeType(receiverType, fieldType);
         }
 
-        @Override
-        final boolean internalEquals(VarHandle vh) {
-            FieldInstanceReadOnly that = (FieldInstanceReadOnly) vh;
-            return fieldOffset == that.fieldOffset;
-        }
-
-        @Override
-        final int internalHashCode() {
-            return Long.hashCode(fieldOffset);
-        }
-
         @ForceInline
         static Object get(FlatValueFieldInstanceReadOnly handle, Object holder) {
             return UNSAFE.getValue(Objects.requireNonNull(handle.receiverType.cast(holder)),
@@ -848,20 +815,6 @@ final class VarHandle$Type$s {
             this.arrayType = {#if[Object]?arrayType:$type$[].class};
             this.componentType = arrayType.getComponentType();
 #end[Object]
-        }
-
-        @Override
-        final boolean internalEquals(VarHandle vh) {
-            // Equality of access mode types of AccessMode.GET is sufficient for
-            // equality checks
-            return true;
-        }
-
-        @Override
-        final int internalHashCode() {
-            // The hash code of the access mode types of AccessMode.GET is
-            // sufficient for hash code generation
-            return 0;
         }
 
         @Override
@@ -1247,20 +1200,6 @@ final class VarHandle$Type$s {
             this.ashift = ashift;
             this.arrayType = arrayType;
             this.componentType = arrayType.getComponentType();
-        }
-
-        @Override
-        final boolean internalEquals(VarHandle vh) {
-            // Equality of access mode types of AccessMode.GET is sufficient for
-            // equality checks
-            return true;
-        }
-
-        @Override
-        final int internalHashCode() {
-            // The hash code of the access mode types of AccessMode.GET is
-            // sufficient for hash code generation
-            return 0;
         }
 
         @Override

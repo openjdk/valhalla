@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_GLOBALS_HPP
-#define SHARE_VM_RUNTIME_GLOBALS_HPP
+#ifndef SHARE_RUNTIME_GLOBALS_HPP
+#define SHARE_RUNTIME_GLOBALS_HPP
 
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/align.hpp"
@@ -1082,9 +1082,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   manageable(bool, PrintClassHistogram, false,                              \
           "Print a histogram of class instances")                           \
                                                                             \
-  develop(bool, IgnoreLibthreadGPFault, false,                              \
-          "Suppress workaround for libthread GP fault")                     \
-                                                                            \
   experimental(double, ObjectCountCutOffPercent, 0.5,                       \
           "The percentage of the used heap that the instances of a class "  \
           "must occupy for the class to generate a trace event")            \
@@ -1350,9 +1347,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, TypeProfileCasts,  true,                                    \
           "treat casts like calls for purposes of type profiling")          \
-                                                                            \
-  develop(bool, TimeLivenessAnalysis, false,                                \
-          "Time computation of bytecode liveness analysis")                 \
                                                                             \
   develop(bool, TraceLivenessGen, false,                                    \
           "Trace the generation of liveness analysis information")          \
@@ -2783,4 +2777,4 @@ ARCH_FLAGS(DECLARE_DEVELOPER_FLAG, \
 
 #include "runtime/globals_ext.hpp"
 
-#endif // SHARE_VM_RUNTIME_GLOBALS_HPP
+#endif // SHARE_RUNTIME_GLOBALS_HPP
