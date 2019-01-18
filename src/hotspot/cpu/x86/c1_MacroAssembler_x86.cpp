@@ -154,7 +154,8 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register t1, Register t2) {
   assert_different_registers(obj, klass, len);
-  if (UseBiasedLocking && !len->is_valid()) {
+  if ((UseBiasedLocking || EnableValhalla) && !len->is_valid()) {
+    // Need to copy markOopDesc::always_locked_pattern for values.
     assert_different_registers(obj, klass, len, t1, t2);
     movptr(t1, Address(klass, Klass::prototype_header_offset()));
     movptr(Address(obj, oopDesc::mark_offset_in_bytes()), t1);
