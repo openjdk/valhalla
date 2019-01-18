@@ -421,6 +421,29 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
   return field;
 }
 
+ciField* ciInstanceKlass::get_non_flattened_field_by_offset(int field_offset) {
+  if (super() != NULL && super()->has_nonstatic_fields()) {
+    ciField* f = super()->get_non_flattened_field_by_offset(field_offset);
+    if (f != NULL) {
+      return f;
+    }
+  }
+
+  VM_ENTRY_MARK;
+  InstanceKlass* k = get_instanceKlass();
+  Arena* arena = CURRENT_ENV->arena();
+  for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
+    if (fs.access_flags().is_static())  continue;
+    fieldDescriptor& fd = fs.field_descriptor();
+    if (fd.offset() == field_offset) {
+      ciField* f = new (arena) ciField(&fd);
+      return f;
+    }
+  }
+
+  return NULL;
+}
+
 // ------------------------------------------------------------------
 // ciInstanceKlass::get_field_by_name
 ciField* ciInstanceKlass::get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static) {

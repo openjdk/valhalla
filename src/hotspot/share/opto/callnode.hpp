@@ -901,6 +901,7 @@ public:
   bool _is_non_escaping;
   // True when MemBar for new is redundant with MemBar at initialzer exit
   bool _is_allocation_MemBar_redundant;
+  bool _larval;
 
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
@@ -976,6 +977,8 @@ public:
   // allocation node.
   void compute_MemBar_redundancy(ciMethod* initializer);
   bool is_allocation_MemBar_redundant() { return _is_allocation_MemBar_redundant; }
+
+  Node* make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, Node* mem, Node* klass_node);
 };
 
 //------------------------------AllocateArray---------------------------------

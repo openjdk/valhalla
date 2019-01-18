@@ -1415,6 +1415,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   _is_scalar_replaceable = false;
   _is_non_escaping = false;
   _is_allocation_MemBar_redundant = false;
+  _larval = false;
   Node *topnode = C->top();
 
   init_req( TypeFunc::Control  , ctrl );
@@ -1484,6 +1485,27 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
   return CallNode::Ideal(phase, can_reshape);
 }
+
+Node *AllocateNode::make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, Node* mem, Node* klass_node) {
+  Node* mark_node = NULL;
+  // For now only enable fast locking for non-array types
+  if ((EnableValhalla || UseBiasedLocking) && Opcode() ==  Op_Allocate) {
+    if (klass_node == NULL) {
+      Node* k_adr = phase->transform(new AddPNode(obj, obj, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
+      klass_node = phase->transform(LoadKlassNode::make(*phase, NULL, phase->C->immutable_memory(), k_adr, phase->type(k_adr)->is_ptr()));
+    }
+    Node* proto_adr = phase->transform(new AddPNode(klass_node, klass_node, phase->MakeConX(in_bytes(Klass::prototype_header_offset()))));
+    mark_node = LoadNode::make(*phase, control, mem, proto_adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  } else {
+    mark_node = phase->MakeConX((intptr_t)markOopDesc::prototype());
+  }
+  if (_larval) {
+    mark_node = phase->transform(mark_node);
+    mark_node = new OrXNode(mark_node, phase->MakeConX(markOopDesc::larval_state_pattern));
+  }
+  return mark_node;
+}
+
 
 //=============================================================================
 Node* AllocateArrayNode::Ideal(PhaseGVN *phase, bool can_reshape) {

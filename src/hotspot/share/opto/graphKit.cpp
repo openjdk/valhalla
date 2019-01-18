@@ -3699,6 +3699,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         hook_memory_on_init(*this, elemidx, minit_in, minit_out);
       }
     } else if (oop_type->isa_instptr()) {
+      set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
       ciInstanceKlass* ik = oop_type->klass()->as_instance_klass();
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
         ciField* field = ik->nonstatic_field_at(i);

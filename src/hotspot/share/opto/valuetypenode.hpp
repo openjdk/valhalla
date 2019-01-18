@@ -53,7 +53,7 @@ protected:
   // Initialize the value type fields with the inputs or outputs of a MultiNode
   void initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, uint& base_input, bool in);
 
-  const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, PhaseGVN& gvn) const;
+  const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 
 public:
   // Support for control flow merges
@@ -81,11 +81,11 @@ public:
   void make_scalar_in_safepoints(PhaseIterGVN* igvn);
 
   // Store the value type as a flattened (headerless) representation
-  void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0) const;
+  void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Store the field values to memory
-  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, bool deoptimize_on_exception = false) const;
+  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, bool deoptimize_on_exception = false, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Initialize the value type by loading its field values from memory
-  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0);
+  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
 
   // Allocates the value type (if not yet allocated)
   ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false);
@@ -123,9 +123,11 @@ public:
   // Create and initialize by loading the field values from an oop
   static ValueTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciValueKlass* vk);
   // Create and initialize by loading the field values from a flattened field or array
-  static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0);
+  static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, uint& base_input, bool in);
+  ValueTypeNode* make_larval(GraphKit* kit, bool allocate) const;
+  ValueTypeNode* finish_larval(GraphKit* kit) const;
 
   // Returns the constant oop of the default value type allocation
   static Node* default_oop(PhaseGVN& gvn, ciValueKlass* vk);

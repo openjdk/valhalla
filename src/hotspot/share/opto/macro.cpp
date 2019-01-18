@@ -723,6 +723,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         }
       } else if (use->is_ValueType() && use->isa_ValueType()->get_oop() == res) {
         // ok to eliminate
+      } else if (use->is_Store()) {
+        // store to mark work
       } else if (use->Opcode() != Op_CastP2X) { // CastP2X is used by card mark
         if (use->is_Phi()) {
           if (use->outcnt() == 1 && use->unique_out()->Opcode() == Op_Return) {
@@ -1062,6 +1064,8 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
         assert(use->isa_ValueType()->get_oop() == res, "unexpected value type use");
          _igvn.rehash_node_delayed(use);
         use->isa_ValueType()->set_oop(_igvn.zerocon(T_VALUETYPE));
+      } else if (use->is_Store()) {
+        _igvn.replace_node(use, use->in(MemNode::Memory));
       } else {
         eliminate_gc_barrier(use);
       }
@@ -1704,14 +1708,11 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
                                           Node* size_in_bytes) {
   InitializeNode* init = alloc->initialization();
   // Store the klass & mark bits
-  Node* mark_node = NULL;
-  // For now only enable fast locking for non-array types
-  if ((EnableValhalla || UseBiasedLocking) && length == NULL) {
-    mark_node = make_load(control, rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-  } else {
-    mark_node = makecon(TypeRawPtr::make((address)markOopDesc::prototype()));
+  Node* mark_node = alloc->make_ideal_mark(&_igvn, object, control, rawmem, klass_node);
+  if (!mark_node->is_Con()) {
+    transform_later(mark_node);
   }
-  rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
+  rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
 
   rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   int header_size = alloc->minimum_header_size();  // conservatively small

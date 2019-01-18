@@ -105,7 +105,7 @@ public:
   ciType* type() { return (_type == NULL) ? compute_type() : _type; }
 
   // How is this field actually stored in memory?
-  BasicType layout_type() { return type2field[(_type == NULL) ? T_OBJECT : _type->basic_type()]; }
+  BasicType layout_type() { return type2field[type()->basic_type()]; }
 
   // How big is this field in memory?
   int size_in_bytes() { return type2aelembytes(layout_type()); }

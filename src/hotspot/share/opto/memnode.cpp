@@ -1677,6 +1677,17 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(address, phase);
+  if (alloc != NULL && mem->is_Proj() &&
+      mem->in(0) != NULL &&
+      mem->in(0) == alloc->initialization() &&
+      Opcode() == Op_LoadX &&
+      alloc->initialization()->proj_out_or_null(0) != NULL) {
+    InitializeNode* init = alloc->initialization();
+    Node* control = init->proj_out(0);
+    return alloc->make_ideal_mark(phase, address, control, mem, NULL);
+  }
+
   return progress ? this : NULL;
 }
 

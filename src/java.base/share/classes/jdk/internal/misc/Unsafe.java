@@ -239,6 +239,7 @@ public final class Unsafe {
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
+    @HotSpotIntrinsicCandidate
     public native <V> V getValue(Object o, long offset, Class<?> vc);
 
     /**
@@ -258,6 +259,7 @@ public final class Unsafe {
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
+    @HotSpotIntrinsicCandidate
     public native <V> void putValue(Object o, long offset, Class<?> vc, V v);
 
     /**
@@ -300,6 +302,7 @@ public final class Unsafe {
      * @param value a value instance
      * @param <V> the type of the given value instance
      */
+    @HotSpotIntrinsicCandidate
     public native <V> V makePrivateBuffer(V value);
 
     /**
@@ -308,6 +311,7 @@ public final class Unsafe {
      * @param value a value instance
      * @param <V> the type of the given value instance
      */
+    @HotSpotIntrinsicCandidate
     public native <V> V finishPrivateBuffer(V value);
 
     /**

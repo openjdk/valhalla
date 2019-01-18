@@ -334,16 +334,26 @@ public class TestIntrinsics extends ValueTypeTest {
 
     private static final Unsafe U = Unsafe.getUnsafe();
     private static final long X_OFFSET;
+    private static final long Y_OFFSET;
+    private static final long V1_OFFSET;
+    private static final boolean V1_FLATTENED;
     static {
         try {
             Field xField = MyValue1.class.getDeclaredField("x");
             X_OFFSET = U.objectFieldOffset(xField);
+            Field yField = MyValue1.class.getDeclaredField("y");
+            Y_OFFSET = U.objectFieldOffset(yField);
+            Field v1Field = MyValue1.class.getDeclaredField("v1");
+            V1_OFFSET = U.objectFieldOffset(v1Field);
+            V1_FLATTENED = U.isFlattened(v1Field);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    @Test()
+    protected static final String CALL_Unsafe = START + "CallStaticJava" + MID + "# Static  jdk.internal.misc.Unsafe::" + END;
+
+    @Test(failOn=CALL_Unsafe)
     public int test21(MyValue1 v) {
        return U.getInt(v, X_OFFSET);
     }
@@ -355,23 +365,23 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(res, v.x);
     }
 
-    @Test()
+    MyValue1.val test22_vt;
+    @Test(failOn=CALL_Unsafe + ALLOC)
     public void test22(MyValue1 v) {
-        try {
-            v = U.makePrivateBuffer(v);
-            U.putInt(v, X_OFFSET, 0);
-        } finally {
-            v = U.finishPrivateBuffer(v);
-        }
+        v = U.makePrivateBuffer(v);
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        test22_vt = v;
     }
 
     @DontCompile
     public void test22_verifier(boolean warmup) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        test22(v);
+        test22(v.setX(v, 0));
+        Asserts.assertEQ(test22_vt.hash(), v.hash());
     }
 
-    @Test()
+    @Test(failOn=CALL_Unsafe)
     public int test23(MyValue1 v, long offset) {
         return U.getInt(v, offset);
     }
@@ -385,7 +395,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     MyValue1.val test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
-    @Test()
+    @Test(failOn=CALL_Unsafe)
     public int test24(long offset) {
         return U.getInt(test24_vt, offset);
     }
@@ -450,14 +460,259 @@ public class TestIntrinsics extends ValueTypeTest {
         }
     }
 
-    @Test()
+    @Test(failOn=CALL_Unsafe)
     public MyValue1 test27() {
-        return (MyValue1)U.getObject(this, TEST27_OFFSET);
+        return (MyValue1)U.getReference(this, TEST27_OFFSET);
     }
 
     @DontCompile
     public void test27_verifier(boolean warmup) {
         MyValue1 res = test27();
         Asserts.assertEQ(res.hash(), test24_vt.hash());
+    }
+
+    // Mismatched type
+    @Test(failOn=CALL_Unsafe)
+    public int test28(MyValue1 v) {
+        return U.getByte(v, X_OFFSET);
+    }
+
+    @DontCompile
+    public void test28_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        int res = test28(v);
+        if (java.nio.ByteOrder.nativeOrder() == java.nio.ByteOrder.LITTLE_ENDIAN) {
+            Asserts.assertEQ(res, (int)((byte)v.x));
+        } else {
+            Asserts.assertEQ(res, (int)((byte)Integer.reverseBytes(v.x)));
+        }
+    }
+
+    // Wrong alignment
+    @Test(failOn=CALL_Unsafe)
+    public long test29(MyValue1 v) {
+        // Read the field that's guaranteed to not be last in the
+        // value so we don't read out of the value
+        if (X_OFFSET < Y_OFFSET) {
+            return U.getInt(v, X_OFFSET+1);
+        }
+        return U.getLong(v, Y_OFFSET+1);
+    }
+
+    @DontCompile
+    public void test29_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        long res = test29(v);
+        if (java.nio.ByteOrder.nativeOrder() == java.nio.ByteOrder.LITTLE_ENDIAN) {
+            if (X_OFFSET < Y_OFFSET) {
+                Asserts.assertEQ(((int)res) << 8, (v.x >> 8) << 8);
+            } else {
+                Asserts.assertEQ(res << 8, (v.y >> 8) << 8);
+            }
+        } else {
+            if (X_OFFSET < Y_OFFSET) {
+                Asserts.assertEQ(((int)res), v.x >>> 8);
+            } else {
+                Asserts.assertEQ(res, v.y >>> 8);
+            }
+        }
+    }
+
+    // getValue to retrieve flattened field from value
+    @Test(failOn=CALL_Unsafe)
+    public MyValue2 test30(MyValue1 v) {
+        if (V1_FLATTENED) {
+            return U.getValue(v, V1_OFFSET, MyValue2.class);
+        }
+        return (MyValue2)U.getReference(v, V1_OFFSET);
+    }
+
+    @DontCompile
+    public void test30_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue2 res = test30(v);
+        Asserts.assertEQ(res.hash(), v.v1.hash());
+    }
+
+    MyValue1.val test31_vt;
+    private static final long TEST31_VT_OFFSET;
+    private static final boolean TEST31_VT_FLATTENED;
+    static {
+        try {
+            Field test31_vt_Field = TestIntrinsics.class.getDeclaredField("test31_vt");
+            TEST31_VT_OFFSET = U.objectFieldOffset(test31_vt_Field);
+            TEST31_VT_FLATTENED = U.isFlattened(test31_vt_Field);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // getValue to retrieve flattened field from object
+    @Test(failOn=CALL_Unsafe)
+    public MyValue1 test31() {
+        if (TEST31_VT_FLATTENED) {
+            return U.getValue(this, TEST31_VT_OFFSET, MyValue1.class);
+        }
+        return (MyValue1)U.getReference(this, TEST31_VT_OFFSET);
+    }
+
+    @DontCompile
+    public void test31_verifier(boolean warmup) {
+        test31_vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 res = test31();
+        Asserts.assertEQ(res.hash(), test31_vt.hash());
+    }
+
+    // putValue to set flattened field in object
+    @Test(failOn=CALL_Unsafe)
+    public void test32(MyValue1 vt) {
+        if (TEST31_VT_FLATTENED) {
+            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class, vt);
+        } else {
+            U.putReference(this, TEST31_VT_OFFSET, vt);
+        }
+    }
+
+    @DontCompile
+    public void test32_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test31_vt = MyValue1.createDefaultInline();
+        test32(vt);
+        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+    }
+
+    private static final int TEST33_BASE_OFFSET;
+    private static final int TEST33_INDEX_SCALE;
+    private static final boolean TEST33_FLATTENED_ARRAY;
+    static {
+        try {
+            TEST33_BASE_OFFSET = U.arrayBaseOffset(MyValue1[].class);
+            TEST33_INDEX_SCALE = U.arrayIndexScale(MyValue1[].class);
+            TEST33_FLATTENED_ARRAY = U.isFlattenedArray(MyValue1[].class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    // getValue to retrieve flattened field from array
+    @Test(failOn=CALL_Unsafe)
+    public MyValue1 test33(MyValue1[] arr) {
+        if (TEST33_FLATTENED_ARRAY) {
+            return U.getValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class);
+        }
+        return (MyValue1)U.getReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
+    }
+
+    @DontCompile
+    public void test33_verifier(boolean warmup) {
+        MyValue1[] arr = new MyValue1[2];
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        arr[1] = vt;
+        MyValue1 res = test33(arr);
+        Asserts.assertEQ(res.hash(), vt.hash());
+    }
+
+    // putValue to set flattened field in array
+    @Test(failOn=CALL_Unsafe)
+    public void test34(MyValue1[] arr, MyValue1 vt) {
+        if (TEST33_FLATTENED_ARRAY) {
+            U.putValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class, vt);
+        } else {
+            U.putReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, vt);
+        }
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) {
+        MyValue1[] arr = new MyValue1[2];
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test34(arr, vt);
+        Asserts.assertEQ(arr[1].hash(), vt.hash());
+    }
+
+    // getValue to retrieve flattened field from object with unknown
+    // container type
+    @Test(failOn=CALL_Unsafe)
+    public MyValue1 test35(Object o) {
+        if (TEST31_VT_FLATTENED) {
+            return U.getValue(o, TEST31_VT_OFFSET, MyValue1.class);
+        }
+        return (MyValue1)U.getReference(o, TEST31_VT_OFFSET);
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        test31_vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 res = test35(this);
+        Asserts.assertEQ(res.hash(), test31_vt.hash());
+    }
+
+    // getValue to retrieve flattened field from object at unknown
+    // offset
+    @Test(failOn=CALL_Unsafe)
+    public MyValue1 test36(long offset) {
+        if (TEST31_VT_FLATTENED) {
+            return U.getValue(this, offset, MyValue1.class);
+        }
+        return (MyValue1)U.getReference(this, offset);
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) {
+        test31_vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 res = test36(TEST31_VT_OFFSET);
+        Asserts.assertEQ(res.hash(), test31_vt.hash());
+    }
+
+    // putValue to set flattened field in object with unknown
+    // container
+    @Test(failOn=CALL_Unsafe)
+    public void test37(Object o, MyValue1 vt) {
+        if (TEST31_VT_FLATTENED) {
+            U.putValue(o, TEST31_VT_OFFSET, MyValue1.class, vt);
+        } else {
+            U.putReference(o, TEST31_VT_OFFSET, vt);
+        }
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test31_vt = MyValue1.createDefaultInline();
+        test37(this, vt);
+        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+    }
+
+    // putValue to set flattened field in object, non value argument
+    // to store
+    @Test(match = { CALL_Unsafe }, matchCount = { 1 })
+    public void test38(Object o) {
+        if (TEST31_VT_FLATTENED) {
+            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class, o);
+        } else {
+            U.putReference(this, TEST31_VT_OFFSET, o);
+        }
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test31_vt = MyValue1.createDefaultInline();
+        test38(vt);
+        Asserts.assertEQ(vt.hash(), test31_vt.hash());
+    }
+
+    @Test(failOn=CALL_Unsafe)
+    public MyValue1 test39(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        U.putInt(v, X_OFFSET, rI);
+        v = U.finishPrivateBuffer(v);
+        return v;
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 res = test39(v.setX(v, 0));
+        Asserts.assertEQ(res.hash(), v.hash());
     }
 }

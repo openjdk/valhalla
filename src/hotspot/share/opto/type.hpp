@@ -763,13 +763,18 @@ public:
 class TypeValueType : public Type {
 private:
   ciValueKlass* _vk;
+  bool _larval;
 
 protected:
-  TypeValueType(ciValueKlass* vk) : Type(ValueType) { _vk = vk; }
+  TypeValueType(ciValueKlass* vk, bool larval)
+    : Type(ValueType),
+      _vk(vk), _larval(larval) {
+  }
 
 public:
-  static const TypeValueType* make(ciValueKlass* vk);
+  static const TypeValueType* make(ciValueKlass* vk, bool larval = false);
   ciValueKlass* value_klass() const { return _vk; }
+  bool larval() const { return _larval; }
 
   virtual bool eq(const Type* t) const;
   virtual int  hash() const;             // Type specific hashing
@@ -1880,6 +1885,8 @@ inline ciValueKlass* Type::value_klass() const {
 #define Op_SubX      Op_SubL
 #define Op_XorX      Op_XorL
 #define Op_URShiftX  Op_URShiftL
+#define Op_LoadX     Op_LoadL
+#define Op_StoreX    Op_StoreL
 // conversions
 #define ConvI2X(x)   ConvI2L(x)
 #define ConvL2X(x)   (x)
@@ -1928,6 +1935,8 @@ inline ciValueKlass* Type::value_klass() const {
 #define Op_SubX      Op_SubI
 #define Op_XorX      Op_XorI
 #define Op_URShiftX  Op_URShiftI
+#define Op_LoadX     Op_LoadI
+#define Op_StoreX    Op_StoreI
 // conversions
 #define ConvI2X(x)   (x)
 #define ConvL2X(x)   ConvL2I(x)

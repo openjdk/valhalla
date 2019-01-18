@@ -2403,8 +2403,8 @@ bool TypeAry::ary_must_be_exact() const {
 //==============================TypeValueType=======================================
 
 //------------------------------make-------------------------------------------
-const TypeValueType* TypeValueType::make(ciValueKlass* vk) {
-  return (TypeValueType*)(new TypeValueType(vk))->hashcons();
+const TypeValueType* TypeValueType::make(ciValueKlass* vk, bool larval) {
+  return (TypeValueType*)(new TypeValueType(vk, larval))->hashcons();
 }
 
 //------------------------------meet-------------------------------------------
@@ -2452,6 +2452,15 @@ const Type* TypeValueType::xmeet(const Type* t) const {
 
   case ValueType: {
     // All value types inherit from Object
+    const TypeValueType* other = t->is_valuetype();
+    if (_vk == other->_vk) {
+      if (_larval == other->_larval ||
+          !_larval) {
+        return this;
+      } else {
+        return t;
+      }
+    }
     return TypeInstPtr::NOTNULL;
   }
 
@@ -2471,7 +2480,7 @@ const Type* TypeValueType::xdual() const {
 // Structural equality check for Type representations
 bool TypeValueType::eq(const Type* t) const {
   const TypeValueType* vt = t->is_valuetype();
-  return (_vk == vt->value_klass());
+  return (_vk == vt->value_klass() && _larval == vt->larval());
 }
 
 //------------------------------hash-------------------------------------------
@@ -2501,7 +2510,7 @@ void TypeValueType::dump2(Dict &d, uint depth, outputStream* st) const {
   for (int i = 1; i < count; ++i) {
     st->print(", %s", _vk->declared_nonstatic_field_at(i)->type()->name());
   }
-  st->print("}");
+  st->print("}%s", _larval?" : larval":"");
 }
 #endif
 

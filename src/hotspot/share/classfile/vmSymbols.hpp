@@ -1123,6 +1123,8 @@
   do_signature(putFloat_signature,        "(Ljava/lang/Object;JF)V")                                                    \
   do_signature(getDouble_signature,       "(Ljava/lang/Object;J)D")                                                     \
   do_signature(putDouble_signature,       "(Ljava/lang/Object;JD)V")                                                    \
+  do_signature(getValue_signature,        "(Ljava/lang/Object;JLjava/lang/Class;)Ljava/lang/Object;")                   \
+  do_signature(putValue_signature,        "(Ljava/lang/Object;JLjava/lang/Class;Ljava/lang/Object;)V")                  \
                                                                                                                         \
   do_name(getReference_name,"getReference")     do_name(putReference_name,"putReference")                               \
   do_name(getBoolean_name,"getBoolean")         do_name(putBoolean_name,"putBoolean")                                   \
@@ -1133,6 +1135,9 @@
   do_name(getLong_name,"getLong")               do_name(putLong_name,"putLong")                                         \
   do_name(getFloat_name,"getFloat")             do_name(putFloat_name,"putFloat")                                       \
   do_name(getDouble_name,"getDouble")           do_name(putDouble_name,"putDouble")                                     \
+  do_name(getValue_name,"getValue")             do_name(putValue_name,"putValue")                                       \
+  do_name(makePrivateBuffer_name,"makePrivateBuffer")                                                                   \
+  do_name(finishPrivateBuffer_name,"finishPrivateBuffer")                                                               \
                                                                                                                         \
   do_intrinsic(_getReference,       jdk_internal_misc_Unsafe,     getReference_name, getReference_signature,     F_RN)  \
   do_intrinsic(_getBoolean,         jdk_internal_misc_Unsafe,     getBoolean_name, getBoolean_signature,         F_RN)  \
@@ -1143,6 +1148,7 @@
   do_intrinsic(_getLong,            jdk_internal_misc_Unsafe,     getLong_name, getLong_signature,               F_RN)  \
   do_intrinsic(_getFloat,           jdk_internal_misc_Unsafe,     getFloat_name, getFloat_signature,             F_RN)  \
   do_intrinsic(_getDouble,          jdk_internal_misc_Unsafe,     getDouble_name, getDouble_signature,           F_RN)  \
+  do_intrinsic(_getValue,           jdk_internal_misc_Unsafe,     getValue_name, getValue_signature,             F_RN)  \
   do_intrinsic(_putReference,       jdk_internal_misc_Unsafe,     putReference_name, putReference_signature,     F_RN)  \
   do_intrinsic(_putBoolean,         jdk_internal_misc_Unsafe,     putBoolean_name, putBoolean_signature,         F_RN)  \
   do_intrinsic(_putByte,            jdk_internal_misc_Unsafe,     putByte_name, putByte_signature,               F_RN)  \
@@ -1152,6 +1158,10 @@
   do_intrinsic(_putLong,            jdk_internal_misc_Unsafe,     putLong_name, putLong_signature,               F_RN)  \
   do_intrinsic(_putFloat,           jdk_internal_misc_Unsafe,     putFloat_name, putFloat_signature,             F_RN)  \
   do_intrinsic(_putDouble,          jdk_internal_misc_Unsafe,     putDouble_name, putDouble_signature,           F_RN)  \
+  do_intrinsic(_putValue,           jdk_internal_misc_Unsafe,     putValue_name, putValue_signature,             F_RN)  \
+                                                                                                                        \
+  do_intrinsic(_makePrivateBuffer,  jdk_internal_misc_Unsafe,     makePrivateBuffer_name, object_object_signature, F_RN)   \
+  do_intrinsic(_finishPrivateBuffer,  jdk_internal_misc_Unsafe,   finishPrivateBuffer_name, object_object_signature, F_RN) \
                                                                                                                         \
   do_name(getReferenceVolatile_name,"getReferenceVolatile")   do_name(putReferenceVolatile_name,"putReferenceVolatile") \
   do_name(getBooleanVolatile_name,"getBooleanVolatile")       do_name(putBooleanVolatile_name,"putBooleanVolatile")     \

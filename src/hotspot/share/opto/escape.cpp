@@ -141,6 +141,16 @@ bool ConnectionGraph::compute_escape() {
   java_objects_worklist.append(phantom_obj);
   for( uint next = 0; next < ideal_nodes.size(); ++next ) {
     Node* n = ideal_nodes.at(next);
+    if ((n->Opcode() == Op_LoadX || n->Opcode() == Op_StoreX) &&
+        !n->in(MemNode::Address)->is_AddP() &&
+        _igvn->type(n->in(MemNode::Address))->isa_oopptr()) {
+      // Load/Store at mark work address is at offset 0 so has no AddP which confuses EA
+      Node* addp = new AddPNode(n->in(MemNode::Address), n->in(MemNode::Address), _igvn->MakeConX(0));
+      _igvn->register_new_node_with_optimizer(addp);
+      _igvn->replace_input_of(n, MemNode::Address, addp);
+      ideal_nodes.push(addp);
+      _nodes.at_put_grow(addp->_idx, NULL, NULL);
+    }
     // Create PointsTo nodes and add them to Connection Graph. Called
     // only once per ideal node since ideal_nodes is Unique_Node list.
     add_node_to_connection_graph(n, &delayed_worklist);

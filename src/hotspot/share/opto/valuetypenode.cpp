@@ -315,11 +315,13 @@ void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass
   base_input += vk->value_arg_slots();
 }
 
-const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, PhaseGVN& gvn) const {
+const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const {
   const TypeAryPtr* ary_type = gvn.type(base)->isa_aryptr();
   const TypePtr* adr_type = NULL;
   bool is_array = ary_type != NULL;
-  if (is_array) {
+  if ((decorators & C2_MISMATCHED) != 0) {
+    adr_type = TypeRawPtr::BOTTOM;
+  } else if (is_array) {
     // In the case of a flattened value type array, each field has its own slice
     adr_type = ary_type->with_field_offset(offset)->add_offset(Type::OffsetBot);
   } else {
@@ -330,7 +332,7 @@ const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInsta
   return adr_type;
 }
 
-void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
+void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
   // Initialize the value type by loading its field values from
   // memory and adding the values as input edges to the node.
   for (uint i = 0; i < field_count(); ++i) {
@@ -339,7 +341,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
     ciType* ft = field_type(i);
     if (field_is_flattened(i)) {
       // Recursively load the flattened value type field
-      value = ValueTypeNode::make_from_flattened(kit, ft->as_value_klass(), base, ptr, holder, offset);
+      value = ValueTypeNode::make_from_flattened(kit, ft->as_value_klass(), base, ptr, holder, offset, decorators);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
@@ -355,12 +357,11 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         value = kit->gvn().transform(kit->makecon(con_type));
       } else {
         // Load field value from memory
-        const TypePtr* adr_type = field_adr_type(base, offset, holder, kit->gvn());
+        const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
         Node* adr = kit->basic_plus_adr(base, ptr, offset);
         BasicType bt = type2field[ft->basic_type()];
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const Type* val_type = Type::get_const_type(ft);
-        DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
         if (is_array) {
           decorators |= IS_ARRAY;
         }
@@ -379,17 +380,17 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
   }
 }
 
-void ValueTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset) const {
+void ValueTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
   // The value type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
   if (holder == NULL) {
     holder = value_klass();
   }
   holder_offset -= value_klass()->first_field_offset();
-  store(kit, base, ptr, holder, holder_offset);
+  store(kit, base, ptr, holder, holder_offset, false, decorators);
 }
 
-void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool deoptimize_on_exception) const {
+void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool deoptimize_on_exception, DecoratorSet decorators) const {
   // Write field values to memory
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
@@ -401,16 +402,15 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         assert(!kit->gvn().type(value)->maybe_null(), "should never be null");
         value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass());
       }
-      value->as_ValueType()->store_flattened(kit, base, ptr, holder, offset);
+      value->as_ValueType()->store_flattened(kit, base, ptr, holder, offset, decorators);
     } else {
       // Store field value to memory
-      const TypePtr* adr_type = field_adr_type(base, offset, holder, kit->gvn());
+      const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
       Node* adr = kit->basic_plus_adr(base, ptr, offset);
       BasicType bt = type2field[ft->basic_type()];
       assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
       const Type* val_type = Type::get_const_type(ft);
       const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
-      DecoratorSet decorators = IN_HEAP | MO_UNORDERED;
       if (ary_type != NULL) {
         decorators |= IS_ARRAY;
       }
@@ -603,14 +603,14 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
 }
 
 // GraphKit wrapper for the 'make_from_flattened' method
-ValueTypeNode* ValueTypeNode::make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset) {
+ValueTypeNode* ValueTypeNode::make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
   // Create and initialize a ValueTypeNode by loading all field values from
   // a flattened value type field at 'holder_offset' or from a value type array.
   ValueTypeNode* vt = make_uninitialized(kit->gvn(), vk);
   // The value type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.
   holder_offset -= vk->first_field_offset();
-  vt->load(kit, obj, ptr, holder, holder_offset);
+  vt->load(kit, obj, ptr, holder, holder_offset, decorators);
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened value type oop");
   return kit->gvn().transform(vt)->as_ValueType();
 }
@@ -619,6 +619,37 @@ ValueTypeNode* ValueTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, c
   ValueTypeNode* vt = ValueTypeNode::make_uninitialized(kit->gvn(), vk);
   vt->initialize(kit, multi, vk, 0, base_input, in);
   return kit->gvn().transform(vt)->as_ValueType();
+}
+
+ValueTypeNode* ValueTypeNode::make_larval(GraphKit* kit, bool allocate) const {
+  ciValueKlass* vk = value_klass();
+  ValueTypeNode* res = clone()->as_ValueType();
+  if (allocate) {
+    Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
+    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, false);
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
+    alloc->_larval = true;
+
+    store(kit, alloc_oop, alloc_oop, vk, 0, false);
+    res->set_oop(alloc_oop);
+  }
+  res->set_type(TypeValueType::make(vk, true));
+  res = kit->gvn().transform(res)->as_ValueType();
+  return res;
+}
+
+ValueTypeNode* ValueTypeNode::finish_larval(GraphKit* kit) const {
+  Node* obj = get_oop();
+  Node* mark_addr = kit->basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
+  Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markOopDesc::larval_mask_in_place)));
+  kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
+
+  ciValueKlass* vk = value_klass();
+  ValueTypeNode* res = clone()->as_ValueType();
+  res->set_type(TypeValueType::make(vk, false));
+  res = kit->gvn().transform(res)->as_ValueType();
+  return res;
 }
 
 Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, int holder_offset) {

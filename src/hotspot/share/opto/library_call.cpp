@@ -269,6 +269,8 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
   bool inline_unsafe_copyMemory();
+  bool inline_unsafe_make_private_buffer();
+  bool inline_unsafe_finish_private_buffer();
   bool inline_native_currentThread();
 
   bool inline_native_time_funcs(address method, const char* funcName);
@@ -605,6 +607,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_inflateStringC:
   case vmIntrinsics::_inflateStringB:           return inline_string_copy(!is_compress);
 
+  case vmIntrinsics::_makePrivateBuffer:        return inline_unsafe_make_private_buffer();
+  case vmIntrinsics::_finishPrivateBuffer:      return inline_unsafe_finish_private_buffer();
   case vmIntrinsics::_getReference:             return inline_unsafe_access(!is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_getBoolean:               return inline_unsafe_access(!is_store, T_BOOLEAN,  Relaxed, false);
   case vmIntrinsics::_getByte:                  return inline_unsafe_access(!is_store, T_BYTE,     Relaxed, false);
@@ -614,6 +618,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getLong:                  return inline_unsafe_access(!is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_getFloat:                 return inline_unsafe_access(!is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_getDouble:                return inline_unsafe_access(!is_store, T_DOUBLE,   Relaxed, false);
+  case vmIntrinsics::_getValue:                 return inline_unsafe_access(!is_store, T_VALUETYPE,Relaxed, false);
 
   case vmIntrinsics::_putReference:             return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_putBoolean:               return inline_unsafe_access( is_store, T_BOOLEAN,  Relaxed, false);
@@ -624,6 +629,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putLong:                  return inline_unsafe_access( is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_putFloat:                 return inline_unsafe_access( is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_putDouble:                return inline_unsafe_access( is_store, T_DOUBLE,   Relaxed, false);
+  case vmIntrinsics::_putValue:                 return inline_unsafe_access( is_store, T_VALUETYPE,Relaxed, false);
 
   case vmIntrinsics::_getReferenceVolatile:     return inline_unsafe_access(!is_store, T_OBJECT,   Volatile, false);
   case vmIntrinsics::_getBooleanVolatile:       return inline_unsafe_access(!is_store, T_BOOLEAN,  Volatile, false);
@@ -2376,18 +2382,18 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (!is_store) {
       // Object getReference(Object base, int/long offset), etc.
       BasicType rtype = sig->return_type()->basic_type();
-      assert(rtype == type, "getter must return the expected value");
-      assert(sig->count() == 2, "oop getter has 2 arguments");
+      assert(rtype == type || (rtype == T_OBJECT && type == T_VALUETYPE), "getter must return the expected value");
+      assert(sig->count() == 2 || (type == T_VALUETYPE && sig->count() == 3), "oop getter has 2 or 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "getter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "getter offset is correct");
     } else {
       // void putReference(Object base, int/long offset, Object x), etc.
       assert(sig->return_type()->basic_type() == T_VOID, "putter must not return a value");
-      assert(sig->count() == 3, "oop putter has 3 arguments");
+      assert(sig->count() == 3 || (type == T_VALUETYPE && sig->count() == 4), "oop putter has 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "putter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "putter offset is correct");
       BasicType vtype = sig->type_at(sig->count()-1)->basic_type();
-      assert(vtype == type, "putter must accept the expected value");
+      assert(vtype == type || (type == T_VALUETYPE && vtype == T_OBJECT), "putter must accept the expected value");
     }
 #endif // ASSERT
  }
@@ -2413,30 +2419,59 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   assert(Unsafe_field_offset_to_byte_offset(11) == 11,
          "fieldOffset must be byte-scaled");
 
-  if (base->is_ValueType()) {
-    if (is_store) {
+  ciValueKlass* value_klass = NULL;
+  if (type == T_VALUETYPE) {
+    Node* cls = null_check(argument(4));
+    if (stopped()) {
+      return true;
+    }
+    Node* kls = load_klass_from_mirror(cls, false, NULL, 0);
+    const TypeKlassPtr* kls_t = _gvn.type(kls)->isa_klassptr();
+    if (!kls_t->klass_is_exact()) {
       return false;
     }
+    ciKlass* klass = kls_t->klass();
+    if (!klass->is_valuetype()) {
+      return false;
+    }
+    value_klass = klass->as_value_klass();
+  }
 
+  receiver = null_check(receiver);
+  if (stopped()) {
+    return true;
+  }
+
+  if (base->is_ValueType()) {
     ValueTypeNode* vt = base->as_ValueType();
-    if (offset->is_Con()) {
-      long off = find_long_con(offset, 0);
-      ciValueKlass* vk = _gvn.type(vt)->is_valuetype()->value_klass();
-      if ((long)(int)off != off || !vk->contains_field_offset(off)) {
+
+    if (is_store) {
+      if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_valuetype()->larval()) {
         return false;
       }
-
-      receiver = null_check(receiver);
-      if (stopped()) {
-        return true;
-      }
-
-      set_result(vt->field_value_by_offset((int)off, true));
-      return true;
+      base = vt->get_oop();
     } else {
-      receiver = null_check(receiver);
-      if (stopped()) {
-        return true;
+      if (offset->is_Con()) {
+        long off = find_long_con(offset, 0);
+        ciValueKlass* vk = _gvn.type(vt)->is_valuetype()->value_klass();
+        if ((long)(int)off != off || !vk->contains_field_offset(off)) {
+          return false;
+        }
+
+        ciField* f = vk->get_non_flattened_field_by_offset((int)off);
+
+        if (f != NULL) {
+          BasicType bt = f->layout_type();
+          if (bt == T_ARRAY || bt == T_NARROWOOP) {
+            bt = T_OBJECT;
+          }
+          if (bt == type) {
+            if (bt != T_VALUETYPE || f->type() == value_klass) {
+              set_result(vt->field_value_by_offset((int)off, false));
+              return true;
+            }
+          }
+        }
       }
       vt = vt->allocate(this)->as_ValueType();
       base = vt->get_oop();
@@ -2449,7 +2484,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   if (_gvn.type(base)->isa_ptr() != TypePtr::NULL_PTR) {
     heap_base_oop = base;
-  } else if (type == T_OBJECT) {
+  } else if (type == T_OBJECT || (value_klass != NULL && value_klass->has_object_fields())) {
     return false; // off-heap oop accesses are not supported
   }
 
@@ -2460,7 +2495,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     decorators |= IN_HEAP;
   }
 
-  val = is_store ? argument(4) : NULL;
+  val = is_store ? argument(4 + (type == T_VALUETYPE ? 1 : 0)) : NULL;
 
   const TypePtr *adr_type = _gvn.type(adr)->isa_ptr();
 
@@ -2474,7 +2509,31 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   bool mismatched = false;
-  BasicType bt = alias_type->basic_type();
+  BasicType bt = T_ILLEGAL;
+  ciField* field = NULL;
+  if (adr_type->isa_instptr()) {
+    const TypeInstPtr* instptr = adr_type->is_instptr();
+    ciInstanceKlass* k = instptr->klass()->as_instance_klass();
+    int off = instptr->offset();
+    if (instptr->const_oop() != NULL &&
+        instptr->klass() == ciEnv::current()->Class_klass() &&
+        instptr->offset() >= (instptr->klass()->as_instance_klass()->size_helper() * wordSize)) {
+      k = instptr->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
+      field = k->get_field_by_offset(off, true);
+    } else {
+      field = k->get_non_flattened_field_by_offset(off);
+    }
+    if (field != NULL) {
+      bt = field->layout_type();
+    }
+    assert(bt == alias_type->basic_type() || bt == T_VALUETYPE, "should match");
+    if (field != NULL && bt == T_VALUETYPE && !field->is_flattened()) {
+      bt = T_OBJECT;
+    }
+  } else {
+    bt = alias_type->basic_type();
+  }
+
   if (bt != T_ILLEGAL) {
     assert(alias_type->adr_type()->is_oopptr(), "should be on-heap access");
     if (bt == T_BYTE && adr_type->isa_aryptr()) {
@@ -2495,6 +2554,28 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     mismatched = true; // conservatively mark all "wide" on-heap accesses as mismatched
   }
 
+  if (type == T_VALUETYPE) {
+    if (adr_type->isa_instptr()) {
+      if (field == NULL || field->type() != value_klass) {
+        mismatched = true;
+      }
+    } else if (adr_type->isa_aryptr()) {
+      const Type* elem = adr_type->is_aryptr()->elem();
+      if (!elem->isa_valuetype()) {
+        mismatched = true;
+      } else if (elem->is_valuetype()->value_klass() != value_klass) {
+        mismatched = true;
+      }
+    }
+    if (is_store) {
+      const Type* val_t = _gvn.type(val);
+      if (!val_t->isa_valuetype() ||
+          val_t->is_valuetype()->value_klass() != value_klass) {
+        return false;
+      }
+    }
+  }
+
   assert(!mismatched || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
   if (mismatched) {
@@ -2507,17 +2588,17 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   // Figure out the memory ordering.
   decorators |= mo_decorator_for_access_kind(kind);
 
-  if (!is_store && type == T_OBJECT) {
-    const TypeOopPtr* tjp = sharpen_unsafe_type(alias_type, adr_type);
-    if (tjp != NULL) {
-      value_type = tjp;
+  if (!is_store) {
+    if (type == T_OBJECT) {
+      const TypeOopPtr* tjp = sharpen_unsafe_type(alias_type, adr_type);
+      if (tjp != NULL) {
+        value_type = tjp;
+      }
+    } else if (type == T_VALUETYPE) {
+      value_type = NULL;
     }
   }
 
-  receiver = null_check(receiver);
-  if (stopped()) {
-    return true;
-  }
   // Heap pointers get a null-check from the interpreter,
   // as a courtesy.  However, this is not guaranteed by Unsafe,
   // and it is not possible to fully distinguish unintended nulls
@@ -2526,14 +2607,24 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (!is_store) {
     Node* p = NULL;
     // Try to constant fold a load from a constant field
-    ciField* field = alias_type->field();
+
     if (heap_base_oop != top() && field != NULL && field->is_constant() && !mismatched) {
       // final or stable field
       p = make_constant_from_field(field, heap_base_oop);
     }
 
     if (p == NULL) { // Could not constant fold the load
-      p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
+      if (type == T_VALUETYPE) {
+        if (adr_type->isa_instptr() && !mismatched) {
+          ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
+          int offset = adr_type->is_instptr()->offset();
+          p = ValueTypeNode::make_from_flattened(this, value_klass, base, base, holder, offset, decorators);
+        } else {
+          p = ValueTypeNode::make_from_flattened(this, value_klass, base, adr, NULL, 0, decorators);
+        }
+      } else {
+        p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
+      }
       // Normalize the value returned by getBoolean in the following cases
       if (type == T_BOOLEAN &&
           (mismatched ||
@@ -2560,9 +2651,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->is_flattenable()) {
+    if (field != NULL && field->is_flattenable()&& !field->is_flattened()) {
       // Load a non-flattened but flattenable value type from memory
-      assert(!field->is_flattened(), "unsafe value type load from flattened field");
       if (value_type->value_klass()->is_scalarizable()) {
         p = ValueTypeNode::make_from_oop(this, p, value_type->value_klass());
       } else {
@@ -2580,8 +2670,65 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = ConvL2X(val);
       val = gvn().transform(new CastX2PNode(val));
     }
-    access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
+    if (type == T_VALUETYPE) {
+      if (adr_type->isa_instptr() && !mismatched) {
+        ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
+        int offset = adr_type->is_instptr()->offset();
+        val->as_ValueType()->store_flattened(this, base, base, holder, offset, decorators);
+      } else {
+        val->as_ValueType()->store_flattened(this, base, adr, NULL, 0, decorators);
+      }
+    } else {
+      access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
+    }
   }
+
+  if (argument(1)->is_ValueType() && is_store) {
+    Node* value = ValueTypeNode::make_from_oop(this, base, _gvn.type(base)->value_klass());
+    value = value->as_ValueType()->make_larval(this, false);
+    replace_in_map(argument(1), value);
+  }
+
+  return true;
+}
+
+bool LibraryCallKit::inline_unsafe_make_private_buffer() {
+  Node* receiver = argument(0);
+  Node* value = argument(1);
+
+  receiver = null_check(receiver);
+  if (stopped()) {
+    return true;
+  }
+
+  if (!value->is_ValueType()) {
+    return false;
+  }
+
+  set_result(value->as_ValueType()->make_larval(this, true));
+
+  return true;
+}
+
+bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
+  Node* receiver = argument(0);
+  Node* buffer = argument(1);
+
+  receiver = null_check(receiver);
+  if (stopped()) {
+    return true;
+  }
+
+  if (!buffer->is_ValueType()) {
+    return false;
+  }
+
+  ValueTypeNode* vt = buffer->as_ValueType();
+  if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_valuetype()->larval()) {
+    return false;
+  }
+
+  set_result(vt->finish_larval(this));
 
   return true;
 }
