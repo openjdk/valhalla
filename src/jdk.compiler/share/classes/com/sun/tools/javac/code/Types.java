@@ -1728,7 +1728,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || s.hasTag(BOT) && (!isValue(s) || isValueBased(s)))
+                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !isValue(t)))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {

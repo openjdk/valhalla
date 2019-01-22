@@ -1,3 +1,0 @@
-CheckEquals.java:10:19: compiler.err.value.does.not.support: ==
-CheckEquals.java:10:31: compiler.err.value.does.not.support: !=
-2 errors
