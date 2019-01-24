@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2015, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -30,6 +30,7 @@
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahRuntime.hpp"
+#include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/block.hpp"
 #include "opto/callnode.hpp"
@@ -1022,6 +1023,9 @@ void ShenandoahBarrierNode::verify(RootNode* root) {
           { -1,  ShenandoahNone},                 { -1,  ShenandoahNone},                 { -1,  ShenandoahNone} },
         "sha512_implCompressMB",
         { { TypeFunc::Parms, ShenandoahLoad },  { TypeFunc::Parms+1, ShenandoahStore },   { -1, ShenandoahNone },
+          { -1,  ShenandoahNone},                 { -1,  ShenandoahNone},                 { -1,  ShenandoahNone} },
+        "encodeBlock",
+        { { TypeFunc::Parms, ShenandoahLoad },  { TypeFunc::Parms+3, ShenandoahStore },   { -1, ShenandoahNone },
           { -1,  ShenandoahNone},                 { -1,  ShenandoahNone},                 { -1,  ShenandoahNone} },
       };
 
