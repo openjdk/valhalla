@@ -370,6 +370,7 @@ void TemplateTable::ldc(bool wide) {
 
   // get type
   __ movzbl(rdx, Address(rax, rbx, Address::times_1, tags_offset));
+  __ andl(rdx, ~JVM_CONSTANT_QDESC_BIT);
 
   // unresolved class - get the resolved class
   __ cmpl(rdx, JVM_CONSTANT_UnresolvedClass);
