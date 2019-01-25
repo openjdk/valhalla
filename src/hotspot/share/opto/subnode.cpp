@@ -834,9 +834,10 @@ const Type* CmpULNode::sub(const Type* t1, const Type* t2) const {
 // Simplify an CmpP (compare 2 pointers) node, based on local information.
 // If both inputs are constants, compare them.
 const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
-  if (t1->isa_valuetype() || t2->isa_valuetype() ||
-      ((t1->is_valuetypeptr() || t2->is_valuetypeptr()) &&
-      (!t1->maybe_null() || !t2->maybe_null()))) {
+  if (ACmpOnValues != 3 &&
+      (t1->isa_valuetype() || t2->isa_valuetype() ||
+       ((t1->is_valuetypeptr() || t2->is_valuetypeptr()) &&
+        (!t1->maybe_null() || !t2->maybe_null())))) {
     // One operand is a value type and one operand is never null, fold to constant false
     return TypeInt::CC_GT;
   }
@@ -1106,7 +1107,7 @@ Node* CmpPNode::has_perturbed_operand() const {
       // RawPtr comparison
       return NULL;
     }
-    assert(EnableValhalla && UsePointerPerturbation, "unexpected perturbed oop");
+    assert(EnableValhalla && ACmpOnValues == 1, "unexpected perturbed oop");
     return in(1);
   }
   return NULL;

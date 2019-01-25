@@ -1370,6 +1370,16 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   // CLEANUP - with lazy deopt shouldn't need this lock
   nmethodLocker caller_lock(caller_nm);
 
+  if (!is_virtual && !is_optimized) {
+    SimpleScopeDesc ssd(caller_nm, caller_frame.pc());
+    Bytecode bc(ssd.method(), ssd.method()->bcp_from(ssd.bci()));
+    // Substitutability test implementation piggy backs on static call resolution
+    if (bc.code() == Bytecodes::_if_acmpeq || bc.code() == Bytecodes::_if_acmpne) {
+      SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NULL);
+      return SystemDictionary::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
+    }
+  }
+
   // determine call info & receiver
   // note: a) receiver is NULL for static calls
   //       b) an exception is thrown if receiver is NULL for non-static calls

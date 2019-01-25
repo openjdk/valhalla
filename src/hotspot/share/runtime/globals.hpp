@@ -2621,8 +2621,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, ScalarizeValueTypes, true,                                  \
           "Scalarize value types in compiled code")                         \
                                                                             \
-  experimental(bool, UsePointerPerturbation, false,                         \
-               "With value types, use the perturbation scheme for acmp")    \
+  experimental(uint, ACmpOnValues, 2,                                       \
+               "0 = regular acmp"                                           \
+               "1 = always false for value, perturbation scheme"            \
+               "2 = always false for value"                                 \
+               "3 = substitutability test")                                 \
+               range(0, 3)                                                  \
 
 
 

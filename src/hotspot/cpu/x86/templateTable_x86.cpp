@@ -2478,7 +2478,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ pop_ptr(rdx);
 
   const int is_value_mask = markOopDesc::always_locked_pattern;
-  if (EnableValhalla && UsePointerPerturbation) {
+  if (EnableValhalla && ACmpOnValues == 1) {
     Label is_null;
     __ testptr(rdx, rdx);
     __ jcc(Assembler::zero, is_null);
@@ -2493,7 +2493,7 @@ void TemplateTable::if_acmp(Condition cc) {
 
   __ cmpoop(rdx, rax);
 
-  if (EnableValhalla && !UsePointerPerturbation) {
+  if (EnableValhalla && ACmpOnValues != 1) {
     __ jcc(Assembler::notEqual, (cc == not_equal) ? taken : not_taken);
     __ testptr(rdx, rdx);
     __ jcc(Assembler::zero, (cc == equal) ? taken : not_taken);

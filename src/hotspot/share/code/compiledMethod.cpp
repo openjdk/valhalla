@@ -345,15 +345,12 @@ int CompiledMethod::verify_icholder_relocations() {
 void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map, OopClosure* f) {
   if (method() != NULL && !method()->is_native()) {
     address pc = fr.pc();
-    SimpleScopeDesc ssd(this, pc);
-    Bytecode_invoke call(ssd.method(), ssd.bci());
-    bool has_receiver = call.has_receiver();
-    bool has_appendix = call.has_appendix();
-    Symbol* signature = call.signature();
-
     // The method attached by JIT-compilers should be used, if present.
     // Bytecode can be inaccurate in such case.
     Method* callee = attached_method_before_pc(pc);
+    bool has_receiver = false;
+    bool has_appendix = false;
+    Symbol* signature = NULL;
     if (callee != NULL) {
       has_receiver = !(callee->access_flags().is_static());
       has_appendix = false;
@@ -366,6 +363,12 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
         signature = SigEntry::create_symbol(sig);
         has_receiver = false; // The extended signature contains the receiver type
       }
+    } else {
+      SimpleScopeDesc ssd(this, pc);
+      Bytecode_invoke call(ssd.method(), ssd.bci());
+      has_receiver = call.has_receiver();
+      has_appendix = call.has_appendix();
+      signature = call.signature();
     }
 
     fr.oops_compiled_arguments_do(signature, has_receiver, has_appendix, reg_map, f);

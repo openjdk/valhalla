@@ -1816,6 +1816,211 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
 }
 
 void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
+  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
+  // If current method is ValueBootstrapMethods::isSubstitutable(),
+  // compile the acmp as a regular pointer comparison otherwise we
+  // could call ValueBootstrapMethods::isSubstitutable() back
+  if (ACmpOnValues == 0 || !EnableValhalla || method() == subst_method) {
+    Node* cmp = CmpP(a, b);
+    cmp = optimize_cmp_with_klass(cmp);
+    do_if(btest, cmp);
+    return;
+  }
+
+  if (ACmpOnValues == 3) {
+    // Substituability test
+    if (a->is_ValueType()) {
+      inc_sp(2);
+      a = a->as_ValueType()->allocate(this, true)->get_oop();
+      dec_sp(2);
+    }
+    if (b->is_ValueType()) {
+      inc_sp(2);
+      b = b->as_ValueType()->allocate(this, true)->get_oop();
+      dec_sp(2);
+    }
+
+    const TypeOopPtr* ta = _gvn.type(a)->isa_oopptr();
+    const TypeOopPtr* tb = _gvn.type(b)->isa_oopptr();
+
+    if (ta == NULL || !ta->can_be_value_type() ||
+        tb == NULL || !tb->can_be_value_type()) {
+      Node* cmp = CmpP(a, b);
+      cmp = optimize_cmp_with_klass(cmp);
+      do_if(btest, cmp);
+      return;
+    }
+
+    Node* cmp = CmpP(a, b);
+    cmp = optimize_cmp_with_klass(cmp);
+    Node* eq_region = NULL;
+    if (btest == BoolTest::eq) {
+      do_if(btest, cmp, true);
+      if (stopped()) {
+        return;
+      }
+    } else {
+      assert(btest == BoolTest::ne, "only eq or ne");
+      Node* is_not_equal = NULL;
+      eq_region = new RegionNode(3);
+      {
+        PreserveJVMState pjvms(this);
+        do_if(btest, cmp, false, &is_not_equal);
+        if (!stopped()) {
+          eq_region->init_req(1, control());
+        }
+      }
+      if (is_not_equal == NULL || is_not_equal->is_top()) {
+        record_for_igvn(eq_region);
+        set_control(_gvn.transform(eq_region));
+        return;
+      }
+      set_control(is_not_equal);
+    }
+    // Pointers not equal, check for values
+    Node* ne_region = new RegionNode(6);
+    inc_sp(2);
+    Node* null_ctl = top();
+    Node* not_null_a = null_check_oop(a, &null_ctl, !too_many_traps(Deoptimization::Reason_null_check), false, false);
+    dec_sp(2);
+    ne_region->init_req(1, null_ctl);
+    if (stopped()) {
+      record_for_igvn(ne_region);
+      set_control(_gvn.transform(ne_region));
+      if (btest == BoolTest::ne) {
+        {
+          PreserveJVMState pjvms(this);
+          int target_bci = iter().get_dest();
+          merge(target_bci);
+        }
+        record_for_igvn(eq_region);
+        set_control(_gvn.transform(eq_region));
+      }
+      return;
+    }
+
+    Node* is_value = is_always_locked(not_null_a);
+    Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
+    Node* is_value_cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
+    Node* is_value_bol = _gvn.transform(new BoolNode(is_value_cmp, BoolTest::ne));
+    IfNode* is_value_iff = create_and_map_if(control(), is_value_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* not_value = _gvn.transform(new IfTrueNode(is_value_iff));
+    set_control(_gvn.transform(new IfFalseNode(is_value_iff)));
+    ne_region->init_req(2, not_value);
+
+    // One of the 2 pointers refers to a value, check if both are of
+    // the same class
+    inc_sp(2);
+    null_ctl = top();
+    Node* not_null_b = null_check_oop(b, &null_ctl, !too_many_traps(Deoptimization::Reason_null_check), false, false);
+    dec_sp(2);
+    ne_region->init_req(3, null_ctl);
+    if (stopped()) {
+      record_for_igvn(ne_region);
+      set_control(_gvn.transform(ne_region));
+      if (btest == BoolTest::ne) {
+        {
+          PreserveJVMState pjvms(this);
+          int target_bci = iter().get_dest();
+          merge(target_bci);
+        }
+        record_for_igvn(eq_region);
+        set_control(_gvn.transform(eq_region));
+      }
+      return;
+    }
+    Node* kls_a = load_object_klass(not_null_a);
+    Node* kls_b = load_object_klass(not_null_b);
+    Node* kls_cmp = CmpP(kls_a, kls_b);
+    Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
+    IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
+    Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
+    set_control(_gvn.transform(new IfFalseNode(kls_iff)));
+    ne_region->init_req(4, kls_ne);
+
+    if (stopped()) {
+      record_for_igvn(ne_region);
+      set_control(_gvn.transform(ne_region));
+      if (btest == BoolTest::ne) {
+        {
+          PreserveJVMState pjvms(this);
+          int target_bci = iter().get_dest();
+          merge(target_bci);
+        }
+        record_for_igvn(eq_region);
+        set_control(_gvn.transform(eq_region));
+      }
+      return;
+    }
+    // Both are values of the same class, we need to perform a
+    // substitutability test. Delegate to
+    // ValueBootstrapMethods::isSubstitutable().
+
+    Node* ne_io_phi = PhiNode::make(ne_region, i_o());
+    Node* mem = reset_memory();
+    Node* ne_mem_phi = PhiNode::make(ne_region, mem);
+
+    Node* eq_io_phi = NULL;
+    Node* eq_mem_phi = NULL;
+    if (eq_region != NULL) {
+      eq_io_phi = PhiNode::make(eq_region, i_o());
+      eq_mem_phi = PhiNode::make(eq_region, mem);
+    }
+
+    set_all_memory(mem);
+
+    kill_dead_locals();
+    CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method, bci());
+    call->set_override_symbolic_info(true);
+    call->init_req(TypeFunc::Parms, not_null_a);
+    call->init_req(TypeFunc::Parms+1, not_null_b);
+    inc_sp(2);
+    set_edges_for_java_call(call, false, false);
+    Node* ret = set_results_for_java_call(call, false, true);
+    dec_sp(2);
+
+    // Test the return value of ValueBootstrapMethods::isSubstitutable()
+    Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
+    if (btest == BoolTest::eq) {
+      do_if(btest, subst_cmp);
+    } else {
+      assert(btest == BoolTest::ne, "only eq or ne");
+      Node* is_not_equal = NULL;
+      {
+        PreserveJVMState pjvms(this);
+        do_if(btest, subst_cmp, false, &is_not_equal);
+        if (!stopped()) {
+          eq_region->init_req(2, control());
+          eq_io_phi->init_req(2, i_o());
+          eq_mem_phi->init_req(2, reset_memory());
+        }
+      }
+      set_control(is_not_equal);
+    }
+    ne_region->init_req(5, control());
+    ne_io_phi->init_req(5, i_o());
+    ne_mem_phi->init_req(5, reset_memory());
+
+    record_for_igvn(ne_region);
+    set_control(_gvn.transform(ne_region));
+    set_i_o(_gvn.transform(ne_io_phi));
+    set_all_memory(_gvn.transform(ne_mem_phi));
+
+    if (btest == BoolTest::ne) {
+      {
+        PreserveJVMState pjvms(this);
+        int target_bci = iter().get_dest();
+        merge(target_bci);
+      }
+
+      record_for_igvn(eq_region);
+      set_control(_gvn.transform(eq_region));
+      set_i_o(_gvn.transform(eq_io_phi));
+      set_all_memory(_gvn.transform(eq_mem_phi));
+    }
+
+    return;
+  }
   // In the case were both operands might be value types, we need to
   // use the new acmp implementation. Otherwise, i.e. if one operand
   // is not a value type, we can use the old acmp implementation.
@@ -1829,7 +2034,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
 
   Node* ctrl = NULL;
   bool safe_for_replace = true;
-  if (!UsePointerPerturbation) {
+  if (ACmpOnValues != 1) {
     // Emit old acmp before new acmp for quick a != b check
     cmp = CmpP(a, b);
     cmp = optimize_cmp_with_klass(_gvn.transform(cmp));
@@ -1889,7 +2094,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   }
 
   Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
-  if (UsePointerPerturbation) {
+  if (ACmpOnValues == 1) {
     Node* mark_addr = basic_plus_adr(not_null_a, oopDesc::mark_offset_in_bytes());
     Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
     Node* not_mark = _gvn.transform(new XorXNode(mark, _gvn.MakeConX(-1)));
@@ -1904,7 +2109,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   set_control(_gvn.transform(region));
   is_value = _gvn.transform(is_value);
 
-  if (UsePointerPerturbation) {
+  if (ACmpOnValues == 1) {
     // Perturbe oop if operand is a value type to make comparison fail
     Node* pert = _gvn.transform(new AddPNode(a, a, is_value));
     cmp = _gvn.transform(new CmpPNode(pert, b));

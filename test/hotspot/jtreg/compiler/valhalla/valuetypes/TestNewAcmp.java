@@ -60,6 +60,45 @@
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
  *                   compiler.valhalla.valuetypes.TestNewAcmp 2
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
+ *                   compiler.valhalla.valuetypes.TestNewAcmp 0
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
+ *                   -XX:+AlwaysIncrementalInline
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
+ *                   compiler.valhalla.valuetypes.TestNewAcmp 0
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
+ *                   compiler.valhalla.valuetypes.TestNewAcmp 1
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
+ *                   -XX:+AlwaysIncrementalInline
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
+ *                   compiler.valhalla.valuetypes.TestNewAcmp 1
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
+ *                   compiler.valhalla.valuetypes.TestNewAcmp 2
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
+ *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
+ *                   -XX:+AlwaysIncrementalInline
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
+ *                   compiler.valhalla.valuetypes.TestNewAcmp 2
  */
 
 package compiler.valhalla.valuetypes;
@@ -71,17 +110,34 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.Arrays;
 import sun.hotspot.WhiteBox;
 
 interface MyInterface {
 
 }
 
-value class MyValue implements MyInterface {
-    final int x = 42;
+value class MyValue1 implements MyInterface {
+    final int x = 0;
 
-    static MyValue createDefault() {
-        return MyValue.default;
+    static MyValue1 createDefault() {
+        return MyValue1.default;
+    }
+
+    static MyValue1 setX(MyValue1 v, int x) {
+        return __WithField(v.x, x);
+    }
+}
+
+value class MyValue2 implements MyInterface {
+    final int x = 0;
+
+    static MyValue2 createDefault() {
+        return MyValue2.default;
+    }
+
+    static MyValue2 setX(MyValue2 v, int x) {
+        return __WithField(v.x, x);
     }
 }
 
@@ -91,11 +147,15 @@ class MyObject implements MyInterface {
 
 // Mark test methods that return always false
 @Retention(RetentionPolicy.RUNTIME)
-@interface AlwaysFalse { }
+@interface AlwaysFalse {
+    int[] valid_for() default {1, 2};
+}
 
 // Mark test methods that return always true
 @Retention(RetentionPolicy.RUNTIME)
-@interface AlwaysTrue { }
+@interface AlwaysTrue {
+    int[] valid_for() default {1, 2};
+}
 
 // Mark test methods that return false if the argument is null
 @Retention(RetentionPolicy.RUNTIME)
@@ -134,138 +194,138 @@ public class TestNewAcmp {
         return getNotNull(u1) == getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testEq02_1(MyValue v1, MyValue v2) {
+    public boolean testEq02_1(MyValue1 v1, MyValue1 v2) {
         return get(v1) == (Object)v2; // only true if both null
     }
 
-    public boolean testEq02_2(MyValue v1, MyValue v2) {
+    public boolean testEq02_2(MyValue1 v1, MyValue1 v2) {
         return (Object)v1 == get(v2); // only true if both null
     }
 
-    public boolean testEq02_3(MyValue v1, MyValue v2) {
+    public boolean testEq02_3(MyValue1 v1, MyValue1 v2) {
         return get(v1) == get(v2); // only true if both null
     }
 
-    public boolean testEq03_1(MyValue v, Object u) {
+    public boolean testEq03_1(MyValue1 v, Object u) {
         return get(v) == u; // only true if both null
     }
 
-    public boolean testEq03_2(MyValue v, Object u) {
+    public boolean testEq03_2(MyValue1 v, Object u) {
         return (Object)v == get(u); // only true if both null
     }
 
-    public boolean testEq03_3(MyValue v, Object u) {
+    public boolean testEq03_3(MyValue1 v, Object u) {
         return get(v) == get(u); // only true if both null
     }
 
-    public boolean testEq04_1(Object u, MyValue v) {
+    public boolean testEq04_1(Object u, MyValue1 v) {
         return get(u) == (Object)v; // only true if both null
     }
 
-    public boolean testEq04_2(Object u, MyValue v) {
+    public boolean testEq04_2(Object u, MyValue1 v) {
         return u == get(v); // only true if both null
     }
 
-    public boolean testEq04_3(Object u, MyValue v) {
+    public boolean testEq04_3(Object u, MyValue1 v) {
         return get(u) == get(v); // only true if both null
     }
 
-    public boolean testEq05_1(MyObject o, MyValue v) {
+    public boolean testEq05_1(MyObject o, MyValue1 v) {
         return get(o) == (Object)v; // only true if both null
     }
 
-    public boolean testEq05_2(MyObject o, MyValue v) {
+    public boolean testEq05_2(MyObject o, MyValue1 v) {
         return o == get(v); // only true if both null
     }
 
-    public boolean testEq05_3(MyObject o, MyValue v) {
+    public boolean testEq05_3(MyObject o, MyValue1 v) {
         return get(o) == get(v); // only true if both null
     }
 
-    public boolean testEq06_1(MyValue v, MyObject o) {
+    public boolean testEq06_1(MyValue1 v, MyObject o) {
         return get(v) == o; // only true if both null
     }
 
-    public boolean testEq06_2(MyValue v, MyObject o) {
+    public boolean testEq06_2(MyValue1 v, MyObject o) {
         return (Object)v == get(o); // only true if both null
     }
 
-    public boolean testEq06_3(MyValue v, MyObject o) {
+    public boolean testEq06_3(MyValue1 v, MyObject o) {
         return get(v) == get(o); // only true if both null
     }
 
     @AlwaysFalse
-    public boolean testEq07_1(MyValue v1, MyValue v2) {
+    public boolean testEq07_1(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) == (Object)v2; // false
     }
 
     @AlwaysFalse
-    public boolean testEq07_2(MyValue v1, MyValue v2) {
+    public boolean testEq07_2(MyValue1 v1, MyValue1 v2) {
         return (Object)v1 == getNotNull(v2); // false
     }
 
     @AlwaysFalse
-    public boolean testEq07_3(MyValue v1, MyValue v2) {
+    public boolean testEq07_3(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) == getNotNull(v2); // false
     }
 
     @AlwaysFalse
-    public boolean testEq08_1(MyValue v, Object u) {
+    public boolean testEq08_1(MyValue1 v, Object u) {
         return getNotNull(v) == u; // false
     }
 
     @AlwaysFalse
-    public boolean testEq08_2(MyValue v, Object u) {
+    public boolean testEq08_2(MyValue1 v, Object u) {
         return (Object)v == getNotNull(u); // false
     }
 
     @AlwaysFalse
-    public boolean testEq08_3(MyValue v, Object u) {
+    public boolean testEq08_3(MyValue1 v, Object u) {
         return getNotNull(v) == getNotNull(u); // false
     }
 
     @AlwaysFalse
-    public boolean testEq09_1(Object u, MyValue v) {
+    public boolean testEq09_1(Object u, MyValue1 v) {
         return getNotNull(u) == (Object)v; // false
     }
 
     @AlwaysFalse
-    public boolean testEq09_2(Object u, MyValue v) {
+    public boolean testEq09_2(Object u, MyValue1 v) {
         return u == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq09_3(Object u, MyValue v) {
+    public boolean testEq09_3(Object u, MyValue1 v) {
         return getNotNull(u) == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq10_1(MyObject o, MyValue v) {
+    public boolean testEq10_1(MyObject o, MyValue1 v) {
         return getNotNull(o) == (Object)v; // false
     }
 
     @AlwaysFalse
-    public boolean testEq10_2(MyObject o, MyValue v) {
+    public boolean testEq10_2(MyObject o, MyValue1 v) {
         return o == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq10_3(MyObject o, MyValue v) {
+    public boolean testEq10_3(MyObject o, MyValue1 v) {
         return getNotNull(o) == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq11_1(MyValue v, MyObject o) {
+    public boolean testEq11_1(MyValue1 v, MyObject o) {
         return getNotNull(v) == o; // false
     }
 
     @AlwaysFalse
-    public boolean testEq11_2(MyValue v, MyObject o) {
+    public boolean testEq11_2(MyValue1 v, MyObject o) {
         return (Object)v == getNotNull(o); // false
     }
 
     @AlwaysFalse
-    public boolean testEq11_3(MyValue v, MyObject o) {
+    public boolean testEq11_3(MyValue1 v, MyObject o) {
         return getNotNull(v) == getNotNull(o); // false
     }
 
@@ -329,57 +389,57 @@ public class TestNewAcmp {
         return get(u) == get(a); // old acmp
     }
 
-    public boolean testEq17_1(Object[] a, MyValue v) {
+    public boolean testEq17_1(Object[] a, MyValue1 v) {
         return get(a) == (Object)v; // only true if both null
     }
 
-    public boolean testEq17_2(Object[] a, MyValue v) {
+    public boolean testEq17_2(Object[] a, MyValue1 v) {
         return a == get(v); // only true if both null
     }
 
-    public boolean testEq17_3(Object[] a, MyValue v) {
+    public boolean testEq17_3(Object[] a, MyValue1 v) {
         return get(a) == get(v); // only true if both null
     }
 
-    public boolean testEq18_1(MyValue v, Object[] a) {
+    public boolean testEq18_1(MyValue1 v, Object[] a) {
         return get(v) == a; // only true if both null
     }
 
-    public boolean testEq18_2(MyValue v, Object[] a) {
+    public boolean testEq18_2(MyValue1 v, Object[] a) {
         return (Object)v == get(a); // only true if both null
     }
 
-    public boolean testEq18_3(MyValue v, Object[] a) {
+    public boolean testEq18_3(MyValue1 v, Object[] a) {
         return get(v) == get(a); // only true if both null
     }
 
     @AlwaysFalse
-    public boolean testEq19_1(Object[] a, MyValue v) {
+    public boolean testEq19_1(Object[] a, MyValue1 v) {
         return getNotNull(a) == (Object)v; // false
     }
 
     @AlwaysFalse
-    public boolean testEq19_2(Object[] a, MyValue v) {
+    public boolean testEq19_2(Object[] a, MyValue1 v) {
         return a == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq19_3(Object[] a, MyValue v) {
+    public boolean testEq19_3(Object[] a, MyValue1 v) {
         return getNotNull(a) == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq20_1(MyValue v, Object[] a) {
+    public boolean testEq20_1(MyValue1 v, Object[] a) {
         return getNotNull(v) == a; // false
     }
 
     @AlwaysFalse
-    public boolean testEq20_2(MyValue v, Object[] a) {
+    public boolean testEq20_2(MyValue1 v, Object[] a) {
         return (Object)v == getNotNull(a); // false
     }
 
     @AlwaysFalse
-    public boolean testEq20_3(MyValue v, Object[] a) {
+    public boolean testEq20_3(MyValue1 v, Object[] a) {
         return getNotNull(v) == getNotNull(a); // false
     }
 
@@ -410,57 +470,57 @@ public class TestNewAcmp {
         return getNotNull(u1) == getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testEq22_1(MyValue v, MyInterface u) {
+    public boolean testEq22_1(MyValue1 v, MyInterface u) {
         return get(v) == u; // only true if both null
     }
 
-    public boolean testEq22_2(MyValue v, MyInterface u) {
+    public boolean testEq22_2(MyValue1 v, MyInterface u) {
         return (Object)v == get(u); // only true if both null
     }
 
-    public boolean testEq22_3(MyValue v, MyInterface u) {
+    public boolean testEq22_3(MyValue1 v, MyInterface u) {
         return get(v) == get(u); // only true if both null
     }
 
-    public boolean testEq23_1(MyInterface u, MyValue v) {
+    public boolean testEq23_1(MyInterface u, MyValue1 v) {
         return get(u) == (Object)v; // only true if both null
     }
 
-    public boolean testEq23_2(MyInterface u, MyValue v) {
+    public boolean testEq23_2(MyInterface u, MyValue1 v) {
         return u == get(v); // only true if both null
     }
 
-    public boolean testEq23_3(MyInterface u, MyValue v) {
+    public boolean testEq23_3(MyInterface u, MyValue1 v) {
         return get(u) == get(v); // only true if both null
     }
 
     @AlwaysFalse
-    public boolean testEq24_1(MyValue v, MyInterface u) {
+    public boolean testEq24_1(MyValue1 v, MyInterface u) {
         return getNotNull(v) == u; // false
     }
 
     @AlwaysFalse
-    public boolean testEq24_2(MyValue v, MyInterface u) {
+    public boolean testEq24_2(MyValue1 v, MyInterface u) {
         return (Object)v == getNotNull(u); // false
     }
 
     @AlwaysFalse
-    public boolean testEq24_3(MyValue v, MyInterface u) {
+    public boolean testEq24_3(MyValue1 v, MyInterface u) {
         return getNotNull(v) == getNotNull(u); // false
     }
 
     @AlwaysFalse
-    public boolean testEq25_1(MyInterface u, MyValue v) {
+    public boolean testEq25_1(MyInterface u, MyValue1 v) {
         return getNotNull(u) == (Object)v; // false
     }
 
     @AlwaysFalse
-    public boolean testEq25_2(MyInterface u, MyValue v) {
+    public boolean testEq25_2(MyInterface u, MyValue1 v) {
         return u == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq25_3(MyInterface u, MyValue v) {
+    public boolean testEq25_3(MyInterface u, MyValue1 v) {
         return getNotNull(u) == getNotNull(v); // false
     }
 
@@ -512,92 +572,92 @@ public class TestNewAcmp {
         return get(u) == get(a); // old acmp
     }
 
-    public boolean testEq30_1(MyInterface[] a, MyValue v) {
+    public boolean testEq30_1(MyInterface[] a, MyValue1 v) {
         return get(a) == (Object)v; // only true if both null
     }
 
-    public boolean testEq30_2(MyInterface[] a, MyValue v) {
+    public boolean testEq30_2(MyInterface[] a, MyValue1 v) {
         return a == get(v); // only true if both null
     }
 
-    public boolean testEq30_3(MyInterface[] a, MyValue v) {
+    public boolean testEq30_3(MyInterface[] a, MyValue1 v) {
         return get(a) == get(v); // only true if both null
     }
 
-    public boolean testEq31_1(MyValue v, MyInterface[] a) {
+    public boolean testEq31_1(MyValue1 v, MyInterface[] a) {
         return get(v) == a; // only true if both null
     }
 
-    public boolean testEq31_2(MyValue v, MyInterface[] a) {
+    public boolean testEq31_2(MyValue1 v, MyInterface[] a) {
         return (Object)v == get(a); // only true if both null
     }
 
-    public boolean testEq31_3(MyValue v, MyInterface[] a) {
+    public boolean testEq31_3(MyValue1 v, MyInterface[] a) {
         return get(v) == get(a); // only true if both null
     }
 
     @AlwaysFalse
-    public boolean testEq32_1(MyInterface[] a, MyValue v) {
+    public boolean testEq32_1(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) == (Object)v; // false
     }
 
     @AlwaysFalse
-    public boolean testEq32_2(MyInterface[] a, MyValue v) {
+    public boolean testEq32_2(MyInterface[] a, MyValue1 v) {
         return a == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq32_3(MyInterface[] a, MyValue v) {
+    public boolean testEq32_3(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) == getNotNull(v); // false
     }
 
     @AlwaysFalse
-    public boolean testEq33_1(MyValue v, MyInterface[] a) {
+    public boolean testEq33_1(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) == a; // false
     }
 
     @AlwaysFalse
-    public boolean testEq33_2(MyValue v, MyInterface[] a) {
+    public boolean testEq33_2(MyValue1 v, MyInterface[] a) {
         return (Object)v == getNotNull(a); // false
     }
 
     @AlwaysFalse
-    public boolean testEq33_3(MyValue v, MyInterface[] a) {
+    public boolean testEq33_3(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) == getNotNull(a); // false
     }
 
 
     // Null tests
 
-    public boolean testNull01_1(MyValue v) {
+    public boolean testNull01_1(MyValue1 v) {
         return (Object)v == null; // old acmp
     }
 
-    public boolean testNull01_2(MyValue v) {
+    public boolean testNull01_2(MyValue1 v) {
         return get(v) == null; // old acmp
     }
 
-    public boolean testNull01_3(MyValue v) {
+    public boolean testNull01_3(MyValue1 v) {
         return (Object)v == get((Object)null); // old acmp
     }
 
-    public boolean testNull01_4(MyValue v) {
+    public boolean testNull01_4(MyValue1 v) {
         return get(v) == get((Object)null); // old acmp
     }
 
-    public boolean testNull02_1(MyValue v) {
+    public boolean testNull02_1(MyValue1 v) {
         return null == (Object)v; // old acmp
     }
 
-    public boolean testNull02_2(MyValue v) {
+    public boolean testNull02_2(MyValue1 v) {
         return get((Object)null) == (Object)v; // old acmp
     }
 
-    public boolean testNull02_3(MyValue v) {
+    public boolean testNull02_3(MyValue1 v) {
         return null == get(v); // old acmp
     }
 
-    public boolean testNull02_4(MyValue v) {
+    public boolean testNull02_4(MyValue1 v) {
         return get((Object)null) == get(v); // old acmp
     }
 
@@ -726,138 +786,138 @@ public class TestNewAcmp {
         return getNotNull(u1) != getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testNotEq02_1(MyValue v1, MyValue v2) {
+    public boolean testNotEq02_1(MyValue1 v1, MyValue1 v2) {
         return get(v1) != (Object)v2; // only false if both null
     }
 
-    public boolean testNotEq02_2(MyValue v1, MyValue v2) {
+    public boolean testNotEq02_2(MyValue1 v1, MyValue1 v2) {
         return (Object)v1 != get(v2); // only false if both null
     }
 
-    public boolean testNotEq02_3(MyValue v1, MyValue v2) {
+    public boolean testNotEq02_3(MyValue1 v1, MyValue1 v2) {
         return get(v1) != get(v2); // only false if both null
     }
 
-    public boolean testNotEq03_1(MyValue v, Object u) {
+    public boolean testNotEq03_1(MyValue1 v, Object u) {
         return get(v) != u; // only false if both null
     }
 
-    public boolean testNotEq03_2(MyValue v, Object u) {
+    public boolean testNotEq03_2(MyValue1 v, Object u) {
         return (Object)v != get(u); // only false if both null
     }
 
-    public boolean testNotEq03_3(MyValue v, Object u) {
+    public boolean testNotEq03_3(MyValue1 v, Object u) {
         return get(v) != get(u); // only false if both null
     }
 
-    public boolean testNotEq04_1(Object u, MyValue v) {
+    public boolean testNotEq04_1(Object u, MyValue1 v) {
         return get(u) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq04_2(Object u, MyValue v) {
+    public boolean testNotEq04_2(Object u, MyValue1 v) {
         return u != get(v); // only false if both null
     }
 
-    public boolean testNotEq04_3(Object u, MyValue v) {
+    public boolean testNotEq04_3(Object u, MyValue1 v) {
         return get(u) != get(v); // only false if both null
     }
 
-    public boolean testNotEq05_1(MyObject o, MyValue v) {
+    public boolean testNotEq05_1(MyObject o, MyValue1 v) {
         return get(o) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq05_2(MyObject o, MyValue v) {
+    public boolean testNotEq05_2(MyObject o, MyValue1 v) {
         return o != get(v); // only false if both null
     }
 
-    public boolean testNotEq05_3(MyObject o, MyValue v) {
+    public boolean testNotEq05_3(MyObject o, MyValue1 v) {
         return get(o) != get(v); // only false if both null
     }
 
-    public boolean testNotEq06_1(MyValue v, MyObject o) {
+    public boolean testNotEq06_1(MyValue1 v, MyObject o) {
         return get(v) != o; // only false if both null
     }
 
-    public boolean testNotEq06_2(MyValue v, MyObject o) {
+    public boolean testNotEq06_2(MyValue1 v, MyObject o) {
         return (Object)v != get(o); // only false if both null
     }
 
-    public boolean testNotEq06_3(MyValue v, MyObject o) {
+    public boolean testNotEq06_3(MyValue1 v, MyObject o) {
         return get(v) != get(o); // only false if both null
     }
 
     @AlwaysTrue
-    public boolean testNotEq07_1(MyValue v1, MyValue v2) {
+    public boolean testNotEq07_1(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) != (Object)v2; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq07_2(MyValue v1, MyValue v2) {
+    public boolean testNotEq07_2(MyValue1 v1, MyValue1 v2) {
         return (Object)v1 != getNotNull(v2); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq07_3(MyValue v1, MyValue v2) {
+    public boolean testNotEq07_3(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) != getNotNull(v2); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq08_1(MyValue v, Object u) {
+    public boolean testNotEq08_1(MyValue1 v, Object u) {
         return getNotNull(v) != u; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq08_2(MyValue v, Object u) {
+    public boolean testNotEq08_2(MyValue1 v, Object u) {
         return (Object)v != getNotNull(u); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq08_3(MyValue v, Object u) {
+    public boolean testNotEq08_3(MyValue1 v, Object u) {
         return getNotNull(v) != getNotNull(u); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq09_1(Object u, MyValue v) {
+    public boolean testNotEq09_1(Object u, MyValue1 v) {
         return getNotNull(u) != (Object)v; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq09_2(Object u, MyValue v) {
+    public boolean testNotEq09_2(Object u, MyValue1 v) {
         return u != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq09_3(Object u, MyValue v) {
+    public boolean testNotEq09_3(Object u, MyValue1 v) {
         return getNotNull(u) != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq10_1(MyObject o, MyValue v) {
+    public boolean testNotEq10_1(MyObject o, MyValue1 v) {
         return getNotNull(o) != (Object)v; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq10_2(MyObject o, MyValue v) {
+    public boolean testNotEq10_2(MyObject o, MyValue1 v) {
         return o != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq10_3(MyObject o, MyValue v) {
+    public boolean testNotEq10_3(MyObject o, MyValue1 v) {
         return getNotNull(o) != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq11_1(MyValue v, MyObject o) {
+    public boolean testNotEq11_1(MyValue1 v, MyObject o) {
         return getNotNull(v) != o; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq11_2(MyValue v, MyObject o) {
+    public boolean testNotEq11_2(MyValue1 v, MyObject o) {
         return (Object)v != getNotNull(o); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq11_3(MyValue v, MyObject o) {
+    public boolean testNotEq11_3(MyValue1 v, MyObject o) {
         return getNotNull(v) != getNotNull(o); // true
     }
 
@@ -921,57 +981,57 @@ public class TestNewAcmp {
         return get(u) != get(a); // old acmp
     }
 
-    public boolean testNotEq17_1(Object[] a, MyValue v) {
+    public boolean testNotEq17_1(Object[] a, MyValue1 v) {
         return get(a) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq17_2(Object[] a, MyValue v) {
+    public boolean testNotEq17_2(Object[] a, MyValue1 v) {
         return a != get(v); // only false if both null
     }
 
-    public boolean testNotEq17_3(Object[] a, MyValue v) {
+    public boolean testNotEq17_3(Object[] a, MyValue1 v) {
         return get(a) != get(v); // only false if both null
     }
 
-    public boolean testNotEq18_1(MyValue v, Object[] a) {
+    public boolean testNotEq18_1(MyValue1 v, Object[] a) {
         return get(v) != a; // only false if both null
     }
 
-    public boolean testNotEq18_2(MyValue v, Object[] a) {
+    public boolean testNotEq18_2(MyValue1 v, Object[] a) {
         return (Object)v != get(a); // only false if both null
     }
 
-    public boolean testNotEq18_3(MyValue v, Object[] a) {
+    public boolean testNotEq18_3(MyValue1 v, Object[] a) {
         return get(v) != get(a); // only false if both null
     }
 
     @AlwaysTrue
-    public boolean testNotEq19_1(Object[] a, MyValue v) {
+    public boolean testNotEq19_1(Object[] a, MyValue1 v) {
         return getNotNull(a) != (Object)v; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq19_2(Object[] a, MyValue v) {
+    public boolean testNotEq19_2(Object[] a, MyValue1 v) {
         return a != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq19_3(Object[] a, MyValue v) {
+    public boolean testNotEq19_3(Object[] a, MyValue1 v) {
         return getNotNull(a) != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq20_1(MyValue v, Object[] a) {
+    public boolean testNotEq20_1(MyValue1 v, Object[] a) {
         return getNotNull(v) != a; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq20_2(MyValue v, Object[] a) {
+    public boolean testNotEq20_2(MyValue1 v, Object[] a) {
         return (Object)v != getNotNull(a); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq20_3(MyValue v, Object[] a) {
+    public boolean testNotEq20_3(MyValue1 v, Object[] a) {
         return getNotNull(v) != getNotNull(a); // true
     }
 
@@ -1002,57 +1062,57 @@ public class TestNewAcmp {
         return getNotNull(u1) != getNotNull(u2); // new acmp without null check
     }
 
-    public boolean testNotEq22_1(MyValue v, MyInterface u) {
+    public boolean testNotEq22_1(MyValue1 v, MyInterface u) {
         return get(v) != u; // only false if both null
     }
 
-    public boolean testNotEq22_2(MyValue v, MyInterface u) {
+    public boolean testNotEq22_2(MyValue1 v, MyInterface u) {
         return (Object)v != get(u); // only false if both null
     }
 
-    public boolean testNotEq22_3(MyValue v, MyInterface u) {
+    public boolean testNotEq22_3(MyValue1 v, MyInterface u) {
         return get(v) != get(u); // only false if both null
     }
 
-    public boolean testNotEq23_1(MyInterface u, MyValue v) {
+    public boolean testNotEq23_1(MyInterface u, MyValue1 v) {
         return get(u) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq23_2(MyInterface u, MyValue v) {
+    public boolean testNotEq23_2(MyInterface u, MyValue1 v) {
         return u != get(v); // only false if both null
     }
 
-    public boolean testNotEq23_3(MyInterface u, MyValue v) {
+    public boolean testNotEq23_3(MyInterface u, MyValue1 v) {
         return get(u) != get(v); // only false if both null
     }
 
     @AlwaysTrue
-    public boolean testNotEq24_1(MyValue v, MyInterface u) {
+    public boolean testNotEq24_1(MyValue1 v, MyInterface u) {
         return getNotNull(v) != u; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq24_2(MyValue v, MyInterface u) {
+    public boolean testNotEq24_2(MyValue1 v, MyInterface u) {
         return (Object)v != getNotNull(u); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq24_3(MyValue v, MyInterface u) {
+    public boolean testNotEq24_3(MyValue1 v, MyInterface u) {
         return getNotNull(v) != getNotNull(u); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq25_1(MyInterface u, MyValue v) {
+    public boolean testNotEq25_1(MyInterface u, MyValue1 v) {
         return getNotNull(u) != (Object)v; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq25_2(MyInterface u, MyValue v) {
+    public boolean testNotEq25_2(MyInterface u, MyValue1 v) {
         return u != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq25_3(MyInterface u, MyValue v) {
+    public boolean testNotEq25_3(MyInterface u, MyValue1 v) {
         return getNotNull(u) != getNotNull(v); // true
     }
 
@@ -1104,91 +1164,91 @@ public class TestNewAcmp {
         return get(u) != get(a); // old acmp
     }
 
-    public boolean testNotEq30_1(MyInterface[] a, MyValue v) {
+    public boolean testNotEq30_1(MyInterface[] a, MyValue1 v) {
         return get(a) != (Object)v; // only false if both null
     }
 
-    public boolean testNotEq30_2(MyInterface[] a, MyValue v) {
+    public boolean testNotEq30_2(MyInterface[] a, MyValue1 v) {
         return a != get(v); // only false if both null
     }
 
-    public boolean testNotEq30_3(MyInterface[] a, MyValue v) {
+    public boolean testNotEq30_3(MyInterface[] a, MyValue1 v) {
         return get(a) != get(v); // only false if both null
     }
 
-    public boolean testNotEq31_1(MyValue v, MyInterface[] a) {
+    public boolean testNotEq31_1(MyValue1 v, MyInterface[] a) {
         return get(v) != a; // only false if both null
     }
 
-    public boolean testNotEq31_2(MyValue v, MyInterface[] a) {
+    public boolean testNotEq31_2(MyValue1 v, MyInterface[] a) {
         return (Object)v != get(a); // only false if both null
     }
 
-    public boolean testNotEq31_3(MyValue v, MyInterface[] a) {
+    public boolean testNotEq31_3(MyValue1 v, MyInterface[] a) {
         return get(v) != get(a); // only false if both null
     }
 
     @AlwaysTrue
-    public boolean testNotEq32_1(MyInterface[] a, MyValue v) {
+    public boolean testNotEq32_1(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) != (Object)v; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq32_2(MyInterface[] a, MyValue v) {
+    public boolean testNotEq32_2(MyInterface[] a, MyValue1 v) {
         return a != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq32_3(MyInterface[] a, MyValue v) {
+    public boolean testNotEq32_3(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) != getNotNull(v); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq33_1(MyValue v, MyInterface[] a) {
+    public boolean testNotEq33_1(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) != a; // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq33_2(MyValue v, MyInterface[] a) {
+    public boolean testNotEq33_2(MyValue1 v, MyInterface[] a) {
         return (Object)v != getNotNull(a); // true
     }
 
     @AlwaysTrue
-    public boolean testNotEq33_3(MyValue v, MyInterface[] a) {
+    public boolean testNotEq33_3(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) != getNotNull(a); // true
     }
 
     // Null tests
 
-    public boolean testNotNull01_1(MyValue v) {
+    public boolean testNotNull01_1(MyValue1 v) {
         return (Object)v != null; // old acmp
     }
 
-    public boolean testNotNull01_2(MyValue v) {
+    public boolean testNotNull01_2(MyValue1 v) {
         return get(v) != null; // old acmp
     }
 
-    public boolean testNotNull01_3(MyValue v) {
+    public boolean testNotNull01_3(MyValue1 v) {
         return (Object)v != get((Object)null); // old acmp
     }
 
-    public boolean testNotNull01_4(MyValue v) {
+    public boolean testNotNull01_4(MyValue1 v) {
         return get(v) != get((Object)null); // old acmp
     }
 
-    public boolean testNotNull02_1(MyValue v) {
+    public boolean testNotNull02_1(MyValue1 v) {
         return null != (Object)v; // old acmp
     }
 
-    public boolean testNotNull02_2(MyValue v) {
+    public boolean testNotNull02_2(MyValue1 v) {
         return get((Object)null) != (Object)v; // old acmp
     }
 
-    public boolean testNotNull02_3(MyValue v) {
+    public boolean testNotNull02_3(MyValue1 v) {
         return null != get(v); // old acmp
     }
 
-    public boolean testNotNull02_4(MyValue v) {
+    public boolean testNotNull02_4(MyValue1 v) {
         return get((Object)null) != get(v); // old acmp
     }
 
@@ -1298,12 +1358,12 @@ public class TestNewAcmp {
         return (u != null) ? u : new Object();
     }
 
-    public Object get(MyValue v) {
+    public Object get(MyValue1 v) {
         return v;
     }
 
-    public Object getNotNull(MyValue v) {
-        return ((Object)v != null) ? v : MyValue.createDefault();
+    public Object getNotNull(MyValue1 v) {
+        return ((Object)v != null) ? v : MyValue1.createDefault();
     }
 
     public Object get(MyObject o) {
@@ -1311,7 +1371,7 @@ public class TestNewAcmp {
     }
 
     public Object getNotNull(MyObject o) {
-        return (o != null) ? o : MyValue.createDefault();
+        return (o != null) ? o : MyValue1.createDefault();
     }
 
     public Object get(Object[] a) {
@@ -1331,11 +1391,13 @@ public class TestNewAcmp {
     }
 
     public boolean alwaysTrue(Method m) {
-        return m.isAnnotationPresent(AlwaysTrue.class);
+        return m.isAnnotationPresent(AlwaysTrue.class) &&
+            Arrays.asList(((AlwaysTrue)m.getAnnotation(AlwaysTrue.class)).valid_for()).contains(ACmpOnValues);
     }
 
     public boolean alwaysFalse(Method m) {
-        return m.isAnnotationPresent(AlwaysFalse.class);
+        return m.isAnnotationPresent(AlwaysFalse.class) &&
+            Arrays.asList(((AlwaysFalse)m.getAnnotation(AlwaysFalse.class)).valid_for()).contains(ACmpOnValues);
     }
 
     public boolean isNegated(Method m) {
@@ -1385,8 +1447,9 @@ public class TestNewAcmp {
 
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
+    protected static final long ACmpOnValues = (Long)WHITE_BOX.getVMFlag("ACmpOnValues");
 
-    public void runTest(Method m, Object[] args, int warmup, int nullMode) throws Exception {
+    public void runTest(Method m, Object[] args, int warmup, int nullMode, boolean[][] equalities) throws Exception {
         Class<?>[] parameterTypes = m.getParameterTypes();
         int parameterCount = parameterTypes.length;
         // Nullness mode for first argument
@@ -1397,7 +1460,7 @@ public class TestNewAcmp {
             if (args[i] != null && !parameterTypes[0].isInstance(args[i])) {
                 continue;
             }
-            if (args[i] == null && parameterTypes[0] == MyValue.class.asValueType()) {
+            if (args[i] == null && parameterTypes[0] == MyValue1.class.asValueType()) {
                 continue;
             }
             if (parameterCount == 1) {
@@ -1407,7 +1470,7 @@ public class TestNewAcmp {
                 boolean expected = isNegated(m) ? (i != 0) : (i == 0);
                 for (int run = 0; run < warmup; ++run) {
                     Boolean result = (Boolean)m.invoke(this, args[i]);
-                    if (result != expected) {
+                    if (result != expected && WHITE_BOX.isMethodCompiled(m, false)) {
                         System.out.println(" = " + result);
                         throw new RuntimeException("Test failed: should return " + expected);
                     }
@@ -1419,17 +1482,17 @@ public class TestNewAcmp {
                     if (args[j] != null && !parameterTypes[1].isInstance(args[j])) {
                         continue;
                     }
-                    if (args[j] == null && parameterTypes[1] == MyValue.class.asValueType()) {
+                    if (args[j] == null && parameterTypes[1] == MyValue1.class.asValueType()) {
                         continue;
                     }
                     System.out.print("Testing " + m.getName() + "(" + args[i] + ", " + args[j] + ")");
                     // Avoid acmp in the computation of the expected result!
-                    boolean equal = (i == j) && (i != 3);
+                    boolean equal = equalities[i][j];
                     equal = isNegated(m) ? !equal : equal;
                     boolean expected = alwaysTrue(m) || ((i == 0 || j == 0) && trueIfNull(m)) || (!alwaysFalse(m) && equal && !(i == 0 && falseIfNull(m)));
                     for (int run = 0; run < warmup; ++run) {
                         Boolean result = (Boolean)m.invoke(this, args[i], args[j]);
-                        if (result != expected) {
+                        if (result != expected && WHITE_BOX.isMethodCompiled(m, false) && warmup == 1) {
                             System.out.println(" = " + result);
                             throw new RuntimeException("Test failed: should return " + expected);
                         }
@@ -1442,28 +1505,45 @@ public class TestNewAcmp {
 
     public void run(int nullMode) throws Exception {
         // Prepare test arguments
-        Object[] args = new Object[6];
-        args[0] = null;
-        args[1] = new Object();
-        args[2] = new MyObject();
-        args[3] = MyValue.createDefault();
-        args[4] = new Object[10];
-        args[5] = new MyObject[10];
+        Object[] args =  { null,
+                           new Object(),
+                           new MyObject(),
+                           MyValue1.setX(MyValue1.createDefault(), 42),
+                           new Object[10],
+                           new MyObject[10],
+                           MyValue1.setX(MyValue1.createDefault(), 0x42),
+                           MyValue1.setX(MyValue1.createDefault(), 42),
+                           MyValue2.setX(MyValue2.createDefault(), 42), };
+
+        boolean[][] equalities = { { true,  false,  false, false,            false, false, false,             false,             false             },
+                                   { false, true,   false, false,            false, false, false,             false,             false             },
+                                   { false, false,  true,  false,            false, false, false,             false,             false             },
+                                   { false, false,  false, ACmpOnValues == 3,false, false, false,             ACmpOnValues == 3, false             },
+                                   { false, false,  false, false,            true,  false, false,             false,             false             },
+                                   { false, false,  false, false,            false, true,  false,             false,             false             },
+                                   { false, false,  false, false,            false, false, ACmpOnValues == 3, false,             false             },
+                                   { false, false,  false, ACmpOnValues == 3,false, false, false,             ACmpOnValues == 3, false             },
+                                   { false, false,  false, false,            false, false, false,             false,             ACmpOnValues == 3 } };
 
         // Run tests
         for (Method m : getClass().getMethods()) {
             if (m.getName().startsWith("test")) {
                 // Do some warmup runs
-                runTest(m, args, 1000, nullMode);
+                runTest(m, args, 1000, nullMode, equalities);
                 // Make sure method is compiled
                 WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
                 Asserts.assertTrue(WHITE_BOX.isMethodCompiled(m, false), m + " not compiled");
                 // Run again to verify correctness of compiled code
-                runTest(m, args, 1, nullMode);
+                runTest(m, args, 1, nullMode, equalities);
             }
         }
 
-        for (int i = 0; i < 10_000; ++i) {
+        Method cmpAlwaysUnEqual3_m = getClass().getMethod("cmpAlwaysUnEqual3", Object.class);
+        Method cmpAlwaysUnEqual4_m = getClass().getMethod("cmpAlwaysUnEqual4", Object.class);
+        Method cmpSometimesEqual1_m = getClass().getMethod("cmpSometimesEqual1", Object.class);
+        Method cmpSometimesEqual2_m = getClass().getMethod("cmpSometimesEqual2", Object.class);
+
+        for (int i = 0; i < 20_000; ++i) {
             Asserts.assertTrue(cmpAlwaysEqual1(args[1], args[1]));
             Asserts.assertFalse(cmpAlwaysEqual2(args[1], args[1]));
             Asserts.assertTrue(cmpAlwaysEqual3(args[1]));
@@ -1471,12 +1551,36 @@ public class TestNewAcmp {
 
             Asserts.assertFalse(cmpAlwaysUnEqual1(args[1], args[2]));
             Asserts.assertTrue(cmpAlwaysUnEqual2(args[1], args[2]));
-            Asserts.assertFalse(cmpAlwaysUnEqual3(args[3]));
-            Asserts.assertTrue(cmpAlwaysUnEqual4(args[3]));
+            boolean compiled = WHITE_BOX.isMethodCompiled(cmpAlwaysUnEqual3_m, false);
+            boolean res = cmpAlwaysUnEqual3(args[3]);
+            if (ACmpOnValues != 3) {
+                Asserts.assertFalse(res);
+            } else if (compiled) {
+                Asserts.assertTrue(res);
+            }
+            compiled = WHITE_BOX.isMethodCompiled(cmpAlwaysUnEqual4_m, false);
+            res = cmpAlwaysUnEqual4(args[3]);
+            if (ACmpOnValues != 3) {
+                Asserts.assertTrue(res);
+            } else if (compiled) {
+                Asserts.assertFalse(res);
+            }
 
             int idx = i % args.length;
-            Asserts.assertEQ(cmpSometimesEqual1(args[idx]), idx != 3);
-            Asserts.assertNE(cmpSometimesEqual2(args[idx]), idx != 3);
+            compiled = WHITE_BOX.isMethodCompiled(cmpSometimesEqual1_m, false);
+            res = cmpSometimesEqual1(args[idx]);
+            if (ACmpOnValues != 3) {
+                Asserts.assertEQ(res, args[idx] == null || !args[idx].getClass().isValue());
+            } else if (compiled) {
+                Asserts.assertTrue(res);
+            }
+            compiled = WHITE_BOX.isMethodCompiled(cmpSometimesEqual2_m, false);
+            res = cmpSometimesEqual2(args[idx]);
+            if (ACmpOnValues != 3) {
+                Asserts.assertNE(res, args[idx] == null || !args[idx].getClass().isValue());
+            } else if (compiled) {
+                Asserts.assertFalse(res);
+            }
         }
     }
 
@@ -1491,4 +1595,3 @@ public class TestNewAcmp {
         t.run(nullMode);
     }
 }
-
