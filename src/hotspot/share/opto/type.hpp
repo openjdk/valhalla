@@ -1094,7 +1094,8 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
-  virtual bool can_be_value_type() const { return EnableValhalla && (_klass == NULL || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact())); }
+  virtual bool can_be_value_type() const { return EnableValhalla && can_be_value_type_raw(); }
+  virtual bool can_be_value_type_raw() const { return _klass == NULL || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact()); }
 
   virtual intptr_t get_con() const;
 

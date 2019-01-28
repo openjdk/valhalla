@@ -1820,7 +1820,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   // If current method is ValueBootstrapMethods::isSubstitutable(),
   // compile the acmp as a regular pointer comparison otherwise we
   // could call ValueBootstrapMethods::isSubstitutable() back
-  if (ACmpOnValues == 0 || !EnableValhalla || method() == subst_method) {
+  if (ACmpOnValues == 0 || method() == subst_method) {
     Node* cmp = CmpP(a, b);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);
@@ -1843,8 +1843,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     const TypeOopPtr* ta = _gvn.type(a)->isa_oopptr();
     const TypeOopPtr* tb = _gvn.type(b)->isa_oopptr();
 
-    if (ta == NULL || !ta->can_be_value_type() ||
-        tb == NULL || !tb->can_be_value_type()) {
+    if (ta == NULL || !ta->can_be_value_type_raw() ||
+        tb == NULL || !tb->can_be_value_type_raw()) {
       Node* cmp = CmpP(a, b);
       cmp = optimize_cmp_with_klass(cmp);
       do_if(btest, cmp);
