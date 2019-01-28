@@ -1034,7 +1034,18 @@ public class Types {
         loxType.tsym = lox;
 
         loxMap.put(c, lox);
+        loxMap.put(lox, c);
         return lox;
+    }
+
+    public boolean isLoxSymbol(Symbol s) {
+        return s != null && !s.isValue() && s.type.hasTag(CLASS) && loxMap.get(s) != null;
+    }
+
+    public ClassSymbol getValSymbol(Symbol b) {
+        if (b != null && !b.isValue() && b.type.hasTag(CLASS))
+            return loxMap.get(b);
+        return null;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">

@@ -3905,6 +3905,13 @@ public class Attr extends JCTree.Visitor {
         // for the selection. This is relevant for determining whether
         // protected symbols are accessible.
         Symbol sitesym = TreeInfo.symbol(tree.selected);
+
+        /* As we simply attach the members from the value type to its light weight box type
+           without reassigning ownership, always perform any lookups on the value type.
+         */
+        if (types.isLoxSymbol(site.tsym))
+            site = types.getValSymbol(site.tsym).type;
+
         boolean selectSuperPrev = env.info.selectSuper;
         env.info.selectSuper =
             sitesym != null &&
