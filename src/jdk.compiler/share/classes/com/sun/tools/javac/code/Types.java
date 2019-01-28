@@ -1692,6 +1692,14 @@ public class Types {
     public boolean isCastable(Type t, Type s, Warner warn) {
         if (t == s)
             return true;
+        if (isValue(t) && !isValue(s)) {
+            if (loxMap.get(t.tsym) == s.tsym)
+                return true;
+        }
+        if (isValue(s) && !isValue(t)) {
+            if (loxMap.get(s.tsym) == t.tsym)
+                return true;
+        }
         if (t.isPrimitive() != s.isPrimitive()) {
             t = skipTypeVars(t, false);
             return (isConvertible(t, s, warn)
