@@ -1070,10 +1070,15 @@ public class Types {
             if (t.hasTag(ARRAY) && s.hasTag(ARRAY)) {
                 if (((ArrayType)t).elemtype.isPrimitive()) {
                     return isSameType(elemtype(t), elemtype(s));
-                } else if (isValue(((ArrayType)t).elemtype) || isValue(((ArrayType)s).elemtype)) {
-                    return isSameType(elemtype(t), elemtype(s));
                 } else {
-                    return isSubtypeUncheckedInternal(elemtype(t), elemtype(s), false, warn);
+                    Type et = elemtype(t);
+                    Type es = elemtype(s);
+                    if (!isSubtypeUncheckedInternal(et, es, false, warn))
+                        return false;
+                    if (isValue(et) || isValue(es)) {
+                        return isSameType(erasure(et), erasure(es));
+                    }
+                    return true;
                 }
             } else if (isSubtype(t, s, capture)) {
                 return true;
@@ -1870,10 +1875,15 @@ public class Types {
                 case ARRAY:
                     if (elemtype(t).isPrimitive() || elemtype(s).isPrimitive()) {
                         return elemtype(t).hasTag(elemtype(s).getTag());
-                    } else if (isValue(t.elemtype) || isValue(((ArrayType)s).elemtype)) {
-                        return isSameType(elemtype(t), elemtype(s));
                     } else {
-                        return visit(elemtype(t), elemtype(s));
+                        Type et = elemtype(t);
+                        Type es = elemtype(s);
+                        if (!visit(et, es))
+                            return false;
+                        if (isValue(et) || isValue(es)) {
+                            return isSameType(erasure(et), erasure(es));
+                        }
+                        return true;
                     }
                 default:
                     return false;

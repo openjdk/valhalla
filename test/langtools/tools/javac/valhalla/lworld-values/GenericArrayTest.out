@@ -1,0 +1,15 @@
+GenericArrayTest.java:15:32: compiler.warn.raw.class.use: GenericArrayTest.Value, GenericArrayTest.Value<T>
+GenericArrayTest.java:15:28: compiler.warn.prob.found.req: (compiler.misc.unchecked.assign), GenericArrayTest.Value[], GenericArrayTest.Value<T>[]
+GenericArrayTest.java:16:48: compiler.warn.raw.class.use: GenericArrayTest.Value, GenericArrayTest.Value<T>
+GenericArrayTest.java:16:44: compiler.warn.prob.found.req: (compiler.misc.unchecked.assign), GenericArrayTest.Value[], GenericArrayTest.Value<GenericArrayTest>[]
+GenericArrayTest.java:17:38: compiler.warn.raw.class.use: GenericArrayTest.Value, GenericArrayTest.Value<T>
+GenericArrayTest.java:17:34: compiler.warn.prob.found.req: (compiler.misc.unchecked.assign), GenericArrayTest.Value[], GenericArrayTest.Value<java.lang.String>[]
+GenericArrayTest.java:18:35: compiler.warn.raw.class.use: GenericArrayTest.Value, GenericArrayTest.Value<T>
+GenericArrayTest.java:18:31: compiler.warn.prob.found.req: (compiler.misc.unchecked.cast.to.type), GenericArrayTest.Value[], GenericArrayTest.Value<T>[]
+GenericArrayTest.java:19:51: compiler.warn.raw.class.use: GenericArrayTest.Value, GenericArrayTest.Value<T>
+GenericArrayTest.java:19:47: compiler.warn.prob.found.req: (compiler.misc.unchecked.cast.to.type), GenericArrayTest.Value[], GenericArrayTest.Value<GenericArrayTest>[]
+GenericArrayTest.java:20:42: compiler.warn.raw.class.use: GenericArrayTest.Value, GenericArrayTest.Value<T>
+GenericArrayTest.java:20:38: compiler.warn.prob.found.req: (compiler.misc.unchecked.cast.to.type), GenericArrayTest.Value[], GenericArrayTest.Value<java.lang.String>[]
+GenericArrayTest.java:21:18: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericArrayTest.Value<java.lang.String>[], GenericArrayTest.Value<GenericArrayTest>[])
+1 error
+12 warnings
