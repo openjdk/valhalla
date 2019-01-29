@@ -258,9 +258,9 @@ public class Gen extends JCTree.Visitor {
     int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
         checkDimension(pos, type);
         if (type.isAnnotated()) {
-            return pool.put(emitQtype ? new UniqueType(type, types) : type);
+            return pool.put(emitQtype ? new UniqueType(type, types, false) : type);
         } else {
-            return pool.put(type.hasTag(CLASS) ? emitQtype ? new UniqueType(type, types) : type.tsym : (Object)type);
+            return pool.put(type.hasTag(CLASS) ? emitQtype ? new UniqueType(type, types, false) : type.tsym : (Object)type);
         }
     }
 
