@@ -8,7 +8,7 @@ import org.openjdk.jmh.annotations.Setup;
 public class Listsum2 extends ListsumBase {
 
     static class Node {
-        public __Flattenable Value2 value;
+        public Value2.val value;
         public Node next;
 
 

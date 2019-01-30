@@ -94,7 +94,7 @@ public class HashMapValueEntry<K, V> extends AbstractMap<K, V> {
 
     public static final class HEntry<K, V> implements Map.Entry<K, V> {
 
-        __Flattenable Entry <K, V> entry;
+        Entry.val <K, V> entry;
 
         public HEntry(Entry<K, V> e) {
             this.entry = e;

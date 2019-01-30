@@ -15,7 +15,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jmh.version>1.21</jmh.version>
-        <javac.target>12</javac.target>
         <uberjar.name>benchmarks</uberjar.name>
     </properties>
     
@@ -83,17 +82,12 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.1</version>
                 <configuration>
-                    <compilerVersion>${javac.target}</compilerVersion>
-                    <source>12</source>
-                    <target>12</target>
+                    <compilerVersion>13</compilerVersion>
+                    <source>13</source>
+                    <target>13</target>
                     <compilerArgs>
-                       <arg>-XDallowFlattenabilityModifiers</arg>
                        <arg>-XDallowWithFieldOperator</arg>
                     </compilerArgs>
-<!--                    <compilerArgs>
-                         <arg>-XDenableValueTypes</arg>
-			 <arg>add-modules</arg><arg>jdk.incubator.mvt</arg>
-             </compilerArgs>		    -->
                 </configuration>
             </plugin>
             <plugin>

@@ -174,7 +174,7 @@ public class HashMapIteratorCursor<K, V> extends AbstractMap<K, V> {
     }
 
     private class HashIterator  {
-        __Flattenable EntryCursor<K,V> cursor;
+        EntryCursor.val<K,V> cursor;
 
         HashIterator() {
             cursor = EntryCursor.of(HashMapIteratorCursor.this);
