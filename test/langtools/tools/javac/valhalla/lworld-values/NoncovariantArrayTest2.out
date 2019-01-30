@@ -1,0 +1,4 @@
+NoncovariantArrayTest.java:16:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: int[], java.lang.Object[])
+NoncovariantArrayTest.java:17:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: int[], java.lang.Object[])
+NoncovariantArrayTest.java:22:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Object[], NoncovariantArrayTest.V[])
+3 errors

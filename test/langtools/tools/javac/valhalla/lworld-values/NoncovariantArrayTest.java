@@ -1,10 +1,10 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8215507
+ * @bug 8215507 8218040
  * @summary javac should forbid conversion from value array to Object[]
- * @compile/fail/ref=NoncovariantArrayTest.out -XDrawDiagnostics -XDdev NoncovariantArrayTest.java
+ * @compile/fail/ref=NoncovariantArrayTest.out -XDnonCovariantValueArrays -XDrawDiagnostics -XDdev NoncovariantArrayTest.java
+ * @compile/fail/ref=NoncovariantArrayTest2.out -XDrawDiagnostics -XDdev NoncovariantArrayTest.java
  */
-
 public class NoncovariantArrayTest { 
     static final value class V { 
         public final int v1; 

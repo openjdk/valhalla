@@ -92,6 +92,7 @@ public class Types {
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
+    final boolean nonCovariantValueArrays;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -123,6 +124,7 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        nonCovariantValueArrays = options.isSet("nonCovariantValueArrays");
     }
     // </editor-fold>
 
@@ -1075,8 +1077,10 @@ public class Types {
                     Type es = elemtype(s);
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
                         return false;
-                    if (isValue(et) || isValue(es)) {
-                        return isSameType(erasure(et), erasure(es));
+                    if (nonCovariantValueArrays) {
+                        if (isValue(et) || isValue(es)) {
+                            return isSameType(erasure(et), erasure(es));
+                        }
                     }
                     return true;
                 }
@@ -1880,8 +1884,10 @@ public class Types {
                         Type es = elemtype(s);
                         if (!visit(et, es))
                             return false;
-                        if (isValue(et) || isValue(es)) {
-                            return isSameType(erasure(et), erasure(es));
+                        if (nonCovariantValueArrays) {
+                            if (isValue(et) || isValue(es)) {
+                                return isSameType(erasure(et), erasure(es));
+                            }
                         }
                         return true;
                     }
