@@ -1020,6 +1020,10 @@ bool CallJavaNode::validate_symbolic_info() const {
   if (method() == NULL) {
     return true; // call into runtime or uncommon trap
   }
+  Bytecodes::Code bc = jvms()->method()->java_code_at_bci(_bci);
+  if (ACmpOnValues == 3 && (bc == Bytecodes::_if_acmpeq || bc == Bytecodes::_if_acmpne)) {
+    return true;
+  }
   ciMethod* symbolic_info = jvms()->method()->get_method_at_bci(_bci);
   ciMethod* callee = method();
   if (symbolic_info->is_method_handle_intrinsic() && !callee->is_method_handle_intrinsic()) {
