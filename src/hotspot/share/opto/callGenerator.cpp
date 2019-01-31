@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,9 +47,17 @@ const TypeFunc* CallGenerator::tf() const {
   return TypeFunc::make(method());
 }
 
-bool CallGenerator::is_inlined_method_handle_intrinsic(JVMState* jvms, ciMethod* callee) {
-  ciMethod* symbolic_info = jvms->method()->get_method_at_bci(jvms->bci());
-  return symbolic_info->is_method_handle_intrinsic() && !callee->is_method_handle_intrinsic();
+bool CallGenerator::is_inlined_method_handle_intrinsic(JVMState* jvms, ciMethod* m) {
+  return is_inlined_method_handle_intrinsic(jvms->method(), jvms->bci(), m);
+}
+
+bool CallGenerator::is_inlined_method_handle_intrinsic(ciMethod* caller, int bci, ciMethod* m) {
+  ciMethod* symbolic_info = caller->get_method_at_bci(bci);
+  return is_inlined_method_handle_intrinsic(symbolic_info, m);
+}
+
+bool CallGenerator::is_inlined_method_handle_intrinsic(ciMethod* symbolic_info, ciMethod* m) {
+  return symbolic_info->is_method_handle_intrinsic() && !m->is_method_handle_intrinsic();
 }
 
 //-----------------------------ParseGenerator---------------------------------
@@ -91,7 +99,6 @@ JVMState* ParseGenerator::generate(JVMState* jvms) {
   // Grab signature for matching/allocation
 #ifdef ASSERT
   if (parser.tf() != (parser.depth() == 1 ? C->tf() : tf())) {
-    MutexLockerEx ml(Compile_lock, Mutex::_no_safepoint_check_flag);
     assert(C->env()->system_dictionary_modification_counter_changed(),
            "Must invalidate if TypeFuncs differ");
   }
@@ -918,7 +925,8 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
   if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
-    arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, sig_type));
+    const Type* narrowed_arg_type = arg_type->join_speculative(sig_type); // keep speculative part
+    arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
     kit.set_argument(arg_nb, arg);
   }
   if (sig_type->is_valuetypeptr() && !arg->is_ValueType() &&
