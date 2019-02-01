@@ -225,6 +225,8 @@ public final class ValueBootstrapMethods {
             try {
                 Class<?> type = a.getClass();
                 return (boolean) valueEquals(type).invoke(type.cast(a), type.cast(b));
+            } catch (Error|RuntimeException e) {
+                throw e;
             } catch (Throwable e) {
                 throw new InternalError(e);
             }
@@ -256,6 +258,8 @@ public final class ValueBootstrapMethods {
             try {
                 int hc = (int)hashers[i].invoke(o);
                 return hashCombiner(v, hc);
+            } catch (Error|RuntimeException e) {
+                throw e;
             } catch (Throwable e) {
                 throw new InternalError(e);
             }
@@ -509,6 +513,8 @@ public final class ValueBootstrapMethods {
      * @see Double#equals(Object)
      */
     public static <T> boolean isSubstitutable(T a, Object b) {
+        if (VERBOSE)
+            System.out.println("substitutable " + a + " vs " + b);
         if (a == b) return true;
         if (a == null || b == null) return false;
         if (a.getClass() != b.getClass()) return false;
@@ -516,6 +522,8 @@ public final class ValueBootstrapMethods {
         try {
             Class<?> type = a.getClass().isValue() ? a.getClass().asValueType() : a.getClass();
             return (boolean) substitutableInvoker(type).invoke(a, b);
+        } catch (Error|RuntimeException e) {
+            throw e;
         } catch (Throwable e) {
             if (VERBOSE) e.printStackTrace();
             throw new InternalError(e);
