@@ -231,6 +231,29 @@ class ImplicitNullCheckStub: public CodeStub {
 #endif // PRODUCT
 };
 
+class LoadFlattenedArrayStub: public CodeStub {
+ private:
+  LIR_Opr          _array;
+  LIR_Opr          _index;
+  LIR_Opr          _result;
+  CodeEmitInfo*    _info;
+
+ public:
+  LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr result, CodeEmitInfo* info);
+  virtual void emit_code(LIR_Assembler* e);
+  virtual CodeEmitInfo* info() const             { return _info; }
+  virtual void visit(LIR_OpVisitState* visitor) {
+    visitor->do_slow_case(_info);
+    visitor->do_input(_array);
+    visitor->do_input(_index);
+    visitor->do_output(_result);
+  }
+#ifndef PRODUCT
+  virtual void print_name(outputStream* out) const { out->print("LoadFlattenedArrayStub"); }
+#endif // PRODUCT
+};
+
+
 
 class NewInstanceStub: public CodeStub {
  private:

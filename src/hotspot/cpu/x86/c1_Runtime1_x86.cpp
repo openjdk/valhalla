@@ -1184,7 +1184,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
         } else {
-          // Runtime1::new_object_array handles both object and value arrays
+          // Runtime1::new_object_array handles both object and value arrays.
+          // new_value_array_id is needed only for the ASSERT block above.
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         }
 
@@ -1213,6 +1214,26 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         restore_live_registers_except_rax(sasm);
 
         // rax,: new multi array
+        __ verify_oop(rax);
+      }
+      break;
+
+    case load_flattened_array_id:
+      {
+        StubFrame f(sasm, "load_flattened_array", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, 3);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(1, rax); // rax,: array
+        f.load_argument(0, rbx); // rbx,: index
+        int call_offset = __ call_RT(rax, noreg, CAST_FROM_FN_PTR(address, load_flattened_array), rax, rbx);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_rax(sasm);
+
+        // rax,: loaded element at array[index]
         __ verify_oop(rax);
       }
       break;

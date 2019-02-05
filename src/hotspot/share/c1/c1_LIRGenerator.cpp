@@ -1987,7 +1987,8 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   array.load_item();
-  if (index.is_constant() && can_inline_as_constant(x->index())) {
+  if (index.is_constant() && can_inline_as_constant(x->index())
+      && !x->array()->maybe_flattened_array()) {
     // let it be a constant
     index.dont_load_item();
   } else {
@@ -2025,26 +2026,39 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  if (x->array()->is_flattened_array()) {
-    if (x->array()->declared_type()->is_loaded()) {
-      // Find the destination address (of the NewValueTypeInstance)
-      LIR_Opr obj = x->vt()->operand();
-      LIRItem obj_item(x->vt(), this);
+  if (x->array()->is_loaded_flattened_array()) {
+    // Find the destination address (of the NewValueTypeInstance)
+    LIR_Opr obj = x->vt()->operand();
+    LIRItem obj_item(x->vt(), this);
 
-      access_flattened_array(true, array, index, obj_item);
-      set_no_result(x);
-      return;
-    } else {
-      // If the array is indeed flattened, deopt. Otherwise access it as a normal object array.
-      CodeEmitInfo* deopt_info = state_for(x, x->state_before());
-      maybe_deopt_value_array_access(array, null_check_info, deopt_info);
+    access_flattened_array(true, array, index, obj_item);
+    set_no_result(x);
+  } else {
+    LIR_Opr result = rlock_result(x, x->elt_type());
+    LoadFlattenedArrayStub* slow_path = NULL;
+
+    if (x->array()->maybe_flattened_array()) {
+      // Check if we indeed have a flattened array
+      slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x));
+      LIR_Opr array_klass_reg = new_register(T_METADATA);
+
+      __ move(new LIR_Address(array.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), array_klass_reg);
+      LIR_Opr layout = new_register(T_INT);
+      __ move(new LIR_Address(array_klass_reg, in_bytes(Klass::layout_helper_offset()), T_INT), layout);
+      __ shift_right(layout, Klass::_lh_array_tag_shift, layout);
+      __ cmp(lir_cond_equal, layout, LIR_OprFact::intConst(Klass::_lh_array_tag_vt_value));
+      __ branch(lir_cond_equal, T_ILLEGAL, slow_path);
+    }
+
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+    access_load_at(decorators, x->elt_type(),
+                   array, index.result(), result,
+                   NULL, null_check_info);
+
+    if (slow_path != NULL) {
+      __ branch_destination(slow_path->continuation());
     }
   }
-  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
-  LIR_Opr result = rlock_result(x, x->elt_type());
-  access_load_at(decorators, x->elt_type(),
-                 array, index.result(), result,
-                 NULL, null_check_info);
 }
 
 

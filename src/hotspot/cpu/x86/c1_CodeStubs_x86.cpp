@@ -29,6 +29,7 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "nativeInst_x86.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
@@ -151,6 +152,31 @@ void DivByZeroStub::emit_code(LIR_Assembler* ce) {
   __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::throw_div0_exception_id)));
   ce->add_call_info_here(_info);
   debug_only(__ should_not_reach_here());
+}
+
+
+// Implementation of LoadFlattenedArrayStub
+
+LoadFlattenedArrayStub::LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr result, CodeEmitInfo* info) {
+  _array = array;
+  _index = index;
+  _result = result;
+  _info = new CodeEmitInfo(info);
+}
+
+
+void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  ce->store_parameter(_array->as_register(), 1);
+  ce->store_parameter(_index->as_register(), 0);
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flattened_array_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  if (_result->as_register() != rax) {
+    __ movptr(_result->as_register(), rax);
+  }
+  __ jmp(_continuation);
 }
 
 

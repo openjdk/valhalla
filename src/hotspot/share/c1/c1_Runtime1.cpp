@@ -52,6 +52,8 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueArrayKlass.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/compilationPolicy.hpp"
@@ -118,6 +120,7 @@ int Runtime1::_new_type_array_slowcase_cnt = 0;
 int Runtime1::_new_object_array_slowcase_cnt = 0;
 int Runtime1::_new_instance_slowcase_cnt = 0;
 int Runtime1::_new_multi_array_slowcase_cnt = 0;
+int Runtime1::_load_flattened_array_slowcase_cnt = 0;
 int Runtime1::_monitorenter_slowcase_cnt = 0;
 int Runtime1::_monitorexit_slowcase_cnt = 0;
 int Runtime1::_patch_code_slowcase_cnt = 0;
@@ -408,6 +411,27 @@ JRT_ENTRY(void, Runtime1::new_multi_array(JavaThread* thread, Klass* klass, int 
   assert(rank >= 1, "rank must be nonzero");
   Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
   oop obj = ArrayKlass::cast(klass)->multi_allocate(rank, dims, CHECK);
+  thread->set_vm_result(obj);
+JRT_END
+
+
+JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
+  NOT_PRODUCT(_new_multi_array_slowcase_cnt++;)
+  Klass* klass = array->klass();
+  assert(klass->is_valueArray_klass(), "expected value array oop");
+  assert(array->length() > 0 && index < array->length(), "already checked");
+
+  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+  ValueKlass* vklass = vaklass->element_klass();
+
+  // We have a non-empty flattened array, so the element type must have been initialized.
+  assert(vklass->is_initialized(), "must be");
+  Handle holder(THREAD, vklass->klass_holder()); // keep the vklass alive
+  oop obj = vklass->allocate_instance(CHECK);
+
+  void* src = array->value_at_addr(index, vaklass->layout_helper());
+  vklass->value_store(src, vklass->data_for_oop(obj),
+                      vaklass->element_byte_size(), true, false);
   thread->set_vm_result(obj);
 JRT_END
 
@@ -1500,6 +1524,7 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _new_object_array_slowcase_cnt:  %d", _new_object_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
+  tty->print_cr(" _load_flattened_array_slowcase_cnt:%d", _load_flattened_array_slowcase_cnt);
   tty->print_cr(" _monitorenter_slowcase_cnt:      %d", _monitorenter_slowcase_cnt);
   tty->print_cr(" _monitorexit_slowcase_cnt:       %d", _monitorexit_slowcase_cnt);
   tty->print_cr(" _patch_code_slowcase_cnt:        %d", _patch_code_slowcase_cnt);
