@@ -109,6 +109,7 @@ bool VerificationType::is_reference_assignable_from(
     VerificationType comp_this = get_component(context, CHECK_false);
     VerificationType comp_from = from.get_component(context, CHECK_false);
 
+/*
     // This code implements non-covariance between value type arrays and both
     // arrays of objects and arrays of interface types.  If covariance is
     // supported for value type arrays then this code should be removed.
@@ -135,7 +136,7 @@ bool VerificationType::is_reference_assignable_from(
         }
       }
     }
-
+*/
     if (!comp_this.is_bogus() && !comp_from.is_bogus()) {
       return comp_this.is_component_assignable_from(comp_from, context,
                                                     from_field_is_protected, THREAD);

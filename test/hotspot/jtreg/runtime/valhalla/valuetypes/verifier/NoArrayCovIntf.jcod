@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  *
  */
 
-// Test that a VerifyError exception is thrown when trying to pass a value
+// Test that a VerifyError exception is not thrown when trying to pass a value
 // type array when the formal parameter is an array of an interface type.
 //
 // // Java program emulating the jcod contents.
@@ -61,7 +61,7 @@
 //         NoArrayCovIntf pa[] = new NoArrayCovIntf[2];
 //         pa[0] = a;
 //         pa[1] = b;
-//         a.iiArray(pa); // Should throw VerifyError.
+//         a.iiArray(pa); // Should not throw VerifyError.
 //     }
 // }
 

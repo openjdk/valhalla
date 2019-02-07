@@ -55,6 +55,11 @@ public class VerifierValueTypes {
         }
     }
 
+    public static void runTestNoError(String test_name) throws Exception {
+        System.out.println("Testing: " + test_name);
+        Class newClass = Class.forName(test_name);
+    }
+
     public static void main(String[] args) throws Exception {
 
         // Test that a defaultvalue opcode with an out of bounds cp index causes a VerifyError.
@@ -98,13 +103,11 @@ public class VerifierValueTypes {
         // Test VerifyError is thrown if a withfield's class operand is not a value type.
         runTestVerifyError("withfieldObj", "Bad type on operand stack");
 
-        // Test that an array of value types is not assignable to [Ljava/lang/Object; (Non-covariance).
-        runTestVerifyError("NoArrayCov",
-            "Type '[QNoArrayCov;' (current frame, stack[1]) is not assignable to '[Ljava/lang/Object;'");
+        // Test that an array of value types is assignable to [Ljava/lang/Object; (Covariance).
+        runTestNoError("NoArrayCov");
 
-        // Test that an array of value types is not assignable to an array of interfaces (Non-covariance).
-        runTestVerifyError("NoArrayCovIntf",
-            "Type '[QNoArrayCovIntf;' (current frame, stack[1]) is not assignable to '[LII;'");
+        // Test that an array of value types is assignable to an array of interfaces (Covariance).
+        runTestNoError("NoArrayCovIntf");
 
         // Test that null is not assignable to a value type.
         runTestVerifyError("NoNullVT",

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  *
  */
 
-// Test that a VerifyError exception is thrown when trying to pass a value
+// Test that a VerifyError exception is not thrown when trying to pass a value
 // type array when the formal parameter is an array of java.lang.Object.
 //
 // // Java program emulating the jcod contents.
@@ -59,7 +59,7 @@
 //         NoArrayCov pa[] = new NoArrayCov[2];
 //         pa[0] = a;
 //         pa[1] = b;
-//         a.objArray(pa); // Should cause VerifyError exception !!!
+//         a.objArray(pa); // Should not cause VerifyError exception !!!
 //     }
 // }
 
