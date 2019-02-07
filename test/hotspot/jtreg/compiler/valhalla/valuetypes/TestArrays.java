@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,9 @@ import java.util.Arrays;
  * @summary Test value type arrays
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestArrays.java
+ * @compile -XDallowWithFieldOperator TestArrays.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestArrays
@@ -739,14 +739,11 @@ public class TestArrays extends ValueTypeTest {
     @DontCompile
     public void test32_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-// TODO Re-enable if value type arrays become covariant with object arrays
-//        MyValue1[] va = new MyValue1[len];
-        Object[] va = new Object[len];
+        MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
-//        MyValue1[] result = (MyValue1[])test32(va);
-        Object[] result = test32(va);
+        MyValue1[] result = (MyValue1[])test32(va);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
         }
@@ -777,9 +774,7 @@ public class TestArrays extends ValueTypeTest {
     public Object[] test34_helper(boolean flag) {
         Object[] va = null;
         if (flag) {
-// TODO Re-enable if value type arrays become covariant with object arrays
-//            va = new MyValue1[8];
-            va = new Object[8];
+            va = new MyValue1[8];
             for (int i = 0; i < va.length; ++i) {
                 va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
             }
@@ -1223,8 +1218,6 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test
     public MyValue1[] test51(MyValue1[] va) {
         return Arrays.copyOf(va, va.length, MyValue1[].class);
@@ -1256,7 +1249,6 @@ public class TestArrays extends ValueTypeTest {
         MyValue1[] result = test52();
         verify(test52_va, result);
     }
-*/
 
     @Test
     public MyValue1[] test53(Object[] va) {
@@ -1266,9 +1258,7 @@ public class TestArrays extends ValueTypeTest {
     @DontCompile
     public void test53_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-// TODO Re-enable if value type arrays become covariant with object arrays
-//        MyValue1[] va = new MyValue1[len];
-        Object[] va = new Object[len];
+        MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1276,8 +1266,6 @@ public class TestArrays extends ValueTypeTest {
         verify(result, va);
     }
 
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test
     public Object[] test54(MyValue1[] va) {
         return Arrays.copyOf(va, va.length, Object[].class);
@@ -1293,7 +1281,6 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test54(va);
         verify(va, result);
     }
-*/
 
     @Test
     public Object[] test55(Object[] va) {
@@ -1303,9 +1290,7 @@ public class TestArrays extends ValueTypeTest {
     @DontCompile
     public void test55_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-// TODO Re-enable if value type arrays become covariant with object arrays
-//        MyValue1[] va = new MyValue1[len];
-        Object[] va = new Object[len];
+        MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1329,8 +1314,6 @@ public class TestArrays extends ValueTypeTest {
         verify(result, va);
     }
 
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
    @Test
     public Object[] test57(Object[] va, Class klass) {
         // Arrays.copyOf returns a MyValue1[], which cannot be
@@ -1348,11 +1331,7 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test57(va, MyValue1[].class);
         verify(va, result);
     }
-*/
 
-
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test
     public Object[] test58(MyValue1[] va, Class klass) {
         return Arrays.copyOf(va, va.length, klass);
@@ -1392,11 +1371,7 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test59(va);
         verify(verif, result);
     }
-*/
 
-
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test
     public Object[] test60(Object[] va, Class klass) {
         // Arrays.copyOf returns a MyValue1[], which cannot be
@@ -1408,7 +1383,6 @@ public class TestArrays extends ValueTypeTest {
     public void test60_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
-        Object[] va = new Object[len];
         MyValue1[] verif = new MyValue1[len+1];
         for (int i = 0; i < len; ++i) {
             va[i] = MyValue1.createWithFieldsInline(rI, rL);
@@ -1435,11 +1409,7 @@ public class TestArrays extends ValueTypeTest {
             Asserts.assertEQ(va[i], result[i]);
         }
     }
-*/
 
-
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public Object[] test62_helper(int i, MyValue1[] va, Integer[] oa) {
         Object[] arr = null;
@@ -1511,7 +1481,6 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test63(va, oa);
         verify(verif, result);
     }
-*/
 
     // Test default initialization of value type arrays: small array
     @Test

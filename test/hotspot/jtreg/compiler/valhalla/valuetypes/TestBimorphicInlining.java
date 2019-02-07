@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import jdk.test.lib.Asserts;
  * @bug 8209009
  * @summary Test bimorphic inlining with value receivers.
  * @library /testlibrary /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes TestBimorphicInlining.java
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.valuetypes.TestBimorphicInlining::test*

@@ -26,6 +26,7 @@ package compiler.valhalla.valuetypes;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+
 import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 
@@ -35,9 +36,9 @@ import jdk.internal.misc.Unsafe;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
  * @requires os.simpleArch == "x64"
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestIntrinsics.java
+ * @compile -XDallowWithFieldOperator TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestIntrinsics
@@ -233,8 +234,6 @@ public class TestIntrinsics extends ValueTypeTest {
         }
     }
 
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     // value type array creation via reflection
     @Test()
     public void test14(int len, long hash) {
@@ -250,7 +249,6 @@ public class TestIntrinsics extends ValueTypeTest {
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
         test14(len, hash);
     }
-*/
 
     // Test hashCode() method
     @Test()
@@ -407,8 +405,6 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Test copyOf intrinsic with allocated value type in it's debug information
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     value final class Test25Value {
         final int x;
         public Test25Value() {
@@ -430,7 +426,6 @@ public class TestIntrinsics extends ValueTypeTest {
         Test25Value vt = new Test25Value();
         test25(vt);
     }
-*/
 
     @Test
     public Object test26() {

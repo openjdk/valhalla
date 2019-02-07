@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,21 +27,17 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 
 import jdk.experimental.value.MethodHandleBuilder;
-import jdk.experimental.bytecode.MacroCodeBuilder;
-import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
-import jdk.experimental.bytecode.TypeTag;
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @summary Test value types in LWorld.
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
+ * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestLWorld.java
+ * @compile -XDallowWithFieldOperator TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestLWorld
@@ -649,8 +645,6 @@ public class TestLWorld extends ValueTypeTest {
     private static final Integer[] testIntegerArray = new Integer[42];
 
     // Test load from (flattened) value type array disguised as object array
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test()
     public Object test21(Object[] oa, int index) {
         return oa[index];
@@ -701,7 +695,6 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
     }
-*/
 
     @ForceInline
     public void test24_inline(Object[] oa, Object o, int index) {
@@ -746,8 +739,6 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test value store to (flattened) value type array disguised as interface array
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test26_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
@@ -773,7 +764,6 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
     }
-*/
 
     @ForceInline
     public void test27_inline(MyInterface[] ia, MyInterface i, int index) {
@@ -797,8 +787,6 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test object store to (flattened) value type array disguised as object array
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test28_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -846,7 +834,6 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
     }
-*/
 
     @ForceInline
     public void test30_inline(Object[] oa, Object o, int index) {
@@ -870,8 +857,6 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test value store to (flattened) value type array disguised as interface array
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test31_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
@@ -918,11 +903,8 @@ public class TestLWorld extends ValueTypeTest {
             // Expected
         }
     }
-*/
 
     // Test writing null to a (flattened) value type array disguised as object array
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test33_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -999,7 +981,6 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
-*/
 
     // Test writing a value type to a null value type array
     @Test()
@@ -1019,8 +1000,6 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test incremental inlining
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test37_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -1119,7 +1098,6 @@ public class TestLWorld extends ValueTypeTest {
         result = test38(null, testValue1Array, index, index, 6);
         Asserts.assertEQ(((MyValue1[][])result)[index][index].hash(), testValue1.hash());
     }
-*/
 
     @ForceInline
     public Object test39_inline() {
@@ -1335,8 +1313,6 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test45_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -1358,7 +1334,6 @@ public class TestLWorld extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
-*/
 
     // instanceof tests with values
     @Test
@@ -1745,8 +1720,6 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(((MyValue1)array[0]).hash(), testValue1.hash());
     }
 
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test()
     public void test66(Object[] array, MyValue1 vt) {
         array[0] = vt;
@@ -1770,7 +1743,6 @@ public class TestLWorld extends ValueTypeTest {
         test67(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
-*/
 
     @Test()
     public void test68(Object[] array, Integer o) {
@@ -1876,8 +1848,6 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Tests for loading/storing unkown values
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @Test
     public Object test73(Object[] va) {
         return va[0];
@@ -1919,7 +1889,6 @@ public class TestLWorld extends ValueTypeTest {
     public void test75_verifier(boolean warmup) {
         test75(42);
     }
-*/
 
     // Casting a null Integer to a (non-nullable) value type should throw a NullPointerException
     @ForceInline

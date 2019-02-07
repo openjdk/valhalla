@@ -25,8 +25,8 @@
  * @test
  * @library /test/lib
  * @summary Test the handling of fields of unloaded value classes.
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers -XDallowWithFieldOperator hack/GetUnresolvedValueFieldWrongSignature.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers -XDallowWithFieldOperator TestUnloadedValueTypeField.java
+ * @compile -XDallowWithFieldOperator hack/GetUnresolvedValueFieldWrongSignature.java
+ * @compile -XDallowWithFieldOperator TestUnloadedValueTypeField.java
  * @run main/othervm -XX:+EnableValhalla -Xcomp
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test1
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test2

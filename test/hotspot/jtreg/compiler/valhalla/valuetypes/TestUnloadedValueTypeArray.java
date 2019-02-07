@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of Arrays of unloaded value classes.
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowFlattenabilityModifiers -XDallowWithFieldOperator TestUnloadedValueTypeArray.java
+ * @compile -XDallowWithFieldOperator TestUnloadedValueTypeArray.java
  * @run main/othervm -XX:+EnableValhalla -Xcomp
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test1
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test2

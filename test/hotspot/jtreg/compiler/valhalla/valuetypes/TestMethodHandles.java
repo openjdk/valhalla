@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,25 +23,19 @@
 
 package compiler.valhalla.valuetypes;
 
-import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
-import jdk.experimental.bytecode.TypeTag;
-import jdk.experimental.value.MethodHandleBuilder;
-import jdk.test.lib.Asserts;
-
 import java.lang.invoke.*;
 import java.lang.reflect.Method;
+
+import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @summary Test method handle support for value types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- *          java.base/jdk.internal.misc:+open
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers TestMethodHandles.java
+ * @compile -XDallowWithFieldOperator TestMethodHandles.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                               -DVerifyIR=false
  *                               compiler.valhalla.valuetypes.ValueTypeTest

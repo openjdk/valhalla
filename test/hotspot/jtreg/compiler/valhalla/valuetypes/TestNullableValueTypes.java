@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,16 @@ package compiler.valhalla.valuetypes;
 import java.lang.invoke.*;
 import java.lang.reflect.Method;
 
-import jdk.experimental.value.MethodHandleBuilder;
-import jdk.experimental.bytecode.MacroCodeBuilder;
-import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
-import jdk.experimental.bytecode.TypeTag;
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @summary Test correct handling of nullable value types.
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDenableValueTypes -XDallowWithFieldOperator TestNullableValueTypes.java
+ * @compile -XDallowWithFieldOperator TestNullableValueTypes.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -ea -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestNullableValueTypes
@@ -404,8 +398,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // Test writing null to a (flattened) value type array
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
     @ForceInline
     public void test14_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -427,7 +419,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), testValue1.hash());
     }
-*/
 
     @DontInline
     MyValue1.box getNullField1() {

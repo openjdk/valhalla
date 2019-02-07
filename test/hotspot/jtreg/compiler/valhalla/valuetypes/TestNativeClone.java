@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,8 @@
  * @test
  * @bug 8209702
  * @summary Verify that the native clone intrinsic handles value types.
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
+ * @modules java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes TestNativeClone.java
  * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestNativeClone::test*
