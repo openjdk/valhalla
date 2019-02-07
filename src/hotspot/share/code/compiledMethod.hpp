@@ -218,12 +218,14 @@ public:
 
   virtual address verified_entry_point() const = 0;
   virtual address verified_value_entry_point() const = 0;
+  virtual address verified_value_ro_entry_point() const = 0;
   virtual void log_identity(xmlStream* log) const = 0;
   virtual void log_state_change() const = 0;
   virtual bool make_not_used() = 0;
   virtual bool make_not_entrant() = 0;
   virtual bool make_entrant() = 0;
   virtual address entry_point() const = 0;
+  virtual address value_ro_entry_point() const = 0;
   virtual bool make_zombie() = 0;
   virtual bool is_osr_method() const = 0;
   virtual int osr_entry_bci() const = 0;

@@ -487,14 +487,6 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
 }
 #endif
 
-bool Method::needs_stack_repair() const {
-  return adapter() != NULL ? (adapter()->get_res_entry()._offset != -1) : false;
-}
-
-SigEntry Method::get_res_entry() const {
-  return adapter() != NULL ? adapter()->get_res_entry() : SigEntry();
-}
-
 bool Method::is_empty_method() const {
   return  code_size() == 1
       && *code_base() == Bytecodes::_return;
@@ -942,9 +934,11 @@ void Method::clear_code(bool acquire_lock /* = true */) {
   if (adapter() == NULL) {
     _from_compiled_entry    = NULL;
     _from_compiled_value_entry = NULL;
+    _from_compiled_value_ro_entry = NULL;
   } else {
     _from_compiled_entry    = adapter()->get_c2i_entry();
     _from_compiled_value_entry = adapter()->get_c2i_value_entry();
+    _from_compiled_value_ro_entry = adapter()->get_c2i_value_ro_entry();
   }
   OrderAccess::storestore();
   _from_interpreted_entry = _i2i_entry;
@@ -975,6 +969,8 @@ void Method::unlink_method() {
   assert(*((int*)_from_compiled_entry) == 0, "must be NULL during dump time, to be initialized at run time");
   _from_compiled_value_entry = cds_adapter->get_c2i_entry_trampoline();
   assert(*((int*)_from_compiled_value_entry) == 0, "must be NULL during dump time, to be initialized at run time");
+  _from_compiled_value_ro_entry = cds_adapter->get_c2i_entry_trampoline();
+  assert(*((int*)_from_compiled_value_ro_entry) == 0, "must be NULL during dump time, to be initialized at run time");
 
   set_method_data(NULL);
   clear_method_counters();
@@ -1123,10 +1119,12 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
     assert(mh->adapter() == adapter, "must be");
     assert(mh->_from_compiled_entry != NULL, "must be");
     assert(mh->_from_compiled_value_entry != NULL, "must be");
+    assert(mh->_from_compiled_value_ro_entry != NULL, "must be");
   } else {
     mh->set_adapter_entry(adapter);
     mh->_from_compiled_entry = adapter->get_c2i_entry();
     mh->_from_compiled_value_entry = adapter->get_c2i_value_entry();
+    mh->_from_compiled_value_ro_entry = adapter->get_c2i_value_ro_entry();
   }
   return adapter->get_c2i_entry();
 }
@@ -1164,6 +1162,12 @@ address Method::verified_code_entry() {
   return _from_compiled_entry;
 }
 
+address Method::verified_value_ro_code_entry() {
+  debug_only(NoSafepointVerifier nsv;)
+  assert(_from_compiled_value_ro_entry != NULL, "must be set");
+  return _from_compiled_value_ro_entry;
+}
+
 // Check that if an nmethod ref exists, it has a backlink to this or no backlink at all
 // (could be racing a deopt).
 // Not inline to avoid circular ref.
@@ -1196,6 +1200,7 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
   OrderAccess::storestore();
   mh->_from_compiled_entry = code->verified_entry_point();
   mh->_from_compiled_value_entry = code->verified_value_entry_point();
+  mh->_from_compiled_value_ro_entry = code->verified_value_ro_entry_point();
   OrderAccess::storestore();
   // Instantly compiled code can execute.
   if (!mh->is_method_handle_intrinsic())

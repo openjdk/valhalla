@@ -46,6 +46,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/xmlstream.hpp"
 #ifdef COMPILER2
@@ -1497,3 +1498,16 @@ bool ciMethod::is_consistent_info(ciMethod* declared_method, ciMethod* resolved_
 }
 
 // ------------------------------------------------------------------
+
+bool ciMethod::has_scalarized_args() const {
+  VM_ENTRY_MARK;
+  return get_Method()->has_scalarized_args();
+}
+
+const GrowableArray<SigEntry>* ciMethod::get_sig_cc() {
+  VM_ENTRY_MARK;
+  if (get_Method()->adapter() == NULL) {
+    return NULL;
+  }
+  return get_Method()->adapter()->get_sig_cc();
+}

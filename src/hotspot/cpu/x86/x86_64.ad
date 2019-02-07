@@ -1550,22 +1550,33 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const
 
 //=============================================================================
 #ifndef PRODUCT
-void MachVVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
+void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
-  st->print_cr("MachVVEPNode");
+  st->print_cr("MachVEPNode");
 }
 #endif
 
-void MachVVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
+void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
-  // Unpack all value type args passed as oop and then jump to
-  // the verified entry point (skipping the unverified entry).
   MacroAssembler masm(&cbuf);
-  masm.unpack_value_args(ra_->C);
-  masm.jmp(*_verified_entry);
+  if (!_verified) {  
+    uint insts_size = cbuf.insts_size();
+    if (UseCompressedClassPointers) {
+      masm.load_klass(rscratch1, j_rarg0);
+      masm.cmpptr(rax, rscratch1);
+    } else {
+      masm.cmpptr(rax, Address(j_rarg0, oopDesc::klass_offset_in_bytes()));
+    }
+    masm.jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+  } else {
+    // Unpack value type args passed as oop and then jump to
+    // the verified entry point (skipping the unverified entry).
+    masm.unpack_value_args(ra_->C, _receiver_only);
+    masm.jmp(*_verified_entry);
+  }
 }
 
-uint MachVVEPNode::size(PhaseRegAlloc* ra_) const
+uint MachVEPNode::size(PhaseRegAlloc* ra_) const
 {
   return MachNode::size(ra_); // too many variables; just compute it the hard way
 }

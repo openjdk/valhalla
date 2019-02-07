@@ -855,11 +855,11 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   }
   PhaseGVN& gvn = *initial_gvn();
   uint j = 0;
+  ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
   for (uint i = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
-    // TODO for now, don't scalarize value type receivers because of interface calls
-    if (has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null() && (method()->is_static() || i != TypeFunc::Parms)) {
+    if (has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null()) {
       // Value type arguments are not passed by reference: we get an argument per
       // field of the value type. Build ValueTypeNodes from the value type arguments.
       GraphKit kit(jvms, &gvn);
@@ -868,18 +868,15 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       // Use immutable memory for value type loads and restore it below
       // TODO make sure value types are always loaded from immutable memory
       kit.set_all_memory(C->immutable_memory());
-      parm = ValueTypeNode::make_from_multi(&kit, start, t->value_klass(), j, true);
+      parm = ValueTypeNode::make_from_multi(&kit, start, sig_cc, t->value_klass(), j, true);
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
-      int index = j;
-      SigEntry res_slot = get_res_entry();
-      if (res_slot._offset != -1 && (index - TypeFunc::Parms) >= res_slot._offset) {
-        // Skip reserved entry
-        index += type2size[res_slot._bt];
+      parm = gvn.transform(new ParmNode(start, j++));
+      BasicType bt = t->basic_type();
+      while (i >= TypeFunc::Parms && SigEntry::next_is_reserved(sig_cc, bt, true)) {
+        j += type2size[bt]; // Skip reserved arguments
       }
-      parm = gvn.transform(new ParmNode(start, index));
-      j++;
     }
     map->init_req(i, parm);
     // Record all these guys for later GVN.
@@ -932,7 +929,12 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
       }
-      vt->pass_fields(ret, TypeFunc::Parms+1, kit, /* assert_allocated */ true);
+      const Array<SigEntry>* sig_array = vt->type()->is_valuetype()->value_klass()->extended_sig();
+      GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
+      sig.appendAll(sig_array);
+      ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
+      uint idx = TypeFunc::Parms+1;
+      vt->pass_fields(&kit, ret, sig_cc, idx);
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.

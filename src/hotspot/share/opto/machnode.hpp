@@ -463,20 +463,25 @@ public:
   int  constant_offset_unchecked() const;
 };
 
-//------------------------------MachVVEPNode-----------------------------------
-// Machine Verified Value Type Entry Point Node
-class MachVVEPNode : public MachIdealNode {
+//------------------------------MachVEPNode-----------------------------------
+// Machine Value Type Entry Point Node
+class MachVEPNode : public MachIdealNode {
 public:
-  MachVVEPNode(Label* verified_entry) : _verified_entry(verified_entry) {}
+  MachVEPNode(Label* verified_entry, bool verified, bool receiver_only) :
+    _verified_entry(verified_entry),
+    _verified(verified),
+    _receiver_only(receiver_only) {}
   virtual void emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const;
   virtual uint size(PhaseRegAlloc* ra_) const;
 
 #ifndef PRODUCT
-  virtual const char* Name() const { return "Verified ValueType Entry-Point"; }
+  virtual const char* Name() const { return "ValueType Entry-Point"; }
   virtual void format(PhaseRegAlloc*, outputStream* st) const;
 #endif
 private:
   Label* _verified_entry;
+  bool   _verified;
+  bool   _receiver_only;
 };
 
 //------------------------------MachUEPNode-----------------------------------

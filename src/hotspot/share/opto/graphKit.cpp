@@ -1784,35 +1784,35 @@ Node* GraphKit::load_array_element(Node* ctl, Node* ary, Node* idx, const TypeAr
 void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
   // Add the call arguments:
   const TypeTuple* domain = call->tf()->domain_sig();
+  ExtendedSignature sig_cc = ExtendedSignature(call->method()->get_sig_cc(), SigEntryFilter());
   uint nargs = domain->cnt();
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
-    if (arg->is_ValueType()) {
-      assert(t->is_oopptr()->can_be_value_type(), "wrong argument type");
-      ValueTypeNode* vt = arg->as_ValueType();
-      // TODO for now, don't scalarize value type receivers because of interface calls
-      if (call->method()->get_Method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null() && (call->method()->is_static() || i != TypeFunc::Parms)) {
-        // We don't pass value type arguments by reference but instead
-        // pass each field of the value type
-        idx += vt->pass_fields(call, idx, *this);
-        // If a value type argument is passed as fields, attach the Method* to the call site
-        // to be able to access the extended signature later via attached_method_before_pc().
-        // For example, see CompiledMethod::preserve_callee_argument_oops().
-        call->set_override_symbolic_info(true);
-        continue;
-      } else {
-        // Pass value type argument via oop to callee
-        arg = vt->allocate(this)->get_oop();
+    if (call->method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null()) {
+      // We don't pass value type arguments by reference but instead
+      // pass each field of the value type
+      ValueTypeNode* vt = arg->isa_ValueType();
+      if (vt == NULL) {
+        // TODO why is that?? Shouldn't we always see a valuetype node here?
+        vt = ValueTypeNode::make_from_oop(this, arg, t->value_klass());
       }
+      vt->pass_fields(this, call, sig_cc, idx);
+      // If a value type argument is passed as fields, attach the Method* to the call site
+      // to be able to access the extended signature later via attached_method_before_pc().
+      // For example, see CompiledMethod::preserve_callee_argument_oops().
+      call->set_override_symbolic_info(true);
+      continue;
+    } else if (arg->is_ValueType()) {
+      // Pass value type argument via oop to callee
+      arg = arg->as_ValueType()->allocate(this)->get_oop();
     }
     call->init_req(idx++, arg);
-
-    SigEntry res_entry = call->method()->get_Method()->get_res_entry();
-    if ((int)(idx - TypeFunc::Parms) == res_entry._offset) {
-      // Skip reserved entry
+    // Skip reserved arguments
+    BasicType bt = t->basic_type();
+    while (SigEntry::next_is_reserved(sig_cc, bt, true)) {
       call->init_req(idx++, top());
-      if (res_entry._bt == T_DOUBLE || res_entry._bt == T_LONG) {
+      if (type2size[bt] == 2) {
         call->init_req(idx++, top());
       }
     }
@@ -1868,16 +1868,18 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
 
   // Capture the return value, if any.
   Node* ret;
-  if (call->method() == NULL ||
-      call->method()->return_type()->basic_type() == T_VOID) {
+  if (call->method() == NULL || call->method()->return_type()->basic_type() == T_VOID) {
     ret = top();
   } else if (call->tf()->returns_value_type_as_fields()) {
     // Return of multiple values (value type fields): we create a
     // ValueType node, each field is a projection from the call.
-    const TypeTuple* range_sig = call->tf()->range_sig();
-    const Type* t = range_sig->field_at(TypeFunc::Parms);
+    ciValueKlass* vk = call->method()->return_type()->as_value_klass();
+    const Array<SigEntry>* sig_array = vk->extended_sig();
+    GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
+    sig.appendAll(sig_array);
+    ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
     uint base_input = TypeFunc::Parms + 1;
-    ret = ValueTypeNode::make_from_multi(this, call, t->value_klass(), base_input, false);
+    ret = ValueTypeNode::make_from_multi(this, call, sig_cc, vk, base_input, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }

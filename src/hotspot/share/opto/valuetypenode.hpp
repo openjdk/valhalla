@@ -50,9 +50,6 @@ protected:
 
   int make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
-  // Initialize the value type fields with the inputs or outputs of a MultiNode
-  void initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, uint& base_input, bool in);
-
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 
 public:
@@ -73,6 +70,7 @@ public:
   void      set_field_value(uint index, Node* value);
   void      set_field_value_by_offset(int offset, Node* value);
   int           field_offset(uint index) const;
+  uint          field_index(int offset) const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;
   bool          field_is_flattenable(uint index) const;
@@ -125,7 +123,8 @@ public:
   // Create and initialize by loading the field values from a flattened field or array
   static ValueTypeNode* make_from_flattened(GraphKit* kit, ciValueKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
-  static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, uint& base_input, bool in);
+  static ValueTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, ciValueKlass* vk, uint& base_input, bool in);
+
   ValueTypeNode* make_larval(GraphKit* kit, bool allocate) const;
   ValueTypeNode* finish_larval(GraphKit* kit) const;
 
@@ -136,7 +135,10 @@ public:
   Node* allocate_fields(GraphKit* kit);
 
   Node* tagged_klass(PhaseGVN& gvn);
-  uint pass_fields(Node* call, int base_input, GraphKit& kit, bool assert_allocated = false, ciValueKlass* base_vk = NULL, int base_offset = 0);
+  // Pass value type as fields at a call or return
+  void pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input, int base_offset = 0);
+  // Initialize the value type fields with the inputs or outputs of a MultiNode
+  void initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, int base_offset, bool in);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase);

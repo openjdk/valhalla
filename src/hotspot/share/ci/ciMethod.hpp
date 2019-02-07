@@ -361,6 +361,10 @@ class ciMethod : public ciMetadata {
   void print_short_name(outputStream* st = tty);
 
   static bool is_consistent_info(ciMethod* declared_method, ciMethod* resolved_method);
+
+  // Support for the value type calling convention
+  bool has_scalarized_args() const;
+  const GrowableArray<SigEntry>* get_sig_cc();
 };
 
 #endif // SHARE_CI_CIMETHOD_HPP

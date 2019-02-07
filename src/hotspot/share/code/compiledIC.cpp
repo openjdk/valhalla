@@ -536,7 +536,7 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
     if (is_optimized) {
       entry      = method_code->verified_entry_point();
     } else {
-      entry      = method_code->entry_point();
+      entry      = method_code->value_ro_entry_point();
     }
   }
   bool far_c2a = entry != NULL && caller_is_nmethod && method_code->is_far_code();

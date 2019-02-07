@@ -89,13 +89,10 @@ bool ciValueKlass::is_scalarizable() const {
 // When passing a value type's fields as arguments, count the number
 // of argument slots that are needed
 int ciValueKlass::value_arg_slots() {
-  int slots = nof_nonstatic_fields();
+  int slots = 0;
   for (int j = 0; j < nof_nonstatic_fields(); j++) {
-    ciField* f = nonstatic_field_at(j);
-    BasicType bt = f->type()->basic_type();
-    if (bt == T_LONG || bt == T_DOUBLE) {
-      slots++;
-    }
+    ciField* field = nonstatic_field_at(j);
+    slots += type2size[field->type()->basic_type()];
   }
   return slots;
 }
@@ -114,4 +111,8 @@ ciInstance* ciValueKlass::default_value_instance() const {
 
 bool ciValueKlass::contains_oops() const {
   GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->contains_oops();)
+}
+
+Array<SigEntry>* ciValueKlass::extended_sig() const {
+  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->extended_sig();)
 }

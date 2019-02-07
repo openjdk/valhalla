@@ -547,10 +547,10 @@ template<class E, class UnaryPredicate> class GrowableArrayFilterIterator : publ
   UnaryPredicate _predicate;        // Unary predicate the elements of the GrowableArray should satisfy
 
  public:
-  GrowableArrayFilterIterator(const GrowableArrayIterator<E>& begin, UnaryPredicate filter_predicate)
-   : _array(begin._array), _position(begin._position), _predicate(filter_predicate) {
+  GrowableArrayFilterIterator(const GrowableArray<E>* array, UnaryPredicate filter_predicate)
+   : _array(array), _position(0), _predicate(filter_predicate) {
     // Advance to first element satisfying the predicate
-    while(_position != _array->length() && !_predicate(_array->at(_position))) {
+    while(!at_end() && !_predicate(_array->at(_position))) {
       ++_position;
     }
   }
@@ -559,7 +559,7 @@ template<class E, class UnaryPredicate> class GrowableArrayFilterIterator : publ
     do {
       // Advance to next element satisfying the predicate
       ++_position;
-    } while(_position != _array->length() && !_predicate(_array->at(_position)));
+    } while(!at_end() && !_predicate(_array->at(_position)));
     return *this;
   }
 
@@ -583,6 +583,10 @@ template<class E, class UnaryPredicate> class GrowableArrayFilterIterator : publ
   bool operator!=(const GrowableArrayFilterIterator<E, UnaryPredicate>& rhs)  {
     assert(_array == rhs._array, "iterator belongs to different array");
     return _position != rhs._position;
+  }
+
+  bool at_end() const {
+    return _array == NULL || _position == _array->end()._position;
   }
 };
 

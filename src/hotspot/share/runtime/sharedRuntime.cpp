@@ -1122,8 +1122,8 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
           break;
       }
     } else {
-      assert(ValueTypePassFieldsAsArgs, "invalid use of attached methods");
-      if (bc != Bytecodes::_invokevirtual) {
+      assert(attached_method->has_scalarized_args(), "invalid use of attached method");
+      if (!attached_method->method_holder()->is_value()) {
         // Ignore the attached method in this case to not confuse below code
         attached_method = NULL;
       }
@@ -1152,15 +1152,18 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    // TODO for now, don't scalarize value type receivers because of interface calls
-    if (callee->has_scalarized_args() && callee->method_holder()->is_value() && false) {
+    if (callee->has_scalarized_args() && callee->method_holder()->is_value()) {
       // If the receiver is a value type that is passed as fields, no oop is available.
       // Resolve the call without receiver null checking.
-      assert(bc == Bytecodes::_invokevirtual, "only allowed with invokevirtual");
       assert(!attached_method.is_null(), "must have attached method");
-      constantPoolHandle constants(THREAD, caller->constants());
-      LinkInfo link_info(attached_method->method_holder(), attached_method->name(), attached_method->signature());
-      LinkResolver::resolve_virtual_call(callinfo, receiver, NULL, link_info, /*check_null_or_abstract*/ false, CHECK_NH);
+      if (bc == Bytecodes::_invokevirtual) {
+        LinkInfo link_info(attached_method->method_holder(), attached_method->name(), attached_method->signature());
+        LinkResolver::resolve_virtual_call(callinfo, receiver, callee->method_holder(), link_info, /*check_null_and_abstract=*/ false, CHECK_NH);
+      } else {
+        assert(bc == Bytecodes::_invokeinterface, "anything else?");
+        LinkInfo link_info(constantPoolHandle(THREAD, caller->constants()), bytecode_index, CHECK_NH);
+        LinkResolver::resolve_interface_call(callinfo, receiver, callee->method_holder(), link_info, /*check_null_and_abstract=*/ false, CHECK_NH);
+      }
       return receiver; // is null
     } else {
       // Retrieve from a compiled argument list
@@ -1467,14 +1470,16 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
 #endif /* ASSERT */
 
   methodHandle callee_method;
+  bool is_optimized = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::handle_ic_miss_helper(thread, CHECK_NULL);
+    callee_method = SharedRuntime::handle_ic_miss_helper(thread, is_optimized, CHECK_NULL);
     // Return Method* through TLS
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, " Jump to zero!");
-  return callee_method->verified_code_entry();
+  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
+  assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
+  return is_optimized ? callee_method->verified_code_entry() : callee_method->verified_value_ro_code_entry();
 JRT_END
 
 
@@ -1505,14 +1510,16 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* thread))
 
   // Must be compiled to compiled path which is safe to stackwalk
   methodHandle callee_method;
+  bool is_optimized = false;
   JRT_BLOCK
     // Force resolving of caller (if we called from compiled frame)
-    callee_method = SharedRuntime::reresolve_call_site(thread, CHECK_NULL);
+    callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, CHECK_NULL);
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, " Jump to zero!");
-  return callee_method->verified_code_entry();
+  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
+  assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
+  return is_optimized ? callee_method->verified_code_entry() : callee_method->verified_value_ro_code_entry();
 JRT_END
 
 // Handle abstract method call
@@ -1555,7 +1562,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread *thread
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, " Jump to zero!");
+  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
   return callee_method->verified_code_entry();
 JRT_END
 
@@ -1568,8 +1575,8 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread *threa
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, " Jump to zero!");
-  return callee_method->verified_code_entry();
+  assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
+  return callee_method->verified_value_ro_code_entry();
 JRT_END
 
 
@@ -1582,7 +1589,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread *t
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, " Jump to zero!");
+  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
   return callee_method->verified_code_entry();
 JRT_END
 
@@ -1594,7 +1601,7 @@ JRT_END
 bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm,
                                                    const frame& caller_frame, methodHandle callee_method,
                                                    Bytecodes::Code bc, CallInfo& call_info,
-                                                   bool& needs_ic_stub_refill, TRAPS) {
+                                                   bool& needs_ic_stub_refill, bool& is_optimized, TRAPS) {
   CompiledICLocker ml(caller_nm);
   CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
   bool should_be_mono = false;
@@ -1605,6 +1612,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
       callee_method->print_short_name(tty);
       tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
     }
+    is_optimized = true;
     should_be_mono = true;
   } else if (inline_cache->is_icholder_call()) {
     CompiledICHolder* ic_oop = inline_cache->cached_icholder();
@@ -1666,7 +1674,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
   return true;
 }
 
-methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
+methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_optimized, TRAPS) {
   ResourceMark rm(thread);
   CallInfo call_info;
   Bytecodes::Code bc;
@@ -1686,7 +1694,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
   // did this would still be the correct thing to do for it too, hence no ifdef.
   //
   if (call_info.resolved_method()->can_be_statically_bound()) {
-    methodHandle callee_method = SharedRuntime::reresolve_call_site(thread, CHECK_(methodHandle()));
+    methodHandle callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, CHECK_(methodHandle()));
     if (TraceCallFixup) {
       RegisterMap reg_map(thread, false);
       frame caller_frame = thread->last_frame().sender(&reg_map);
@@ -1741,7 +1749,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
     ICRefillVerifier ic_refill_verifier;
     bool needs_ic_stub_refill = false;
     bool successful = handle_ic_miss_helper_internal(receiver, caller_nm, caller_frame, callee_method,
-                                                     bc, call_info, needs_ic_stub_refill, CHECK_(methodHandle()));
+                                                     bc, call_info, needs_ic_stub_refill, is_optimized, CHECK_(methodHandle()));
     if (successful || !needs_ic_stub_refill) {
       return callee_method;
     } else {
@@ -1773,7 +1781,7 @@ static bool clear_ic_at_addr(CompiledMethod* caller_nm, address call_addr, bool 
 // sites, and static call sites. Typically used to change a call sites
 // destination from compiled to interpreted.
 //
-methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
+methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_optimized, TRAPS) {
   ResourceMark rm(thread);
   RegisterMap reg_map(thread, false);
   frame stub_frame = thread->last_frame();
@@ -1834,6 +1842,7 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
           assert(iter.type() == relocInfo::virtual_call_type ||
                  iter.type() == relocInfo::opt_virtual_call_type
                 , "unexpected relocInfo. type");
+          is_optimized = (iter.type() == relocInfo::opt_virtual_call_type);
         }
       } else {
         assert(!UseInlineCaches, "relocation info. must exist for this address");
@@ -1858,7 +1867,6 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
   }
 
   methodHandle callee_method = find_callee_method(thread, CHECK_(methodHandle()));
-
 
 #ifndef PRODUCT
   Atomic::inc(&_wrong_method_ctr);
@@ -2401,9 +2409,10 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
   }
 
  public:
-  AdapterFingerPrint(int total_args_passed, const GrowableArray<SigEntry>* sig) {
+  AdapterFingerPrint(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false) {
     // The fingerprint is based on the BasicType signature encoded
     // into an array of ints with eight entries per int.
+    int total_args_passed = (sig != NULL) ? sig->length() : 0;
     int* ptr;
     int len = (total_args_passed + (_basic_types_per_int-1)) / _basic_types_per_int;
     if (len <= _compact_int_count) {
@@ -2432,6 +2441,11 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
           if (ValueTypePassFieldsAsArgs && sbt == T_VALUETYPE) {
             // Found start of value type in signature
             vt_count++;
+            if (sig_index == 1 && has_ro_adapter) {
+              // With a ro_adapter, replace receiver value type delimiter by T_VOID to prevent matching
+              // with other adapters that have the same value type as first argument and no receiver.
+              sbt = T_VOID;
+            }
           } else if (ValueTypePassFieldsAsArgs && sbt == T_VOID &&
                      prev_sbt != T_LONG && prev_sbt != T_DOUBLE) {
             // Found end of value type in signature
@@ -2532,9 +2546,9 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
     : BasicHashtable<mtCode>(293, (DumpSharedSpaces ? sizeof(CDSAdapterHandlerEntry) : sizeof(AdapterHandlerEntry))) { }
 
   // Create a new entry suitable for insertion in the table
-  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_unverified_entry) {
+  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry, address c2i_unverified_entry) {
     AdapterHandlerEntry* entry = (AdapterHandlerEntry*)BasicHashtable<mtCode>::new_entry(fingerprint->compute_hash());
-    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_unverified_entry);
+    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry);
     if (DumpSharedSpaces) {
       ((CDSAdapterHandlerEntry*)entry)->init();
     }
@@ -2553,9 +2567,9 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
   }
 
   // Find a entry with the same fingerprint if it exists
-  AdapterHandlerEntry* lookup(int total_args_passed, const GrowableArray<SigEntry>* sig) {
+  AdapterHandlerEntry* lookup(const GrowableArray<SigEntry>* sig, bool has_ro_adapter = false) {
     NOT_PRODUCT(_lookups++);
-    AdapterFingerPrint fp(total_args_passed, sig);
+    AdapterFingerPrint fp(sig, has_ro_adapter);
     unsigned int hash = fp.compute_hash();
     int index = hash_to_index(hash);
     for (AdapterHandlerEntry* e = bucket(index); e != NULL; e = e->next()) {
@@ -2675,17 +2689,18 @@ void AdapterHandlerLibrary::initialize() {
   // Pass wrong_method_abstract for the c2i transitions to return
   // AbstractMethodError for invalid invocations.
   address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-  _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(0, NULL),
+  _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
                                                               StubRoutines::throw_AbstractMethodError_entry(),
-                                                              wrong_method_abstract, wrong_method_abstract, wrong_method_abstract);
+                                                              wrong_method_abstract, wrong_method_abstract, wrong_method_abstract, wrong_method_abstract);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
                                                       address i2c_entry,
                                                       address c2i_entry,
                                                       address c2i_value_entry,
+                                                      address c2i_value_ro_entry,
                                                       address c2i_unverified_entry) {
-  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_unverified_entry);
+  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
@@ -2712,6 +2727,53 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   return entry;
 }
 
+static int compute_scalarized_cc(const methodHandle& method, GrowableArray<SigEntry>& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
+  InstanceKlass* holder = method->method_holder();
+  sig_cc = GrowableArray<SigEntry>(method->size_of_parameters());
+  if (!method->is_static()) {
+    if (holder->is_value() && scalar_receiver) {
+      sig_cc.appendAll(ValueKlass::cast(holder)->extended_sig());
+    } else {
+      SigEntry::add_entry(&sig_cc, T_OBJECT);
+    }
+  }
+  Thread* THREAD = Thread::current();
+  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+    if (ss.type() == T_VALUETYPE) {
+      Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
+                             Handle(THREAD, holder->protection_domain()),
+                             SignatureStream::ReturnNull, THREAD);
+      assert(k != NULL && !HAS_PENDING_EXCEPTION, "value klass should have been pre-loaded");
+      sig_cc.appendAll(ValueKlass::cast(k)->extended_sig());
+    } else {
+      SigEntry::add_entry(&sig_cc, ss.type());
+    }
+  }
+  regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc.length() + 2);
+  return SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
+}
+
+static int insert_reserved_entry(GrowableArray<SigEntry>& sig_cc, VMRegPair*& regs_cc, int ret_off) {
+  // Find index in signature that belongs to return address slot
+  BasicType bt = T_ILLEGAL;
+  int i = 0;
+  for (uint off = 0; i < sig_cc.length(); ++i) {
+    if (SigEntry::skip_value_delimiters(&sig_cc, i)) {
+      VMReg first = regs_cc[off++].first();
+      if (first->is_valid() && first->is_stack()) {
+        // Select a type for the reserved entry that will end up on the stack
+        bt = sig_cc.at(i)._bt;
+        if (((int)first->reg2stack() + VMRegImpl::slots_per_word) == ret_off) {
+          break; // Index of the return address found
+        }
+      }
+    }
+  }
+  // Insert reserved entry and re-compute calling convention
+  SigEntry::insert_reserved_entry(&sig_cc, i, bt);
+  return SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
+}
+
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& method) {
   // Use customized signature handler.  Need to lock around updates to
   // the AdapterHandlerTable (it is not safe for concurrent readers
@@ -2724,16 +2786,18 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
   AdapterBlob* new_adapter = NULL;
   AdapterHandlerEntry* entry = NULL;
   AdapterFingerPrint* fingerprint = NULL;
+
   {
     MutexLocker mu(AdapterHandlerLibrary_lock);
     // make sure data structure is initialized
     initialize();
 
     bool has_value_arg = false;
+    bool has_value_recv = false;
     GrowableArray<SigEntry> sig(method->size_of_parameters());
     if (!method->is_static()) {
-      // TODO for now, don't scalarize value type receivers because of interface calls
-      //has_value_arg |= method->method_holder()->is_value();
+      has_value_recv = method->method_holder()->is_value();
+      has_value_arg = has_value_recv;
       SigEntry::add_entry(&sig, T_OBJECT);
     }
     for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
@@ -2746,7 +2810,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
     }
 
     // Process abstract method if it has value type args to set has_scalarized_args accordingly
-    if (!has_value_arg && method->is_abstract()) {
+    if (method->is_abstract() && !(ValueTypePassFieldsAsArgs && has_value_arg)) {
       return _abstract_method_handler;
     }
 
@@ -2756,85 +2820,85 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
     // Now compute the scalarized calling convention if there are value types in the signature
     GrowableArray<SigEntry> sig_cc = sig;
+    GrowableArray<SigEntry> sig_cc_ro = sig;
     VMRegPair* regs_cc = regs;
-    SigEntry reserved_entry;
+    VMRegPair* regs_cc_ro = regs;
     int args_on_stack_cc = args_on_stack;
+    int args_on_stack_cc_ro = args_on_stack;
 
-    if (ValueTypePassFieldsAsArgs && has_value_arg) {
+    if (ValueTypePassFieldsAsArgs && has_value_arg && !method->is_native()) {
       MutexUnlocker mul(AdapterHandlerLibrary_lock);
-      InstanceKlass* holder = method->method_holder();
+      args_on_stack_cc = compute_scalarized_cc(method, sig_cc, regs_cc, /* scalar_receiver = */ true);
 
-      sig_cc = GrowableArray<SigEntry>(method->size_of_parameters());
-      if (!method->is_static()) {
-        // TODO for now, don't scalarize value type receivers because of interface calls
-        if (false && holder->is_value()) {
-          sig_cc.appendAll(ValueKlass::cast(holder)->extended_sig());
-        } else {
-          SigEntry::add_entry(&sig_cc, T_OBJECT);
-        }
+      sig_cc_ro = sig_cc;
+      regs_cc_ro = regs_cc;
+      args_on_stack_cc_ro = args_on_stack_cc;
+      if (has_value_recv || args_on_stack_cc > args_on_stack) {
+        // For interface calls, we need another entry point / adapter to unpack the receiver
+        args_on_stack_cc_ro = compute_scalarized_cc(method, sig_cc_ro, regs_cc_ro, /* scalar_receiver = */ false);
       }
-      Thread* THREAD = Thread::current();
-      for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-        if (ss.type() == T_VALUETYPE) {
-          Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
-                                 Handle(THREAD, holder->protection_domain()),
-                                 SignatureStream::ReturnNull, THREAD);
-          assert(k != NULL && !HAS_PENDING_EXCEPTION, "value klass should have been pre-loaded");
-          sig_cc.appendAll(ValueKlass::cast(k)->extended_sig());
-        } else {
-          SigEntry::add_entry(&sig_cc, ss.type());
-        }
-      }
-      regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc.length() + 2);
-      args_on_stack_cc = SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
 
-      // This stack slot is occupied by the return address with the unscalarized calling
-      // convention. Don't use it for argument with the scalarized calling convention.
-      int ret_addr_slot = args_on_stack_cc - args_on_stack;
-      if (ret_addr_slot > 0) {
-        // Make sure stack of the scalarized calling convention with
-        // the reserved entry (2 slots) is 16-byte (4 slots) aligned.
-        int alignment = StackAlignmentInBytes/VMRegImpl::stack_slot_size;
-        ret_addr_slot = align_up(ret_addr_slot + 2, alignment) - 2;
-        // Find index in signature that belongs to return address slot
-        reserved_entry._offset = 0;
-        int sig_idx = 0;
-        for (; sig_idx < sig_cc.length(); ++sig_idx) {
-          if (SigEntry::skip_value_delimiters(&sig_cc, sig_idx)) {
-            VMReg first = regs_cc[reserved_entry._offset].first();
-            if (first->is_stack()) {
-              // Select a type for the reserved entry that will end up on the stack
-              reserved_entry._bt = sig_cc.at(sig_idx)._bt;
-              if ((int)first->reg2stack() == ret_addr_slot) {
-                break;
-              }
-            }
-            reserved_entry._offset++;
+      // Compute the stack extension that is required to convert between the calling conventions.
+      // The stack slots at these offsets are occupied by the return address with the unscalarized
+      // calling convention. Don't use them for arguments with the scalarized calling convention.
+      int ret_off    = args_on_stack_cc - args_on_stack;
+      int ret_off_ro = args_on_stack_cc - args_on_stack_cc_ro;
+      assert(ret_off_ro <= 0 || ret_off > 0, "receiver unpacking requires more stack space than expected");
+
+      if (ret_off > 0) {
+        // Make sure the stack of the scalarized calling convention with the reserved
+        // entries (2 slots each) remains 16-byte (4 slots) aligned after stack extension.
+        int alignment = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
+        if (ret_off_ro != ret_off && ret_off_ro >= 0) {
+          ret_off    += 4; // Account for two reserved entries (4 slots)
+          ret_off_ro += 4;
+          ret_off     = align_up(ret_off, alignment);
+          ret_off_ro  = align_up(ret_off_ro, alignment);
+          // TODO can we avoid wasting a stack slot here?
+          //assert(ret_off != ret_off_ro, "fail");
+          if (ret_off > ret_off_ro) {
+            swap(ret_off, ret_off_ro); // Sort by offset
           }
+          args_on_stack_cc = insert_reserved_entry(sig_cc, regs_cc, ret_off);
+          args_on_stack_cc = insert_reserved_entry(sig_cc, regs_cc, ret_off_ro);
+        } else {
+          ret_off += 2; // Account for one reserved entry (2 slots)
+          ret_off = align_up(ret_off, alignment);
+          args_on_stack_cc = insert_reserved_entry(sig_cc, regs_cc, ret_off);
         }
-        // Insert reserved entry and re-compute calling convention
-        SigEntry::insert_reserved_entry(&sig_cc, sig_idx, reserved_entry._bt);
-        args_on_stack_cc = SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
       }
+
       // Upper bound on stack arguments to avoid hitting the argument limit and
       // bailing out of compilation ("unsupported incoming calling sequence").
       // TODO we need a reasonable limit (flag?) here
       if (args_on_stack_cc > 50) {
         // Don't scalarize value type arguments
         sig_cc = sig;
+        sig_cc_ro = sig;
         regs_cc = regs;
+        regs_cc_ro = regs;
         args_on_stack_cc = args_on_stack;
       } else {
         method->set_has_scalarized_args(true);
+        method->set_needs_stack_repair(args_on_stack_cc > args_on_stack);
       }
     }
 
     if (method->is_abstract()) {
-      return _abstract_method_handler;
+      // Save a C heap allocated version of the signature for abstract methods with scalarized value type arguments
+      assert(ValueTypePassFieldsAsArgs && has_value_arg, "must have scalarized value type args");
+      address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
+      entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
+                                               StubRoutines::throw_AbstractMethodError_entry(),
+                                               wrong_method_abstract, wrong_method_abstract, wrong_method_abstract, wrong_method_abstract);
+      GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), true);
+      heap_sig->appendAll(&sig_cc_ro);
+      entry->set_sig_cc(heap_sig);
+      return entry;
     }
 
     // Lookup method signature's fingerprint
-    entry = _adapters->lookup(sig_cc.length(), &sig_cc);
+    entry = _adapters->lookup(&sig_cc, regs_cc != regs_cc_ro);
 
 #ifdef ASSERT
     AdapterHandlerEntry* shared_entry = NULL;
@@ -2850,7 +2914,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
     }
 
     // Make a C heap allocated version of the fingerprint to store in the adapter
-    fingerprint = new AdapterFingerPrint(sig_cc.length(), &sig_cc);
+    fingerprint = new AdapterFingerPrint(&sig_cc, regs_cc != regs_cc_ro);
 
     // StubRoutines::code2() is initialized after this function can be called. As a result,
     // VerifyAdapterCalls and VerifyAdapterSharing can fail if we re-use code that generated
@@ -2874,20 +2938,24 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
                                                      regs,
                                                      &sig_cc,
                                                      regs_cc,
+                                                     &sig_cc_ro,
+                                                     regs_cc_ro,
                                                      fingerprint,
                                                      new_adapter);
 
       if (regs != regs_cc) {
         // Save a C heap allocated version of the scalarized signature and store it in the adapter
-        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(method->size_of_parameters(), true);
+        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc.length(), true);
         heap_sig->appendAll(&sig_cc);
         entry->set_sig_cc(heap_sig);
-        entry->set_res_entry(reserved_entry);
       }
 
 #ifdef ASSERT
       if (VerifyAdapterSharing) {
         if (shared_entry != NULL) {
+          if (!shared_entry->compare_code(buf->code_begin(), buffer.insts_size())) {
+            method->print();
+          }
           assert(shared_entry->compare_code(buf->code_begin(), buffer.insts_size()), "code must match");
           // Release the one just created and return the original
           _adapters->free_entry(entry);
@@ -2954,6 +3022,7 @@ address AdapterHandlerEntry::base_address() {
   if (base == NULL)  base = _c2i_entry;
   assert(base <= _c2i_entry || _c2i_entry == NULL, "");
   assert(base <= _c2i_value_entry || _c2i_value_entry == NULL, "");
+  assert(base <= _c2i_value_ro_entry || _c2i_value_ro_entry == NULL, "");
   assert(base <= _c2i_unverified_entry || _c2i_unverified_entry == NULL, "");
   return base;
 }
@@ -2968,6 +3037,8 @@ void AdapterHandlerEntry::relocate(address new_base) {
     _c2i_entry += delta;
   if (_c2i_value_entry != NULL)
     _c2i_value_entry += delta;
+  if (_c2i_value_ro_entry != NULL)
+    _c2i_value_ro_entry += delta;
   if (_c2i_unverified_entry != NULL)
     _c2i_unverified_entry += delta;
   assert(base_address() == new_base, "");
@@ -3316,9 +3387,9 @@ void AdapterHandlerLibrary::print_handler_on(outputStream* st, const CodeBlob* b
 }
 
 void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
-  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iMH: " INTPTR_FORMAT " c2iUV: " INTPTR_FORMAT,
+  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iVE: " INTPTR_FORMAT " c2iVROE: " INTPTR_FORMAT " c2iUE: " INTPTR_FORMAT,
                p2i(this), fingerprint()->as_string(),
-               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_value_entry()), p2i(get_c2i_unverified_entry()));
+               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_value_entry()), p2i(get_c2i_value_ro_entry()), p2i(get_c2i_unverified_entry()));
 
 }
 
@@ -3417,7 +3488,7 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
 // buffers for all value type arguments. Allocate an object array to
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
-JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* callee_method))
+JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* callee_method, bool allocate_receiver))
 {
   assert(ValueTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
@@ -3426,10 +3497,8 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
 
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
-  // TODO for now, don't scalarize value type receivers because of interface calls
-  //bool has_value_receiver = !callee->is_static() && holder->is_value();
-  bool has_value_receiver = false;
-  if (has_value_receiver) {
+  allocate_receiver &= !callee->is_static() && holder->is_value();
+  if (allocate_receiver) {
     nb_slots++;
   }
   Handle class_loader(THREAD, holder->class_loader());
@@ -3442,7 +3511,7 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
   objArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK);
   objArrayHandle array(THREAD, array_oop);
   int i = 0;
-  if (has_value_receiver) {
+  if (allocate_receiver) {
     ValueKlass* vk = ValueKlass::cast(holder);
     oop res = vk->allocate_instance(CHECK);
     array->obj_at_put(i, res);

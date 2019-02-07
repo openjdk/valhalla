@@ -80,6 +80,7 @@ public:
   int default_value_offset() const;
   ciInstance* default_value_instance() const;
   bool contains_oops() const;
+  Array<SigEntry>* extended_sig() const;
 };
 
 #endif // SHARE_VM_CI_CIVALUEKLASS_HPP

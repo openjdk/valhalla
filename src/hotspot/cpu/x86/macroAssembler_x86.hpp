@@ -1620,9 +1620,9 @@ public:
   };
 
   // Unpack all value type arguments passed as oops
-  void unpack_value_args(Compile* C);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
-  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[]);
+  void unpack_value_args(Compile* C, bool receiver_only);
+  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off);
+  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[], int ret_off);
   void restore_stack(Compile* C);
 
   // clear memory of size 'cnt' qwords, starting at 'base';

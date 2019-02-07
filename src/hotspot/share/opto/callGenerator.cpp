@@ -437,30 +437,27 @@ void LateInlineCallGenerator::do_late_inline() {
   // the incoming arguments and return value.
   map->ensure_stack(jvms, jvms->method()->max_stack());
   const TypeTuple *domain_sig = call->_tf->domain_sig();
+  ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
   uint nargs = method()->arg_size();
   assert(domain_sig->cnt() - TypeFunc::Parms == nargs, "inconsistent signature");
 
   uint j = TypeFunc::Parms;
   for (uint i1 = 0; i1 < nargs; i1++) {
     const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-    // TODO for now, don't scalarize value type receivers because of interface calls
-    if (method()->get_Method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null() && (method()->is_static() || i1 != 0)) {
+    if (method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null()) {
       // Value type arguments are not passed by reference: we get an argument per
       // field of the value type. Build ValueTypeNodes from the value type arguments.
       GraphKit arg_kit(jvms, &gvn);
       arg_kit.set_control(map->control());
-      ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, t->value_klass(), j, true);
+      ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, sig_cc, t->value_klass(), j, true);
       map->set_control(arg_kit.control());
       map->set_argument(jvms, i1, vt);
     } else {
-      int index = j;
-      SigEntry res_entry = method()->get_Method()->get_res_entry();
-      if (res_entry._offset != -1 && (index - TypeFunc::Parms) >= res_entry._offset) {
-        // Skip reserved entry
-        index += type2size[res_entry._bt];
+      map->set_argument(jvms, i1, call->in(j++));
+      BasicType bt = t->basic_type();
+      while (SigEntry::next_is_reserved(sig_cc, bt, true)) {
+        j += type2size[bt]; // Skip reserved arguments
       }
-      map->set_argument(jvms, i1, call->in(index));
-      j++;
     }
   }
 

@@ -720,9 +720,8 @@ class Compile : public Phase {
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
 
   // Support for scalarized value type calling convention
-  bool              has_scalarized_args() const  { return _method != NULL && _method->get_Method()->has_scalarized_args(); }
+  bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
   bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->needs_stack_repair(); }
-  SigEntry          get_res_entry()       const  { return _method->get_Method()->get_res_entry(); }
   int               sp_inc_offset()       const  { return _sp_inc_slot_offset_in_bytes; }
 
   // check the CompilerOracle for special behaviours for this compile

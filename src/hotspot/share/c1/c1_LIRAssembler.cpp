@@ -620,8 +620,10 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
       if (needs_icache(compilation()->method())) {
         check_icache();
       }
+      offsets()->set_value(CodeOffsets::Value_Entry_RO, 0);
       offsets()->set_value(CodeOffsets::Verified_Entry, _masm->offset());
       offsets()->set_value(CodeOffsets::Verified_Value_Entry, _masm->offset());
+      offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO, _masm->offset());
       _masm->verified_entry();
       build_frame();
       offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());

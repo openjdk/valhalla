@@ -435,6 +435,9 @@ class SignatureVerifier : public StackObj {
     static bool invalid_name_char(char);
 };
 
+class SigEntryFilter;
+typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
+
 // Used for adapter generation. One SigEntry is used per element of
 // the signature of the method. Value type arguments are treated
 // specially. See comment for ValueKlass::collect_fields().
@@ -482,6 +485,13 @@ class SigEntry {
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);
+
+  static bool next_is_reserved(ExtendedSignature& sig, BasicType& bt, bool can_be_void = false);
+};
+
+class SigEntryFilter {
+public:
+  bool operator()(const SigEntry& entry) { return entry._bt != T_VALUETYPE && entry._bt != T_VOID; }
 };
 
 #endif // SHARE_RUNTIME_SIGNATURE_HPP

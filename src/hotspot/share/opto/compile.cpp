@@ -928,7 +928,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   _orig_pc_slot = fixed_slots();
   int next_slot = _orig_pc_slot + (sizeof(address) / VMRegImpl::stack_slot_size);
 
-  if (method()->get_Method()->needs_stack_repair()) {
+  if (needs_stack_repair()) {
     // One extra slot for the special stack increment value
     _sp_inc_slot = next_slot;
     next_slot += 2;
@@ -962,9 +962,15 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       if (_code_offsets.value(CodeOffsets::Verified_Value_Entry) == -1) {
         _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, _first_block_size);
       }
+      if (_code_offsets.value(CodeOffsets::Verified_Value_Entry_RO) == -1) {
+        _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, _first_block_size);
+      }
       if (_code_offsets.value(CodeOffsets::Entry) == -1) {
-        // We emitted a value type entry point, adjust normal entry
+        // We emitted value type entry points, adjust normal entry
         _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);
+      }
+      if (_code_offsets.value(CodeOffsets::Value_Entry_RO) == -1) {
+        _code_offsets.set_value(CodeOffsets::Value_Entry_RO, _code_offsets.value(CodeOffsets::Entry));
       }
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
     }

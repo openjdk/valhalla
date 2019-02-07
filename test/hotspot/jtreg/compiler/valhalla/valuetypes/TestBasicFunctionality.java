@@ -138,9 +138,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     // Create a value type in compiled code and pass it to
     // the interpreter via a call.
-// TODO enable once receiver is scalarized
-//    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = LOAD + TRAP + ALLOC)
-    @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = LOAD + TRAP + ALLOC)
     @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC}, matchCount = {1}, failOn = LOAD + TRAP)
     public long test6() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -168,8 +166,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Merge value types created from two branches
-    @Test(valid = AlwaysIncrementalInlineOn, match = {ALLOC, STORE, LOAD}, matchCount = {1, 5, 12}, failOn = TRAP)
-    @Test(valid = AlwaysIncrementalInlineOff, failOn = ALLOC + STORE + TRAP)
+    @Test(failOn = ALLOC + STORE + TRAP)
     public long test8(boolean b) {
         MyValue1 v;
         if (b) {
@@ -187,9 +184,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     }
 
     // Merge value types created from two branches
-// TODO enable once receiver is scalarized
-//    @Test(valid = ValueTypePassFieldsAsArgsOn, match = {LOAD}, matchCount = {10}, failOn = TRAP + ALLOC + STORE)
-    @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOn, match = {LOAD}, matchCount = {12}, failOn = TRAP + ALLOC + STORE)
     @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 5}, failOn = LOAD + TRAP)
     public MyValue1 test9(boolean b) {
         MyValue1 v;
@@ -315,9 +310,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     // Create a value type in a non-inlined method and then call a
     // non-inlined method on that value type.
-// TODO enable once receiver is scalarized
-//    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = (ALLOC + STORE + TRAP), match = {LOAD}, matchCount = {10})
-    @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = (ALLOC + STORE + TRAP), match = {LOAD}, matchCount = {12})
     @Test(valid = ValueTypePassFieldsAsArgsOff, failOn = (ALLOC + LOAD + STORE + TRAP))
     public long test14() {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -332,9 +325,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     // Create a value type in an inlined method and then call a
     // non-inlined method on that value type.
-// TODO enable once receiver is scalarized
-//    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = (LOAD + TRAP + ALLOC))
-    @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = (LOAD + TRAP + ALLOC))
     @Test(valid = ValueTypePassFieldsAsArgsOff, failOn = (LOAD + TRAP), match = {ALLOC}, matchCount = {1})
     public long test15() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -378,9 +369,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     // Create a value type in compiled code and pass it to the
     // interpreter via a call. The value is live at the first call so
     // debug info should include a reference to all its fields.
-// TODO enable once receiver is scalarized
-//    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = ALLOC + LOAD + TRAP)
-    @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = ALLOC + LOAD + TRAP)
     @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC}, matchCount = {1}, failOn = LOAD + TRAP)
     public long test18() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -419,9 +408,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     // interpreter via a call. The value type is live at the uncommon
     // trap: verify that deoptimization causes the value type to be
     // correctly allocated.
-// TODO enable once receiver is scalarized
-//    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = LOAD + ALLOC + STORE)
-    @Test(valid = ValueTypePassFieldsAsArgsOn)
+    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = LOAD + ALLOC + STORE)
     @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC}, matchCount = {1}, failOn = LOAD)
     public long test20(boolean deopt) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);

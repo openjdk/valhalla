@@ -360,6 +360,7 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
       // which contains the types of all (oop) fields of the value type.
       if (callee->has_scalarized_args()) {
         const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
+        assert(sig != NULL, "sig should never be null");
         signature = SigEntry::create_symbol(sig);
         has_receiver = false; // The extended signature contains the receiver type
       }

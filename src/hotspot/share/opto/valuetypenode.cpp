@@ -165,15 +165,19 @@ void ValueTypeBaseNode::set_field_value(uint index, Node* value) {
 }
 
 void ValueTypeBaseNode::set_field_value_by_offset(int offset, Node* value) {
-  uint i = 0;
-  for (; i < field_count() && field_offset(i) != offset; i++) { }
-  assert(i < field_count(), "field not found");
-  set_field_value(i, value);
+  set_field_value(field_index(offset), value);
 }
 
 int ValueTypeBaseNode::field_offset(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return value_klass()->declared_nonstatic_field_at(index)->offset();
+}
+
+uint ValueTypeBaseNode::field_index(int offset) const {
+  uint i = 0;
+  for (; i < field_count() && field_offset(i) != offset; i++) { }
+  assert(i < field_count(), "field not found");
+  return i;
 }
 
 ciType* ValueTypeBaseNode::field_type(uint index) const {
@@ -249,70 +253,6 @@ void ValueTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn) {
     Node* vt = worklist.at(i);
     vt->as_ValueType()->make_scalar_in_safepoints(igvn);
   }
-}
-
-void ValueTypeBaseNode::initialize(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, int base_offset, uint& base_input, bool in) {
-  assert(base_offset >= 0, "offset in value type must be positive");
-  assert(base_input >= TypeFunc::Parms, "invalid base input");
-  PhaseGVN& gvn = kit->gvn();
-  for (uint i = 0; i < field_count(); i++) {
-    ciType* ft = field_type(i);
-    int offset = base_offset + field_offset(i);
-    if (field_is_flattened(i)) {
-      // Flattened value type field
-      ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, ft->as_value_klass());
-      uint base = base_input;
-      vt->initialize(kit, multi, vk, offset - value_klass()->first_field_offset(), base, in);
-      set_field_value(i, gvn.transform(vt));
-    } else {
-      int j = 0; int extra = 0;
-      for (; j < vk->nof_nonstatic_fields(); j++) {
-        ciField* f = vk->nonstatic_field_at(j);
-        if (offset == f->offset()) {
-          assert(f->type() == ft, "inconsistent field type");
-          break;
-        }
-        BasicType bt = f->type()->basic_type();
-        if (bt == T_LONG || bt == T_DOUBLE) {
-          extra++;
-        }
-      }
-      assert(j != vk->nof_nonstatic_fields(), "must find");
-      Node* parm = NULL;
-      int index = base_input + j + extra;
-
-      ciMethod* method = multi->is_Start()? kit->C->method() : multi->as_CallStaticJava()->method();
-      SigEntry res_entry = method->get_Method()->get_res_entry();
-      if (res_entry._offset != -1 && (index - TypeFunc::Parms) >= res_entry._offset) {
-        // Skip reserved entry
-        index += type2size[res_entry._bt];
-      }
-      if (multi->is_Start()) {
-        assert(in, "return from start?");
-        parm = gvn.transform(new ParmNode(multi->as_Start(), index));
-      } else {
-        if (in) {
-          parm = multi->as_Call()->in(index);
-        } else {
-          parm = gvn.transform(new ProjNode(multi->as_Call(), index));
-        }
-      }
-
-      if (field_is_flattenable(i)) {
-        // Non-flattened but flattenable value type
-        if (ft->as_value_klass()->is_scalarizable()) {
-          parm = ValueTypeNode::make_from_oop(kit, parm, ft->as_value_klass());
-        } else {
-          parm = kit->null2default(parm, ft->as_value_klass());
-        }
-      }
-
-      set_field_value(i, parm);
-      // Record all these guys for later GVN.
-      gvn.record_for_igvn(parm);
-    }
-  }
-  base_input += vk->value_arg_slots();
 }
 
 const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const {
@@ -615,9 +555,9 @@ ValueTypeNode* ValueTypeNode::make_from_flattened(GraphKit* kit, ciValueKlass* v
   return kit->gvn().transform(vt)->as_ValueType();
 }
 
-ValueTypeNode* ValueTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciValueKlass* vk, uint& base_input, bool in) {
+ValueTypeNode* ValueTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, ciValueKlass* vk, uint& base_input, bool in) {
   ValueTypeNode* vt = ValueTypeNode::make_uninitialized(kit->gvn(), vk);
-  vt->initialize(kit, multi, vk, 0, base_input, in);
+  vt->initialize_fields(kit, multi, sig, base_input, 0, in);
   return kit->gvn().transform(vt)->as_ValueType();
 }
 
@@ -730,64 +670,81 @@ Node* ValueTypeNode::tagged_klass(PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-uint ValueTypeNode::pass_fields(Node* n, int base_input, GraphKit& kit, bool assert_allocated, ciValueKlass* base_vk, int base_offset) {
-  assert(base_input >= TypeFunc::Parms, "invalid base input");
-  ciValueKlass* vk = value_klass();
-  if (base_vk == NULL) {
-    base_vk = vk;
-  }
-  uint edges = 0;
+void ValueTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input, int base_offset) {
   for (uint i = 0; i < field_count(); i++) {
-    int offset = base_offset + field_offset(i) - (base_offset > 0 ? vk->first_field_offset() : 0);
-    Node* arg = field_value(i);
-    if (field_is_flattened(i)) {
-       // Flattened value type field
-       edges += arg->as_ValueType()->pass_fields(n, base_input, kit, assert_allocated, base_vk, offset);
-    } else {
-      int j = 0; int extra = 0;
-      for (; j < base_vk->nof_nonstatic_fields(); j++) {
-        ciField* field = base_vk->nonstatic_field_at(j);
-        if (offset == field->offset()) {
-          assert(field->type() == field_type(i), "inconsistent field type");
-          break;
-        }
-        BasicType bt = field->type()->basic_type();
-        if (bt == T_LONG || bt == T_DOUBLE) {
-          extra++;
-        }
-      }
-      if (arg->is_ValueType()) {
-        // non-flattened value type field
-        ValueTypeNode* vt = arg->as_ValueType();
-        assert(!assert_allocated || vt->is_allocated(&kit.gvn()), "value type field should be allocated");
-        arg = vt->allocate(&kit)->get_oop();
-      }
+    int sig_offset = (*sig)._offset;
+    uint idx = field_index(sig_offset - base_offset);
+    Node* arg = field_value(idx);
 
-      int index = base_input + j + extra;
-      n->init_req(index++, arg);
-      edges++;
-      BasicType bt = field_type(i)->basic_type();
-      if (bt == T_LONG || bt == T_DOUBLE) {
-        n->init_req(index++, kit.top());
-        edges++;
+    if (field_is_flattened(idx)) {
+      // Flattened value type field
+      arg->as_ValueType()->pass_fields(kit, n, sig, base_input, sig_offset - value_klass()->first_field_offset());
+    } else {
+      if (arg->is_ValueType()) {
+        // Non-flattened value type field
+        assert(field_is_flattenable(idx), "must be flattenable");
+        ValueTypeNode* vt = arg->as_ValueType();
+        assert(n->Opcode() != Op_Return || vt->is_allocated(&kit->gvn()), "value type field should be allocated on return");
+        arg = vt->allocate(kit)->get_oop();
       }
-      if (n->isa_CallJava()) {
-        Method* m = n->as_CallJava()->method()->get_Method();
-        SigEntry res_entry = m->get_res_entry();
-        if ((index - TypeFunc::Parms) == res_entry._offset) {
-          // Skip reserved entry
-          int size = type2size[res_entry._bt];
-          n->init_req(index++, kit.top());
-          if (size == 2) {
-            n->init_req(index++, kit.top());
-          }
-          base_input += size;
-          edges += size;
+      // Initialize call/return arguments
+      BasicType bt = field_type(i)->basic_type();
+      n->init_req(base_input++, arg);
+      if (type2size[bt] == 2) {
+        n->init_req(base_input++, kit->top());
+      }
+      // Skip reserved arguments
+      while (SigEntry::next_is_reserved(sig, bt)) {
+        n->init_req(base_input++, kit->top());
+        if (type2size[bt] == 2) {
+          n->init_req(base_input++, kit->top());
         }
       }
     }
   }
-  return edges;
+}
+
+void ValueTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, int base_offset, bool in) {
+  PhaseGVN& gvn = kit->gvn();
+  for (uint i = 0; i < field_count(); i++) {
+    int sig_offset = (*sig)._offset;
+    uint idx = field_index(sig_offset - base_offset);
+    ciType* type = field_type(idx);
+
+    Node* parm = NULL;
+    if (field_is_flattened(idx)) {
+      // Flattened value type field
+      ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, type->as_value_klass());
+      vt->initialize_fields(kit, multi, sig, base_input, sig_offset - value_klass()->first_field_offset(), in);
+      parm = gvn.transform(vt);
+    } else {
+      if (multi->is_Start()) {
+        assert(in, "return from start?");
+        parm = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+      } else if (in) {
+        parm = multi->as_Call()->in(base_input);
+      } else {
+        parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+      }
+      if (field_is_flattenable(idx)) {
+        // Non-flattened but flattenable value type
+        if (type->as_value_klass()->is_scalarizable()) {
+          parm = ValueTypeNode::make_from_oop(kit, parm, type->as_value_klass());
+        } else {
+          parm = kit->null2default(parm, type->as_value_klass());
+        }
+      }
+      base_input += type2size[type->basic_type()];
+      // Skip reserved arguments
+      BasicType bt = type->basic_type();
+      while (SigEntry::next_is_reserved(sig, bt)) {
+        base_input += type2size[bt];
+      }
+    }
+    assert(parm != NULL, "should never be null");
+    set_field_value(idx, parm);
+    gvn.record_for_igvn(parm);
+  }
 }
 
 Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {

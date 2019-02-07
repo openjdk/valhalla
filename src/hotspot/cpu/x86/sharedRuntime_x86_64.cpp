@@ -767,9 +767,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             const VMRegPair *regs,
                             Label& skip_fixup,
                             address start,
-                            OopMapSet*& oop_maps,
+                            OopMapSet* oop_maps,
                             int& frame_complete,
-                            int& frame_size_in_words) {
+                            int& frame_size_in_words,
+                            bool alloc_value_receiver) {
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -789,10 +790,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least a value type argument: we're coming from
       // compiled code so we have no buffers to back the value
       // types. Allocate the buffers here with a runtime call.
-      oop_maps = new OopMapSet();
-      OopMap* map = NULL;
-
-      map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
 
@@ -800,7 +798,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ mov(c_rarg0, r15_thread);
       __ mov(c_rarg1, rbx);
-
+      __ mov64(c_rarg2, (int64_t)alloc_value_receiver);
       __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
 
       oop_maps->add_gc_map((int)(__ pc() - start), map);
@@ -1217,10 +1215,11 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             const VMRegPair* regs,
                                                             const GrowableArray<SigEntry>* sig_cc,
                                                             const VMRegPair* regs_cc,
+                                                            const GrowableArray<SigEntry>* sig_cc_ro,
+                                                            const VMRegPair* regs_cc_ro,
                                                             AdapterFingerPrint* fingerprint,
                                                             AdapterBlob*& new_adapter) {
   address i2c_entry = __ pc();
-
   if (StressValueTypePassFieldsAsArgs) {
     // For stress testing, don't unpack value types in the i2c adapter but
     // call the value type entry point and let it take care of unpacking.
@@ -1262,29 +1261,38 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   }
 
-  address c2i_entry = __ pc();
-  address c2i_value_entry = c2i_entry;
-
-  OopMapSet* oop_maps = NULL;
+  OopMapSet* oop_maps = new OopMapSet();
   int frame_complete = CodeOffsets::frame_never_safe;
   int frame_size_in_words = 0;
-  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
 
+  // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
+  address c2i_value_ro_entry = __ pc();
+  if (regs_cc != regs_cc_ro) {
+    Label unused;
+    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    skip_fixup = unused;
+  }
+
+  // Scalarized c2i adapter
+  address c2i_entry = __ pc();
+  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
+
+  // Non-scalarized c2i adapter
+  address c2i_value_entry = c2i_entry;
   if (regs != regs_cc) {
-    // Non-scalarized c2i adapter
     c2i_value_entry = __ pc();
     Label unused;
-    gen_c2i_adapter(masm, sig, regs, unused, i2c_entry, oop_maps, frame_complete, frame_size_in_words);
+    gen_c2i_adapter(masm, sig, regs, unused, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
   __ flush();
 
-  // The c2i adapter might safepoint and trigger a GC. The caller must make sure that
+  // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_unverified_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -1693,7 +1701,7 @@ static void save_or_restore_arguments(MacroAssembler* masm,
       if (map != NULL) {
         __ movq(Address(rsp, offset), in_regs[i].first()->as_Register());
         if (in_sig_bt[i] == T_ARRAY) {
-          map->set_oop(VMRegImpl::stack2reg(slot));;
+          map->set_oop(VMRegImpl::stack2reg(slot));
         }
       } else {
         __ movq(in_regs[i].first()->as_Register(), Address(rsp, offset));

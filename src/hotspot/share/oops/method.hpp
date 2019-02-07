@@ -92,7 +92,8 @@ class Method : public Metadata {
     _running_emcp          = 1 << 5,
     _intrinsic_candidate   = 1 << 6,
     _reserved_stack_access = 1 << 7,
-    _scalarized_args       = 1 << 8
+    _scalarized_args       = 1 << 8,
+    _needs_stack_repair    = 1 << 9
   };
   mutable u2 _flags;
 
@@ -105,8 +106,9 @@ class Method : public Metadata {
   address _i2i_entry;           // All-args-on-stack calling convention
   // Entry point for calling from compiled code, to compiled code if it exists
   // or else the interpreter.
-  volatile address _from_compiled_entry;        // Cache of: _code ? _code->entry_point() : _adapter->c2i_entry()
-  volatile address _from_compiled_value_entry;  // Cache of: _code ? _code->value_entry_point() : _adapter->c2i_value_entry()
+  volatile address _from_compiled_entry;          // Cache of: _code ? _code->verified_entry_point()          : _adapter->c2i_entry()
+  volatile address _from_compiled_value_ro_entry; // Cache of: _code ? _code->verified_value_ro_entry_point() : _adapter->c2i_value_ro_entry()
+  volatile address _from_compiled_value_entry;    // Cache of: _code ? _code->verified_value_entry_point()    : _adapter->c2i_value_entry()
   // The entry point for calling both from and to compiled code is
   // "_code->entry_point()".  Because of tiered compilation and de-opt, this
   // field can come and go.  It can transition from NULL to not-null at any
@@ -452,6 +454,7 @@ class Method : public Metadata {
 
   // nmethod/verified compiler entry
   address verified_code_entry();
+  address verified_value_ro_code_entry();
   bool check_code() const;      // Not inline to avoid circular ref
   CompiledMethod* volatile code() const;
   void clear_code(bool acquire_lock = true);    // Clear out any compiled code
@@ -582,10 +585,6 @@ class Method : public Metadata {
   ValueKlass* returned_value_type(Thread* thread) const;
 #endif
 
-  // Support for scalarized value type calling convention
-  bool needs_stack_repair() const;
-  SigEntry get_res_entry() const;
-
   // Checked exceptions thrown by this method (resolved to mirrors)
   objArrayHandle resolved_checked_exceptions(TRAPS) { return resolved_checked_exceptions_impl(this, THREAD); }
 
@@ -695,6 +694,7 @@ class Method : public Metadata {
   static ByteSize access_flags_offset()          { return byte_offset_of(Method, _access_flags      ); }
   static ByteSize from_compiled_offset()         { return byte_offset_of(Method, _from_compiled_entry); }
   static ByteSize from_compiled_value_offset()   { return byte_offset_of(Method, _from_compiled_value_entry); }
+  static ByteSize from_compiled_value_ro_offset(){ return byte_offset_of(Method, _from_compiled_value_ro_entry); }
   static ByteSize code_offset()                  { return byte_offset_of(Method, _code); }
   static ByteSize flags_offset()                 { return byte_offset_of(Method, _flags); }
   static ByteSize method_data_offset()           {
@@ -904,6 +904,14 @@ class Method : public Metadata {
 
   void set_has_scalarized_args(bool x) {
     _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
+  }
+
+  bool needs_stack_repair() {
+    return (_flags & _needs_stack_repair) != 0;
+  }
+
+  void set_needs_stack_repair(bool x) {
+    _flags = x ? (_flags | _needs_stack_repair) : (_flags & ~_needs_stack_repair);
   }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)

@@ -331,17 +331,17 @@ class SharedRuntime: AllStatic {
 
   static bool handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm, const frame& caller_frame,
                                              methodHandle callee_method, Bytecodes::Code bc, CallInfo& call_info,
-                                             bool& needs_ic_stub_refill, TRAPS);
+                                             bool& needs_ic_stub_refill, bool& is_optimized, TRAPS);
 
  public:
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
 
   // Resets a call-site in compiled code so it will get resolved again.
-  static methodHandle reresolve_call_site(JavaThread *thread, TRAPS);
+  static methodHandle reresolve_call_site(JavaThread *thread, bool& is_optimized, TRAPS);
 
   // In the code prolog, if the klass comparison fails, the inline cache
   // misses and the call site is patched to megamorphic
-  static methodHandle handle_ic_miss_helper(JavaThread* thread, TRAPS);
+  static methodHandle handle_ic_miss_helper(JavaThread* thread, bool& is_optimized, TRAPS);
 
   // Find the method that called us.
   static methodHandle find_callee_method(JavaThread* thread, TRAPS);
@@ -442,6 +442,8 @@ class SharedRuntime: AllStatic {
                                                       const VMRegPair* regs,
                                                       const GrowableArray<SigEntry>* sig_cc,
                                                       const VMRegPair* regs_cc,
+                                                      const GrowableArray<SigEntry>* sig_cc_ro,
+                                                      const VMRegPair* regs_cc_ro,
                                                       AdapterFingerPrint* fingerprint,
                                                       AdapterBlob*& new_adapter);
 
@@ -536,7 +538,7 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method(JavaThread* thread);
   static address handle_wrong_method_abstract(JavaThread* thread);
   static address handle_wrong_method_ic_miss(JavaThread* thread);
-  static void allocate_value_types(JavaThread* thread, Method* callee);
+  static void allocate_value_types(JavaThread* thread, Method* callee, bool allocate_receiver);
   static void apply_post_barriers(JavaThread* thread, objArrayOopDesc* array);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
@@ -657,11 +659,11 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address _i2c_entry;
   address _c2i_entry;
   address _c2i_value_entry;
+  address _c2i_value_ro_entry;
   address _c2i_unverified_entry;
 
   // Support for scalarized value type calling convention
   const GrowableArray<SigEntry>* _sig_cc;
-  SigEntry _res_sig_entry;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -670,14 +672,14 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_unverified_entry) {
+  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry, address c2i_unverified_entry) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
     _c2i_value_entry = c2i_value_entry;
+    _c2i_value_ro_entry = c2i_value_ro_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
     _sig_cc = NULL;
-    _res_sig_entry = SigEntry();
 #ifdef ASSERT
     _saved_code = NULL;
     _saved_code_length = 0;
@@ -693,6 +695,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address get_i2c_entry()            const { return _i2c_entry; }
   address get_c2i_entry()            const { return _c2i_entry; }
   address get_c2i_value_entry()      const { return _c2i_value_entry; }
+  address get_c2i_value_ro_entry()   const { return _c2i_value_ro_entry; }
   address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
   address base_address();
   void relocate(address new_base);
@@ -700,8 +703,6 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   // Support for scalarized value type calling convention
   void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
   const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
-  void     set_res_entry(SigEntry res_sig_entry)       { _res_sig_entry = res_sig_entry; }
-  SigEntry get_res_entry()                       const { return _res_sig_entry; }
 
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }
 
@@ -745,7 +746,7 @@ class AdapterHandlerLibrary: public AllStatic {
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
-                                        address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_unverified_entry);
+                                        address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry, address c2i_unverified_entry);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 

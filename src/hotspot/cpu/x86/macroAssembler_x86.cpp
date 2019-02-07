@@ -5649,7 +5649,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
 }
 
 // Move a value between registers/stack slots and update the reg_state
-bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
+bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off) {
   if (reg_state[to->value()] == reg_written) {
     return true; // Already written
   }
@@ -5670,7 +5670,9 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           movq(to->as_Register(), from->as_Register());
         }
       } else {
-        Address to_addr = Address(rsp, to->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        assert(st_off != ret_off, "overwriting return address at %d", st_off);
+        Address to_addr = Address(rsp, st_off);
         if (from->is_XMMRegister()) {
           if (bt == T_DOUBLE) {
             movdbl(to_addr, from->as_XMMRegister());
@@ -5696,8 +5698,10 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           movq(to->as_Register(), from_addr);
         }
       } else {
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        assert(st_off != ret_off, "overwriting return address at %d", st_off);
         movq(r13, from_addr);
-        movq(Address(rsp, to->reg2stack() * VMRegImpl::stack_slot_size + wordSize), r13);
+        movq(Address(rsp, st_off), r13);
       }
     }
   }
@@ -5708,8 +5712,9 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 }
 
 // Read all fields from a value type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[]) {
+bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[], int ret_off) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
+  assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
 
   int vt = 1;
   bool done = true;
@@ -5728,12 +5733,11 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
     } else {
       assert(to_index >= 0, "invalid to_index");
       VMRegPair pair_to = regs_to[to_index--];
-      VMReg r_1 = pair_to.first();
+      VMReg to = pair_to.first();
 
       if (bt == T_VOID) continue;
 
-      int idx = (int)r_1->value();
-      assert(idx >= 0 && idx <= 1000, "out of bounds");
+      int idx = (int)to->value();
       if (reg_state[idx] == reg_readonly) {
          if (idx != from->value()) {
            mark_done = false;
@@ -5759,23 +5763,24 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
 
       Address fromAddr = Address(fromReg, off);
       bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
-      if (!r_1->is_XMMRegister()) {
-        Register dst = r_1->is_stack() ? r13 : r_1->as_Register();
+      if (!to->is_XMMRegister()) {
+        Register dst = to->is_stack() ? r13 : to->as_Register();
         if (is_oop) {
           load_heap_oop(dst, fromAddr);
         } else {
           load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
         }
-        if (r_1->is_stack()) {
-          int st_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        if (to->is_stack()) {
+          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+          assert(st_off != ret_off, "overwriting return address at %d", st_off);
           movq(Address(rsp, st_off), dst);
         }
       } else {
         if (bt == T_DOUBLE) {
-          movdbl(r_1->as_XMMRegister(), fromAddr);
+          movdbl(to->as_XMMRegister(), fromAddr);
         } else {
           assert(bt == T_FLOAT, "must be float");
-          movflt(r_1->as_XMMRegister(), fromAddr);
+          movflt(to->as_XMMRegister(), fromAddr);
         }
       }
     }
@@ -5788,7 +5793,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
 }
 
 // Unpack all value type arguments passed as oops
-void MacroAssembler::unpack_value_args(Compile* C) {
+void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   assert(C->has_scalarized_args(), "value type argument scalarization is disabled");
   Method* method = C->method()->get_Method();
   const GrowableArray<SigEntry>* sig_cc = method->adapter()->get_sig_cc();
@@ -5800,14 +5805,26 @@ void MacroAssembler::unpack_value_args(Compile* C) {
   if (!method->is_static()) {
     sig_bt[args_passed++] = T_OBJECT;
   }
-  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-    BasicType bt = ss.type();
-    if (bt == T_VALUETYPE) {
-      bt = T_OBJECT;
+  if (!receiver_only) {
+    for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+      BasicType bt = ss.type();
+      sig_bt[args_passed++] = bt;
+      if (type2size[bt] == 2) {
+        sig_bt[args_passed++] = T_VOID;
+      }
     }
-    sig_bt[args_passed++] = bt;
-    if (type2size[bt] == 2) {
-      sig_bt[args_passed++] = T_VOID;
+  } else {
+    // Only unpack the receiver, all other arguments are already scalarized
+    InstanceKlass* holder = method->method_holder();
+    int rec_len = holder->is_value() ? ValueKlass::cast(holder)->extended_sig()->length() : 1;
+    // Copy scalarized signature but skip receiver, value type delimiters and reserved entries
+    for (int i = 0; i < sig_cc->length(); i++) {
+      if (!SigEntry::is_reserved_entry(sig_cc, i)) {
+        if (SigEntry::skip_value_delimiters(sig_cc, i) && rec_len <= 0) {
+          sig_bt[args_passed++] = sig_cc->at(i)._bt;
+        }
+        rec_len--;
+      }
     }
   }
   VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, args_passed);
@@ -5862,29 +5879,32 @@ void MacroAssembler::unpack_value_args(Compile* C) {
     // Iterate over all arguments (in reverse)
     for (int from_index = args_passed-1, to_index = args_passed_cc-1, sig_index = sig_cc->length()-1; sig_index >= 0; sig_index--) {
       if (SigEntry::is_reserved_entry(sig_cc, sig_index)) {
-        to_index--; // Skipp reserved entry
+        to_index--; // Skip reserved entry
       } else {
         assert(from_index >= 0, "index out of bounds");
-        VMReg reg = regs[from_index--].first();
+        VMReg reg = regs[from_index].first();
         if (spill && reg->is_valid() && reg_state[reg->value()] == reg_readonly) {
           // Spill argument to be able to write the source and resolve circular dependencies
           VMReg spill_reg = reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
-          bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state);
+          bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state, sp_inc);
           assert(res, "Spilling should not fail");
           // Set spill_reg as new source and update state
           reg = spill_reg;
-          regs[from_index+1].set1(reg);
+          regs[from_index].set1(reg);
           reg_state[reg->value()] = reg_readonly;
           spill = false; // Do not spill again in this round
         }
+        BasicType bt = sig_cc->at(sig_index)._bt;
         if (SigEntry::skip_value_delimiters(sig_cc, sig_index)) {
-          BasicType bt = sig_cc->at(sig_index)._bt;
           assert(to_index >= 0, "index out of bounds");
-          done &= move_helper(reg, regs_cc[to_index].first(), bt, reg_state);
+          done &= move_helper(reg, regs_cc[to_index].first(), bt, reg_state, sp_inc);
           to_index--;
+        } else if (!receiver_only || (from_index == 0 && bt == T_VOID)) {
+          done &= unpack_value_helper(sig_cc, sig_index, reg, regs_cc, to_index, reg_state, sp_inc);
         } else {
-          done &= unpack_value_helper(sig_cc, sig_index, reg, regs_cc, to_index, reg_state);
+          continue;
         }
+        from_index--;
       }
     }
   }

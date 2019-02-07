@@ -590,3 +590,19 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = '\0';
   return SymbolTable::new_symbol(sig_str, Thread::current());
 }
+
+// Increment signature iterator (skips value type delimiters and T_VOID) and check if next entry is reserved
+bool SigEntry::next_is_reserved(ExtendedSignature& sig, BasicType& bt, bool can_be_void) {
+  assert(can_be_void || bt != T_VOID, "should never see void");
+  if (sig.at_end() || (can_be_void && type2size[bt] == 2 && (*sig)._offset != SigEntry::ReservedOffset)) {
+    // Don't increment at the end or at a T_LONG/T_DOUBLE which will be followed by a (skipped) T_VOID
+    return false;
+  }
+  assert(bt == T_VOID || type2wfield[bt] == type2wfield[(*sig)._bt], "inconsistent signature");
+  ++sig;
+  if (!sig.at_end() && (*sig)._offset == SigEntry::ReservedOffset) {
+    bt = (*sig)._bt;
+    return true;
+  }
+  return false;
+}

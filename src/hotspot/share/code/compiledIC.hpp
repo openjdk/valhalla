@@ -332,7 +332,7 @@ inline CompiledIC* CompiledIC_at(RelocIterator* reloc_iter) {
 //           -----<----- Clean ----->-----
 //          /                             \
 //         /                               \
-//    compilled code <------------> interpreted code
+//    compiled code <------------> interpreted code
 //
 //  Clean:            Calls directly to runtime method for fixup
 //  Compiled code:    Calls directly to compiled code

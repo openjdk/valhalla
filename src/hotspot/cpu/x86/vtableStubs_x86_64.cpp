@@ -118,7 +118,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
     Label L;
     __ cmpptr(method, (int32_t)NULL_WORD);
     __ jcc(Assembler::equal, L);
-    __ cmpptr(Address(method, Method::from_compiled_offset()), (int32_t)NULL_WORD);
+    __ cmpptr(Address(method, Method::from_compiled_value_ro_offset()), (int32_t)NULL_WORD);
     __ jcc(Assembler::notZero, L);
     __ stop("Vtable entry is NULL");
     __ bind(L);
@@ -129,7 +129,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   // method (rbx): Method*
   // rcx: receiver
   address ame_addr = __ pc();
-  __ jmp( Address(rbx, Method::from_compiled_offset()));
+  __ jmp( Address(rbx, Method::from_compiled_value_ro_offset()));
 
   masm->flush();
   slop_bytes += index_dependent_slop; // add'l slop for size variance due to large itable offsets
@@ -235,7 +235,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
     Label L2;
     __ cmpptr(method, (int32_t)NULL_WORD);
     __ jcc(Assembler::equal, L2);
-    __ cmpptr(Address(method, Method::from_compiled_offset()), (int32_t)NULL_WORD);
+    __ cmpptr(Address(method, Method::from_compiled_value_ro_offset()), (int32_t)NULL_WORD);
     __ jcc(Assembler::notZero, L2);
     __ stop("compiler entrypoint is null");
     __ bind(L2);
@@ -243,7 +243,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 #endif // ASSERT
 
   address ame_addr = __ pc();
-  __ jmp(Address(method, Method::from_compiled_offset()));
+  __ jmp(Address(method, Method::from_compiled_value_ro_offset()));
 
   __ bind(L_no_such_interface);
   // Handle IncompatibleClassChangeError in itable stubs.

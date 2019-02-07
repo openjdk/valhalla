@@ -1942,21 +1942,21 @@ const TypeTuple *TypeTuple::LONG_PAIR;
 const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
 
-static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uint& pos, SigEntry* res_entry = NULL) {
+static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uint& pos, ExtendedSignature& sig_cc) {
   for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
-    if (res_entry != NULL && (int)pos == (res_entry->_offset + TypeFunc::Parms)) {
-      // Add reserved entry
-      field_array[pos++] = Type::get_const_basic_type(res_entry->_bt);
-      if (res_entry->_bt == T_LONG || res_entry->_bt == T_DOUBLE) {
-        field_array[pos++] = Type::HALF;
-      }
-    }
     ciField* field = vk->nonstatic_field_at(j);
     BasicType bt = field->type()->basic_type();
     const Type* ft = Type::get_const_type(field->type());
     field_array[pos++] = ft;
-    if (bt == T_LONG || bt == T_DOUBLE) {
+    if (type2size[bt] == 2) {
       field_array[pos++] = Type::HALF;
+    }
+    // Skip reserved arguments
+    while (SigEntry::next_is_reserved(sig_cc, bt)) {
+      field_array[pos++] = Type::get_const_basic_type(bt);
+      if (type2size[bt] == 2) {
+        field_array[pos++] = Type::HALF;
+      }
     }
   }
 }
@@ -1967,13 +1967,10 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   ciType* return_type = sig->return_type();
   bool never_null = sig->returns_never_null();
 
-  uint arg_cnt = 0;
-  ret_vt_fields = ret_vt_fields && never_null && return_type->is_valuetype() && ((ciValueKlass*)return_type)->can_be_returned_as_fields();
+  uint arg_cnt = return_type->size();
+  ret_vt_fields = ret_vt_fields && never_null && return_type->as_value_klass()->can_be_returned_as_fields();
   if (ret_vt_fields) {
-    ciValueKlass* vk = (ciValueKlass*)return_type;
-    arg_cnt = vk->value_arg_slots()+1;
-  } else {
-    arg_cnt = return_type->size();
+    arg_cnt = return_type->as_value_klass()->value_arg_slots() + 1;
   }
 
   const Type **field_array = fields(arg_cnt);
@@ -1998,11 +1995,11 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
     break;
   case T_VALUETYPE:
     if (ret_vt_fields) {
-      ciValueKlass* vk = (ciValueKlass*)return_type;
       uint pos = TypeFunc::Parms;
       field_array[pos] = TypePtr::BOTTOM;
       pos++;
-      collect_value_fields(vk, field_array, pos);
+      ExtendedSignature sig = ExtendedSignature(NULL, SigEntryFilter());
+      collect_value_fields(return_type->as_value_klass(), field_array, pos, sig);
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
     }
@@ -2017,51 +2014,38 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
 
 // Make a TypeTuple from the domain of a method signature
 const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args) {
-  ciInstanceKlass* recv = method->is_static() ? NULL : method->holder();
   ciSignature* sig = method->signature();
-  uint arg_cnt = sig->size();
+  ExtendedSignature sig_cc = ExtendedSignature(vt_fields_as_args ? method->get_sig_cc() : NULL, SigEntryFilter());
 
-  int vt_extra = 0;
-  SigEntry res_entry = method->get_Method()->get_res_entry();
+  uint arg_cnt = sig->size() + (method->is_static() ? 0 : 1);
   if (vt_fields_as_args) {
-    for (int i = 0; i < sig->count(); i++) {
-      ciType* type = sig->type_at(i);
-      if (type->is_valuetype()) {
-        vt_extra += type->as_value_klass()->value_arg_slots()-1;
-      }
+    for (arg_cnt = 0; !sig_cc.at_end(); ++sig_cc) {
+      arg_cnt += type2size[(*sig_cc)._bt];
     }
-    if (res_entry._offset != -1) {
-      // Account for the reserved stack slot
-      vt_extra += type2size[res_entry._bt];
-    }
+    sig_cc = ExtendedSignature(method->get_sig_cc(), SigEntryFilter());
   }
 
   uint pos = TypeFunc::Parms;
-  const Type **field_array;
-  if (recv != NULL) {
-    arg_cnt++;
-    // TODO for now, don't scalarize value type receivers because of interface calls
-    //bool vt_fields_for_recv = vt_fields_as_args && recv->is_valuetype();
-    bool vt_fields_for_recv = false;
-    if (vt_fields_for_recv) {
-      vt_extra += recv->as_value_klass()->value_arg_slots()-1;
-    }
-    field_array = fields(arg_cnt + vt_extra);
-    // Use get_const_type here because it respects UseUniqueSubclasses:
-    if (vt_fields_for_recv) {
-      collect_value_fields(recv->as_value_klass(), field_array, pos, &res_entry);
+  const Type** field_array = fields(arg_cnt);
+  if (!method->is_static()) {
+    ciInstanceKlass* recv = method->holder();
+    if (vt_fields_as_args && recv->is_valuetype()) {
+      collect_value_fields(recv->as_value_klass(), field_array, pos, sig_cc);
     } else {
       field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
+      if (vt_fields_as_args) {
+        ++sig_cc;
+      }
     }
-  } else {
-    field_array = fields(arg_cnt + vt_extra);
   }
 
   int i = 0;
-  while (pos < TypeFunc::Parms + arg_cnt + vt_extra) {
+  while (pos < TypeFunc::Parms + arg_cnt) {
     ciType* type = sig->type_at(i);
+    BasicType bt = type->basic_type();
+    bool is_flattened = false;
 
-    switch (type->basic_type()) {
+    switch (bt) {
     case T_LONG:
       field_array[pos++] = TypeLong::LONG;
       field_array[pos++] = Type::HALF;
@@ -2085,7 +2069,8 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     case T_VALUETYPE: {
       bool never_null = sig->is_never_null_at(i);
       if (vt_fields_as_args && never_null) {
-        collect_value_fields(type->as_value_klass(), field_array, pos, &res_entry);
+        is_flattened = true;
+        collect_value_fields(type->as_value_klass(), field_array, pos, sig_cc);
       } else {
         field_array[pos++] = get_const_type(type)->join_speculative(never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
       }
@@ -2094,19 +2079,18 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     default:
       ShouldNotReachHere();
     }
-    i++;
-
-    if (vt_fields_as_args && (int)pos == (res_entry._offset + TypeFunc::Parms)) {
-      // Add reserved entry
-      field_array[pos++] = Type::get_const_basic_type(res_entry._bt);
-      if (res_entry._bt == T_LONG || res_entry._bt == T_DOUBLE) {
+    // Skip reserved arguments
+    while (!is_flattened && SigEntry::next_is_reserved(sig_cc, bt)) {
+      field_array[pos++] = Type::get_const_basic_type(bt);
+      if (type2size[bt] == 2) {
         field_array[pos++] = Type::HALF;
       }
     }
+    i++;
   }
-  assert(pos == TypeFunc::Parms + arg_cnt + vt_extra, "wrong number of arguments");
+  assert(pos == TypeFunc::Parms + arg_cnt, "wrong number of arguments");
 
-  return (TypeTuple*)(new TypeTuple(TypeFunc::Parms + arg_cnt + vt_extra, field_array))->hashcons();
+  return (TypeTuple*)(new TypeTuple(TypeFunc::Parms + arg_cnt, field_array))->hashcons();
 }
 
 const TypeTuple *TypeTuple::make( uint cnt, const Type **fields ) {
@@ -5648,22 +5632,15 @@ const TypeFunc *TypeFunc::make(ciMethod* method) {
   Compile* C = Compile::current();
   const TypeFunc* tf = C->last_tf(method); // check cache
   if (tf != NULL)  return tf;  // The hit rate here is almost 50%.
-  const TypeTuple *domain_sig, *domain_cc;
-  // Value type arguments are not passed by reference, instead each
-  // field of the value type is passed as an argument. We maintain 2
-  // views of the argument list here: one based on the signature (with
-  // a value type argument as a single slot), one based on the actual
-  // calling convention (with a value type argument as a list of its
-  // fields).
-  if (method->is_static()) {
-    domain_sig = TypeTuple::make_domain(method, false);
-    domain_cc = TypeTuple::make_domain(method, method->get_Method()->has_scalarized_args());
-  } else {
-    domain_sig = TypeTuple::make_domain(method, false);
-    domain_cc = TypeTuple::make_domain(method, method->get_Method()->has_scalarized_args());
-  }
-  const TypeTuple *range_sig = TypeTuple::make_range(method->signature(), false);
-  const TypeTuple *range_cc = TypeTuple::make_range(method->signature(), ValueTypeReturnedAsFields);
+  // Value types are not passed/returned by reference, instead each field of
+  // the value type is passed/returned as an argument. We maintain two views of
+  // the argument/return list here: one based on the signature (with a value
+  // type argument/return as a single slot), one based on the actual calling
+  // convention (with a value type argument/return as a list of its fields).
+  const TypeTuple* domain_sig = TypeTuple::make_domain(method, false);
+  const TypeTuple* domain_cc = TypeTuple::make_domain(method, method->has_scalarized_args());
+  const TypeTuple* range_sig = TypeTuple::make_range(method->signature(), false);
+  const TypeTuple* range_cc = TypeTuple::make_range(method->signature(), ValueTypeReturnedAsFields);
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
   C->set_last_tf(method, tf);  // fill cache
   return tf;

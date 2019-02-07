@@ -597,8 +597,10 @@ nmethod::nmethod(
     _compile_id              = compile_id;
     _comp_level              = CompLevel_none;
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
+    _value_ro_entry_point    = _entry_point;
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
     _verified_value_entry_point = _verified_entry_point;
+    _verified_value_ro_entry_point = _verified_entry_point;
     _osr_entry_point         = NULL;
     _exception_cache         = NULL;
     _pc_desc_container.reset_to(NULL);
@@ -758,8 +760,10 @@ nmethod::nmethod(
     _nul_chk_table_offset    = _handler_table_offset + align_up(handler_table->size_in_bytes(), oopSize);
     _nmethod_end_offset      = _nul_chk_table_offset + align_up(nul_chk_table->size_in_bytes(), oopSize);
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
+    _value_ro_entry_point    = code_begin()          + offsets->value(CodeOffsets::Value_Entry_RO);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
     _verified_value_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry);
+    _verified_value_ro_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry_RO);
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
     _exception_cache         = NULL;
 
@@ -2571,7 +2575,8 @@ ScopeDesc* nmethod::scope_desc_in(address begin, address end) {
 }
 
 void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) const {
-  address low = verified_value_entry_point() != NULL ? verified_value_entry_point() : entry_point();
+  address low = MIN2(entry_point(), MIN4(value_ro_entry_point(), verified_entry_point(), verified_value_entry_point(), verified_value_ro_entry_point()));
+  assert(low != 0, "sanity");
   if (block_begin == low) {
     // Print method arguments before the method entry
     methodHandle m = method();
@@ -2586,11 +2591,11 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
       BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
       VMRegPair* regs   = NEW_RESOURCE_ARRAY(VMRegPair, 256);
       Symbol* sig = m->signature();
-      bool has_value_arg = false;
+      const GrowableArray<SigEntry>* sig_cc = m->adapter()->get_sig_cc();
       if (m->has_scalarized_args()) {
         // Use extended signature if value type arguments are passed as fields
-        sig = SigEntry::create_symbol(m->adapter()->get_sig_cc());
-        has_value_arg = true;
+        assert(sig_cc != NULL, "must have scalarized signature");
+        sig = SigEntry::create_symbol(sig_cc);
       } else if (!m->is_static()) {
         sig_bt[sizeargs++] = T_OBJECT; // 'this'
       }
@@ -2604,13 +2609,13 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
         }
       }
       const char* spname = "sp"; // make arch-specific?
-      intptr_t out_preserve = SharedRuntime::java_calling_convention(sig_bt, regs, sizeargs, false);
+      SharedRuntime::java_calling_convention(sig_bt, regs, sizeargs, false);
       int stack_slot_offset = this->frame_size() * wordSize;
       int tab1 = 14, tab2 = 24;
       int sig_index = 0;
-      int arg_index = ((m->is_static() || has_value_arg) ? 0 : -1);
+      int sig_index_cc = 0;
+      int arg_index = ((m->is_static() || m->has_scalarized_args()) ? 0 : -1);
       bool did_old_sp = false;
-      SigEntry res_entry = m->get_res_entry();
       for (SignatureStream ss(sig); !ss.at_return_type(); ) {
         bool at_this = (arg_index == -1);
         bool at_old_sp = false;
@@ -2653,8 +2658,14 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
           if (!did_name)
             stream->print("%s", type2name(t));
         }
-        if (sig_index == res_entry._offset) {
-          stream->print(" [RESERVED] ");
+        if (m->has_scalarized_args()) {
+          while (!SigEntry::skip_value_delimiters(sig_cc, sig_index_cc)) {
+            sig_index_cc++;
+          }
+          if (SigEntry::is_reserved_entry(sig_cc, sig_index_cc)) {
+            stream->print(" [RESERVED]");
+          }
+          sig_index_cc += type2size[t];
         }
         if (at_old_sp) {
           stream->print("  (%s of caller)", spname);
@@ -2676,8 +2687,10 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
   }
 
   if (block_begin == entry_point())             stream->print_cr("[Entry Point]");
+  if (block_begin == value_ro_entry_point())    stream->print_cr("[Value Entry Point (RO)]");
   if (block_begin == verified_entry_point())    stream->print_cr("[Verified Entry Point]");
   if (block_begin == verified_value_entry_point()) stream->print_cr("[Verified Value Entry Point]");
+  if (block_begin == verified_value_ro_entry_point()) stream->print_cr("[Verified Value Entry Point (RO)]");
   if (JVMCI_ONLY(_exception_offset >= 0 &&) block_begin == exception_begin())         stream->print_cr("[Exception Handler]");
   if (block_begin == stub_begin())              stream->print_cr("[Stub Code]");
   if (JVMCI_ONLY(_deopt_handler_begin != NULL &&) block_begin == deopt_handler_begin())     stream->print_cr("[Deopt Handler Code]");

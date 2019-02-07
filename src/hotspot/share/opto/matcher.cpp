@@ -492,22 +492,32 @@ void Matcher::init_first_stack_mask() {
   // At first, start with the empty mask
   C->FIRST_STACK_mask().Clear();
 
-  // Check if method has a reserved entry in the argument stack area that
-  // should not be used for spilling because it holds the return address.
-  OptoRegPair res_entry;
-  if (C->needs_stack_repair()) {
-    int res_idx = C->get_res_entry()._offset;
-    res_entry = _parm_regs[res_idx];
-  }
-
   // Add in the incoming argument area
   OptoReg::Name init_in = OptoReg::add(_old_SP, C->out_preserve_stack_slots());
   for (i = init_in; i < _in_arg_limit; i = OptoReg::add(i,1)) {
-    if (i == res_entry.first() || i == res_entry.second()) {
-      continue; // Skip reserved slot to avoid spilling
-    }
     C->FIRST_STACK_mask().Insert(i);
   }
+
+  // Check if the method has a reserved entry in the argument stack area that
+  // should not be used for spilling because it may hold the return address.
+  if (C->method() != NULL && C->method()->has_scalarized_args()) {
+    ExtendedSignature sig_cc = ExtendedSignature(C->method()->get_sig_cc(), SigEntryFilter());
+    for (int off = 0; !sig_cc.at_end(); ) {
+      BasicType bt = (*sig_cc)._bt;
+      off += type2size[bt];
+      while (SigEntry::next_is_reserved(sig_cc, bt)) {
+        // Remove reserved stack slot from mask to avoid spilling
+        OptoRegPair reg = _parm_regs[off];
+        assert(OptoReg::is_valid(reg.first()), "invalid reserved register");
+        C->FIRST_STACK_mask().Remove(reg.first());
+        if (OptoReg::is_valid(reg.second())) {
+          C->FIRST_STACK_mask().Remove(reg.second());
+        }
+        off += type2size[bt];
+      }
+    }
+  }
+
   // Add in all bits past the outgoing argument area
   guarantee(RegMask::can_represent_arg(OptoReg::add(_out_arg_limit,-1)),
             "must be able to represent all call arguments in reg mask");

@@ -195,12 +195,14 @@ private:
   virtual int comp_level() const { return CompLevel_aot; }
   virtual address verified_entry_point() const { return _code + _meta->verified_entry_offset(); }
   virtual address verified_value_entry_point() const { return NULL; }
+  virtual address verified_value_ro_entry_point() const { return NULL; }
   virtual void log_identity(xmlStream* stream) const;
   virtual void log_state_change() const;
   virtual bool make_entrant() NOT_TIERED({ ShouldNotReachHere(); return false; });
   virtual bool make_not_entrant() { return make_not_entrant_helper(not_entrant); }
   virtual bool make_not_used() { return make_not_entrant_helper(not_used); }
   virtual address entry_point() const { return _code + _meta->entry_offset(); }
+  virtual address value_ro_entry_point() const { return NULL; }
   virtual bool make_zombie() { ShouldNotReachHere(); return false; }
   virtual bool is_osr_method() const { return false; }
   virtual int osr_entry_bci() const { ShouldNotReachHere(); return -1; }

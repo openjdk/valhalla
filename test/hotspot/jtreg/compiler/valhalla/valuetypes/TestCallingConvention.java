@@ -51,7 +51,7 @@ public class TestCallingConvention extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestCallingConvention test = new TestCallingConvention();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue4.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue4.class, Test27Value1.class, Test27Value2.class, Test27Value3.class);
     }
 
     // Test interpreter to compiled code with various signatures
@@ -501,5 +501,72 @@ public class TestCallingConvention extends ValueTypeTest {
         Asserts.assertEQ(vt, null);
         vt = test26(false);
         Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, true).hash());
+    }
+
+    // Test calling convention with deep hierarchy of flattened fields
+    value final class Test27Value1 {
+        final Test27Value2.val valueField;
+
+        private Test27Value1(Test27Value2 val2) {
+            valueField = val2;
+        }
+
+        @DontInline
+        public int test(Test27Value1 val1) {
+            return valueField.test(valueField) + val1.valueField.test(valueField);
+        }
+    }
+
+    value final class Test27Value2 {
+        final Test27Value3.val valueField;
+
+        private Test27Value2(Test27Value3 val3) {
+            valueField = val3;
+        }
+
+        @DontInline
+        public int test(Test27Value2 val2) {
+            return valueField.test(valueField) + val2.valueField.test(valueField);
+        }
+    }
+
+    value final class Test27Value3 {
+        final int x;
+
+        private Test27Value3(int x) {
+            this.x = x;
+        }
+
+        @DontInline
+        public int test(Test27Value3 val3) {
+            return x + val3.x;
+        }
+    }
+
+    @Test
+    public int test27(Test27Value1 val) {
+        return val.test(val);
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        Test27Value3 val3 = new Test27Value3(rI);
+        Test27Value2 val2 = new Test27Value2(val3);
+        Test27Value1 val1 = new Test27Value1(val2);
+        int result = test27(val1);
+        Asserts.assertEQ(result, 8*rI);
+    }
+
+    static final MyValue1.box test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
+
+    @Test
+    @Warmup(0)
+    public String test28() {
+        return test28Val.toString();
+    }
+
+    @DontCompile
+    public void test28_verifier(boolean warmup) {
+        String result = test28();
     }
 }
