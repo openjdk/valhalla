@@ -1010,7 +1010,6 @@ void GraphBuilder::load_indexed(BasicType type) {
 void GraphBuilder::store_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
   ValueStack* state_before = copy_state_indexed_access();
-  ValueStack* deopt_state = copy_state_before();
   compilation()->set_has_access_indexed(true);
   Value value = pop(as_ValueType(type));
   Value index = ipop();
@@ -1034,10 +1033,6 @@ void GraphBuilder::store_indexed(BasicType type) {
     check_boolean = true;
   }
 
-  if (array->is_flattened_array() && !array_type->is_loaded()) {
-    // Value array access may be deoptimized. Need full "before" states.
-    state_before = deopt_state;
-  }
   StoreIndexed* result = new StoreIndexed(array, index, length, type, value, state_before, check_boolean);
   append(result);
   _memory->store_value(value);

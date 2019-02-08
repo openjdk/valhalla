@@ -54,6 +54,7 @@ class StubAssembler;
   stub(new_value_array)              \
   stub(new_multi_array)              \
   stub(load_flattened_array)         \
+  stub(store_flattened_array)        \
   stub(handle_exception_nofpu)         /* optimized version that does not preserve fpu registers */ \
   stub(handle_exception)             \
   stub(handle_exception_from_callee) \
@@ -110,6 +111,7 @@ class Runtime1: public AllStatic {
   static int _new_instance_slowcase_cnt;
   static int _new_multi_array_slowcase_cnt;
   static int _load_flattened_array_slowcase_cnt;
+  static int _store_flattened_array_slowcase_cnt;
   static int _monitorenter_slowcase_cnt;
   static int _monitorexit_slowcase_cnt;
   static int _patch_code_slowcase_cnt;
@@ -148,6 +150,7 @@ class Runtime1: public AllStatic {
   static void new_object_array(JavaThread* thread, Klass* klass, jint length);
   static void new_multi_array (JavaThread* thread, Klass* klass, int rank, jint* dims);
   static void load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index);
+  static void store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value);
 
   static address counter_overflow(JavaThread* thread, int bci, Method* method);
 

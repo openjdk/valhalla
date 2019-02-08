@@ -1648,25 +1648,24 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
   }
 }
 
-void LIRGenerator::maybe_deopt_value_array_access(LIRItem& array, CodeEmitInfo* null_check_info, CodeEmitInfo* deopt_info) {
-  LIR_Opr klass = new_register(T_METADATA);
-  __ move(new LIR_Address(array.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), klass, null_check_info);
+void LIRGenerator::check_flattened_array(LIRItem& array, CodeStub* slow_path) {
+  LIR_Opr array_klass_reg = new_register(T_METADATA);
+
+  __ move(new LIR_Address(array.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), array_klass_reg);
   LIR_Opr layout = new_register(T_INT);
-  __ move(new LIR_Address(klass, in_bytes(Klass::layout_helper_offset()), T_INT), layout);
+  __ move(new LIR_Address(array_klass_reg, in_bytes(Klass::layout_helper_offset()), T_INT), layout);
   __ shift_right(layout, Klass::_lh_array_tag_shift, layout);
   __ cmp(lir_cond_equal, layout, LIR_OprFact::intConst(Klass::_lh_array_tag_vt_value));
-
-  CodeStub* stub = new DeoptimizeStub(deopt_info, Deoptimization::Reason_unloaded, Deoptimization::Action_make_not_entrant);
-  __ branch(lir_cond_equal, T_ILLEGAL, stub);
+  __ branch(lir_cond_equal, T_ILLEGAL, slow_path);
 }
 
 void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   assert(x->is_pinned(),"");
-  bool is_flattened = x->array()->is_flattened_array();
+  bool is_loaded_flattened_array = x->array()->is_loaded_flattened_array();
   bool needs_range_check = x->compute_needs_range_check();
   bool use_length = x->length() != NULL;
   bool obj_store = x->elt_type() == T_ARRAY || x->elt_type() == T_OBJECT;
-  bool needs_store_check = obj_store && !is_flattened &&
+  bool needs_store_check = obj_store && !is_loaded_flattened_array &&
                                         (x->value()->as_Constant() == NULL ||
                                          !get_jobject_constant(x->value())->is_null_object() ||
                                          x->should_profile());
@@ -1682,10 +1681,10 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (use_length && needs_range_check) {
     length.set_instruction(x->length());
     length.load_item();
-
   }
 
-  if (needs_store_check || x->check_boolean() || is_flattened) {
+  if (needs_store_check || x->check_boolean()
+      || is_loaded_flattened_array || x->array()->maybe_flattened_array()) {
     value.load_item();
   } else {
     value.load_for_store(x->elt_type());
@@ -1718,25 +1717,30 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
   }
 
-  if (is_flattened) {
-    if (x->array()->declared_type()->is_loaded()) {
+  if (is_loaded_flattened_array) {
+    index.load_item();
+    access_flattened_array(false, array, index, value);
+  } else {
+    StoreFlattenedArrayStub* slow_path = NULL;
+
+    if (x->array()->maybe_flattened_array()) {
+      // Check if we indeed have a flattened array
       index.load_item();
-      access_flattened_array(false, array, index, value);
-      return;
-    } else {
-      // If the array is indeed flattened, deopt. Otherwise access it as a normal object array.
-      CodeEmitInfo* deopt_info = state_for(x, x->state_before());
-      maybe_deopt_value_array_access(array, null_check_info, deopt_info);
+      slow_path = new StoreFlattenedArrayStub(array.result(), index.result(), value.result(), state_for(x));
+      check_flattened_array(array, slow_path);
+    }
+
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
+    if (x->check_boolean()) {
+      decorators |= C1_MASK_BOOLEAN;
+    }
+
+    access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
+                    NULL, null_check_info);
+    if (slow_path != NULL) {
+      __ branch_destination(slow_path->continuation());
     }
   }
-
-  DecoratorSet decorators = IN_HEAP | IS_ARRAY;
-  if (x->check_boolean()) {
-    decorators |= C1_MASK_BOOLEAN;
-  }
-
-  access_store_at(decorators, x->elt_type(), array, index.result(), value.result(),
-                  NULL, null_check_info);
 }
 
 void LIRGenerator::access_load_at(DecoratorSet decorators, BasicType type,
@@ -2040,14 +2044,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     if (x->array()->maybe_flattened_array()) {
       // Check if we indeed have a flattened array
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x));
-      LIR_Opr array_klass_reg = new_register(T_METADATA);
-
-      __ move(new LIR_Address(array.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), array_klass_reg);
-      LIR_Opr layout = new_register(T_INT);
-      __ move(new LIR_Address(array_klass_reg, in_bytes(Klass::layout_helper_offset()), T_INT), layout);
-      __ shift_right(layout, Klass::_lh_array_tag_shift, layout);
-      __ cmp(lir_cond_equal, layout, LIR_OprFact::intConst(Klass::_lh_array_tag_vt_value));
-      __ branch(lir_cond_equal, T_ILLEGAL, slow_path);
+      check_flattened_array(array, slow_path);
     }
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY;

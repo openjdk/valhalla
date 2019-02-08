@@ -231,6 +231,7 @@ class ImplicitNullCheckStub: public CodeStub {
 #endif // PRODUCT
 };
 
+
 class LoadFlattenedArrayStub: public CodeStub {
  private:
   LIR_Opr          _array;
@@ -242,17 +243,34 @@ class LoadFlattenedArrayStub: public CodeStub {
   LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr result, CodeEmitInfo* info);
   virtual void emit_code(LIR_Assembler* e);
   virtual CodeEmitInfo* info() const             { return _info; }
-  virtual void visit(LIR_OpVisitState* visitor) {
-    visitor->do_slow_case(_info);
-    visitor->do_input(_array);
-    visitor->do_input(_index);
-    visitor->do_output(_result);
-  }
+  virtual void visit(LIR_OpVisitState* visitor);
 #ifndef PRODUCT
   virtual void print_name(outputStream* out) const { out->print("LoadFlattenedArrayStub"); }
 #endif // PRODUCT
 };
 
+
+class StoreFlattenedArrayStub: public CodeStub {
+ private:
+  LIR_Opr          _array;
+  LIR_Opr          _index;
+  LIR_Opr          _value;
+  CodeEmitInfo*    _info;
+
+ public:
+  StoreFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr value, CodeEmitInfo* info);
+  virtual void emit_code(LIR_Assembler* e);
+  virtual CodeEmitInfo* info() const             { return _info; }
+  virtual void visit(LIR_OpVisitState* visitor) {
+    visitor->do_slow_case(_info);
+    visitor->do_input(_array);
+    visitor->do_input(_index);
+    visitor->do_input(_value);
+  }
+#ifndef PRODUCT
+  virtual void print_name(outputStream* out) const { out->print("StoreFlattenedArrayStub"); }
+#endif // PRODUCT
+};
 
 
 class NewInstanceStub: public CodeStub {

@@ -31,6 +31,7 @@
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test1
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test2
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test3
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test4
  *      TestUnloadedValueTypeArray
  */
 
@@ -66,7 +67,16 @@ value final class MyValue3 {
     }
 }
 
+value final class MyValue4 {
+    final int foo;
 
+    private MyValue4() {
+        foo = 0x53;
+    }
+    static MyValue4 make(int n) {
+        return __WithField(MyValue4.default.foo, n);
+    }
+}
 
 public class TestUnloadedValueTypeArray {
 
@@ -124,9 +134,35 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
+    static MyValue4[] test4(boolean b) {
+        // range check elimination
+        if (b) {
+            MyValue4[] arr = new MyValue4[10];
+            arr[1] = MyValue4.make(2345);
+            return arr;
+        } else {
+            return null;
+        }
+    }
+
+    static void test4_verifier() {
+        int n = 50000;
+
+        for (int i=0; i<n; i++) {
+            test4(false);
+        }
+
+        MyValue4[] arr = null;
+        for (int i=0; i<n; i++) {
+          arr = test4(true);
+        }
+        Asserts.assertEQ(arr[1].foo, 2345);
+    }
+
     static public void main(String[] args) {
         test1();
         test2_verifier();
         test3_verifier();
+        test4_verifier();
     }
 }

@@ -1238,6 +1238,24 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case store_flattened_array_id:
+      {
+        StubFrame f(sasm, "store_flattened_array", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, 4);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(2, rax); // rax,: array
+        f.load_argument(1, rbx); // rbx,: index
+        f.load_argument(0, rcx); // rcx,: value
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, store_flattened_array), rax, rbx, rcx);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_rax(sasm);
+      }
+      break;
+
     case register_finalizer_id:
       {
         __ set_info("register_finalizer", dont_gc_arguments);

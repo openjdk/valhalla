@@ -164,6 +164,15 @@ LoadFlattenedArrayStub::LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR
   _info = new CodeEmitInfo(info);
 }
 
+void LoadFlattenedArrayStub::visit(LIR_OpVisitState* visitor) {
+  visitor->do_slow_case(_info);
+  visitor->do_input(_array);
+  visitor->do_input(_index);
+  visitor->do_output(_result);
+
+  // Tell the register allocator that the runtime call will scratch rax.
+  visitor->do_output(FrameMap::rax_oop_opr);
+}
 
 void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
@@ -176,6 +185,29 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   if (_result->as_register() != rax) {
     __ movptr(_result->as_register(), rax);
   }
+  __ jmp(_continuation);
+}
+
+
+// Implementation of StoreFlattenedArrayStub
+
+StoreFlattenedArrayStub::StoreFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr value, CodeEmitInfo* info) {
+  _array = array;
+  _index = index;
+  _value = value;
+  _info = new CodeEmitInfo(info);
+}
+
+
+void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  ce->store_parameter(_array->as_register(), 2);
+  ce->store_parameter(_index->as_register(), 1);
+  ce->store_parameter(_value->as_register(), 0);
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::store_flattened_array_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
   __ jmp(_continuation);
 }
 

@@ -121,6 +121,7 @@ int Runtime1::_new_object_array_slowcase_cnt = 0;
 int Runtime1::_new_instance_slowcase_cnt = 0;
 int Runtime1::_new_multi_array_slowcase_cnt = 0;
 int Runtime1::_load_flattened_array_slowcase_cnt = 0;
+int Runtime1::_store_flattened_array_slowcase_cnt = 0;
 int Runtime1::_monitorenter_slowcase_cnt = 0;
 int Runtime1::_monitorexit_slowcase_cnt = 0;
 int Runtime1::_patch_code_slowcase_cnt = 0;
@@ -416,7 +417,7 @@ JRT_END
 
 
 JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
-  NOT_PRODUCT(_new_multi_array_slowcase_cnt++;)
+  NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
   Klass* klass = array->klass();
   assert(klass->is_valueArray_klass(), "expected value array oop");
   assert(array->length() > 0 && index < array->length(), "already checked");
@@ -433,6 +434,24 @@ JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOop
   vklass->value_store(src, vklass->data_for_oop(obj),
                       vaklass->element_byte_size(), true, false);
   thread->set_vm_result(obj);
+JRT_END
+
+
+JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value))
+  NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
+  if (value == NULL) {
+    SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_NullPointerException());
+  } else {
+    Klass* klass = array->klass();
+    assert(klass->is_valueArray_klass(), "expected value array");
+    assert(ArrayKlass::cast(klass)->element_klass() == value->klass(), "Store type incorrect");
+
+    ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
+    ValueKlass* vklass = vaklass->element_klass();
+    const int lh = vaklass->layout_helper();
+    vklass->value_store(vklass->data_for_oop(value), array->value_at_addr(index, lh),
+                        vaklass->element_byte_size(), true, false);
+  }
 JRT_END
 
 
@@ -1524,7 +1543,8 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _new_object_array_slowcase_cnt:  %d", _new_object_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
-  tty->print_cr(" _load_flattened_array_slowcase_cnt:%d", _load_flattened_array_slowcase_cnt);
+  tty->print_cr(" _load_flattened_array_slowcase_cnt: %d", _load_flattened_array_slowcase_cnt);
+  tty->print_cr(" _store_flattened_array_slowcase_cnt:%d", _store_flattened_array_slowcase_cnt);
   tty->print_cr(" _monitorenter_slowcase_cnt:      %d", _monitorenter_slowcase_cnt);
   tty->print_cr(" _monitorexit_slowcase_cnt:       %d", _monitorexit_slowcase_cnt);
   tty->print_cr(" _patch_code_slowcase_cnt:        %d", _patch_code_slowcase_cnt);
