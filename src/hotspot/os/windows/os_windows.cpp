@@ -125,6 +125,11 @@ static FILETIME process_kernel_time;
   #define __CPU__ i486
 #endif
 
+#if INCLUDE_AOT
+PVOID  topLevelVectoredExceptionHandler = NULL;
+LONG WINAPI topLevelVectoredExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo);
+#endif
+
 // save DLL module handle, used by GetModuleFileName
 
 HINSTANCE vm_lib_handle;
@@ -143,6 +148,12 @@ BOOL WINAPI DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved) {
     if (ForceTimeHighResolution) {
       timeEndPeriod(1L);
     }
+#if INCLUDE_AOT
+    if (topLevelVectoredExceptionHandler != NULL) {
+      RemoveVectoredExceptionHandler(topLevelVectoredExceptionHandler);
+      topLevelVectoredExceptionHandler = NULL;
+    }
+#endif
     break;
   default:
     break;
@@ -2325,6 +2336,25 @@ bool os::win32::get_frame_at_stack_banging_point(JavaThread* thread,
   return true;
 }
 
+#if INCLUDE_AOT
+LONG WINAPI topLevelVectoredExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
+  PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
+  address addr = (address) exceptionRecord->ExceptionInformation[1];
+  address pc = (address) exceptionInfo->ContextRecord->Rip;
+
+  // Handle the case where we get an implicit exception in AOT generated
+  // code.  AOT DLL's loaded are not registered for structured exceptions.
+  // If the exception occurred in the codeCache or AOT code, pass control
+  // to our normal exception handler.
+  CodeBlob* cb = CodeCache::find_blob(pc);
+  if (cb != NULL) {
+    return topLevelExceptionFilter(exceptionInfo);
+  }
+
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 //-----------------------------------------------------------------------------
 LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
   if (InterceptOSException) return EXCEPTION_CONTINUE_SEARCH;
@@ -4080,6 +4110,16 @@ jint os::init_2(void) {
 
   // Setup Windows Exceptions
 
+#if INCLUDE_AOT
+  // If AOT is enabled we need to install a vectored exception handler
+  // in order to forward implicit exceptions from code in AOT
+  // generated DLLs.  This is necessary since these DLLs are not
+  // registered for structured exceptions like codecache methods are.
+  if (UseAOT) {
+    topLevelVectoredExceptionHandler = AddVectoredExceptionHandler( 1, topLevelVectoredExceptionFilter);
+  }
+#endif
+
   // for debugging float code generation bugs
   if (ForceFloatExceptions) {
 #ifndef  _WIN64
@@ -5275,6 +5315,55 @@ void Parker::park(bool isAbsolute, jlong time) {
 void Parker::unpark() {
   guarantee(_ParkEvent != NULL, "invariant");
   SetEvent(_ParkEvent);
+}
+
+// Platform Monitor implementation
+
+os::PlatformMonitor::PlatformMonitor() {
+  InitializeConditionVariable(&_cond);
+  InitializeCriticalSection(&_mutex);
+}
+
+os::PlatformMonitor::~PlatformMonitor() {
+  DeleteCriticalSection(&_mutex);
+}
+
+void os::PlatformMonitor::lock() {
+  EnterCriticalSection(&_mutex);
+}
+
+void os::PlatformMonitor::unlock() {
+  LeaveCriticalSection(&_mutex);
+}
+
+bool os::PlatformMonitor::try_lock() {
+  return TryEnterCriticalSection(&_mutex);
+}
+
+// Must already be locked
+int os::PlatformMonitor::wait(jlong millis) {
+  assert(millis >= 0, "negative timeout");
+  int ret = OS_TIMEOUT;
+  int status = SleepConditionVariableCS(&_cond, &_mutex,
+                                        millis == 0 ? INFINITE : millis);
+  if (status != 0) {
+    ret = OS_OK;
+  }
+  #ifndef PRODUCT
+  else {
+    DWORD err = GetLastError();
+    assert(err == ERROR_TIMEOUT, "SleepConditionVariableCS: %ld:", err);
+  }
+  #endif
+  return ret;
+}
+
+void os::PlatformMonitor::notify() {
+  WakeConditionVariable(&_cond);
+}
+
+void os::PlatformMonitor::notify_all() {
+  WakeAllConditionVariable(&_cond);
 }
 
 // Run the specified command in a separate process. Return its exit value,

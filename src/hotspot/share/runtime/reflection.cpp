@@ -50,6 +50,7 @@
 #include "runtime/reflection.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 

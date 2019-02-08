@@ -2185,12 +2185,6 @@ void PSParallelCompact::marking_phase(ParCompactionManager* cm,
     Klass::clean_weak_klass_links(purged_class);
   }
 
-  {
-    GCTraceTime(Debug, gc, phases) t("Scrub Symbol Table", &_gc_timer);
-    // Clean up unreferenced symbols in symbol table.
-    SymbolTable::unlink();
-  }
-
   _gc_tracer.report_object_count_after_gc(is_alive_closure());
 }
 

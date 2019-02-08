@@ -53,6 +53,7 @@
 #include "runtime/init.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "utilities/copy.hpp"
 
@@ -2558,11 +2559,6 @@ void ConstantPool::verify_on(outputStream* st) {
       CPSlot entry = slot_at(i);
       guarantee(entry.get_symbol()->refcount() != 0, "should have nonzero reference count");
     }
-  }
-  if (cache() != NULL) {
-    // Note: cache() can be NULL before a class is completely setup or
-    // in temporary constant pools used during constant pool merging
-    guarantee(cache()->is_constantPoolCache(), "should be constant pool cache");
   }
   if (pool_holder() != NULL) {
     // Note: pool_holder() can be NULL in temporary constant pools

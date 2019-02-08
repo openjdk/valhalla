@@ -43,6 +43,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
 
 int ValueKlass::first_field_offset() const {

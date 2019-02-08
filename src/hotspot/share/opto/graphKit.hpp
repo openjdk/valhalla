@@ -765,6 +765,10 @@ class GraphKit : public Phase {
     return C->too_many_recompiles(method(), bci(), reason);
   }
 
+  bool too_many_traps_or_recompiles(Deoptimization::DeoptReason reason) {
+      return C->too_many_traps_or_recompiles(method(), bci(), reason);
+  }
+
   // Returns the object (if any) which was created the moment before.
   Node* just_allocated_object(Node* current_control);
 
@@ -850,6 +854,10 @@ class GraphKit : public Phase {
   Node* type_check_receiver(Node* receiver, ciKlass* klass, float prob,
                             Node* *casted_receiver);
   Node* type_check(Node* recv_klass, const TypeKlassPtr* tklass, float prob);
+
+  // Inexact type check used for predicted calls.
+  Node* subtype_check_receiver(Node* receiver, ciKlass* klass,
+                               Node** casted_receiver);
 
   // implementation of object creation
   Node* set_output_for_allocation(AllocateNode* alloc,
