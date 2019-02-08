@@ -91,7 +91,6 @@ void Compile::Output() {
     if (_method && _method->has_scalarized_args()) {
       // Add entry point to unpack all value type arguments
       _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ false));
-      //if ((!_method->is_static() && _method->holder()->is_valuetype()) || _method->get_Method()->needs_stack_repair()) {
       if (!_method->is_static()) {
         // Add verified/unverified entry points to only unpack value type receiver at interface calls
         _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ true));
@@ -135,21 +134,15 @@ void Compile::Output() {
 
   if (_method && _method->has_scalarized_args()) {
     // Compute the offsets of the entry points required by the value type calling convention
-    uint entry_offset = -1; // will be patched later
-    uint vep_ro_size = 0;
-    uint vvep_ro_size = 0;
-    //if ((!_method->is_static() && _method->holder()->is_valuetype()) || _method->get_Method()->needs_stack_repair()) {
     if (!_method->is_static()) {
-      uint idx = 0;
-      vep_ro_size  = ((MachVEPNode*)broot->get_node(idx++))->size(_regalloc);
-      vvep_ro_size = ((MachVEPNode*)broot->get_node(idx++))->size(_regalloc);
-      _code_offsets.set_value(CodeOffsets::Value_Entry_RO, 0);
+      uint vep_ro_size  = ((MachVEPNode*)broot->get_node(0))->size(_regalloc);
+      uint vvep_ro_size = ((MachVEPNode*)broot->get_node(1))->size(_regalloc);
       _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, vep_ro_size);
-      uint vvep_size = ((MachVEPNode*)broot->get_node(idx++))->size(_regalloc);
-      entry_offset = vep_ro_size + vvep_ro_size + vvep_size;
+      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, vep_ro_size + vvep_ro_size);
+    } else {
+      _code_offsets.set_value(CodeOffsets::Entry, -1); // will be patched later
+      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, 0);
     }
-    _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, vep_ro_size + vvep_ro_size);
-    _code_offsets.set_value(CodeOffsets::Entry, entry_offset);
   }
 
   ScheduleAndBundle();

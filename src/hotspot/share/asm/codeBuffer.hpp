@@ -41,7 +41,6 @@ class Label;
 class CodeOffsets: public StackObj {
 public:
   enum Entries { Entry,
-                 Value_Entry_RO,
                  Verified_Entry,
                  Verified_Value_Entry,
                  Verified_Value_Entry_RO,
@@ -64,7 +63,6 @@ private:
 public:
   CodeOffsets() {
     _values[Entry         ] = 0;
-    _values[Value_Entry_RO] = -1;
     _values[Verified_Entry] = 0;
     _values[Verified_Value_Entry] = -1;
     _values[Verified_Value_Entry_RO] = -1;

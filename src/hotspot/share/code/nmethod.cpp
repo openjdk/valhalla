@@ -597,7 +597,6 @@ nmethod::nmethod(
     _compile_id              = compile_id;
     _comp_level              = CompLevel_none;
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
-    _value_ro_entry_point    = _entry_point;
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
     _verified_value_entry_point = _verified_entry_point;
     _verified_value_ro_entry_point = _verified_entry_point;
@@ -760,10 +759,9 @@ nmethod::nmethod(
     _nul_chk_table_offset    = _handler_table_offset + align_up(handler_table->size_in_bytes(), oopSize);
     _nmethod_end_offset      = _nul_chk_table_offset + align_up(nul_chk_table->size_in_bytes(), oopSize);
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
-    _value_ro_entry_point    = code_begin()          + offsets->value(CodeOffsets::Value_Entry_RO);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
     _verified_value_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry);
-    _verified_value_ro_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry_RO);
+    _verified_value_ro_entry_point = code_begin()    + offsets->value(CodeOffsets::Verified_Value_Entry_RO);
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
     _exception_cache         = NULL;
 
@@ -2579,7 +2577,7 @@ ScopeDesc* nmethod::scope_desc_in(address begin, address end) {
 }
 
 void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) const {
-  address low = MIN2(entry_point(), MIN4(value_ro_entry_point(), verified_entry_point(), verified_value_entry_point(), verified_value_ro_entry_point()));
+  address low = MIN4(entry_point(), verified_entry_point(), verified_value_entry_point(), verified_value_ro_entry_point());
   assert(low != 0, "sanity");
   if (block_begin == low) {
     // Print method arguments before the method entry
@@ -2691,7 +2689,6 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
   }
 
   if (block_begin == entry_point())             stream->print_cr("[Entry Point]");
-  if (block_begin == value_ro_entry_point())    stream->print_cr("[Value Entry Point (RO)]");
   if (block_begin == verified_entry_point())    stream->print_cr("[Verified Entry Point]");
   if (block_begin == verified_value_entry_point()) stream->print_cr("[Verified Value Entry Point]");
   if (block_begin == verified_value_ro_entry_point()) stream->print_cr("[Verified Value Entry Point (RO)]");

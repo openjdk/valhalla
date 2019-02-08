@@ -967,11 +967,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
         _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, _first_block_size);
       }
       if (_code_offsets.value(CodeOffsets::Entry) == -1) {
-        // We emitted value type entry points, adjust normal entry
         _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);
-      }
-      if (_code_offsets.value(CodeOffsets::Value_Entry_RO) == -1) {
-        _code_offsets.set_value(CodeOffsets::Value_Entry_RO, _code_offsets.value(CodeOffsets::Entry));
       }
       _code_offsets.set_value(CodeOffsets::OSR_Entry, 0);
     }

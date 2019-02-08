@@ -90,7 +90,6 @@ class nmethod : public CompiledMethod {
 
   // offsets for entry points
   address _entry_point;                      // entry point with class check
-  address _value_ro_entry_point;             // value type entry point (unpack receiver only) with class check
   address _verified_entry_point;             // entry point without class check
   address _verified_value_entry_point;       // value type entry point (unpack all value args) without class check
   address _verified_value_ro_entry_point;    // value type entry point (unpack receiver only) without class check
@@ -328,7 +327,6 @@ class nmethod : public CompiledMethod {
 
   // entry points
   address entry_point() const                     { return _entry_point;             }       // normal entry point
-  address value_ro_entry_point() const            { return _value_ro_entry_point;    }       // value type entry point (only unpack receiver)
   address verified_entry_point() const            { return _verified_entry_point;    }       // normal entry point without class check
   address verified_value_entry_point() const      { return _verified_value_entry_point; }    // value type entry point (unpack all value args) without class check
   address verified_value_ro_entry_point() const   { return _verified_value_ro_entry_point; } // value type entry point (only unpack receiver) without class check

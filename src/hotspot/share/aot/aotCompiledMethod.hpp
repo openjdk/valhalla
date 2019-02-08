@@ -202,7 +202,6 @@ private:
   virtual bool make_not_entrant() { return make_not_entrant_helper(not_entrant); }
   virtual bool make_not_used() { return make_not_entrant_helper(not_used); }
   virtual address entry_point() const { return _code + _meta->entry_offset(); }
-  virtual address value_ro_entry_point() const { return NULL; }
   virtual bool make_zombie() { ShouldNotReachHere(); return false; }
   virtual bool is_osr_method() const { return false; }
   virtual int osr_entry_bci() const { ShouldNotReachHere(); return -1; }

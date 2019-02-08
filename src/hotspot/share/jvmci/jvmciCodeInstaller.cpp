@@ -1318,7 +1318,6 @@ void CodeInstaller::site_Mark(CodeBuffer& buffer, jint pc_offset, Handle site, T
     switch (id) {
       case UNVERIFIED_ENTRY:
         _offsets.set_value(CodeOffsets::Entry, pc_offset);
-        _offsets.set_value(CodeOffsets::Value_Entry_RO, pc_offset);
         break;
       case VERIFIED_ENTRY:
         _offsets.set_value(CodeOffsets::Verified_Entry, pc_offset);
