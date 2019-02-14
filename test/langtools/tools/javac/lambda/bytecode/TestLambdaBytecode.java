@@ -272,14 +272,14 @@ public class TestLambdaBytecode extends ComboInstance<TestLambdaBytecode> {
             boolean kindOK;
             switch (mh.reference_kind) {
                 case REF_invokeStatic: kindOK = mk2.isStatic(); break;
-                case REF_invokeSpecial: kindOK = !mk2.isStatic(); break;
+                case REF_invokeVirtual: kindOK = !mk2.isStatic() && !mk2.inInterface(); break;
                 case REF_invokeInterface: kindOK = mk2.inInterface(); break;
                 default:
                     kindOK = false;
             }
 
             if (!kindOK) {
-                fail("Bad invoke kind in implementation method handle");
+                fail("Bad invoke kind in implementation method handle: " + mh.reference_kind);
                 return;
             }
 

@@ -44,18 +44,14 @@ import java.util.stream.IntStream;
  * 1. inner class for Inner1.
  * 2. method for () -> {} in Inner1
  * 3. method for () -> {} in Inner2
- * 4. method references to private methods.
- * 5. method for super::function()
- * 6. method references to private static methods.
- * 7. access method for private method function().
- * 8. access method for private static method staticFunction().
- * 9. method reference to vararg method.
- * 10. method reference to array's method.
- * 11. constructors for Inner1 and Inner2.
+ * 4. method for super::function()
+ * 5. method reference to vararg method.
+ * 6. method reference to array's method.
+ * 7. constructors for Inner1 and Inner2.
  */
 @ExpectedClass(className = "BridgeMethodsForLambdaTest",
         expectedMethods = {"<init>()", "<clinit>()", "function(java.lang.Integer[])"},
-        expectedNumberOfSyntheticMethods = 6)
+        expectedNumberOfSyntheticMethods = 3)
 @ExpectedClass(className = "BridgeMethodsForLambdaTest$Inner1",
         expectedMethods = {"<init>(BridgeMethodsForLambdaTest)", "function()", "run()"},
         expectedFields = "lambda1",
