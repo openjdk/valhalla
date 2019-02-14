@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1905,6 +1905,26 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
 
 }
 
+void LIR_Assembler::emit_opFlattenedStoreCheck(LIR_OpFlattenedStoreCheck* op) {
+  Klass* k = (Klass*)(op->element_klass()->constant_encoding());
+  assert(k->is_klass(), "must be a loaded klass");
+  add_debug_info_for_null_check_here(op->info_for_exception());
+
+#ifdef _LP64
+  if (UseCompressedClassPointers) {
+    __ movl(op->tmp1()->as_register(), Address(op->object()->as_register(), oopDesc::klass_offset_in_bytes()));
+    __ cmp_narrow_klass(op->tmp1()->as_register(), k);
+  } else {
+    __ movq(op->tmp1()->as_register(), Address(op->object()->as_register(), oopDesc::klass_offset_in_bytes()));
+    __ cmpq(op->tmp1()->as_register(), op->tmp2()->as_register());
+  }
+#else
+  Unimplemented(); // FIXME
+#endif
+
+  __ jcc(Assembler::notEqual, *op->stub()->entry());
+  __ bind(*op->stub()->continuation());
+}
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
   if (LP64_ONLY(false &&) op->code() == lir_cas_long && VM_Version::supports_cx8()) {

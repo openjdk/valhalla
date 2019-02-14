@@ -429,9 +429,10 @@ JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOop
   // We have a non-empty flattened array, so the element type must have been initialized.
   assert(vklass->is_initialized(), "must be");
   Handle holder(THREAD, vklass->klass_holder()); // keep the vklass alive
+  valueArrayHandle ha(THREAD, array);
   oop obj = vklass->allocate_instance(CHECK);
 
-  void* src = array->value_at_addr(index, vaklass->layout_helper());
+  void* src = ha()->value_at_addr(index, vaklass->layout_helper());
   vklass->value_store(src, vklass->data_for_oop(obj),
                       vaklass->element_byte_size(), true, false);
   thread->set_vm_result(obj);

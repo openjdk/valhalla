@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1718,7 +1718,11 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flattened_array) {
-    index.load_item();
+    if (!x->is_exact_flattened_array_store()) {
+      CodeEmitInfo* info = new CodeEmitInfo(range_check_info);
+      ciKlass* element_klass = x->array()->declared_type()->as_value_array_klass()->element_klass();
+      flattened_array_store_check(value.result(), element_klass, info);
+    }
     access_flattened_array(false, array, index, value);
   } else {
     StoreFlattenedArrayStub* slow_path = NULL;
@@ -1991,8 +1995,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   array.load_item();
-  if (index.is_constant() && can_inline_as_constant(x->index())
-      && !x->array()->maybe_flattened_array()) {
+  if (index.is_constant() && can_inline_as_constant(x->index())) {
     // let it be a constant
     index.dont_load_item();
   } else {
@@ -2042,6 +2045,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     LoadFlattenedArrayStub* slow_path = NULL;
 
     if (x->array()->maybe_flattened_array()) {
+      index.load_item();
       // Check if we indeed have a flattened array
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x));
       check_flattened_array(array, slow_path);

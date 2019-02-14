@@ -26,6 +26,7 @@
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to resolve a value type argument
  * @library /test/lib
+ * @build SimpleValueType
  * @run main/othervm -XX:+EnableValhalla TestUnresolvedValueClass
  */
 

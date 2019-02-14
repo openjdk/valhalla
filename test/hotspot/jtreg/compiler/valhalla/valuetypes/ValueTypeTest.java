@@ -286,15 +286,42 @@ public abstract class ValueTypeTest {
         }
     }
 
+    // To exclude test cases, use -DExclude=<case1>,<case2>,...
+    // Each case can be just the method name, or can be <class>.<method>. The latter form is useful
+    // when you are running several tests at the same time.
+    //
+    // jtreg -DExclude=test12 TestArrays.java
+    // jtreg -DExclude=test34 TestLWorld.java
+    // -- or --
+    // jtreg -DExclude=TestArrays.test12,TestLWorld.test34 TestArrays.java TestLWorld.java
+    //
+    private List<String> buildExcludeList() {
+        List<String> exclude = null;
+        String classPrefix = getClass().getSimpleName() + ".";
+        if (!EXCLUDELIST.isEmpty()) {
+            exclude = new ArrayList(Arrays.asList(EXCLUDELIST.split(",")));
+            for (int i = exclude.size() - 1; i >= 0; i--) {
+                String ex = exclude.get(i);
+                if (ex.indexOf(".") > 0) {
+                    if (ex.startsWith(classPrefix)) {
+                        ex = ex.substring(classPrefix.length());
+                        exclude.set(i, ex);
+                    } else {
+                        exclude.remove(i);
+                    }
+                }
+            }
+        }
+        return exclude;
+    }
+
     protected ValueTypeTest() {
         List<String> list = null;
-        List<String> exclude = null;
         if (!TESTLIST.isEmpty()) {
            list = Arrays.asList(TESTLIST.split(","));
         }
-        if (!EXCLUDELIST.isEmpty()) {
-           exclude = Arrays.asList(EXCLUDELIST.split(","));
-        }
+        List<String> exclude = buildExcludeList();
+
         // Gather all test methods and put them in Hashtable
         for (Method m : getClass().getDeclaredMethods()) {
             Test[] annos = m.getAnnotationsByType(Test.class);

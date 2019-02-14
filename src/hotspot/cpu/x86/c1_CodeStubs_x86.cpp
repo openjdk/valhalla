@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -161,17 +161,9 @@ LoadFlattenedArrayStub::LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR
   _array = array;
   _index = index;
   _result = result;
-  _info = new CodeEmitInfo(info);
-}
-
-void LoadFlattenedArrayStub::visit(LIR_OpVisitState* visitor) {
-  visitor->do_slow_case(_info);
-  visitor->do_input(_array);
-  visitor->do_input(_index);
-  visitor->do_output(_result);
-
   // Tell the register allocator that the runtime call will scratch rax.
-  visitor->do_output(FrameMap::rax_oop_opr);
+  _scratch_reg = FrameMap::rax_oop_opr;
+  _info = new CodeEmitInfo(info);
 }
 
 void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -257,6 +257,16 @@ ciType* LoadIndexed::declared_type() const {
   return ak->element_type();
 }
 
+bool StoreIndexed::is_exact_flattened_array_store() const {
+  if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL) {
+    ciKlass* element_klass = array()->declared_type()->as_value_array_klass()->element_klass();
+    ciKlass* actual_klass = value()->declared_type()->as_klass();
+    if (element_klass == actual_klass) {
+      return true;
+    }
+  }
+  return false;
+}
 
 ciType* LoadField::declared_type() const {
   return field()->type();

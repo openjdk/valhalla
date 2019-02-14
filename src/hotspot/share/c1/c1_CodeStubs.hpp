@@ -237,13 +237,26 @@ class LoadFlattenedArrayStub: public CodeStub {
   LIR_Opr          _array;
   LIR_Opr          _index;
   LIR_Opr          _result;
+  LIR_Opr          _scratch_reg;
   CodeEmitInfo*    _info;
 
  public:
   LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr result, CodeEmitInfo* info);
   virtual void emit_code(LIR_Assembler* e);
   virtual CodeEmitInfo* info() const             { return _info; }
-  virtual void visit(LIR_OpVisitState* visitor);
+  virtual void visit(LIR_OpVisitState* visitor) {
+    visitor->do_slow_case(_info);
+    visitor->do_input(_array);
+    visitor->do_input(_index);
+    visitor->do_output(_result);
+    if (_scratch_reg != LIR_OprFact::illegalOpr) {
+      visitor->do_temp(_scratch_reg);
+    }
+  // Tell the register allocator that the runtime call will scratch rax.
+  visitor->do_output(FrameMap::rax_oop_opr);
+}
+
+
 #ifndef PRODUCT
   virtual void print_name(outputStream* out) const { out->print("LoadFlattenedArrayStub"); }
 #endif // PRODUCT

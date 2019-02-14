@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -269,6 +269,20 @@ void LIRGenerator::array_store_check(LIR_Opr value, LIR_Opr array, CodeEmitInfo*
   LIR_Opr tmp2 = new_register(objectType);
   LIR_Opr tmp3 = new_register(objectType);
   __ store_check(value, array, tmp1, tmp2, tmp3, store_check_info, profiled_method, profiled_bci);
+}
+
+void LIRGenerator::flattened_array_store_check(LIR_Opr value, ciKlass* element_klass, CodeEmitInfo* store_check_info) {
+  LIR_Opr tmp1 = new_register(T_METADATA);
+  LIR_Opr tmp2 = LIR_OprFact::illegalOpr;
+
+#ifdef _LP64
+  if (!UseCompressedClassPointers) {
+    tmp2 = new_register(T_METADATA);
+    __ metadata2reg(element_klass->constant_encoding(), tmp2);
+  }
+#endif
+
+  __ flattened_store_check(value, element_klass, tmp1, tmp2, store_check_info);
 }
 
 //----------------------------------------------------------------------

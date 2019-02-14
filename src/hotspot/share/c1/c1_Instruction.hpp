@@ -1031,6 +1031,8 @@ LEAF(StoreIndexed, AccessIndexed)
   bool      should_profile() const                   { return check_flag(ProfileMDOFlag); }
   ciMethod* profiled_method() const                  { return _profiled_method;     }
   int       profiled_bci() const                     { return _profiled_bci;        }
+  // Flattened array support
+  bool is_exact_flattened_array_store() const;
   // generic
   virtual void input_values_do(ValueVisitor* f)   { AccessIndexed::input_values_do(f); f->visit(&_value); }
 };
