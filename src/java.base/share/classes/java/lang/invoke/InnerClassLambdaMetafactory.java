@@ -25,9 +25,9 @@
 
 package java.lang.invoke;
 
+import jdk.internal.misc.Unsafe;
 import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
-import jdk.internal.misc.Unsafe;
 import sun.security.action.GetPropertyAction;
 
 import java.io.FilePermission;
@@ -57,7 +57,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     private static final String METHOD_DESCRIPTOR_VOID = Type.getMethodDescriptor(Type.VOID_TYPE);
     private static final String JAVA_LANG_OBJECT = "java/lang/Object";
     private static final String NAME_CTOR = "<init>";
-    private static final String NAME_FACTORY = "get$Lambda";
 
     //Serialization support
     private static final String NAME_SERIALIZED_LAMBDA = "java/lang/invoke/SerializedLambda";
@@ -217,11 +216,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         } else {
             try {
                 UNSAFE.ensureClassInitialized(innerClass);
-                return new ConstantCallSite(
-                        MethodHandles.Lookup.IMPL_LOOKUP
-                             .findStatic(innerClass, NAME_FACTORY, invokedType));
-            }
-            catch (ReflectiveOperationException e) {
+                Lookup lookup = MethodHandles.privateLookupIn(innerClass, Lookup.IMPL_LOOKUP);
+                MethodHandle mh = lookup.findConstructor(innerClass, invokedType.changeReturnType(void.class));
+                return new ConstantCallSite(mh.asType(invokedType));
+            } catch (ReflectiveOperationException e) {
                 throw new LambdaConversionException("Exception finding constructor", e);
             }
         }
@@ -274,10 +272,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
         generateConstructor();
 
-        if (invokedType.parameterCount() != 0) {
-            generateFactory();
-        }
-
         // Forward the SAM method
         MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, samMethodName,
                                           samMethodType.toMethodDescriptorString(), null, null);
@@ -325,26 +319,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         } catch (ReflectiveOperationException e) {
             throw new LambdaConversionException(e);
         }
-    }
-
-    /**
-     * Generate the factory method for the class
-     */
-    private void generateFactory() {
-        MethodVisitor m = cw.visitMethod(ACC_PRIVATE | ACC_STATIC, NAME_FACTORY, invokedType.toMethodDescriptorString(), null, null);
-        m.visitCode();
-        m.visitTypeInsn(NEW, lambdaClassName);
-        m.visitInsn(Opcodes.DUP);
-        int parameterCount = invokedType.parameterCount();
-        for (int typeIndex = 0, varIndex = 0; typeIndex < parameterCount; typeIndex++) {
-            Class<?> argType = invokedType.parameterType(typeIndex);
-            m.visitVarInsn(getLoadOpcode(argType), varIndex);
-            varIndex += getParameterSize(argType);
-        }
-        m.visitMethodInsn(INVOKESPECIAL, lambdaClassName, NAME_CTOR, constructorType.toMethodDescriptorString(), false);
-        m.visitInsn(ARETURN);
-        m.visitMaxs(-1, -1);
-        m.visitEnd();
     }
 
     /**
