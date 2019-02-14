@@ -510,9 +510,7 @@ void Matcher::init_first_stack_mask() {
         OptoRegPair reg = _parm_regs[off];
         assert(OptoReg::is_valid(reg.first()), "invalid reserved register");
         C->FIRST_STACK_mask().Remove(reg.first());
-        if (OptoReg::is_valid(reg.second())) {
-          C->FIRST_STACK_mask().Remove(reg.second());
-        }
+        C->FIRST_STACK_mask().Remove(reg.first()+1); // Always occupies two stack slots
         off += type2size[bt];
       }
     }
