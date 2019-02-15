@@ -182,7 +182,7 @@ public abstract class ValueTypeTest {
         if (TEST_C1) {
             return 1;
         } else {
-            return 5;
+            return 6;
         }
     }
 
@@ -242,6 +242,14 @@ public abstract class ValueTypeTest {
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields",
                 "-XX:+StressValueTypePassFieldsAsArgs"};
+        case 5: return new String[] {
+                "-XX:+AlwaysIncrementalInline",
+                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatSize=-1",
+                "-XX:+ValueArrayFlatten",
+                "-XX:ValueFieldMaxFlatSize=-1",
+                "-XX:-ValueTypePassFieldsAsArgs",
+                "-XX:-ValueTypeReturnedAsFields"};
         }
 
         return null;

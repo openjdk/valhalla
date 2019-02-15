@@ -2077,6 +2077,10 @@ void Compile::process_value_types(PhaseIterGVN &igvn) {
     vt->make_scalar_in_safepoints(&igvn);
     if (vt->is_ValueTypePtr()) {
       igvn.replace_node(vt, vt->get_oop());
+    } else {
+      if (vt->outcnt() == 0) {
+        igvn.remove_dead_node(vt);
+      }
     }
   }
   _value_type_nodes = NULL;

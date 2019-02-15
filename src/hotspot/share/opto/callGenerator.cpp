@@ -183,7 +183,7 @@ JVMState* DirectCallGenerator::generate(JVMState* jvms) {
       call->set_method_handle_invoke(true);
     }
   }
-  kit.set_arguments_for_java_call(call);
+  kit.set_arguments_for_java_call(call, is_late_inline());
   if (kit.stopped()) {
     return kit.transfer_exceptions_into_jvms();
   }

@@ -1781,7 +1781,7 @@ Node* GraphKit::load_array_element(Node* ctl, Node* ary, Node* idx, const TypeAr
 
 //-------------------------set_arguments_for_java_call-------------------------
 // Arguments (pre-popped from the stack) are taken from the JVMS.
-void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
+void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool incremental_inlining) {
   // Add the call arguments:
   const TypeTuple* domain = call->tf()->domain_sig();
   ExtendedSignature sig_cc = ExtendedSignature(call->method()->get_sig_cc(), SigEntryFilter());
@@ -1805,7 +1805,11 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call) {
       continue;
     } else if (arg->is_ValueType()) {
       // Pass value type argument via oop to callee
-      arg = arg->as_ValueType()->allocate(this)->get_oop();
+      if (!incremental_inlining) {
+        arg = arg->as_ValueType()->allocate(this)->get_oop();
+      } else {
+        arg = ValueTypePtrNode::make_from_value_type(this, arg->as_ValueType(), false);
+      }
     }
     call->init_req(idx++, arg);
     // Skip reserved arguments
@@ -3693,6 +3697,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     MergeMemNode* minit_in = MergeMemNode::make(malloc);
     init->set_req(InitializeNode::Memory, minit_in);
     record_for_igvn(minit_in); // fold it up later, if possible
+    _gvn.set_type(minit_in, Type::MEMORY);
     Node* minit_out = memory(rawidx);
     assert(minit_out->is_Proj() && minit_out->in(0) == init, "");
     if (oop_type->isa_aryptr()) {

@@ -1474,6 +1474,7 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (can_reshape && in(AllocateNode::ValueNode) != NULL &&
       outcnt() != 0 && result_cast() == NULL) {
     // Remove allocation by replacing the projection nodes with its inputs
+    InitializeNode* init = initialization();
     PhaseIterGVN* igvn = phase->is_IterGVN();
     CallProjections* projs = extract_projections(true, false);
     assert(projs->nb_resproj <= 1, "unexpected number of results");
@@ -1499,6 +1500,16 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       igvn->replace_node(projs->resproj[0], phase->C->top());
     }
     igvn->replace_node(this, phase->C->top());
+    if (init != NULL) {
+      Node* ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
+      Node* mem_proj = init->proj_out_or_null(TypeFunc::Memory);
+      if (ctrl_proj != NULL) {
+        igvn->replace_node(ctrl_proj, init->in(TypeFunc::Control));
+      }
+      if (mem_proj != NULL) {
+        igvn->replace_node(mem_proj, init->in(TypeFunc::Memory));
+      }
+    }
     return NULL;
   }
 

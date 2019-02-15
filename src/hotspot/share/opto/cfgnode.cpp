@@ -373,7 +373,7 @@ bool RegionNode::is_unreachable_region(PhaseGVN *phase) const {
   return true; // The Region node is unreachable - it is dead.
 }
 
-bool RegionNode::try_clean_mem_phi(PhaseGVN *phase) {
+Node* PhiNode::try_clean_mem_phi(PhaseGVN *phase) {
   // Incremental inlining + PhaseStringOpts sometimes produce:
   //
   // cmpP with 1 top input
@@ -393,27 +393,25 @@ bool RegionNode::try_clean_mem_phi(PhaseGVN *phase) {
   // code below replaces the Phi with the MergeMem so that the Region
   // is simplified.
 
-  PhiNode* phi = has_unique_phi();
-  if (phi && phi->type() == Type::MEMORY && req() == 3 && phi->is_diamond_phi(true)) {
+  if (type() == Type::MEMORY && is_diamond_phi(true)) {
     MergeMemNode* m = NULL;
-    assert(phi->req() == 3, "same as region");
+    assert(req() == 3, "same as region");
     for (uint i = 1; i < 3; ++i) {
-      Node *mem = phi->in(i);
+      Node *mem = in(i);
       if (mem && mem->is_MergeMem() && in(i)->outcnt() == 1) {
         // Nothing is control-dependent on path #i except the region itself.
         m = mem->as_MergeMem();
         uint j = 3 - i;
-        Node* other = phi->in(j);
+        Node* other = in(j);
         if (other && other == m->base_memory()) {
           // m is a successor memory to other, and is not pinned inside the diamond, so push it out.
           // This will allow the diamond to collapse completely.
-          phase->is_IterGVN()->replace_node(phi, m);
-          return true;
+          return m;
         }
       }
     }
   }
-  return false;
+  return NULL;
 }
 
 //------------------------------Ideal------------------------------------------
@@ -428,8 +426,15 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   bool has_phis = false;
   if (can_reshape) {            // Need DU info to check for Phi users
     has_phis = (has_phi() != NULL);       // Cache result
-    if (has_phis && try_clean_mem_phi(phase)) {
-      has_phis = false;
+    if (has_phis) {
+      PhiNode* phi = has_unique_phi();
+      if (phi != NULL) {
+        Node* m = phi->try_clean_mem_phi(phase);
+        if (m != NULL) {
+          phase->is_IterGVN()->replace_node(phi, m);
+          has_phis = false;
+        }
+      }
     }
 
     if (!has_phis) {            // No Phi users?  Nothing merging?
@@ -1330,6 +1335,14 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
     Node* id = is_cmove_id(phase, true_path);
     if (id != NULL)  return id;
   }
+
+  if (phase->is_IterGVN()) {
+    Node* m = try_clean_mem_phi(phase);
+    if (m != NULL) {
+      return m;
+    }
+  }
+
 
   return this;                     // No identity
 }

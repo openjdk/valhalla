@@ -693,7 +693,7 @@ class GraphKit : public Phase {
 
   // Fill in argument edges for the call from argument(0), argument(1), ...
   // (The next step is to call set_edges_for_java_call.)
-  void  set_arguments_for_java_call(CallJavaNode* call);
+  void  set_arguments_for_java_call(CallJavaNode* call, bool incremental_inlining = false);
 
   // Fill in non-argument edges for the call.
   // Transform the call, and update the basics: control, i_o, memory.

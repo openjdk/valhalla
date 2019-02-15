@@ -755,4 +755,28 @@ public class TestBasicFunctionality extends ValueTypeTest {
         staticVal3.verify(vt);
         va[0].verify(vt);
     }
+
+    // Merge value types created from two branches
+
+    private Object test36_helper(Object v) {
+        return v;
+    }
+
+    @Test(failOn = ALLOC + STORE + TRAP)
+    public long test36(boolean b) {
+        Object o;
+        if (b) {
+            o = test36_helper(MyValue1.createWithFieldsInline(rI, rL));
+        } else {
+            o = test36_helper(MyValue1.createWithFieldsDontInline(rI + 1, rL + 1));
+        }
+        MyValue1 v = (MyValue1)o;
+        return v.hash();
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) {
+        Asserts.assertEQ(test36(true), hash());
+        Asserts.assertEQ(test36(false), hash(rI + 1, rL + 1));
+    }
 }
