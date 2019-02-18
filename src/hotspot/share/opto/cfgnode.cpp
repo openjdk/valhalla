@@ -396,9 +396,10 @@ Node* PhiNode::try_clean_mem_phi(PhaseGVN *phase) {
   if (type() == Type::MEMORY && is_diamond_phi(true)) {
     MergeMemNode* m = NULL;
     assert(req() == 3, "same as region");
+    Node* r = in(0);
     for (uint i = 1; i < 3; ++i) {
       Node *mem = in(i);
-      if (mem && mem->is_MergeMem() && in(i)->outcnt() == 1) {
+      if (mem && mem->is_MergeMem() && r->in(i)->outcnt() == 1) {
         // Nothing is control-dependent on path #i except the region itself.
         m = mem->as_MergeMem();
         uint j = 3 - i;
