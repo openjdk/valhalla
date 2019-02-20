@@ -72,9 +72,9 @@ value public final class MyValue1 implements MyInterface {
         v = setO(v, new Integer(x));
         int[] oa = {x};
         v = setOA(v, oa);
-        v = setV1(v, MyValue2.createWithFieldsInline(x, true));
-        v = setV2(v, MyValue2.createWithFieldsInline(x, false));
-        v = setC(v, ValueTypeTest.rI);
+        v = setV1(v, MyValue2.createWithFieldsInline(x, y, true));
+        v = setV2(v, MyValue2.createWithFieldsInline(x, y, false));
+        v = setC(v, (int)(x+y));
         return v;
     }
 

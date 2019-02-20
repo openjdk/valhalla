@@ -185,12 +185,15 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     // Merge value types created from two branches
     @Test(valid = ValueTypePassFieldsAsArgsOn, match = {LOAD}, matchCount = {12}, failOn = TRAP + ALLOC + STORE)
-    @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 5}, failOn = LOAD + TRAP)
-    public MyValue1 test9(boolean b) {
+    @Test(valid = ValueTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 12}, failOn = LOAD + TRAP)
+    public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
             // Value type is not allocated
-            v = MyValue1.createWithFieldsInline(rI, rL);
+            // Do not use rI/rL directly here as null values may cause
+            // some redundant null initializations to be optimized out
+            // and matching to fail.
+            v = MyValue1.createWithFieldsInline(localrI, localrL);
         } else {
             // Value type is allocated by the callee
             v = MyValue1.createWithFieldsDontInline(rI + 1, rL + 1);
@@ -208,10 +211,10 @@ public class TestBasicFunctionality extends ValueTypeTest {
 
     @DontCompile
     public void test9_verifier(boolean warmup) {
-        MyValue1 v = test9(true);
+        MyValue1 v = test9(true, rI, rL);
         Asserts.assertEQ(v.x, rI);
         Asserts.assertEQ(v.y, hash());
-        v = test9(false);
+        v = test9(false, rI, rL);
         Asserts.assertEQ(v.x, rI);
         Asserts.assertEQ(v.y, hash(rI + 1, rL + 1) + 1);
     }
