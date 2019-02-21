@@ -359,6 +359,7 @@ class Instruction: public CompilationResourceObj {
 
   enum InstructionFlag {
     NeedsNullCheckFlag = 0,
+    NeverNullFlag,          // For "Q" signatures
     CanTrapFlag,
     DirectCompareFlag,
     IsEliminatedFlag,
@@ -453,6 +454,8 @@ class Instruction: public CompilationResourceObj {
 
   void set_needs_null_check(bool f)              { set_flag(NeedsNullCheckFlag, f); }
   bool needs_null_check() const                  { return check_flag(NeedsNullCheckFlag); }
+  void set_never_null(bool f)                    { set_flag(NeverNullFlag, f); }
+  bool is_never_null() const                     { return check_flag(NeverNullFlag); }
   bool is_linked() const                         { return check_flag(IsLinkedInBlockFlag); }
   bool can_be_linked()                           { return as_Local() == NULL && as_Phi() == NULL; }
 
@@ -721,12 +724,13 @@ LEAF(Local, Instruction)
   ciType*  _declared_type;
  public:
   // creation
-  Local(ciType* declared, ValueType* type, int index, bool receiver)
+  Local(ciType* declared, ValueType* type, int index, bool receiver, bool never_null)
     : Instruction(type)
     , _java_index(index)
     , _is_receiver(receiver)
     , _declared_type(declared)
   {
+    set_never_null(never_null);
     NOT_PRODUCT(set_printable_bci(-1));
   }
 
@@ -1285,7 +1289,7 @@ LEAF(Invoke, StateSplit)
  public:
   // creation
   Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-         int vtable_index, ciMethod* target, ValueStack* state_before);
+         int vtable_index, ciMethod* target, ValueStack* state_before, bool never_null);
 
   // accessors
   Bytecodes::Code code() const                   { return _code; }
@@ -1364,6 +1368,7 @@ public:
     } else {
       _depends_on = depends_on;
     }
+    set_never_null(true);
   }
 
   // accessors
@@ -1514,11 +1519,12 @@ BASE(TypeCheck, StateSplit)
 
 
 LEAF(CheckCast, TypeCheck)
-  bool _is_never_null;
  public:
   // creation
   CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool never_null = false)
-  : TypeCheck(klass, obj, objectType, state_before), _is_never_null(never_null) {}
+  : TypeCheck(klass, obj, objectType, state_before) {
+    set_never_null(never_null);
+  }
 
   void set_incompatible_class_change_check() {
     set_flag(ThrowIncompatibleClassChangeErrorFlag, true);
@@ -1531,9 +1537,6 @@ LEAF(CheckCast, TypeCheck)
   }
   bool is_invokespecial_receiver_check() const {
     return check_flag(InvokeSpecialReceiverCheckFlag);
-  }
-  bool is_never_null() const {
-    return _is_never_null;
   }
 
   virtual bool needs_exception_state() const {

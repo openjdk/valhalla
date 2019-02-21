@@ -122,8 +122,6 @@ public:
 // Should only be instantiated and used by ciTypeFlow and ciSignature.
 class ciWrapper : public ciType {
   CI_PACKAGE_ACCESS
-  friend class ciSignature;
-  friend class ciTypeFlow;
 
 private:
   ciType* _type;

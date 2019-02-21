@@ -1722,6 +1722,8 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       CodeEmitInfo* info = new CodeEmitInfo(range_check_info);
       ciKlass* element_klass = x->array()->declared_type()->as_value_array_klass()->element_klass();
       flattened_array_store_check(value.result(), element_klass, info);
+    } else if (!x->value()->is_never_null()) {
+      __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
     access_flattened_array(false, array, index, value);
   } else {

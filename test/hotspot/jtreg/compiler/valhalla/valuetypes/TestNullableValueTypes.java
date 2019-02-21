@@ -641,4 +641,21 @@ public class TestNullableValueTypes extends ValueTypeTest {
             // Expected
         }
     }
+
+    @Test
+    public void test23(MyValue1[] arr, MyValue1.box b) {
+        arr[0] = b;
+    }
+
+    @DontCompile
+    public void test23_verifier(boolean warmup) {
+        MyValue1[] arr = new MyValue1[2];
+        MyValue1.box b = null;
+        try {
+            test23(arr, b);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
 }

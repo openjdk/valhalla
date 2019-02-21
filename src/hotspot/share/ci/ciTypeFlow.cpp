@@ -3072,7 +3072,7 @@ void ciTypeFlow::record_failure(const char* reason) {
 
 ciType* ciTypeFlow::mark_as_never_null(ciType* type) {
   // Wrap the type to carry the information that it is never null
-  return new (arena()) ciWrapper(type, /* never_null */ true);
+  return env()->make_never_null_wrapper(type);
 }
 
 #ifndef PRODUCT

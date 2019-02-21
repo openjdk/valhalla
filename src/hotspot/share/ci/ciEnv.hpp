@@ -482,6 +482,10 @@ public:
   void dump_replay_data(outputStream* out);
   void dump_replay_data_unsafe(outputStream* out);
   void dump_compile_data(outputStream* out);
+
+  ciWrapper* make_never_null_wrapper(ciType* type) {
+    return _factory->make_never_null_wrapper(type);
+  }
 };
 
 #endif // SHARE_CI_CIENV_HPP

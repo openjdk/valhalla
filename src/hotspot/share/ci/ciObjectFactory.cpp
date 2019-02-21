@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -647,6 +647,12 @@ ciReturnAddress* ciObjectFactory::get_return_address(int bci) {
   init_ident_of(new_ret_addr);
   _return_addresses->append(new_ret_addr);
   return new_ret_addr;
+}
+
+ciWrapper* ciObjectFactory::make_never_null_wrapper(ciType* type) {
+  ciWrapper* wrapper = new (arena()) ciWrapper(type, /* never_null */ true);
+  init_ident_of(wrapper);
+  return wrapper;
 }
 
 // ------------------------------------------------------------------

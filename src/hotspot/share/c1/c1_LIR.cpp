@@ -1433,7 +1433,8 @@ void LIR_List::checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
   // on the object.
   bool need_null_check = !is_never_null;
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_checkcast, result, object, klass,
-                                           tmp1, tmp2, tmp3, fast_check, info_for_exception, info_for_patch, stub);
+                                           tmp1, tmp2, tmp3, fast_check, info_for_exception, info_for_patch, stub,
+                                           need_null_check);
   if (profiled_method != NULL) {
     c->set_profiled_method(profiled_method);
     c->set_profiled_bci(profiled_bci);

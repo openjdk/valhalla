@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,7 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
         type = env->get_klass_by_name_impl(_accessing_klass, cpool, klass_name, false);
       }
       if (type->is_valuetype() && ss.type() == T_VALUETYPE) {
-        type = new (arena) ciWrapper(type, /* never_null */ true);
+        type = env->make_never_null_wrapper(type);
       }
     }
     _types->append(type);
@@ -94,20 +94,21 @@ ciSignature::ciSignature(ciKlass* accessing_klass, ciSymbol* symbol, ciMethodTyp
 {
   ASSERT_IN_VM;
   EXCEPTION_CONTEXT;
-  Arena* arena = CURRENT_ENV->arena();
+  ciEnv* env =  CURRENT_ENV;
+  Arena* arena = env->arena();
   _types = new (arena) GrowableArray<ciType*>(arena, _count + 1, 0, NULL);
   ciType* type = NULL;
   bool never_null = false;
   for (int i = 0; i < _count; i++) {
     type = method_type->ptype_at(i, never_null);
     if (type->is_valuetype() && never_null) {
-      type = new (arena) ciWrapper(type, /* never_null */ true);
+      type = env->make_never_null_wrapper(type);
     }
     _types->append(type);
   }
   type = method_type->rtype(never_null);
   if (type->is_valuetype() && never_null) {
-    type = new (arena) ciWrapper(type, /* never_null */ true);
+    type = env->make_never_null_wrapper(type);
   }
   _types->append(type);
 }

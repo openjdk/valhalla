@@ -2263,7 +2263,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
-  Invoke* result = new Invoke(code, result_type, recv, args, vtable_index, target, state_before);
+  Invoke* result = new Invoke(code, result_type, recv, args, vtable_index, target, state_before,
+                              declared_signature->returns_never_null());
   // push result
   append_split(result);
 
@@ -3342,7 +3343,8 @@ ValueStack* GraphBuilder::state_at_entry() {
   int idx = 0;
   if (!method()->is_static()) {
     // we should always see the receiver
-    state->store_local(idx, new Local(method()->holder(), objectType, idx, true));
+    state->store_local(idx, new Local(method()->holder(), objectType, idx,
+             /*receiver*/ true, /*never_null*/ method()->holder()->is_value_array_klass()));
     idx = 1;
   }
 
@@ -3354,7 +3356,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (basic_type == T_ARRAY || basic_type == T_VALUETYPE) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false));
+    state->store_local(idx, new Local(type, vt, idx, false, sig->is_never_null_at(i)));
     idx += type->size();
   }
 
