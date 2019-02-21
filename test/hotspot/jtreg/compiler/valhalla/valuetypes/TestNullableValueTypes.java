@@ -658,4 +658,21 @@ public class TestNullableValueTypes extends ValueTypeTest {
             // Expected
         }
     }
+
+    static MyValue1.box nullBox;
+
+    @Test
+    public MyValue1 test24() {
+        return nullBox;
+    }
+
+    @DontCompile
+    public void test24_verifier(boolean warmup) {
+        try {
+            test24();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
 }

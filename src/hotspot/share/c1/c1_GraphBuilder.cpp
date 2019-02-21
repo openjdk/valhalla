@@ -1669,12 +1669,15 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
   Value default_value = NULL;
   bool needs_deopt = false;
   if (code == Bytecodes::_getstatic && !field->is_static_constant() &&
-      field->layout_type() == T_VALUETYPE) {
+      field->layout_type() == T_VALUETYPE && field->is_flattenable()) {
     value_klass = field->type()->as_value_klass();
     if (holder->is_loaded()) {
       ciInstance* mirror = field->holder()->java_mirror();
       ciObject* val = mirror->field_value(field).as_object();
-      if (!val->is_null_object()) {
+      if (val->is_null_object()) {
+        // This is a non-nullable static field, but it's not initialized.
+        // We need to do a null check, and replace it with the default value.
+      } else {
         // No need to perform null check on this static field
         value_klass = NULL;
       }
@@ -1739,9 +1742,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (state_before == NULL) {
           state_before = copy_state_for_exception();
         }
-        push(type, append(new LoadField(append(obj), offset, field, true,
+        LoadField* load_field = new LoadField(append(obj), offset, field, true,
                                         state_before, needs_patching,
-                                        value_klass, default_value)));
+                                        value_klass, default_value);
+        if (field->layout_type() == T_VALUETYPE && field->is_flattenable()) {
+          load_field->set_never_null(true);
+        }
+        push(type, append(load_field));
       }
       break;
     }
