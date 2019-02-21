@@ -636,8 +636,8 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   }
 
   NOT_PRODUCT(_overflow_counter = CMSMarkStackOverflowInterval;)
-  _gc_counters = new CollectorCounters("CMS", 1);
-  _cgc_counters = new CollectorCounters("CMS stop-the-world phases", 2);
+  _gc_counters = new CollectorCounters("CMS full collection pauses", 1);
+  _cgc_counters = new CollectorCounters("CMS concurrent cycle pauses", 2);
   _completed_initialization = true;
   _inter_sweep_timer.start();  // start of time
 }
@@ -2761,7 +2761,7 @@ CMSPhaseAccounting::CMSPhaseAccounting(CMSCollector *collector,
 CMSPhaseAccounting::~CMSPhaseAccounting() {
   _collector->gc_timer_cm()->register_gc_concurrent_end();
   _collector->stopTimer();
-  log_debug(gc)("Concurrent active time: %.3fms", TimeHelper::counter_to_seconds(_collector->timerTicks()));
+  log_debug(gc)("Concurrent active time: %.3fms", TimeHelper::counter_to_millis(_collector->timerTicks()));
   log_trace(gc)(" (CMS %s yielded %d times)", _title, _collector->yields());
 }
 

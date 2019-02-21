@@ -36,8 +36,6 @@ package gc.logging;
 
 import java.lang.ref.SoftReference;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import java.util.regex.Pattern;
@@ -133,7 +131,6 @@ public class TestPrintReferences {
 
     // Find the first Reference Processing log and check its format.
     private static void checkLogFormat(OutputAnalyzer output, boolean parallelRefProcEnabled) {
-        String countRegex = "[0-9]+";
         String timeRegex = doubleRegex + "ms";
 
         /* Total Reference processing time */

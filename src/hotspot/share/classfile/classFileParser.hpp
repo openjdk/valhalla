@@ -511,6 +511,8 @@ class ClassFileParser {
                      FieldLayoutInfo* info,
                      TRAPS);
 
+   void update_class_name(Symbol* new_name);
+
   // Check if the class file supports value types
   bool supports_value_types() const;
 

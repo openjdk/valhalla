@@ -1194,9 +1194,6 @@ void InterpreterRuntime::resolve_invokedynamic(JavaThread* thread) {
   LastFrameAccessor last_frame(thread);
   const Bytecodes::Code bytecode = Bytecodes::_invokedynamic;
 
-  //TO DO: consider passing BCI to Java.
-  //  int caller_bci = last_frame.method()->bci_from(last_frame.bcp());
-
   // resolve method
   CallInfo info;
   constantPoolHandle pool(thread, last_frame.method()->constants());

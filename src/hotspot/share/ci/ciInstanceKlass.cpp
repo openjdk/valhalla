@@ -751,22 +751,31 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       _out->print(INT64_FORMAT, *(int64_t*)&d);
       break;
     }
-    case T_ARRAY:
+    case T_ARRAY:  // fall-through
     case T_OBJECT: {
       oop value =  mirror->obj_field_acquire(fd->offset());
       if (value == NULL) {
-        _out->print("null");
-      } else {
-        _out->print("%s", value->klass()->signature_name());
-        if (value->is_array()) {
-          _out->print(" %d", ((arrayOop)value)->length());
-        } else {
-          assert(value->is_instance() && bt == T_OBJECT, "what else?");
-          if (value->is_a(SystemDictionary::String_klass())) {
-            const char* ascii_value = java_lang_String::as_quoted_ascii(value);
-            _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
-          }
+        _out->print_cr("null");
+      } else if (value->is_instance()) {
+        assert(fd->field_type() == T_OBJECT, "");
+        if (value->is_a(SystemDictionary::String_klass())) {
+          const char* ascii_value = java_lang_String::as_quoted_ascii(value);
+          _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
+         } else {
+          const char* klass_name  = value->klass()->name()->as_quoted_ascii();
+          _out->print_cr("%s", klass_name);
         }
+      } else if (value->is_array()) {
+        typeArrayOop ta = (typeArrayOop)value;
+        _out->print("%d", ta->length());
+        if (value->is_objArray() || value->is_valueArray()) {
+          objArrayOop oa = (objArrayOop)value;
+          const char* klass_name  = value->klass()->name()->as_quoted_ascii();
+          _out->print(" %s", klass_name);
+        }
+        _out->cr();
+      } else {
+        ShouldNotReachHere();
       }
       break;
     }
