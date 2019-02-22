@@ -617,17 +617,6 @@ Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* 
         assert(UseCompressedOops, "unexpected narrow oop");
         value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
       }
-      /*
-      // TODO attempt scalarization here?
-      if (vt->field_is_flattenable(i)) {
-        // Loading a non-flattened but flattenable value type from memory
-        if (field_type->as_value_klass()->is_scalarizable()) {
-          value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass());
-        } else {
-          value = kit->filter_null(value, true, ft->as_value_klass());
-        }
-      }
-      */
     }
     if (value != NULL) {
       vt->set_field_value(i, value);
