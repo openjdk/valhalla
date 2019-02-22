@@ -267,6 +267,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
 
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
+  bool needs_flattened_array_store_check(StoreIndexed* x);
   void check_flattened_array(LIRItem& array, CodeStub* slow_path);
 
  public:

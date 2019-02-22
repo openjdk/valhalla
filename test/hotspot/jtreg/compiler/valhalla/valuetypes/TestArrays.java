@@ -1641,4 +1641,31 @@ public class TestArrays extends ValueTypeTest {
         test72(arr, true, elem);
         test72(arr, false, elem);
     }
+
+    @Test
+    public void test73(Object[] oa, MyValue1 v, Object o) {
+        // TestLWorld.test38 use a C1 Phi node for the array. This test
+        // adds the case where the stored value is a C1 Phi node.
+        Object o2 = (o == null) ? v : o;
+        oa[0] = v;  // The stored value is known to be flattenable
+        oa[1] = o;  // The stored value may be flattenable
+        oa[2] = o2; // The stored value may be flattenable (a C1 Phi node)
+        oa[0] = oa; // The stored value is known to be not flattenable (an Object[])
+    }
+
+    @DontCompile
+    public void test73_verifier(boolean warmup) {
+        MyValue1 v0 = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
+        MyValue1[] arr = new MyValue1[3];
+        try {
+            test73(arr, v0, v1);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException t) {
+            // expected
+        }
+        Asserts.assertEQ(arr[0].hash(), v0.hash());
+        Asserts.assertEQ(arr[1].hash(), v1.hash());
+        Asserts.assertEQ(arr[2].hash(), v1.hash());
+    }
 }

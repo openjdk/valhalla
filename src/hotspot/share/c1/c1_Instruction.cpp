@@ -147,7 +147,7 @@ bool Instruction::is_loaded_flattened_array() const {
   return false;
 }
 
-bool Instruction::maybe_flattened_array() const {
+bool Instruction::maybe_flattened_array() {
   if (ValueArrayFlatten) {
     ciType* type = declared_type();
     if (type != NULL) {
@@ -167,6 +167,10 @@ bool Instruction::maybe_flattened_array() const {
           return true;
         }
       }
+    } else if (as_Phi() != NULL) {
+      // Type info gets lost during Phi merging, but we might be storing into a
+      // flattened array, so we should do a runtime check.
+      return true;
     }
   }
 

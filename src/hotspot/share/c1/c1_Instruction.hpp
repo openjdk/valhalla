@@ -511,7 +511,7 @@ class Instruction: public CompilationResourceObj {
   bool is_flattened_array() const;             // FIXME -- remove it
 
   bool is_loaded_flattened_array() const;
-  bool maybe_flattened_array() const;
+  bool maybe_flattened_array();
 
   Instruction *insert_after_same_bci(Instruction *i) {
 #ifndef PRODUCT
