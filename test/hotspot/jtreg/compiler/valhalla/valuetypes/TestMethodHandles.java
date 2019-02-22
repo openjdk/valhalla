@@ -37,7 +37,6 @@ import jdk.test.lib.Asserts;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
- *                               -DVerifyIR=false
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestMethodHandles
  */
@@ -150,7 +149,7 @@ public class TestMethodHandles extends ValueTypeTest {
     static final MethodHandle test1_mh;
 
     @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
-    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 12 })
+    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 14 })
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
@@ -311,8 +310,7 @@ public class TestMethodHandles extends ValueTypeTest {
     static final MethodHandle test7_mh;
     static MethodHandle test7_mh1;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test
     public long test7() throws Throwable {
         return ((MyValue2)test7_mh.invokeExact(test7_mh1)).hash();
     }
@@ -345,8 +343,7 @@ public class TestMethodHandles extends ValueTypeTest {
     static final MethodHandle test8_mh;
     static MethodHandle test8_mh2;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test
     public long test8() throws Throwable {
         return ((MyValue2)test8_mh.invokeExact(test8_mh2)).hash();
     }
@@ -440,8 +437,7 @@ public class TestMethodHandles extends ValueTypeTest {
     static MethodHandle test10_mh2;
     static MethodHandle test10_mh3;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test
     public long test10() throws Throwable {
         return ((MyValue2)test10_mh.invokeExact(test10_mh2, test10_mh3)).hash();
     }
@@ -481,8 +477,7 @@ public class TestMethodHandles extends ValueTypeTest {
 
     // Check that a buffered value returned by a compiled lambda form
     // is properly handled by the caller.
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test
     @Warmup(11000)
     public long test11() throws Throwable {
         return ((MyValue2)test11_mh.invokeExact(test11_mh2)).hash();

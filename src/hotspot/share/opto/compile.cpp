@@ -2070,6 +2070,32 @@ void Compile::remove_value_type(Node* n) {
   }
 }
 
+// Does the return value keep otherwise useless value type allocations
+// alive?
+static bool return_val_keeps_allocations_alive(Node* ret_val) {
+  ResourceMark rm;
+  Unique_Node_List wq;
+  wq.push(ret_val);
+  bool some_allocations = false;
+  for (uint i = 0; i < wq.size(); i++) {
+    Node* n = wq.at(i);
+    assert(!n->is_ValueTypeBase(), "chain of value type nodes");
+    if (n->outcnt() > 1) {
+      // Some other use for the allocation
+      return false;
+    } else if (n->is_Phi()) {
+      for (uint j = 1; j < n->req(); j++) {
+        wq.push(n->in(j));
+      }
+    } else if (n->is_CheckCastPP() &&
+               n->in(1)->is_Proj() &&
+               n->in(1)->in(0)->is_Allocate()) {
+      some_allocations = true;
+    }
+  }
+  return some_allocations;
+}
+
 void Compile::process_value_types(PhaseIterGVN &igvn) {
   // Make value types scalar in safepoints
   while (_value_type_nodes->size() != 0) {
@@ -2077,13 +2103,30 @@ void Compile::process_value_types(PhaseIterGVN &igvn) {
     vt->make_scalar_in_safepoints(&igvn);
     if (vt->is_ValueTypePtr()) {
       igvn.replace_node(vt, vt->get_oop());
-    } else {
-      if (vt->outcnt() == 0) {
-        igvn.remove_dead_node(vt);
-      }
+    } else if (vt->outcnt() == 0) {
+      igvn.remove_dead_node(vt);
     }
   }
   _value_type_nodes = NULL;
+  if (tf()->returns_value_type_as_fields()) {
+    Node* ret = NULL;
+    for (uint i = 1; i < root()->req(); i++){
+      Node* in = root()->in(i);
+      if (in->Opcode() == Op_Return) {
+        assert(ret == NULL, "only one return");
+        ret = in;
+      }
+    }
+    if (ret != NULL) {
+      Node* ret_val = ret->in(TypeFunc::Parms);
+      if (igvn.type(ret_val)->isa_oopptr() &&
+          return_val_keeps_allocations_alive(ret_val)) {
+        igvn.replace_input_of(ret, TypeFunc::Parms, ValueTypeNode::tagged_klass(igvn.type(ret_val)->value_klass(), igvn));
+        assert(ret_val->outcnt() == 0, "should be dead now");
+        igvn.remove_dead_node(ret_val);
+      }
+    }
+  }
   igvn.optimize();
 }
 

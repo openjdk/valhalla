@@ -134,7 +134,10 @@ public:
   // Allocate all non-flattened value type fields
   Node* allocate_fields(GraphKit* kit);
 
-  Node* tagged_klass(PhaseGVN& gvn);
+  Node* tagged_klass(PhaseGVN& gvn) {
+    return tagged_klass(value_klass(), gvn);
+  }
+  static Node* tagged_klass(ciValueKlass* vk, PhaseGVN& gvn);
   // Pass value type as fields at a call or return
   void pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input, int base_offset = 0);
   // Initialize the value type fields with the inputs or outputs of a MultiNode

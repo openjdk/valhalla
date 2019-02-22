@@ -662,8 +662,7 @@ Node* ValueTypeNode::allocate_fields(GraphKit* kit) {
   return vt;
 }
 
-Node* ValueTypeNode::tagged_klass(PhaseGVN& gvn) {
-  ciValueKlass* vk = value_klass();
+Node* ValueTypeNode::tagged_klass(ciValueKlass* vk, PhaseGVN& gvn) {
   const TypeKlassPtr* tk = TypeKlassPtr::make(vk);
   intptr_t bits = tk->get_con();
   set_nth_bit(bits, 0);
