@@ -1519,7 +1519,7 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 Node *AllocateNode::make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, Node* mem, Node* klass_node) {
   Node* mark_node = NULL;
   // For now only enable fast locking for non-array types
-  if ((EnableValhalla || UseBiasedLocking) && Opcode() ==  Op_Allocate) {
+  if ((EnableValhalla || UseBiasedLocking) && Opcode() == Op_Allocate) {
     if (klass_node == NULL) {
       Node* k_adr = phase->transform(new AddPNode(obj, obj, phase->MakeConX(oopDesc::klass_offset_in_bytes())));
       klass_node = phase->transform(LoadKlassNode::make(*phase, NULL, phase->C->immutable_memory(), k_adr, phase->type(k_adr)->is_ptr()));
@@ -1529,11 +1529,9 @@ Node *AllocateNode::make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, N
   } else {
     mark_node = phase->MakeConX((intptr_t)markOopDesc::prototype());
   }
-  if (_larval) {
-    mark_node = phase->transform(mark_node);
-    mark_node = new OrXNode(mark_node, phase->MakeConX(markOopDesc::larval_state_pattern));
-  }
-  return mark_node;
+  mark_node = phase->transform(mark_node);
+  // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
+  return new OrXNode(mark_node, phase->MakeConX(_larval ? markOopDesc::larval_state_pattern : 0));
 }
 
 
