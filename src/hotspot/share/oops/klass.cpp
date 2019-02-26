@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -700,6 +700,9 @@ const char* Klass::external_name() const {
       strcpy(result + name_len, addr_buf);
       assert(strlen(result) == name_len + addr_len, "");
       return result;
+    } else if (ik->is_nonfindable()) {
+      assert(ik->nonf_external_name() != NULL, "Nonfindable klass has null name");
+      return ik->nonf_external_name()->as_klass_external_name();
     }
   }
   if (name() == NULL)  return "<unknown>";

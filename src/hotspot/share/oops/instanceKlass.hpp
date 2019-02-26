@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -180,6 +180,9 @@ class InstanceKlass: public Klass {
   // Resolved nest-host klass: either true nest-host or self if we are not nested.
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
+
+  // Provided name for nonfindable classes.
+  Symbol*         _nonf_external_name;
 
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
@@ -462,6 +465,14 @@ class InstanceKlass: public Klass {
   void set_nest_host_index(u2 i)  { _nest_host_index = i; }
   // dynamic nest member support
   void set_nest_host(InstanceKlass* host, TRAPS);
+
+  // Store external name for a nonfindable class.
+  void set_nonf_external_name(Symbol* name) {
+    assert(name == NULL || is_nonfindable(), "Must be nonfindable class");
+    _nonf_external_name = name;
+  }
+
+  Symbol* nonf_external_name() const { return _nonf_external_name; }
 
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host

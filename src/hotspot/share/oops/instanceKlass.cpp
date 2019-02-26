@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -471,6 +471,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _nest_members(NULL),
   _nest_host_index(0),
   _nest_host(NULL),
+  _nonf_external_name(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
@@ -2556,6 +2557,8 @@ void InstanceKlass::release_C_heap_structures() {
 
   // Decrement symbol reference counts associated with the unloaded class.
   if (_name != NULL) _name->decrement_refcount();
+  if (_nonf_external_name != NULL) _nonf_external_name->decrement_refcount();
+
   // unreference array name derived from this class name (arrays of an unloaded
   // class can't be referenced anymore).
   if (_array_name != NULL)  _array_name->decrement_refcount();
@@ -2653,12 +2656,12 @@ ModuleEntry* InstanceKlass::module() const {
     // For now option #2 is used since a nest host is not set until
     // after the instance class is created in jvm_lookup_define_class().
     if (class_loader_data()->is_boot_class_loader_data()) {
-      return ClassLoaderData::the_null_class_loader_data()->unnamed_module(); 
+      return ClassLoaderData::the_null_class_loader_data()->unnamed_module();
     } else {
       oop module = java_lang_ClassLoader::unnamedModule(class_loader_data()->class_loader());
       assert(java_lang_Module::is_instance(module), "Not an instance of java.lang.Module");
       return java_lang_Module::module_entry(module);
-    } 
+    }
   }
 
   // Class is in a named package

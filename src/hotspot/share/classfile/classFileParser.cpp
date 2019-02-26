@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -5564,6 +5564,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Set name and CLD before adding to CLD
   ik->set_class_loader_data(_loader_data);
   ik->set_name(_class_name);
+  ik->set_nonf_external_name(_nonf_class_name);
 
   // Add all classes to our internal class loader list here,
   // including classes in the bootstrap (NULL) class loader.
@@ -5865,6 +5866,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  Publicity pub_level,
                                  TRAPS) :
   _stream(stream),
+  _nonf_class_name(NULL),
   _loader_data(loader_data),
   _unsafe_anonymous_host(unsafe_anonymous_host),
   _cp_patches(cp_patches),
@@ -6172,10 +6174,10 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // un-named, nonfindable or unsafe-anonymous class.
 
   if (_is_nonfindable) {
-    // Replace the CP name with given _class_name and bump its reference count
-    cp->symbol_at_put(cp->klass_name_index_at(_this_class_index), _class_name);
-    _class_name->increment_refcount();
-    class_name_in_cp->decrement_refcount(); // no longer in cp
+    // Save the given _class_name before overwriting it with name in constant pool.
+    _nonf_class_name = _class_name;
+    _nonf_class_name->increment_refcount();
+     _class_name = class_name_in_cp;
   } else {
     // NOTE: !_is_nonfindable does not imply "findable" as it could be an old-style
     //       "non-findable" unsafe-anonymous class
