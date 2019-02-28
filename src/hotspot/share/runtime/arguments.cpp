@@ -2088,7 +2088,6 @@ bool Arguments::check_vm_args_consistency() {
   if (!EnableValhalla && ACmpOnValues != 3) {
     FLAG_SET_CMDLINE(uint, ACmpOnValues, 0);
   }
-  
   return status;
 }
 
