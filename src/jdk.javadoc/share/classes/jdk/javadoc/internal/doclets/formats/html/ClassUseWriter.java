@@ -241,7 +241,7 @@ public class ClassUseWriter extends SubWriterHolderWriter {
         addBottom(footer);
         body.addContent(footer);
         String description = getDescription("use", typeElement);
-        printHtmlDocument(null, description, true, body);
+        printHtmlDocument(null, description, body);
     }
 
     /**

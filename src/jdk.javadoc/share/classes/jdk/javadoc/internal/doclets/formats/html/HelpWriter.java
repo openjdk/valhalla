@@ -100,7 +100,7 @@ public class HelpWriter extends HtmlDocletWriter {
         htmlTree.addContent(navBar.getContent(false));
         addBottom(htmlTree);
         body.addContent(htmlTree);
-        printHtmlDocument(null, "help", true, body);
+        printHtmlDocument(null, "help", body);
     }
 
     /**

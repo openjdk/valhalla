@@ -146,7 +146,6 @@ public abstract class AbstractModuleIndexWriter extends HtmlDocletWriter {
         printHtmlDocument(
                 configuration.metakeywords.getOverviewMetaKeywords(title, configuration.doctitle),
                 description,
-                includeScript,
                 body);
     }
 
@@ -179,7 +178,6 @@ public abstract class AbstractModuleIndexWriter extends HtmlDocletWriter {
         printHtmlDocument(
                 configuration.metakeywords.getOverviewMetaKeywords(title, configuration.doctitle),
                 description,
-                includeScript,
                 body);
     }
 

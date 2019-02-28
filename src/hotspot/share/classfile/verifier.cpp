@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3053,19 +3053,17 @@ void ClassVerifier::verify_anewarray(
     }
     // add one dimension to component
     length++;
-    arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length);
-    arr_sig_str[0] = '[';
-    strncpy(&arr_sig_str[1], component_name, length - 1);
+    arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);
+    int n = os::snprintf(arr_sig_str, length + 1, "[%s", component_name);
+    assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
     char Q_or_L = component_type.is_valuetype() ? 'Q' : 'L';
     // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
-    arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length);
-    arr_sig_str[0] = '[';
-    arr_sig_str[1] = Q_or_L;
-    strncpy(&arr_sig_str[2], component_name, length - 2);
-    arr_sig_str[length - 1] = ';';
+    arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);
+    int n = os::snprintf(arr_sig_str, length + 1, "[%c%s;", Q_or_L, component_name);
+    assert(n == length, "Unexpected number of characters in string");
   }
   Symbol* arr_sig = create_temporary_symbol(
     arr_sig_str, length, CHECK_VERIFY(this));

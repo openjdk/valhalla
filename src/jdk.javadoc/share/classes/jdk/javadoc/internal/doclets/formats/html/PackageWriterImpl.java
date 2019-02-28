@@ -319,6 +319,6 @@ public class PackageWriterImpl extends HtmlDocletWriter
         String description = getDescription("declaration", packageElement);
         Content stylesheetContent = getLocalStylesheetContent(packageElement);
         printHtmlDocument(configuration.metakeywords.getMetaKeywords(packageElement),
-                description, true, stylesheetContent, contentTree);
+                description, stylesheetContent, contentTree);
     }
 }

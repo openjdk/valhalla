@@ -916,7 +916,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     public void printDocument(Content contentTree) throws DocFileIOException {
         printHtmlDocument(configuration.metakeywords.getMetaKeywordsForModule(mdle),
                 getDescription("declaration", mdle),
-                true, contentTree);
+                contentTree);
     }
 
     /**

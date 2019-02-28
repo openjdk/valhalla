@@ -423,17 +423,14 @@ public class HtmlDocletWriter {
      *                     of the array is assigned to a separate META tag.
      *                     Pass in null for no array
      * @param description the content for the description META tag.
-     * @param includeScript true if printing windowtitle script
-     *                      false for files that appear in the left-hand frames
      * @param body the body htmltree to be included in the document
      * @throws DocFileIOException if there is a problem writing the file
      */
     public void printHtmlDocument(List<String> metakeywords,
                                   String description,
-                                  boolean includeScript,
                                   Content body)
             throws DocFileIOException {
-        printHtmlDocument(metakeywords, description, includeScript, new ContentBuilder(), body);
+        printHtmlDocument(metakeywords, description, new ContentBuilder(), body);
     }
 
     /**
@@ -443,15 +440,12 @@ public class HtmlDocletWriter {
      *                     of the array is assigned to a separate META tag.
      *                     Pass in null for no array
      * @param description the content for the description META tag.
-     * @param includeScript true if printing windowtitle script
-     *                      false for files that appear in the left-hand frames
      * @param extraHeadContent any additional content to be included in the HEAD element
      * @param body the body htmltree to be included in the document
      * @throws DocFileIOException if there is a problem writing the file
      */
     public void printHtmlDocument(List<String> metakeywords,
                                   String description,
-                                  boolean includeScript,
                                   Content extraHeadContent,
                                   Content body)
             throws DocFileIOException {
@@ -1658,7 +1652,7 @@ public class HtmlDocletWriter {
      * If this link appeared in the index, we would redirect
      * the link like this:
      *
-     * {@literal <a href="./com/sun/javadoc/package-summary.html">The package Page</a>}
+     * {@literal <a href="./jdk/javadoc/doclet/package-summary.html">The package Page</a>}
      *
      * @param element the Element object whose documentation is being written.
      * @param tt the text being written.

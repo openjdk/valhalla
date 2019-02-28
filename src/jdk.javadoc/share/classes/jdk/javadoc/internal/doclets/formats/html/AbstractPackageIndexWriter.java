@@ -130,7 +130,7 @@ public abstract class AbstractPackageIndexWriter extends HtmlDocletWriter {
         body.addContent(footer);
         printHtmlDocument(
                 configuration.metakeywords.getOverviewMetaKeywords(title, configuration.doctitle),
-                description, includeScript, body);
+                description, body);
     }
 
     /**
