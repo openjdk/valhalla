@@ -166,6 +166,9 @@ bool Instruction::maybe_flattened_array() {
           // We will add a runtime check for flat-ness.
           return true;
         }
+      } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
+        // This can happen as a parameter to System.arraycopy()
+        return true;
       }
     } else if (as_Phi() != NULL) {
       // Type info gets lost during Phi merging, but we might be storing into a

@@ -3045,6 +3045,21 @@ void LIR_Assembler::store_parameter(Metadata* m,  int offset_from_rsp_in_words) 
 }
 
 
+void LIR_Assembler::arraycopy_flat_check(Register obj, Register tmp, CodeStub* slow_path) {
+  Address klass_addr = Address(obj, oopDesc::klass_offset_in_bytes());
+  if (UseCompressedClassPointers) {
+    __ movl(tmp, klass_addr);
+    LP64_ONLY(__ decode_klass_not_null(tmp));
+  } else {
+    __ movptr(tmp, klass_addr);
+  }
+  __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
+  __ sarl(tmp, Klass::_lh_array_tag_shift);
+  __ cmpl(tmp, Klass::_lh_array_tag_vt_value);
+  __ jcc(Assembler::equal, *slow_path->entry());
+}
+
+
 // This code replaces a call to arraycopy; no exception may
 // be thrown in this code, they must be thrown in the System.arraycopy
 // activation frame; we could save some checks if this would not be the case
@@ -3064,6 +3079,30 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
   if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+
+  if (flags & LIR_OpArrayCopy::always_slow_path) {
+    __ jmp(*stub->entry());
+    __ bind(*stub->continuation());
+    return;
+  }
+
+  if (flags & LIR_OpArrayCopy::src_flat_check) {
+    arraycopy_flat_check(src, tmp, stub);
+  }
+
+  if (flags & LIR_OpArrayCopy::dst_flat_check) {
+    arraycopy_flat_check(dst, tmp, stub);
+  }
+
+  if (basic_type == T_VALUETYPE) {
+    assert(flags & (LIR_OpArrayCopy::always_slow_path |
+                    LIR_OpArrayCopy::src_flat_check |
+                    LIR_OpArrayCopy::dst_flat_check), "must have checked");
+    // If either src or dst is (or maybe) a flattened array, one of the 3 checks
+    // above would have caught it, and taken the slow path. So when we come here,
+    // the array must be a (non-flat) object array.
+    basic_type = T_OBJECT;
+  }
 
   // if we don't know anything, just go through the generic arraycopy
   if (default_type == NULL) {

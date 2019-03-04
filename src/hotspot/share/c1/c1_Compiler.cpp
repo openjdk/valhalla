@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -103,11 +103,6 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
 
   if (method->is_synchronized()) {
     // C1 does not support intrinsification of synchronized methods.
-    return false;
-  }
-
-  if (EnableValhalla && id == vmIntrinsics::_arraycopy) {
-    // FIXME: C1 doesn't support intrinsic copy of value arrays yet. Disable it for now.
     return false;
   }
 

@@ -1273,7 +1273,10 @@ public:
     unaligned              = 1 << 9,
     src_objarray           = 1 << 10,
     dst_objarray           = 1 << 11,
-    all_flags              = (1 << 12) - 1
+    always_slow_path       = 1 << 12,
+    src_flat_check         = 1 << 13,
+    dst_flat_check         = 1 << 14,
+    all_flags              = (1 << 15) - 1
   };
 
   LIR_OpArrayCopy(LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_Opr dst_pos, LIR_Opr length, LIR_Opr tmp,

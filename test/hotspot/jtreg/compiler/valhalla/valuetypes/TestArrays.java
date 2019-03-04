@@ -40,8 +40,20 @@ import java.util.Arrays;
  *                               compiler.valhalla.valuetypes.TestArrays
  */
 public class TestArrays extends ValueTypeTest {
-    // Deopt of System.arraycopy is not implemented in C1
-    static boolean DEOPT_ARRAY_COPY = !(ValueTypeTest.TEST_C1);
+    // Unlike C2, C1 intrinsics never deoptimize System.arraycopy. Instead, we fall back to
+    // a normal method invocation when encountering flattened arrays.
+    private static void assertDeoptimizedByC2(Method m) {
+        int CompLevel_none              = 0,         // Interpreter
+            CompLevel_simple            = 1,         // C1
+            CompLevel_limited_profile   = 2,         // C1, invocation & backedge counters
+            CompLevel_full_profile      = 3,         // C1, invocation & backedge counters + mdo
+            CompLevel_full_optimization = 4;         // C2 or JVMCI
+
+        if (!XCOMP && WHITE_BOX.isMethodCompiled(m, false) &&
+            WHITE_BOX.getMethodCompilationLevel(m, false) >= CompLevel_full_optimization) {
+            throw new RuntimeException("Type check should have caused it to deoptimize");
+        }
+    }
 
     // Extra VM parameters for some test scenarios. See ValueTypeTest.getVMParameters()
     @Override
@@ -930,9 +942,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test38");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
-                throw new RuntimeException("Type check should have caused it to deoptimize");
-            }
+            assertDeoptimizedByC2(m);
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test38(src, dst);
             verify(dst, src);
@@ -981,9 +991,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test40");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
-                throw new RuntimeException("Type check should have caused it to deoptimize");
-            }
+            assertDeoptimizedByC2(m);
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test40(src, dst);
             verify(dst, src);
@@ -1115,9 +1123,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test46");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
-                throw new RuntimeException("Type check should have caused it to deoptimize");
-            }
+            assertDeoptimizedByC2(m);
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test46(src, dst);
             verify(dst, src);
@@ -1164,9 +1170,7 @@ public class TestArrays extends ValueTypeTest {
         verify(dst, src);
         if (!warmup) {
             Method m = tests.get("TestArrays::test48");
-            if (WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && DEOPT_ARRAY_COPY) {
-                throw new RuntimeException("Type check should have caused it to deoptimize");
-            }
+            assertDeoptimizedByC2(m);
             WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test48(src, dst);
             verify(dst, src);

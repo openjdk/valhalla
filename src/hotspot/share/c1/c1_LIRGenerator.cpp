@@ -792,6 +792,16 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
   // of the required checks for a fast case can be elided.
   int flags = LIR_OpArrayCopy::all_flags;
 
+  if (!src->is_loaded_flattened_array() && !dst->is_loaded_flattened_array()) {
+    flags &= ~LIR_OpArrayCopy::always_slow_path;
+  }
+  if (!src->maybe_flattened_array()) {
+    flags &= ~LIR_OpArrayCopy::src_flat_check;
+  }
+  if (!dst->maybe_flattened_array()) {
+    flags &= ~LIR_OpArrayCopy::dst_flat_check;
+  }
+
   if (!src_objarray)
     flags &= ~LIR_OpArrayCopy::src_objarray;
   if (!dst_objarray)
