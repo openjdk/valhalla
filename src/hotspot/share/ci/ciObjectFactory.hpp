@@ -115,8 +115,7 @@ public:
   // Get a ciKlass representing an unloaded klass.
   ciKlass* get_unloaded_klass(ciKlass* accessing_klass,
                               ciSymbol* name,
-                              bool create_if_not_found,
-                              bool is_value_type = false);
+                              bool create_if_not_found);
 
   // Get a ciInstance representing an unresolved klass mirror.
   ciInstance* get_unloaded_klass_mirror(ciKlass* type);

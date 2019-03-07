@@ -252,10 +252,7 @@ class LoadFlattenedArrayStub: public CodeStub {
     if (_scratch_reg != LIR_OprFact::illegalOpr) {
       visitor->do_temp(_scratch_reg);
     }
-  // Tell the register allocator that the runtime call will scratch rax.
-  visitor->do_output(FrameMap::rax_oop_opr);
-}
-
+  }
 
 #ifndef PRODUCT
   virtual void print_name(outputStream* out) const { out->print("LoadFlattenedArrayStub"); }
@@ -268,6 +265,7 @@ class StoreFlattenedArrayStub: public CodeStub {
   LIR_Opr          _array;
   LIR_Opr          _index;
   LIR_Opr          _value;
+  LIR_Opr          _scratch_reg;
   CodeEmitInfo*    _info;
 
  public:
@@ -279,6 +277,9 @@ class StoreFlattenedArrayStub: public CodeStub {
     visitor->do_input(_array);
     visitor->do_input(_index);
     visitor->do_input(_value);
+    if (_scratch_reg != LIR_OprFact::illegalOpr) {
+      visitor->do_temp(_scratch_reg);
+    }
   }
 #ifndef PRODUCT
   virtual void print_name(outputStream* out) const { out->print("StoreFlattenedArrayStub"); }

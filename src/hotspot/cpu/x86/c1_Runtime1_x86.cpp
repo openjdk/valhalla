@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1125,13 +1125,27 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ movl(t0, Address(klass, Klass::layout_helper_offset()));
           __ sarl(t0, Klass::_lh_array_tag_shift);
           switch (id) {
-          case new_type_array_id:    __ cmpl(t0, Klass::_lh_array_tag_type_value); break;
-          case new_object_array_id:  __ cmpl(t0, Klass::_lh_array_tag_obj_value);  break;
-          case new_value_array_id:   __ cmpl(t0, Klass::_lh_array_tag_vt_value);   break;
+          case new_type_array_id:
+            __ cmpl(t0, Klass::_lh_array_tag_type_value);
+            __ jcc(Assembler::equal, ok);
+            __ stop("assert(is a type array klass)");
+            break;
+          case new_object_array_id:
+          case new_value_array_id: // <-- needs to be renamed to new_non_null_array_id!
+            // FIXME:
+            // The VM currently does not distinguish between anewarray of
+            // "[QV;" (elements are non-nullable) vs "[LV;" (elements may be null).
+            // Instead, both are treated essentially as "[QV;". This code needs
+            // to be reimplemented after proper support of "[LV;" is implemented in the VM.
+            //
+            __ cmpl(t0, Klass::_lh_array_tag_obj_value);
+            __ jcc(Assembler::equal, ok);
+            __ cmpl(t0, Klass::_lh_array_tag_vt_value);
+            __ jcc(Assembler::equal, ok);
+            __ stop("assert(is an object or value array klass)");
+            break;
           default:  ShouldNotReachHere();
           }
-          __ jcc(Assembler::equal, ok);
-          __ stop("assert(is an array klass)");
           __ should_not_reach_here();
           __ bind(ok);
         }
@@ -1185,7 +1199,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
         } else {
           // Runtime1::new_object_array handles both object and value arrays.
-          // new_value_array_id is needed only for the ASSERT block above.
+          // See comments in the ASSERT block above.
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         }
 

@@ -142,7 +142,8 @@ ciSymbol* ciValueArrayKlass::construct_array_name(ciSymbol* element_name,
 ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
   assert(ValueArrayFlatten, "should only be used for flattened value type arrays");
   assert(element_klass->is_valuetype(), "element type must be value type");
-  if (element_klass->is_loaded()) {
+  assert(element_klass->is_loaded(), "unloaded Q klasses are represented by ciInstanceKlass");
+  {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
     Klass* array = element_klass->get_Klass()->array_klass(THREAD);
@@ -155,17 +156,6 @@ ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
     }
     return CURRENT_THREAD_ENV->get_value_array_klass(array);
   }
-
-  // The array klass was unable to be made or the element klass was
-  // not loaded.
-  ciSymbol* array_name = construct_array_name(element_klass->name(), 1);
-  if (array_name == ciEnv::unloaded_cisymbol()) {
-    //return ciEnv::unloaded_ciobjarrayklass();
-    assert(0, "FIXME");
-  }
-  return
-    CURRENT_ENV->get_unloaded_klass(element_klass, array_name, false)
-                        ->as_value_array_klass();
 }
 
 // ------------------------------------------------------------------

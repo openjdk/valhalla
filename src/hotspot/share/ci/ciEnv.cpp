@@ -391,8 +391,7 @@ bool ciEnv::check_klass_accessibility(ciKlass* accessing_klass,
 ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                                        const constantPoolHandle& cpool,
                                        ciSymbol* name,
-                                       bool require_local,
-                                       bool is_value_type) {
+                                       bool require_local) {
   ASSERT_IN_VM;
   EXCEPTION_CONTEXT;
 
@@ -406,8 +405,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                     sym->utf8_length()-2,
                     KILL_COMPILE_ON_FATAL_(_unloaded_ciinstance_klass));
     ciSymbol* strippedname = get_symbol(strippedsym);
-    is_value_type = (sym->char_at(0) == 'Q');
-    return get_klass_by_name_impl(accessing_klass, cpool, strippedname, require_local, is_value_type);
+    return get_klass_by_name_impl(accessing_klass, cpool, strippedname, require_local);
   }
 
   // Check for prior unloaded klass.  The SystemDictionary's answers
@@ -462,12 +460,11 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                                                  KILL_COMPILE_ON_FATAL_(fail_type));
 
     // Get element ciKlass recursively.
-    is_value_type = (sym->char_at(1) == 'Q');
     ciKlass* elem_klass =
       get_klass_by_name_impl(accessing_klass,
                              cpool,
                              get_symbol(elem_sym),
-                             require_local, is_value_type);
+                             require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
       if (elem_klass->is_valuetype() && elem_klass->as_value_klass()->flatten_array()) {
@@ -505,23 +502,17 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
     i++;
   }
   if (i > 0 && sym->char_at(i) == 'Q') {
-    if (EnableValhallaC1) {
-      return get_unloaded_klass(accessing_klass, name, true);
-    } else {
-      // FIXME - C2 can't handle unloaded ciValueKlass
-
-      // An unloaded array class of value types is an ObjArrayKlass, an
-      // unloaded value type class is an InstanceKlass. For consistency,
-      // make the signature of the unloaded array of value type use L
-      // rather than Q.
-      char *new_name = CURRENT_THREAD_ENV->name_buffer(sym->utf8_length()+1);
-      strncpy(new_name, (char*)sym->base(), sym->utf8_length());
-      new_name[i] = 'L';
-      new_name[sym->utf8_length()] = '\0';
-      return get_unloaded_klass(accessing_klass, ciSymbol::make(new_name), false);
-    }
+    // An unloaded array class of value types is an ObjArrayKlass, an
+    // unloaded value type class is an InstanceKlass. For consistency,
+    // make the signature of the unloaded array of value type use L
+    // rather than Q.
+    char *new_name = CURRENT_THREAD_ENV->name_buffer(sym->utf8_length()+1);
+    strncpy(new_name, (char*)sym->base(), sym->utf8_length());
+    new_name[i] = 'L';
+    new_name[sym->utf8_length()] = '\0';
+    return get_unloaded_klass(accessing_klass, ciSymbol::make(new_name));
   }
-  return get_unloaded_klass(accessing_klass, name, is_value_type);
+  return get_unloaded_klass(accessing_klass, name);
 }
 
 // ------------------------------------------------------------------

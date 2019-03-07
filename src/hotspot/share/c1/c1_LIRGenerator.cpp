@@ -1543,8 +1543,9 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    if (needs_patching && field_type == T_VALUETYPE) {
-      // We are storing a "Q" field, but the holder class is not yet loaded.
+    if (needs_patching && x->field()->signature()->starts_with("Q", 1)) {
+      // We are storing a field of type "QT;", but T is not yet loaded, so we don't
+      // know whether this field is flattened or not. Let's deoptimize and recompile.
       CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                           Deoptimization::Reason_unloaded,
                                           Deoptimization::Action_make_not_entrant);
@@ -1901,8 +1902,9 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()) ||
        stress_deopt)) {
-    if (needs_patching && field_type == T_VALUETYPE) {
-      // We are loading a "Q" field, but the holder class is not yet loaded.
+    if (needs_patching && x->field()->signature()->starts_with("Q", 1)) {
+      // We are loading a field of type "QT;", but class T is not yet loaded. We don't know
+      // whether this field is flattened or not. Let's deoptimize and recompile.
       CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                           Deoptimization::Reason_unloaded,
                                           Deoptimization::Action_make_not_entrant);

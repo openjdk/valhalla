@@ -115,16 +115,15 @@ ciType* Instruction::exact_type() const {
 }
 
 
-// FIXME -- make this obsolete. Use maybe_flattened_array() or check_flattened_array() instead.
+// FIXME -- this is used by ValueStack::merge_types only. We should remove this function
+// and use a better way for handling phi nodes.
 bool Instruction::is_flattened_array() const {
   if (ValueArrayFlatten) {
     ciType* type = declared_type();
     if (type != NULL && type->is_value_array_klass()) {
       ciValueKlass* element_klass = type->as_value_array_klass()->element_klass()->as_value_klass();
-      if (!element_klass->is_loaded() || element_klass->flatten_array()) {
-        // Assume that all unloaded value arrays are not flattenable. If they
-        // turn out to be flattenable, we deoptimize on aaload/aastore.
-        // ^^^^ uugh -- this is ugly!
+      assert(element_klass->is_loaded(), "ciValueKlasses are always loaded");
+      if (element_klass->flatten_array()) {
         return true;
       }
     }
@@ -138,7 +137,8 @@ bool Instruction::is_loaded_flattened_array() const {
     ciType* type = declared_type();
     if (type != NULL && type->is_value_array_klass()) {
       ciValueKlass* element_klass = type->as_value_array_klass()->element_klass()->as_value_klass();
-      if (element_klass->is_loaded() && element_klass->flatten_array()) {
+      assert(element_klass->is_loaded(), "ciValueKlasses are always loaded");
+      if (element_klass->flatten_array()) {
         return true;
       }
     }
@@ -153,13 +153,13 @@ bool Instruction::maybe_flattened_array() {
     if (type != NULL) {
       if (type->is_value_array_klass()) {
         ciValueKlass* element_klass = type->as_value_array_klass()->element_klass()->as_value_klass();
-        if (!element_klass->is_loaded() || element_klass->flatten_array()) {
-          // For unloaded value arrays, we will add a runtime check for flat-ness.
+        assert(element_klass->is_loaded(), "ciValueKlasses are always loaded");
+        if (element_klass->flatten_array()) {
           return true;
         }
       } else if (type->is_obj_array_klass()) {
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (element_klass->is_java_lang_Object() || element_klass->is_interface()) {
+        if (!element_klass->is_loaded() || element_klass->is_java_lang_Object() || element_klass->is_interface()) {
           // Array covariance:
           //    (ValueType[] <: Object[])
           //    (ValueType[] <: <any interface>[])

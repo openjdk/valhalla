@@ -1305,12 +1305,12 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   LIR_Opr len = length.result();
 
   ciKlass* obj = (ciKlass*) x->exact_type();
-  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, obj->is_value_array_klass());
+  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_never_null());
   if (obj == ciEnv::unloaded_ciobjarrayklass()) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  if (obj->is_value_array_klass()) {
+  if (x->is_never_null()) {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_VALUETYPE, klass_reg, slow_path);
   } else {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);

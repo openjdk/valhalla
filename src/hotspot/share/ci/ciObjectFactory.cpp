@@ -468,8 +468,7 @@ ciMethod* ciObjectFactory::get_unloaded_method(ciInstanceKlass* holder,
 // unloaded klass.  This may need to change.
 ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
                                              ciSymbol* name,
-                                             bool create_if_not_found,
-                                             bool is_value_type) {
+                                             bool create_if_not_found) {
   EXCEPTION_CONTEXT;
   oop loader = NULL;
   oop domain = NULL;
@@ -523,12 +522,7 @@ ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
       // The element klass is a TypeArrayKlass.
       element_klass = ciTypeArrayKlass::make(element_type);
     }
-    if (element_type == T_VALUETYPE && EnableValhallaC1) { // FIXME C2 can't handle unloaded ciValueArrayKlass
-      assert(element_klass->is_valuetype(), "must be");
-      new_klass = new (arena()) ciValueArrayKlass(name, element_klass->as_value_klass(), dimension);
-    } else {
-      new_klass = new (arena()) ciObjArrayKlass(name, element_klass, dimension);
-    }
+    new_klass = new (arena()) ciObjArrayKlass(name, element_klass, dimension);
   } else {
     jobject loader_handle = NULL;
     jobject domain_handle = NULL;
@@ -536,11 +530,7 @@ ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
       loader_handle = accessing_klass->loader_handle();
       domain_handle = accessing_klass->protection_domain_handle();
     }
-    if (is_value_type && EnableValhallaC1) { // FIXME C2 can't handle unloaded ciValueKlass
-      new_klass = new (arena()) ciValueKlass(name, loader_handle, domain_handle);
-    } else {
-      new_klass = new (arena()) ciInstanceKlass(name, loader_handle, domain_handle);
-    }
+    new_klass = new (arena()) ciInstanceKlass(name, loader_handle, domain_handle);
   }
   init_ident_of(new_klass);
   _unloaded_klasses->append(new_klass);

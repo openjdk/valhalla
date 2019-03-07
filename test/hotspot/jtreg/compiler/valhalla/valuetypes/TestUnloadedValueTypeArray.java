@@ -32,6 +32,8 @@
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test2
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test3
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test4
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test5
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test6
  *      TestUnloadedValueTypeArray
  */
 
@@ -75,6 +77,28 @@ value final class MyValue4 {
     }
     static MyValue4 make(int n) {
         return __WithField(MyValue4.default.foo, n);
+    }
+}
+
+value final class MyValue5 {
+    final int foo;
+
+    private MyValue5() {
+        foo = 0x53;
+    }
+    static MyValue5 make(int n) {
+        return __WithField(MyValue5.default.foo, n);
+    }
+}
+
+value final class MyValue6 {
+    final int foo = 0;
+
+    static MyValue6 make(int n) {
+        return __WithField(MyValue6.default.foo, n);
+    }
+    static MyValue6 make2(MyValue6 v, MyValue6[] dummy) {
+        return __WithField(v.foo, v.foo+1);
     }
 }
 
@@ -159,10 +183,58 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
+    static Object[] test5(int n) {
+        if (n == 0) {
+            return null;
+        } else if (n == 1) {
+            MyValue5[] arr = new MyValue5[10];
+            arr[1] = MyValue5.make(12345);
+            return arr;
+        } else {
+            MyValue5.box[] arr = new MyValue5.box[10];
+            arr[1] = MyValue5.make(22345);
+            return arr;
+        }
+    }
+
+    static void test5_verifier() {
+        int n = 50000;
+
+        for (int i=0; i<n; i++) {
+            test5(0);
+        }
+
+        {
+            MyValue5[] arr = null;
+            for (int i=0; i<n; i++) {
+                arr = (MyValue5[])test5(1);
+            }
+            Asserts.assertEQ(arr[1].foo, 12345);
+        }
+        {
+            MyValue5.box[] arr = null;
+            for (int i=0; i<n; i++) {
+                arr = (MyValue5.box[])test5(2);
+            }
+            Asserts.assertEQ(arr[1].foo, 22345);
+        }
+    }
+
+    static Object test6() {
+        return MyValue6.make2(MyValue6.make(123), null);
+    }
+
+    static void test6_verifier() {
+        Object n = test6();
+        Asserts.assertEQ(n.toString(), "[MyValue6 foo=124]");
+    }
+
     static public void main(String[] args) {
         test1();
         test2_verifier();
         test3_verifier();
         test4_verifier();
+        test5_verifier();
+        test6_verifier();
     }
 }
