@@ -27,24 +27,33 @@
  * @summary Test the handling of fields of unloaded value classes.
  * @compile -XDallowWithFieldOperator hack/GetUnresolvedValueFieldWrongSignature.java
  * @compile -XDallowWithFieldOperator TestUnloadedValueTypeField.java
- * @run main/othervm -XX:+EnableValhalla -Xcomp
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:+Inline
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test1
+ *        -XX:CompileCommand=print,TestUnloadedValueTypeField::test1
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test2
  *        -XX:CompileCommand=compileonly,GetUnresolvedValueFieldWrongSignature::test3
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test4
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test5
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test11
+ *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test12
  *      TestUnloadedValueTypeField
  */
 
 import jdk.test.lib.Asserts;
 
 public class TestUnloadedValueTypeField {
+    static final int WARMUP_LOOPS = 10000;
     static public void main(String[] args) {
+        // instance fields
         test1_verifier();
         test2_verifier();
         test3_verifier();
         test4_verifier();
         test5_verifier();
+
+        // static fields
+        test11_verifier();
+        test12_verifier();
     }
 
     // Test case 1:
@@ -85,13 +94,13 @@ public class TestUnloadedValueTypeField {
     }
 
     static void test1_verifier() {
-        for (int i=0; i<10000; i++) {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
             // Make sure test1() is compiled for the first iteration of this loop,
             // while MyValue1Holder is yet to be loaded.
             test1(null);
-            MyValue1Holder holder = new MyValue1Holder();
-            Asserts.assertEQ(test1(holder), 1235);
         }
+        MyValue1Holder holder = new MyValue1Holder();
+        Asserts.assertEQ(test1(holder), 1235);
     }
 
     // Test case 2:
@@ -101,7 +110,7 @@ public class TestUnloadedValueTypeField {
     //     getfield  MyValueHolder2.v:QMyValue2;
     //               ^ not loaded     ^ not loaded
     //
-    // MyValue2 has already been loaded, because it is not explicitly referenced by
+    // MyValue2 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedValueTypeField.
     static value final class MyValue2 {
         final int foo = 0;
@@ -129,13 +138,13 @@ public class TestUnloadedValueTypeField {
     }
 
     static void test2_verifier() {
-        for (int i=0; i<10000; i++) {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
             // Make sure test2() is compiled for the first iteration of this loop,
             // while MyValue2Holder2 and MyValue2  is yet to be loaded.
             test2(null);
-            MyValue2Holder holder2 = new MyValue2Holder();
-            Asserts.assertEQ(test2(holder2), 1236);
         }
+        MyValue2Holder holder2 = new MyValue2Holder();
+        Asserts.assertEQ(test2(holder2), 1236);
     }
 
     // Test case 3: same as test1, except we are using an incorrect signature to
@@ -176,17 +185,18 @@ public class TestUnloadedValueTypeField {
     }
 
     static void test3_verifier() {
-        for (int i=0; i<10000; i++) {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
             // Make sure test3() is compiled for the first iteration of this loop,
             // while MyValue3Holder is yet to be loaded.
             test3(null);
-            MyValue3Holder holder = new MyValue3Holder();
-            try {
-                test3(holder);
-                Asserts.fail("Should have thrown NoSuchFieldError");
-            } catch (NoSuchFieldError e) {
-                // OK
-            }
+        }
+
+        MyValue3Holder holder = new MyValue3Holder();
+        try {
+            test3(holder);
+            Asserts.fail("Should have thrown NoSuchFieldError");
+        } catch (NoSuchFieldError e) {
+            // OK
         }
     }
 
@@ -220,14 +230,14 @@ public class TestUnloadedValueTypeField {
 
     static void test4_verifier() {
         MyValue4 v = MyValue4.make(5678);
-        for (int i=0; i<10000; i++) {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
             // Make sure test4() is compiled for the first iteration of this loop,
             // while MyValue4Holder is yet to be loaded.
             test4(null, v);
-            MyValue4Holder holder = new MyValue4Holder();
-            test4(holder, v);
-            Asserts.assertEQ(holder.v.foo, 5678);
         }
+        MyValue4Holder holder = new MyValue4Holder();
+        test4(holder, v);
+        Asserts.assertEQ(holder.v.foo, 5678);
     }
 
     // Test case 5:
@@ -259,14 +269,95 @@ public class TestUnloadedValueTypeField {
     }
 
     static void test5_verifier() {
-        for (int i=0; i<10000; i++) {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
             // Make sure test5() is compiled for the first iteration of this loop,
             // while both MyValue5Holder and MyValye5 are yet to be loaded.
             test5(null, null);
-            MyValue5Holder holder = new MyValue5Holder();
-            Object v = holder.make(5679);
-            test5(holder, v);
-            Asserts.assertEQ(holder.v.foo, 5679);
         }
+
+        MyValue5Holder holder = new MyValue5Holder();
+        Object v = holder.make(5679);
+        test5(holder, v);
+        Asserts.assertEQ(holder.v.foo, 5679);
+    }
+
+
+    // Test case 11: (same as test1, except we use getstatic instead of getfield)
+    // The value type field class has been loaded, but the holder class has not been loaded.
+    //
+    //     getstatic  MyValue11Holder.v:QMyValue1;
+    //                ^ not loaded       ^ already loaded
+    //
+    // MyValue11 has already been loaded, because it's in the ValueType attribute of
+    // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test1_precondition().
+    static value final class MyValue11 {
+        final int foo = 0;
+
+        static MyValue11 make() {
+            return __WithField(MyValue11.default.foo, 1234);
+        }
+    }
+
+    static class MyValue11Holder {
+        static MyValue11 v = MyValue11.make();
+    }
+
+    static MyValue11 test11_precondition() {
+        return MyValue11.make();
+    }
+
+    static int test11(int n) {
+        if (n == 0) {
+            return 0;
+        } else {
+            return MyValue11Holder.v.foo + n;
+        }
+    }
+
+    static void test11_verifier() {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
+            // Make sure test1() is compiled for the first iteration of this loop,
+            // while MyValue1Holder is yet to be loaded.
+            test11(0);
+        }
+        Asserts.assertEQ(test11(2), 1236);
+    }
+
+
+    // Test case 12:  (same as test2, except we use getstatic instead of getfield)
+    // Both the value type field class, and the holder class have not been loaded.
+    //
+    //     getstatic  MyValueHolder12.v:QMyValue12;
+    //                ^ not loaded       ^ not loaded
+    //
+    // MyValue12 has not been loaded, because it is not explicitly referenced by
+    // TestUnloadedValueTypeField.
+    static value final class MyValue12 {
+        final int foo = 0;
+
+        static MyValue12 make(int n) {
+            return __WithField(MyValue12.default.foo, n);
+        }
+    }
+
+    static class MyValue12Holder {
+        static MyValue12 v = MyValue12.make(12);
+    }
+
+    static int test12(int n) {
+        if (n == 0) {
+            return 0;
+        } else {
+            return MyValue12Holder.v.foo + n;
+        }
+    }
+
+    static void test12_verifier() {
+        for (int i=0; i<WARMUP_LOOPS; i++) {
+            // Make sure test2() is compiled for the first iteration of this loop,
+            // while MyValue2Holder2 and MyValue2  is yet to be loaded.
+            test12(0);
+        }
+        Asserts.assertEQ(test12(1), 13);
     }
 }

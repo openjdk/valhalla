@@ -1543,9 +1543,12 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    if (needs_patching && x->field()->signature()->starts_with("Q", 1)) {
-      // We are storing a field of type "QT;", but T is not yet loaded, so we don't
-      // know whether this field is flattened or not. Let's deoptimize and recompile.
+    if (needs_patching && x->field()->is_q_type()) {
+      // We are storing a field of type "QT;" into holder class H, but H is not yet
+      // loaded. (If H had been loaded, then T must also have already been loaded
+      // due to the "Q" signature, and needs_patching would be false).
+      assert(!x->field()->holder()->is_loaded(), "must be");
+      // We don't know the offset of this field. Let's deopt and recompile.
       CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                           Deoptimization::Reason_unloaded,
                                           Deoptimization::Action_make_not_entrant);
@@ -1868,6 +1871,79 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
   return _barrier_set->resolve(this, decorators, obj);
 }
 
+Value LIRGenerator::q_type_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
+  ciField* field = x->field();
+  ciInstanceKlass* holder = field->holder();
+  Value default_value = NULL;
+
+  // Unloaded "QV;" klasses are represented by a ciInstanceKlass
+  bool field_type_unloaded = field->type()->is_instance_klass() && !field->type()->as_instance_klass()->is_loaded();
+
+  // Check for edge cases (1), (2) and (3) for getstatic and getfield
+  bool deopt = false;
+  bool need_default = false;
+  if (field->is_static()) {
+      // (1) holder is unloaded -- no problem: it will be loaded by patching, and field offset will be determined.
+
+    if (field_type_unloaded) {
+      // (2) field type is unloaded -- problem: we don't know what the default value is. Let's deopt.
+      //                               FIXME: consider getting the default value in patching code.
+      deopt = true;
+    } else {
+      need_default = true;
+    }
+
+      // (3) field is not flattenable -- we don't care: static fields are never flattened.
+  } else {
+    if (!holder->is_loaded()) {
+      // (1) holder is unloaded -- problem: we needed the field offset back in GraphBuilder::access_field()
+      //                           FIXME: consider getting field offset in patching code (but only if the field
+      //                           type was loaded at compilation time).
+      deopt = true;
+    } else if (field_type_unloaded) {
+      // (2) field type is unloaded -- problem: we don't whether it's flattened or not. Let's deopt
+      deopt = true;
+    } else if (!field->is_flattened()) {
+      // (3) field is not flattenable -- need default value in cases of uninitialized field
+      need_default = true;
+    }
+  }
+
+  assert(!(deopt && need_default), "cannot both be true");
+
+  if (deopt) {
+    assert(x->needs_patching(), "must be");
+    assert(info != NULL, "must be");
+    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
+                                        Deoptimization::Reason_unloaded,
+                                        Deoptimization::Action_make_not_entrant);
+    __ branch(lir_cond_always, T_ILLEGAL, stub);
+  } else if (need_default) {
+    assert(!field_type_unloaded, "must be");
+    assert(field->type()->is_valuetype(), "must be");
+    ciValueKlass* value_klass = field->type()->as_value_klass();
+    assert(value_klass->is_loaded(), "must be");
+
+    if (field->is_static() && holder->is_loaded()) {
+      ciInstance* mirror = field->holder()->java_mirror();
+      ciObject* val = mirror->field_value(field).as_object();
+      if (val->is_null_object()) {
+        // This is a non-nullable static field, but it's not initialized.
+        // We need to do a null check, and replace it with the default value.
+      } else {
+        // No need to perform null check on this static field
+        need_default = false;
+      }
+    }
+
+    if (need_default) {
+      default_value = new Constant(new InstanceConstant(value_klass->default_value_instance()));
+    }
+  }
+
+  return default_value;
+}
+
 void LIRGenerator::do_LoadField(LoadField* x) {
   bool needs_patching = x->needs_patching();
   bool is_volatile = x->field()->is_volatile();
@@ -1897,37 +1973,25 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   }
 #endif
 
+  Value default_value = NULL;
+  if (x->field()->is_q_type()) {
+    default_value = q_type_load_field_prolog(x, info);
+  }
+
   bool stress_deopt = StressLoopInvariantCodeMotion && info && info->deoptimize_on_exception();
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()) ||
        stress_deopt)) {
-    if (needs_patching && x->field()->signature()->starts_with("Q", 1)) {
-      // We are loading a field of type "QT;", but class T is not yet loaded. We don't know
-      // whether this field is flattened or not. Let's deoptimize and recompile.
-      CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                          Deoptimization::Reason_unloaded,
-                                          Deoptimization::Action_make_not_entrant);
-      __ branch(lir_cond_always, T_ILLEGAL, stub);
-    } else {
-      LIR_Opr obj = object.result();
-      if (stress_deopt) {
-        obj = new_register(T_OBJECT);
-        __ move(LIR_OprFact::oopConst(NULL), obj);
-      }
-      // Emit an explicit null check because the offset is too large.
-      // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
-      // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
-      __ null_check(obj, new CodeEmitInfo(info), /* deoptimize */ needs_patching);
+    LIR_Opr obj = object.result();
+    if (stress_deopt) {
+      obj = new_register(T_OBJECT);
+      __ move(LIR_OprFact::oopConst(NULL), obj);
     }
-  } else if (x->value_klass() != NULL && x->default_value() == NULL) {
-    assert(x->is_static() && !x->value_klass()->is_loaded(), "must be");
-    assert(needs_patching, "must be");
-    // The value klass was not loaded so we don't know what its default value should be
-    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                        Deoptimization::Reason_unloaded,
-                                        Deoptimization::Action_make_not_entrant);
-    __ branch(lir_cond_always, T_ILLEGAL, stub);
+    // Emit an explicit null check because the offset is too large.
+    // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
+    // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
+    __ null_check(obj, new CodeEmitInfo(info), /* deoptimize */ needs_patching);
   }
 
   DecoratorSet decorators = IN_HEAP;
@@ -1943,14 +2007,14 @@ void LIRGenerator::do_LoadField(LoadField* x) {
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : NULL, info);
 
-  if (x->value_klass() != NULL && x->default_value() != NULL) {
+  if (default_value != NULL) {
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, T_OBJECT, L_end->label());
 
-    LIRItem default_value(x->default_value(), this);
-    default_value.load_item();
-    __ move(default_value.result(), result);
+    LIRItem dv(default_value, this);
+    dv.load_item();
+    __ move(dv.result(), result);
 
     __ branch_destination(L_end->label());
   }

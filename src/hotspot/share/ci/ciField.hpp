@@ -202,6 +202,12 @@ public:
              klass_name == ciSymbol::java_lang_Long_LongCache()));
   }
 
+  bool is_q_type() const {
+    // Cannot use (type()->basic_type() == T_VALUETYPE) -- if the class is not loaded,
+    // type() is an unloaded ciInstanceKlass!
+    return signature()->char_at(0) == 'Q';
+  }
+
   // Debugging output
   void print();
   void print_name_on(outputStream* st);

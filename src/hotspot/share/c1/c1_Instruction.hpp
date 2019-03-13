@@ -847,24 +847,18 @@ BASE(AccessField, Instruction)
 
 
 LEAF(LoadField, AccessField)
-  ciValueKlass* _value_klass;
-  Value _default_value;
  public:
   // creation
   LoadField(Value obj, int offset, ciField* field, bool is_static,
             ValueStack* state_before, bool needs_patching,
             ciValueKlass* value_klass = NULL, Value default_value = NULL )
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
-  , _value_klass(value_klass), _default_value(default_value)
   {}
 
   ciType* declared_type() const;
 
   // generic
   HASHING2(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset())  // cannot be eliminated if needs patching or if volatile
-
-  ciValueKlass* value_klass() const { return _value_klass;}
-  Value default_value() const { return _default_value; }
 };
 
 
