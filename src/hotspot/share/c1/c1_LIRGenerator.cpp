@@ -1543,7 +1543,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    if (needs_patching && x->field()->is_q_type()) {
+    if (needs_patching && x->field()->is_flattenable()) {
       // We are storing a field of type "QT;" into holder class H, but H is not yet
       // loaded. (If H had been loaded, then T must also have already been loaded
       // due to the "Q" signature, and needs_patching would be false).
@@ -1871,7 +1871,7 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
   return _barrier_set->resolve(this, decorators, obj);
 }
 
-Value LIRGenerator::q_type_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
+Value LIRGenerator::flattenable_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
   ciField* field = x->field();
   ciInstanceKlass* holder = field->holder();
   Value default_value = NULL;
@@ -1884,6 +1884,7 @@ Value LIRGenerator::q_type_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
   bool need_default = false;
   if (field->is_static()) {
       // (1) holder is unloaded -- no problem: it will be loaded by patching, and field offset will be determined.
+      // No check needed here.
 
     if (field_type_unloaded) {
       // (2) field type is unloaded -- problem: we don't know what the default value is. Let's deopt.
@@ -1893,7 +1894,8 @@ Value LIRGenerator::q_type_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
       need_default = true;
     }
 
-      // (3) field is not flattenable -- we don't care: static fields are never flattened.
+      // (3) field is not flattened -- we don't care: static fields are never flattened.
+      // No check needed here.
   } else {
     if (!holder->is_loaded()) {
       // (1) holder is unloaded -- problem: we needed the field offset back in GraphBuilder::access_field()
@@ -1901,17 +1903,16 @@ Value LIRGenerator::q_type_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
       //                           type was loaded at compilation time).
       deopt = true;
     } else if (field_type_unloaded) {
-      // (2) field type is unloaded -- problem: we don't whether it's flattened or not. Let's deopt
+      // (2) field type is unloaded -- problem: we don't know whether it's flattened or not. Let's deopt
       deopt = true;
     } else if (!field->is_flattened()) {
-      // (3) field is not flattenable -- need default value in cases of uninitialized field
+      // (3) field is not flattened -- need default value in cases of uninitialized field
       need_default = true;
     }
   }
 
-  assert(!(deopt && need_default), "cannot both be true");
-
   if (deopt) {
+    assert(!need_default, "deopt and need_default cannot both be true");
     assert(x->needs_patching(), "must be");
     assert(info != NULL, "must be");
     CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
@@ -1974,8 +1975,8 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 #endif
 
   Value default_value = NULL;
-  if (x->field()->is_q_type()) {
-    default_value = q_type_load_field_prolog(x, info);
+  if (x->field()->is_flattenable()) {
+    default_value = flattenable_load_field_prolog(x, info);
   }
 
   bool stress_deopt = StressLoopInvariantCodeMotion && info && info->deoptimize_on_exception();

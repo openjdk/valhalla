@@ -84,6 +84,8 @@ public:
   // Tests if the symbol starts with the given prefix.
   bool starts_with(const char* prefix, int len) const;
 
+  bool        is_Q_signature();
+
   // Determines where the symbol contains the given substring.
   int index_of_at(int i, const char* str, int len) const;
 

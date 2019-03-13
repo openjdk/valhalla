@@ -21,6 +21,8 @@
  * questions.
  */
 
+package compiler.valhalla.valuetypes;
+
 class TestUnloadedValueTypeField {
     static class MyValue3 {
         int foo;

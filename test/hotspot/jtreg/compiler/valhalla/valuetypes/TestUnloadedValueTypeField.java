@@ -21,39 +21,41 @@
  * questions.
  */
 
+package compiler.valhalla.valuetypes;
+import jdk.test.lib.Asserts;
+
 /**
  * @test
- * @library /test/lib
+ * @library /testlibrary /test/lib /compiler/whitebox /
  * @summary Test the handling of fields of unloaded value classes.
  * @compile -XDallowWithFieldOperator hack/GetUnresolvedValueFieldWrongSignature.java
  * @compile -XDallowWithFieldOperator TestUnloadedValueTypeField.java
- * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:+Inline
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test1
- *        -XX:CompileCommand=print,TestUnloadedValueTypeField::test1
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test2
- *        -XX:CompileCommand=compileonly,GetUnresolvedValueFieldWrongSignature::test3
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test4
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test5
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test11
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeField::test12
- *      TestUnloadedValueTypeField
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
+ * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
+ *                               compiler.valhalla.valuetypes.ValueTypeTest
+ *                               compiler.valhalla.valuetypes.TestUnloadedValueTypeField
  */
 
-import jdk.test.lib.Asserts;
+public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.ValueTypeTest {
+    public static void main(String[] args) throws Throwable {
+        TestUnloadedValueTypeField test = new TestUnloadedValueTypeField();
+        test.run(args);
+    }
 
-public class TestUnloadedValueTypeField {
-    static final int WARMUP_LOOPS = 10000;
-    static public void main(String[] args) {
-        // instance fields
-        test1_verifier();
-        test2_verifier();
-        test3_verifier();
-        test4_verifier();
-        test5_verifier();
+    static final String[][] scenarios = {
+        {},
+        {"-XX:ValueFieldMaxFlatSize=0"}
+    };
 
-        // static fields
-        test11_verifier();
-        test12_verifier();
+    @Override
+    public int getNumScenarios() {
+        return scenarios.length;
+    }
+
+    @Override
+    public String[] getVMParameters(int scenario) {
+        return scenarios[scenario];
     }
 
     // Test case 1:
@@ -85,7 +87,8 @@ public class TestUnloadedValueTypeField {
         return MyValue1.make();
     }
 
-    static int test1(MyValue1Holder holder) {
+    @Test
+    public int test1(MyValue1Holder holder) {
         if (holder != null) {
             return holder.v.foo + 1;
         } else {
@@ -93,14 +96,13 @@ public class TestUnloadedValueTypeField {
         }
     }
 
-    static void test1_verifier() {
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test1() is compiled for the first iteration of this loop,
-            // while MyValue1Holder is yet to be loaded.
+    public void test1_verifier(boolean warmup) {
+        if (warmup) {
             test1(null);
+        } else {
+            MyValue1Holder holder = new MyValue1Holder();
+            Asserts.assertEQ(test1(holder), 1235);
         }
-        MyValue1Holder holder = new MyValue1Holder();
-        Asserts.assertEQ(test1(holder), 1235);
     }
 
     // Test case 2:
@@ -129,7 +131,8 @@ public class TestUnloadedValueTypeField {
     }
 
 
-    static int test2(MyValue2Holder holder) {
+    @Test
+    public int test2(MyValue2Holder holder) {
         if (holder != null) {
             return holder.v.foo + 2;
         } else {
@@ -137,14 +140,13 @@ public class TestUnloadedValueTypeField {
         }
     }
 
-    static void test2_verifier() {
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test2() is compiled for the first iteration of this loop,
-            // while MyValue2Holder2 and MyValue2  is yet to be loaded.
+    public void test2_verifier(boolean warmup) {
+        if (warmup) {
             test2(null);
+        } else {
+            MyValue2Holder holder2 = new MyValue2Holder();
+            Asserts.assertEQ(test2(holder2), 1236);
         }
-        MyValue2Holder holder2 = new MyValue2Holder();
-        Asserts.assertEQ(test2(holder2), 1236);
     }
 
     // Test case 3: same as test1, except we are using an incorrect signature to
@@ -180,23 +182,22 @@ public class TestUnloadedValueTypeField {
         return MyValue3.make();
     }
 
-    static int test3(MyValue3Holder holder) {
+    @Test
+    public int test3(MyValue3Holder holder) {
         return GetUnresolvedValueFieldWrongSignature.test3(holder);
     }
 
-    static void test3_verifier() {
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test3() is compiled for the first iteration of this loop,
-            // while MyValue3Holder is yet to be loaded.
+    public void test3_verifier(boolean warmup) {
+        if (warmup) {
             test3(null);
-        }
-
-        MyValue3Holder holder = new MyValue3Holder();
-        try {
-            test3(holder);
-            Asserts.fail("Should have thrown NoSuchFieldError");
-        } catch (NoSuchFieldError e) {
-            // OK
+        } else {
+            MyValue3Holder holder = new MyValue3Holder();
+            try {
+                test3(holder);
+                Asserts.fail("Should have thrown NoSuchFieldError");
+            } catch (NoSuchFieldError e) {
+                // OK
+            }
         }
     }
 
@@ -222,22 +223,22 @@ public class TestUnloadedValueTypeField {
         return MyValue4.make(0);
     }
 
-    static void test4(MyValue4Holder holder, MyValue4 v) {
+    @Test
+    public void test4(MyValue4Holder holder, MyValue4 v) {
         if (holder != null) {
             holder.v = v;
         }
     }
 
-    static void test4_verifier() {
+    public void test4_verifier(boolean warmup) {
         MyValue4 v = MyValue4.make(5678);
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test4() is compiled for the first iteration of this loop,
-            // while MyValue4Holder is yet to be loaded.
+        if (warmup) {
             test4(null, v);
+        } else {
+            MyValue4Holder holder = new MyValue4Holder();
+            test4(holder, v);
+            Asserts.assertEQ(holder.v.foo, 5678);
         }
-        MyValue4Holder holder = new MyValue4Holder();
-        test4(holder, v);
-        Asserts.assertEQ(holder.v.foo, 5678);
     }
 
     // Test case 5:
@@ -261,24 +262,23 @@ public class TestUnloadedValueTypeField {
         }
     }
 
-    static void test5(MyValue5Holder holder, Object o) {
+    @Test
+    public void test5(MyValue5Holder holder, Object o) {
         if (holder != null) {
             MyValue5 v = (MyValue5)o;
             holder.v = v;
         }
     }
 
-    static void test5_verifier() {
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test5() is compiled for the first iteration of this loop,
-            // while both MyValue5Holder and MyValye5 are yet to be loaded.
+    public void test5_verifier(boolean warmup) {
+        if (warmup) {
             test5(null, null);
+        } else {
+            MyValue5Holder holder = new MyValue5Holder();
+            Object v = holder.make(5679);
+            test5(holder, v);
+            Asserts.assertEQ(holder.v.foo, 5679);
         }
-
-        MyValue5Holder holder = new MyValue5Holder();
-        Object v = holder.make(5679);
-        test5(holder, v);
-        Asserts.assertEQ(holder.v.foo, 5679);
     }
 
 
@@ -306,7 +306,8 @@ public class TestUnloadedValueTypeField {
         return MyValue11.make();
     }
 
-    static int test11(int n) {
+    @Test
+    public int test11(int n) {
         if (n == 0) {
             return 0;
         } else {
@@ -314,13 +315,12 @@ public class TestUnloadedValueTypeField {
         }
     }
 
-    static void test11_verifier() {
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test1() is compiled for the first iteration of this loop,
-            // while MyValue1Holder is yet to be loaded.
+    public void test11_verifier(boolean warmup) {
+        if (warmup) {
             test11(0);
+        } else {
+            Asserts.assertEQ(test11(2), 1236);
         }
-        Asserts.assertEQ(test11(2), 1236);
     }
 
 
@@ -344,7 +344,8 @@ public class TestUnloadedValueTypeField {
         static MyValue12 v = MyValue12.make(12);
     }
 
-    static int test12(int n) {
+    @Test
+    public int test12(int n) {
         if (n == 0) {
             return 0;
         } else {
@@ -352,12 +353,11 @@ public class TestUnloadedValueTypeField {
         }
     }
 
-    static void test12_verifier() {
-        for (int i=0; i<WARMUP_LOOPS; i++) {
-            // Make sure test2() is compiled for the first iteration of this loop,
-            // while MyValue2Holder2 and MyValue2  is yet to be loaded.
+    public void test12_verifier(boolean warmup) {
+        if (warmup) {
             test12(0);
+        } else {
+          Asserts.assertEQ(test12(1), 13);
         }
-        Asserts.assertEQ(test12(1), 13);
     }
 }

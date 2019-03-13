@@ -266,7 +266,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
 
-  Value q_type_load_field_prolog(LoadField* x, CodeEmitInfo* info);
+  Value flattenable_load_field_prolog(LoadField* x, CodeEmitInfo* info);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
   bool needs_flattened_array_store_check(StoreIndexed* x);
   void check_flattened_array(LIRItem& array, CodeStub* slow_path);

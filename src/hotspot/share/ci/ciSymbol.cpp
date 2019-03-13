@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,6 +102,12 @@ int ciSymbol::index_of_at(int i, const char* str, int len) const {
 // ciSymbol::utf8_length
 int ciSymbol::utf8_length() {
   GUARDED_VM_ENTRY(return get_symbol()->utf8_length();)
+}
+
+// ------------------------------------------------------------------
+// ciSymbol::is_Q_signature
+bool ciSymbol::is_Q_signature() {
+  GUARDED_VM_ENTRY(return get_symbol()->is_Q_signature();)
 }
 
 // ------------------------------------------------------------------

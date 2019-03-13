@@ -1716,7 +1716,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         }
         LoadField* load_field = new LoadField(append(obj), offset, field, true,
                                         state_before, needs_patching);
-        if (field->is_q_type()) {
+        if (field->is_flattenable()) {
           load_field->set_never_null(true);
         }
         push(type, append(load_field));

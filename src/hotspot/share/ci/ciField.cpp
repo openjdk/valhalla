@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -101,6 +101,9 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
   }
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
+
+  // this is needed if the field class is not yet loaded.
+  _is_flattenable = _signature->is_Q_signature();
 
   // Get the field's declared holder.
   //
