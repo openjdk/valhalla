@@ -265,8 +265,8 @@ class ShortLoopOptimizer : public ValueNumberingVisitor {
   GlobalValueNumbering* _gvn;
   BlockList             _loop_blocks;
   bool                  _too_complicated_loop;
-  bool                  _has_field_store[T_ARRAY + 1];
-  bool                  _has_indexed_store[T_ARRAY + 1];
+  bool                  _has_field_store[T_VALUETYPE + 1];
+  bool                  _has_indexed_store[T_VALUETYPE + 1];
 
   // simplified access to methods of GlobalValueNumbering
   ValueMap* current_map()                        { return _gvn->current_map(); }
@@ -276,12 +276,12 @@ class ShortLoopOptimizer : public ValueNumberingVisitor {
   void      kill_memory()                                 { _too_complicated_loop = true; }
   void      kill_field(ciField* field, bool all_offsets)  {
     current_map()->kill_field(field, all_offsets);
-    assert(field->type()->basic_type() >= 0 && field->type()->basic_type() <= T_ARRAY, "Invalid type");
+    assert(field->type()->basic_type() >= 0 && field->type()->basic_type() <= T_VALUETYPE, "Invalid type");
     _has_field_store[field->type()->basic_type()] = true;
   }
   void      kill_array(ValueType* type)                   {
     current_map()->kill_array(type);
-    BasicType basic_type = as_BasicType(type); assert(basic_type >= 0 && basic_type <= T_ARRAY, "Invalid type");
+    BasicType basic_type = as_BasicType(type); assert(basic_type >= 0 && basic_type <= T_VALUETYPE, "Invalid type");
     _has_indexed_store[basic_type] = true;
   }
 
@@ -291,19 +291,19 @@ class ShortLoopOptimizer : public ValueNumberingVisitor {
     , _loop_blocks(ValueMapMaxLoopSize)
     , _too_complicated_loop(false)
   {
-    for (int i=0; i<= T_ARRAY; i++){
+    for (int i=0; i<= T_VALUETYPE; i++){
       _has_field_store[i] = false;
       _has_indexed_store[i] = false;
     }
   }
 
   bool has_field_store(BasicType type) {
-    assert(type >= 0 && type <= T_ARRAY, "Invalid type");
+    assert(type >= 0 && type <= T_VALUETYPE, "Invalid type");
     return _has_field_store[type];
   }
 
   bool has_indexed_store(BasicType type) {
-    assert(type >= 0 && type <= T_ARRAY, "Invalid type");
+    assert(type >= 0 && type <= T_VALUETYPE, "Invalid type");
     return _has_indexed_store[type];
   }
 
