@@ -70,8 +70,7 @@ class ClassFileParser {
   //
   enum Publicity {
     INTERNAL,
-    BROADCAST,
-    NOF_PUBLICITY_LEVELS
+    BROADCAST
   };
 
   enum { LegalClass, LegalField, LegalMethod }; // used to verify unqualified names
@@ -275,14 +274,6 @@ class ClassFileParser {
                                             u2* const checked_exceptions_length,
                                             u4 method_attribute_length,
                                             TRAPS);
-
-  void parse_type_array(u2 array_length,
-                        u4 code_length,
-                        u4* const u1_index,
-                        u4* const u2_index,
-                        u1* const u1_array,
-                        u2* const u2_array,
-                        TRAPS);
 
   // Classfile attribute parsing
   u2 parse_generic_signature_attribute(const ClassFileStream* const cfs, TRAPS);
@@ -542,7 +533,6 @@ class ClassFileParser {
   int itable_size() const { return _itable_size; }
 
   u2 this_class_index() const { return _this_class_index; }
-  u2 super_class_index() const { return _super_class_index; }
 
   bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
   bool is_interface() const { return _access_flags.is_interface(); }

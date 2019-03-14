@@ -1825,7 +1825,7 @@ LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicTyp
   decorators |= ACCESS_READ;
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
+  decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
@@ -1839,7 +1839,7 @@ LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType t
   decorators |= ACCESS_READ;
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
+  decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC1::atomic_xchg_at(access, value);
@@ -1853,7 +1853,7 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
   decorators |= ACCESS_READ;
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
+  decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC1::atomic_add_at(access, value);

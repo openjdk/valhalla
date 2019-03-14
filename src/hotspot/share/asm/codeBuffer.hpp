@@ -244,7 +244,6 @@ class CodeSection {
 
 #ifndef PRODUCT
   void decode();
-  void dump();
   void print(const char* name);
 #endif //PRODUCT
 };
@@ -653,8 +652,6 @@ class CodeBuffer: public StackObj {
   // Printing / Decoding
   // decodes from decode_begin() to code_end() and sets decode_begin to end
   void    decode();
-  void    decode_all();         // decodes all the code
-  void    skip_decode();        // sets decode_begin to code_end();
   void    print();
 #endif
 

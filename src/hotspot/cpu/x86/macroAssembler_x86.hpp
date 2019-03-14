@@ -176,6 +176,7 @@ class MacroAssembler: public Assembler {
 
   // Support optimal SSE move instructions.
   void movflt(XMMRegister dst, XMMRegister src) {
+    if (dst-> encoding() == src->encoding()) return;
     if (UseXmmRegToRegMoveAll) { movaps(dst, src); return; }
     else                       { movss (dst, src); return; }
   }
@@ -184,6 +185,7 @@ class MacroAssembler: public Assembler {
   void movflt(Address dst, XMMRegister src) { movss(dst, src); }
 
   void movdbl(XMMRegister dst, XMMRegister src) {
+    if (dst-> encoding() == src->encoding()) return;
     if (UseXmmRegToRegMoveAll) { movapd(dst, src); return; }
     else                       { movsd (dst, src); return; }
   }
