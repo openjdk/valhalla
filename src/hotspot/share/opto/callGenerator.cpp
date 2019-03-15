@@ -1136,7 +1136,7 @@ JVMState* PredicatedIntrinsicGenerator::generate(JVMState* jvms) {
   if (!method()->is_static()) {
     // We need an explicit receiver null_check before checking its type in predicate.
     // We share a map with the caller, so his JVMS gets adjusted.
-    Node* receiver = kit.null_check_receiver_before_call(method());
+    kit.null_check_receiver_before_call(method());
     if (kit.stopped()) {
       return kit.transfer_exceptions_into_jvms();
     }

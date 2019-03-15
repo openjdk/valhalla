@@ -1798,10 +1798,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool incremental_
       // We don't pass value type arguments by reference but instead
       // pass each field of the value type
       ValueTypeNode* vt = arg->isa_ValueType();
-      if (vt == NULL) {
-        // TODO why is that?? Shouldn't we always see a valuetype node here?
-        vt = ValueTypeNode::make_from_oop(this, arg, t->value_klass());
-      }
       vt->pass_fields(this, call, sig_cc, idx);
       // If a value type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().

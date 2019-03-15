@@ -529,7 +529,7 @@ class Parse : public GraphKit {
   bool static_field_ok_in_clinit(ciField *field, ciMethod *method);
 
   // common code for actually performing the load or store
-  void do_get_xxx(Node* obj, ciField* field, bool is_field);
+  void do_get_xxx(Node* obj, ciField* field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
 
   // implementation of object creation bytecodes

@@ -134,7 +134,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
     if (is_get) {
       (void) pop();  // pop receiver before getting
-      do_get_xxx(obj, field, is_field);
+      do_get_xxx(obj, field);
     } else {
       do_put_xxx(obj, field, is_field);
       if (stopped()) {
@@ -146,14 +146,14 @@ void Parse::do_field_access(bool is_get, bool is_field) {
     const TypeInstPtr* tip = TypeInstPtr::make(field_holder->java_mirror());
     obj = _gvn.makecon(tip);
     if (is_get) {
-      do_get_xxx(obj, field, is_field);
+      do_get_xxx(obj, field);
     } else {
       do_put_xxx(obj, field, is_field);
     }
   }
 }
 
-void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
+void Parse::do_get_xxx(Node* obj, ciField* field) {
   BasicType bt = field->layout_type();
 
   // Does this field have a constant value?  If so, just push the value.
@@ -211,6 +211,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
         ciObject* val = mirror->field_value(field).as_object();
         if (!val->is_null_object()) {
           type = type->join_speculative(TypePtr::NOTNULL);
+          flattenable = true; // Null-free, treat as flattenable
         }
       }
     }

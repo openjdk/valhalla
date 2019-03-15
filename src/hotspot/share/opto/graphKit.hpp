@@ -37,6 +37,7 @@
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
+#include "opto/valuetypenode.hpp"
 #include "runtime/deoptimization.hpp"
 
 class BarrierSetC2;
@@ -678,7 +679,7 @@ class GraphKit : public Phase {
 
   // Do a null check on the receiver as it would happen before the call to
   // callee (with all arguments still on the stack).
-  Node* null_check_receiver_before_call(ciMethod* callee) {
+  Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
     assert(!callee->is_static(), "must be a virtual method");
     if (argument(0)->is_ValueType()) {
       return argument(0);
@@ -690,6 +691,16 @@ class GraphKit : public Phase {
     inc_sp(nargs);
     Node* n = null_check_receiver();
     dec_sp(nargs);
+    // Scalarize value type receiver
+    const Type* recv_type = gvn().type(n);
+    if (recv_type->is_valuetypeptr() && recv_type->value_klass()->is_scalarizable()) {
+      assert(!recv_type->maybe_null(), "should never be null");
+      ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, n, recv_type->value_klass());
+      if (replace_value) {
+        replace_in_map(n, vt);
+      }
+      n = vt;
+    }
     return n;
   }
 

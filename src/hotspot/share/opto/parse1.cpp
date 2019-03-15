@@ -1198,7 +1198,7 @@ SafePointNode* Parse::create_entry_map() {
   // If this is an inlined method, we may have to do a receiver null check.
   if (_caller->has_method() && is_normal_parse() && !method()->is_static()) {
     GraphKit kit(_caller);
-    kit.null_check_receiver_before_call(method());
+    kit.null_check_receiver_before_call(method(), false);
     _caller = kit.transfer_exceptions_into_jvms();
     if (kit.stopped()) {
       _exits.add_exception_states_from(_caller);
