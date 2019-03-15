@@ -675,4 +675,25 @@ public class TestNullableValueTypes extends ValueTypeTest {
             // Expected
         }
     }
+
+    @DontInline
+    public void test25_callee(MyValue1 val) { }
+
+    // Test that when checkcasting from .box to .val and back to .box we
+    // keep track of the information that the value can never be null.
+    @Test(failOn = ALLOC + STORE)
+    public int test25(boolean b, MyValue1.box vt1, MyValue1.val vt2) {
+        vt1 = (MyValue1.val)vt1;
+        Object obj = b ? vt1 : vt2; // We should not allocate here
+        test25_callee(vt1);
+        return ((MyValue1)obj).x;
+    }
+
+    @DontCompile
+    public void test25_verifier(boolean warmup) {
+        int res = test25(true, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+        res = test25(false, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+    }
 }

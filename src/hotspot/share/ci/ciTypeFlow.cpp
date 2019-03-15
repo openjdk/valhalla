@@ -273,6 +273,12 @@ void ciTypeFlow::JsrSet::print_on(outputStream* st) const {
 ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTypeFlow* analyzer) {
   assert(t1 != t2, "checked in caller");
 
+  // Unwrap the types after gathering nullness information
+  bool never_null1 = t1->is_never_null();
+  bool never_null2 = t2->is_never_null();
+  t1 = t1->unwrap();
+  t2 = t2->unwrap();
+
   if (t1->equals(top_type())) {
     return t2;
   } else if (t2->equals(top_type())) {
@@ -294,12 +300,6 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // The other type is not equal to it.  Fall to bottom.
     return bottom_type();
   }
-
-  // Unwrap the types after gathering nullness information
-  bool never_null1 = t1->is_never_null();
-  bool never_null2 = t2->is_never_null();
-  t1 = t1->unwrap();
-  t2 = t2->unwrap();
 
   // Both types are non-top non-primitive types.  That is,
   // both types are either instanceKlasses or arrayKlasses.
@@ -628,10 +628,9 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     pop_object();
     do_null_assert(klass);
   } else {
-    pop_object();
-    if (str->is_klass_never_null()) {
+    ciType* type = pop_value();
+    if (klass->is_valuetype() && (str->is_klass_never_null() || type->is_never_null())) {
       // Casting to a Q-Type contains a NULL check
-      assert(klass->is_valuetype(), "must be a value type");
       push(outer()->mark_as_never_null(klass));
     } else {
       push_object(klass);
