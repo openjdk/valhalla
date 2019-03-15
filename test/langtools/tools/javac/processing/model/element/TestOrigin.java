@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask toolbox.TestRunner
- * @build TestOrigin
+ * @build TestOrigin ListMembersAP
  * @run main TestOrigin
  */
 
@@ -38,9 +38,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +93,7 @@ public class TestOrigin extends TestRunner {
 
         //from source:
         log = new JavacTask(tb)
-            .options("-processor", ListMembersAP.class.getName())
+            .options("-processor", "ListMembersAP")
             .outdir(classes)
             .files(tb.findJavaFiles(src))
             .run()
@@ -113,7 +111,7 @@ public class TestOrigin extends TestRunner {
         log = new JavacTask(tb)
             .options("-classpath", classes.toString(),
                      "-processorpath", System.getProperty("test.classes"),
-                     "-processor", ListMembersAP.class.getName())
+                     "-processor", "ListMembersAP")
             .outdir(classes)
             .files(src.resolve("Dummy.java"))
             .run()
@@ -126,35 +124,6 @@ public class TestOrigin extends TestRunner {
 
         if (!expected.equals(log))
             throw new AssertionError("expected output not found: " + log);
-    }
-
-    @SupportedAnnotationTypes("*")
-    public static final class ListMembersAP extends AbstractProcessor {
-
-        @Override
-        public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-            if (!roundEnv.processingOver())
-                return false;
-
-            Elements elements = processingEnv.getElementUtils();
-            TypeElement test = elements.getTypeElement("test.Test");
-            List<? extends Element> members = new ArrayList<>(test.getEnclosedElements());
-
-            Collections.sort(members,
-                             (e1, e2) -> e1.getSimpleName().toString().compareTo(e2.getSimpleName().toString()));
-
-            for (Element el : members) {
-                System.out.println(el.getSimpleName() + ":" + elements.getOrigin(el));
-            }
-
-            return false;
-        }
-
-        @Override
-        public SourceVersion getSupportedSourceVersion() {
-            return SourceVersion.latestSupported();
-        }
-
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,15 +31,14 @@
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @library /tools/lib
  * @build toolbox.JavacTask toolbox.JavadocTask toolbox.ModuleBuilder toolbox.TestRunner toolbox.ToolBox
+ * @build DOption
  * @run main OptionSyntaxTest
  */
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -94,50 +93,6 @@ public class OptionSyntaxTest extends TestRunner {
 
     }
 
-    static class DOption implements Doclet.Option {
-        private final List<String> names = new ArrayList<>();
-        private final int argCount;
-
-        DOption(String name, int argCount) {
-            this.names.add(name);
-            this.argCount = argCount;
-        }
-
-        @Override
-        public int getArgumentCount() {
-            return argCount;
-        }
-
-        @Override
-        public String getDescription() {
-            return "description[" + names.get(0) + "]";
-        }
-
-        @Override
-        public Kind getKind() {
-            return Doclet.Option.Kind.STANDARD;
-        }
-
-        @Override
-        public List<String> getNames() {
-            return names;
-        }
-
-        @Override
-        public String getParameters() {
-            return argCount > 0 ? "parameters[" + names.get(0) + "," + argCount + "]" : null;
-        }
-
-        @Override
-        public boolean process(String option, List<String> arguments) {
-            List<String> args = new ArrayList<>();
-            for (int i = 0; i < argCount && i < arguments.size(); i++) {
-                args.add(arguments.get(i));
-            }
-            System.out.println("process " + option + " " + args);
-            return args.stream().filter(s -> s.startsWith("arg")).count() == argCount;
-        }
-    }
 
     public static void main(String... args) throws Exception {
         OptionSyntaxTest t = new OptionSyntaxTest();
