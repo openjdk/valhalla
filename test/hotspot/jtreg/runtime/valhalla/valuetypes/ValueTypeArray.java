@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,10 +35,10 @@ import static jdk.test.lib.Asserts.*;
  * @summary Plain array test for Value Types
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
- * @run main/othervm -Xint -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xint -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xcomp -XX:+ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xcomp -XX:-ValueArrayFlatten -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0  -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  */
 public class ValueTypeArray {
     public static void main(String[] args) {

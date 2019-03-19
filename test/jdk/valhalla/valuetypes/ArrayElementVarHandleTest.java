@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@
  * @compile -XDallowWithFieldOperator Line.java
  * @compile -XDallowWithFieldOperator MutablePath.java
  * @compile -XDallowWithFieldOperator MixedValues.java NonFlattenValue.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+ValueArrayFlatten ArrayElementVarHandleTest
- * @run testng/othervm -XX:+EnableValhalla -XX:-ValueArrayFlatten ArrayElementVarHandleTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1 ArrayElementVarHandleTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=0  ArrayElementVarHandleTest
  */
 
 import java.lang.invoke.*;

@@ -131,7 +131,7 @@ public abstract class ValueTypeTest {
     protected static final int AlwaysIncrementalInlineOff = 0x80;
     static final int AllFlags = ValueTypePassFieldsAsArgsOn | ValueTypePassFieldsAsArgsOff | ValueTypeArrayFlattenOn | ValueTypeArrayFlattenOff | ValueTypeReturnedAsFieldsOn;
     protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
-    protected static final boolean ValueTypeArrayFlatten = (Boolean)WHITE_BOX.getVMFlag("ValueArrayFlatten");
+    protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of ValueArrayElemMaxFlatSize is changed
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final int COMP_LEVEL_ANY = -2;
@@ -202,7 +202,6 @@ public abstract class ValueTypeTest {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=-1",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:+ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields"};
@@ -210,7 +209,6 @@ public abstract class ValueTypeTest {
                 "-XX:-UseCompressedOops",
                 "-XX:ValueArrayElemMaxFlatOops=-1",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:+ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:-ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields"};
@@ -219,7 +217,6 @@ public abstract class ValueTypeTest {
                 "-XX:-UseCompressedOops",
                 "-XX:ValueArrayElemMaxFlatOops=0",
                 "-XX:ValueArrayElemMaxFlatSize=0",
-                "-XX:-ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields",
@@ -237,7 +234,6 @@ public abstract class ValueTypeTest {
                 "-DVerifyIR=false",
                 "-XX:ValueArrayElemMaxFlatOops=-1",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:+ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields",
@@ -246,7 +242,6 @@ public abstract class ValueTypeTest {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=-1",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:+ValueArrayFlatten",
                 "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:-ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields"};

@@ -47,7 +47,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
         switch (scenario) {
         case 1: return new String[] {"-XX:-UseOptoBiasInlining"};
         case 2: return new String[] {"-XX:-UseBiasedLocking"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UseBiasedLocking", "-XX:+ValueArrayFlatten"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UseBiasedLocking", "-XX:ValueArrayElemMaxFlatSize=-1"};
         case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
         }
         return null;

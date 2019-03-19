@@ -911,9 +911,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   notproduct(bool, PrintValueArrayLayout, false,                            \
           "Print array layout for each value type array")                   \
                                                                             \
-  product(bool, ValueArrayFlatten, true,                                    \
-          "Flatten value array elements, if possible")                      \
-                                                                            \
   product(intx, ValueArrayElemMaxFlatSize, -1,                              \
           "Max size for flattening value array elements, <0 no limit")      \
                                                                             \

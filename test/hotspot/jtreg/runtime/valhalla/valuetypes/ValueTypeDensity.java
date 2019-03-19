@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,10 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint -XX:+EnableValhalla -XX:+ValueArrayFlatten
+ * @run main/othervm -Xint -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI ValueTypeDensity
- * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:+ValueArrayFlatten
+ * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI ValueTypeDensity
  */
@@ -46,8 +46,8 @@ public class ValueTypeDensity {
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
     public ValueTypeDensity() {
-        if (!WHITE_BOX.getBooleanVMFlag("ValueArrayFlatten")) {
-            throw new IllegalStateException("ValueArrayFlatten false");
+        if (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") != -1) {
+            throw new IllegalStateException("ValueArrayElemMaxFlatSize should be -1");
         }
     }
 

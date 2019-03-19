@@ -1114,5 +1114,11 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
   return k0 == k1;
 }
 
+// TEMP!!!!
+// This should be removed after LW2 arrays are implemented (JDK-8220790).
+// It's an alias to (EnableValhalla && (ValueArrayElemMaxFlatSize != 0)),
+// which is actually not 100% correct, but works for the current set of C1/C2
+// implementation and test cases.
+#define ValueArrayFlatten (EnableValhalla && (ValueArrayElemMaxFlatSize != 0))
 
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP
