@@ -123,7 +123,7 @@ public abstract class ValueTypeTest {
         "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*"};
     private static final String[] printFlags = {
-        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly"};
+        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintOptoAssembly"};
     private static final String[] verifyFlags = {
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
         "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
