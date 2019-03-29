@@ -454,6 +454,7 @@ class Method : public Metadata {
 
   // nmethod/verified compiler entry
   address verified_code_entry();
+  address verified_value_code_entry();
   address verified_value_ro_code_entry();
   bool check_code() const;      // Not inline to avoid circular ref
   CompiledMethod* volatile code() const;
@@ -468,6 +469,7 @@ class Method : public Metadata {
 
   address get_i2c_entry();
   address get_c2i_entry();
+  address get_c2i_value_entry();
   address get_c2i_unverified_entry();
   AdapterHandlerEntry* adapter() const {
     return constMethod()->adapter();

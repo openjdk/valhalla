@@ -134,6 +134,11 @@ address Method::get_c2i_entry() {
   return adapter()->get_c2i_entry();
 }
 
+address Method::get_c2i_value_entry() {
+  assert(adapter() != NULL, "must have");
+  return adapter()->get_c2i_value_entry();
+}
+
 address Method::get_c2i_unverified_entry() {
   assert(adapter() != NULL, "must have");
   return adapter()->get_c2i_unverified_entry();
@@ -1161,6 +1166,12 @@ address Method::verified_code_entry() {
   debug_only(NoSafepointVerifier nsv;)
   assert(_from_compiled_entry != NULL, "must be set");
   return _from_compiled_entry;
+}
+
+address Method::verified_value_code_entry() {
+  debug_only(NoSafepointVerifier nsv;)
+  assert(_from_compiled_value_entry != NULL, "must be set");
+  return _from_compiled_value_entry;
 }
 
 address Method::verified_value_ro_code_entry() {

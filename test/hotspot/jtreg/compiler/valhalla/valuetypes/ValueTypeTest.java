@@ -57,6 +57,7 @@ import java.util.TreeMap;
     // Regular expressions used to match and count IR nodes.
     String[] match() default { };
     int[] matchCount() default { };
+    int compLevel() default ValueTypeTest.COMP_LEVEL_ANY;
     int valid() default ValueTypeTest.AllFlags;
 }
 
@@ -77,6 +78,12 @@ import java.util.TreeMap;
 @Retention(RetentionPolicy.RUNTIME)
 @interface DontCompile { }
 
+// Force method compilation
+@Retention(RetentionPolicy.RUNTIME)
+@interface ForceCompile {
+    int compLevel() default ValueTypeTest.COMP_LEVEL_ANY;
+}
+
 // Number of warmup iterations
 @Retention(RetentionPolicy.RUNTIME)
 @interface Warmup {
@@ -84,7 +91,8 @@ import java.util.TreeMap;
 }
 
 public abstract class ValueTypeTest {
-    // Run "jtreg -Dtest.c1=true" to enable experimental C1 testing.
+    // Run "jtreg -Dtest.c1=true" to enable experimental C1 testing. This forces all
+    // compilable methods to be compiled with C1, regardless of the @Test(compLevel=?) setting.
     static final boolean TEST_C1 = Boolean.getBoolean("test.c1");
 
     // Should we execute tests that assume (ValueType[] <: Object[])?
@@ -107,18 +115,18 @@ public abstract class ValueTypeTest {
     private static final boolean DUMP_REPLAY = Boolean.parseBoolean(System.getProperty("DumpReplay", "false"));
 
     // Pre-defined settings
-    private static final List<String> defaultFlags = Arrays.asList(
+    private static final String[] defaultFlags = {
         "-XX:-BackgroundCompilation", "-XX:CICompilerCount=1",
         "-XX:CompileCommand=quiet",
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",
         "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
-        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*");
-    private static final List<String> printFlags = Arrays.asList(
-        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly");
-    private static final List<String> verifyFlags = Arrays.asList(
+        "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*"};
+    private static final String[] printFlags = {
+        "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+PrintOptoAssembly"};
+    private static final String[] verifyFlags = {
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
-        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing");
+        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
 
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final int ValueTypePassFieldsAsArgsOn = 0x1;
@@ -134,8 +142,16 @@ public abstract class ValueTypeTest {
     protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of ValueArrayElemMaxFlatSize is changed
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
-    protected static final int COMP_LEVEL_ANY = -2;
-    protected static final int COMP_LEVEL_FULL_OPTIMIZATION = TEST_C1 ? 1 : 4;
+    protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
+    protected static final int COMP_LEVEL_ANY               = -2;
+    protected static final int COMP_LEVEL_ALL               = -2;
+    protected static final int COMP_LEVEL_AOT               = -1;
+    protected static final int COMP_LEVEL_NONE              =  0;
+    protected static final int COMP_LEVEL_SIMPLE            =  1;     // C1
+    protected static final int COMP_LEVEL_LIMITED_PROFILE   =  2;     // C1, invocation & backedge counters
+    protected static final int COMP_LEVEL_FULL_PROFILE      =  3;     // C1, invocation & backedge counters + mdo
+    protected static final int COMP_LEVEL_FULL_OPTIMIZATION =  4;     // C2 or JVMCI
+
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
     protected static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
@@ -193,7 +209,10 @@ public abstract class ValueTypeTest {
     public String[] getVMParameters(int scenario) {
         if (TEST_C1) {
             return new String[] {
-                    "-XX:+EnableValhallaC1",
+                "-XX:+EnableValhallaC1",
+                "-XX:TieredStopAtLevel=1",
+                "-XX:-ValueTypePassFieldsAsArgs",
+                "-XX:-ValueTypeReturnedAsFields"
             };
         }
 
@@ -340,36 +359,46 @@ public abstract class ValueTypeTest {
             // Spawn a new VM instance
             execute_vm();
         } else {
-            // Execute tests
+            // Execute tests in the VM spawned by the above code.
+            Asserts.assertTrue(args.length == 1 && args[0].equals("run"), "must be");
             run(classes);
         }
     }
 
     private void execute_vm() throws Throwable {
         Asserts.assertFalse(tests.isEmpty(), "no tests to execute");
-        ArrayList<String> args = new ArrayList<String>(defaultFlags);
         String[] vmInputArgs = InputArguments.getVmInputArgs();
         for (String arg : vmInputArgs) {
             if (arg.startsWith("-XX:CompileThreshold")) {
                 // Disable IR verification if non-default CompileThreshold is set
                 VERIFY_IR = false;
             }
+            if (arg.startsWith("-XX:+EnableValhallaC1")) {
+                // Disable IR verification if C1 is used (FIXME!)
+                VERIFY_IR = false;
+            }
         }
+        // Each VM is launched with flags in this order, so the later ones can override the earlier one:
+        //     defaultFlags
+        //     VERIFY_IR/VERIFY_VM flags specified below
+        //     vmInputArgs, which consists of:
+        //        @run options
+        //        getVMParameters()
+        //        getExtraVMParameters()
+        String cmds[] = defaultFlags;
         if (VERIFY_IR) {
             // Add print flags for IR verification
-            args.addAll(printFlags);
+            cmds = concat(cmds, printFlags);
             // Always trap for exception throwing to not confuse IR verification
-            args.add("-XX:-OmitStackTraceInFastThrow");
+            cmds = concat(cmds, "-XX:-OmitStackTraceInFastThrow");
         }
         if (VERIFY_VM) {
-            args.addAll(verifyFlags);
+            cmds = concat(cmds, verifyFlags);
         }
+        cmds = concat(cmds, vmInputArgs);
+
         // Run tests in own process and verify output
-        args.add(getClass().getName());
-        args.add("run");
-        // Spawn process with default JVM options from the test's run command
-        String[] cmds = Arrays.copyOf(vmInputArgs, vmInputArgs.length + args.size());
-        System.arraycopy(args.toArray(), 0, cmds, vmInputArgs.length, args.size());
+        cmds = concat(cmds, getClass().getName(), "run");
         OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
         // If ideal graph printing is enabled/supported, verify output
         String output = oa.getOutput();
@@ -511,6 +540,9 @@ public abstract class ValueTypeTest {
                 WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_ANY, true);
                 WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_ANY, false);
                 WHITE_BOX.testSetDontInlineMethod(m, true);
+            } else if (m.isAnnotationPresent(ForceCompile.class)) {
+                int compLevel = getCompLevel(m.getAnnotation(ForceCompile.class));
+                WHITE_BOX.enqueueMethodForCompilation(m, compLevel);
             }
             if (m.isAnnotationPresent(ForceInline.class)) {
                 WHITE_BOX.testSetForceInlineMethod(m, true);
@@ -520,7 +552,8 @@ public abstract class ValueTypeTest {
         }
 
         // Compile class initializers
-        WHITE_BOX.enqueueInitializerForCompilation(clazz, COMP_LEVEL_FULL_OPTIMIZATION);
+        int compLevel = getCompLevel(null);
+        WHITE_BOX.enqueueInitializerForCompilation(clazz, compLevel);
     }
 
     private void run(Class<?>... classes) throws Exception {
@@ -545,8 +578,9 @@ public abstract class ValueTypeTest {
             for (int i = 0; i < warmup; ++i) {
                 verifier.invoke(this, true);
             }
+            int compLevel = getCompLevel(test.getAnnotation(Test.class));
             // Trigger compilation
-            WHITE_BOX.enqueueMethodForCompilation(test, COMP_LEVEL_FULL_OPTIMIZATION);
+            WHITE_BOX.enqueueMethodForCompilation(test, compLevel);
             Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             // Check result
             verifier.invoke(this, false);
@@ -564,5 +598,30 @@ public abstract class ValueTypeTest {
               System.out.format("%-10s%15d ns\n", entry.getValue() + ":", entry.getKey());
           }
         }
+    }
+
+    // Choose the appropriate compilation level for a method, according to the given annotation.
+    //
+    // Currently, if TEST_C1 is true, we always use COMP_LEVEL_SIMPLE. Otherwise, if the
+    // compLevel is unspecified, the default is COMP_LEVEL_FULL_OPTIMIZATION.
+    int getCompLevel(Object annotation) {
+        if (TEST_C1) {
+            return COMP_LEVEL_SIMPLE;
+        }
+        int compLevel;
+        if (annotation == null) {
+            compLevel = COMP_LEVEL_ANY;
+        } else if (annotation instanceof Test) {
+            compLevel = ((Test)annotation).compLevel();
+        } else {
+            compLevel = ((ForceCompile)annotation).compLevel();
+        }
+        if (compLevel == COMP_LEVEL_ANY) {
+            compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
+        }
+        if (compLevel > (int)TieredStopAtLevel) {
+            compLevel = (int)TieredStopAtLevel;
+        }
+        return compLevel;
     }
 }

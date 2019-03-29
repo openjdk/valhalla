@@ -86,12 +86,12 @@ class VtableStubs : AllStatic {
   static int         _vtab_stub_size;            // current size estimate for vtable stub (quasi-constant)
   static int         _itab_stub_size;            // current size estimate for itable stub (quasi-constant)
 
-  static VtableStub* create_vtable_stub(int vtable_index);
-  static VtableStub* create_itable_stub(int vtable_index);
-  static VtableStub* lookup            (bool is_vtable_stub, int vtable_index);
-  static void        enter             (bool is_vtable_stub, int vtable_index, VtableStub* s);
-  static inline uint hash              (bool is_vtable_stub, int vtable_index);
-  static address     find_stub         (bool is_vtable_stub, int vtable_index);
+  static VtableStub* create_vtable_stub(int vtable_index, bool caller_is_c1);
+  static VtableStub* create_itable_stub(int vtable_index, bool caller_is_c1);
+  static VtableStub* lookup            (bool is_vtable_stub, int vtable_index, bool caller_is_c1);
+  static void        enter             (bool is_vtable_stub, int vtable_index, bool caller_is_c1, VtableStub* s);
+  static inline uint hash              (bool is_vtable_stub, int vtable_index, bool caller_is_c1);
+  static address     find_stub         (bool is_vtable_stub, int vtable_index, bool caller_is_c1);
   static void        bookkeeping(MacroAssembler* masm, outputStream* out, VtableStub* s,
                                  address npe_addr, address ame_addr,   bool is_vtable_stub,
                                  int     index,    int     slop_bytes, int  index_dependent_slop);
@@ -101,8 +101,8 @@ class VtableStubs : AllStatic {
                                               int   padding);
 
  public:
-  static address     find_vtable_stub(int vtable_index) { return find_stub(true,  vtable_index); }
-  static address     find_itable_stub(int itable_index) { return find_stub(false, itable_index); }
+  static address     find_vtable_stub(int vtable_index, bool caller_is_c1) { return find_stub(true,  vtable_index, caller_is_c1); }
+  static address     find_itable_stub(int itable_index, bool caller_is_c1) { return find_stub(false, itable_index, caller_is_c1); }
 
   static VtableStub* entry_point(address pc);                        // vtable stub entry point for a pc
   static bool        contains(address pc);                           // is pc within any stub?
@@ -126,13 +126,15 @@ class VtableStub {
   short          _ame_offset;        // Where an AbstractMethodError might occur
   short          _npe_offset;        // Where a NullPointerException might occur
   bool           _is_vtable_stub;    // True if vtable stub, false, is itable stub
+  bool           _caller_is_c1;      // True if this is for a caller compiled by C1,
+                                     // which doesn't scalarize parameters.
   /* code follows here */            // The vtableStub code
 
   void* operator new(size_t size, int code_size) throw();
 
-  VtableStub(bool is_vtable_stub, int index)
+  VtableStub(bool is_vtable_stub, int index, bool caller_is_c1)
         : _next(NULL), _index(index), _ame_offset(-1), _npe_offset(-1),
-          _is_vtable_stub(is_vtable_stub) {}
+          _is_vtable_stub(is_vtable_stub), _caller_is_c1(caller_is_c1) {}
   VtableStub* next() const                       { return _next; }
   int index() const                              { return _index; }
   static VMReg receiver_location()               { return _receiver_location; }
@@ -144,8 +146,8 @@ class VtableStub {
   address entry_point() const                    { return code_begin(); }
   static int entry_offset()                      { return sizeof(class VtableStub); }
 
-  bool matches(bool is_vtable_stub, int index) const {
-    return _index == index && _is_vtable_stub == is_vtable_stub;
+  bool matches(bool is_vtable_stub, int index, bool caller_is_c1) const {
+    return _index == index && _is_vtable_stub == is_vtable_stub && _caller_is_c1 == caller_is_c1;
   }
   bool contains(address pc) const                { return code_begin() <= pc && pc < code_end(); }
 
@@ -173,6 +175,7 @@ class VtableStub {
   // Query
   bool is_itable_stub()                          { return !_is_vtable_stub; }
   bool is_vtable_stub()                          { return  _is_vtable_stub; }
+  bool caller_is_c1()                            { return  _caller_is_c1;   }
   bool is_abstract_method_error(address epc)     { return epc == code_begin()+_ame_offset; }
   bool is_null_pointer_exception(address epc)    { return epc == code_begin()+_npe_offset; }
 

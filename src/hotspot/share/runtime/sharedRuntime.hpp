@@ -55,7 +55,8 @@ class SharedRuntime: AllStatic {
                                           Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
   static methodHandle resolve_sub_helper(JavaThread *thread,
                                          bool is_virtual,
-                                         bool is_optimized, TRAPS);
+                                         bool is_optimized,
+                                         bool* caller_is_c1, TRAPS);
 
   // Shared stub locations
 
@@ -323,7 +324,8 @@ class SharedRuntime: AllStatic {
   // compiled code.
   static methodHandle resolve_helper(JavaThread *thread,
                                      bool is_virtual,
-                                     bool is_optimized, TRAPS);
+                                     bool is_optimized,
+                                     bool* caller_is_c1, TRAPS);
 
  private:
   // deopt blob
@@ -331,21 +333,34 @@ class SharedRuntime: AllStatic {
 
   static bool handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm, const frame& caller_frame,
                                              methodHandle callee_method, Bytecodes::Code bc, CallInfo& call_info,
-                                             bool& needs_ic_stub_refill, bool& is_optimized, TRAPS);
+                                             bool& needs_ic_stub_refill, bool& is_optimized, bool caller_is_c1, TRAPS);
 
  public:
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
 
   // Resets a call-site in compiled code so it will get resolved again.
-  static methodHandle reresolve_call_site(JavaThread *thread, bool& is_optimized, TRAPS);
+  static methodHandle reresolve_call_site(JavaThread *thread, bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // In the code prolog, if the klass comparison fails, the inline cache
   // misses and the call site is patched to megamorphic
-  static methodHandle handle_ic_miss_helper(JavaThread* thread, bool& is_optimized, TRAPS);
+  static methodHandle handle_ic_miss_helper(JavaThread* thread, bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // Find the method that called us.
   static methodHandle find_callee_method(JavaThread* thread, TRAPS);
 
+
+  static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_optimized, bool caller_is_c1) {
+    assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
+    assert(callee_method->verified_value_code_entry() != NULL, "Jump to zero!");
+    assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
+    if (caller_is_c1) {
+      return callee_method->verified_value_code_entry();
+    } else if (is_optimized) {
+      return callee_method->verified_code_entry();
+    } else {
+      return callee_method->verified_value_ro_code_entry();
+    }
+  }
 
  private:
   static Handle find_callee_info(JavaThread* thread,

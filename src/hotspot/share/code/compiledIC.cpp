@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -243,7 +243,7 @@ CompiledIC::CompiledIC(RelocIterator* iter)
 // was due to running out of IC stubs, in which case the caller will refill IC
 // stubs and retry.
 bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecode,
-                                    bool& needs_ic_stub_refill, TRAPS) {
+                                    bool& needs_ic_stub_refill, bool caller_is_c1, TRAPS) {
   assert(CompiledICLocker::is_safe(_method), "mt unsafe call");
   assert(!is_optimized(), "cannot set an optimized virtual call to megamorphic");
   assert(is_call_to_compiled() || is_call_to_interpreted(), "going directly to megamorphic?");
@@ -252,7 +252,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
   if (call_info->call_kind() == CallInfo::itable_call) {
     assert(bytecode == Bytecodes::_invokeinterface, "");
     int itable_index = call_info->itable_index();
-    entry = VtableStubs::find_itable_stub(itable_index);
+    entry = VtableStubs::find_itable_stub(itable_index, caller_is_c1);
     if (entry == NULL) {
       return false;
     }
@@ -275,7 +275,7 @@ bool CompiledIC::set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecod
     // Can be different than selected_method->vtable_index(), due to package-private etc.
     int vtable_index = call_info->vtable_index();
     assert(call_info->resolved_klass()->verify_vtable_index(vtable_index), "sanity check");
-    entry = VtableStubs::find_vtable_stub(vtable_index);
+    entry = VtableStubs::find_vtable_stub(vtable_index, caller_is_c1);
     if (entry == NULL) {
       return false;
     }
@@ -510,6 +510,7 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
                                            bool is_optimized,
                                            bool static_bound,
                                            bool caller_is_nmethod,
+                                           bool caller_is_c1,
                                            CompiledICInfo& info,
                                            TRAPS) {
   CompiledMethod* method_code = method->code();
@@ -551,7 +552,8 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
         info.set_aot_entry(entry, method());
       } else {
         // Use stub entry
-        info.set_interpreter_entry(method()->get_c2i_entry(), method());
+        address entry = caller_is_c1 ? method()->get_c2i_value_entry() : method()->get_c2i_entry();
+        info.set_interpreter_entry(entry, method());
       }
     } else {
       // Use icholder entry
@@ -656,7 +658,8 @@ void CompiledStaticCall::set(const StaticCallInfo& info) {
 
 // Compute settings for a CompiledStaticCall. Since we might have to set
 // the stub when calling to the interpreter, we need to return arguments.
-void CompiledStaticCall::compute_entry(const methodHandle& m, bool caller_is_nmethod, StaticCallInfo& info) {
+void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* caller_nm, StaticCallInfo& info) {
+  bool caller_is_nmethod = caller_nm->is_nmethod();
   CompiledMethod* m_code = m->code();
   info._callee = m;
   if (m_code != NULL && m_code->is_in_use()) {
@@ -673,7 +676,14 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, bool caller_is_nme
     // puts a converter-frame on the stack to save arguments.
     assert(!m->is_method_handle_intrinsic(), "Compiled code should never call interpreter MH intrinsics");
     info._to_interpreter = true;
-    info._entry      = m()->get_c2i_entry();
+
+    if (caller_nm->is_c1()) {
+      // C1 -> interp: values passed as oops
+      info._entry = m()->get_c2i_value_entry();
+    } else {
+      // C2 -> interp: values passed fields
+      info._entry = m()->get_c2i_entry();
+    }
   }
 }
 

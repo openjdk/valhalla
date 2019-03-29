@@ -26,6 +26,7 @@
 #define SHARE_CODE_NMETHOD_HPP
 
 #include "code/compiledMethod.hpp"
+#include "compiler/compilerDefinitions.hpp"
 
 class DepChange;
 class DirectiveSet;
@@ -380,7 +381,7 @@ class nmethod : public CompiledMethod {
   }
 
   int   comp_level() const                        { return _comp_level; }
-
+  bool  is_c1() const                             { return CompLevel_simple <= _comp_level && _comp_level <= CompLevel_full_profile; }
   void unlink_from_method(bool acquire_lock);
 
   // Support for oops in scopes and relocs:

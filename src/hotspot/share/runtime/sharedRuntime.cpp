@@ -1247,9 +1247,10 @@ methodHandle SharedRuntime::find_callee_method(JavaThread* thread, TRAPS) {
 // Resolves a call.
 methodHandle SharedRuntime::resolve_helper(JavaThread *thread,
                                            bool is_virtual,
-                                           bool is_optimized, TRAPS) {
+                                           bool is_optimized,
+                                           bool* caller_is_c1, TRAPS) {
   methodHandle callee_method;
-  callee_method = resolve_sub_helper(thread, is_virtual, is_optimized, THREAD);
+  callee_method = resolve_sub_helper(thread, is_virtual, is_optimized, caller_is_c1, THREAD);
   if (JvmtiExport::can_hotswap_or_post_breakpoint()) {
     int retry_count = 0;
     while (!HAS_PENDING_EXCEPTION && callee_method->is_old() &&
@@ -1266,7 +1267,7 @@ methodHandle SharedRuntime::resolve_helper(JavaThread *thread,
       guarantee((retry_count++ < 100),
                 "Could not resolve to latest version of redefined method");
       // method is redefined in the middle of resolve so re-try.
-      callee_method = resolve_sub_helper(thread, is_virtual, is_optimized, THREAD);
+      callee_method = resolve_sub_helper(thread, is_virtual, is_optimized, caller_is_c1, THREAD);
     }
   }
   return callee_method;
@@ -1297,10 +1298,11 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 #endif
 
   bool is_nmethod = caller_nm->is_nmethod();
+  bool caller_is_c1 = caller_nm->is_c1();
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
-    if (ValueTypePassFieldsAsArgs && callee_method->method_holder()->is_value()) {
+    if (ValueTypePassFieldsAsArgs && !caller_is_c1 && callee_method->method_holder()->is_value()) {
       // If the receiver is a value type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
@@ -1309,11 +1311,11 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
     }
     bool static_bound = call_info.resolved_method()->can_be_statically_bound();
     CompiledIC::compute_monomorphic_entry(callee_method, receiver_klass,
-                     is_optimized, static_bound, is_nmethod, virtual_call_info,
+                     is_optimized, static_bound, is_nmethod, caller_is_c1, virtual_call_info,
                      CHECK_false);
   } else {
     // static call
-    CompiledStaticCall::compute_entry(callee_method, is_nmethod, static_call_info);
+    CompiledStaticCall::compute_entry(callee_method, caller_nm, static_call_info);
   }
 
   // grab lock, check for deoptimization and potentially patch caller
@@ -1358,7 +1360,8 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 // and are patched with the real destination of the call.
 methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
                                                bool is_virtual,
-                                               bool is_optimized, TRAPS) {
+                                               bool is_optimized,
+                                               bool* caller_is_c1, TRAPS) {
 
   ResourceMark rm(thread);
   RegisterMap cbl_map(thread, false);
@@ -1367,6 +1370,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   CodeBlob* caller_cb = caller_frame.cb();
   guarantee(caller_cb != NULL && caller_cb->is_compiled(), "must be called from compiled method");
   CompiledMethod* caller_nm = caller_cb->as_compiled_method_or_null();
+  *caller_is_c1 = caller_nm->is_c1();
 
   // make sure caller is not getting deoptimized
   // and removed before we are done with it.
@@ -1477,15 +1481,14 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
 
   methodHandle callee_method;
   bool is_optimized = false;
+  bool caller_is_c1 = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::handle_ic_miss_helper(thread, is_optimized, CHECK_NULL);
+    callee_method = SharedRuntime::handle_ic_miss_helper(thread, is_optimized, caller_is_c1, CHECK_NULL);
     // Return Method* through TLS
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
-  assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
-  return is_optimized ? callee_method->verified_code_entry() : callee_method->verified_value_ro_code_entry();
+  return entry_for_handle_wrong_method(callee_method, is_optimized, caller_is_c1);
 JRT_END
 
 
@@ -1517,15 +1520,14 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* thread))
   // Must be compiled to compiled path which is safe to stackwalk
   methodHandle callee_method;
   bool is_optimized = false;
+  bool caller_is_c1 = false;
   JRT_BLOCK
     // Force resolving of caller (if we called from compiled frame)
-    callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, CHECK_NULL);
+    callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, caller_is_c1, CHECK_NULL);
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
-  assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
-  return is_optimized ? callee_method->verified_code_entry() : callee_method->verified_value_ro_code_entry();
+  return entry_for_handle_wrong_method(callee_method, is_optimized, caller_is_c1);
 JRT_END
 
 // Handle abstract method call
@@ -1563,26 +1565,32 @@ JRT_END
 // resolve a static call and patch code
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread *thread ))
   methodHandle callee_method;
+  bool caller_is_c1;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(thread, false, false, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(thread, false, false, &caller_is_c1, CHECK_NULL);
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
-  return callee_method->verified_code_entry();
+  address entry = caller_is_c1 ?
+    callee_method->verified_value_code_entry() : callee_method->verified_code_entry();
+  assert(entry != NULL, "Jump to zero!");
+  return entry;
 JRT_END
 
 
 // resolve virtual call and update inline cache to monomorphic
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread *thread ))
   methodHandle callee_method;
+  bool caller_is_c1;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(thread, true, false, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(thread, true, false, &caller_is_c1, CHECK_NULL);
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
-  return callee_method->verified_value_ro_code_entry();
+  address entry = caller_is_c1 ?
+    callee_method->verified_value_code_entry() : callee_method->verified_value_ro_code_entry();
+  assert(entry != NULL, "Jump to zero!");
+  return entry;
 JRT_END
 
 
@@ -1590,13 +1598,16 @@ JRT_END
 // monomorphic, so it has no inline cache).  Patch code to resolved target.
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread *thread))
   methodHandle callee_method;
+  bool caller_is_c1;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(thread, true, true, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(thread, true, true, &caller_is_c1, CHECK_NULL);
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
-  return callee_method->verified_code_entry();
+  address entry = caller_is_c1 ?
+    callee_method->verified_value_code_entry() : callee_method->verified_code_entry();
+  assert(entry != NULL, "Jump to zero!");
+  return entry;
 JRT_END
 
 // The handle_ic_miss_helper_internal function returns false if it failed due
@@ -1607,7 +1618,7 @@ JRT_END
 bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm,
                                                    const frame& caller_frame, methodHandle callee_method,
                                                    Bytecodes::Code bc, CallInfo& call_info,
-                                                   bool& needs_ic_stub_refill, bool& is_optimized, TRAPS) {
+                                                   bool& needs_ic_stub_refill, bool& is_optimized, bool caller_is_c1, TRAPS) {
   CompiledICLocker ml(caller_nm);
   CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
   bool should_be_mono = false;
@@ -1656,6 +1667,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
                                             receiver_klass,
                                             inline_cache->is_optimized(),
                                             false, caller_nm->is_nmethod(),
+                                            caller_nm->is_c1(),
                                             info, CHECK_false);
     if (!inline_cache->set_to_monomorphic(info)) {
       needs_ic_stub_refill = true;
@@ -1664,7 +1676,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
   } else if (!inline_cache->is_megamorphic() && !inline_cache->is_clean()) {
     // Potential change to megamorphic
 
-    bool successful = inline_cache->set_to_megamorphic(&call_info, bc, needs_ic_stub_refill, CHECK_false);
+    bool successful = inline_cache->set_to_megamorphic(&call_info, bc, needs_ic_stub_refill, caller_is_c1, CHECK_false);
     if (needs_ic_stub_refill) {
       return false;
     }
@@ -1680,7 +1692,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
   return true;
 }
 
-methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_optimized, TRAPS) {
+methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_optimized, bool& caller_is_c1, TRAPS) {
   ResourceMark rm(thread);
   CallInfo call_info;
   Bytecodes::Code bc;
@@ -1700,7 +1712,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_o
   // did this would still be the correct thing to do for it too, hence no ifdef.
   //
   if (call_info.resolved_method()->can_be_statically_bound()) {
-    methodHandle callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, CHECK_(methodHandle()));
+    methodHandle callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, caller_is_c1, CHECK_(methodHandle()));
     if (TraceCallFixup) {
       RegisterMap reg_map(thread, false);
       frame caller_frame = thread->last_frame().sender(&reg_map);
@@ -1750,12 +1762,13 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_o
   frame caller_frame = thread->last_frame().sender(&reg_map);
   CodeBlob* cb = caller_frame.cb();
   CompiledMethod* caller_nm = cb->as_compiled_method();
+  caller_is_c1 = caller_nm->is_c1();
 
   for (;;) {
     ICRefillVerifier ic_refill_verifier;
     bool needs_ic_stub_refill = false;
     bool successful = handle_ic_miss_helper_internal(receiver, caller_nm, caller_frame, callee_method,
-                                                     bc, call_info, needs_ic_stub_refill, is_optimized, CHECK_(methodHandle()));
+                                                     bc, call_info, needs_ic_stub_refill, is_optimized, caller_is_c1, CHECK_(methodHandle()));
     if (successful || !needs_ic_stub_refill) {
       return callee_method;
     } else {
@@ -1787,7 +1800,7 @@ static bool clear_ic_at_addr(CompiledMethod* caller_nm, address call_addr, bool 
 // sites, and static call sites. Typically used to change a call sites
 // destination from compiled to interpreted.
 //
-methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_optimized, TRAPS) {
+methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_optimized, bool& caller_is_c1, TRAPS) {
   ResourceMark rm(thread);
   RegisterMap reg_map(thread, false);
   frame stub_frame = thread->last_frame();
@@ -1805,6 +1818,7 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_opt
     // Check for static or virtual call
     bool is_static_call = false;
     CompiledMethod* caller_nm = CodeCache::find_compiled(pc);
+    caller_is_c1 = caller_nm->is_c1();
 
     // Default call_addr is the location of the "basic" call.
     // Determine the address of the call we a reresolving. With

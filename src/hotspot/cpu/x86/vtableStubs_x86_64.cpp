@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,10 +45,10 @@
 extern "C" void bad_compiled_vtable_index(JavaThread* thread, oop receiver, int index);
 #endif
 
-VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
+VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1) {
   // Read "A word on VtableStub sizing" in share/code/vtableStubs.hpp for details on stub sizing.
   const int stub_code_length = code_size_limit(true);
-  VtableStub* s = new(stub_code_length) VtableStub(true, vtable_index);
+  VtableStub* s = new(stub_code_length) VtableStub(true, vtable_index, caller_is_c1);
   // Can be NULL if there is no free space in the code cache.
   if (s == NULL) {
     return NULL;
@@ -62,6 +62,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   int       slop_delta = 0;
   // No variance was detected in vtable stub sizes. Setting index_dependent_slop == 0 will unveil any deviation from this observation.
   const int index_dependent_slop     = 0;
+  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_value_offset() :  Method::from_compiled_value_ro_offset();
 
   ResourceMark    rm;
   CodeBuffer      cb(s->entry_point(), stub_code_length);
@@ -118,7 +119,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
     Label L;
     __ cmpptr(method, (int32_t)NULL_WORD);
     __ jcc(Assembler::equal, L);
-    __ cmpptr(Address(method, Method::from_compiled_value_ro_offset()), (int32_t)NULL_WORD);
+    __ cmpptr(Address(method, entry_offset), (int32_t)NULL_WORD);
     __ jcc(Assembler::notZero, L);
     __ stop("Vtable entry is NULL");
     __ bind(L);
@@ -129,7 +130,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
   // method (rbx): Method*
   // rcx: receiver
   address ame_addr = __ pc();
-  __ jmp( Address(rbx, Method::from_compiled_value_ro_offset()));
+  __ jmp( Address(rbx, entry_offset));
 
   masm->flush();
   slop_bytes += index_dependent_slop; // add'l slop for size variance due to large itable offsets
@@ -139,10 +140,11 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
 }
 
 
-VtableStub* VtableStubs::create_itable_stub(int itable_index) {
+VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1) {
   // Read "A word on VtableStub sizing" in share/code/vtableStubs.hpp for details on stub sizing.
   const int stub_code_length = code_size_limit(false);
-  VtableStub* s = new(stub_code_length) VtableStub(false, itable_index);
+  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_value_offset() :  Method::from_compiled_value_ro_offset();
+  VtableStub* s = new(stub_code_length) VtableStub(false, itable_index, caller_is_c1);
   // Can be NULL if there is no free space in the code cache.
   if (s == NULL) {
     return NULL;
@@ -235,7 +237,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
     Label L2;
     __ cmpptr(method, (int32_t)NULL_WORD);
     __ jcc(Assembler::equal, L2);
-    __ cmpptr(Address(method, Method::from_compiled_value_ro_offset()), (int32_t)NULL_WORD);
+    __ cmpptr(Address(method, entry_offset), (int32_t)NULL_WORD);
     __ jcc(Assembler::notZero, L2);
     __ stop("compiler entrypoint is null");
     __ bind(L2);
@@ -243,7 +245,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index) {
 #endif // ASSERT
 
   address ame_addr = __ pc();
-  __ jmp(Address(method, Method::from_compiled_value_ro_offset()));
+  __ jmp(Address(method, entry_offset));
 
   __ bind(L_no_such_interface);
   // Handle IncompatibleClassChangeError in itable stubs.

@@ -276,11 +276,11 @@ class CompiledIC: public ResourceObj {
 
   // Returns true if successful and false otherwise. The call can fail if memory
   // allocation in the code cache fails, or ic stub refill is required.
-  bool set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecode, bool& needs_ic_stub_refill, TRAPS);
+  bool set_to_megamorphic(CallInfo* call_info, Bytecodes::Code bytecode, bool& needs_ic_stub_refill, bool caller_is_c1, TRAPS);
 
   static void compute_monomorphic_entry(const methodHandle& method, Klass* receiver_klass,
                                         bool is_optimized, bool static_bound, bool caller_is_nmethod,
-                                        CompiledICInfo& info, TRAPS);
+                                        bool caller_is_c1, CompiledICInfo& info, TRAPS);
 
   // Location
   address instruction_address() const { return _call->instruction_address(); }
@@ -363,7 +363,7 @@ class CompiledStaticCall : public ResourceObj {
   static int reloc_to_aot_stub();
 
   // Compute entry point given a method
-  static void compute_entry(const methodHandle& m, bool caller_is_nmethod, StaticCallInfo& info);
+  static void compute_entry(const methodHandle& m, CompiledMethod* caller_nm, StaticCallInfo& info);
 
 public:
   // Clean static call (will force resolving on next use)

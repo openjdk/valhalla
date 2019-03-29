@@ -2066,22 +2066,22 @@ bool Arguments::check_vm_args_consistency() {
     if (!EnableValhallaC1) {
       // C1 support for value types is incomplete. Don't use it by default.
       if (!FLAG_IS_DEFAULT(TieredCompilation)) {
-        warning("TieredCompilation disabled because value types are not supported by C1");
+        warning("TieredCompilation disabled because value types are not fully supported by C1");
       }
       FLAG_SET_CMDLINE(bool, TieredCompilation, false);
     } else {
-      if (TieredStopAtLevel > 1) {
-        warning("C1 doesn't work with C2 yet. Forcing TieredStopAtLevel=1");
-        FLAG_SET_CMDLINE(intx, TieredStopAtLevel, 1);
-      }
-      if (ValueTypePassFieldsAsArgs) {
-        warning("C1 doesn't work with ValueTypePassFieldsAsArgs yet. Forcing ValueTypePassFieldsAsArgs=false");
-        FLAG_SET_CMDLINE(bool, ValueTypePassFieldsAsArgs, false);
-      }
-      if (ValueTypeReturnedAsFields) {
-        warning("C1 doesn't work with ValueTypeReturnedAsFields yet. Forcing ValueTypeReturnedAsFields=false");
-        FLAG_SET_CMDLINE(bool, ValueTypeReturnedAsFields, false);
-      }
+      /*
+        TEMP: to run the valuetype tests with C1, you need to use the following command-line:
+
+        cd test/hotspot/jtreg/compiler/valhalla/valuetypes
+        jtreg -Dtest.c1=true \
+            -vmoptions:-XX:+EnableValhallaC1 \
+            -vmoptions:-XX:TieredStopAtLevel=1 \
+            -vmoptions:-XX:-ValueTypePassFieldsAsArgs \
+            -vmoptions:-XX:-ValueTypeReturnedAsFields \
+            .
+
+      */
     }
   }
   if (!EnableValhalla && ACmpOnValues != 3) {
