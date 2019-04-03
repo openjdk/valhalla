@@ -2953,7 +2953,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       MacroAssembler _masm(&buffer);
       entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
                                                      args_on_stack,
-                                                     args_on_stack_cc,
                                                      &sig,
                                                      regs,
                                                      &sig_cc,

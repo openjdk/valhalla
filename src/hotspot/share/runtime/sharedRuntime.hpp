@@ -452,7 +452,6 @@ class SharedRuntime: AllStatic {
 
   static AdapterHandlerEntry* generate_i2c2i_adapters(MacroAssembler *masm,
                                                       int comp_args_on_stack,
-                                                      int comp_args_on_stack_cc,
                                                       const GrowableArray<SigEntry>* sig,
                                                       const VMRegPair* regs,
                                                       const GrowableArray<SigEntry>* sig_cc,

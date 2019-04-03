@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -958,57 +958,6 @@ static void range_check(MacroAssembler* masm, Register pc_reg, Register temp_reg
   __ bind(L_fail);
 }
 
-static void gen_i2c_adapter_helper(MacroAssembler* masm,
-                                   BasicType bt,
-                                   BasicType prev_bt,
-                                   size_t size_in_bytes,
-                                   const VMRegPair& reg_pair,
-                                   const Address& from,
-                                   bool is_oop) {
-  assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
-  if (bt == T_VOID) {
-    // Longs and doubles are passed in native word order, but misaligned
-    // in the 32-bit build.
-    assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
-    return;
-  }
-  assert(!reg_pair.second()->is_valid() || reg_pair.first()->next() == reg_pair.second(),
-         "scrambled load targets?");
-
-  bool wide = (size_in_bytes == wordSize);
-  VMReg r_1 = reg_pair.first();
-  VMReg r_2 = reg_pair.second();
-  assert(r_2->is_valid() == wide, "invalid size");
-  if (!r_1->is_valid()) {
-    assert(!r_2->is_valid(), "must be invalid");
-    return;
-  }
-
-  bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
-  if (!r_1->is_XMMRegister()) {
-    // We can use r13 as a temp here because compiled code doesn't need r13 as an input
-    // and if we end up going thru a c2i because of a miss a reasonable value of r13
-    // will be generated.
-    Register dst = r_1->is_stack() ? r13 : r_1->as_Register();
-    if (is_oop) {
-      __ load_heap_oop(dst, from);
-    } else {
-      __ load_sized_value(dst, from, size_in_bytes, is_signed);
-    }
-    if (r_1->is_stack()) {
-      // Convert stack slot to an SP offset (+ wordSize to account for return address)
-      int st_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-      __ movq(Address(rsp, st_off), dst);
-    }
-  } else {
-    if (wide) {
-      __ movdbl(r_1->as_XMMRegister(), from);
-    } else {
-      __ movflt(r_1->as_XMMRegister(), from);
-    }
-  }
-}
-
 void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
                                     int comp_args_on_stack,
                                     const GrowableArray<SigEntry>* sig,
@@ -1089,6 +1038,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
     __ subptr(rsp, comp_words_on_stack * wordSize);
   }
 
+
   // Ensure compiled code always sees stack at proper alignment
   __ andptr(rsp, -16);
 
@@ -1102,13 +1052,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
-  if (StressValueTypePassFieldsAsArgs) {
-    // For stress testing, don't unpack value types in the i2c adapter but
-    // call the value type entry point and let it take care of unpacking.
-    __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
-  } else {
-    __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_offset())));
-  }
+  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI || UseAOT) {
@@ -1122,69 +1066,89 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   }
 #endif // INCLUDE_JVMCI
 
-  int total_args_passed = compute_total_args_passed_int(sig);
+  int total_args_passed = sig->length();
+
   // Now generate the shuffle code.  Pick up all register args and move the
   // rest through the floating point stack top.
+  for (int i = 0; i < total_args_passed; i++) {
+    BasicType bt = sig->at(i)._bt;
+    assert(bt != T_VALUETYPE, "i2c adapter doesn't unpack value args");
+    if (bt == T_VOID) {
+      // Longs and doubles are passed in native word order, but misaligned
+      // in the 32-bit build.
+      BasicType prev_bt = (i > 0) ? sig->at(i-1)._bt : T_ILLEGAL;
+      assert(i > 0 && (prev_bt == T_LONG || prev_bt == T_DOUBLE), "missing half");
+      continue;
+    }
 
-  // next_arg_comp is the next argument from the compiler point of
-  // view (value type fields are passed in registers/on the stack). In
-  // sig_extended, a value type argument starts with: T_VALUETYPE,
-  // followed by the types of the fields of the value type and T_VOID
-  // to mark the end of the value type. ignored counts the number of
-  // T_VALUETYPE/T_VOID. next_arg_int is the next argument from the
-  // interpreter point of view (value types are passed by reference).
-  for (int next_arg_comp = 0, ignored = 0, next_arg_int = 0; next_arg_comp < sig->length(); next_arg_comp++) {
-    assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
-    assert(next_arg_int <= total_args_passed, "more arguments from the interpreter than expected?");
-    BasicType bt = sig->at(next_arg_comp)._bt;
-    int ld_off = (total_args_passed - next_arg_int)*Interpreter::stackElementSize;
-    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
-      // Load in argument order going down.
-      // Point to interpreter value (vs. tag)
-      if (SigEntry::is_reserved_entry(sig, next_arg_comp)) {
-        continue; // Ignore reserved entry
+    // Pick up 0, 1 or 2 words from SP+offset.
+
+    assert(!regs[i].second()->is_valid() || regs[i].first()->next() == regs[i].second(),
+            "scrambled load targets?");
+    // Load in argument order going down.
+    int ld_off = (total_args_passed - i)*Interpreter::stackElementSize;
+    // Point to interpreter value (vs. tag)
+    int next_off = ld_off - Interpreter::stackElementSize;
+    //
+    //
+    //
+    VMReg r_1 = regs[i].first();
+    VMReg r_2 = regs[i].second();
+    if (!r_1->is_valid()) {
+      assert(!r_2->is_valid(), "");
+      continue;
+    }
+    if (r_1->is_stack()) {
+      // Convert stack slot to an SP offset (+ wordSize to account for return address )
+      int st_off = regs[i].first()->reg2stack()*VMRegImpl::stack_slot_size + wordSize;
+
+      // We can use r13 as a temp here because compiled code doesn't need r13 as an input
+      // and if we end up going thru a c2i because of a miss a reasonable value of r13
+      // will be generated.
+      if (!r_2->is_valid()) {
+        // sign extend???
+        __ movl(r13, Address(saved_sp, ld_off));
+        __ movptr(Address(rsp, st_off), r13);
+      } else {
+        //
+        // We are using two optoregs. This can be either T_OBJECT, T_ADDRESS, T_LONG, or T_DOUBLE
+        // the interpreter allocates two slots but only uses one for thr T_LONG or T_DOUBLE case
+        // So we must adjust where to pick up the data to match the interpreter.
+        //
+        // Interpreter local[n] == MSW, local[n+1] == LSW however locals
+        // are accessed as negative so LSW is at LOW address
+
+        // ld_off is MSW so get LSW
+        const int offset = (bt==T_LONG||bt==T_DOUBLE)?
+                           next_off : ld_off;
+        __ movq(r13, Address(saved_sp, offset));
+        // st_off is LSW (i.e. reg.first())
+        __ movq(Address(rsp, st_off), r13);
       }
-      int next_off = ld_off - Interpreter::stackElementSize;
-      int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : ld_off;
-      const VMRegPair reg_pair = regs[next_arg_comp-ignored];
-      size_t size_in_bytes = reg_pair.second()->is_valid() ? 8 : 4;
-      gen_i2c_adapter_helper(masm, bt, next_arg_comp > 0 ? sig->at(next_arg_comp-1)._bt : T_ILLEGAL,
-                             size_in_bytes, reg_pair, Address(saved_sp, offset), false);
-      next_arg_int++;
+    } else if (r_1->is_Register()) {  // Register argument
+      Register r = r_1->as_Register();
+      assert(r != rax, "must be different");
+      if (r_2->is_valid()) {
+        //
+        // We are using two VMRegs. This can be either T_OBJECT, T_ADDRESS, T_LONG, or T_DOUBLE
+        // the interpreter allocates two slots but only uses one for thr T_LONG or T_DOUBLE case
+        // So we must adjust where to pick up the data to match the interpreter.
+
+        const int offset = (bt==T_LONG||bt==T_DOUBLE)?
+                           next_off : ld_off;
+
+        // this can be a misaligned move
+        __ movq(r, Address(saved_sp, offset));
+      } else {
+        // sign extend and use a full word?
+        __ movl(r, Address(saved_sp, ld_off));
+      }
     } else {
-      next_arg_int++;
-      ignored++;
-      // get the buffer for that value type
-      __ movptr(r10, Address(saved_sp, ld_off));
-      int vt = 1;
-      // load fields to registers/stack slots from the buffer: we know
-      // we are done with that value type argument when we hit the
-      // T_VOID that acts as an end of value type delimiter for this
-      // value type. Value types are flattened so we might encounter
-      // embedded value types. Each entry in sig_extended contains a
-      // field offset in the buffer.
-      do {
-        next_arg_comp++;
-        BasicType bt = sig->at(next_arg_comp)._bt;
-        BasicType prev_bt = sig->at(next_arg_comp-1)._bt;
-        if (bt == T_VALUETYPE) {
-          vt++;
-          ignored++;
-        } else if (bt == T_VOID &&
-                   prev_bt != T_LONG &&
-                   prev_bt != T_DOUBLE) {
-          vt--;
-          ignored++;
-        } else if (SigEntry::is_reserved_entry(sig, next_arg_comp)) {
-          // Ignore reserved entry
-        } else {
-          int off = sig->at(next_arg_comp)._offset;
-          assert(off > 0, "offset in object should be positive");
-          size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
-          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
-          gen_i2c_adapter_helper(masm, bt, prev_bt, size_in_bytes, regs[next_arg_comp - ignored], Address(r10, off), is_oop);
-        }
-      } while (vt != 0);
+      if (!r_2->is_valid()) {
+        __ movflt(r_1->as_XMMRegister(), Address(saved_sp, ld_off));
+      } else {
+        __ movdbl(r_1->as_XMMRegister(), Address(saved_sp, next_off));
+      }
     }
   }
 
@@ -1210,7 +1174,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                                                             int comp_args_on_stack,
-                                                            int comp_args_on_stack_cc,
                                                             const GrowableArray<SigEntry>* sig,
                                                             const VMRegPair* regs,
                                                             const GrowableArray<SigEntry>* sig_cc,
@@ -1220,13 +1183,9 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             AdapterFingerPrint* fingerprint,
                                                             AdapterBlob*& new_adapter) {
   address i2c_entry = __ pc();
-  if (StressValueTypePassFieldsAsArgs) {
-    // For stress testing, don't unpack value types in the i2c adapter but
-    // call the value type entry point and let it take care of unpacking.
-    gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
-  } else {
-    gen_i2c_adapter(masm, comp_args_on_stack_cc, sig_cc, regs_cc);
-  }
+  // For stress testing, don't unpack value types in the i2c adapter but
+  // call the value type entry point and let it take care of unpacking.
+  gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   // -------------------------------------------------------------------------
   // Generate a C2I adapter.  On entry we know rbx holds the Method* during calls

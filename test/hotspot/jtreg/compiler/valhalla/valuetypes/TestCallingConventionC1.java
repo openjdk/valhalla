@@ -79,48 +79,55 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             this.y = y;
         }
 
-        @DontCompile // FIXME -- C1 can't handle incoming values yet
+        @DontCompile
+        @DontInline
         public int func() {
             return x + y;
+        }
+
+        @ForceCompile(compLevel = C1)
+        @DontInline
+        public int func_c1(Object o, Point p) {
+            return x + y + p.x + p.y;
         }
     }
 
     static interface FunctorInterface {
-        public int apply(Point p);
+        public int apply_interp(Point p);
     }
 
     static class Functor implements FunctorInterface {
-        @DontCompile // FIXME -- C1 can't handle incoming values yet
+        @DontCompile
         @DontInline
-        public int apply(Point p) {
+        public int apply_interp(Point p) {
             return p.func() + 0;
         }
     }
     static class Functor1 extends Functor {
-        @DontCompile // FIXME -- C1 can't handle incoming values yet
+        @DontCompile
         @DontInline
-        public int apply(Point p) {
+        public int apply_interp(Point p) {
             return p.func() + 10000;
         }
     }
     static class Functor2 extends Functor {
-        @DontCompile // FIXME -- C1 can't handle incoming values yet
+        @DontCompile
         @DontInline
-        public int apply(Point p) {
+        public int apply_interp(Point p) {
             return p.func() + 20000;
         }
     }
     static class Functor3 extends Functor {
-        @DontCompile // FIXME -- C1 can't handle incoming values yet
+        @DontCompile
         @DontInline
-        public int apply(Point p) {
+        public int apply_interp(Point p) {
             return p.func() + 30000;
         }
     }
     static class Functor4 extends Functor {
-        @DontCompile // FIXME -- C1 can't handle incoming values yet
+        @DontCompile
         @DontInline
-        public int apply(Point p) {
+        public int apply_interp(Point p) {
             return p.func() + 40000;
         }
     }
@@ -138,7 +145,9 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         return functors[n];
     }
 
-    static Point pointField = new Point(123, 456);
+    static Point pointField  = new Point(123, 456);
+    static Point pointField1 = new Point(1123, 1456);
+    static Point pointField2 = new Point(2123, 2456);
 
     //**********************************************************************
     // PART 1 - C1 calls interpreted code
@@ -160,7 +169,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     @DontCompile
     public void test1_verifier(boolean warmup) {
         int count = warmup ? 1 : 10;
-        for (int i=0; i<count; i++) {
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test1() + i;
             Asserts.assertEQ(result, pointField.func() + i);
         }
@@ -182,7 +191,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     @DontCompile
     public void test2_verifier(boolean warmup) {
         int count = warmup ? 1 : 10;
-        for (int i=0; i<count; i++) {
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test2() + i;
             Asserts.assertEQ(result, pointField.func() + i);
         }
@@ -191,67 +200,86 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     // C1 passes value to interpreter (megamorphic: vtable)
     @Test(compLevel = C1)
     public int test3(Functor functor) {
-        return functor.apply(pointField);
+        return functor.apply_interp(pointField);
     }
 
     @DontCompile
     public void test3_verifier(boolean warmup) {
         int count = warmup ? 1 : 100;
-        for (int i=0; i<count; i++) {
+        for (int i=0; i<count; i++) {  // need a loop to test inline cache and vtable indexing
             Functor functor = warmup ? functors[0] : getFunctor();
             int result = test3(functor) + i;
-            Asserts.assertEQ(result, functor.apply(pointField) + i);
+            Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
     }
 
     // Same as test3, but compiled with C2. Test the hastable of VtableStubs
     @Test(compLevel = C2)
     public int test3b(Functor functor) {
-        return functor.apply(pointField);
+        return functor.apply_interp(pointField);
     }
 
     @DontCompile
     public void test3b_verifier(boolean warmup) {
         int count = warmup ? 1 : 100;
-        for (int i=0; i<count; i++) {
+        for (int i=0; i<count; i++) {  // need a loop to test inline cache and vtable indexing
             Functor functor = warmup ? functors[0] : getFunctor();
             int result = test3b(functor) + i;
-            Asserts.assertEQ(result, functor.apply(pointField) + i);
+            Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
     }
 
     // C1 passes value to interpreter (megamorphic: itable)
     @Test(compLevel = C1)
     public int test4(FunctorInterface fi) {
-        return fi.apply(pointField);
+        return fi.apply_interp(pointField);
     }
 
     @DontCompile
     public void test4_verifier(boolean warmup) {
         int count = warmup ? 1 : 100;
-        for (int i=0; i<count; i++) {
+        for (int i=0; i<count; i++) {  // need a loop to test inline cache and itable indexing
             Functor functor = warmup ? functors[0] : getFunctor();
             int result = test4(functor) + i;
-            Asserts.assertEQ(result, functor.apply(pointField) + i);
+            Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
     }
 
-    /* not working
+    //**********************************************************************
+    // PART 2 - interpreter calls C1
+    //**********************************************************************
 
-    // Interpreter passes value to C1
-    @Test(compLevel = C2)
-    public int test2(Point p) {
-        return p.x + p.y;
+    // Interpreter passes value to C1 (static)
+    @Test(compLevel = C1)
+    static public int test20(Point p1, Object o, Point p2) {
+        return p1.x + p2.y;
     }
 
     @DontCompile
-    public void test2_verifier(boolean warmup) {
-        int result = test2(pointField);
-        int n = pointField.x + pointField.y;
+    public void test20_verifier(boolean warmup) {
+        int result = test20(pointField1, null, pointField2);
+        int n = pointField1.x + pointField2.y;
         Asserts.assertEQ(result, n);
     }
 
-    */
+    // Interpreter passes value to C1 (instance method in value class)
+    @Test
+    public int test21(Point p) {
+        return test21_helper(p);
+    }
+
+    @DontCompile
+    @DontInline
+    int test21_helper(Point p) {
+        return p.func_c1(null, p);
+    }
+
+    @DontCompile
+    public void test21_verifier(boolean warmup) {
+        int result = test21(pointField);
+        int n = 2 * (pointField.x + pointField.y);
+        Asserts.assertEQ(result, n);
+    }
 
 
     /*

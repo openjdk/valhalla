@@ -2574,9 +2574,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product_pd(bool, ValueTypeReturnedAsFields,                               \
           "Return fields instead of a value type reference")                \
                                                                             \
-  develop(bool, StressValueTypePassFieldsAsArgs, false,                     \
-          "Stress passing each value type field as an argument at calls")   \
-                                                                            \
   develop(bool, StressValueTypeReturnedAsFields, false,                     \
           "Stress return of fields instead of a value type reference")      \
                                                                             \

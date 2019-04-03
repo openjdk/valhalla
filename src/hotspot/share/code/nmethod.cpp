@@ -2592,11 +2592,12 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
     if (m.not_null() && !is_osr_method()) {
       ResourceMark rm;
       int sizeargs = 0;
+      bool has_scalarized_args = !is_c1() && m->has_scalarized_args();
       BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
       VMRegPair* regs   = NEW_RESOURCE_ARRAY(VMRegPair, 256);
       Symbol* sig = m->signature();
       const GrowableArray<SigEntry>* sig_cc = m->adapter()->get_sig_cc();
-      if (m->has_scalarized_args()) {
+      if (has_scalarized_args) {
         // Use extended signature if value type arguments are passed as fields
         assert(sig_cc != NULL, "must have scalarized signature");
         sig = SigEntry::create_symbol(sig_cc);
@@ -2618,7 +2619,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
       int tab1 = 14, tab2 = 24;
       int sig_index = 0;
       int sig_index_cc = 0;
-      int arg_index = ((m->is_static() || m->has_scalarized_args()) ? 0 : -1);
+      int arg_index = ((m->is_static() || has_scalarized_args) ? 0 : -1);
       bool did_old_sp = false;
       for (SignatureStream ss(sig); !ss.at_return_type(); ) {
         bool at_this = (arg_index == -1);
@@ -2662,7 +2663,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin) co
           if (!did_name)
             stream->print("%s", type2name(t));
         }
-        if (m->has_scalarized_args()) {
+        if (has_scalarized_args) {
           while (!SigEntry::skip_value_delimiters(sig_cc, sig_index_cc)) {
             sig_index_cc++;
           }

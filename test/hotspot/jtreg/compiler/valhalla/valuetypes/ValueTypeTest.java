@@ -239,7 +239,6 @@ public abstract class ValueTypeTest {
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields",
-                "-XX:+StressValueTypePassFieldsAsArgs",
                 "-XX:+StressValueTypeReturnedAsFields"};
         case 3: return new String[] {
                 "-DVerifyIR=false",
@@ -255,8 +254,7 @@ public abstract class ValueTypeTest {
                 "-XX:ValueArrayElemMaxFlatSize=-1",
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields",
-                "-XX:+StressValueTypePassFieldsAsArgs"};
+                "-XX:-ValueTypeReturnedAsFields"};
         case 5: return new String[] {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=-1",
