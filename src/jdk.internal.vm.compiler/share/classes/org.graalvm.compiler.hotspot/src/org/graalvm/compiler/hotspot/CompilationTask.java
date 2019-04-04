@@ -26,7 +26,7 @@ package org.graalvm.compiler.hotspot;
 
 import static org.graalvm.compiler.core.CompilationWrapper.ExceptionAction.Diagnose;
 import static org.graalvm.compiler.core.CompilationWrapper.ExceptionAction.ExitVM;
-import static org.graalvm.compiler.core.GraalCompilerOptions.CompilationBailoutAction;
+import static org.graalvm.compiler.core.GraalCompilerOptions.CompilationBailoutAsFailure;
 import static org.graalvm.compiler.core.GraalCompilerOptions.CompilationFailureAction;
 import static org.graalvm.compiler.core.phases.HighTier.Options.Inline;
 import static org.graalvm.compiler.java.BytecodeParserOptions.InlineDuringParsing;
@@ -47,7 +47,6 @@ import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.DebugDumpScope;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.TimerKey;
-import org.graalvm.compiler.options.EnumOptionKey;
 import org.graalvm.compiler.options.OptionKey;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.printer.GraalDebugHandlersFactory;
@@ -58,7 +57,6 @@ import jdk.vm.ci.hotspot.EventProvider;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequest;
 import jdk.vm.ci.hotspot.HotSpotCompilationRequestResult;
 import jdk.vm.ci.hotspot.HotSpotInstalledCode;
-import jdk.vm.ci.hotspot.HotSpotJVMCICompilerFactory;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
 import jdk.vm.ci.hotspot.HotSpotNmethod;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
@@ -94,6 +92,7 @@ public class CompilationTask {
     private final boolean installAsDefault;
 
     private final boolean useProfilingInfo;
+    private final boolean shouldRetainLocalVariables;
     private final OptionValues options;
 
     final class HotSpotCompilationWrapper extends CompilationWrapper<HotSpotCompilationRequestResult> {
@@ -145,25 +144,34 @@ public class CompilationTask {
         }
 
         @Override
-        protected ExceptionAction lookupAction(OptionValues values, EnumOptionKey<ExceptionAction> actionKey, Throwable cause) {
-            // Respect current action if it has been explicitly set.
-            if (!actionKey.hasBeenSet(values)) {
-                if (actionKey == CompilationFailureAction) {
-                    // Automatically exit on non-bailout during bootstrap
-                    // or when assertions are enabled.
-                    if (Assertions.assertionsEnabled() || compiler.getGraalRuntime().isBootstrapping()) {
-                        return ExitVM;
-                    }
-                } else if (actionKey == CompilationBailoutAction && ((BailoutException) cause).isPermanent()) {
-                    // Get more info for permanent bailouts during bootstrap
-                    // or when assertions are enabled.
-                    assert CompilationBailoutAction.getDefaultValue() == ExceptionAction.Silent;
-                    if (Assertions.assertionsEnabled() || compiler.getGraalRuntime().isBootstrapping()) {
-                        return Diagnose;
+        protected ExceptionAction lookupAction(OptionValues values, Throwable cause) {
+            if (cause instanceof BailoutException) {
+                BailoutException bailout = (BailoutException) cause;
+                if (bailout.isPermanent()) {
+                    // Respect current action if it has been explicitly set.
+                    if (!CompilationBailoutAsFailure.hasBeenSet(values)) {
+                        // Get more info for permanent bailouts during bootstrap
+                        // or when assertions are enabled.
+                        if (Assertions.assertionsEnabled() || compiler.getGraalRuntime().isBootstrapping()) {
+                            return Diagnose;
+                        }
+
                     }
                 }
+                if (!CompilationBailoutAsFailure.getValue(values)) {
+                    return super.lookupAction(values, cause);
+                }
             }
-            return super.lookupAction(values, actionKey, cause);
+
+            // Respect current action if it has been explicitly set.
+            if (!CompilationFailureAction.hasBeenSet(values)) {
+                // Automatically exit on failure during bootstrap
+                // or when assertions are enabled.
+                if (Assertions.assertionsEnabled() || compiler.getGraalRuntime().isBootstrapping()) {
+                    return ExitVM;
+                }
+            }
+            return super.lookupAction(values, cause);
         }
 
         @SuppressWarnings("try")
@@ -179,7 +187,7 @@ public class CompilationTask {
             try (DebugContext.Scope s = debug.scope("Compiling", new DebugDumpScope(getIdString(), true))) {
                 // Begin the compilation event.
                 compilationEvent.begin();
-                result = compiler.compile(method, entryBCI, useProfilingInfo, compilationId, options, debug);
+                result = compiler.compile(method, entryBCI, useProfilingInfo, shouldRetainLocalVariables, compilationId, options, debug);
             } catch (Throwable e) {
                 throw debug.handle(e);
             } finally {
@@ -205,10 +213,16 @@ public class CompilationTask {
 
     public CompilationTask(HotSpotJVMCIRuntime jvmciRuntime, HotSpotGraalCompiler compiler, HotSpotCompilationRequest request, boolean useProfilingInfo, boolean installAsDefault,
                     OptionValues options) {
+        this(jvmciRuntime, compiler, request, useProfilingInfo, false, installAsDefault, options);
+    }
+
+    public CompilationTask(HotSpotJVMCIRuntime jvmciRuntime, HotSpotGraalCompiler compiler, HotSpotCompilationRequest request, boolean useProfilingInfo, boolean shouldRetainLocalVariables,
+                    boolean installAsDefault, OptionValues options) {
         this.jvmciRuntime = jvmciRuntime;
         this.compiler = compiler;
         this.compilationId = new HotSpotCompilationIdentifier(request);
         this.useProfilingInfo = useProfilingInfo;
+        this.shouldRetainLocalVariables = shouldRetainLocalVariables;
         this.installAsDefault = installAsDefault;
 
         /*
@@ -313,15 +327,14 @@ public class CompilationTask {
         // Log a compilation event.
         EventProvider.CompilationEvent compilationEvent = eventProvider.newCompilationEvent();
 
-        if (installAsDefault) {
+        if (installAsDefault || isOSR) {
             // If there is already compiled code for this method on our level we simply return.
             // JVMCI compiles are always at the highest compile level, even in non-tiered mode so we
             // only need to check for that value.
             if (method.hasCodeAtLevel(entryBCI, config.compilationLevelFullOptimization)) {
                 return HotSpotCompilationRequestResult.failure("Already compiled", false);
             }
-            if (HotSpotGraalCompilerFactory.checkGraalCompileOnlyFilter(method.getDeclaringClass().toJavaName(), method.getName(), method.getSignature().toString(),
-                            HotSpotJVMCICompilerFactory.CompilationLevel.FullOptimization) != HotSpotJVMCICompilerFactory.CompilationLevel.FullOptimization) {
+            if (HotSpotGraalCompilerFactory.shouldExclude(method)) {
                 return HotSpotCompilationRequestResult.failure("GraalCompileOnly excluded", false);
             }
         }

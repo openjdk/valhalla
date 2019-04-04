@@ -234,10 +234,9 @@ public:
   void collect(GCCause::Cause cause, GenerationType max_generation);
 
   // Returns "TRUE" iff "p" points into the committed areas of the heap.
-  // The methods is_in(), is_in_closed_subset() and is_in_youngest() may
-  // be expensive to compute in general, so, to prevent
-  // their inadvertent use in product jvm's, we restrict their use to
-  // assertion checking or verification only.
+  // The methods is_in() and is_in_youngest() may be expensive to compute
+  // in general, so, to prevent their inadvertent use in product jvm's, we
+  // restrict their use to assertion checking or verification only.
   bool is_in(const void* p) const;
 
   // Returns true if the reference is to an object in the reserved space
@@ -249,13 +248,13 @@ public:
   bool is_in_partial_collection(const void* p);
 #endif
 
-  virtual bool is_scavengable(oop obj) {
-    return is_in_young(obj);
-  }
-
   // Optimized nmethod scanning support routines
   virtual void register_nmethod(nmethod* nm);
-  virtual void verify_nmethod(nmethod* nmethod);
+  virtual void unregister_nmethod(nmethod* nm);
+  virtual void verify_nmethod(nmethod* nm);
+  virtual void flush_nmethod(nmethod* nm);
+
+  void prune_scavengable_nmethods();
 
   // Iteration functions.
   void oop_iterate(OopIterateClosure* cl);

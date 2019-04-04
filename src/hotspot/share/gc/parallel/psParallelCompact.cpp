@@ -407,19 +407,16 @@ size_t mark_bitmap_count;
 size_t mark_bitmap_size;
 #endif  // #ifdef ASSERT
 
-ParallelCompactData::ParallelCompactData()
-{
-  _region_start = 0;
-
-  _region_vspace = 0;
-  _reserved_byte_size = 0;
-  _region_data = 0;
-  _region_count = 0;
-
-  _block_vspace = 0;
-  _block_data = 0;
-  _block_count = 0;
-}
+ParallelCompactData::ParallelCompactData() :
+  _region_start(NULL),
+  DEBUG_ONLY(_region_end(NULL) COMMA)
+  _region_vspace(NULL),
+  _reserved_byte_size(0),
+  _region_data(NULL),
+  _region_count(0),
+  _block_vspace(NULL),
+  _block_data(NULL),
+  _block_count(0) {}
 
 bool ParallelCompactData::initialize(MemRegion covered_region)
 {
@@ -1062,7 +1059,7 @@ void PSParallelCompact::post_compact()
   ClassLoaderDataGraph::purge();
   MetaspaceUtils::verify_metrics();
 
-  CodeCache::gc_epilogue();
+  heap->prune_scavengable_nmethods();
   JvmtiExport::gc_epilogue();
 
 #if COMPILER2_OR_JVMCI
@@ -1807,8 +1804,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 
     // Let the size policy know we're starting
     size_policy->major_collection_begin();
-
-    CodeCache::gc_prologue();
 
 #if COMPILER2_OR_JVMCI
     DerivedPointerTable::clear();

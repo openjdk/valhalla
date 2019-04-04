@@ -93,7 +93,15 @@ class ParallelScavengeHeap : public CollectedHeap {
 
  public:
   ParallelScavengeHeap(GenerationSizer* policy) :
-    CollectedHeap(), _collector_policy(policy), _death_march_count(0) { }
+    CollectedHeap(),
+    _collector_policy(policy),
+    _gens(NULL),
+    _death_march_count(0),
+    _young_manager(NULL),
+    _old_manager(NULL),
+    _eden_pool(NULL),
+    _survivor_pool(NULL),
+    _old_pool(NULL) { }
 
   // For use by VM operations
   enum CollectionType {
@@ -157,13 +165,12 @@ class ParallelScavengeHeap : public CollectedHeap {
   // collection.
   virtual bool is_maximal_no_gc() const;
 
-  // Return true if the reference points to an object that
-  // can be moved in a partial collection.  For currently implemented
-  // generational collectors that means during a collection of
-  // the young gen.
-  virtual bool is_scavengable(oop obj);
   virtual void register_nmethod(nmethod* nm);
-  virtual void verify_nmethod(nmethod* nmethod);
+  virtual void unregister_nmethod(nmethod* nm);
+  virtual void verify_nmethod(nmethod* nm);
+  virtual void flush_nmethod(nmethod* nm);
+
+  void prune_scavengable_nmethods();
 
   size_t max_capacity() const;
 

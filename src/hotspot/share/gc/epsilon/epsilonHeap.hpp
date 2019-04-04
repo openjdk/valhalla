@@ -88,11 +88,6 @@ public:
     return _space->is_in(p);
   }
 
-  virtual bool is_scavengable(oop obj) {
-    // No GC is going to happen, therefore no objects ever move.
-    return false;
-  }
-
   virtual bool is_maximal_no_gc() const {
     // No GC is going to happen. Return "we are at max", when we are about to fail.
     return used() == capacity();
@@ -133,6 +128,12 @@ public:
   // No GC threads
   virtual void print_gc_threads_on(outputStream* st) const {}
   virtual void gc_threads_do(ThreadClosure* tc) const {}
+
+  // No nmethod handling
+  virtual void register_nmethod(nmethod* nm) {}
+  virtual void unregister_nmethod(nmethod* nm) {}
+  virtual void flush_nmethod(nmethod* nm) {}
+  virtual void verify_nmethod(nmethod* nm) {}
 
   // No heap verification
   virtual void prepare_for_verify() {}

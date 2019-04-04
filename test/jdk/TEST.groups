@@ -104,7 +104,6 @@ jdk_lang = \
     jdk/internal/jimage \
     jdk/internal/math \
     jdk/modules \
-    vm \
     valhalla
 
 # valhalla lworld tests

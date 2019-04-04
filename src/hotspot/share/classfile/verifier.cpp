@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "classfile/classFileStream.hpp"
+#include "classfile/classLoader.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stackMapTable.hpp"
 #include "classfile/stackMapFrame.hpp"
@@ -165,17 +166,15 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
   // If the class should be verified, first see if we can use the split
   // verifier.  If not, or if verification fails and FailOverToOldVerifier
   // is set, then call the inference verifier.
-
   Symbol* exception_name = NULL;
   const size_t message_buffer_len = klass->name()->utf8_length() + 1024;
-  char* message_buffer = NEW_RESOURCE_ARRAY(char, message_buffer_len);
-  char* exception_message = message_buffer;
+  char* message_buffer = NULL;
+  char* exception_message = NULL;
 
-  const char* klassName = klass->external_name();
   bool can_failover = FailOverToOldVerifier &&
      klass->major_version() < NOFAILOVER_MAJOR_VERSION;
 
-  log_info(class, init)("Start class verification for: %s", klassName);
+  log_info(class, init)("Start class verification for: %s", klass->external_name());
   if (klass->major_version() >= STACKMAP_ATTRIBUTE_MAJOR_VERSION) {
     ClassVerifier split_verifier(klass, THREAD);
     split_verifier.verify_class(THREAD);
@@ -183,8 +182,10 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
     if (can_failover && !HAS_PENDING_EXCEPTION &&
         (exception_name == vmSymbols::java_lang_VerifyError() ||
          exception_name == vmSymbols::java_lang_ClassFormatError())) {
-      log_info(verification)("Fail over class verification to old verifier for: %s", klassName);
-      log_info(class, init)("Fail over class verification to old verifier for: %s", klassName);
+      log_info(verification)("Fail over class verification to old verifier for: %s", klass->external_name());
+      log_info(class, init)("Fail over class verification to old verifier for: %s", klass->external_name());
+      message_buffer = NEW_RESOURCE_ARRAY(char, message_buffer_len);
+      exception_message = message_buffer;
       exception_name = inference_verify(
         klass, message_buffer, message_buffer_len, THREAD);
     }
@@ -192,6 +193,8 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
       exception_message = split_verifier.exception_message();
     }
   } else {
+    message_buffer = NEW_RESOURCE_ARRAY(char, message_buffer_len);
+    exception_message = message_buffer;
     exception_name = inference_verify(
         klass, message_buffer, message_buffer_len, THREAD);
   }
@@ -199,20 +202,19 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
   LogTarget(Info, class, init) lt1;
   if (lt1.is_enabled()) {
     LogStream ls(lt1);
-    log_end_verification(&ls, klassName, exception_name, THREAD);
+    log_end_verification(&ls, klass->external_name(), exception_name, THREAD);
   }
   LogTarget(Info, verification) lt2;
   if (lt2.is_enabled()) {
     LogStream ls(lt2);
-    log_end_verification(&ls, klassName, exception_name, THREAD);
+    log_end_verification(&ls, klass->external_name(), exception_name, THREAD);
   }
 
   if (HAS_PENDING_EXCEPTION) {
     return false; // use the existing exception
   } else if (exception_name == NULL) {
-    return true; // verifcation succeeded
+    return true; // verification succeeded
   } else { // VerifyError or ClassFormatError to be created and thrown
-    ResourceMark rm(THREAD);
     Klass* kls =
       SystemDictionary::resolve_or_fail(exception_name, true, CHECK_false);
     if (log_is_enabled(Debug, class, resolve)) {
@@ -229,7 +231,10 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
       }
       kls = kls->super();
     }
-    message_buffer[message_buffer_len - 1] = '\0'; // just to be sure
+    if (message_buffer != NULL) {
+      message_buffer[message_buffer_len - 1] = '\0'; // just to be sure
+    }
+    assert(exception_message != NULL, "");
     THROW_MSG_(exception_name, exception_message, false);
   }
 }
@@ -585,17 +590,18 @@ VerificationType reference_or_valuetype(InstanceKlass* klass) {
 
 ClassVerifier::ClassVerifier(
     InstanceKlass* klass, TRAPS)
-    : _thread(THREAD), _exception_type(NULL), _message(NULL), _klass(klass) {
+    : _thread(THREAD), _previous_symbol(NULL), _symbols(NULL), _exception_type(NULL),
+      _message(NULL), _method_signatures_table(NULL), _klass(klass) {
   _this_type = reference_or_valuetype(klass);
-  // Create list to hold symbols in reference area.
-  _symbols = new GrowableArray<Symbol*>(100, 0, NULL);
 }
 
 ClassVerifier::~ClassVerifier() {
   // Decrement the reference count for any symbols created.
-  for (int i = 0; i < _symbols->length(); i++) {
-    Symbol* s = _symbols->at(i);
-    s->decrement_refcount();
+  if (_symbols != NULL) {
+    for (int i = 0; i < _symbols->length(); i++) {
+      Symbol* s = _symbols->at(i);
+      s->decrement_refcount();
+    }
   }
 }
 
@@ -611,6 +617,13 @@ TypeOrigin ClassVerifier::ref_ctx(const char* sig, TRAPS) {
 
 void ClassVerifier::verify_class(TRAPS) {
   log_info(verification)("Verifying class %s with new format", _klass->external_name());
+
+  // Either verifying both local and remote classes or just remote classes.
+  assert(BytecodeVerificationRemote, "Should not be here");
+
+  // Create hash table containing method signatures.
+  method_signatures_table_type method_signatures_table;
+  set_method_signatures_table(&method_signatures_table);
 
   Array<Method*>* methods = _klass->methods();
   int num_methods = methods->length();
@@ -636,6 +649,55 @@ void ClassVerifier::verify_class(TRAPS) {
   }
 }
 
+// Translate the signature entries into verification types and save them in
+// the growable array.  Also, save the count of arguments.
+void ClassVerifier::translate_signature(Symbol* const method_sig,
+                                        sig_as_verification_types* sig_verif_types,
+                                        TRAPS) {
+  SignatureStream sig_stream(method_sig);
+  VerificationType sig_type[2];
+  int sig_i = 0;
+  GrowableArray<VerificationType>* verif_types = sig_verif_types->sig_verif_types();
+
+  // Translate the signature arguments into verification types.
+  while (!sig_stream.at_return_type()) {
+    int n = change_sig_to_verificationType(&sig_stream, sig_type, CHECK_VERIFY(this));
+    assert(n <= 2, "Unexpected signature type");
+
+    // Store verification type(s).  Longs and Doubles each have two verificationTypes.
+    for (int x = 0; x < n; x++) {
+      verif_types->push(sig_type[x]);
+    }
+    sig_i += n;
+    sig_stream.next();
+  }
+
+  // Set final arg count, not including the return type.  The final arg count will
+  // be compared with sig_verify_types' length to see if there is a return type.
+  sig_verif_types->set_num_args(sig_i);
+
+  // Store verification type(s) for the return type, if there is one.
+  if (sig_stream.type() != T_VOID) {
+    int n = change_sig_to_verificationType(&sig_stream, sig_type, CHECK_VERIFY(this));
+    assert(n <= 2, "Unexpected signature return type");
+    for (int y = 0; y < n; y++) {
+      verif_types->push(sig_type[y]);
+    }
+  }
+}
+
+void ClassVerifier::create_method_sig_entry(sig_as_verification_types* sig_verif_types,
+                                            int sig_index, TRAPS) {
+  // Translate the signature into verification types.
+  ConstantPool* cp = _klass->constants();
+  Symbol* const method_sig = cp->symbol_at(sig_index);
+  translate_signature(method_sig, sig_verif_types, CHECK_VERIFY(this));
+
+  // Add the list of this signature's verification types to the table.
+  bool is_unique = method_signatures_table()->put(sig_index, sig_verif_types);
+  assert(is_unique, "Duplicate entries in method_signature_table");
+}
+
 void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
   HandleMark hm(THREAD);
   _method = m;   // initialize _method
@@ -648,10 +710,9 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
   int32_t max_locals = m->max_locals();
   constantPoolHandle cp(THREAD, m->constants());
 
-  if (!SignatureVerifier::is_valid_method_signature(m->signature())) {
-    class_format_error("Invalid method signature");
-    return;
-  }
+  // Method signature was checked in ClassFileParser.
+  assert(SignatureVerifier::is_valid_method_signature(m->signature()),
+         "Invalid method signature");
 
   // Initial stack map frame: offset is 0, stack is initially empty.
   StackMapFrame current_frame(max_locals, max_stack, this);
@@ -2161,12 +2222,9 @@ void ClassVerifier::verify_ldc(
         vmSymbols::java_lang_invoke_MethodType()), CHECK_VERIFY(this));
   } else if (tag.is_dynamic_constant()) {
     Symbol* constant_type = cp->uncached_signature_ref_at(index);
-    if (!SignatureVerifier::is_valid_type_signature(constant_type)) {
-      class_format_error(
-        "Invalid type for dynamic constant in class %s referenced "
-        "from constant pool index %d", _klass->external_name(), index);
-      return;
-    }
+    // Field signature was checked in ClassFileParser.
+    assert(SignatureVerifier::is_valid_type_signature(constant_type),
+           "Invalid type for dynamic constant");
     assert(sizeof(VerificationType) == sizeof(uintptr_t),
           "buffer type must match VerificationType size");
     uintptr_t constant_type_buffer[2];
@@ -2286,12 +2344,9 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
   Symbol* field_name = cp->name_ref_at(index);
   Symbol* field_sig = cp->signature_ref_at(index);
 
-  if (!SignatureVerifier::is_valid_type_signature(field_sig)) {
-    class_format_error(
-      "Invalid signature for field in class %s referenced "
-      "from constant pool index %d", _klass->external_name(), index);
-    return;
-  }
+  // Field signature was checked in ClassFileParser.
+  assert(SignatureVerifier::is_valid_type_signature(field_sig),
+         "Invalid field signature");
 
   // Get referenced class type
   VerificationType ref_class_type = cp_ref_index_to_type(
@@ -2790,12 +2845,9 @@ void ClassVerifier::verify_invoke_instructions(
   Symbol* method_name = cp->name_ref_at(index);
   Symbol* method_sig = cp->signature_ref_at(index);
 
-  if (!SignatureVerifier::is_valid_method_signature(method_sig)) {
-    class_format_error(
-      "Invalid method signature in class %s referenced "
-      "from constant pool index %d", _klass->external_name(), index);
-    return;
-  }
+  // Method signature was checked in ClassFileParser.
+  assert(SignatureVerifier::is_valid_method_signature(method_sig),
+         "Invalid method signature");
 
   // Get referenced class
   VerificationType ref_class_type;
@@ -2810,44 +2862,28 @@ void ClassVerifier::verify_invoke_instructions(
     ref_class_type = cp_ref_index_to_type(index, cp, CHECK_VERIFY(this));
   }
 
-  // For a small signature length, we just allocate 128 bytes instead
-  // of parsing the signature once to find its size.
-  // -3 is for '(', ')' and return descriptor; multiply by 2 is for
-  // longs/doubles to be consertive.
   assert(sizeof(VerificationType) == sizeof(uintptr_t),
         "buffer type must match VerificationType size");
-  uintptr_t on_stack_sig_types_buffer[128];
-  // If we make a VerificationType[128] array directly, the compiler calls
-  // to the c-runtime library to do the allocation instead of just
-  // stack allocating it.  Plus it would run constructors.  This shows up
-  // in performance profiles.
 
-  VerificationType* sig_types;
-  int size = (method_sig->utf8_length() - 3) * 2;
-  if (size > 128) {
-    // Long and double occupies two slots here.
-    ArgumentSizeComputer size_it(method_sig);
-    size = size_it.size();
-    sig_types = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, VerificationType, size);
-  } else{
-    sig_types = (VerificationType*)on_stack_sig_types_buffer;
-  }
-  SignatureStream sig_stream(method_sig);
-  int sig_i = 0;
-  while (!sig_stream.at_return_type()) {
-    sig_i += change_sig_to_verificationType(
-      &sig_stream, &sig_types[sig_i], CHECK_VERIFY(this));
-    sig_stream.next();
-  }
-  int nargs = sig_i;
+  // Get the UTF8 index for this signature.
+  int sig_index = cp->signature_ref_index_at(cp->name_and_type_ref_index_at(index));
 
-#ifdef ASSERT
-  {
-    ArgumentSizeComputer size_it(method_sig);
-    assert(nargs == size_it.size(), "Argument sizes do not match");
-    assert(nargs <= (method_sig->utf8_length() - 3) * 2, "estimate of max size isn't conservative enough");
+  // Get the signature's verification types.
+  sig_as_verification_types* mth_sig_verif_types;
+  sig_as_verification_types** mth_sig_verif_types_ptr = method_signatures_table()->get(sig_index);
+  if (mth_sig_verif_types_ptr != NULL) {
+    // Found the entry for the signature's verification types in the hash table.
+    mth_sig_verif_types = *mth_sig_verif_types_ptr;
+    assert(mth_sig_verif_types != NULL, "Unexpected NULL sig_as_verification_types value");
+  } else {
+    // Not found, add the entry to the table.
+    GrowableArray<VerificationType>* verif_types = new GrowableArray<VerificationType>(10);
+    mth_sig_verif_types = new sig_as_verification_types(verif_types);
+    create_method_sig_entry(mth_sig_verif_types, sig_index, CHECK_VERIFY(this));
   }
-#endif
+
+  // Get the number of arguments for this signature.
+  int nargs = mth_sig_verif_types->num_args();
 
   // Check instruction operands
   u2 bci = bcs->bci();
@@ -2920,10 +2956,16 @@ void ClassVerifier::verify_invoke_instructions(
     }
 
   }
+
+  // Get the verification types for the method's arguments.
+  GrowableArray<VerificationType>* sig_verif_types = mth_sig_verif_types->sig_verif_types();
+  assert(sig_verif_types != NULL, "Missing signature's array of verification types");
   // Match method descriptor with operand stack
-  for (int i = nargs - 1; i >= 0; i--) {  // Run backwards
-    current_frame->pop_stack(sig_types[i], CHECK_VERIFY(this));
+  // The arguments are on the stack in descending order.
+  for (int i = nargs - 1; i >= 0; i--) { // Run backwards
+    current_frame->pop_stack(sig_verif_types->at(i), CHECK_VERIFY(this));
   }
+
   // Check objectref on operand stack
   if (opcode != Bytecodes::_invokestatic &&
       opcode != Bytecodes::_invokedynamic) {
@@ -2996,7 +3038,8 @@ void ClassVerifier::verify_invoke_instructions(
     }
   }
   // Push the result type.
-  if (sig_stream.type() != T_VOID) {
+  int sig_verif_types_len = sig_verif_types->length();
+  if (sig_verif_types_len > nargs) {  // There's a return type
     if (method_name == vmSymbols::object_initializer_name()) {
       // <init> method must have a void return type
       /* Unreachable?  Class file parser verifies that methods with '<' have
@@ -3005,11 +3048,13 @@ void ClassVerifier::verify_invoke_instructions(
           "Return type must be void in <init> method");
       return;
     }
-    VerificationType return_type[2];
-    int n = change_sig_to_verificationType(
-      &sig_stream, return_type, CHECK_VERIFY(this));
-    for (int i = 0; i < n; i++) {
-      current_frame->push_stack(return_type[i], CHECK_VERIFY(this)); // push types backwards
+
+    assert(sig_verif_types_len <= nargs + 2,
+           "Signature verification types array return type is bogus");
+    for (int i = nargs; i < sig_verif_types_len; i++) {
+      assert(i == nargs || sig_verif_types->at(i).is_long2() ||
+             sig_verif_types->at(i).is_double2(), "Unexpected return verificationType");
+      current_frame->push_stack(sig_verif_types->at(i), CHECK_VERIFY(this));
     }
   }
 }
@@ -3175,13 +3220,23 @@ void ClassVerifier::verify_return_value(
 // they can be reference counted.
 Symbol* ClassVerifier::create_temporary_symbol(const Symbol *s, int begin,
                                                int end, TRAPS) {
-  Symbol* sym = SymbolTable::new_symbol(s, begin, end, CHECK_NULL);
-  _symbols->push(sym);
-  return sym;
+  const char* name = (const char*)s->base() + begin;
+  int length = end - begin;
+  return create_temporary_symbol(name, length, CHECK_NULL);
 }
 
-Symbol* ClassVerifier::create_temporary_symbol(const char *s, int length, TRAPS) {
-  Symbol* sym = SymbolTable::new_symbol(s, length, CHECK_NULL);
-  _symbols->push(sym);
+Symbol* ClassVerifier::create_temporary_symbol(const char *name, int length, TRAPS) {
+  // Quick deduplication check
+  if (_previous_symbol != NULL && _previous_symbol->equals(name, length)) {
+    return _previous_symbol;
+  }
+  Symbol* sym = SymbolTable::new_symbol(name, length, CHECK_NULL);
+  if (!sym->is_permanent()) {
+    if (_symbols == NULL) {
+      _symbols = new GrowableArray<Symbol*>(50, 0, NULL);
+    }
+    _symbols->push(sym);
+  }
+  _previous_symbol = sym;
   return sym;
 }

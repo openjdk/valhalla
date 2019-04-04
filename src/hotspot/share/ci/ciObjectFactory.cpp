@@ -706,11 +706,11 @@ ciSymbol* ciObjectFactory::vm_symbol_at(int index) {
 
 // ------------------------------------------------------------------
 // ciObjectFactory::metadata_do
-void ciObjectFactory::metadata_do(void f(Metadata*)) {
+void ciObjectFactory::metadata_do(MetadataClosure* f) {
   if (_ci_metadata == NULL) return;
   for (int j = 0; j< _ci_metadata->length(); j++) {
     Metadata* o = _ci_metadata->at(j)->constant_encoding();
-    f(o);
+    f->do_metadata(o);
   }
 }
 

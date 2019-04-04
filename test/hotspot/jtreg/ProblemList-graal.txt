@@ -36,6 +36,7 @@ compiler/compilercontrol/directives/ExcludeTest.java            8181753   generi
 compiler/compilercontrol/jcmd/AddExcludeTest.java               8181753   generic-all
 compiler/compilercontrol/jcmd/AddLogTest.java                   8181753   generic-all
 compiler/compilercontrol/mixed/RandomValidCommandsTest.java     8181753   generic-all
+compiler/compilercontrol/mixed/RandomCommandsTest.java          8181753   generic-all
 
 compiler/graalunit/JttThreadsTest.java                          8208066   generic-all
 
@@ -204,8 +205,6 @@ vmTestbase/nsk/stress/except/except008.java                                   81
 serviceability/tmtools/jstat/GcTest02.java                                    8196611 generic-all
 serviceability/tmtools/jstat/GcCapacityTest.java                              8196611 generic-all
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorMultiArrayTest.java     8196611 generic-all
-
-runtime/RedefineObject/TestRedefineObject.java                                8218399 generic-all
 
 vmTestbase/gc/lock/jvmti/alloc/jvmtialloclock02/TestDescription.java          8218700 generic-all
 

@@ -890,7 +890,7 @@ uint PhiNode::hash() const {
   const Type* at = _adr_type;
   return TypeNode::hash() + (at ? at->hash() : 0);
 }
-uint PhiNode::cmp( const Node &n ) const {
+bool PhiNode::cmp( const Node &n ) const {
   return TypeNode::cmp(n) && _adr_type == ((PhiNode&)n)._adr_type;
 }
 static inline
@@ -2381,7 +2381,7 @@ const RegMask &CProjNode::out_RegMask() const {
 //=============================================================================
 
 uint PCTableNode::hash() const { return Node::hash() + _size; }
-uint PCTableNode::cmp( const Node &n ) const
+bool PCTableNode::cmp( const Node &n ) const
 { return _size == ((PCTableNode&)n)._size; }
 
 const Type *PCTableNode::bottom_type() const {
@@ -2411,7 +2411,7 @@ uint JumpProjNode::hash() const {
   return Node::hash() + _dest_bci;
 }
 
-uint JumpProjNode::cmp( const Node &n ) const {
+bool JumpProjNode::cmp( const Node &n ) const {
   return ProjNode::cmp(n) &&
     _dest_bci == ((JumpProjNode&)n)._dest_bci;
 }
@@ -2474,7 +2474,7 @@ uint CatchProjNode::hash() const {
 }
 
 
-uint CatchProjNode::cmp( const Node &n ) const {
+bool CatchProjNode::cmp( const Node &n ) const {
   return ProjNode::cmp(n) &&
     _handler_bci == ((CatchProjNode&)n)._handler_bci;
 }

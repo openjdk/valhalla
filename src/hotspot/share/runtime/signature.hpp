@@ -91,7 +91,6 @@ class SignatureIterator: public ResourceObj {
   SignatureIterator(Symbol* signature);
 
   // Iteration
-  void dispatch_field();               // dispatches once for field signatures
   void iterate_parameters();           // iterates over parameters only
   void iterate_parameters( uint64_t fingerprint );
   void iterate_returntype();           // iterates over returntype only
@@ -370,8 +369,8 @@ class SignatureStream : public StackObj {
   int          _end;
   BasicType    _type;
   bool         _at_return_type;
-  GrowableArray<Symbol*>* _names;  // symbols created while parsing signature
-
+  Symbol*      _previous_name;     // cache the previously looked up symbol to avoid lookups
+  GrowableArray<Symbol*>* _names;  // symbols created while parsing that need to be dereferenced
  public:
   bool at_return_type() const                    { return _at_return_type; }
   bool is_done() const;
@@ -409,7 +408,7 @@ class SignatureStream : public StackObj {
   bool is_array() const;                         // True if this argument is an array
   BasicType type() const                         { return _type; }
   Symbol* as_symbol(TRAPS);
-  enum FailureMode { ReturnNull, CNFException, NCDFError };
+  enum FailureMode { ReturnNull, NCDFError };
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   const u1* raw_bytes()  { return _signature->bytes() + _begin; }
@@ -420,19 +419,6 @@ class SignatureStream : public StackObj {
 
   // count the number of references in the signature
   int reference_parameter_count();
-};
-
-class SignatureVerifier : public StackObj {
-  public:
-    // Returns true if the symbol is valid method or type signature
-    static bool is_valid_signature(Symbol* sig);
-
-    static bool is_valid_method_signature(Symbol* sig);
-    static bool is_valid_type_signature(Symbol* sig);
-  private:
-
-    static ssize_t is_valid_type(const char*, ssize_t);
-    static bool invalid_name_char(char);
 };
 
 class SigEntryFilter;
@@ -494,4 +480,13 @@ public:
   bool operator()(const SigEntry& entry) { return entry._bt != T_VALUETYPE && entry._bt != T_VOID; }
 };
 
+#ifdef ASSERT
+class SignatureVerifier : public StackObj {
+  public:
+    static bool is_valid_method_signature(Symbol* sig);
+    static bool is_valid_type_signature(Symbol* sig);
+  private:
+    static ssize_t is_valid_type(const char*, ssize_t);
+};
+#endif
 #endif // SHARE_RUNTIME_SIGNATURE_HPP

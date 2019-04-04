@@ -357,6 +357,8 @@ private:
     assert(Thread::current()->is_VM_thread(), "current thread is not VM thread"); \
   } while (0)
 
+  const char* young_gc_name() const;
+
   // The young region list.
   G1EdenRegions _eden;
   G1SurvivorRegions _survivor;
@@ -730,14 +732,21 @@ private:
   // to the GC locker being active, true otherwise
   bool do_collection_pause_at_safepoint(double target_pause_time_ms);
 
+  G1HeapVerifier::G1VerifyType young_collection_verify_type() const;
+  void verify_before_young_collection(G1HeapVerifier::G1VerifyType type);
+  void verify_after_young_collection(G1HeapVerifier::G1VerifyType type);
+
+  void calculate_collection_set(G1EvacuationInfo& evacuation_info, double target_pause_time_ms);
+
   // Actually do the work of evacuating the collection set.
   void evacuate_collection_set(G1ParScanThreadStateSet* per_thread_states);
   void evacuate_optional_collection_set(G1ParScanThreadStateSet* per_thread_states);
   void evacuate_optional_regions(G1ParScanThreadStateSet* per_thread_states, G1OptionalCSet* ocset);
 
-  void pre_evacuate_collection_set();
+  void pre_evacuate_collection_set(G1EvacuationInfo& evacuation_info);
   void post_evacuate_collection_set(G1EvacuationInfo& evacuation_info, G1ParScanThreadStateSet* pss);
 
+  void expand_heap_after_young_collection();
   // Update object copying statistics.
   void record_obj_copy_mem_stats();
 
@@ -1110,8 +1119,6 @@ public:
     return _hrm->reserved();
   }
 
-  virtual bool is_in_closed_subset(const void* p) const;
-
   G1HotCardCache* g1_hot_card_cache() const { return _hot_card_cache; }
 
   G1CardTable* card_table() const {
@@ -1307,14 +1314,17 @@ public:
 
   // Optimized nmethod scanning support routines
 
-  // Is an oop scavengeable
-  virtual bool is_scavengable(oop obj);
-
   // Register the given nmethod with the G1 heap.
   virtual void register_nmethod(nmethod* nm);
 
   // Unregister the given nmethod from the G1 heap.
   virtual void unregister_nmethod(nmethod* nm);
+
+  // No nmethod flushing needed.
+  virtual void flush_nmethod(nmethod* nm) {}
+
+  // No nmethod verification implemented.
+  virtual void verify_nmethod(nmethod* nm) {}
 
   // Free up superfluous code root memory.
   void purge_code_root_memory();

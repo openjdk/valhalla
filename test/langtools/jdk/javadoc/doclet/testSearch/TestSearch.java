@@ -70,7 +70,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
@@ -97,7 +96,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:all",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.ERROR);
         checkDocLintErrors();
@@ -124,7 +122,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
@@ -150,7 +147,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -177,7 +173,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
@@ -201,7 +196,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -226,7 +220,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
 
         checkExit(Exit.OK);
@@ -252,7 +245,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
@@ -280,7 +272,6 @@ public class TestSearch extends JavadocTester {
                 "--disable-javafx-strict-checks",
                 "-package",
                 "-use",
-                "--frames",
                 "pkgfx", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -306,7 +297,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true, false);
@@ -373,7 +363,7 @@ public class TestSearch extends JavadocTester {
     }
 
     void checkSearchOutput(boolean expectedOutput) {
-        checkSearchOutput("overview-summary.html", expectedOutput, true);
+        checkSearchOutput("index.html", expectedOutput, true);
     }
 
     void checkSearchIndex(boolean expectedOutput) {
@@ -390,7 +380,7 @@ public class TestSearch extends JavadocTester {
     }
 
     void checkSearchOutput(boolean expectedOutput, boolean moduleDirectoriesVar) {
-        checkSearchOutput("overview-summary.html", expectedOutput, moduleDirectoriesVar);
+        checkSearchOutput("index.html", expectedOutput, moduleDirectoriesVar);
     }
 
     void checkSearchOutput(String fileName, boolean expectedOutput, boolean moduleDirectoriesVar) {
@@ -635,7 +625,7 @@ public class TestSearch extends JavadocTester {
                 "function concatResults(a1, a2) {",
                 "if (exactMatcher.test(item.l)) {\n"
                 + "                        presult.push(item);",
-                "$(\"#search\").on('click keydown', function() {\n"
+                "$(\"#search\").on('click keydown paste', function() {\n"
                 + "        if ($(this).val() == watermark) {\n"
                 + "            $(this).val('').removeClass('watermark');\n"
                 + "        }\n"
@@ -717,6 +707,7 @@ public class TestSearch extends JavadocTester {
                 + " id=\"t6\" class=\"tableTab\" onclick=\"show(32);\">Annotation Types Summary</button></div>\n"
                 + "<div id=\"typeSummary_tabpanel\" role=\"tabpanel\">\n"
                 + "<table aria-labelledby=\"t0\">\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
@@ -726,6 +717,7 @@ public class TestSearch extends JavadocTester {
         checkOutput("allpackages-index.html", true,
                 "<div class=\"packagesSummary\">\n<table>\n"
                 + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"

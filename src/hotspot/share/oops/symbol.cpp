@@ -34,6 +34,7 @@
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
+#include "utilities/utf8.hpp"
 
 uint32_t Symbol::pack_length_and_refcount(int length, int refcount) {
   STATIC_ASSERT(max_symbol_length == ((1 << 16) - 1));
@@ -299,6 +300,30 @@ void Symbol::decrement_refcount() {
       return;
     } else {
       found = Atomic::cmpxchg(old_value - 1, &_length_and_refcount, old_value);
+      if (found == old_value) {
+        return;  // successfully updated.
+      }
+      // refcount changed, try again.
+    }
+  }
+}
+
+void Symbol::make_permanent() {
+  uint32_t found = _length_and_refcount;
+  while (true) {
+    uint32_t old_value = found;
+    int refc = extract_refcount(old_value);
+    if (refc == PERM_REFCOUNT) {
+      return;  // refcount is permanent, permanent is sticky
+    } else if (refc == 0) {
+#ifdef ASSERT
+      print();
+      fatal("refcount underflow");
+#endif
+      return;
+    } else {
+      int len = extract_length(old_value);
+      found = Atomic::cmpxchg(pack_length_and_refcount(len, PERM_REFCOUNT), &_length_and_refcount, old_value);
       if (found == old_value) {
         return;  // successfully updated.
       }
