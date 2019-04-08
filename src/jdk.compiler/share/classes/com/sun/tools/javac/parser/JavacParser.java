@@ -3060,8 +3060,13 @@ public class JavacParser implements Parser {
                     // if first modifier is an annotation, set pos to annotation's.
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
-                    annotations.append(ann);
-                    flag = 0;
+                    final Name name = TreeInfo.name(ann.annotationType);
+                    if (name == names.__value__ || name == names.java_lang___value__) {
+                        flag = Flags.VALUE;
+                    } else {
+                        annotations.append(ann);
+                        flag = 0;
+                    }
                 }
             }
             flags |= flag;
