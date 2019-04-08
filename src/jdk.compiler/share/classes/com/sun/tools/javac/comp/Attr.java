@@ -166,6 +166,7 @@ public class Attr extends JCTree.Visitor {
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
         allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowEmptyValues = options.isSet("allowEmptyValues");
+        allowValueMemberCycles = options.isSet("allowValueMemberCycles");
         allowValueConstructors = options.isUnset("disallowValueConstructors");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
@@ -213,6 +214,10 @@ public class Attr extends JCTree.Visitor {
      */
     boolean allowEmptyValues;
 
+    /**
+     * Switch: Allow value type member cycles?
+     */
+    boolean allowValueMemberCycles;
     /**
      * Switch: Allow value types instantiation via new and classic constructor notation ?
      */
@@ -4831,8 +4836,10 @@ public class Attr extends JCTree.Visitor {
             attribClass(c);
             if (types.isValue(c.type)) {
                 final Env<AttrContext> env = typeEnvs.get(c);
-                if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
-                    chk.checkNonCyclicMembership((JCClassDecl) env.tree);
+                if (!allowValueMemberCycles) {
+                    if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
+                        chk.checkNonCyclicMembership((JCClassDecl)env.tree);
+                }
             }
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);
