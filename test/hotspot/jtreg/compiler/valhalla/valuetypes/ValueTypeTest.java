@@ -243,9 +243,6 @@ public abstract class ValueTypeTest {
         case 3: return new String[] {
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:ValueArrayElemMaxFlatOops=0",
-                "-XX:ValueArrayElemMaxFlatSize=0",
-                "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:-ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields"};
         case 4: return new String[] {

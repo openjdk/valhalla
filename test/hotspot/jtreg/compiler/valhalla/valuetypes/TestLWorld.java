@@ -1978,4 +1978,43 @@ public class TestLWorld extends ValueTypeTest {
             throw new RuntimeException("test79 failed: unexpected exception", e);
         }
     }
+
+    // Test flattened field with non-flattenend (but flattenable) value type field
+    static value class Small {
+        final int i;
+        final Big.val big; // Too big to be flattened
+
+        private Small() {
+            i = rI;
+            big = new Big();
+        }
+    }
+
+    static value class Big {
+        long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
+        long l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
+        long l20,l21,l22,l23,l24,l25,l26,l27,l28,l29;
+
+        private Big() {
+            l0 = l1 = l2 = l3 = l4 = l5 = l6 = l7 = l8 = l9 = rL;
+            l10 = l11 = l12 = l13 = l14 = l15 = l16 = l17 = l18 = l19 = rL+1;
+            l20 = l21 = l22 = l23 = l24 = l25 = l26 = l27 = l28 = l29 = rL+2;
+        }
+    }
+
+    Small.val small = new Small();
+    Small.val smallDefault;
+    Big.val big = new Big();
+    Big.val bigDefault;
+
+    @Test
+    public long test80() {
+        return small.i + small.big.l0 + smallDefault.i + smallDefault.big.l29 + big.l0 + bigDefault.l29;
+    }
+
+    @DontCompile
+    public void test80_verifier(boolean warmup) throws Throwable {
+        long result = test80();
+        Asserts.assertEQ(result, rI + 2*rL);
+    }
 }

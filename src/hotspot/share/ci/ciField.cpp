@@ -235,9 +235,8 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _known_to_link_with_get = field->_known_to_link_with_get;
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
-  assert(!field->is_flattenable(), "field must not be flattenable");
   _is_flattened = false;
-  _is_flattenable = false;
+  _is_flattenable = field->is_flattenable();
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
