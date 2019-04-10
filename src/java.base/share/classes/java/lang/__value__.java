@@ -35,6 +35,6 @@ import static java.lang.annotation.ElementType.*;
  * @since 1.12
  */
 @Retention(RetentionPolicy.SOURCE)
-@Target(ElementType.TYPE)
+@Target(value={ElementType.TYPE, ElementType.TYPE_USE})
 public @interface __value__ {
 }
