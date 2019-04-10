@@ -670,7 +670,11 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
       info._to_aot = false;
     }
     info._to_interpreter = false;
-    info._entry  = m_code->verified_entry_point();
+    if (caller_nm->is_c1()) {
+      info._entry = m_code->verified_value_entry_point();
+    } else {
+      info._entry = m_code->verified_entry_point();
+    }
   } else {
     // Callee is interpreted code.  In any case entering the interpreter
     // puts a converter-frame on the stack to save arguments.

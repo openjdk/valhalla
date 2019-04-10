@@ -553,6 +553,7 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method_abstract(JavaThread* thread);
   static address handle_wrong_method_ic_miss(JavaThread* thread);
   static void allocate_value_types(JavaThread* thread, Method* callee, bool allocate_receiver);
+  static oop allocate_value_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS);
   static void apply_post_barriers(JavaThread* thread, objArrayOopDesc* array);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
@@ -771,6 +772,64 @@ class AdapterHandlerLibrary: public AllStatic {
   static void print_statistics();
 #endif // PRODUCT
 
+};
+
+// Utility class for computing the calling convention of the 3 types
+// of compiled method entries:
+//     Method::_from_compiled_entry               - sig_cc
+//     Method::_from_compiled_value_ro_entry      - sig_cc_ro
+//     Method::_from_compiled_value_entry         - sig
+class CompiledEntrySignature : public StackObj {
+  Method* _method;
+  int  _num_value_args;
+  bool _has_value_recv;
+  GrowableArray<SigEntry> *_sig;
+  GrowableArray<SigEntry> *_sig_cc;
+  GrowableArray<SigEntry> *_sig_cc_ro;
+  VMRegPair* _regs;
+  VMRegPair* _regs_cc;
+  VMRegPair* _regs_cc_ro;
+
+  int _args_on_stack;
+  int _args_on_stack_cc;
+  int _args_on_stack_cc_ro;
+
+  bool _needs_stack_repair;
+  bool _has_scalarized_args;
+
+public:
+  Method* method()                     const { return _method; }
+
+  // Used by Method::_from_compiled_value_entry
+  GrowableArray<SigEntry>& sig()       const { return *_sig; }
+
+  // Used by Method::_from_compiled_entry
+  GrowableArray<SigEntry>& sig_cc()    const { return *_sig_cc; }
+
+  // Used by Method::_from_compiled_value_ro_entry
+  GrowableArray<SigEntry>& sig_cc_ro() const { return *_sig_cc_ro; }
+
+  VMRegPair* regs()                    const { return _regs; }
+  VMRegPair* regs_cc()                 const { return _regs_cc; }
+  VMRegPair* regs_cc_ro()              const { return _regs_cc_ro; }
+
+  int args_on_stack()                  const { return _args_on_stack; }
+  int args_on_stack_cc()               const { return _args_on_stack_cc; }
+  int args_on_stack_cc_ro()            const { return _args_on_stack_cc_ro; }
+
+  int  num_value_args()                const { return _num_value_args; }
+  bool has_value_arg()                 const { return _num_value_args > 0;  }
+  bool has_value_recv()                const { return _has_value_recv; }
+
+  bool has_scalarized_args()           const { return _has_scalarized_args; }
+  bool needs_stack_repair()            const { return _needs_stack_repair; }
+
+  CompiledEntrySignature(Method* method);
+  void compute_calling_conventions();
+
+private:
+  static int compute_scalarized_cc(Method* method, GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
+  static int insert_reserved_entry(GrowableArray<SigEntry>* sig_cc, VMRegPair* regs_cc, int ret_off);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

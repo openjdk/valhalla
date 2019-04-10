@@ -55,6 +55,8 @@ class StubAssembler;
   stub(new_multi_array)              \
   stub(load_flattened_array)         \
   stub(store_flattened_array)        \
+  stub(buffer_value_args)            \
+  stub(buffer_value_args_no_receiver)\
   stub(handle_exception_nofpu)         /* optimized version that does not preserve fpu registers */ \
   stub(handle_exception)             \
   stub(handle_exception_from_callee) \
@@ -112,6 +114,8 @@ class Runtime1: public AllStatic {
   static int _new_multi_array_slowcase_cnt;
   static int _load_flattened_array_slowcase_cnt;
   static int _store_flattened_array_slowcase_cnt;
+  static int _buffer_value_args_slowcase_cnt;
+  static int _buffer_value_args_no_receiver_slowcase_cnt;
   static int _monitorenter_slowcase_cnt;
   static int _monitorexit_slowcase_cnt;
   static int _patch_code_slowcase_cnt;
@@ -129,6 +133,7 @@ class Runtime1: public AllStatic {
  private:
   static CodeBlob* _blobs[number_of_ids];
   static const char* _blob_names[];
+  static void buffer_value_args_impl(JavaThread* thread, Method* m, bool allocate_receiver);
 
   // stub generation
  public:
@@ -151,6 +156,8 @@ class Runtime1: public AllStatic {
   static void new_multi_array (JavaThread* thread, Klass* klass, int rank, jint* dims);
   static void load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index);
   static void store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value);
+  static void buffer_value_args(JavaThread* thread, Method* method);
+  static void buffer_value_args_no_receiver(JavaThread* thread, Method* method);
 
   static address counter_overflow(JavaThread* thread, int bci, Method* method);
 

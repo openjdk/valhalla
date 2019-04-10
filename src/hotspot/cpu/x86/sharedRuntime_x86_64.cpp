@@ -1183,8 +1183,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             AdapterFingerPrint* fingerprint,
                                                             AdapterBlob*& new_adapter) {
   address i2c_entry = __ pc();
-  // For stress testing, don't unpack value types in the i2c adapter but
-  // call the value type entry point and let it take care of unpacking.
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
   // -------------------------------------------------------------------------

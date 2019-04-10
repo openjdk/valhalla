@@ -31,6 +31,7 @@
 #include "utilities/macros.hpp"
 
 class Compilation;
+class CompiledEntrySignature;
 class ScopeValue;
 class BarrierSet;
 
@@ -48,6 +49,7 @@ class LIR_Assembler: public CompilationResourceObj {
   int                _pending_non_safepoint_offset;
 
   Label              _unwind_handler_entry;
+  Label              _verified_value_entry;
 
 #ifdef ASSERT
   BlockList          _branch_target_blocks;
@@ -207,6 +209,9 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_profile_call(LIR_OpProfileCall* op);
   void emit_profile_type(LIR_OpProfileType* op);
   void emit_delay(LIR_OpDelay* op);
+  void emit_std_entries();
+  int  emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);
+  void add_std_entry_info(int call_offset, bool no_receiver);
 
   void arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack);
   void arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr temp, LIR_Opr result, CodeEmitInfo* info);

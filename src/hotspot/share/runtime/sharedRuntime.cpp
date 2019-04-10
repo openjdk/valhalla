@@ -2747,14 +2747,37 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   return entry;
 }
 
-static int compute_scalarized_cc(const methodHandle& method, GrowableArray<SigEntry>& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
+CompiledEntrySignature::CompiledEntrySignature(Method* method) {
+  _method = method;
+  _num_value_args = 0;
+  _has_value_recv = false;
+  _has_scalarized_args = false;
+  _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
+  if (!method->is_static()) {
+    if (method->method_holder()->is_value()) {
+      _has_value_recv = true;
+      _num_value_args ++;
+    }
+    SigEntry::add_entry(_sig, T_OBJECT);
+  }
+  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+    BasicType bt = ss.type();
+    if (bt == T_VALUETYPE) {
+      _num_value_args ++;
+      bt = T_OBJECT;
+    }
+    SigEntry::add_entry(_sig, bt);
+  }
+}
+
+int CompiledEntrySignature::compute_scalarized_cc(Method* method, GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
   InstanceKlass* holder = method->method_holder();
-  sig_cc = GrowableArray<SigEntry>(method->size_of_parameters());
+  sig_cc = new GrowableArray<SigEntry>(method->size_of_parameters());
   if (!method->is_static()) {
     if (holder->is_value() && scalar_receiver) {
-      sig_cc.appendAll(ValueKlass::cast(holder)->extended_sig());
+      sig_cc->appendAll(ValueKlass::cast(holder)->extended_sig());
     } else {
-      SigEntry::add_entry(&sig_cc, T_OBJECT);
+      SigEntry::add_entry(sig_cc, T_OBJECT);
     }
   }
   Thread* THREAD = Thread::current();
@@ -2764,25 +2787,25 @@ static int compute_scalarized_cc(const methodHandle& method, GrowableArray<SigEn
                              Handle(THREAD, holder->protection_domain()),
                              SignatureStream::ReturnNull, THREAD);
       assert(k != NULL && !HAS_PENDING_EXCEPTION, "value klass should have been pre-loaded");
-      sig_cc.appendAll(ValueKlass::cast(k)->extended_sig());
+      sig_cc->appendAll(ValueKlass::cast(k)->extended_sig());
     } else {
-      SigEntry::add_entry(&sig_cc, ss.type());
+      SigEntry::add_entry(sig_cc, ss.type());
     }
   }
-  regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc.length() + 2);
-  return SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
+  regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
+  return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
 }
 
-static int insert_reserved_entry(GrowableArray<SigEntry>& sig_cc, VMRegPair*& regs_cc, int ret_off) {
+int CompiledEntrySignature::insert_reserved_entry(GrowableArray<SigEntry>* sig_cc, VMRegPair* regs_cc, int ret_off) {
   // Find index in signature that belongs to return address slot
   BasicType bt = T_ILLEGAL;
   int i = 0;
-  for (uint off = 0; i < sig_cc.length(); ++i) {
-    if (SigEntry::skip_value_delimiters(&sig_cc, i)) {
+  for (uint off = 0; i < sig_cc->length(); ++i) {
+    if (SigEntry::skip_value_delimiters(sig_cc, i)) {
       VMReg first = regs_cc[off++].first();
       if (first->is_valid() && first->is_stack()) {
         // Select a type for the reserved entry that will end up on the stack
-        bt = sig_cc.at(i)._bt;
+        bt = sig_cc->at(i)._bt;
         if (((int)first->reg2stack() + VMRegImpl::slots_per_word) == ret_off) {
           break; // Index of the return address found
         }
@@ -2790,8 +2813,79 @@ static int insert_reserved_entry(GrowableArray<SigEntry>& sig_cc, VMRegPair*& re
     }
   }
   // Insert reserved entry and re-compute calling convention
-  SigEntry::insert_reserved_entry(&sig_cc, i, bt);
-  return SharedRuntime::java_calling_convention(&sig_cc, regs_cc);
+  SigEntry::insert_reserved_entry(sig_cc, i, bt);
+  return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
+}
+
+void CompiledEntrySignature::compute_calling_conventions() {
+  // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
+  _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
+  _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
+
+  // Now compute the scalarized calling convention if there are value types in the signature
+  _sig_cc = _sig;
+  _sig_cc_ro = _sig;
+  _regs_cc = _regs;
+  _regs_cc_ro = _regs;
+  _args_on_stack_cc = _args_on_stack;
+  _args_on_stack_cc_ro = _args_on_stack;
+
+  if (ValueTypePassFieldsAsArgs && has_value_arg() && !_method->is_native()) {
+    _args_on_stack_cc = compute_scalarized_cc(_method, _sig_cc, _regs_cc, /* scalar_receiver = */ true);
+
+    _sig_cc_ro = _sig_cc;
+    _regs_cc_ro = _regs_cc;
+    _args_on_stack_cc_ro = _args_on_stack_cc;
+    if (_has_value_recv || _args_on_stack_cc > _args_on_stack) {
+      // For interface calls, we need another entry point / adapter to unpack the receiver
+      _args_on_stack_cc_ro = compute_scalarized_cc(_method, _sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
+    }
+
+    // Compute the stack extension that is required to convert between the calling conventions.
+    // The stack slots at these offsets are occupied by the return address with the unscalarized
+    // calling convention. Don't use them for arguments with the scalarized calling convention.
+    int ret_off    = _args_on_stack_cc - _args_on_stack;
+    int ret_off_ro = _args_on_stack_cc - _args_on_stack_cc_ro;
+    assert(ret_off_ro <= 0 || ret_off > 0, "receiver unpacking requires more stack space than expected");
+
+    if (ret_off > 0) {
+      // Make sure the stack of the scalarized calling convention with the reserved
+      // entries (2 slots each) remains 16-byte (4 slots) aligned after stack extension.
+      int alignment = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
+      if (ret_off_ro != ret_off && ret_off_ro >= 0) {
+        ret_off    += 4; // Account for two reserved entries (4 slots)
+        ret_off_ro += 4;
+        ret_off     = align_up(ret_off, alignment);
+        ret_off_ro  = align_up(ret_off_ro, alignment);
+        // TODO can we avoid wasting a stack slot here?
+        //assert(ret_off != ret_off_ro, "fail");
+        if (ret_off > ret_off_ro) {
+          swap(ret_off, ret_off_ro); // Sort by offset
+        }
+        _args_on_stack_cc = insert_reserved_entry(_sig_cc, _regs_cc, ret_off);
+        _args_on_stack_cc = insert_reserved_entry(_sig_cc, _regs_cc, ret_off_ro);
+      } else {
+        ret_off += 2; // Account for one reserved entry (2 slots)
+        ret_off = align_up(ret_off, alignment);
+        _args_on_stack_cc = insert_reserved_entry(_sig_cc, _regs_cc, ret_off);
+      }
+    }
+
+    // Upper bound on stack arguments to avoid hitting the argument limit and
+    // bailing out of compilation ("unsupported incoming calling sequence").
+    // TODO we need a reasonable limit (flag?) here
+    if (_args_on_stack_cc > 50) {
+      // Don't scalarize value type arguments
+      _sig_cc = _sig;
+      _sig_cc_ro = _sig;
+      _regs_cc = _regs;
+      _regs_cc_ro = _regs;
+      _args_on_stack_cc = _args_on_stack;
+    } else {
+      _needs_stack_repair = (_args_on_stack_cc > _args_on_stack);
+      _has_scalarized_args = true;
+    }
+  }
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& method) {
@@ -2812,96 +2906,31 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
     // make sure data structure is initialized
     initialize();
 
-    bool has_value_arg = false;
-    bool has_value_recv = false;
-    GrowableArray<SigEntry> sig(method->size_of_parameters());
-    if (!method->is_static()) {
-      has_value_recv = method->method_holder()->is_value();
-      has_value_arg = has_value_recv;
-      SigEntry::add_entry(&sig, T_OBJECT);
-    }
-    for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-      BasicType bt = ss.type();
-      if (bt == T_VALUETYPE) {
-        has_value_arg = true;
-        bt = T_OBJECT;
-      }
-      SigEntry::add_entry(&sig, bt);
-    }
+    CompiledEntrySignature ces(method());
+    bool has_value_arg = ces.has_value_arg();
+    GrowableArray<SigEntry>& sig = ces.sig();
 
     // Process abstract method if it has value type args to set has_scalarized_args accordingly
     if (method->is_abstract() && !(ValueTypePassFieldsAsArgs && has_value_arg)) {
       return _abstract_method_handler;
     }
 
-    // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
-    VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, sig.length());
-    int args_on_stack = SharedRuntime::java_calling_convention(&sig, regs);
+    {
+      MutexUnlocker mul(AdapterHandlerLibrary_lock); // <-- why is this needed?
+      ces.compute_calling_conventions();
+    }
+    GrowableArray<SigEntry>& sig_cc    = ces.sig_cc();
+    GrowableArray<SigEntry>& sig_cc_ro = ces.sig_cc_ro();
+    VMRegPair* regs         = ces.regs();
+    VMRegPair* regs_cc      = ces.regs_cc();
+    VMRegPair* regs_cc_ro   = ces.regs_cc_ro();
+    int args_on_stack       = ces.args_on_stack();
+    int args_on_stack_cc    = ces.args_on_stack_cc();
+    int args_on_stack_cc_ro = ces.args_on_stack_cc_ro();
 
-    // Now compute the scalarized calling convention if there are value types in the signature
-    GrowableArray<SigEntry> sig_cc = sig;
-    GrowableArray<SigEntry> sig_cc_ro = sig;
-    VMRegPair* regs_cc = regs;
-    VMRegPair* regs_cc_ro = regs;
-    int args_on_stack_cc = args_on_stack;
-    int args_on_stack_cc_ro = args_on_stack;
-
-    if (ValueTypePassFieldsAsArgs && has_value_arg && !method->is_native()) {
-      MutexUnlocker mul(AdapterHandlerLibrary_lock);
-      args_on_stack_cc = compute_scalarized_cc(method, sig_cc, regs_cc, /* scalar_receiver = */ true);
-
-      sig_cc_ro = sig_cc;
-      regs_cc_ro = regs_cc;
-      args_on_stack_cc_ro = args_on_stack_cc;
-      if (has_value_recv || args_on_stack_cc > args_on_stack) {
-        // For interface calls, we need another entry point / adapter to unpack the receiver
-        args_on_stack_cc_ro = compute_scalarized_cc(method, sig_cc_ro, regs_cc_ro, /* scalar_receiver = */ false);
-      }
-
-      // Compute the stack extension that is required to convert between the calling conventions.
-      // The stack slots at these offsets are occupied by the return address with the unscalarized
-      // calling convention. Don't use them for arguments with the scalarized calling convention.
-      int ret_off    = args_on_stack_cc - args_on_stack;
-      int ret_off_ro = args_on_stack_cc - args_on_stack_cc_ro;
-      assert(ret_off_ro <= 0 || ret_off > 0, "receiver unpacking requires more stack space than expected");
-
-      if (ret_off > 0) {
-        // Make sure the stack of the scalarized calling convention with the reserved
-        // entries (2 slots each) remains 16-byte (4 slots) aligned after stack extension.
-        int alignment = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
-        if (ret_off_ro != ret_off && ret_off_ro >= 0) {
-          ret_off    += 4; // Account for two reserved entries (4 slots)
-          ret_off_ro += 4;
-          ret_off     = align_up(ret_off, alignment);
-          ret_off_ro  = align_up(ret_off_ro, alignment);
-          // TODO can we avoid wasting a stack slot here?
-          //assert(ret_off != ret_off_ro, "fail");
-          if (ret_off > ret_off_ro) {
-            swap(ret_off, ret_off_ro); // Sort by offset
-          }
-          args_on_stack_cc = insert_reserved_entry(sig_cc, regs_cc, ret_off);
-          args_on_stack_cc = insert_reserved_entry(sig_cc, regs_cc, ret_off_ro);
-        } else {
-          ret_off += 2; // Account for one reserved entry (2 slots)
-          ret_off = align_up(ret_off, alignment);
-          args_on_stack_cc = insert_reserved_entry(sig_cc, regs_cc, ret_off);
-        }
-      }
-
-      // Upper bound on stack arguments to avoid hitting the argument limit and
-      // bailing out of compilation ("unsupported incoming calling sequence").
-      // TODO we need a reasonable limit (flag?) here
-      if (args_on_stack_cc > 50) {
-        // Don't scalarize value type arguments
-        sig_cc = sig;
-        sig_cc_ro = sig;
-        regs_cc = regs;
-        regs_cc_ro = regs;
-        args_on_stack_cc = args_on_stack;
-      } else {
-        method->set_has_scalarized_args(true);
-        method->set_needs_stack_repair(args_on_stack_cc > args_on_stack);
-      }
+    if (ces.has_scalarized_args()) {
+      method->set_has_scalarized_args(true);
+      method->set_needs_stack_repair(ces.needs_stack_repair());
     }
 
     if (method->is_abstract()) {
@@ -3507,12 +3536,9 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
 // buffers for all value type arguments. Allocate an object array to
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
-JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* callee_method, bool allocate_receiver))
-{
+oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS) {
   assert(ValueTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
-  JavaThread* THREAD = thread;
-  methodHandle callee(callee_method);
 
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
@@ -3527,12 +3553,12 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
       nb_slots++;
     }
   }
-  objArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK);
+  objArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
   objArrayHandle array(THREAD, array_oop);
   int i = 0;
   if (allocate_receiver) {
     ValueKlass* vk = ValueKlass::cast(holder);
-    oop res = vk->allocate_instance(CHECK);
+    oop res = vk->allocate_instance(CHECK_NULL);
     array->obj_at_put(i, res);
     i++;
   }
@@ -3541,14 +3567,19 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
       Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
       assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
       ValueKlass* vk = ValueKlass::cast(k);
-      oop res = vk->allocate_instance(CHECK);
+      oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
       i++;
     }
   }
-  thread->set_vm_result(array());
-  thread->set_vm_result_2(callee()); // TODO: required to keep callee live?
+  return array();
 }
+
+JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* callee_method, bool allocate_receiver))
+  methodHandle callee(callee_method);
+  oop array = SharedRuntime::allocate_value_types_impl(thread, callee, allocate_receiver, CHECK);
+  thread->set_vm_result(array);
+  thread->set_vm_result_2(callee()); // TODO: required to keep callee live?
 JRT_END
 
 // Iterate of the array of heap allocated value types and apply the GC post barrier to all reference fields.

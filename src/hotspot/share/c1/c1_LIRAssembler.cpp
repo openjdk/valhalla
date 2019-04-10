@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "runtime/os.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_code, Register obj, CodeEmitInfo* info) {
   // We must have enough patching space so that call can be inserted.
@@ -116,6 +117,7 @@ LIR_Assembler::~LIR_Assembler() {
   // The unwind handler label may be unnbound if this destructor is invoked because of a bail-out.
   // Reset it here to avoid an assertion.
   _unwind_handler_entry.reset();
+  _verified_value_entry.reset();
 }
 
 
@@ -592,6 +594,83 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
   }
 }
 
+void LIR_Assembler::add_std_entry_info(int pc_offset, bool no_receiver) {
+  // FIXME: build different oompaps/stack/locals according to no_receiver.
+  flush_debug_info(pc_offset);
+  DebugInformationRecorder* debug_info = compilation()->debug_info_recorder();
+  OopMap* oop_map = new OopMap(0, 0); // FIXME
+  debug_info->add_safepoint(pc_offset, oop_map);
+  DebugToken* locvals = debug_info->create_scope_values(NULL); // FIXME is this needed (for Java debugging to work properly??)
+  DebugToken* expvals = debug_info->create_scope_values(NULL); // FIXME is this needed (for Java debugging to work properly??)
+  DebugToken* monvals = debug_info->create_monitor_values(NULL); // FIXME: need testing with synchronized method
+  bool reexecute = false;
+  bool return_oop = false; // This flag will be ignored since it used only for C2 with escape analysis.
+  bool rethrow_exception = false;
+  bool is_method_handle_invoke = false;
+  debug_info->describe_scope(pc_offset, methodHandle(), method(), 0, reexecute, rethrow_exception, is_method_handle_invoke, return_oop, false, locvals, expvals, monvals);
+  debug_info->end_safepoint(pc_offset);
+}
+
+void LIR_Assembler::emit_std_entries() {
+  offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
+
+  CompiledEntrySignature ces(method()->get_Method());
+  {
+    ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
+    ces.compute_calling_conventions();
+  }
+  if (ces.has_scalarized_args()) {
+    assert(ValueTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
+    add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Entry, &ces), false);
+
+    bool has_value_ro_entry = false;
+    if (ces.has_value_recv() && ces.num_value_args() > 1) {
+      // We need a separate entry for value_ro
+      has_value_ro_entry = true;
+      add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, &ces), true);
+    }
+    emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
+    if (!has_value_ro_entry) {
+      if (ces.has_value_recv()) {
+        assert(ces.num_value_args() == 1, "must be");
+        offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
+                             offsets()->value(CodeOffsets::Verified_Value_Entry));
+      } else {
+        assert(ces.num_value_args() > 0, "must be");
+        offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
+                             offsets()->value(CodeOffsets::Verified_Entry));
+      }
+    }
+  } else {
+    // All 3 entries are the same (no value-type packing)
+    int offset = emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
+    offsets()->set_value(CodeOffsets::Verified_Entry, offset);
+    offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO, offset);
+  }
+}
+
+int LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces) {
+  _masm->align(CodeEntryAlignment);
+  if (needs_icache(compilation()->method())) {
+    check_icache();
+  }
+  offsets()->set_value(entry, _masm->offset());
+  switch (entry) {
+  case CodeOffsets::Verified_Entry:
+    return _masm->verified_entry(ces, initial_frame_size_in_bytes(), _verified_value_entry);
+  case CodeOffsets::Verified_Value_Entry_RO:
+    return _masm->verified_value_ro_entry(ces, initial_frame_size_in_bytes(), _verified_value_entry);
+  default:
+    {
+      int offset = _masm->offset();
+      assert(entry == CodeOffsets::Verified_Value_Entry, "must be");
+      _masm->verified_value_entry(_verified_value_entry);
+      build_frame();
+      offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
+      return offset;
+    }
+  }
+}
 
 void LIR_Assembler::emit_op0(LIR_Op0* op) {
   switch (op->code()) {
@@ -614,18 +693,7 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
       break;
 
     case lir_std_entry:
-      // init offsets
-      offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
-      _masm->align(CodeEntryAlignment);
-      if (needs_icache(compilation()->method())) {
-        check_icache();
-      }
-      offsets()->set_value(CodeOffsets::Verified_Entry, _masm->offset());
-      offsets()->set_value(CodeOffsets::Verified_Value_Entry, _masm->offset());
-      offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO, _masm->offset());
-      _masm->verified_entry();
-      build_frame();
-      offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
+      emit_std_entries();
       break;
 
     case lir_osr_entry:

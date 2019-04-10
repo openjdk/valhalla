@@ -29,8 +29,10 @@
 #include "utilities/macros.hpp"
 
 class CodeEmitInfo;
-
+class CompiledEntrySignature;
 class C1_MacroAssembler: public MacroAssembler {
+ private:
+  int scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry);
  public:
   // creation
   C1_MacroAssembler(CodeBuffer* code) : MacroAssembler(code) { pd_init(); }
@@ -42,7 +44,13 @@ class C1_MacroAssembler: public MacroAssembler {
   void build_frame(int frame_size_in_bytes, int bang_size_in_bytes);
   void remove_frame(int frame_size_in_bytes);
 
-  void verified_entry();
+  int verified_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, Label& verified_value_entry_label) {
+    return scalarized_entry(ces, frame_size_in_bytes, verified_value_entry_label, false);
+  }
+  int verified_value_ro_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, Label& verified_value_entry_label) {
+    return scalarized_entry(ces, frame_size_in_bytes, verified_value_entry_label, true);
+  }
+  void verified_value_entry(Label& verified_value_entry_label);
   void verify_stack_oop(int offset) PRODUCT_RETURN;
   void verify_not_null_oop(Register r)  PRODUCT_RETURN;
 
