@@ -232,6 +232,7 @@ class ValueKlass: public InstanceKlass {
 
   void set_default_value(oop val) {
     java_mirror()->obj_field_put(default_value_offset(), val);
+    value_mirror()->obj_field_put(default_value_offset(), val);
   }
 
   oop default_value() {
