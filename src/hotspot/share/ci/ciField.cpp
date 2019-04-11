@@ -456,6 +456,8 @@ void ciField::print() {
     tty->print(" constant_value=");
     _constant_value.print();
   }
+  tty->print(" is_flattenable=%s", bool_to_str(_is_flattenable));
+  tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
   tty->print(">");
 }
 
