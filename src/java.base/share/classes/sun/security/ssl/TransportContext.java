@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -496,13 +496,16 @@ class TransportContext implements ConnectionContext {
             }
 
             if (needCloseNotify) {
-                synchronized (outputRecord) {
+                outputRecord.recordLock.lock();
+                try {
                     try {
                         // send a close_notify alert
                         warning(Alert.CLOSE_NOTIFY);
                     } finally {
                         outputRecord.close();
                     }
+                } finally {
+                    outputRecord.recordLock.unlock();
                 }
             }
         }
@@ -541,7 +544,8 @@ class TransportContext implements ConnectionContext {
 
         // Need a lock here so that the user_canceled alert and the
         // close_notify alert can be delivered together.
-        synchronized (outputRecord) {
+        outputRecord.recordLock.lock();
+        try {
             try {
                 // send a user_canceled alert if needed.
                 if (useUserCanceled) {
@@ -553,6 +557,8 @@ class TransportContext implements ConnectionContext {
             } finally {
                 outputRecord.close();
             }
+        } finally {
+            outputRecord.recordLock.unlock();
         }
     }
 
@@ -577,13 +583,7 @@ class TransportContext implements ConnectionContext {
             } else if (!isOutboundClosed()) {
                 // Special case that the inbound was closed, but outbound open.
                 return HandshakeStatus.NEED_WRAP;
-            }
-        } else if (isOutboundClosed() && !isInboundClosed()) {
-            // Special case that the outbound was closed, but inbound open.
-            return HandshakeStatus.NEED_UNWRAP;
-        } else if (!isOutboundClosed() && isInboundClosed()) {
-            // Special case that the inbound was closed, but outbound open.
-            return HandshakeStatus.NEED_WRAP;
+            }   // Otherwise, both inbound and outbound are closed.
         }
 
         return HandshakeStatus.NOT_HANDSHAKING;

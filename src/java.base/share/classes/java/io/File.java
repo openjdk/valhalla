@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,11 @@ import java.net.URI;
 import java.net.URL;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.util.List;
-import java.util.ArrayList;
-import java.security.SecureRandom;
-import java.nio.file.Path;
 import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 import sun.security.action.GetPropertyAction;
 
 /**
@@ -128,7 +128,7 @@ import sun.security.action.GetPropertyAction;
  * created, the abstract pathname represented by a <code>File</code> object
  * will never change.
  *
- * <h3>Interoperability with {@code java.nio.file} package</h3>
+ * <h2>Interoperability with {@code java.nio.file} package</h2>
  *
  * <p> The <a href="../../java/nio/file/package-summary.html">{@code java.nio.file}</a>
  * package defines interfaces and classes for the Java virtual machine to access
@@ -1395,13 +1395,13 @@ public class File
      *          If parameter <code>dest</code> is <code>null</code>
      */
     public boolean renameTo(File dest) {
+        if (dest == null) {
+            throw new NullPointerException();
+        }
         SecurityManager security = System.getSecurityManager();
         if (security != null) {
             security.checkWrite(path);
             security.checkWrite(dest.path);
-        }
-        if (dest == null) {
-            throw new NullPointerException();
         }
         if (this.isInvalid() || dest.isInvalid()) {
             return false;
@@ -1869,7 +1869,7 @@ public class File
      *
      * <p> The returned number of available bytes is a hint, but not a
      * guarantee, that it is possible to use most or any of these bytes.  The
-     * number of unallocated bytes is most likely to be accurate immediately
+     * number of available bytes is most likely to be accurate immediately
      * after this call.  It is likely to be made inaccurate by any external
      * I/O operations including those made on the system outside of this
      * virtual machine.  This method makes no guarantee that write operations

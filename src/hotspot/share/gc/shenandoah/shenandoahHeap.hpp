@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
-#define SHARE_VM_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
+#ifndef SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
+#define SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
 
 #include "gc/shared/markBitMap.hpp"
 #include "gc/shared/softRefPolicy.hpp"
@@ -163,9 +163,9 @@ public:
     return &_lock;
   }
 
-  void assert_heaplock_owned_by_current_thread()     PRODUCT_RETURN;
-  void assert_heaplock_not_owned_by_current_thread() PRODUCT_RETURN;
-  void assert_heaplock_or_safepoint()                PRODUCT_RETURN;
+  void assert_heaplock_owned_by_current_thread()     NOT_DEBUG_RETURN;
+  void assert_heaplock_not_owned_by_current_thread() NOT_DEBUG_RETURN;
+  void assert_heaplock_or_safepoint()                NOT_DEBUG_RETURN;
 
 // ---------- Initialization, termination, identification, printing routines
 //
@@ -198,6 +198,7 @@ public:
 //
 private:
            size_t _initial_size;
+           size_t _minimum_size;
   DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile size_t));
   volatile size_t _used;
   volatile size_t _committed;
@@ -216,6 +217,7 @@ public:
   size_t bytes_allocated_since_gc_start();
   void reset_bytes_allocated_since_gc_start();
 
+  size_t min_capacity()     const;
   size_t max_capacity()     const;
   size_t initial_capacity() const;
   size_t capacity()         const;
@@ -231,7 +233,7 @@ private:
 
 public:
   uint max_workers();
-  void assert_gc_workers(uint nworker) PRODUCT_RETURN;
+  void assert_gc_workers(uint nworker) NOT_DEBUG_RETURN;
 
   WorkGang* workers() const;
   WorkGang* get_safepoint_workers();
@@ -242,12 +244,14 @@ public:
 //
 private:
   MemRegion _heap_region;
+  bool      _heap_region_special;
   size_t    _num_regions;
   ShenandoahHeapRegion** _regions;
   ShenandoahRegionIterator _update_refs_iterator;
 
 public:
   inline size_t num_regions() const { return _num_regions; }
+  inline bool is_heap_region_special() { return _heap_region_special; }
 
   inline ShenandoahHeapRegion* const heap_region_containing(const void* addr) const;
   inline size_t heap_region_index_containing(const void* addr) const;
@@ -268,16 +272,16 @@ public:
 //
 public:
   enum GCStateBitPos {
-    // Heap has forwarded objects: need RB, ACMP, CAS barriers.
+    // Heap has forwarded objects: needs LRB barriers.
     HAS_FORWARDED_BITPOS   = 0,
 
     // Heap is under marking: needs SATB barriers.
     MARKING_BITPOS    = 1,
 
-    // Heap is under evacuation: needs WB barriers. (Set together with UNSTABLE)
+    // Heap is under evacuation: needs LRB barriers. (Set together with HAS_FORWARDED)
     EVACUATION_BITPOS = 2,
 
-    // Heap is under updating: needs SVRB/SVWB barriers.
+    // Heap is under updating: needs no additional barriers.
     UPDATEREFS_BITPOS = 3,
 
     // Heap is under traversal collection
@@ -380,7 +384,7 @@ private:
   };
 
   ShenandoahSharedEnumFlag<CancelState> _cancelled_gc;
-  inline bool try_cancel_gc();
+  bool try_cancel_gc();
 
 public:
   static address cancelled_gc_addr();
@@ -486,7 +490,7 @@ public:
   ShenandoahFreeSet*         free_set()          const { return _free_set;          }
   ShenandoahConcurrentMark*  concurrent_mark()         { return _scm;               }
   ShenandoahTraversalGC*     traversal_gc()            { return _traversal_gc;      }
-  ShenandoahPacer*           pacer() const             { return _pacer;             }
+  ShenandoahPacer*           pacer()             const { return _pacer;             }
 
   ShenandoahPhaseTimings*    phase_timings()     const { return _phase_timings;     }
   ShenandoahAllocTracker*    alloc_tracker()     const { return _alloc_tracker;     }
@@ -503,6 +507,8 @@ private:
   ConcurrentGCTimer*           _gc_timer;
   SoftRefPolicy                _soft_ref_policy;
 
+  // For exporting to SA
+  int                          _log_min_obj_alignment_in_bytes;
 public:
   ShenandoahMonitoringSupport* monitoring_support() { return _monitoring_support;    }
   GCMemoryManager* cycle_memory_manager()           { return &_cycle_memory_manager; }
@@ -511,6 +517,7 @@ public:
 
   GrowableArray<GCMemoryManager*> memory_managers();
   GrowableArray<MemoryPool*> memory_pools();
+  MemoryUsage memory_usage();
   GCTracer* tracer();
   GCTimer* gc_timer() const;
   CollectorPolicy* collector_policy() const;
@@ -556,15 +563,11 @@ public:
   size_t obj_size(oop obj) const;
   virtual ptrdiff_t cell_header_size() const;
 
-  // All objects can potentially move
-  bool is_scavengable(oop obj) { return true; };
-
   void collect(GCCause::Cause cause);
   void do_full_collection(bool clear_all_soft_refs);
 
   // Used for parsing heap during error printing
   HeapWord* block_start(const void* addr) const;
-  size_t block_size(const HeapWord* addr) const;
   bool block_is_obj(const HeapWord* addr) const;
 
   // Used for native heap walkers: heap dumpers, mostly
@@ -585,6 +588,8 @@ public:
 public:
   void register_nmethod(nmethod* nm);
   void unregister_nmethod(nmethod* nm);
+  void flush_nmethod(nmethod* nm) {}
+  void verify_nmethod(nmethod* nm) {}
 
 // ---------- Pinning hooks
 //
@@ -648,6 +653,9 @@ private:
   size_t _bitmap_regions_per_slice;
   size_t _bitmap_bytes_per_slice;
 
+  bool _bitmap_region_special;
+  bool _aux_bitmap_region_special;
+
   // Used for buffering per-region liveness data.
   // Needed since ShenandoahHeapRegion uses atomics to update liveness.
   //
@@ -676,6 +684,7 @@ public:
   void reset_mark_bitmap();
 
   // SATB barriers hooks
+  template<bool RESOLVE>
   inline bool requires_marking(const void* entry) const;
   void force_satb_flush_all_threads();
 
@@ -739,8 +748,6 @@ public:
 
   void stop_concurrent_marking();
 
-  void roots_iterate(OopClosure* cl);
-
 private:
   void trash_cset_regions();
   void update_heap_references(bool concurrent);
@@ -754,4 +761,4 @@ private:
   bool should_inject_alloc_failure();
 };
 
-#endif // SHARE_VM_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
+#endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP

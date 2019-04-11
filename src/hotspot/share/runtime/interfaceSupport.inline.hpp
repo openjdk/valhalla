@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_INTERFACESUPPORT_INLINE_HPP
-#define SHARE_VM_RUNTIME_INTERFACESUPPORT_INLINE_HPP
+#ifndef SHARE_RUNTIME_INTERFACESUPPORT_INLINE_HPP
+#define SHARE_RUNTIME_INTERFACESUPPORT_INLINE_HPP
 
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -34,6 +34,7 @@
 #include "runtime/thread.hpp"
 #include "runtime/vmOperations.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/histogram.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
 
@@ -65,22 +66,6 @@ class InterfaceSupport: AllStatic {
   static void verify_stack();
   static void verify_last_frame();
 # endif
-
- public:
-  static void serialize_thread_state_with_handler(JavaThread* thread) {
-    serialize_thread_state_internal(thread, true);
-  }
-
-  // Should only call this if we know that we have a proper SEH set up.
-  static void serialize_thread_state(JavaThread* thread) {
-    serialize_thread_state_internal(thread, false);
-  }
-
- private:
-  static void serialize_thread_state_internal(JavaThread* thread, bool needs_exception_handler) {
-    // Make sure new state is seen by VM thread
-    OrderAccess::fence();
-  }
 };
 
 
@@ -102,28 +87,8 @@ class ThreadStateTransition : public StackObj {
     assert(from != _thread_in_native, "use transition_from_native");
     assert((from & 1) == 0 && (to & 1) == 0, "odd numbers are transitions states");
     assert(thread->thread_state() == from, "coming from wrong thread state");
-    // Change to transition state
-    thread->set_thread_state((JavaThreadState)(from + 1));
-
-    InterfaceSupport::serialize_thread_state(thread);
-
-    SafepointMechanism::block_if_requested(thread);
-    thread->set_thread_state(to);
-
-    CHECK_UNHANDLED_OOPS_ONLY(thread->clear_unhandled_oops();)
-  }
-
-  // transition_and_fence must be used on any thread state transition
-  // where there might not be a Java call stub on the stack, in
-  // particular on Windows where the Structured Exception Handler is
-  // set up in the call stub.
-  static inline void transition_and_fence(JavaThread *thread, JavaThreadState from, JavaThreadState to) {
-    assert(thread->thread_state() == from, "coming from wrong thread state");
-    assert((from & 1) == 0 && (to & 1) == 0, "odd numbers are transitions states");
-    // Change to transition state
-    thread->set_thread_state((JavaThreadState)(from + 1));
-
-    InterfaceSupport::serialize_thread_state_with_handler(thread);
+    // Change to transition state and ensure it is seen by the VM thread.
+    thread->set_thread_state_fence((JavaThreadState)(from + 1));
 
     SafepointMechanism::block_if_requested(thread);
     thread->set_thread_state(to);
@@ -142,19 +107,14 @@ class ThreadStateTransition : public StackObj {
   static inline void transition_from_native(JavaThread *thread, JavaThreadState to) {
     assert((to & 1) == 0, "odd numbers are transitions states");
     assert(thread->thread_state() == _thread_in_native, "coming from wrong thread state");
-    // Change to transition state
-    thread->set_thread_state(_thread_in_native_trans);
-
-    InterfaceSupport::serialize_thread_state_with_handler(thread);
+    // Change to transition state and ensure it is seen by the VM thread.
+    thread->set_thread_state_fence(_thread_in_native_trans);
 
     // We never install asynchronous exceptions when coming (back) in
     // to the runtime from native code because the runtime is not set
     // up to handle exceptions floating around at arbitrary points.
     if (SafepointMechanism::should_block(thread) || thread->is_suspend_after_native()) {
       JavaThread::check_safepoint_and_suspend_for_native_trans(thread);
-
-      // Clear unhandled oops anywhere where we could block, even if we don't.
-      CHECK_UNHANDLED_OOPS_ONLY(thread->clear_unhandled_oops();)
     }
 
     thread->set_thread_state(to);
@@ -163,7 +123,6 @@ class ThreadStateTransition : public StackObj {
    void trans(JavaThreadState from, JavaThreadState to)  { transition(_thread, from, to); }
    void trans_from_java(JavaThreadState to)              { transition_from_java(_thread, to); }
    void trans_from_native(JavaThreadState to)            { transition_from_native(_thread, to); }
-   void trans_and_fence(JavaThreadState from, JavaThreadState to) { transition_and_fence(_thread, from, to); }
 };
 
 class ThreadInVMForHandshake : public ThreadStateTransition {
@@ -172,9 +131,8 @@ class ThreadInVMForHandshake : public ThreadStateTransition {
   void transition_back() {
     // This can be invoked from transition states and must return to the original state properly
     assert(_thread->thread_state() == _thread_in_vm, "should only call when leaving VM after handshake");
-    _thread->set_thread_state(_thread_in_vm_trans);
-
-    InterfaceSupport::serialize_thread_state(_thread);
+    // Change to transition state and ensure it is seen by the VM thread.
+    _thread->set_thread_state_fence(_thread_in_vm_trans);
 
     SafepointMechanism::block_if_requested(_thread);
 
@@ -216,7 +174,6 @@ class ThreadInVMfromJava : public ThreadStateTransition {
 
 
 class ThreadInVMfromUnknown {
- private:
   JavaThread* _thread;
  public:
   ThreadInVMfromUnknown() : _thread(NULL) {
@@ -235,7 +192,7 @@ class ThreadInVMfromUnknown {
   }
   ~ThreadInVMfromUnknown()  {
     if (_thread) {
-      ThreadStateTransition::transition_and_fence(_thread, _thread_in_vm, _thread_in_native);
+      ThreadStateTransition::transition(_thread, _thread_in_vm, _thread_in_native);
     }
   }
 };
@@ -247,7 +204,7 @@ class ThreadInVMfromNative : public ThreadStateTransition {
     trans_from_native(_thread_in_vm);
   }
   ~ThreadInVMfromNative() {
-    trans_and_fence(_thread_in_vm, _thread_in_native);
+    trans(_thread_in_vm, _thread_in_native);
   }
 };
 
@@ -259,7 +216,7 @@ class ThreadToNativeFromVM : public ThreadStateTransition {
     // Block, if we are in the middle of a safepoint synchronization.
     assert(!thread->owns_locks(), "must release all locks when leaving VM");
     thread->frame_anchor()->make_walkable(thread);
-    trans_and_fence(_thread_in_vm, _thread_in_native);
+    trans(_thread_in_vm, _thread_in_native);
     // Check for pending. async. exceptions or suspends.
     if (_thread->has_special_runtime_exit_condition()) _thread->handle_special_runtime_exit_condition(false);
   }
@@ -278,11 +235,61 @@ class ThreadBlockInVM : public ThreadStateTransition {
   : ThreadStateTransition(thread) {
     // Once we are blocked vm expects stack to be walkable
     thread->frame_anchor()->make_walkable(thread);
-    trans_and_fence(_thread_in_vm, _thread_blocked);
+    trans(_thread_in_vm, _thread_blocked);
   }
   ~ThreadBlockInVM() {
-    trans_and_fence(_thread_blocked, _thread_in_vm);
+    trans(_thread_blocked, _thread_in_vm);
+    OrderAccess::cross_modify_fence();
     // We don't need to clear_walkable because it will happen automagically when we return to java
+  }
+};
+
+// Unlike ThreadBlockInVM, this class is designed to avoid certain deadlock scenarios while making
+// transitions inside class Monitor in cases where we need to block for a safepoint or handshake. It
+// receives an extra argument compared to ThreadBlockInVM, the address of a pointer to the monitor we
+// are trying to acquire. This will be used to access and release the monitor if needed to avoid
+// said deadlocks.
+// It works like ThreadBlockInVM but differs from it in two ways:
+// - When transitioning in (constructor), it checks for safepoints without blocking, i.e., calls
+//   back if needed to allow a pending safepoint to continue but does not block in it.
+// - When transitioning back (destructor), if there is a pending safepoint or handshake it releases
+//   the monitor that is only partially acquired.
+class ThreadBlockInVMWithDeadlockCheck : public ThreadStateTransition {
+ private:
+  Monitor** _in_flight_monitor_adr;
+
+  void release_monitor() {
+    assert(_in_flight_monitor_adr != NULL, "_in_flight_monitor_adr should have been set on constructor");
+    Monitor* in_flight_monitor = *_in_flight_monitor_adr;
+    if (in_flight_monitor != NULL) {
+      in_flight_monitor->release_for_safepoint();
+      *_in_flight_monitor_adr = NULL;
+    }
+  }
+ public:
+  ThreadBlockInVMWithDeadlockCheck(JavaThread* thread, Monitor** in_flight_monitor_adr)
+  : ThreadStateTransition(thread), _in_flight_monitor_adr(in_flight_monitor_adr) {
+    // Once we are blocked vm expects stack to be walkable
+    thread->frame_anchor()->make_walkable(thread);
+
+    // All unsafe states are treated the same by the VMThread
+    // so we can skip the _thread_in_vm_trans state here. Since
+    // we don't read poll, it's enough to order the stores.
+    OrderAccess::storestore();
+
+    thread->set_thread_state(_thread_blocked);
+  }
+  ~ThreadBlockInVMWithDeadlockCheck() {
+    // Change to transition state and ensure it is seen by the VM thread.
+    _thread->set_thread_state_fence((JavaThreadState)(_thread_blocked_trans));
+
+    if (SafepointMechanism::should_block(_thread)) {
+      release_monitor();
+      SafepointMechanism::block_if_requested(_thread);
+    }
+
+    _thread->set_thread_state(_thread_in_vm);
+    OrderAccess::cross_modify_fence();
   }
 };
 
@@ -568,4 +575,4 @@ extern "C" {                                                         \
 
 #define JVM_END } }
 
-#endif // SHARE_VM_RUNTIME_INTERFACESUPPORT_INLINE_HPP
+#endif // SHARE_RUNTIME_INTERFACESUPPORT_INLINE_HPP

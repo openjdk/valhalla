@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "code/codeCache.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
@@ -182,17 +181,9 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
 
   // hash a given key (oop) with the specified size
   static unsigned int hash(oop key, int size) {
-    ZGC_ONLY(assert(ZAddressMetadataShift >= sizeof(unsigned int) * BitsPerByte, "cast removes the metadata bits");)
-
-    // shift right to get better distribution (as these bits will be zero
-    // with aligned addresses)
-    key = Access<>::resolve(key);
-    unsigned int addr = (unsigned int)(cast_from_oop<intptr_t>(key));
-#ifdef _LP64
-    return (addr >> 3) % size;
-#else
-    return (addr >> 2) % size;
-#endif
+    const oop obj = Access<>::resolve(key);
+    const unsigned int hash = Universe::heap()->hash_oop(obj);
+    return hash % size;
   }
 
   // hash a given key (oop)
@@ -3043,11 +3034,6 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
   // exceptions) will be visible.
   blk.set_kind(JVMTI_HEAP_REFERENCE_OTHER);
   Universe::oops_do(&blk);
-
-  // If there are any non-perm roots in the code cache, visit them.
-  blk.set_kind(JVMTI_HEAP_REFERENCE_OTHER);
-  CodeBlobToOopClosure look_in_blobs(&blk, !CodeBlobToOopClosure::FixRelocations);
-  CodeCache::scavenge_root_nmethods_do(&look_in_blobs);
 
   return true;
 }

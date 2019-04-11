@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -21,13 +21,12 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP
-#define SHARE_VM_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP
+#ifndef SHARE_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP
+#define SHARE_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
 
-class HeapWord;
 class JavaThread;
 class oopDesc;
 
@@ -38,9 +37,9 @@ public:
   static void write_ref_array_post_entry(HeapWord* dst, size_t length);
   static void write_ref_field_pre_entry(oopDesc* orig, JavaThread* thread);
 
-  static oopDesc* write_barrier_JRT(oopDesc* src);
+  static oopDesc* load_reference_barrier_JRT(oopDesc* src);
 
   static void shenandoah_clone_barrier(oopDesc* obj);
 };
 
-#endif // SHARE_VM_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP
+#endif // SHARE_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP

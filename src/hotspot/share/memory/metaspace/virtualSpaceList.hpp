@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,19 @@ class VirtualSpaceList : public CHeapObj<mtClass> {
   // Number of virtual spaces
   size_t _virtual_space_count;
 
+  // Optimization: we keep an address range to quickly exclude pointers
+  // which are clearly not pointing into metaspace. This is an optimization for
+  // VirtualSpaceList::contains().
+  address _envelope_lo;
+  address _envelope_hi;
+
+  bool is_within_envelope(address p) const {
+    return p >= _envelope_lo && p < _envelope_hi;
+  }
+
+  // Given a node, expand range such that it includes the node.
+  void expand_envelope_to_include_node(const VirtualSpaceNode* node);
+
   ~VirtualSpaceList();
 
   VirtualSpaceNode* virtual_space_list() const { return _virtual_space_list; }
@@ -79,6 +92,8 @@ class VirtualSpaceList : public CHeapObj<mtClass> {
   // Chunk up the unused committed space in the current
   // virtual space and add the chunks to the free list.
   void retire_current_virtual_space();
+
+  DEBUG_ONLY(bool contains_node(const VirtualSpaceNode* node) const;)
 
  public:
   VirtualSpaceList(size_t word_size);
@@ -126,6 +141,8 @@ class VirtualSpaceList : public CHeapObj<mtClass> {
   void print_on(outputStream* st, size_t scale) const;
   void print_map(outputStream* st) const;
 
+  DEBUG_ONLY(void verify(bool slow);)
+
   class VirtualSpaceListIterator : public StackObj {
     VirtualSpaceNode* _virtual_spaces;
    public:
@@ -148,5 +165,4 @@ class VirtualSpaceList : public CHeapObj<mtClass> {
 
 } // namespace metaspace
 
-#endif /* SHARE_MEMORY_METASPACE_VIRTUALSPACELIST_HPP */
-
+#endif // SHARE_MEMORY_METASPACE_VIRTUALSPACELIST_HPP

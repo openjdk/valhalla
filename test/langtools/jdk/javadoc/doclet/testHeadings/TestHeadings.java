@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,31 +26,16 @@
  * @bug      4905786 6259611 8162363 8196202
  * @summary  Make sure that headings use the TH tag instead of the TD tag.
  * @author   jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @build    TestHeadings
  * @run main TestHeadings
  */
 
+import javadoc.tester.JavadocTester;
+
 public class TestHeadings extends JavadocTester {
-
-    private static final String[][] TEST = {
-
-        {
-        },
-        { "serialized-form.html"
-        },
-        { "serialized-form.html"
-        },
-
-        {
-        },
-        { "overview-frame.html"
-        },
-        {
-        }
-    };
 
     public static void main(String... args) throws Exception {
         TestHeadings tester = new TestHeadings();
@@ -58,11 +43,10 @@ public class TestHeadings extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "-header", "Test Files",
                 "pkg1", "pkg2");
         checkExit(Exit.OK);
@@ -106,15 +90,10 @@ public class TestHeadings extends JavadocTester {
                 "<h2 title=\"Package\">Package&nbsp;pkg1</h2>",
                 "<h3>Class <a href=\"pkg1/C1.html\" title=\"class in pkg1\">"
                 + "pkg1.C1</a> extends java.lang.Object implements Serializable</h3>",
-                "<h3>Serialized Fields</h3>");
-
-        // Overview Frame
-        checkOutput("overview-frame.html", true,
-                "<h1 title=\"Test Files\" class=\"bar\">Test Files</h1>",
-                "<title>Overview List</title>");
+                "<h4>Serialized Fields</h4>");
 
         // Overview Summary
-        checkOutput("overview-summary.html", true,
+        checkOutput("index.html", true,
                 "<title>Overview</title>");
     }
 }

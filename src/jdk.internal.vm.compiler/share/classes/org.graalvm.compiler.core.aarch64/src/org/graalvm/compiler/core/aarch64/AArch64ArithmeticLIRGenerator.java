@@ -62,9 +62,24 @@ import jdk.vm.ci.meta.ValueKind;
 
 public class AArch64ArithmeticLIRGenerator extends ArithmeticLIRGenerator implements AArch64ArithmeticLIRGeneratorTool {
 
+    public AArch64ArithmeticLIRGenerator(AllocatableValue nullRegisterValue) {
+        this.nullRegisterValue = nullRegisterValue;
+    }
+
+    private final AllocatableValue nullRegisterValue;
+
     @Override
     public AArch64LIRGenerator getLIRGen() {
         return (AArch64LIRGenerator) super.getLIRGen();
+    }
+
+    public boolean mustReplaceNullWithNullRegister(JavaConstant nullConstant) {
+        /* Uncompressed null pointers only */
+        return nullRegisterValue != null && JavaConstant.NULL_POINTER.equals(nullConstant);
+    }
+
+    public AllocatableValue getNullRegisterValue() {
+        return nullRegisterValue;
     }
 
     @Override
@@ -482,31 +497,6 @@ public class AArch64ArithmeticLIRGenerator extends ArithmeticLIRGenerator implem
         }
         AllocatableValue input = asAllocatable(inputVal);
         getLIRGen().append(new StoreOp(kind, storeAddress, input, state));
-    }
-
-    @Override
-    public Value emitMathLog(Value input, boolean base10) {
-        throw GraalError.unimplemented();
-    }
-
-    @Override
-    public Value emitMathCos(Value input) {
-        throw GraalError.unimplemented();
-    }
-
-    @Override
-    public Value emitMathSin(Value input) {
-        throw GraalError.unimplemented();
-    }
-
-    @Override
-    public Value emitMathTan(Value input) {
-        throw GraalError.unimplemented();
-    }
-
-    @Override
-    public void emitCompareOp(AArch64Kind cmpKind, Variable left, Value right) {
-        throw GraalError.unimplemented();
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
-#define SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
+#ifndef SHARE_JFR_WRITERS_JFRPOSITION_HPP
+#define SHARE_JFR_WRITERS_JFRPOSITION_HPP
 
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -48,10 +48,10 @@ class Position : public AP {
 
  public:
   size_t available_size() const;
-  intptr_t used_offset() const;
-  intptr_t current_offset() const;
+  int64_t used_offset() const;
+  int64_t current_offset() const;
   size_t used_size() const;
   void reset();
 };
 
-#endif // SHARE_VM_JFR_WRITERS_JFRPOSITION_HPP
+#endif // SHARE_JFR_WRITERS_JFRPOSITION_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
-#define SHARE_VM_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
+#ifndef SHARE_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
+#define SHARE_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
 
 #include "gc/shared/workerDataArray.hpp"
 #include "memory/allocation.inline.hpp"
@@ -89,6 +89,13 @@ void WorkerDataArray<T>::set_or_add_thread_work_item(uint worker_i, size_t value
   } else {
     _thread_work_items[index]->add(worker_i, value);
   }
+}
+
+template <typename T>
+size_t WorkerDataArray<T>::get_thread_work_item(uint worker_i, uint index) {
+  assert(index < MaxThreadWorkItems, "Tried to access thread work item %u (max %u)", index, MaxThreadWorkItems);
+  assert(_thread_work_items[index] != NULL, "No sub count");
+  return _thread_work_items[index]->get(worker_i);
 }
 
 template <typename T>
@@ -177,4 +184,4 @@ void WorkerDataArray<T>::reset() {
   }
 }
 
-#endif // SHARE_VM_GC_SHARED_WORKERDATAARRAY_INLINE_HPP
+#endif // SHARE_GC_SHARED_WORKERDATAARRAY_INLINE_HPP

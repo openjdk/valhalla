@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1MONITORINGSUPPORT_HPP
-#define SHARE_VM_GC_G1_G1MONITORINGSUPPORT_HPP
+#ifndef SHARE_GC_G1_G1MONITORINGSUPPORT_HPP
+#define SHARE_GC_G1_G1MONITORINGSUPPORT_HPP
 
 #include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/generationCounters.hpp"
@@ -174,21 +174,6 @@ class G1MonitoringSupport : public CHeapObj<mtGC> {
 
   size_t _old_gen_used;
 
-  // It returns x - y if x > y, 0 otherwise.
-  // As described in the comment above, some of the inputs to the
-  // calculations we have to do are obtained concurrently and hence
-  // may be inconsistent with each other. So, this provides a
-  // defensive way of performing the subtraction and avoids the value
-  // going negative (which would mean a very large result, given that
-  // the parameter are size_t).
-  static size_t subtract_up_to_zero(size_t x, size_t y) {
-    if (x > y) {
-      return x - y;
-    } else {
-      return 0;
-    }
-  }
-
   // Recalculate all the sizes.
   void recalculate_sizes();
 
@@ -259,4 +244,4 @@ public:
   G1MonitoringScope(G1MonitoringSupport* g1mm, bool full_gc, bool all_memory_pools_affected);
 };
 
-#endif // SHARE_VM_GC_G1_G1MONITORINGSUPPORT_HPP
+#endif // SHARE_GC_G1_G1MONITORINGSUPPORT_HPP

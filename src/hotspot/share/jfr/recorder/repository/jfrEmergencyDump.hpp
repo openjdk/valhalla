@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_INTERNAL_JFREMERGENCY_HPP
-#define SHARE_VM_JFR_RECORDER_INTERNAL_JFREMERGENCY_HPP
+#ifndef SHARE_JFR_RECORDER_REPOSITORY_JFREMERGENCYDUMP_HPP
+#define SHARE_JFR_RECORDER_REPOSITORY_JFREMERGENCYDUMP_HPP
 
 #include "memory/allocation.hpp"
 
@@ -33,8 +33,8 @@
 class JfrEmergencyDump : AllStatic {
  public:
   static void on_vm_shutdown(bool exception_handler);
+  static void on_vm_error(const char* repository_path);
+  static const char* build_dump_path(const char* repository_path);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_INTERNAL_JFREMERGENCY_HPP
-
-
+#endif // SHARE_JFR_RECORDER_REPOSITORY_JFREMERGENCYDUMP_HPP

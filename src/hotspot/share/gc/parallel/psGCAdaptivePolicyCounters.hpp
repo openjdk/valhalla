@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSGCADAPTIVEPOLICYCOUNTERS_HPP
-#define SHARE_VM_GC_PARALLEL_PSGCADAPTIVEPOLICYCOUNTERS_HPP
+#ifndef SHARE_GC_PARALLEL_PSGCADAPTIVEPOLICYCOUNTERS_HPP
+#define SHARE_GC_PARALLEL_PSGCADAPTIVEPOLICYCOUNTERS_HPP
 
 #include "gc/parallel/gcAdaptivePolicyCounters.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
@@ -51,7 +51,6 @@ class PSGCAdaptivePolicyCounters : public GCAdaptivePolicyCounters {
   PerfVariable* _live_space;
   PerfVariable* _free_space;
   PerfVariable* _avg_base_footprint;
-  PerfVariable* _gc_overhead_limit_exceeded_counter;
   PerfVariable* _live_at_last_full_gc_counter;
   PerfVariable* _old_capacity;
   PerfVariable* _boundary_moved;
@@ -177,7 +176,7 @@ class PSGCAdaptivePolicyCounters : public GCAdaptivePolicyCounters {
     );
   }
   inline void update_gc_overhead_limit_exceeded_counter() {
-    _gc_overhead_limit_exceeded_counter->set_value(
+    gc_overhead_limit_exceeded_counter()->set_value(
       (jlong) ps_size_policy()->gc_overhead_limit_exceeded());
   }
   inline void update_live_at_last_full_gc_counter() {
@@ -208,4 +207,4 @@ class PSGCAdaptivePolicyCounters : public GCAdaptivePolicyCounters {
   }
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSGCADAPTIVEPOLICYCOUNTERS_HPP
+#endif // SHARE_GC_PARALLEL_PSGCADAPTIVEPOLICYCOUNTERS_HPP

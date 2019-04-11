@@ -132,6 +132,10 @@ intptr_t* os::Linux::ucontext_get_fp(const ucontext_t * uc) {
   return NULL;
 }
 
+static unsigned long ucontext_get_trap(const ucontext_t * uc) {
+  return uc->uc_mcontext.regs->trap;
+}
+
 ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
@@ -304,9 +308,22 @@ JVM_handle_linux_signal(int sig,
 
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV) {
-      // Si_addr may not be valid due to a bug in the linux-ppc64 kernel (see
+      // si_addr may not be valid due to a bug in the linux-ppc64 kernel (see
       // comment below). Use get_stack_bang_address instead of si_addr.
-      address addr = ((NativeInstruction*)pc)->get_stack_bang_address(uc);
+      // If SIGSEGV is caused due to a branch to an invalid address an
+      // "Instruction Storage" interruption is generated and 'pc' (NIP) already
+      // contains the invalid address. Otherwise, the SIGSEGV is caused due to
+      // load/store instruction trying to load/store from/to an invalid address
+      // and causing a "Data Storage" interruption, so we inspect the intruction
+      // in order to extract the faulty data addresss.
+      address addr;
+      if ((ucontext_get_trap(uc) & 0x0F00 /* no IRQ reply bits */) == 0x0400) {
+        // Instruction interruption
+        addr = pc;
+      } else {
+        // Data interruption (0x0300): extract faulty data address
+        addr = ((NativeInstruction*)pc)->get_stack_bang_address(uc);
+      }
 
       // Check if fault address is within thread stack.
       if (thread->on_local_stack(addr)) {
@@ -574,8 +591,7 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc - 64, pc + 64, /*instrsize=*/4);
+  print_instructions(st, pc, /*instrsize=*/4);
   st->cr();
 }
 

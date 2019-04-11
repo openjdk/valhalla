@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -495,6 +495,67 @@ JLI_Snprintf(char* buffer, size_t size, const char* format, ...) {
     return rc;
 }
 
+/* taken from hotspot and slightly adjusted for jli lib;
+ * creates a UNC/ELP path from input 'path'
+ * the return buffer is allocated in C heap and needs to be freed using
+ * JLI_MemFree by the caller.
+ */
+static wchar_t* create_unc_path(const char* path, errno_t* err) {
+    wchar_t* wpath = NULL;
+    size_t converted_chars = 0;
+    size_t path_len = strlen(path) + 1; /* includes the terminating NULL */
+    if (path[0] == '\\' && path[1] == '\\') {
+        if (path[2] == '?' && path[3] == '\\') {
+            /* if it already has a \\?\ don't do the prefix */
+            wpath = (wchar_t*) JLI_MemAlloc(path_len * sizeof(wchar_t));
+            if (wpath != NULL) {
+                *err = mbstowcs_s(&converted_chars, wpath, path_len, path, path_len);
+            } else {
+                *err = ENOMEM;
+            }
+        } else {
+            /* only UNC pathname includes double slashes here */
+            wpath = (wchar_t*) JLI_MemAlloc((path_len + 7) * sizeof(wchar_t));
+            if (wpath != NULL) {
+                wcscpy(wpath, L"\\\\?\\UNC\0");
+                *err = mbstowcs_s(&converted_chars, &wpath[7], path_len, path, path_len);
+            } else {
+                *err = ENOMEM;
+            }
+        }
+    } else {
+        wpath = (wchar_t*) JLI_MemAlloc((path_len + 4) * sizeof(wchar_t));
+        if (wpath != NULL) {
+            wcscpy(wpath, L"\\\\?\\\0");
+            *err = mbstowcs_s(&converted_chars, &wpath[4], path_len, path, path_len);
+        } else {
+            *err = ENOMEM;
+        }
+    }
+    return wpath;
+}
+
+int JLI_Open(const char* name, int flags) {
+    int fd;
+    if (strlen(name) < MAX_PATH) {
+        fd = _open(name, flags);
+    } else {
+        errno_t err = ERROR_SUCCESS;
+        wchar_t* wpath = create_unc_path(name, &err);
+        if (err != ERROR_SUCCESS) {
+            if (wpath != NULL) JLI_MemFree(wpath);
+            errno = err;
+            return -1;
+        }
+        fd = _wopen(wpath, flags);
+        if (fd == -1) {
+            errno = GetLastError();
+        }
+        JLI_MemFree(wpath);
+    }
+    return fd;
+}
+
 JNIEXPORT void JNICALL
 JLI_ReportErrorMessage(const char* fmt, ...) {
     va_list vl;
@@ -651,10 +712,17 @@ void SplashFreeLibrary() {
 }
 
 /*
- * Block current thread and continue execution in a new thread
+ * Signature adapter for _beginthreadex().
+ */
+static unsigned __stdcall ThreadJavaMain(void* args) {
+    return (unsigned)JavaMain(args);
+}
+
+/*
+ * Block current thread and continue execution in a new thread.
  */
 int
-ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void * args) {
+CallJavaMainInNewThread(jlong stack_size, void* args) {
     int rslt = 0;
     unsigned thread_id;
 
@@ -669,20 +737,20 @@ ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void
      * source (os_win32.cpp) for details.
      */
     HANDLE thread_handle =
-      (HANDLE)_beginthreadex(NULL,
-                             (unsigned)stack_size,
-                             continuation,
-                             args,
-                             STACK_SIZE_PARAM_IS_A_RESERVATION,
-                             &thread_id);
+        (HANDLE)_beginthreadex(NULL,
+                               (unsigned)stack_size,
+                               ThreadJavaMain,
+                               args,
+                               STACK_SIZE_PARAM_IS_A_RESERVATION,
+                               &thread_id);
     if (thread_handle == NULL) {
-      thread_handle =
-      (HANDLE)_beginthreadex(NULL,
-                             (unsigned)stack_size,
-                             continuation,
-                             args,
-                             0,
-                             &thread_id);
+        thread_handle =
+        (HANDLE)_beginthreadex(NULL,
+                               (unsigned)stack_size,
+                               ThreadJavaMain,
+                               args,
+                               0,
+                               &thread_id);
     }
 
     /* AWT preloading (AFTER main thread start) */
@@ -719,11 +787,11 @@ ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void
 #endif /* ENABLE_AWT_PRELOAD */
 
     if (thread_handle) {
-      WaitForSingleObject(thread_handle, INFINITE);
-      GetExitCodeThread(thread_handle, &rslt);
-      CloseHandle(thread_handle);
+        WaitForSingleObject(thread_handle, INFINITE);
+        GetExitCodeThread(thread_handle, &rslt);
+        CloseHandle(thread_handle);
     } else {
-      rslt = continuation(args);
+        rslt = JavaMain(args);
     }
 
 #ifdef ENABLE_AWT_PRELOAD

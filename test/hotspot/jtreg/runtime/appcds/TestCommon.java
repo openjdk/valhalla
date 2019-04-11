@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,8 +123,7 @@ public class TestCommon extends CDSTestUtils {
             cmd.add("-cp");
             cmd.add(opts.appJar);
         } else {
-            cmd.add("-cp");
-            cmd.add("\"\"");
+            cmd.add("-Djava.class.path=");
         }
 
         cmd.add("-Xshare:dump");
@@ -146,6 +145,15 @@ public class TestCommon extends CDSTestUtils {
         return executeAndLog(pb, "dump");
     }
 
+    // This allows you to run the AppCDS tests with JFR enabled at runtime (though not at
+    // dump time, as that's uncommon for typical AppCDS users).
+    //
+    // To run in this special mode, add the following to your jtreg command-line
+    //    -Dtest.cds.run.with.jfr=true
+    //
+    // Some AppCDS tests are not compatible with this mode. See the group
+    // hotspot_appcds_with_jfr in ../../TEST.ROOT for details.
+    private static final boolean RUN_WITH_JFR = Boolean.getBoolean("test.cds.run.with.jfr");
 
     // Execute JVM using AppCDS archive with specified AppCDSOptions
     public static OutputAnalyzer runWithArchive(AppCDSOptions opts)
@@ -166,6 +174,22 @@ public class TestCommon extends CDSTestUtils {
         }
 
         for (String s : opts.suffix) cmd.add(s);
+
+        if (RUN_WITH_JFR) {
+            boolean usesJFR = false;
+            for (String s : cmd) {
+                if (s.startsWith("-XX:StartFlightRecording=") || s.startsWith("-XX:FlightRecorderOptions")) {
+                    System.out.println("JFR option might have been specified. Don't interfere: " + s);
+                    usesJFR = true;
+                    break;
+                }
+            }
+            if (!usesJFR) {
+                System.out.println("JFR option not specified. Enabling JFR ...");
+                cmd.add(0, "-XX:StartFlightRecording=dumponexit=true");
+                System.out.println(cmd);
+            }
+        }
 
         String[] cmdLine = cmd.toArray(new String[cmd.size()]);
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, cmdLine);

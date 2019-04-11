@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIUTILITIES_HPP
-#define SHARE_VM_CI_CIUTILITIES_HPP
+#ifndef SHARE_CI_CIUTILITIES_HPP
+#define SHARE_CI_CIUTILITIES_HPP
 
 #include "ci/ciEnv.hpp"
+#include "gc/shared/cardTable.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 // The following routines and definitions are used internally in the
@@ -49,11 +50,10 @@ inline const char* bool_to_str(bool b) {
 }
 
 const char* basictype_to_str(BasicType t);
-const char  basictype_to_char(BasicType t);
 
-jbyte *ci_card_table_address();
+CardTable::CardValue* ci_card_table_address();
 template <typename T> T ci_card_table_address_as() {
   return reinterpret_cast<T>(ci_card_table_address());
 }
 
-#endif // SHARE_VM_CI_CIUTILITIES_HPP
+#endif // SHARE_CI_CIUTILITIES_HPP

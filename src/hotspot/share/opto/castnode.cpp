@@ -81,7 +81,7 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   return (in(0) && remove_dead_region(phase, can_reshape)) ? this : NULL;
 }
 
-uint ConstraintCastNode::cmp(const Node &n) const {
+bool ConstraintCastNode::cmp(const Node &n) const {
   return TypeNode::cmp(n) && ((ConstraintCastNode&)n)._carry_dependency == _carry_dependency;
 }
 
@@ -262,7 +262,7 @@ Node *CastIINode::Ideal(PhaseGVN *phase, bool can_reshape) {
   return NULL;
 }
 
-uint CastIINode::cmp(const Node &n) const {
+bool CastIINode::cmp(const Node &n) const {
   return ConstraintCastNode::cmp(n) && ((CastIINode&)n)._range_check_dependency == _range_check_dependency;
 }
 
@@ -410,11 +410,11 @@ static inline Node* addP_of_X2P(PhaseGVN *phase,
                                 Node* dispX,
                                 bool negate = false) {
   if (negate) {
-    dispX = new SubXNode(phase->MakeConX(0), phase->transform(dispX));
+    dispX = phase->transform(new SubXNode(phase->MakeConX(0), dispX));
   }
   return new AddPNode(phase->C->top(),
                       phase->transform(new CastX2PNode(base)),
-                      phase->transform(dispX));
+                      dispX);
 }
 
 Node *CastX2PNode::Ideal(PhaseGVN *phase, bool can_reshape) {

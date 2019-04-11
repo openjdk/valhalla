@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_HPP
-#define SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_HPP
+#ifndef SHARE_RUNTIME_SAFEPOINTMECHANISM_HPP
+#define SHARE_RUNTIME_SAFEPOINTMECHANISM_HPP
 
 #include "runtime/globals.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -46,10 +46,14 @@ class SafepointMechanism : public AllStatic {
 
   static inline bool local_poll_armed(JavaThread* thread);
 
+  static inline void disarm_local_poll(JavaThread* thread);
+  static inline void disarm_local_poll_release(JavaThread* thread);
+
   static inline bool local_poll(Thread* thread);
   static inline bool global_poll();
 
-  static inline void block_if_requested_local_poll(JavaThread *thread);
+  static void block_or_handshake(JavaThread *thread);
+  static void block_if_requested_slow(JavaThread *thread);
 
   static void default_initialize();
 
@@ -72,22 +76,22 @@ public:
 #endif
   }
 
-  // Call this method to see if this thread should block for a safepoint.
+  // Call this method to see if this thread should block for a safepoint or process handshake.
   static inline bool should_block(Thread* thread);
 
-  // Blocks a thread until safepoint is completed
+  // Blocks a thread until safepoint/handshake is completed.
   static inline void block_if_requested(JavaThread* thread);
 
   // Caller is responsible for using a memory barrier if needed.
   static inline void arm_local_poll(JavaThread* thread);
-  static inline void disarm_local_poll(JavaThread* thread);
-
+  // Release semantics
   static inline void arm_local_poll_release(JavaThread* thread);
-  static inline void disarm_local_poll_release(JavaThread* thread);
+  // Optional release
+  static inline void disarm_if_needed(JavaThread* thread, bool memory_order_release);
 
   // Setup the selected safepoint mechanism
   static void initialize();
   static void initialize_header(JavaThread* thread);
 };
 
-#endif // SHARE_VM_RUNTIME_SAFEPOINTMECHANISM_HPP
+#endif // SHARE_RUNTIME_SAFEPOINTMECHANISM_HPP

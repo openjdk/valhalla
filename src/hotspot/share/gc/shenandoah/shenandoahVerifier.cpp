@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -26,10 +26,9 @@
 #include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahBrooksPointer.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
-#include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.hpp"
-#include "gc/shenandoah/shenandoahTaskqueue.hpp"
+#include "gc/shenandoah/shenandoahTaskqueue.inline.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "gc/shenandoah/shenandoahVerifier.hpp"
 #include "memory/allocation.hpp"
@@ -629,6 +628,10 @@ void ShenandoahVerifier::verify_at_safepoint(const char *label,
         enabled = true;
         expected = ShenandoahHeap::HAS_FORWARDED;
         break;
+      case _verify_gcstate_evacuation:
+        enabled = true;
+        expected = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::EVACUATION;
+        break;
       case _verify_gcstate_stable:
         enabled = true;
         expected = ShenandoahHeap::STABLE;
@@ -806,6 +809,18 @@ void ShenandoahVerifier::verify_before_evacuation() {
           _verify_liveness_complete, // liveness data must be complete here
           _verify_regions_disable,   // trash regions not yet recycled
           _verify_gcstate_stable     // mark should have stabilized the heap
+  );
+}
+
+void ShenandoahVerifier::verify_during_evacuation() {
+  verify_at_safepoint(
+          "During Evacuation",
+          _verify_forwarded_allow,   // some forwarded references are allowed
+          _verify_marked_disable,    // walk only roots
+          _verify_cset_disable,      // some cset references are not forwarded yet
+          _verify_liveness_disable,  // liveness data might be already stale after pre-evacs
+          _verify_regions_disable,   // trash regions not yet recycled
+          _verify_gcstate_evacuation // evacuation is in progress
   );
 }
 

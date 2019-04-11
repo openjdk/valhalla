@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSVIRTUALSPACE_HPP
-#define SHARE_VM_GC_PARALLEL_PSVIRTUALSPACE_HPP
+#ifndef SHARE_GC_PARALLEL_PSVIRTUALSPACE_HPP
+#define SHARE_GC_PARALLEL_PSVIRTUALSPACE_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/virtualspace.hpp"
@@ -64,7 +64,14 @@ class PSVirtualSpace : public CHeapObj<mtGC> {
   // Eventually all instances should be created with the above 1- or 2-arg
   // constructors.  Then the 1st constructor below should become protected and
   // the 2nd ctor and initialize() removed.
-  PSVirtualSpace(size_t alignment): _alignment(alignment) { }
+  PSVirtualSpace(size_t alignment):
+    _alignment(alignment),
+    _reserved_low_addr(NULL),
+    _reserved_high_addr(NULL),
+    _committed_low_addr(NULL),
+    _committed_high_addr(NULL),
+    _special(false) {
+  }
   PSVirtualSpace();
   bool initialize(ReservedSpace rs, size_t commit_size);
 
@@ -179,4 +186,4 @@ inline void PSVirtualSpace::set_committed(char* low_addr, char* high_addr) {
   _committed_high_addr = high_addr;
 }
 
-#endif // SHARE_VM_GC_PARALLEL_PSVIRTUALSPACE_HPP
+#endif // SHARE_GC_PARALLEL_PSVIRTUALSPACE_HPP

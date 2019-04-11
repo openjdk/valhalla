@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1SATBMARKQUEUE_HPP
-#define SHARE_VM_GC_G1_G1SATBMARKQUEUE_HPP
+#ifndef SHARE_GC_G1_G1SATBMARKQUEUESET_HPP
+#define SHARE_GC_G1_G1SATBMARKQUEUESET_HPP
 
 #include "gc/shared/satbMarkQueue.hpp"
 
 class G1CollectedHeap;
-class JavaThread;
+class Monitor;
+class Thread;
 
 class G1SATBMarkQueueSet : public SATBMarkQueueSet {
   G1CollectedHeap* _g1h;
@@ -40,12 +41,11 @@ public:
                   Monitor* cbl_mon,
                   BufferNode::Allocator* allocator,
                   size_t process_completed_buffers_threshold,
-                  uint buffer_enqueue_threshold_percentage,
-                  Mutex* lock);
+                  uint buffer_enqueue_threshold_percentage);
 
-  static void handle_zero_index_for_thread(JavaThread* t);
-  virtual SATBMarkQueue& satb_queue_for_thread(JavaThread* const t) const;
+  static void handle_zero_index_for_thread(Thread* t);
+  virtual SATBMarkQueue& satb_queue_for_thread(Thread* const t) const;
   virtual void filter(SATBMarkQueue* queue);
 };
 
-#endif // SHARE_VM_GC_G1_G1SATBMARKQUEUE_HPP
+#endif // SHARE_GC_G1_G1SATBMARKQUEUESET_HPP

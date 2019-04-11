@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_VM_VERSION_S390_HPP
-#define CPU_S390_VM_VM_VERSION_S390_HPP
+#ifndef CPU_S390_VM_VERSION_S390_HPP
+#define CPU_S390_VM_VERSION_S390_HPP
 
 
 #include "runtime/globals_extension.hpp"
@@ -346,6 +346,9 @@ class VM_Version: public Abstract_VM_Version {
   static void print_features();
   static bool is_determine_features_test_running() { return _is_determine_features_test_running; }
 
+  // Override Abstract_VM_Version implementation
+  static void print_platform_virtualization_info(outputStream*);
+
   // CPU feature query functions
   static const char* get_model_string()       { return _model_string; }
   static bool has_StoreFacilityListExtended() { return  (_features[0] & StoreFacilityListExtendedMask) == StoreFacilityListExtendedMask; }
@@ -487,4 +490,4 @@ class VM_Version: public Abstract_VM_Version {
   static unsigned long z_SIGSEGV();
 };
 
-#endif // CPU_S390_VM_VM_VERSION_S390_HPP
+#endif // CPU_S390_VM_VERSION_S390_HPP

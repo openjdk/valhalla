@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CARDTABLE_HPP
-#define SHARE_VM_GC_G1_G1CARDTABLE_HPP
+#ifndef SHARE_GC_G1_G1CARDTABLE_HPP
+#define SHARE_GC_G1_G1CARDTABLE_HPP
 
 #include "gc/g1/g1RegionToSpaceMapper.hpp"
 #include "gc/shared/cardTable.hpp"
@@ -62,7 +62,7 @@ public:
     return _byte_map[card_index] == dirty_card_val();
   }
 
-  static jbyte g1_young_card_val() { return g1_young_gen; }
+  static CardValue g1_young_card_val() { return g1_young_gen; }
 
 /*
    Claimed and deferred bits are used together in G1 during the evacuation
@@ -78,7 +78,7 @@ public:
  */
 
   bool is_card_claimed(size_t card_index) {
-    jbyte val = _byte_map[card_index];
+    CardValue val = _byte_map[card_index];
     return (val & (clean_card_mask_val() | claimed_card_val())) == claimed_card_val();
   }
 
@@ -90,7 +90,7 @@ public:
   bool mark_card_deferred(size_t card_index);
 
   bool is_card_deferred(size_t card_index) {
-    jbyte val = _byte_map[card_index];
+    CardValue val = _byte_map[card_index];
     return (val & (clean_card_mask_val() | deferred_card_val())) == deferred_card_val();
   }
 
@@ -110,4 +110,4 @@ public:
   virtual bool is_in_young(oop obj) const;
 };
 
-#endif // SHARE_VM_GC_G1_G1CARDTABLE_HPP
+#endif // SHARE_GC_G1_G1CARDTABLE_HPP

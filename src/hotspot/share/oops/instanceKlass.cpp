@@ -53,6 +53,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/fieldStreams.hpp"
+#include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
@@ -75,6 +76,7 @@
 #include "services/classLoadingService.hpp"
 #include "services/threadService.hpp"
 #include "utilities/dtrace.hpp"
+#include "utilities/events.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stringUtils.hpp"
 #ifdef COMPILER1
@@ -181,8 +183,14 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
       if (name == k->name()) {
         log_trace(class, nestmates)("- Found it at nest_members[%d] => cp[%d]", i, cp_index);
 
-        // names match so check actual klass - this may trigger class loading if
-        // it doesn't match (but that should be impossible)
+        // Names match so check actual klass - this may trigger class loading if
+        // it doesn't match (though that should be impossible). But to be safe we
+        // have to check for a compiler thread executing here.
+        if (!THREAD->can_call_java() && !_constants->tag_at(cp_index).is_klass()) {
+          log_trace(class, nestmates)("- validation required resolution in an unsuitable thread");
+          return false;
+        }
+
         Klass* k2 = _constants->klass_at(cp_index, CHECK_false);
         if (k2 == k) {
           log_trace(class, nestmates)("- class is listed as a nest member");
@@ -294,7 +302,7 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
            error);
       }
 
-      if (validationException != NULL) {
+      if (validationException != NULL && THREAD->can_call_java()) {
         ResourceMark rm(THREAD);
         Exceptions::fthrow(THREAD_AND_LOCATION,
                            validationException,
@@ -966,25 +974,28 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
   bool wait = false;
 
+  assert(THREAD->is_Java_thread(), "non-JavaThread in initialize_impl");
+  JavaThread* jt = (JavaThread*)THREAD;
+
   // refer to the JVM book page 47 for description of steps
   // Step 1
   {
     Handle h_init_lock(THREAD, init_lock());
     ObjectLocker ol(h_init_lock, THREAD, h_init_lock() != NULL);
 
-    Thread *self = THREAD; // it's passed the current thread
-
     // Step 2
     // If we were to use wait() instead of waitInterruptibly() then
     // we might end up throwing IE from link/symbol resolution sites
     // that aren't expected to throw.  This would wreak havoc.  See 6320309.
-    while(is_being_initialized() && !is_reentrant_initialization(self)) {
-        wait = true;
-      ol.waitUninterruptibly(CHECK);
+    while (is_being_initialized() && !is_reentrant_initialization(jt)) {
+      wait = true;
+      jt->set_class_to_be_initialized(this);
+      ol.waitUninterruptibly(jt);
+      jt->set_class_to_be_initialized(NULL);
     }
 
     // Step 3
-    if (is_being_initialized() && is_reentrant_initialization(self)) {
+    if (is_being_initialized() && is_reentrant_initialization(jt)) {
       DTRACE_CLASSINIT_PROBE_WAIT(recursive, -1, wait);
       return;
     }
@@ -1014,7 +1025,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
     // Step 6
     set_init_state(being_initialized);
-    set_init_thread(self);
+    set_init_thread(jt);
   }
 
   // Step 7
@@ -1054,8 +1065,6 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
   // Step 8
   {
-    assert(THREAD->is_Java_thread(), "non-JavaThread in initialize_impl");
-    JavaThread* jt = (JavaThread*)THREAD;
     DTRACE_CLASSINIT_PROBE_WAIT(clinit, -1, wait);
     // Timer includes any side effects of class initialization (resolution,
     // etc), but not recursive entry into call_class_initializer().
@@ -1081,14 +1090,14 @@ void InstanceKlass::initialize_impl(TRAPS) {
     CLEAR_PENDING_EXCEPTION;
     // JVMTI has already reported the pending exception
     // JVMTI internal flag reset is needed in order to report ExceptionInInitializerError
-    JvmtiExport::clear_detected_exception((JavaThread*)THREAD);
+    JvmtiExport::clear_detected_exception(jt);
     {
       EXCEPTION_MARK;
       set_initialization_state_and_notify(initialization_error, THREAD);
       CLEAR_PENDING_EXCEPTION;   // ignore any exception thrown, class initialization error is thrown below
       // JVMTI has already reported the pending exception
       // JVMTI internal flag reset is needed in order to report ExceptionInInitializerError
-      JvmtiExport::clear_detected_exception((JavaThread*)THREAD);
+      JvmtiExport::clear_detected_exception(jt);
     }
     DTRACE_CLASSINIT_PROBE_WAIT(error, -1, wait);
     if (e->is_a(SystemDictionary::Error_klass())) {
@@ -1244,14 +1253,6 @@ GrowableArray<Klass*>* InstanceKlass::compute_secondary_supers(int num_extra_slo
       secondaries->push(interfaces->at(i));
     }
     return secondaries;
-  }
-}
-
-bool InstanceKlass::compute_is_subtype_of(Klass* k) {
-  if (k->is_interface()) {
-    return implements_interface(k);
-  } else {
-    return Klass::compute_is_subtype_of(k);
   }
 }
 
@@ -2234,6 +2235,7 @@ void InstanceKlass::clean_method_data() {
   for (int m = 0; m < methods()->length(); m++) {
     MethodData* mdo = methods()->at(m)->method_data();
     if (mdo != NULL) {
+      MutexLockerEx ml(SafepointSynchronize::is_at_safepoint() ? NULL : mdo->extra_data_lock());
       mdo->clean_method_data(/*always_clean*/false);
     }
   }
@@ -2399,6 +2401,7 @@ void InstanceKlass::remove_unshareable_info() {
 #if INCLUDE_JVMTI
   guarantee(_breakpoints == NULL, "must be");
   guarantee(_previous_versions == NULL, "must be");
+  _cached_class_file = NULL;
 #endif
 
   _init_thread = NULL;
@@ -2428,9 +2431,8 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
 
   Array<Method*>* methods = this->methods();
   int num_methods = methods->length();
-  for (int index2 = 0; index2 < num_methods; ++index2) {
-    methodHandle m(THREAD, methods->at(index2));
-    m->restore_unshareable_info(CHECK);
+  for (int index = 0; index < num_methods; ++index) {
+    methods->at(index)->restore_unshareable_info(CHECK);
   }
   if (JvmtiExport::has_redefined_a_class()) {
     // Reinitialize vtable because RedefineClasses may have changed some
@@ -2484,6 +2486,23 @@ bool InstanceKlass::check_sharing_error_state() {
   return (old_state != is_in_error_state());
 }
 
+void InstanceKlass::set_class_loader_type(s2 loader_type) {
+  switch (loader_type) {
+  case ClassLoader::BOOT_LOADER:
+    _misc_flags |= _misc_is_shared_boot_class;
+    break;
+  case ClassLoader::PLATFORM_LOADER:
+    _misc_flags |= _misc_is_shared_platform_class;
+    break;
+  case ClassLoader::APP_LOADER:
+    _misc_flags |= _misc_is_shared_app_class;
+    break;
+  default:
+    ShouldNotReachHere();
+    break;
+  }
+}
+
 #if INCLUDE_JVMTI
 static void clear_all_breakpoints(Method* m) {
   m->clear_all_breakpoints();
@@ -2501,6 +2520,13 @@ void InstanceKlass::unload_class(InstanceKlass* ik) {
 
   // notify ClassLoadingService of class unload
   ClassLoadingService::notify_class_unloaded(ik);
+
+  if (log_is_enabled(Info, class, unload)) {
+    ResourceMark rm;
+    log_info(class, unload)("unloading class %s " INTPTR_FORMAT, ik->external_name(), p2i(ik));
+  }
+
+  Events::log_class_unloading(Thread::current(), ik);
 
 #if INCLUDE_JFR
   assert(ik != NULL, "invariant");
@@ -2549,7 +2575,7 @@ void InstanceKlass::release_C_heap_structures() {
   }
 
   // deallocate the cached class file
-  if (_cached_class_file != NULL && !MetaspaceShared::is_in_shared_metaspace(_cached_class_file)) {
+  if (_cached_class_file != NULL) {
     os::free(_cached_class_file);
     _cached_class_file = NULL;
   }
@@ -2977,22 +3003,18 @@ Method* InstanceKlass::method_at_itable(Klass* holder, int index, TRAPS) {
 // not yet in the vtable due to concurrent subclass define and superinterface
 // redefinition
 // Note: those in the vtable, should have been updated via adjust_method_entries
-void InstanceKlass::adjust_default_methods(InstanceKlass* holder, bool* trace_name_printed) {
+void InstanceKlass::adjust_default_methods(bool* trace_name_printed) {
   // search the default_methods for uses of either obsolete or EMCP methods
   if (default_methods() != NULL) {
     for (int index = 0; index < default_methods()->length(); index ++) {
       Method* old_method = default_methods()->at(index);
-      if (old_method == NULL || old_method->method_holder() != holder || !old_method->is_old()) {
+      if (old_method == NULL || !old_method->is_old()) {
         continue; // skip uninteresting entries
       }
       assert(!old_method->is_deleted(), "default methods may not be deleted");
-
-      Method* new_method = holder->method_with_idnum(old_method->orig_method_idnum());
-
-      assert(new_method != NULL, "method_with_idnum() should not be NULL");
-      assert(old_method != new_method, "sanity check");
-
+      Method* new_method = old_method->get_new_method();
       default_methods()->at_put(index, new_method);
+
       if (log_is_enabled(Info, redefine, class, update)) {
         ResourceMark rm;
         if (!(*trace_name_printed)) {
@@ -3151,7 +3173,7 @@ static void print_vtable(intptr_t* start, int len, outputStream* st) {
   for (int i = 0; i < len; i++) {
     intptr_t e = start[i];
     st->print("%d : " INTPTR_FORMAT, i, e);
-    if (e != 0 && ((Metadata*)e)->is_metaspace_object()) {
+    if (MetaspaceObj::is_valid((Metadata*)e)) {
       st->print(" ");
       ((Metadata*)e)->print_value_on(st);
     }
@@ -3431,7 +3453,9 @@ void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,
   if (cfs != NULL) {
     if (cfs->source() != NULL) {
       if (module_name != NULL) {
-        if (ClassLoader::is_modules_image(cfs->source())) {
+        // When the boot loader created the stream, it didn't know the module name
+        // yet. Let's format it now.
+        if (cfs->from_boot_loader_modules_image()) {
           info_stream.print(" source: jrt:/%s", module_name);
         } else {
           info_stream.print(" source: %s", cfs->source());
@@ -3731,14 +3755,14 @@ void JNIid::verify(Klass* holder) {
   }
 }
 
-#ifdef ASSERT
 void InstanceKlass::set_init_state(ClassState state) {
+#ifdef ASSERT
   bool good_state = is_shared() ? (_init_state <= state)
                                                : (_init_state < state);
   assert(good_state || state == allocated, "illegal state transition");
+#endif
   _init_state = (u1)state;
 }
-#endif
 
 #if INCLUDE_JVMTI
 
@@ -4031,12 +4055,7 @@ Method* InstanceKlass::method_with_orig_idnum(int idnum, int version) {
 
 #if INCLUDE_JVMTI
 JvmtiCachedClassFileData* InstanceKlass::get_cached_class_file() {
-  if (MetaspaceShared::is_in_shared_metaspace(_cached_class_file)) {
-    // Ignore the archived class stream data
-    return NULL;
-  } else {
-    return _cached_class_file;
-  }
+  return _cached_class_file;
 }
 
 jint InstanceKlass::get_cached_class_file_len() {
@@ -4046,19 +4065,4 @@ jint InstanceKlass::get_cached_class_file_len() {
 unsigned char * InstanceKlass::get_cached_class_file_bytes() {
   return VM_RedefineClasses::get_cached_class_file_bytes(_cached_class_file);
 }
-
-#if INCLUDE_CDS
-JvmtiCachedClassFileData* InstanceKlass::get_archived_class_data() {
-  if (DumpSharedSpaces) {
-    return _cached_class_file;
-  } else {
-    assert(this->is_shared(), "class should be shared");
-    if (MetaspaceShared::is_in_shared_metaspace(_cached_class_file)) {
-      return _cached_class_file;
-    } else {
-      return NULL;
-    }
-  }
-}
-#endif
 #endif

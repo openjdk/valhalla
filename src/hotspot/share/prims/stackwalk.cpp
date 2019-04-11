@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "runtime/globals.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -150,8 +151,8 @@ int StackWalk::fill_in_frames(jlong mode, BaseFrameStream& stream,
           index == start_index && method->caller_sensitive()) {
       ResourceMark rm(THREAD);
       THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(),
-        err_msg("StackWalker::getCallerClass called from @CallerSensitive %s method",
-                method->name_and_sig_as_C_string()));
+        err_msg("StackWalker::getCallerClass called from @CallerSensitive '%s' method",
+                method->external_name()));
     }
     // fill in StackFrameInfo and initialize MemberName
     stream.fill_frame(index, frames_array, method, CHECK_0);
@@ -163,6 +164,7 @@ int StackWalk::fill_in_frames(jlong mode, BaseFrameStream& stream,
 // Fill in the LiveStackFrameInfo at the given index in frames_array
 void LiveFrameStream::fill_frame(int index, objArrayHandle  frames_array,
                                  const methodHandle& method, TRAPS) {
+  HandleMark hm(THREAD);
   Handle stackFrame(THREAD, frames_array->obj_at(index));
   fill_live_stackframe(stackFrame, method, CHECK);
 }
@@ -171,6 +173,7 @@ void LiveFrameStream::fill_frame(int index, objArrayHandle  frames_array,
 void JavaFrameStream::fill_frame(int index, objArrayHandle  frames_array,
                                  const methodHandle& method, TRAPS) {
   if (_need_method_info) {
+    HandleMark hm(THREAD);
     Handle stackFrame(THREAD, frames_array->obj_at(index));
     fill_stackframe(stackFrame, method, CHECK);
   } else {

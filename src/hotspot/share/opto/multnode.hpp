@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MULTNODE_HPP
-#define SHARE_VM_OPTO_MULTNODE_HPP
+#ifndef SHARE_OPTO_MULTNODE_HPP
+#define SHARE_OPTO_MULTNODE_HPP
 
 #include "opto/node.hpp"
 
@@ -58,7 +58,7 @@ public:
 class ProjNode : public Node {
 protected:
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const;
   void check_con() const;       // Called from constructor.
   const Type* proj_type(const Type* t) const;
@@ -105,4 +105,4 @@ public:
   ProjNode* other_if_proj() const;
 };
 
-#endif // SHARE_VM_OPTO_MULTNODE_HPP
+#endif // SHARE_OPTO_MULTNODE_HPP

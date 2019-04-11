@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.security.auth.x500.X500Principal;
 
-import java.util.Base64;
 import sun.security.util.*;
 import sun.security.provider.X509Factory;
 
@@ -63,14 +62,8 @@ import sun.security.provider.X509Factory;
  * direct knowledge of each other.  CA certificates are either signed by
  * themselves, or by some other CA such as a "root" CA.
  *
- * <P>RFC 1422 is very informative, though it does not describe much
- * of the recent work being done with X.509 certificates.  That includes
- * a 1996 version (X.509v3) and a variety of enhancements being made to
- * facilitate an explosion of personal certificates used as "Internet
- * Drivers' Licences", or with SET for credit card transactions.
- *
- * <P>More recent work includes the IETF PKIX Working Group efforts,
- * especially RFC2459.
+ * <P> Standards relating to X.509 Public Key Infrastructure for the Internet
+ * can be referenced in RFC 5280.
  *
  * @author Dave Brownell
  * @author Amit Kapoor
@@ -429,18 +422,16 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         }
         // Verify the signature ...
         Signature sigVerf = null;
+        String sigName = algId.getName();
         if (sigProvider.isEmpty()) {
-            sigVerf = Signature.getInstance(algId.getName());
+            sigVerf = Signature.getInstance(sigName);
         } else {
-            sigVerf = Signature.getInstance(algId.getName(), sigProvider);
+            sigVerf = Signature.getInstance(sigName, sigProvider);
         }
 
-        sigVerf.initVerify(key);
-
-        // set parameters after Signature.initSign/initVerify call,
-        // so the deferred provider selection happens when key is set
         try {
-            SignatureUtil.specialSetParameter(sigVerf, getSigAlgParams());
+            SignatureUtil.initVerifyWithParam(sigVerf, key,
+                SignatureUtil.getParamSpec(sigName, getSigAlgParams()));
         } catch (ProviderException e) {
             throw new CertificateException(e.getMessage(), e.getCause());
         } catch (InvalidAlgorithmParameterException e) {
@@ -485,18 +476,16 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
         }
         // Verify the signature ...
         Signature sigVerf = null;
+        String sigName = algId.getName();
         if (sigProvider == null) {
-            sigVerf = Signature.getInstance(algId.getName());
+            sigVerf = Signature.getInstance(sigName);
         } else {
-            sigVerf = Signature.getInstance(algId.getName(), sigProvider);
+            sigVerf = Signature.getInstance(sigName, sigProvider);
         }
 
-        sigVerf.initVerify(key);
-
-        // set parameters after Signature.initSign/initVerify call,
-        // so the deferred provider selection happens when key is set
         try {
-            SignatureUtil.specialSetParameter(sigVerf, getSigAlgParams());
+            SignatureUtil.initVerifyWithParam(sigVerf, key,
+                SignatureUtil.getParamSpec(sigName, getSigAlgParams()));
         } catch (ProviderException e) {
             throw new CertificateException(e.getMessage(), e.getCause());
         } catch (InvalidAlgorithmParameterException e) {
@@ -594,26 +583,19 @@ public class X509CertImpl extends X509Certificate implements DerEncoder {
             InvalidKeyException, InvalidAlgorithmParameterException,
             NoSuchProviderException, SignatureException {
         try {
-            if (readOnly)
+            if (readOnly) {
                 throw new CertificateEncodingException(
-                              "cannot over-write existing certificate");
-            Signature sigEngine = null;
-            if (provider == null || provider.isEmpty())
-                sigEngine = Signature.getInstance(algorithm);
-            else
-                sigEngine = Signature.getInstance(algorithm, provider);
-
-            sigEngine.initSign(key);
-
-            // set parameters after Signature.initSign/initVerify call, so
-            // the deferred provider selection happens when the key is set
-            try {
-                sigEngine.setParameter(signingParams);
-            } catch (UnsupportedOperationException e) {
-                // for backward compatibility, only re-throw when
-                // parameters is not null
-                if (signingParams != null) throw e;
+                        "cannot over-write existing certificate");
             }
+            Signature sigEngine = null;
+            if (provider == null || provider.isEmpty()) {
+                sigEngine = Signature.getInstance(algorithm);
+            } else {
+                sigEngine = Signature.getInstance(algorithm, provider);
+            }
+
+            SignatureUtil.initSignWithParam(sigEngine, key, signingParams,
+                    null);
 
             // in case the name is reset
             if (signingParams != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -28,7 +28,6 @@
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/workgroup.hpp"
-#include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
@@ -36,16 +35,13 @@
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
-#include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
-#include "gc/shenandoah/shenandoahHeapRegionSet.hpp"
 #include "gc/shenandoah/shenandoahHeapRegionSet.inline.hpp"
 #include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "gc/shenandoah/shenandoahOopClosures.inline.hpp"
-#include "gc/shenandoah/shenandoahRootProcessor.hpp"
+#include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahStringDedup.hpp"
-#include "gc/shenandoah/shenandoahTaskqueue.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.inline.hpp"
 #include "gc/shenandoah/shenandoahTimingTracker.hpp"
 #include "gc/shenandoah/shenandoahTraversalGC.hpp"
@@ -131,12 +127,7 @@ public:
     _satb_cl(satb_cl) {}
 
   void do_thread(Thread* thread) {
-    if (thread->is_Java_thread()) {
-      JavaThread* jt = (JavaThread*)thread;
-      ShenandoahThreadLocalData::satb_mark_queue(jt).apply_closure_and_empty(_satb_cl);
-    } else if (thread->is_VM_thread()) {
-      ShenandoahBarrierSet::satb_mark_queue_set().shared_satb_queue()->apply_closure_and_empty(_satb_cl);
-    }
+    ShenandoahThreadLocalData::satb_mark_queue(thread).apply_closure_and_empty(_satb_cl);
   }
 };
 
@@ -197,13 +188,17 @@ public:
       ShenandoahMarkCLDClosure cld_cl(&roots_cl);
       MarkingCodeBlobClosure code_cl(&roots_cl, CodeBlobToOopClosure::FixRelocations);
       if (unload_classes) {
-        _rp->process_strong_roots(&roots_cl, process_refs ? NULL : &roots_cl, &cld_cl, NULL, NULL, NULL, worker_id);
+        _rp->process_strong_roots(&roots_cl, &cld_cl, NULL, NULL, worker_id);
         // Need to pre-evac code roots here. Otherwise we might see from-space constants.
         ShenandoahWorkerTimings* worker_times = _heap->phase_timings()->worker_times();
         ShenandoahWorkerTimingsTracker timer(worker_times, ShenandoahPhaseTimings::CodeCacheRoots, worker_id);
         _cset_coderoots->possibly_parallel_blobs_do(&code_cl);
       } else {
-        _rp->process_all_roots(&roots_cl, process_refs ? NULL : &roots_cl, &cld_cl, &code_cl, NULL, worker_id);
+        _rp->process_all_roots(&roots_cl, &cld_cl, &code_cl, NULL, worker_id);
+      }
+      if (ShenandoahStringDedup::is_enabled()) {
+        AlwaysTrueClosure is_alive;
+        ShenandoahStringDedup::parallel_oops_do(&is_alive, &roots_cl, worker_id);
       }
     }
   }
@@ -278,20 +273,20 @@ public:
       CLDToOopClosure cld_cl(&roots_cl, ClassLoaderData::_claim_strong);
       ShenandoahTraversalSATBThreadsClosure tc(&satb_cl);
       if (unload_classes) {
-        ShenandoahRemarkCLDClosure weak_cld_cl(&roots_cl);
-        _rp->process_strong_roots(&roots_cl, process_refs ? NULL : &roots_cl, &cld_cl, &weak_cld_cl, NULL, &tc, worker_id);
+        ShenandoahRemarkCLDClosure remark_cld_cl(&roots_cl);
+        _rp->process_strong_roots(&roots_cl, &remark_cld_cl, NULL, &tc, worker_id);
       } else {
-        _rp->process_all_roots(&roots_cl, process_refs ? NULL : &roots_cl, &cld_cl, NULL, &tc, worker_id);
+        _rp->process_all_roots(&roots_cl, &cld_cl, NULL, &tc, worker_id);
       }
     } else {
       ShenandoahTraversalDegenClosure roots_cl(q, rp);
       CLDToOopClosure cld_cl(&roots_cl, ClassLoaderData::_claim_strong);
       ShenandoahTraversalSATBThreadsClosure tc(&satb_cl);
       if (unload_classes) {
-        ShenandoahRemarkCLDClosure weak_cld_cl(&roots_cl);
-        _rp->process_strong_roots(&roots_cl, process_refs ? NULL : &roots_cl, &cld_cl, &weak_cld_cl, NULL, &tc, worker_id);
+        ShenandoahRemarkCLDClosure remark_cld_cl(&roots_cl);
+        _rp->process_strong_roots(&roots_cl, &remark_cld_cl, NULL, &tc, worker_id);
       } else {
-        _rp->process_all_roots(&roots_cl, process_refs ? NULL : &roots_cl, &cld_cl, NULL, &tc, worker_id);
+        _rp->process_all_roots(&roots_cl, &cld_cl, NULL, &tc, worker_id);
       }
     }
 
@@ -603,9 +598,11 @@ void ShenandoahTraversalGC::final_traversal_collection() {
     weak_refs_work();
   }
 
-  if (!_heap->cancelled_gc() && _heap->unload_classes()) {
-    _heap->unload_classes_and_cleanup_tables(false);
+  if (!_heap->cancelled_gc()) {
     fixup_roots();
+    if (_heap->unload_classes()) {
+      _heap->unload_classes_and_cleanup_tables(false);
+    }
   }
 
   if (!_heap->cancelled_gc()) {
@@ -700,14 +697,16 @@ private:
 public:
   ShenandoahTraversalFixRootsTask(ShenandoahRootProcessor* rp) :
     AbstractGangTask("Shenandoah traversal fix roots"),
-    _rp(rp) {}
+    _rp(rp) {
+    assert(ShenandoahHeap::heap()->has_forwarded_objects(), "Must be");
+  }
 
   void work(uint worker_id) {
     ShenandoahParallelWorkerSession worker_session(worker_id);
     ShenandoahTraversalFixRootsClosure cl;
     MarkingCodeBlobClosure blobsCl(&cl, CodeBlobToOopClosure::FixRelocations);
     CLDToOopClosure cldCl(&cl, ClassLoaderData::_claim_strong);
-    _rp->process_all_roots(&cl, &cl, &cldCl, &blobsCl, NULL, worker_id);
+    _rp->update_all_roots<ShenandoahForwardedIsAliveClosure>(&cl, &cldCl, &blobsCl, NULL, worker_id);
   }
 };
 
@@ -768,29 +767,6 @@ public:
     _queue(q), _thread(Thread::current()),
     _traversal_gc(ShenandoahHeap::heap()->traversal_gc()),
     _mark_context(ShenandoahHeap::heap()->marking_context()) {}
-
-  void do_oop(narrowOop* p) { do_oop_work(p); }
-  void do_oop(oop* p)       { do_oop_work(p); }
-};
-
-class ShenandoahTraversalWeakUpdateClosure : public OopClosure {
-private:
-  template <class T>
-  inline void do_oop_work(T* p) {
-    // Cannot call maybe_update_with_forwarded, because on traversal-degen
-    // path the collection set is already dropped. Instead, do the unguarded store.
-    // TODO: This can be fixed after degen-traversal stops dropping cset.
-    T o = RawAccess<>::oop_load(p);
-    if (!CompressedOops::is_null(o)) {
-      oop obj = CompressedOops::decode_not_null(o);
-      obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
-      shenandoah_assert_marked(p, obj);
-      RawAccess<IS_NOT_NULL>::oop_store(p, obj);
-    }
-  }
-
-public:
-  ShenandoahTraversalWeakUpdateClosure() {}
 
   void do_oop(narrowOop* p) { do_oop_work(p); }
   void do_oop(oop* p)       { do_oop_work(p); }
@@ -1108,16 +1084,6 @@ void ShenandoahTraversalGC::weak_refs_work_doit() {
                                       &pt);
   }
 
-  {
-    ShenandoahGCPhase phase(phase_process);
-    ShenandoahTerminationTracker termination(ShenandoahPhaseTimings::weakrefs_termination);
-
-    // Process leftover weak oops (using parallel version)
-    ShenandoahTraversalWeakUpdateClosure cl;
-    WeakProcessor::weak_oops_do(workers, &is_alive, &cl, 1);
-
-    pt.print_all_references();
-
-    assert(task_queues()->is_empty() || _heap->cancelled_gc(), "Should be empty");
-  }
+  pt.print_all_references();
+  assert(task_queues()->is_empty() || _heap->cancelled_gc(), "Should be empty");
 }

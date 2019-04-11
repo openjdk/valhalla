@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 #include "gc/shared/workerPolicy.hpp"
 #include "gc/shenandoah/shenandoahArguments.hpp"
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
-#include "gc/shenandoah/shenandoahHeap.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.hpp"
 #include "utilities/defaultStream.hpp"
@@ -46,12 +46,8 @@ void ShenandoahArguments::initialize() {
 
   FLAG_SET_DEFAULT(ShenandoahSATBBarrier,            false);
   FLAG_SET_DEFAULT(ShenandoahKeepAliveBarrier,       false);
-  FLAG_SET_DEFAULT(ShenandoahWriteBarrier,           false);
-  FLAG_SET_DEFAULT(ShenandoahReadBarrier,            false);
   FLAG_SET_DEFAULT(ShenandoahStoreValEnqueueBarrier, false);
-  FLAG_SET_DEFAULT(ShenandoahStoreValReadBarrier,    false);
   FLAG_SET_DEFAULT(ShenandoahCASBarrier,             false);
-  FLAG_SET_DEFAULT(ShenandoahAcmpBarrier,            false);
   FLAG_SET_DEFAULT(ShenandoahCloneBarrier,           false);
 #endif
 
@@ -111,12 +107,8 @@ void ShenandoahArguments::initialize() {
   if (ShenandoahVerifyOptoBarriers &&
           (!FLAG_IS_DEFAULT(ShenandoahSATBBarrier)            ||
            !FLAG_IS_DEFAULT(ShenandoahKeepAliveBarrier)       ||
-           !FLAG_IS_DEFAULT(ShenandoahWriteBarrier)           ||
-           !FLAG_IS_DEFAULT(ShenandoahReadBarrier)            ||
            !FLAG_IS_DEFAULT(ShenandoahStoreValEnqueueBarrier) ||
-           !FLAG_IS_DEFAULT(ShenandoahStoreValReadBarrier)    ||
            !FLAG_IS_DEFAULT(ShenandoahCASBarrier)             ||
-           !FLAG_IS_DEFAULT(ShenandoahAcmpBarrier)            ||
            !FLAG_IS_DEFAULT(ShenandoahCloneBarrier)
           )) {
     warning("Unusual barrier configuration, disabling C2 barrier verification");
@@ -135,18 +127,6 @@ void ShenandoahArguments::initialize() {
     FLAG_SET_DEFAULT(ShenandoahAlwaysPreTouch, true);
   }
 
-  // Shenandoah C2 optimizations apparently dislike the shape of thread-local handshakes.
-  // Disable it by default, unless we enable it specifically for debugging.
-  if (FLAG_IS_DEFAULT(ThreadLocalHandshakes)) {
-    if (ThreadLocalHandshakes) {
-      FLAG_SET_DEFAULT(ThreadLocalHandshakes, false);
-    }
-  } else {
-    if (ThreadLocalHandshakes) {
-      warning("Thread-local handshakes are not working correctly with Shenandoah at the moment. Enable at your own risk.");
-    }
-  }
-
   // Record more information about previous cycles for improved debugging pleasure
   if (FLAG_IS_DEFAULT(LogEventsBufferEntries)) {
     FLAG_SET_DEFAULT(LogEventsBufferEntries, 250);
@@ -156,6 +136,11 @@ void ShenandoahArguments::initialize() {
     if (!FLAG_IS_DEFAULT(ShenandoahUncommit)) {
       warning("AlwaysPreTouch is enabled, disabling ShenandoahUncommit");
     }
+    FLAG_SET_DEFAULT(ShenandoahUncommit, false);
+  }
+
+  if ((InitialHeapSize == MaxHeapSize) && ShenandoahUncommit) {
+    log_info(gc)("Min heap equals to max heap, disabling ShenandoahUncommit");
     FLAG_SET_DEFAULT(ShenandoahUncommit, false);
   }
 
@@ -175,13 +160,6 @@ void ShenandoahArguments::initialize() {
     }
     FLAG_SET_DEFAULT(UseAOT, false);
   }
-
-  // JNI fast get field stuff is not currently supported by Shenandoah.
-  // It would introduce another heap memory access for reading the forwarding
-  // pointer, which would have to be guarded by the signal handler machinery.
-  // See:
-  // http://mail.openjdk.java.net/pipermail/hotspot-dev/2018-June/032763.html
-  FLAG_SET_DEFAULT(UseFastJNIAccessors, false);
 
   // TLAB sizing policy makes resizing decisions before each GC cycle. It averages
   // historical data, assigning more recent data the weight according to TLABAllocationWeight.

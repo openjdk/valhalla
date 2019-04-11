@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_ITERATOR_HPP
-#define SHARE_VM_MEMORY_ITERATOR_HPP
+#ifndef SHARE_MEMORY_ITERATOR_HPP
+#define SHARE_MEMORY_ITERATOR_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
@@ -36,6 +36,7 @@ class DataLayout;
 class KlassClosure;
 class ClassLoaderData;
 class Symbol;
+class Metadata;
 
 // The following classes are C++ `closures` for iterating over objects, roots and spaces
 
@@ -122,6 +123,11 @@ class KlassClosure : public Closure {
 class CLDClosure : public Closure {
  public:
   virtual void do_cld(ClassLoaderData* cld) = 0;
+};
+
+class MetadataClosure : public Closure {
+ public:
+  virtual void do_metadata(Metadata* md) = 0;
 };
 
 
@@ -263,6 +269,11 @@ class MarkingCodeBlobClosure : public CodeBlobToOopClosure {
   virtual void do_code_blob(CodeBlob* cb);
 };
 
+class NMethodClosure : public Closure {
+ public:
+  virtual void do_nmethod(nmethod* n) = 0;
+};
+
 // MonitorClosure is used for iterating over monitors in the monitors cache
 
 class ObjectMonitor;
@@ -362,4 +373,4 @@ class OopIteratorClosureDispatch {
   template <typename OopClosureType> static void oop_oop_iterate_backwards(OopClosureType* cl, oop obj, Klass* klass);
 };
 
-#endif // SHARE_VM_MEMORY_ITERATOR_HPP
+#endif // SHARE_MEMORY_ITERATOR_HPP

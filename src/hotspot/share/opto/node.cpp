@@ -37,6 +37,7 @@
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
 #include "opto/regmask.hpp"
+#include "opto/rootnode.hpp"
 #include "opto/type.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
@@ -1310,6 +1311,9 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
 
   while (nstack.size() > 0) {
     dead = nstack.pop();
+    if (dead->Opcode() == Op_SafePoint) {
+      dead->as_SafePoint()->disconnect_from_root(igvn);
+    }
     if (dead->outcnt() > 0) {
       // Keep dead node on stack until all uses are processed.
       nstack.push(dead);
@@ -1429,8 +1433,8 @@ uint Node::hash() const {
 
 //------------------------------cmp--------------------------------------------
 // Compare special parts of simple Nodes
-uint Node::cmp( const Node &n ) const {
-  return 1;                     // Must be same
+bool Node::cmp( const Node &n ) const {
+  return true;                  // Must be same
 }
 
 //------------------------------rematerialize-----------------------------------
@@ -2448,7 +2452,7 @@ void TypeNode::dump_compact_spec(outputStream *st) const {
 uint TypeNode::hash() const {
   return Node::hash() + _type->hash();
 }
-uint TypeNode::cmp( const Node &n ) const
+bool TypeNode::cmp( const Node &n ) const
 { return !Type::cmp( _type, ((TypeNode&)n)._type ); }
 const Type *TypeNode::bottom_type() const { return _type; }
 const Type* TypeNode::Value(PhaseGVN* phase) const { return _type; }

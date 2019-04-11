@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_CFGNODE_HPP
-#define SHARE_VM_OPTO_CFGNODE_HPP
+#ifndef SHARE_OPTO_CFGNODE_HPP
+#define SHARE_OPTO_CFGNODE_HPP
 
 #include "opto/multnode.hpp"
 #include "opto/node.hpp"
@@ -119,17 +119,19 @@ class JProjNode : public ProjNode {
 // can turn PhiNodes into copys in-place by NULL'ing out their RegionNode
 // input in slot 0.
 class PhiNode : public TypeNode {
+  friend class PhaseRenumberLive;
+
   const TypePtr* const _adr_type; // non-null only for Type::MEMORY nodes.
   // The following fields are only used for data PhiNodes to indicate
   // that the PhiNode represents the value of a known instance field.
         int _inst_mem_id; // Instance memory id (node index of the memory Phi)
-  const int _inst_id;     // Instance id of the memory slice.
+        int _inst_id;     // Instance id of the memory slice.
   const int _inst_index;  // Alias index of the instance memory slice.
   // Array elements references have the same alias_idx but different offset.
   const int _inst_offset; // Offset of the instance memory slice.
   // Size is bigger to hold the _adr_type field.
   virtual uint hash() const;    // Check the type
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
   // Determine if CMoveNode::is_cmove_id can be used at this join point.
@@ -463,7 +465,7 @@ protected:
 // Undefined behavior if passed-in index is not inside the table.
 class PCTableNode : public MultiBranchNode {
   virtual uint hash() const;    // Target count; table size
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
 public:
@@ -505,7 +507,7 @@ public:
 
 class JumpProjNode : public JProjNode {
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
  private:
@@ -548,7 +550,7 @@ public:
 // the projection doesn't lead to an exception handler.
 class CatchProjNode : public CProjNode {
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const { return sizeof(*this); }
 
 private:
@@ -613,4 +615,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_CFGNODE_HPP
+#endif // SHARE_OPTO_CFGNODE_HPP

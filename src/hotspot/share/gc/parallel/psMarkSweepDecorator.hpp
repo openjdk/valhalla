@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSMARKSWEEPDECORATOR_HPP
-#define SHARE_VM_GC_PARALLEL_PSMARKSWEEPDECORATOR_HPP
+#ifndef SHARE_GC_PARALLEL_PSMARKSWEEPDECORATOR_HPP
+#define SHARE_GC_PARALLEL_PSMARKSWEEPDECORATOR_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 
@@ -52,7 +52,11 @@ class PSMarkSweepDecorator: public CHeapObj<mtGC> {
  public:
   PSMarkSweepDecorator(MutableSpace* space, ObjectStartArray* start_array,
                        size_t allowed_dead_ratio) :
-    _space(space), _start_array(start_array),
+    _space(space),
+    _start_array(start_array),
+    _first_dead(NULL),
+    _end_of_live(NULL),
+    _compaction_top(NULL),
     _allowed_dead_ratio(allowed_dead_ratio) { }
 
   // During a compacting collection, we need to collapse objects into
@@ -78,4 +82,4 @@ class PSMarkSweepDecorator: public CHeapObj<mtGC> {
   void compact(bool mangle_free_space);
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSMARKSWEEPDECORATOR_HPP
+#endif // SHARE_GC_PARALLEL_PSMARKSWEEPDECORATOR_HPP

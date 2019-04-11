@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_COMPILEDMETHOD_HPP
-#define SHARE_VM_CODE_COMPILEDMETHOD_HPP
+#ifndef SHARE_CODE_COMPILEDMETHOD_HPP
+#define SHARE_CODE_COMPILEDMETHOD_HPP
 
 #include "code/codeBlob.hpp"
 #include "code/pcDesc.hpp"
@@ -36,6 +36,9 @@ class AbstractCompiler;
 class xmlStream;
 class CompiledStaticCall;
 class NativeCallWrapper;
+class ScopeDesc;
+class CompiledIC;
+class MetadataClosure;
 
 // This class is used internally by nmethods, to cache
 // exception/pc/handler information.
@@ -359,13 +362,14 @@ public:
   void cleanup_inline_caches(bool clean_all);
 
   virtual void clear_inline_caches();
-  void clear_ic_stubs();
+  void clear_ic_callsites();
 
   // Verify and count cached icholder relocations.
   int  verify_icholder_relocations();
   void verify_oop_relocations();
 
-  virtual bool is_evol_dependent_on(Klass* dependee) = 0;
+  bool has_evol_metadata();
+
   // Fast breakpoint support. Tells if this compiled method is
   // dependent on the given method. Returns true if this nmethod
   // corresponds to the given method as well.
@@ -382,7 +386,7 @@ public:
   Method* attached_method(address call_pc);
   Method* attached_method_before_pc(address pc);
 
-  virtual void metadata_do(void f(Metadata*)) = 0;
+  virtual void metadata_do(MetadataClosure* f) = 0;
 
   // GC support
  protected:
@@ -406,10 +410,6 @@ private:
   PcDesc* find_pc_desc(address pc, bool approximate) {
     return _pc_desc_container.find_pc_desc(pc, approximate, PcDescSearch(code_begin(), scopes_pcs_begin(), scopes_pcs_end()));
   }
-
-protected:
-  // Used by some GCs to chain nmethods.
-  nmethod* _scavenge_root_link; // from CodeCache::scavenge_root_nmethods
 };
 
-#endif //SHARE_VM_CODE_COMPILEDMETHOD_HPP
+#endif // SHARE_CODE_COMPILEDMETHOD_HPP

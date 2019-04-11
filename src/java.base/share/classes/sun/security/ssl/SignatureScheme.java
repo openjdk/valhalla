@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,9 @@ import java.util.List;
 import java.util.Set;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
+import sun.security.ssl.X509Authentication.X509Possession;
 import sun.security.util.KeyUtil;
+import sun.security.util.SignatureUtil;
 
 enum SignatureScheme {
     // EdDSA algorithms
@@ -194,7 +196,7 @@ enum SignatureScheme {
 
             boolean mediator = true;
             try {
-                Signature signer = JsseJce.getSignature("RSASSA-PSS");
+                Signature signer = Signature.getInstance("RSASSA-PSS");
                 signer.setParameter(pssParamSpec);
             } catch (InvalidAlgorithmParameterException |
                     NoSuchAlgorithmException exp) {
@@ -275,7 +277,7 @@ enum SignatureScheme {
             mediator = signAlgParamSpec.isAvailable;
         } else {
             try {
-                JsseJce.getSignature(algorithm);
+                Signature.getInstance(algorithm);
             } catch (Exception e) {
                 mediator = false;
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
@@ -415,9 +417,10 @@ enum SignatureScheme {
 
     static SignatureScheme getPreferableAlgorithm(
             List<SignatureScheme> schemes,
-            PrivateKey signingKey,
+            X509Possession x509Possession,
             ProtocolVersion version) {
 
+        PrivateKey signingKey = x509Possession.popPrivateKey;
         String keyAlgorithm = signingKey.getAlgorithm();
         int keySize;
         // Only need to check RSA algorithm at present.
@@ -434,8 +437,9 @@ enum SignatureScheme {
                 if (ss.namedGroup != null &&
                     ss.namedGroup.type == NamedGroupType.NAMED_GROUP_ECDHE) {
                     ECParameterSpec params =
-                                ((ECPrivateKey)signingKey).getParams();
-                    if (ss.namedGroup == NamedGroup.valueOf(params)) {
+                            x509Possession.getECParameterSpec();
+                    if (params != null &&
+                            ss.namedGroup == NamedGroup.valueOf(params)) {
                         return ss;
                     }
                 } else {
@@ -466,18 +470,13 @@ enum SignatureScheme {
             return null;
         }
 
-        Signature signer = JsseJce.getSignature(algorithm);
+        Signature signer = Signature.getInstance(algorithm);
         if (key instanceof PublicKey) {
-            signer.initVerify((PublicKey)(key));
+            SignatureUtil.initVerifyWithParam(signer, (PublicKey)key,
+                    signAlgParameter);
         } else {
-            signer.initSign((PrivateKey)key);
-        }
-
-        // Important note:  Please don't set the parameters before signature
-        // or verification initialization, so that the crypto provider can
-        // be selected properly.
-        if (signAlgParameter != null) {
-            signer.setParameter(signAlgParameter);
+            SignatureUtil.initSignWithParam(signer, (PrivateKey)key,
+                    signAlgParameter, null);
         }
 
         return signer;

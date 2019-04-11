@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -223,6 +223,8 @@ AC_DEFUN([BASIC_FIXUP_PATH],
       BASIC_FIXUP_PATH_CYGWIN($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
       BASIC_FIXUP_PATH_MSYS($1)
+    elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+      BASIC_FIXUP_PATH_WSL($1)
     else
       # We're on a unix platform. Hooray! :)
       path="[$]$1"
@@ -270,6 +272,8 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE],
       BASIC_FIXUP_EXECUTABLE_CYGWIN($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
       BASIC_FIXUP_EXECUTABLE_MSYS($1)
+    elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+      BASIC_FIXUP_EXECUTABLE_WSL($1)
     else
       # We're on a unix platform. Hooray! :)
       # First separate the path from the arguments. This will split at the first
@@ -402,6 +406,8 @@ AC_DEFUN_ONCE([BASIC_INIT],
 [
   # Save the original command line. This is passed to us by the wrapper configure script.
   AC_SUBST(CONFIGURE_COMMAND_LINE)
+  # AUTOCONF might be set in the environment by the user. Preserve for "make reconfigure".
+  AC_SUBST(AUTOCONF)
   # Save the path variable before it gets changed
   ORIGINAL_PATH="$PATH"
   AC_SUBST(ORIGINAL_PATH)
@@ -607,10 +613,13 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
 
   # These are not required on all platforms
   BASIC_PATH_PROGS(CYGPATH, cygpath)
+  BASIC_PATH_PROGS(WSLPATH, wslpath)
   BASIC_PATH_PROGS(DF, df)
   BASIC_PATH_PROGS(CPIO, [cpio bsdcpio])
   BASIC_PATH_PROGS(NICE, nice)
-  BASIC_PATH_PROGS(PANDOC, pandoc)
+
+  BASIC_PATH_PROGS(LSB_RELEASE, lsb_release)
+  BASIC_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
 ])
 
 ###############################################################################
@@ -618,7 +627,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
 AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
 [
   # Save the current directory this script was started from
-  CURDIR="$PWD"
+  CONFIGURE_START_DIR="$PWD"
 
   # We might need to rewrite ORIGINAL_PATH, if it includes "#", to quote them
   # for make. We couldn't do this when we retrieved ORIGINAL_PATH, since SED
@@ -631,19 +640,23 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
 
   if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
     PATH_SEP=";"
+    EXE_SUFFIX=".exe"
     BASIC_CHECK_PATHS_WINDOWS
   else
     PATH_SEP=":"
+    EXE_SUFFIX=""
   fi
   AC_SUBST(PATH_SEP)
+  AC_SUBST(EXE_SUFFIX)
 
   # We get the top-level directory from the supporting wrappers.
   AC_MSG_CHECKING([for top-level directory])
   AC_MSG_RESULT([$TOPDIR])
   AC_SUBST(TOPDIR)
+  AC_SUBST(CONFIGURE_START_DIR)
 
   # We can only call BASIC_FIXUP_PATH after BASIC_CHECK_PATHS_WINDOWS.
-  BASIC_FIXUP_PATH(CURDIR)
+  BASIC_FIXUP_PATH(CONFIGURE_START_DIR)
   BASIC_FIXUP_PATH(TOPDIR)
 
   # Locate the directory of this script.
@@ -856,9 +869,10 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
 
   # Test from where we are running configure, in or outside of src root.
   AC_MSG_CHECKING([where to store configuration])
-  if test "x$CURDIR" = "x$TOPDIR" || test "x$CURDIR" = "x$CUSTOM_ROOT" \
-      || test "x$CURDIR" = "x$TOPDIR/make/autoconf" \
-      || test "x$CURDIR" = "x$TOPDIR/make" ; then
+  if test "x$CONFIGURE_START_DIR" = "x$TOPDIR" \
+      || test "x$CONFIGURE_START_DIR" = "x$CUSTOM_ROOT" \
+      || test "x$CONFIGURE_START_DIR" = "x$TOPDIR/make/autoconf" \
+      || test "x$CONFIGURE_START_DIR" = "x$TOPDIR/make" ; then
     # We are running configure from the src root.
     # Create a default ./build/target-variant-debuglevel output root.
     if test "x${CONF_NAME}" = x; then
@@ -869,10 +883,11 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
     fi
 
     if test "x$CUSTOM_ROOT" != x; then
-      OUTPUTDIR="${CUSTOM_ROOT}/build/${CONF_NAME}"
+      WORKSPACE_ROOT="${CUSTOM_ROOT}"
     else
-      OUTPUTDIR="${TOPDIR}/build/${CONF_NAME}"
+      WORKSPACE_ROOT="${TOPDIR}"
     fi
+    OUTPUTDIR="${WORKSPACE_ROOT}/build/${CONF_NAME}"
     $MKDIR -p "$OUTPUTDIR"
     if test ! -d "$OUTPUTDIR"; then
       AC_MSG_ERROR([Could not create build directory $OUTPUTDIR])
@@ -883,9 +898,9 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
     # If configuration is situated in normal build directory, just use the build
     # directory name as configuration name, otherwise use the complete path.
     if test "x${CONF_NAME}" = x; then
-      CONF_NAME=`$ECHO $CURDIR | $SED -e "s!^${TOPDIR}/build/!!"`
+      CONF_NAME=`$ECHO $CONFIGURE_START_DIR | $SED -e "s!^${TOPDIR}/build/!!"`
     fi
-    OUTPUTDIR="$CURDIR"
+    OUTPUTDIR="$CONFIGURE_START_DIR"
     AC_MSG_RESULT([in current directory])
 
     # WARNING: This might be a bad thing to do. You need to be sure you want to
@@ -905,14 +920,14 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
               -e 's/ //g' \
           | $TR -d '\n'`
       if test "x$filtered_files" != x; then
-        AC_MSG_NOTICE([Current directory is $CURDIR.])
+        AC_MSG_NOTICE([Current directory is $CONFIGURE_START_DIR.])
         AC_MSG_NOTICE([Since this is not the source root, configure will output the configuration here])
         AC_MSG_NOTICE([(as opposed to creating a configuration in <src_root>/build/<conf-name>).])
         AC_MSG_NOTICE([However, this directory is not empty. This is not allowed, since it could])
         AC_MSG_NOTICE([seriously mess up just about everything.])
         AC_MSG_NOTICE([Try 'cd $TOPDIR' and restart configure])
         AC_MSG_NOTICE([(or create a new empty directory and cd to it).])
-        AC_MSG_ERROR([Will not continue creating configuration in $CURDIR])
+        AC_MSG_ERROR([Will not continue creating configuration in $CONFIGURE_START_DIR])
       fi
     fi
   fi
@@ -928,6 +943,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
   AC_SUBST(SPEC)
   AC_SUBST(CONF_NAME)
   AC_SUBST(OUTPUTDIR)
+  AC_SUBST(WORKSPACE_ROOT)
   AC_SUBST(CONFIGURESUPPORT_OUTPUTDIR)
 
   # The spec.gmk file contains all variables for the make system.
@@ -980,6 +996,8 @@ AC_DEFUN([BASIC_CHECK_MAKE_VERSION],
             MAKE_EXPECTED_ENV='cygwin'
           elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
             MAKE_EXPECTED_ENV='msys'
+          elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+            MAKE_EXPECTED_ENV='x86_64-.*-linux-gnu'
           else
             AC_MSG_ERROR([Unknown Windows environment])
           fi
@@ -1171,6 +1189,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
   BASIC_CHECK_FIND_DELETE
   BASIC_CHECK_TAR
   BASIC_CHECK_GREP
+  BASIC_SETUP_PANDOC
 
   # These tools might not be installed by default,
   # need hint on how to install them.
@@ -1267,7 +1286,18 @@ AC_DEFUN([BASIC_CHECK_DIR_ON_LOCAL_DISK],
     if $DF $DF_LOCAL_ONLY_OPTION $1 > /dev/null 2>&1; then
       $2
     else
-      $3
+      # In WSL, local Windows drives are considered remote by df, but we are
+      # required to build into a directory accessible from windows, so consider
+      # them local here.
+      if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
+        if $DF $1 | $GREP -q "^[[A-Z]]:"; then
+          $2
+        else
+          $3
+        fi
+      else
+        $3
+      fi
     fi
   fi
 ])
@@ -1342,6 +1372,34 @@ AC_DEFUN_ONCE([BASIC_CHECK_BASH_OPTIONS],
   fi
 
   AC_SUBST(BASH_ARGS)
+])
+
+################################################################################
+#
+# Setup Pandoc
+#
+AC_DEFUN_ONCE([BASIC_SETUP_PANDOC],
+[
+  BASIC_PATH_PROGS(PANDOC, pandoc)
+
+  PANDOC_MARKDOWN_FLAG="markdown"
+  if test -n "$PANDOC"; then
+    AC_MSG_CHECKING(if the pandoc smart extension needs to be disabled for markdown)
+    if $PANDOC --list-extensions | $GREP -q '\+smart'; then
+      AC_MSG_RESULT([yes])
+      PANDOC_MARKDOWN_FLAG="markdown-smart"
+    else
+      AC_MSG_RESULT([no])
+    fi
+  fi
+
+  if test -n "$PANDOC"; then
+    ENABLE_PANDOC="true"
+  else
+    ENABLE_PANDOC="false"
+  fi
+  AC_SUBST(ENABLE_PANDOC)
+  AC_SUBST(PANDOC_MARKDOWN_FLAG)
 ])
 
 ################################################################################

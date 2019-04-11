@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_MARKOOP_HPP
-#define SHARE_VM_OOPS_MARKOOP_HPP
+#ifndef SHARE_OOPS_MARKOOP_HPP
+#define SHARE_OOPS_MARKOOP_HPP
 
 #include "oops/oop.hpp"
 
@@ -138,22 +138,14 @@ class markOopDesc: public oopDesc {
          epoch_mask_in_place      = epoch_mask << epoch_shift,
          cms_mask                 = right_n_bits(cms_bits),
          cms_mask_in_place        = cms_mask << cms_shift
-#ifndef _WIN64
-         ,hash_mask               = right_n_bits(hash_bits),
-         hash_mask_in_place       = (address_word)hash_mask << hash_shift
-#endif
   };
+
+  const static uintptr_t hash_mask = right_n_bits(hash_bits);
+  const static uintptr_t hash_mask_in_place = hash_mask << hash_shift;
 
   // Alignment of JavaThread pointers encoded in object header required by biased locking
   enum { biased_lock_alignment    = 2 << (epoch_shift + epoch_bits)
   };
-
-#ifdef _WIN64
-    // These values are too big for Win64
-    const static uintptr_t hash_mask = right_n_bits(hash_bits);
-    const static uintptr_t hash_mask_in_place  =
-                            (address_word)hash_mask << hash_shift;
-#endif
 
   enum { locked_value             = 0,
          unlocked_value           = 1,
@@ -403,4 +395,4 @@ class markOopDesc: public oopDesc {
 #endif // _LP64
 };
 
-#endif // SHARE_VM_OOPS_MARKOOP_HPP
+#endif // SHARE_OOPS_MARKOOP_HPP

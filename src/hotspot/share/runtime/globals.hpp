@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_GLOBALS_HPP
-#define SHARE_VM_RUNTIME_GLOBALS_HPP
+#ifndef SHARE_RUNTIME_GLOBALS_HPP
+#define SHARE_RUNTIME_GLOBALS_HPP
 
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/align.hpp"
@@ -52,6 +52,13 @@
 #define  trueInTiered false
 #define falseInTiered true
 #endif
+
+// Default and minimum StringTable and SymbolTable size values
+// Must be powers of 2
+const size_t defaultStringTableSize = NOT_LP64(1024) LP64_ONLY(65536);
+const size_t minimumStringTableSize = 128;
+const size_t defaultSymbolTableSize = 32768; // 2^15
+const size_t minimumSymbolTableSize = 1024;
 
 #include CPU_HEADER(globals)
 #include OS_HEADER(globals)
@@ -133,8 +140,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
 // notproduct flags are settable / visible only during development and are not declared in the PRODUCT version
 
 // A flag must be declared with one of the following types:
-// bool, int, uint, intx, uintx, size_t, ccstr, double, or uint64_t.
-// The type "ccstr" is an alias for "const char*" and is used
+// bool, int, uint, intx, uintx, size_t, ccstr, ccstrlist, double, or uint64_t.
+// The type "ccstr" and "ccstrlist" are an alias for "const char*" and is used
 // only in this file, because the macrology requires single-token type names.
 
 // Note: Diagnostic options not meant for VM tuning or for product modes.
@@ -360,8 +367,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Print out every time compilation is longer than "                \
           "a given threshold")                                              \
                                                                             \
-  develop(bool, SafepointALot, false,                                       \
+  diagnostic(bool, SafepointALot, false,                                    \
           "Generate a lot of safepoints. This works with "                  \
+          "GuaranteedSafepointInterval")                                    \
+                                                                            \
+  diagnostic(bool, HandshakeALot, false,                                    \
+          "Generate a lot of handshakes. This works with "                  \
           "GuaranteedSafepointInterval")                                    \
                                                                             \
   product_pd(bool, BackgroundCompilation,                                   \
@@ -644,9 +655,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(bool, BreakAtWarning, false,                                      \
           "Execute breakpoint upon encountering VM warning")                \
                                                                             \
-  develop(bool, UseFakeTimers, false,                                       \
-          "Tell whether the VM should use system time or a fake timer")     \
-                                                                            \
   product(ccstr, NativeMemoryTracking, "off",                               \
           "Native memory tracking options")                                 \
                                                                             \
@@ -741,22 +749,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(bool, OmitStackTraceInFastThrow, true,                            \
           "Omit backtraces for some 'hot' exceptions in optimized code")    \
-                                                                            \
-  product(bool, ProfilerPrintByteCodeStatistics, false,                     \
-          "Print bytecode statistics when dumping profiler output")         \
-                                                                            \
-  product(bool, ProfilerRecordPC, false,                                    \
-          "Collect ticks for each 16 byte interval of compiled code")       \
-                                                                            \
-  product(bool, ProfileVM, false,                                           \
-          "Profile ticks that fall within VM (either in the VM Thread "     \
-          "or VM code called through stubs)")                               \
-                                                                            \
-  product(bool, ProfileIntervals, false,                                    \
-          "Print profiles for each interval (see ProfileIntervalsTicks)")   \
-                                                                            \
-  notproduct(bool, ProfilerCheckIntervals, false,                           \
-          "Collect and print information on spacing of profiler ticks")     \
                                                                             \
   product(bool, PrintWarnings, true,                                        \
           "Print JVM warnings to output stream")                            \
@@ -873,7 +865,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "by the application (Solaris & Linux only)")                      \
                                                                             \
   product(bool, AllowJNIEnvProxy, false,                                    \
-          "Allow JNIEnv proxies for jdbx")                                  \
+          "(Deprecated) Allow JNIEnv proxies for jdbx")                     \
                                                                             \
   product(bool, RestoreMXCSROnJNICalls, false,                              \
           "Restore MXCSR when returning from JNI calls")                    \
@@ -1053,9 +1045,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   manageable(bool, PrintClassHistogram, false,                              \
           "Print a histogram of class instances")                           \
-                                                                            \
-  develop(bool, IgnoreLibthreadGPFault, false,                              \
-          "Suppress workaround for libthread GP fault")                     \
                                                                             \
   experimental(double, ObjectCountCutOffPercent, 0.5,                       \
           "The percentage of the used heap that the instances of a class "  \
@@ -1249,7 +1238,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "exit")                                                           \
                                                                             \
   product(bool, PrintFlagsRanges, false,                                    \
-          "Print VM flags and their ranges and exit VM")                    \
+          "Print VM flags and their ranges")                                \
                                                                             \
   diagnostic(bool, SerializeVMOutput, true,                                 \
           "Use a mutex to serialize output to tty and LogFile")             \
@@ -1277,6 +1266,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(bool, DisplayVMOutputToStdout, false,                             \
           "If DisplayVMOutput is true, display all VM output to stdout")    \
+                                                                            \
+  product(bool, ErrorFileToStderr, false,                                   \
+          "If true, error data is printed to stderr instead of a file")     \
+                                                                            \
+  product(bool, ErrorFileToStdout, false,                                   \
+          "If true, error data is printed to stdout instead of a file")     \
                                                                             \
   product(bool, UseHeavyMonitors, false,                                    \
           "use heavyweight instead of lightweight Java monitors")           \
@@ -1322,16 +1317,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   develop(bool, TypeProfileCasts,  true,                                    \
           "treat casts like calls for purposes of type profiling")          \
-                                                                            \
-  develop(bool, DelayCompilationDuringStartup, true,                        \
-          "Delay invoking the compiler until main application class is "    \
-          "loaded")                                                         \
-                                                                            \
-  develop(bool, FillDelaySlots, true,                                       \
-          "Fill delay slots (on SPARC only)")                               \
-                                                                            \
-  develop(bool, TimeLivenessAnalysis, false,                                \
-          "Time computation of bytecode liveness analysis")                 \
                                                                             \
   develop(bool, TraceLivenessGen, false,                                    \
           "Trace the generation of liveness analysis information")          \
@@ -1492,12 +1477,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   /* compilation */                                                         \
   product(bool, UseCompiler, true,                                          \
           "Use Just-In-Time compilation")                                   \
-                                                                            \
-  develop(bool, TraceCompilationPolicy, false,                              \
-          "Trace compilation policy")                                       \
-                                                                            \
-  develop(bool, TimeCompilationPolicy, false,                               \
-          "Time the compilation policy")                                    \
                                                                             \
   product(bool, UseCounterDecay, true,                                      \
           "Adjust recompilation counters")                                  \
@@ -1662,28 +1641,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   develop(intx, MethodHistogramCutoff, 100,                                 \
           "The cutoff value for method invocation histogram (+CountCalls)") \
                                                                             \
-  diagnostic(intx, ProfilerNumberOfInterpretedMethods, 25,                  \
-          "Number of interpreted methods to show in profile")               \
-                                                                            \
-  diagnostic(intx, ProfilerNumberOfCompiledMethods, 25,                     \
-          "Number of compiled methods to show in profile")                  \
-                                                                            \
-  diagnostic(intx, ProfilerNumberOfStubMethods, 25,                         \
-          "Number of stub methods to show in profile")                      \
-                                                                            \
-  diagnostic(intx, ProfilerNumberOfRuntimeStubNodes, 25,                    \
-          "Number of runtime stub nodes to show in profile")                \
-                                                                            \
-  product(intx, ProfileIntervalsTicks, 100,                                 \
-          "Number of ticks between printing of interval profile "           \
-          "(+ProfileIntervals)")                                            \
-          range(0, max_intx)                                                \
-                                                                            \
   develop(intx, DontYieldALotInterval,    10,                               \
           "Interval between which yields will be dropped (milliseconds)")   \
-                                                                            \
-  develop(intx, ProfilerPCTickThreshold,    15,                             \
-          "Number of ticks in a PC buckets to be a hotspot")                \
                                                                             \
   notproduct(intx, DeoptimizeALotInterval,     5,                           \
           "Number of exits until DeoptimizeALot kicks in")                  \
@@ -2006,10 +1965,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   product(bool, CICompilerCountPerCPU, false,                               \
           "1 compiler thread for log(N CPUs)")                              \
                                                                             \
-  develop(intx, CIFireOOMAt,    -1,                                         \
-          "Fire OutOfMemoryErrors throughout CI for testing the compiler "  \
-          "(non-negative value throws OOM after this many CI accesses "     \
-          "in each compile)")                                               \
   notproduct(intx, CICrashAt, -1,                                           \
           "id of compilation to trigger assert in compiler thread for "     \
           "the purpose of testing, e.g. generation of replay data")         \
@@ -2042,7 +1997,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "    to higher native thread priorities. This policy should be   "\
           "    used with care, as sometimes it can cause performance       "\
           "    degradation in the application and/or the entire system. On "\
-          "    Linux this policy requires root privilege.")                 \
+          "    Linux/BSD/macOS this policy requires root privilege or an   "\
+          "    extended capability.")                                       \
           range(0, 1)                                                       \
                                                                             \
   product(bool, ThreadPriorityVerbose, false,                               \
@@ -2310,11 +2266,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Don't compile methods larger than this if "                      \
           "+DontCompileHugeMethods")                                        \
                                                                             \
-  /* New JDK 1.4 reflection implementation */                               \
-                                                                            \
-  develop(intx, FastSuperclassLimit, 8,                                     \
-          "Depth of hardwired instanceof accelerator array")                \
-                                                                            \
   /* Properties for Java libraries  */                                      \
                                                                             \
   product(uint64_t, MaxDirectMemorySize, 0,                                 \
@@ -2575,8 +2526,15 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Path to the directoy where a temporary file will be created "    \
           "to use as the backing store for Java Heap.")                     \
                                                                             \
-  develop(bool, VerifyMetaspace, false,                                     \
-          "Verify metaspace on chunk movements.")                           \
+  experimental(ccstr, AllocateOldGenAt, NULL,                               \
+          "Path to the directoy where a temporary file will be "            \
+          "created to use as the backing store for old generation."         \
+          "File of size Xmx is pre-allocated for performance reason, so"    \
+          "we need that much space available")                              \
+                                                                            \
+  develop(int, VerifyMetaspaceInterval, DEBUG_ONLY(500) NOT_DEBUG(0),       \
+               "Run periodic metaspace verifications (0 - none, "           \
+               "1 - always, >1 every nth interval)")                        \
                                                                             \
   diagnostic(bool, ShowRegistersOnAssert, true,                             \
           "On internal errors, include registers in error report.")         \
@@ -2740,4 +2698,4 @@ ARCH_FLAGS(DECLARE_DEVELOPER_FLAG, \
 
 #include "runtime/globals_ext.hpp"
 
-#endif // SHARE_VM_RUNTIME_GLOBALS_HPP
+#endif // SHARE_RUNTIME_GLOBALS_HPP

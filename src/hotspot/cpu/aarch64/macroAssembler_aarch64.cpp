@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -373,15 +373,9 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
                                          Register last_java_fp,
                                          address  last_java_pc,
                                          Register scratch) {
-  if (last_java_pc != NULL) {
-    adr(scratch, last_java_pc);
-  } else {
-    // FIXME: This is almost never correct.  We should delete all
-    // cases of set_last_Java_frame with last_java_pc=NULL and use the
-    // correct return address instead.
-    adr(scratch, pc());
-  }
+  assert(last_java_pc != NULL, "must provide a valid PC");
 
+  adr(scratch, last_java_pc);
   str(scratch, Address(rthread,
                        JavaThread::frame_anchor_offset()
                        + JavaFrameAnchor::last_Java_pc_offset()));
@@ -398,7 +392,7 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
   } else {
     InstructionMark im(this);
     L.add_patch_at(code(), locator());
-    set_last_Java_frame(last_java_sp, last_java_fp, (address)NULL, scratch);
+    set_last_Java_frame(last_java_sp, last_java_fp, pc() /* Patched later */, scratch);
   }
 }
 
@@ -816,6 +810,18 @@ address MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
 
   end_a_stub();
   return stub_start_addr;
+}
+
+void MacroAssembler::emit_static_call_stub() {
+  // CompiledDirectStaticCall::set_to_interpreted knows the
+  // exact layout of this stub.
+
+  isb();
+  mov_metadata(rmethod, (Metadata*)NULL);
+
+  // Jump to the entry point of the i2c stub.
+  movptr(rscratch1, 0);
+  br(rscratch1);
 }
 
 void MacroAssembler::c2bool(Register x) {
@@ -2165,6 +2171,14 @@ void MacroAssembler::stop(const char* msg) {
   // call(c_rarg3);
   blrt(c_rarg3, 3, 0, 1);
   hlt(0);
+}
+
+void MacroAssembler::warn(const char* msg) {
+  pusha();
+  mov(c_rarg0, (address)msg);
+  mov(lr, CAST_FROM_FN_PTR(address, warning));
+  blrt(lr, 1, 0, MacroAssembler::ret_type_void);
+  popa();
 }
 
 void MacroAssembler::unimplemented(const char* what) {
@@ -4303,7 +4317,7 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
 }
 
 void MacroAssembler::load_byte_map_base(Register reg) {
-  jbyte *byte_map_base =
+  CardTable::CardValue* byte_map_base =
     ((CardTableBarrierSet*)(BarrierSet::barrier_set()))->card_table()->byte_map_base();
 
   if (is_valid_AArch64_address((address)byte_map_base)) {
@@ -4896,7 +4910,7 @@ void MacroAssembler::string_compare(Register str1, Register str2,
 
   // A very short string
   cmpw(cnt2, minCharsInWord);
-  br(Assembler::LT, SHORT_STRING);
+  br(Assembler::LE, SHORT_STRING);
 
   // Compare longwords
   // load first parts of strings and finish initialization while loading
@@ -4920,8 +4934,7 @@ void MacroAssembler::string_compare(Register str1, Register str2,
       ldr(tmp2, Address(str2));
       cmp(cnt2, STUB_THRESHOLD);
       br(GE, STUB);
-      subsw(cnt2, cnt2, 4);
-      br(EQ, TAIL_CHECK);
+      subw(cnt2, cnt2, 4);
       eor(vtmpZ, T16B, vtmpZ, vtmpZ);
       lea(str1, Address(str1, cnt2, Address::uxtw(str1_chr_shift)));
       lea(str2, Address(str2, cnt2, Address::uxtw(str2_chr_shift)));
@@ -4937,8 +4950,7 @@ void MacroAssembler::string_compare(Register str1, Register str2,
       ldrs(vtmp, Address(str2));
       cmp(cnt2, STUB_THRESHOLD);
       br(GE, STUB);
-      subsw(cnt2, cnt2, 4);
-      br(EQ, TAIL_CHECK);
+      subw(cnt2, cnt2, 4);
       lea(str1, Address(str1, cnt2, Address::uxtw(str1_chr_shift)));
       eor(vtmpZ, T16B, vtmpZ, vtmpZ);
       lea(str2, Address(str2, cnt2, Address::uxtw(str2_chr_shift)));
@@ -5650,12 +5662,12 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
           orr(v5, T16B, Vtmp3, Vtmp4);
           uzp1(Vtmp1, T16B, Vtmp1, Vtmp2);
           uzp1(Vtmp3, T16B, Vtmp3, Vtmp4);
-          stpq(Vtmp1, Vtmp3, dst);
           uzp2(v5, T16B, v4, v5); // high bytes
           umov(tmp2, v5, D, 1);
           fmovd(tmp1, v5);
           orr(tmp1, tmp1, tmp2);
           cbnz(tmp1, LOOP_8);
+          stpq(Vtmp1, Vtmp3, dst);
           sub(len, len, 32);
           add(dst, dst, 32);
           add(src, src, 64);
@@ -5673,7 +5685,6 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
       prfm(Address(src, SoftwarePrefetchHintDistance));
       uzp1(v4, T16B, Vtmp1, Vtmp2);
       uzp1(v5, T16B, Vtmp3, Vtmp4);
-      stpq(v4, v5, dst);
       orr(Vtmp1, T16B, Vtmp1, Vtmp2);
       orr(Vtmp3, T16B, Vtmp3, Vtmp4);
       uzp2(Vtmp1, T16B, Vtmp1, Vtmp3); // high bytes
@@ -5681,6 +5692,7 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
       fmovd(tmp1, Vtmp1);
       orr(tmp1, tmp1, tmp2);
       cbnz(tmp1, LOOP_8);
+      stpq(v4, v5, dst);
       sub(len, len, 32);
       add(dst, dst, 32);
       add(src, src, 64);
@@ -5695,9 +5707,9 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
       ld1(Vtmp1, T8H, src);
       uzp1(Vtmp2, T16B, Vtmp1, Vtmp1); // low bytes
       uzp2(Vtmp3, T16B, Vtmp1, Vtmp1); // high bytes
-      strd(Vtmp2, dst);
       fmovd(tmp1, Vtmp3);
       cbnz(tmp1, NEXT_1);
+      strd(Vtmp2, dst);
 
       sub(len, len, 8);
       add(dst, dst, 8);
@@ -5710,9 +5722,9 @@ void MacroAssembler::encode_iso_array(Register src, Register dst,
     cbz(len, DONE);
     BIND(NEXT_1);
       ldrh(tmp1, Address(post(src, 2)));
-      strb(tmp1, Address(post(dst, 1)));
       tst(tmp1, 0xff00);
       br(NE, SET_RESULT);
+      strb(tmp1, Address(post(dst, 1)));
       subs(len, len, 1);
       br(GT, NEXT_1);
 

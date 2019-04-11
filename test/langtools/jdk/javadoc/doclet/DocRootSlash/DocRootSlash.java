@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,9 @@
  * @bug 4524350 4662945 4633447 8196202
  * @summary stddoclet: {@docRoot} inserts an extra trailing "/"
  * @author dkramer
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main DocRootSlash
  */
 
@@ -39,6 +39,8 @@ import java.util.regex.*;
  * It reads each file, complete with newlines, into a string to easily
  * find strings that contain newlines.
  */
+import javadoc.tester.JavadocTester;
+
 public class DocRootSlash extends JavadocTester {
 
     public static void main(String... args) throws Exception {
@@ -47,7 +49,7 @@ public class DocRootSlash extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         // Directory that contains source files that javadoc runs on
         String srcdir = System.getProperty("test.src", ".");
 
@@ -55,7 +57,6 @@ public class DocRootSlash extends JavadocTester {
         javadoc("-d", "out",
                 "-Xdoclint:none",
                 "-overview", (srcdir + "/overview.html"),
-                "--frames",
                 "-header", "<A HREF=\"{@docroot}/element-list\">{&#064;docroot}</A> <A HREF=\"{@docRoot}/help-doc.html\">{&#064;docRoot}</A>",
                 "-sourcepath", srcdir,
                 "p1", "p2");
@@ -63,13 +64,7 @@ public class DocRootSlash extends JavadocTester {
         checkFiles(
                 "p1/C1.html",
                 "p1/package-summary.html",
-                "overview-summary.html");
-
-        // Bug 4633447: Special test for overview-frame.html
-        // Find two strings in file "overview-frame.html"
-        checkOutput("overview-frame.html", true,
-                "<A HREF=\"./element-list\">",
-                "<A HREF=\"./help-doc.html\">");
+                "index.html");
     }
 
     void checkFiles(String... filenameArray) {

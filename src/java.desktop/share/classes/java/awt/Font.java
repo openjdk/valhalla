@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,7 +74,7 @@ import static sun.font.EAttribute.*;
  * and to render sequences of glyphs on {@code Graphics} and
  * {@code Component} objects.
  *
- * <h3>Characters and Glyphs</h3>
+ * <h2>Characters and Glyphs</h2>
  *
  * A <em>character</em> is a symbol that represents an item such as a letter,
  * a digit, or punctuation in an abstract way. For example, {@code 'g'},
@@ -96,7 +96,7 @@ import static sun.font.EAttribute.*;
  * of characters as well as the tables needed to map sequences of characters to
  * corresponding sequences of glyphs.
  *
- * <h3>Physical and Logical Fonts</h3>
+ * <h2>Physical and Logical Fonts</h2>
  *
  * The Java Platform distinguishes between two kinds of fonts:
  * <em>physical</em> fonts and <em>logical</em> fonts.
@@ -135,7 +135,7 @@ import static sun.font.EAttribute.*;
  * in <a href="https://docs.oracle.com/javase/tutorial/index.html">The Java Tutorials</a>
  * document.
  *
- * <h3>Font Faces and Names</h3>
+ * <h2>Font Faces and Names</h2>
  *
  * A {@code Font}
  * can have many faces, such as heavy, medium, oblique, gothic and
@@ -169,7 +169,7 @@ import static sun.font.EAttribute.*;
  * with varying sizes, styles, transforms and font features via the
  * {@code deriveFont} methods in this class.
  *
- * <h3>Font and TextAttribute</h3>
+ * <h2>Font and TextAttribute</h2>
  *
  * <p>{@code Font} supports most
  * {@code TextAttribute}s.  This makes some operations, such as
@@ -495,13 +495,7 @@ public class Font implements java.io.Serializable
 
     private Font2D getFont2D() {
         FontManager fm = FontManagerFactory.getInstance();
-        if (fm.usingPerAppContextComposites() &&
-            font2DHandle != null &&
-            font2DHandle.font2D instanceof CompositeFont &&
-            ((CompositeFont)(font2DHandle.font2D)).isStdComposite()) {
-            return fm.findFont2D(name, style,
-                                          FontManager.LOGICAL_FALLBACK);
-        } else if (font2DHandle == null) {
+        if (font2DHandle == null) {
             font2DHandle =
                 fm.findFont2D(name, style,
                               FontManager.LOGICAL_FALLBACK).handle;

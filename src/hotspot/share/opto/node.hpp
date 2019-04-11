@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_NODE_HPP
-#define SHARE_VM_OPTO_NODE_HPP
+#ifndef SHARE_OPTO_NODE_HPP
+#define SHARE_OPTO_NODE_HPP
 
 #include "libadt/vectset.hpp"
 #include "opto/compile.hpp"
@@ -142,7 +142,6 @@ class RegionNode;
 class RootNode;
 class SafePointNode;
 class SafePointScalarObjectNode;
-class ShenandoahBarrierNode;
 class StartNode;
 class State;
 class StoreNode;
@@ -676,7 +675,6 @@ public:
       DEFINE_CLASS_ID(EncodeNarrowPtr, Type, 6)
         DEFINE_CLASS_ID(EncodeP, EncodeNarrowPtr, 0)
         DEFINE_CLASS_ID(EncodePKlass, EncodeNarrowPtr, 1)
-      DEFINE_CLASS_ID(ShenandoahBarrier, Type, 7)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -875,7 +873,6 @@ public:
   DEFINE_CLASS_QUERY(Root)
   DEFINE_CLASS_QUERY(SafePoint)
   DEFINE_CLASS_QUERY(SafePointScalarObject)
-  DEFINE_CLASS_QUERY(ShenandoahBarrier)
   DEFINE_CLASS_QUERY(Start)
   DEFINE_CLASS_QUERY(Store)
   DEFINE_CLASS_QUERY(Sub)
@@ -1003,7 +1000,7 @@ public:
   // won't go into the table and we'll lose a little optimization.
   enum { NO_HASH = 0 };
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
 
   // Operation appears to be iteratively computed (such as an induction variable)
   // It is possible for this operation to return false for a loop-varying
@@ -1718,7 +1715,7 @@ Compile::set_node_notes_at(int idx, Node_Notes* value) {
 class TypeNode : public Node {
 protected:
   virtual uint hash() const;    // Check the type
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
   const Type* const _type;
 public:
@@ -1742,4 +1739,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_NODE_HPP
+#endif // SHARE_OPTO_NODE_HPP

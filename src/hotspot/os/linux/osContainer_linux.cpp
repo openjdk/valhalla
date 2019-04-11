@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,24 @@
 #include "logging/log.hpp"
 #include "osContainer_linux.hpp"
 
+/*
+ * PER_CPU_SHARES has been set to 1024 because CPU shares' quota
+ * is commonly used in cloud frameworks like Kubernetes[1],
+ * AWS[2] and Mesos[3] in a similar way. They spawn containers with
+ * --cpu-shares option values scaled by PER_CPU_SHARES. Thus, we do
+ * the inverse for determining the number of possible available
+ * CPUs to the JVM inside a container. See JDK-8216366.
+ *
+ * [1] https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu
+ *     In particular:
+ *        When using Docker:
+ *          The spec.containers[].resources.requests.cpu is converted to its core value, which is potentially
+ *          fractional, and multiplied by 1024. The greater of this number or 2 is used as the value of the
+ *          --cpu-shares flag in the docker run command.
+ * [2] https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerDefinition.html
+ * [3] https://github.com/apache/mesos/blob/3478e344fb77d931f6122980c6e94cd3913c441d/src/docker/docker.cpp#L648
+ *     https://github.com/apache/mesos/blob/3478e344fb77d931f6122980c6e94cd3913c441d/src/slave/containerizer/mesos/isolators/cgroups/constants.hpp#L30
+ */
 #define PER_CPU_SHARES 1024
 
 bool  OSContainer::_is_initialized   = false;
@@ -81,14 +99,14 @@ class CgroupSubsystem: CHeapObj<mtInternal> {
             buf[MAXPATHLEN-1] = '\0';
             _path = os::strdup(buf);
           } else {
-            char *p = strstr(_root, cgroup_path);
+            char *p = strstr(cgroup_path, _root);
             if (p != NULL && p == _root) {
               if (strlen(cgroup_path) > strlen(_root)) {
                 int buflen;
                 strncpy(buf, _mount_point, MAXPATHLEN);
                 buf[MAXPATHLEN-1] = '\0';
                 buflen = strlen(buf);
-                if ((buflen + strlen(cgroup_path)) > (MAXPATHLEN-1)) {
+                if ((buflen + strlen(cgroup_path) - strlen(_root)) > (MAXPATHLEN-1)) {
                   return;
                 }
                 strncat(buf, cgroup_path + strlen(_root), MAXPATHLEN-buflen);
@@ -199,16 +217,11 @@ PRAGMA_DIAG_POP
  * we are running under cgroup control.
  */
 void OSContainer::init() {
-  int mountid;
-  int parentid;
-  int major;
-  int minor;
   FILE *mntinfo = NULL;
   FILE *cgroup = NULL;
   char buf[MAXPATHLEN+1];
   char tmproot[MAXPATHLEN+1];
   char tmpmount[MAXPATHLEN+1];
-  char tmpbase[MAXPATHLEN+1];
   char *p;
   jlong mem_limit;
 
@@ -242,85 +255,24 @@ void OSContainer::init() {
       return;
   }
 
-  while ( (p = fgets(buf, MAXPATHLEN, mntinfo)) != NULL) {
-    // Look for the filesystem type and see if it's cgroup
-    char fstype[MAXPATHLEN+1];
-    fstype[0] = '\0';
-    char *s =  strstr(p, " - ");
-    if (s != NULL &&
-        sscanf(s, " - %s", fstype) == 1 &&
-        strcmp(fstype, "cgroup") == 0) {
+  while ((p = fgets(buf, MAXPATHLEN, mntinfo)) != NULL) {
+    char tmpcgroups[MAXPATHLEN+1];
+    char *cptr = tmpcgroups;
+    char *token;
 
-      if (strstr(p, "memory") != NULL) {
-        int matched = sscanf(p, "%d %d %d:%d %s %s",
-                             &mountid,
-                             &parentid,
-                             &major,
-                             &minor,
-                             tmproot,
-                             tmpmount);
-        if (matched == 6) {
-          memory = new CgroupSubsystem(tmproot, tmpmount);
-        }
-        else
-          log_debug(os, container)("Incompatible str containing cgroup and memory: %s", p);
-      } else if (strstr(p, "cpuset") != NULL) {
-        int matched = sscanf(p, "%d %d %d:%d %s %s",
-                             &mountid,
-                             &parentid,
-                             &major,
-                             &minor,
-                             tmproot,
-                             tmpmount);
-        if (matched == 6) {
-          cpuset = new CgroupSubsystem(tmproot, tmpmount);
-        }
-        else {
-          log_debug(os, container)("Incompatible str containing cgroup and cpuset: %s", p);
-        }
-      } else if (strstr(p, "cpu,cpuacct") != NULL || strstr(p, "cpuacct,cpu") != NULL) {
-        int matched = sscanf(p, "%d %d %d:%d %s %s",
-                             &mountid,
-                             &parentid,
-                             &major,
-                             &minor,
-                             tmproot,
-                             tmpmount);
-        if (matched == 6) {
-          cpu = new CgroupSubsystem(tmproot, tmpmount);
-          cpuacct = new CgroupSubsystem(tmproot, tmpmount);
-        }
-        else {
-          log_debug(os, container)("Incompatible str containing cgroup and cpu,cpuacct: %s", p);
-        }
-      } else if (strstr(p, "cpuacct") != NULL) {
-        int matched = sscanf(p, "%d %d %d:%d %s %s",
-                             &mountid,
-                             &parentid,
-                             &major,
-                             &minor,
-                             tmproot,
-                             tmpmount);
-        if (matched == 6) {
-          cpuacct = new CgroupSubsystem(tmproot, tmpmount);
-        }
-        else {
-          log_debug(os, container)("Incompatible str containing cgroup and cpuacct: %s", p);
-        }
-      } else if (strstr(p, "cpu") != NULL) {
-        int matched = sscanf(p, "%d %d %d:%d %s %s",
-                             &mountid,
-                             &parentid,
-                             &major,
-                             &minor,
-                             tmproot,
-                             tmpmount);
-        if (matched == 6) {
-          cpu = new CgroupSubsystem(tmproot, tmpmount);
-        }
-        else {
-          log_debug(os, container)("Incompatible str containing cgroup and cpu: %s", p);
-        }
+    // mountinfo format is documented at https://www.kernel.org/doc/Documentation/filesystems/proc.txt
+    if (sscanf(p, "%*d %*d %*d:%*d %s %s %*[^-]- cgroup %*s %s", tmproot, tmpmount, tmpcgroups) != 3) {
+      continue;
+    }
+    while ((token = strsep(&cptr, ",")) != NULL) {
+      if (strcmp(token, "memory") == 0) {
+        memory = new CgroupSubsystem(tmproot, tmpmount);
+      } else if (strcmp(token, "cpuset") == 0) {
+        cpuset = new CgroupSubsystem(tmproot, tmpmount);
+      } else if (strcmp(token, "cpu") == 0) {
+        cpu = new CgroupSubsystem(tmproot, tmpmount);
+      } else if (strcmp(token, "cpuacct") == 0) {
+        cpuacct= new CgroupSubsystem(tmproot, tmpmount);
       }
     }
   }
@@ -374,30 +326,30 @@ void OSContainer::init() {
     return;
   }
 
-  while ( (p = fgets(buf, MAXPATHLEN, cgroup)) != NULL) {
-    int cgno;
-    int matched;
-    char *controller;
+  while ((p = fgets(buf, MAXPATHLEN, cgroup)) != NULL) {
+    char *controllers;
+    char *token;
     char *base;
 
     /* Skip cgroup number */
     strsep(&p, ":");
-    /* Get controller and base */
-    controller = strsep(&p, ":");
+    /* Get controllers and base */
+    controllers = strsep(&p, ":");
     base = strsep(&p, "\n");
 
-    if (controller != NULL) {
-      if (strstr(controller, "memory") != NULL) {
+    if (controllers == NULL) {
+      continue;
+    }
+
+    while ((token = strsep(&controllers, ",")) != NULL) {
+      if (strcmp(token, "memory") == 0) {
         memory->set_subsystem_path(base);
-      } else if (strstr(controller, "cpuset") != NULL) {
+      } else if (strcmp(token, "cpuset") == 0) {
         cpuset->set_subsystem_path(base);
-      } else if (strstr(controller, "cpu,cpuacct") != NULL || strstr(controller, "cpuacct,cpu") != NULL) {
+      } else if (strcmp(token, "cpu") == 0) {
         cpu->set_subsystem_path(base);
+      } else if (strcmp(token, "cpuacct") == 0) {
         cpuacct->set_subsystem_path(base);
-      } else if (strstr(controller, "cpuacct") != NULL) {
-        cpuacct->set_subsystem_path(base);
-      } else if (strstr(controller, "cpu") != NULL) {
-        cpu->set_subsystem_path(base);
       }
     }
   }

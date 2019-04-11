@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/compilationPolicy.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -133,11 +134,6 @@ CompileLog** CompileBroker::_compiler2_logs = NULL;
 // These counters are used to assign an unique ID to each compilation.
 volatile jint CompileBroker::_compilation_id     = 0;
 volatile jint CompileBroker::_osr_compilation_id = 0;
-
-// Debugging information
-int  CompileBroker::_last_compile_type     = no_compile;
-int  CompileBroker::_last_compile_level    = CompLevel_none;
-char CompileBroker::_last_method_compiled[CompileBroker::name_buffer_length];
 
 // Performance counters
 PerfCounter* CompileBroker::_perf_total_compilation = NULL;
@@ -257,14 +253,14 @@ CompileTaskWrapper::CompileTaskWrapper(CompileTask* task) {
   }
 #endif
   CompileLog*     log  = thread->log();
-  if (log != NULL)  task->log_task_start(log);
+  if (log != NULL && !task->is_unloaded())  task->log_task_start(log);
 }
 
 CompileTaskWrapper::~CompileTaskWrapper() {
   CompilerThread* thread = CompilerThread::current();
   CompileTask* task = thread->task();
   CompileLog*  log  = thread->log();
-  if (log != NULL)  task->log_task_done(log);
+  if (log != NULL && !task->is_unloaded())  task->log_task_done(log);
   thread->set_task(NULL);
   task->set_code_handle(NULL);
   thread->set_env(NULL);
@@ -443,6 +439,9 @@ CompileTask* CompileQueue::get() {
   {
     NoSafepointVerifier nsv;
     task = CompilationPolicy::policy()->select_task(this);
+    if (task != NULL) {
+      task = task->select_for_compilation();
+    }
   }
 
   if (task != NULL) {
@@ -454,7 +453,6 @@ CompileTask* CompileQueue::get() {
     remove(task);
     purge_stale_tasks(); // may temporarily release MCQ lock
   }
-
   return task;
 }
 
@@ -482,7 +480,7 @@ void CompileQueue::purge_stale_tasks() {
 }
 
 void CompileQueue::remove(CompileTask* task) {
-   assert(MethodCompileQueue_lock->owned_by_self(), "must own lock");
+  assert(MethodCompileQueue_lock->owned_by_self(), "must own lock");
   if (task->prev() != NULL) {
     task->prev()->set_next(task->next());
   } else {
@@ -533,7 +531,7 @@ void CompileBroker::print_compile_queues(outputStream* st) {
 
   char buf[2000];
   int buflen = sizeof(buf);
-  Threads::print_threads_compiling(st, buf, buflen);
+  Threads::print_threads_compiling(st, buf, buflen, /* short_form = */ true);
 
   st->cr();
   if (_c1_compile_queue != NULL) {
@@ -574,8 +572,6 @@ CompilerCounters::CompilerCounters() {
 //
 // Initialize the Compilation object
 void CompileBroker::compilation_init_phase1(TRAPS) {
-  _last_method_compiled[0] = '\0';
-
   // No need to initialize compilation system if we do not use it.
   if (!UseCompiler) {
     return;
@@ -2029,8 +2025,10 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     // Look up matching directives
     directive = DirectivesStack::getMatchingDirective(method, comp);
 
-    // Save information about this method in case of failure.
-    set_last_compile(thread, method, is_osr, task_level);
+    // Update compile information when using perfdata.
+    if (UsePerfData) {
+      update_compile_perf_data(thread, method, is_osr);
+    }
 
     DTRACE_METHOD_COMPILE_BEGIN_PROBE(method, compiler_name(task_level));
   }
@@ -2045,6 +2043,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
   Method* target_handle = task->method();
   int compilable = ciEnv::MethodCompilable;
   const char* failure_reason = NULL;
+  bool failure_reason_on_C_heap = false;
   const char* retry_message = NULL;
 
   int system_dictionary_modification_counter;
@@ -2071,6 +2070,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
         jvmci->compile_method(method, osr_bci, &env);
 
         failure_reason = env.failure_reason();
+        failure_reason_on_C_heap = env.failure_reason_on_C_heap();
         if (!env.retryable()) {
           retry_message = "not retryable";
           compilable = ciEnv::MethodCompilable_not_at_tier;
@@ -2146,7 +2146,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
   pop_jni_handle_block();
 
   if (failure_reason != NULL) {
-    task->set_failure_reason(failure_reason);
+    task->set_failure_reason(failure_reason, failure_reason_on_C_heap);
     if (_compilation_log != NULL) {
       _compilation_log->log_failure(thread, task, failure_reason, retry_message);
     }
@@ -2212,15 +2212,6 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
   // the point somewhat) our clearing of the bits must be occurring
   // only after the setting of the bits. See also 14012000 above.
   method->clear_queued_for_compilation();
-
-#ifdef ASSERT
-  if (CollectedHeap::fired_fake_oom()) {
-    // The current compile received a fake OOM during compilation so
-    // go ahead and exit the VM since the test apparently succeeded
-    tty->print_cr("*** Shutting down VM after successful fake OOM");
-    vm_exit(0);
-  }
-#endif
 }
 
 /**
@@ -2268,57 +2259,48 @@ void CompileBroker::handle_full_code_cache(int code_blob_type) {
 }
 
 // ------------------------------------------------------------------
-// CompileBroker::set_last_compile
+// CompileBroker::update_compile_perf_data
 //
 // Record this compilation for debugging purposes.
-void CompileBroker::set_last_compile(CompilerThread* thread, const methodHandle& method, bool is_osr, int comp_level) {
+void CompileBroker::update_compile_perf_data(CompilerThread* thread, const methodHandle& method, bool is_osr) {
   ResourceMark rm;
   char* method_name = method->name()->as_C_string();
-  strncpy(_last_method_compiled, method_name, CompileBroker::name_buffer_length);
-  _last_method_compiled[CompileBroker::name_buffer_length - 1] = '\0'; // ensure null terminated
   char current_method[CompilerCounters::cmname_buffer_length];
   size_t maxLen = CompilerCounters::cmname_buffer_length;
 
-  if (UsePerfData) {
-    const char* class_name = method->method_holder()->name()->as_C_string();
+  const char* class_name = method->method_holder()->name()->as_C_string();
 
-    size_t s1len = strlen(class_name);
-    size_t s2len = strlen(method_name);
+  size_t s1len = strlen(class_name);
+  size_t s2len = strlen(method_name);
 
-    // check if we need to truncate the string
-    if (s1len + s2len + 2 > maxLen) {
+  // check if we need to truncate the string
+  if (s1len + s2len + 2 > maxLen) {
 
-      // the strategy is to lop off the leading characters of the
-      // class name and the trailing characters of the method name.
+    // the strategy is to lop off the leading characters of the
+    // class name and the trailing characters of the method name.
 
-      if (s2len + 2 > maxLen) {
-        // lop of the entire class name string, let snprintf handle
-        // truncation of the method name.
-        class_name += s1len; // null string
-      }
-      else {
-        // lop off the extra characters from the front of the class name
-        class_name += ((s1len + s2len + 2) - maxLen);
-      }
+    if (s2len + 2 > maxLen) {
+      // lop of the entire class name string, let snprintf handle
+      // truncation of the method name.
+      class_name += s1len; // null string
     }
-
-    jio_snprintf(current_method, maxLen, "%s %s", class_name, method_name);
+    else {
+      // lop off the extra characters from the front of the class name
+      class_name += ((s1len + s2len + 2) - maxLen);
+    }
   }
 
+  jio_snprintf(current_method, maxLen, "%s %s", class_name, method_name);
+
+  int last_compile_type = normal_compile;
   if (CICountOSR && is_osr) {
-    _last_compile_type = osr_compile;
-  } else {
-    _last_compile_type = normal_compile;
+    last_compile_type = osr_compile;
   }
-  _last_compile_level = comp_level;
 
-  if (UsePerfData) {
-    CompilerCounters* counters = thread->counters();
-    counters->set_current_method(current_method);
-    counters->set_compile_type((jlong)_last_compile_type);
-  }
+  CompilerCounters* counters = thread->counters();
+  counters->set_current_method(current_method);
+  counters->set_compile_type((jlong) last_compile_type);
 }
-
 
 // ------------------------------------------------------------------
 // CompileBroker::push_jni_handle_block
@@ -2622,21 +2604,6 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   tty->print_cr("  nmethod total size        : %8d bytes", nmethods_size);
 }
 
-// Debugging output for failure
-void CompileBroker::print_last_compile() {
-  if (_last_compile_level != CompLevel_none &&
-      compiler(_last_compile_level) != NULL &&
-      _last_compile_type != no_compile) {
-    if (_last_compile_type == osr_compile) {
-      tty->print_cr("Last parse:  [osr]%d+++(%d) %s",
-                    _osr_compilation_id, _last_compile_level, _last_method_compiled);
-    } else {
-      tty->print_cr("Last parse:  %d+++(%d) %s",
-                    _compilation_id, _last_compile_level, _last_method_compiled);
-    }
-  }
-}
-
 // Print general/accumulated JIT information.
 void CompileBroker::print_info(outputStream *out) {
   if (out == NULL) out = tty;
@@ -2672,6 +2639,7 @@ void CompileBroker::print_info(outputStream *out) {
 //       preventing concurrently printing threads from stalling a long time.
 void CompileBroker::print_heapinfo(outputStream* out, const char* function, const char* granularity) {
   TimeStamp ts_total;
+  TimeStamp ts_global;
   TimeStamp ts;
 
   bool allFun = !strcmp(function, "all");
@@ -2701,35 +2669,43 @@ void CompileBroker::print_heapinfo(outputStream* out, const char* function, cons
   }
 
   // We hold the CodeHeapStateAnalytics_lock all the time, from here until we leave this function.
-  // That helps us getting a consistent view on the CodeHeap, at least for the "all" function.
+  // That prevents another thread from destroying our view on the CodeHeap.
   // When we request individual parts of the analysis via the jcmd interface, it is possible
   // that in between another thread (another jcmd user or the vm running into CodeCache OOM)
   // updated the aggregated data. That's a tolerable tradeoff because we can't hold a lock
   // across user interaction.
+  // Acquire this lock before acquiring the CodeCache_lock.
+  // CodeHeapStateAnalytics_lock could be held by a concurrent thread for a long time,
+  // leading to an unnecessarily long hold time of the CodeCache_lock.
   ts.update(); // record starting point
   MutexLockerEx mu1(CodeHeapStateAnalytics_lock, Mutex::_no_safepoint_check_flag);
-  out->cr();
-  out->print_cr("__ CodeHeapStateAnalytics lock wait took %10.3f seconds _________", ts.seconds());
-  out->cr();
+  out->print_cr("\n__ CodeHeapStateAnalytics lock wait took %10.3f seconds _________\n", ts.seconds());
+
+  // If we serve an "allFun" call, it is beneficial to hold the CodeCache_lock
+  // for the entire duration of aggregation and printing. That makes sure
+  // we see a consistent picture and do not run into issues caused by
+  // the CodeHeap being altered concurrently.
+  Monitor* global_lock   = allFun ? CodeCache_lock : NULL;
+  Monitor* function_lock = allFun ? NULL : CodeCache_lock;
+  ts_global.update(); // record starting point
+  MutexLockerEx mu2(global_lock, Mutex::_no_safepoint_check_flag);
+  if (global_lock != NULL) {
+    out->print_cr("\n__ CodeCache (global) lock wait took %10.3f seconds _________\n", ts_global.seconds());
+    ts_global.update(); // record starting point
+  }
 
   if (aggregate) {
-    // It is sufficient to hold the CodeCache_lock only for the aggregate step.
-    // All other functions operate on aggregated data - except MethodNames, but that should be safe.
-    // The separate CodeHeapStateAnalytics_lock protects the printing functions against
-    // concurrent aggregate steps. Acquire this lock before acquiring the CodeCache_lock.
-    // CodeHeapStateAnalytics_lock could be held by a concurrent thread for a long time,
-    // leading to an unnecessarily long hold time of the CodeCache_lock.
     ts.update(); // record starting point
-    MutexLockerEx mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    out->cr();
-    out->print_cr("__ CodeCache lock wait took %10.3f seconds _________", ts.seconds());
-    out->cr();
+    MutexLockerEx mu3(function_lock, Mutex::_no_safepoint_check_flag);
+    if (function_lock != NULL) {
+      out->print_cr("\n__ CodeCache (function) lock wait took %10.3f seconds _________\n", ts.seconds());
+    }
 
     ts.update(); // record starting point
     CodeCache::aggregate(out, granularity);
-    out->cr();
-    out->print_cr("__ CodeCache lock hold took %10.3f seconds _________", ts.seconds());
-    out->cr();
+    if (function_lock != NULL) {
+      out->print_cr("\n__ CodeCache (function) lock hold took %10.3f seconds _________\n", ts.seconds());
+    }
   }
 
   if (usedSpace) CodeCache::print_usedSpace(out);
@@ -2737,10 +2713,16 @@ void CompileBroker::print_heapinfo(outputStream* out, const char* function, cons
   if (methodCount) CodeCache::print_count(out);
   if (methodSpace) CodeCache::print_space(out);
   if (methodAge) CodeCache::print_age(out);
-  if (methodNames) CodeCache::print_names(out);
+  if (methodNames) {
+    // print_names() has shown to be sensitive to concurrent CodeHeap modifications.
+    // Therefore, request  the CodeCache_lock before calling...
+    MutexLockerEx mu3(function_lock, Mutex::_no_safepoint_check_flag);
+    CodeCache::print_names(out);
+  }
   if (discard) CodeCache::discard(out);
 
-  out->cr();
-  out->print_cr("__ CodeHeapStateAnalytics total duration %10.3f seconds _________", ts_total.seconds());
-  out->cr();
+  if (global_lock != NULL) {
+    out->print_cr("\n__ CodeCache (global) lock hold took %10.3f seconds _________\n", ts_global.seconds());
+  }
+  out->print_cr("\n__ CodeHeapStateAnalytics total duration %10.3f seconds _________\n", ts_total.seconds());
 }

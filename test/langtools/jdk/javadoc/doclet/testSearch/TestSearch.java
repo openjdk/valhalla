@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,13 @@
  *      8184205 8214468
  * @summary Test the search feature of javadoc.
  * @author bpatel
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestSearch
  */
+import javadoc.tester.JavadocTester;
+
 public class TestSearch extends JavadocTester {
 
     public static void main(String... args) throws Exception {
@@ -41,7 +43,7 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test1() {
+    public void test1() {
         javadoc("-d", "out-1",
                 "-sourcepath",
                 "-use",
@@ -63,12 +65,11 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test2() {
+    public void test2() {
         javadoc("-d", "out-2",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
@@ -90,24 +91,11 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test2_html4() {
-        javadoc("-d", "out-2-html4",
-                "-html4",
-                "-Xdoclint:none",
-                "-sourcepath", testSrc,
-                "-use",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkExit(Exit.OK);
-        checkSingleIndex(true, false);
-    }
-
-    @Test
-    void test2a() {
+    public void test2a() {
         javadoc("-d", "out-2a",
                 "-Xdoclint:all",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.ERROR);
         checkDocLintErrors();
@@ -128,24 +116,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test2a_html4() {
-        javadoc("-d", "out-2a-html4",
-                "-html4",
-                "-Xdoclint:all",
-                "-sourcepath", testSrc,
-                "-use",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkSingleIndex(true, false);
-    }
-
-    @Test
-    void test3() {
+    public void test3() {
         javadoc("-d", "out-3",
                 "-noindex",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
@@ -165,13 +141,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test4() {
+    public void test4() {
         javadoc("-d", "out-4",
                 "-html5",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -191,14 +166,13 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test5() {
+    public void test5() {
         javadoc("-d", "out-5",
                 "-html5",
                 "-noindex",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
@@ -216,13 +190,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test6() {
+    public void test6() {
         javadoc("-d", "out-6",
                 "-nocomment",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -241,13 +214,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test7() {
+    public void test7() {
         javadoc("-d", "out-7",
                 "-nodeprecated",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
 
         checkExit(Exit.OK);
@@ -267,13 +239,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test8() {
+    public void test8() {
         javadoc("-d", "out-8",
                 "-splitindex",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
@@ -294,14 +265,13 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void test9() {
+    public void test9() {
         javadoc("-d", "out-9",
                 "-sourcepath", testSrc,
                 "-javafx",
                 "--disable-javafx-strict-checks",
                 "-package",
                 "-use",
-                "--frames",
                 "pkgfx", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -321,13 +291,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void testNoModuleDirectories() {
+    public void testNoModuleDirectories() {
         javadoc("-d", "out-noMdlDir",
                 "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true, false);
@@ -335,7 +304,7 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void testURLEncoding() {
+    public void testURLEncoding() {
         javadoc("-d", "out-encode-html5",
                 "--no-module-directories",
                 "-Xdoclint:none",
@@ -348,22 +317,7 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void testURLEncoding_html4() {
-        javadoc("-d", "out-encode-html4",
-                "-html4",
-                "--no-module-directories",
-                "-Xdoclint:none",
-                "-sourcepath", testSrc,
-                "-use",
-                "--frames",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkExit(Exit.OK);
-        checkSearchJS();
-        checkSearchIndex(false);
-    }
-
-    @Test
-    void testJapaneseLocale() {
+    public void testJapaneseLocale() {
         javadoc("-locale", "ja_JP",
                 "-d", "out-jp",
                 "--no-module-directories",
@@ -382,7 +336,7 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    void testChineseLocale() {
+    public void testChineseLocale() {
         javadoc("-locale", "zh_CN",
                 "-d", "out-cn",
                 "--no-module-directories",
@@ -409,7 +363,7 @@ public class TestSearch extends JavadocTester {
     }
 
     void checkSearchOutput(boolean expectedOutput) {
-        checkSearchOutput("overview-summary.html", expectedOutput, true);
+        checkSearchOutput("index.html", expectedOutput, true);
     }
 
     void checkSearchIndex(boolean expectedOutput) {
@@ -426,7 +380,7 @@ public class TestSearch extends JavadocTester {
     }
 
     void checkSearchOutput(boolean expectedOutput, boolean moduleDirectoriesVar) {
-        checkSearchOutput("overview-summary.html", expectedOutput, moduleDirectoriesVar);
+        checkSearchOutput("index.html", expectedOutput, moduleDirectoriesVar);
     }
 
     void checkSearchOutput(String fileName, boolean expectedOutput, boolean moduleDirectoriesVar) {
@@ -671,7 +625,7 @@ public class TestSearch extends JavadocTester {
                 "function concatResults(a1, a2) {",
                 "if (exactMatcher.test(item.l)) {\n"
                 + "                        presult.push(item);",
-                "$(\"#search\").on('click keydown', function() {\n"
+                "$(\"#search\").on('click keydown paste', function() {\n"
                 + "        if ($(this).val() == watermark) {\n"
                 + "            $(this).val('').removeClass('watermark');\n"
                 + "        }\n"
@@ -686,7 +640,7 @@ public class TestSearch extends JavadocTester {
                 + "            return ui.item.m + slash;\n"
                 + "        } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {\n"
                 + "            $.each(packageSearchIndex, function(index, item) {\n"
-                + "                if (ui.item.p == item.l) {\n"
+                + "                if (item.m && ui.item.p == item.l) {\n"
                 + "                    urlPrefix = item.m + slash;\n"
                 + "                }\n"
                 + "            });\n"
@@ -753,6 +707,7 @@ public class TestSearch extends JavadocTester {
                 + " id=\"t6\" class=\"tableTab\" onclick=\"show(32);\">Annotation Types Summary</button></div>\n"
                 + "<div id=\"typeSummary_tabpanel\" role=\"tabpanel\">\n"
                 + "<table aria-labelledby=\"t0\">\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
@@ -762,6 +717,7 @@ public class TestSearch extends JavadocTester {
         checkOutput("allpackages-index.html", true,
                 "<div class=\"packagesSummary\">\n<table>\n"
                 + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"

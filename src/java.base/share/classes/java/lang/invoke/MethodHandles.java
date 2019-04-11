@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -273,7 +273,7 @@ public class MethodHandles {
      * This includes all methods, constructors, and fields which are allowed to the lookup class,
      * even private ones.
      *
-     * <h1><a id="lookups"></a>Lookup Factory Methods</h1>
+     * <h2><a id="lookups"></a>Lookup Factory Methods</h2>
      * The factory methods on a {@code Lookup} object correspond to all major
      * use cases for methods, constructors, and fields.
      * Each method handle created by a factory method is the functional
@@ -400,7 +400,7 @@ public class MethodHandles {
      * <a href="MethodHandle.html#maxarity">too many parameters.</a>
      * </ul>
      *
-     * <h1><a id="access"></a>Access checking</h1>
+     * <h2><a id="access"></a>Access checking</h2>
      * Access checks are applied in the factory methods of {@code Lookup},
      * when a method handle is created.
      * This is a key difference from the Core Reflection API, since
@@ -427,6 +427,10 @@ public class MethodHandles {
      * because the desired class member is missing, or because the
      * desired class member is not accessible to the lookup class, or
      * because the lookup object is not trusted enough to access the member.
+     * In the case of a field setter function on a {@code final} field,
+     * finality enforcement is treated as a kind of access control,
+     * and the lookup will fail, except in special cases of
+     * {@link Lookup#unreflectSetter Lookup.unreflectSetter}.
      * In any of these cases, a {@code ReflectiveOperationException} will be
      * thrown from the attempted lookup.  The exact class will be one of
      * the following:
@@ -534,7 +538,7 @@ public class MethodHandles {
      * whose <a href="MethodHandles.Lookup.html#equiv">bytecode behaviors</a> and Java language access permissions
      * can be reliably determined and emulated by method handles.
      *
-     * <h1><a id="secmgr"></a>Security manager interactions</h1>
+     * <h2><a id="secmgr"></a>Security manager interactions</h2>
      * Although bytecode instructions can only refer to classes in
      * a related class loader, this API can search for methods in any
      * class, as long as a reference to its {@code Class} object is
@@ -593,7 +597,7 @@ public class MethodHandles {
      * or else that is being accessed from a lookup class that has
      * rights to access the member or class.
      *
-     * <h1><a id="callsens"></a>Caller sensitive methods</h1>
+     * <h2><a id="callsens"></a>Caller sensitive methods</h2>
      * A small number of Java methods have a special property called caller sensitivity.
      * A <em>caller-sensitive</em> method can behave differently depending on the
      * identity of its immediate caller.
@@ -1732,6 +1736,7 @@ assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
          * @return a method handle which can store values into the field
          * @throws NoSuchFieldException if the field does not exist
          * @throws IllegalAccessException if access checking fails, or if the field is {@code static}
+         *                                or {@code final}
          * @exception SecurityException if a security manager is present and it
          *                              <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws NullPointerException if any argument is null
@@ -1855,6 +1860,7 @@ assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
          * @return a method handle which can store values into the field
          * @throws NoSuchFieldException if the field does not exist
          * @throws IllegalAccessException if access checking fails, or if the field is not {@code static}
+         *                                or is {@code final}
          * @exception SecurityException if a security manager is present and it
          *                              <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws NullPointerException if any argument is null
@@ -2134,10 +2140,10 @@ return mh1;
          * Produces a method handle giving read access to a reflected field.
          * The type of the method handle will have a return type of the field's
          * value type.
-         * If the field is static, the method handle will take no arguments.
+         * If the field is {@code static}, the method handle will take no arguments.
          * Otherwise, its single argument will be the instance containing
          * the field.
-         * If the field's {@code accessible} flag is not set,
+         * If the {@code Field} object's {@code accessible} flag is not set,
          * access checking is performed immediately on behalf of the lookup class.
          * <p>
          * If the field is static, and
@@ -2151,36 +2157,49 @@ return mh1;
         public MethodHandle unreflectGetter(Field f) throws IllegalAccessException {
             return unreflectField(f, false);
         }
+
+        /**
+         * Produces a method handle giving write access to a reflected field.
+         * The type of the method handle will have a void return type.
+         * If the field is {@code static}, the method handle will take a single
+         * argument, of the field's value type, the value to be stored.
+         * Otherwise, the two arguments will be the instance containing
+         * the field, and the value to be stored.
+         * If the {@code Field} object's {@code accessible} flag is not set,
+         * access checking is performed immediately on behalf of the lookup class.
+         * <p>
+         * If the field is {@code final}, write access will not be
+         * allowed and access checking will fail, except under certain
+         * narrow circumstances documented for {@link Field#set Field.set}.
+         * A method handle is returned only if a corresponding call to
+         * the {@code Field} object's {@code set} method could return
+         * normally.  In particular, fields which are both {@code static}
+         * and {@code final} may never be set.
+         * <p>
+         * If the field is {@code static}, and
+         * if the returned method handle is invoked, the field's class will
+         * be initialized, if it has not already been initialized.
+         * @param f the reflected field
+         * @return a method handle which can store values into the reflected field
+         * @throws IllegalAccessException if access checking fails,
+         *         or if the field is {@code final} and write access
+         *         is not enabled on the {@code Field} object
+         * @throws NullPointerException if the argument is null
+         */
+        public MethodHandle unreflectSetter(Field f) throws IllegalAccessException {
+            return unreflectField(f, true);
+        }
+
         private MethodHandle unreflectField(Field f, boolean isSetter) throws IllegalAccessException {
             MemberName field = new MemberName(f, isSetter);
+            if (isSetter && field.isStatic() && field.isFinal())
+                throw field.makeAccessException("static final field has no write access", this);
             assert(isSetter
                     ? MethodHandleNatives.refKindIsSetter(field.getReferenceKind())
                     : MethodHandleNatives.refKindIsGetter(field.getReferenceKind()));
             @SuppressWarnings("deprecation")
             Lookup lookup = f.isAccessible() ? IMPL_LOOKUP : this;
             return lookup.getDirectFieldNoSecurityManager(field.getReferenceKind(), f.getDeclaringClass(), field);
-        }
-
-        /**
-         * Produces a method handle giving write access to a reflected field.
-         * The type of the method handle will have a void return type.
-         * If the field is static, the method handle will take a single
-         * argument, of the field's value type, the value to be stored.
-         * Otherwise, the two arguments will be the instance containing
-         * the field, and the value to be stored.
-         * If the field's {@code accessible} flag is not set,
-         * access checking is performed immediately on behalf of the lookup class.
-         * <p>
-         * If the field is static, and
-         * if the returned method handle is invoked, the field's class will
-         * be initialized, if it has not already been initialized.
-         * @param f the reflected field
-         * @return a method handle which can store values into the reflected field
-         * @throws IllegalAccessException if access checking fails
-         * @throws NullPointerException if the argument is null
-         */
-        public MethodHandle unreflectSetter(Field f) throws IllegalAccessException {
-            return unreflectField(f, true);
         }
 
         /**

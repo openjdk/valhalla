@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSADAPTIVESIZEPOLICY_HPP
-#define SHARE_VM_GC_PARALLEL_PSADAPTIVESIZEPOLICY_HPP
+#ifndef SHARE_GC_PARALLEL_PSADAPTIVESIZEPOLICY_HPP
+#define SHARE_GC_PARALLEL_PSADAPTIVESIZEPOLICY_HPP
 
 #include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/gcCause.hpp"
@@ -75,7 +75,6 @@ class PSAdaptiveSizePolicy : public AdaptiveSizePolicy {
   // Statistical data gathered for GC
   GCStats _gc_stats;
 
-  size_t _survivor_size_limit;   // Limit in bytes of survivor size
   const double _collection_cost_margin_fraction;
 
   // Variable for estimating the major and minor pause times.
@@ -110,13 +109,6 @@ class PSAdaptiveSizePolicy : public AdaptiveSizePolicy {
 
   // Flag indicating that the adaptive policy is ready to use
   bool _old_gen_policy_is_ready;
-
-  // Changing the generation sizing depends on the data that is
-  // gathered about the effects of changes on the pause times and
-  // throughput.  These variable count the number of data points
-  // gathered.  The policy may use these counters as a threshold
-  // for reliable data.
-  julong _young_gen_change_for_major_pause_count;
 
   // To facilitate faster growth at start up, supplement the normal
   // growth percentage for the young gen eden and the
@@ -402,4 +394,4 @@ class PSAdaptiveSizePolicy : public AdaptiveSizePolicy {
   void decay_supplemental_growth(bool is_full_gc);
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSADAPTIVESIZEPOLICY_HPP
+#endif // SHARE_GC_PARALLEL_PSADAPTIVESIZEPOLICY_HPP

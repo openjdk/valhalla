@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_FILEMAP_HPP
-#define SHARE_VM_MEMORY_FILEMAP_HPP
+#ifndef SHARE_MEMORY_FILEMAP_HPP
+#define SHARE_MEMORY_FILEMAP_HPP
 
 #include "classfile/classLoader.hpp"
 #include "include/cds.h"
@@ -302,6 +302,10 @@ public:
   bool validate_shared_path_table();
   static void update_shared_classpath(ClassPathEntry *cpe, SharedClassPathEntry* ent, TRAPS);
 
+#if INCLUDE_JVMTI
+  static ClassFileStream* open_stream_for_jvmti(InstanceKlass* ik, Handle class_loader, TRAPS);
+#endif
+
   static SharedClassPathEntry* shared_path(int index) {
     if (index < 0) {
       return NULL;
@@ -348,6 +352,11 @@ public:
   }
 
   address decode_start_address(CDSFileMapRegion* spc, bool with_current_oop_encoding_mode);
+
+#if INCLUDE_JVMTI
+  static ClassPathEntry** _classpath_entries_for_jvmti;
+  static ClassPathEntry* get_classpath_entry_for_jvmti(int i, TRAPS);
+#endif
 };
 
-#endif // SHARE_VM_MEMORY_FILEMAP_HPP
+#endif // SHARE_MEMORY_FILEMAP_HPP

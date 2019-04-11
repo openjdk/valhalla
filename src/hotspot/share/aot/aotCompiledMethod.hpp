@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_VM_AOT_AOTCOMPILEDMETHOD_HPP
-#define SHARE_VM_AOT_AOTCOMPILEDMETHOD_HPP
+#ifndef SHARE_AOT_AOTCOMPILEDMETHOD_HPP
+#define SHARE_AOT_AOTCOMPILEDMETHOD_HPP
 
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
@@ -206,7 +206,6 @@ private:
   // AOT compiled methods do not get into zombie state
   virtual bool can_convert_to_zombie() { return false; }
 
-  virtual bool is_evol_dependent_on(Klass* dependee);
   virtual bool is_dependent_on_method(Method* dependee) { return true; }
 
   virtual void clear_inline_caches();
@@ -240,7 +239,7 @@ private:
   address get_original_pc(const frame* fr) { return *orig_pc_addr(fr); }
   void    set_original_pc(const frame* fr, address pc) { *orig_pc_addr(fr) = pc; }
 
-  virtual void metadata_do(void f(Metadata*));
+  virtual void metadata_do(MetadataClosure* f);
 
   bool metadata_got_contains(Metadata **p) {
     return p >= &_metadata_got[0] && p < &_metadata_got[_metadata_size];
@@ -314,4 +313,4 @@ public:
   }
 };
 
-#endif //SHARE_VM_AOT_AOTCOMPILEDMETHOD_HPP
+#endif // SHARE_AOT_AOTCOMPILEDMETHOD_HPP

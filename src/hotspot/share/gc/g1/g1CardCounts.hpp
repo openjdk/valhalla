@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CARDCOUNTS_HPP
-#define SHARE_VM_GC_G1_G1CARDCOUNTS_HPP
+#ifndef SHARE_GC_G1_G1CARDCOUNTS_HPP
+#define SHARE_GC_G1_G1CARDCOUNTS_HPP
 
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1RegionToSpaceMapper.hpp"
@@ -54,19 +54,23 @@ class G1CardCountsMappingChangedListener : public G1MappingChangedListener {
 // is 'drained' during the next evacuation pause.
 
 class G1CardCounts: public CHeapObj<mtGC> {
+public:
+  typedef CardTable::CardValue CardValue;
+
+private:
   G1CardCountsMappingChangedListener _listener;
 
   G1CollectedHeap* _g1h;
   G1CardTable*     _ct;
 
   // The table of counts
-  jubyte* _card_counts;
+  uint8_t* _card_counts;
 
   // Max capacity of the reserved space for the counts table
   size_t _reserved_max_card_num;
 
   // CardTable bottom.
-  const jbyte* _ct_bot;
+  const CardValue* _ct_bot;
 
   // Returns true if the card counts table has been reserved.
   bool has_reserved_count_table() { return _card_counts != NULL; }
@@ -76,22 +80,22 @@ class G1CardCounts: public CHeapObj<mtGC> {
     return has_reserved_count_table();
   }
 
-  size_t ptr_2_card_num(const jbyte* card_ptr) {
+  size_t ptr_2_card_num(const CardValue* card_ptr) {
     assert(card_ptr >= _ct_bot,
            "Invalid card pointer: "
            "card_ptr: " PTR_FORMAT ", "
            "_ct_bot: " PTR_FORMAT,
            p2i(card_ptr), p2i(_ct_bot));
-    size_t card_num = pointer_delta(card_ptr, _ct_bot, sizeof(jbyte));
+    size_t card_num = pointer_delta(card_ptr, _ct_bot, sizeof(CardValue));
     assert(card_num < _reserved_max_card_num,
            "card pointer out of range: " PTR_FORMAT, p2i(card_ptr));
     return card_num;
   }
 
-  jbyte* card_num_2_ptr(size_t card_num) {
+  CardValue* card_num_2_ptr(size_t card_num) {
     assert(card_num < _reserved_max_card_num,
            "card num out of range: " SIZE_FORMAT, card_num);
-    return (jbyte*) (_ct_bot + card_num);
+    return (CardValue*) (_ct_bot + card_num);
   }
 
   // Clear the counts table for the given (exclusive) index range.
@@ -112,7 +116,7 @@ class G1CardCounts: public CHeapObj<mtGC> {
 
   // Increments the refinement count for the given card.
   // Returns the pre-increment count value.
-  uint add_card_count(jbyte* card_ptr);
+  uint add_card_count(CardValue* card_ptr);
 
   // Returns true if the given count is high enough to be considered
   // 'hot'; false otherwise.
@@ -128,4 +132,4 @@ class G1CardCounts: public CHeapObj<mtGC> {
   void clear_all();
 };
 
-#endif // SHARE_VM_GC_G1_G1CARDCOUNTS_HPP
+#endif // SHARE_GC_G1_G1CARDCOUNTS_HPP

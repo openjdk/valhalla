@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_DICTIONARY_HPP
-#define SHARE_VM_CLASSFILE_DICTIONARY_HPP
+#ifndef SHARE_CLASSFILE_DICTIONARY_HPP
+#define SHARE_CLASSFILE_DICTIONARY_HPP
 
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -51,8 +51,6 @@ class Dictionary : public Hashtable<InstanceKlass*, mtClass> {
 
   DictionaryEntry* get_entry(int index, unsigned int hash, Symbol* name);
 
-  void clean_cached_protection_domains(DictionaryEntry* probe);
-
 public:
   Dictionary(ClassLoaderData* loader_data, int table_size, bool resizable = false);
   Dictionary(ClassLoaderData* loader_data, int table_size, HashtableBucket<mtClass>* t, int number_of_entries, bool resizable = false);
@@ -60,8 +58,6 @@ public:
 
   static bool does_any_dictionary_needs_resizing();
   bool resize_if_needed();
-
-  DictionaryEntry* new_entry(unsigned int hash, InstanceKlass* klass);
 
   void add_klass(unsigned int hash, Symbol* class_name, InstanceKlass* obj);
 
@@ -72,10 +68,7 @@ public:
   void all_entries_do(KlassClosure* closure);
   void classes_do(MetaspaceClosure* it);
 
-  void unlink();
-
-  // Unload classes whose defining loaders are unloaded
-  void do_unloading();
+  void clean_cached_protection_domains();
 
   // Protection domains
   InstanceKlass* find(unsigned int hash, Symbol* name, Handle protection_domain);
@@ -88,6 +81,10 @@ public:
 
   void print_on(outputStream* st) const;
   void verify();
+
+ private:
+  DictionaryEntry* new_entry(unsigned int hash, InstanceKlass* klass);
+
   DictionaryEntry* bucket(int i) const {
     return (DictionaryEntry*)Hashtable<InstanceKlass*, mtClass>::bucket(i);
   }
@@ -156,9 +153,6 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
   ProtectionDomainEntry* pd_set() const            { return _pd_set; }
   void set_pd_set(ProtectionDomainEntry* new_head) {  _pd_set = new_head; }
 
-  ProtectionDomainEntry* pd_set_acquire() const;
-  void release_set_pd_set(ProtectionDomainEntry* new_head);
-
   // Tells whether the initiating class' protection domain can access the klass in this entry
   bool is_valid_protection_domain(Handle protection_domain) {
     if (!ProtectionDomainVerification) return true;
@@ -169,29 +163,14 @@ class DictionaryEntry : public HashtableEntry<InstanceKlass*, mtClass> {
          : contains_protection_domain(protection_domain());
   }
 
-  void verify_protection_domain_set() {
-    for (ProtectionDomainEntry* current = pd_set(); // accessed at a safepoint
-                                current != NULL;
-                                current = current->_next) {
-      guarantee(oopDesc::is_oop_or_null(current->_pd_cache->object_no_keepalive()), "Invalid oop");
-    }
-  }
+  void verify_protection_domain_set();
 
   bool equals(const Symbol* class_name) const {
     InstanceKlass* klass = (InstanceKlass*)literal();
     return (klass->name() == class_name);
   }
 
-  void print_count(outputStream *st) {
-    int count = 0;
-    for (ProtectionDomainEntry* current = pd_set();  // accessed inside SD lock
-                                current != NULL;
-                                current = current->_next) {
-      count++;
-    }
-    st->print_cr("pd set count = #%d", count);
-  }
-
+  void print_count(outputStream *st);
   void verify();
 };
 
@@ -307,4 +286,4 @@ public:
     return (SymbolPropertyEntry*) Hashtable<Symbol*, mtSymbol>::bucket(i);
   }
 };
-#endif // SHARE_VM_CLASSFILE_DICTIONARY_HPP
+#endif // SHARE_CLASSFILE_DICTIONARY_HPP

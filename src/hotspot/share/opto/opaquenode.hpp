@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_OPAQUENODE_HPP
-#define SHARE_VM_OPTO_OPAQUENODE_HPP
+#ifndef SHARE_OPTO_OPAQUENODE_HPP
+#define SHARE_OPTO_OPAQUENODE_HPP
 
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -33,7 +33,7 @@
 // Stops value-numbering, Ideal calls or Identity functions.
 class Opaque1Node : public Node {
   virtual uint hash() const ;                  // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   public:
   Opaque1Node(Compile* C, Node *n) : Node(NULL, n) {
     // Put it on the Macro nodes list to removed during macro nodes expansion.
@@ -64,7 +64,7 @@ class Opaque1Node : public Node {
 // it's OK to be slightly sloppy on optimizations here.
 class Opaque2Node : public Node {
   virtual uint hash() const ;                  // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   public:
   Opaque2Node( Compile* C, Node *n ) : Node(0,n) {
     // Put it on the Macro nodes list to removed during macro nodes expansion.
@@ -117,7 +117,7 @@ class ProfileBooleanNode : public Node {
   bool _consumed;
   bool _delay_removal;
   virtual uint hash() const ;                  // { return NO_HASH; }
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   public:
   ProfileBooleanNode(Node *n, uint false_cnt, uint true_cnt) : Node(0, n),
           _false_cnt(false_cnt), _true_cnt(true_cnt), _consumed(false), _delay_removal(true) {}
@@ -133,5 +133,4 @@ class ProfileBooleanNode : public Node {
   virtual const Type *bottom_type() const { return TypeInt::BOOL; }
 };
 
-#endif // SHARE_VM_OPTO_OPAQUENODE_HPP
-
+#endif // SHARE_OPTO_OPAQUENODE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP
-#define SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP
+#ifndef SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
+#define SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
 
-#include "classfile/classLoader.hpp"
+#include "classfile/classLoaderData.hpp"
 #include "jvmci/systemDictionary_jvmci.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/java.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
 #include "utilities/hashtable.hpp"
@@ -176,6 +177,7 @@ class OopStorage;
   do_klass(AssertionStatusDirectives_klass,             java_lang_AssertionStatusDirectives                   ) \
   do_klass(StringBuffer_klass,                          java_lang_StringBuffer                                ) \
   do_klass(StringBuilder_klass,                         java_lang_StringBuilder                               ) \
+  do_klass(UnsafeConstants_klass,                       jdk_internal_misc_UnsafeConstants                     ) \
   do_klass(internal_Unsafe_klass,                       jdk_internal_misc_Unsafe                              ) \
   do_klass(module_Modules_klass,                        jdk_internal_module_Modules                           ) \
                                                                                                                 \
@@ -493,7 +495,6 @@ public:
                                                  Symbol* signature,
                                                  Klass* accessing_klass,
                                                  Handle *appendix_result,
-                                                 Handle *method_type_result,
                                                  TRAPS);
   // for a given signature, find the internal MethodHandle method (linkTo* or invokeBasic)
   // (does not ask Java, since this is a low-level intrinsic defined by the JVM)
@@ -556,7 +557,6 @@ public:
                                                      Symbol* name,
                                                      Symbol* type,
                                                      Handle *appendix_result,
-                                                     Handle *method_type_result,
                                                      TRAPS);
 
   // Record the error when the first attempt to resolve a reference from a constant
@@ -642,6 +642,7 @@ protected:
   static InstanceKlass* load_shared_class(InstanceKlass* ik,
                                           Handle class_loader,
                                           Handle protection_domain,
+                                          const ClassFileStream *cfs,
                                           TRAPS);
   static InstanceKlass* load_shared_boot_class(Symbol* class_name,
                                                TRAPS);
@@ -715,4 +716,4 @@ private:
   static bool _has_checkPackageAccess;
 };
 
-#endif // SHARE_VM_CLASSFILE_SYSTEMDICTIONARY_HPP
+#endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

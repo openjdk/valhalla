@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ include LibCommon.gmk
 $(eval $(call IncludeCustomExtension, lib/Lib-java.desktop.gmk))
 
 # Prepare the find cache.
-$(eval $(call FillCacheFind, $(wildcard $(TOPDIR)/src/java.desktop/*/native)))
+$(call FillFindCache, $(wildcard $(TOPDIR)/src/java.desktop/*/native))
 
 ################################################################################
 # Create the AWT/2D libraries
@@ -39,7 +39,7 @@ include Awt2dLibraries.gmk
 ################################################################################
 # Create the libjsound library
 
-ifneq ($(OPENJDK_TARGET_OS), aix)
+ifeq ($(call isTargetOs, aix), false)
 
   LIBJSOUND_CFLAGS := \
       $(ALSA_CFLAGS) \
@@ -48,14 +48,14 @@ ifneq ($(OPENJDK_TARGET_OS), aix)
       -DUSE_DAUDIO=TRUE \
       #
 
-  ifneq ($(OPENJDK_TARGET_OS), solaris)
+  ifeq ($(call isTargetOs, solaris), false)
     LIBJSOUND_CFLAGS += \
         -DUSE_PLATFORM_MIDI_OUT=TRUE \
         -DUSE_PLATFORM_MIDI_IN=TRUE \
         #
   endif
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     LIBJSOUND_TOOLCHAIN := TOOLCHAIN_LINK_CXX
   endif
 
@@ -87,7 +87,7 @@ endif
 ################################################################################
 # Create the macosx specific osxapp and osx libraries
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBOSXAPP, \
       NAME := osxapp, \
@@ -142,4 +142,3 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
   $(BUILD_LIBOSX): $(call FindLib, java.base, java)
 
 endif
-

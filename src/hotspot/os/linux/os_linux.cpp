@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,12 @@
 #include "compiler/disassembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/filemap.hpp"
 #include "oops/oop.inline.hpp"
 #include "os_linux.inline.hpp"
+#include "os_posix.inline.hpp"
 #include "os_share_linux.hpp"
 #include "osContainer_linux.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -61,6 +63,7 @@
 #include "runtime/threadCritical.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/timer.hpp"
+#include "runtime/vm_version.hpp"
 #include "semaphore_posix.hpp"
 #include "services/attachListener.hpp"
 #include "services/memTracker.hpp"
@@ -130,6 +133,7 @@
 
 enum CoredumpFilterBit {
   FILE_BACKED_PVT_BIT = 1 << 2,
+  FILE_BACKED_SHARED_BIT = 1 << 3,
   LARGEPAGES_BIT = 1 << 6,
   DAX_SHARED_BIT = 1 << 8
 };
@@ -222,6 +226,82 @@ julong os::physical_memory() {
   phys_mem = Linux::physical_memory();
   log_trace(os)("total system memory: " JLONG_FORMAT, phys_mem);
   return phys_mem;
+}
+
+static uint64_t initial_total_ticks = 0;
+static uint64_t initial_steal_ticks = 0;
+static bool     has_initial_tick_info = false;
+
+static void next_line(FILE *f) {
+  int c;
+  do {
+    c = fgetc(f);
+  } while (c != '\n' && c != EOF);
+}
+
+bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu) {
+  FILE*         fh;
+  uint64_t      userTicks, niceTicks, systemTicks, idleTicks;
+  // since at least kernel 2.6 : iowait: time waiting for I/O to complete
+  // irq: time  servicing interrupts; softirq: time servicing softirqs
+  uint64_t      iowTicks = 0, irqTicks = 0, sirqTicks= 0;
+  // steal (since kernel 2.6.11): time spent in other OS when running in a virtualized environment
+  uint64_t      stealTicks = 0;
+  // guest (since kernel 2.6.24): time spent running a virtual CPU for guest OS under the
+  // control of the Linux kernel
+  uint64_t      guestNiceTicks = 0;
+  int           logical_cpu = -1;
+  const int     required_tickinfo_count = (which_logical_cpu == -1) ? 4 : 5;
+  int           n;
+
+  memset(pticks, 0, sizeof(CPUPerfTicks));
+
+  if ((fh = fopen("/proc/stat", "r")) == NULL) {
+    return false;
+  }
+
+  if (which_logical_cpu == -1) {
+    n = fscanf(fh, "cpu " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+            UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+            UINT64_FORMAT " " UINT64_FORMAT " ",
+            &userTicks, &niceTicks, &systemTicks, &idleTicks,
+            &iowTicks, &irqTicks, &sirqTicks,
+            &stealTicks, &guestNiceTicks);
+  } else {
+    // Move to next line
+    next_line(fh);
+
+    // find the line for requested cpu faster to just iterate linefeeds?
+    for (int i = 0; i < which_logical_cpu; i++) {
+      next_line(fh);
+    }
+
+    n = fscanf(fh, "cpu%u " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+               UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
+               UINT64_FORMAT " " UINT64_FORMAT " ",
+               &logical_cpu, &userTicks, &niceTicks,
+               &systemTicks, &idleTicks, &iowTicks, &irqTicks, &sirqTicks,
+               &stealTicks, &guestNiceTicks);
+  }
+
+  fclose(fh);
+  if (n < required_tickinfo_count || logical_cpu != which_logical_cpu) {
+    return false;
+  }
+  pticks->used       = userTicks + niceTicks;
+  pticks->usedKernel = systemTicks + irqTicks + sirqTicks;
+  pticks->total      = userTicks + niceTicks + systemTicks + idleTicks +
+                       iowTicks + irqTicks + sirqTicks + stealTicks + guestNiceTicks;
+
+  if (n > required_tickinfo_count + 3) {
+    pticks->steal = stealTicks;
+    pticks->has_steal_ticks = true;
+  } else {
+    pticks->steal = 0;
+    pticks->has_steal_ticks = false;
+  }
+
+  return true;
 }
 
 // Return true if user is running as root.
@@ -705,6 +785,8 @@ static void *thread_native_entry(Thread *thread) {
     }
   }
 
+  assert(osthread->pthread_id() != 0, "pthread_id was not set as expected");
+
   // call one more level start routine
   thread->call_run();
 
@@ -775,6 +857,13 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
     } else {
       log_warning(os, thread)("Failed to start thread - pthread_create failed (%s) for attributes: %s.",
         os::errno_name(ret), os::Posix::describe_pthread_attr(buf, sizeof(buf), &attr));
+      // Log some OS information which might explain why creating the thread failed.
+      log_info(os, thread)("Number of threads approx. running in the VM: %d", Threads::number_of_threads());
+      LogStream st(Log(os, thread)::info());
+      os::Posix::print_rlimit_info(&st);
+      os::print_memory_info(&st);
+      os::Linux::print_proc_sys_info(&st);
+      os::Linux::print_container_info(&st);
     }
 
     pthread_attr_destroy(&attr);
@@ -1354,11 +1443,9 @@ void os::shutdown() {
 void os::abort(bool dump_core, void* siginfo, const void* context) {
   os::shutdown();
   if (dump_core) {
-#if INCLUDE_CDS
-    if (UseSharedSpaces && DumpPrivateMappingsInCore) {
+    if (DumpPrivateMappingsInCore) {
       ClassLoader::close_jrt_image();
     }
-#endif
 #ifndef PRODUCT
     fdStream out(defaultStream::output_fd());
     out.print_raw("Current thread is ");
@@ -1882,7 +1969,7 @@ int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *pa
       char name[PATH_MAX + 1];
 
       // Parse fields from line
-      sscanf(line, UINT64_FORMAT_X "-" UINT64_FORMAT_X " %4s " UINT64_FORMAT_X " %5s " INT64_FORMAT " %s",
+      sscanf(line, UINT64_FORMAT_X "-" UINT64_FORMAT_X " %4s " UINT64_FORMAT_X " %7s " INT64_FORMAT " %s",
              &base, &top, permissions, &offset, device, &inode, name);
 
       // Filter by device id '00:00' so that we only get file system mapped files.
@@ -1936,6 +2023,10 @@ void os::print_os_info(outputStream* st) {
   os::Linux::print_ld_preload_file(st);
 
   os::Linux::print_container_info(st);
+
+  VM_Version::print_platform_virtualization_info(st);
+
+  os::Linux::print_steal_info(st);
 }
 
 // Try to identify popular distros.
@@ -2106,47 +2197,106 @@ void os::Linux::print_container_info(outputStream* st) {
   st->print("container (cgroup) information:\n");
 
   const char *p_ct = OSContainer::container_type();
-  st->print("container_type: %s\n", p_ct != NULL ? p_ct : "failed");
+  st->print("container_type: %s\n", p_ct != NULL ? p_ct : "not supported");
 
   char *p = OSContainer::cpu_cpuset_cpus();
-  st->print("cpu_cpuset_cpus: %s\n", p != NULL ? p : "failed");
+  st->print("cpu_cpuset_cpus: %s\n", p != NULL ? p : "not supported");
   free(p);
 
   p = OSContainer::cpu_cpuset_memory_nodes();
-  st->print("cpu_memory_nodes: %s\n", p != NULL ? p : "failed");
+  st->print("cpu_memory_nodes: %s\n", p != NULL ? p : "not supported");
   free(p);
 
   int i = OSContainer::active_processor_count();
+  st->print("active_processor_count: ");
   if (i > 0) {
-    st->print("active_processor_count: %d\n", i);
+    st->print("%d\n", i);
   } else {
-    st->print("active_processor_count: failed\n");
+    st->print("not supported\n");
   }
 
   i = OSContainer::cpu_quota();
-  st->print("cpu_quota: %d\n", i);
+  st->print("cpu_quota: ");
+  if (i > 0) {
+    st->print("%d\n", i);
+  } else {
+    st->print("%s\n", i == OSCONTAINER_ERROR ? "not supported" : "no quota");
+  }
 
   i = OSContainer::cpu_period();
-  st->print("cpu_period: %d\n", i);
+  st->print("cpu_period: ");
+  if (i > 0) {
+    st->print("%d\n", i);
+  } else {
+    st->print("%s\n", i == OSCONTAINER_ERROR ? "not supported" : "no period");
+  }
 
   i = OSContainer::cpu_shares();
-  st->print("cpu_shares: %d\n", i);
+  st->print("cpu_shares: ");
+  if (i > 0) {
+    st->print("%d\n", i);
+  } else {
+    st->print("%s\n", i == OSCONTAINER_ERROR ? "not supported" : "no shares");
+  }
 
   jlong j = OSContainer::memory_limit_in_bytes();
-  st->print("memory_limit_in_bytes: " JLONG_FORMAT "\n", j);
+  st->print("memory_limit_in_bytes: ");
+  if (j > 0) {
+    st->print(JLONG_FORMAT "\n", j);
+  } else {
+    st->print("%s\n", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
+  }
 
   j = OSContainer::memory_and_swap_limit_in_bytes();
-  st->print("memory_and_swap_limit_in_bytes: " JLONG_FORMAT "\n", j);
+  st->print("memory_and_swap_limit_in_bytes: ");
+  if (j > 0) {
+    st->print(JLONG_FORMAT "\n", j);
+  } else {
+    st->print("%s\n", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
+  }
 
   j = OSContainer::memory_soft_limit_in_bytes();
-  st->print("memory_soft_limit_in_bytes: " JLONG_FORMAT "\n", j);
+  st->print("memory_soft_limit_in_bytes: ");
+  if (j > 0) {
+    st->print(JLONG_FORMAT "\n", j);
+  } else {
+    st->print("%s\n", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
+  }
 
   j = OSContainer::OSContainer::memory_usage_in_bytes();
-  st->print("memory_usage_in_bytes: " JLONG_FORMAT "\n", j);
+  st->print("memory_usage_in_bytes: ");
+  if (j > 0) {
+    st->print(JLONG_FORMAT "\n", j);
+  } else {
+    st->print("%s\n", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
+  }
 
   j = OSContainer::OSContainer::memory_max_usage_in_bytes();
-  st->print("memory_max_usage_in_bytes: " JLONG_FORMAT "\n", j);
+  st->print("memory_max_usage_in_bytes: ");
+  if (j > 0) {
+    st->print(JLONG_FORMAT "\n", j);
+  } else {
+    st->print("%s\n", j == OSCONTAINER_ERROR ? "not supported" : "unlimited");
+  }
   st->cr();
+}
+
+void os::Linux::print_steal_info(outputStream* st) {
+  if (has_initial_tick_info) {
+    CPUPerfTicks pticks;
+    bool res = os::Linux::get_tick_information(&pticks, -1);
+
+    if (res && pticks.has_steal_ticks) {
+      uint64_t steal_ticks_difference = pticks.steal - initial_steal_ticks;
+      uint64_t total_ticks_difference = pticks.total - initial_total_ticks;
+      double steal_ticks_perc = 0.0;
+      if (total_ticks_difference != 0) {
+        steal_ticks_perc = (double) steal_ticks_difference / total_ticks_difference;
+      }
+      st->print_cr("Steal ticks since vm start: " UINT64_FORMAT, steal_ticks_difference);
+      st->print_cr("Steal ticks percentage since vm start:%7.3f", steal_ticks_perc);
+    }
+  }
 }
 
 void os::print_memory_info(outputStream* st) {
@@ -2224,7 +2374,7 @@ const char* search_string = "CPU";
 #elif defined(PPC64)
 const char* search_string = "cpu";
 #elif defined(S390)
-const char* search_string = "processor";
+const char* search_string = "machine =";
 #elif defined(SPARC)
 const char* search_string = "cpu";
 #else
@@ -2431,26 +2581,6 @@ static void UserHandler(int sig, void *siginfo, void *context) {
 
 void* os::user_handler() {
   return CAST_FROM_FN_PTR(void*, UserHandler);
-}
-
-static struct timespec create_semaphore_timespec(unsigned int sec, int nsec) {
-  struct timespec ts;
-  // Semaphore's are always associated with CLOCK_REALTIME
-  os::Posix::clock_gettime(CLOCK_REALTIME, &ts);
-  // see os_posix.cpp for discussion on overflow checking
-  if (sec >= MAX_SECS) {
-    ts.tv_sec += MAX_SECS;
-    ts.tv_nsec = 0;
-  } else {
-    ts.tv_sec += sec;
-    ts.tv_nsec += nsec;
-    if (ts.tv_nsec >= NANOSECS_PER_SEC) {
-      ts.tv_nsec -= NANOSECS_PER_SEC;
-      ++ts.tv_sec; // note: this must be <= max_secs
-    }
-  }
-
-  return ts;
 }
 
 extern "C" {
@@ -2778,7 +2908,7 @@ int os::Linux::get_existing_num_nodes() {
 
   // Get the total number of nodes in the system including nodes without memory.
   for (node = 0; node <= highest_node_number; node++) {
-    if (isnode_in_existing_nodes(node)) {
+    if (is_node_in_existing_nodes(node)) {
       num_nodes++;
     }
   }
@@ -2794,7 +2924,7 @@ size_t os::numa_get_leaf_groups(int *ids, size_t size) {
   // node number. If the nodes have been bound explicitly using numactl membind,
   // then allocate memory from those nodes only.
   for (int node = 0; node <= highest_node_number; node++) {
-    if (Linux::isnode_in_bound_nodes((unsigned int)node)) {
+    if (Linux::is_node_in_bound_nodes((unsigned int)node)) {
       ids[i++] = node;
     }
   }
@@ -2897,11 +3027,15 @@ bool os::Linux::libnuma_init() {
                                        libnuma_dlsym(handle, "numa_distance")));
       set_numa_get_membind(CAST_TO_FN_PTR(numa_get_membind_func_t,
                                           libnuma_v2_dlsym(handle, "numa_get_membind")));
+      set_numa_get_interleave_mask(CAST_TO_FN_PTR(numa_get_interleave_mask_func_t,
+                                                  libnuma_v2_dlsym(handle, "numa_get_interleave_mask")));
 
       if (numa_available() != -1) {
         set_numa_all_nodes((unsigned long*)libnuma_dlsym(handle, "numa_all_nodes"));
         set_numa_all_nodes_ptr((struct bitmask **)libnuma_dlsym(handle, "numa_all_nodes_ptr"));
         set_numa_nodes_ptr((struct bitmask **)libnuma_dlsym(handle, "numa_nodes_ptr"));
+        set_numa_interleave_bitmask(_numa_get_interleave_mask());
+        set_numa_membind_bitmask(_numa_get_membind());
         // Create an index -> node mapping, since nodes are not always consecutive
         _nindex_to_node = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<int>(0, true);
         rebuild_nindex_to_node_map();
@@ -2927,7 +3061,7 @@ void os::Linux::rebuild_nindex_to_node_map() {
 
   nindex_to_node()->clear();
   for (int node = 0; node <= highest_node_number; node++) {
-    if (Linux::isnode_in_existing_nodes(node)) {
+    if (Linux::is_node_in_existing_nodes(node)) {
       nindex_to_node()->append(node);
     }
   }
@@ -2964,16 +3098,16 @@ void os::Linux::rebuild_cpu_to_node_map() {
     // the closest configured node. Check also if node is bound, i.e. it's allowed
     // to allocate memory from the node. If it's not allowed, map cpus in that node
     // to the closest node from which memory allocation is allowed.
-    if (!isnode_in_configured_nodes(nindex_to_node()->at(i)) ||
-        !isnode_in_bound_nodes(nindex_to_node()->at(i))) {
+    if (!is_node_in_configured_nodes(nindex_to_node()->at(i)) ||
+        !is_node_in_bound_nodes(nindex_to_node()->at(i))) {
       closest_distance = INT_MAX;
       // Check distance from all remaining nodes in the system. Ignore distance
       // from itself, from another non-configured node, and from another non-bound
       // node.
       for (size_t m = 0; m < node_num; m++) {
         if (m != i &&
-            isnode_in_configured_nodes(nindex_to_node()->at(m)) &&
-            isnode_in_bound_nodes(nindex_to_node()->at(m))) {
+            is_node_in_configured_nodes(nindex_to_node()->at(m)) &&
+            is_node_in_bound_nodes(nindex_to_node()->at(m))) {
           distance = numa_distance(nindex_to_node()->at(i), nindex_to_node()->at(m));
           // If a closest node is found, update. There is always at least one
           // configured and bound node in the system so there is always at least
@@ -3028,9 +3162,13 @@ os::Linux::numa_set_bind_policy_func_t os::Linux::_numa_set_bind_policy;
 os::Linux::numa_bitmask_isbitset_func_t os::Linux::_numa_bitmask_isbitset;
 os::Linux::numa_distance_func_t os::Linux::_numa_distance;
 os::Linux::numa_get_membind_func_t os::Linux::_numa_get_membind;
+os::Linux::numa_get_interleave_mask_func_t os::Linux::_numa_get_interleave_mask;
+os::Linux::NumaAllocationPolicy os::Linux::_current_numa_policy;
 unsigned long* os::Linux::_numa_all_nodes;
 struct bitmask* os::Linux::_numa_all_nodes_ptr;
 struct bitmask* os::Linux::_numa_nodes_ptr;
+struct bitmask* os::Linux::_numa_interleave_bitmask;
+struct bitmask* os::Linux::_numa_membind_bitmask;
 
 bool os::pd_uncommit_memory(char* addr, size_t size) {
   uintptr_t res = (uintptr_t) ::mmap(addr, size, PROT_NONE,
@@ -3395,8 +3533,6 @@ bool os::Linux::hugetlbfs_sanity_check(bool warn, size_t page_size) {
   return result;
 }
 
-// Set the coredump_filter bits to include largepages in core dump (bit 6)
-//
 // From the coredump_filter documentation:
 //
 // - (bit 0) anonymous private memory
@@ -4025,41 +4161,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
   }
 }
 
-size_t os::read(int fd, void *buf, unsigned int nBytes) {
-  return ::read(fd, buf, nBytes);
-}
-
-size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
-  return ::pread(fd, buf, nBytes, offset);
-}
-
-// Short sleep, direct OS call.
-//
-// Note: certain versions of Linux CFS scheduler (since 2.6.23) do not guarantee
-// sched_yield(2) will actually give up the CPU:
-//
-//   * Alone on this pariticular CPU, keeps running.
-//   * Before the introduction of "skip_buddy" with "compat_yield" disabled
-//     (pre 2.6.39).
-//
-// So calling this with 0 is an alternative.
-//
-void os::naked_short_sleep(jlong ms) {
-  struct timespec req;
-
-  assert(ms < 1000, "Un-interruptable sleep, short time use only");
-  req.tv_sec = 0;
-  if (ms > 0) {
-    req.tv_nsec = (ms % 1000) * 1000000;
-  } else {
-    req.tv_nsec = 1;
-  }
-
-  nanosleep(&req, NULL);
-
-  return;
-}
-
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
 void os::infinite_sleep() {
   while (true) {    // sleep forever ...
@@ -4072,6 +4173,16 @@ bool os::dont_yield() {
   return DontYieldALot;
 }
 
+// Linux CFS scheduler (since 2.6.23) does not guarantee sched_yield(2) will
+// actually give up the CPU. Since skip buddy (v2.6.28):
+//
+// * Sets the yielding task as skip buddy for current CPU's run queue.
+// * Picks next from run queue, if empty, picks a skip buddy (can be the yielding task).
+// * Clears skip buddies for this run queue (yielding task no longer a skip buddy).
+//
+// An alternative is calling os::naked_short_nanosleep with a small number to avoid
+// getting re-scheduled immediately.
+//
 void os::naked_yield() {
   sched_yield();
 }
@@ -4091,7 +4202,8 @@ void os::naked_yield() {
 // not the entire user process, and user level threads are 1:1 mapped to kernel
 // threads. It has always been the case, but could change in the future. For
 // this reason, the code should not be used as default (ThreadPriorityPolicy=0).
-// It is only used when ThreadPriorityPolicy=1 and requires root privilege.
+// It is only used when ThreadPriorityPolicy=1 and may require system level permission
+// (e.g., root privilege or CAP_SYS_NICE capability).
 
 int os::java_to_os_priority[CriticalPriority + 1] = {
   19,              // 0 Entry should never be used
@@ -4115,14 +4227,12 @@ int os::java_to_os_priority[CriticalPriority + 1] = {
 
 static int prio_init() {
   if (ThreadPriorityPolicy == 1) {
-    // Only root can raise thread priority. Don't allow ThreadPriorityPolicy=1
-    // if effective uid is not root. Perhaps, a more elegant way of doing
-    // this is to test CAP_SYS_NICE capability, but that will require libcap.so
     if (geteuid() != 0) {
       if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy)) {
-        warning("-XX:ThreadPriorityPolicy requires root privilege on Linux");
+        warning("-XX:ThreadPriorityPolicy=1 may require system level permission, " \
+                "e.g., being the root user. If the necessary permission is not " \
+                "possessed, changes to priority will be silently ignored.");
       }
-      ThreadPriorityPolicy = 0;
     }
   }
   if (UseCriticalJavaThreadPriority) {
@@ -4342,7 +4452,7 @@ static bool do_suspend(OSThread* osthread) {
 
   // managed to send the signal and switch to SUSPEND_REQUEST, now wait for SUSPENDED
   while (true) {
-    if (sr_semaphore.timedwait(create_semaphore_timespec(0, 2 * NANOSECS_PER_MILLISEC))) {
+    if (sr_semaphore.timedwait(2)) {
       break;
     } else {
       // timeout
@@ -4376,7 +4486,7 @@ static void do_resume(OSThread* osthread) {
 
   while (true) {
     if (sr_notify(osthread) == 0) {
-      if (sr_semaphore.timedwait(create_semaphore_timespec(0, 2 * NANOSECS_PER_MILLISEC))) {
+      if (sr_semaphore.timedwait(2)) {
         if (osthread->sr.is_running()) {
           return;
         }
@@ -4435,11 +4545,6 @@ static void signalHandler(int sig, siginfo_t* info, void* uc) {
 bool os::Linux::signal_handlers_are_installed = false;
 
 // For signal-chaining
-struct sigaction sigact[NSIG];
-uint64_t sigs = 0;
-#if (64 < NSIG-1)
-#error "Not all signals can be encoded in sigs. Adapt its type!"
-#endif
 bool os::Linux::libjsig_is_loaded = false;
 typedef struct sigaction *(*get_signal_t)(int);
 get_signal_t os::Linux::get_signal_action = NULL;
@@ -4453,7 +4558,7 @@ struct sigaction* os::Linux::get_chained_signal_action(int sig) {
   }
   if (actp == NULL) {
     // Retrieve the preinstalled signal handler from jvm
-    actp = get_preinstalled_handler(sig);
+    actp = os::Posix::get_preinstalled_handler(sig);
   }
 
   return actp;
@@ -4517,19 +4622,6 @@ bool os::Linux::chained_handler(int sig, siginfo_t* siginfo, void* context) {
   return chained;
 }
 
-struct sigaction* os::Linux::get_preinstalled_handler(int sig) {
-  if ((((uint64_t)1 << (sig-1)) & sigs) != 0) {
-    return &sigact[sig];
-  }
-  return NULL;
-}
-
-void os::Linux::save_preinstalled_handler(int sig, struct sigaction& oldAct) {
-  assert(sig > 0 && sig < NSIG, "vm signal out of expected range");
-  sigact[sig] = oldAct;
-  sigs |= (uint64_t)1 << (sig-1);
-}
-
 // for diagnostic
 int sigflags[NSIG];
 
@@ -4561,7 +4653,7 @@ void os::Linux::set_signal_handler(int sig, bool set_installed) {
       return;
     } else if (UseSignalChaining) {
       // save the old handler in jvm
-      save_preinstalled_handler(sig, oldAct);
+      os::Posix::save_preinstalled_handler(sig, oldAct);
       // libjsig also interposes the sigaction() call below and saves the
       // old sigaction on it own.
     } else {
@@ -4931,6 +5023,15 @@ void os::init(void) {
 
   Linux::initialize_os_info();
 
+  os::Linux::CPUPerfTicks pticks;
+  bool res = os::Linux::get_tick_information(&pticks, -1);
+
+  if (res && pticks.has_steal_ticks) {
+    has_initial_tick_info = true;
+    initial_total_ticks = pticks.total;
+    initial_steal_ticks = pticks.steal;
+  }
+
   // _main_thread points to the thread that created/loaded the JVM.
   Linux::_main_thread = pthread_self();
 
@@ -4958,6 +5059,74 @@ extern "C" {
 
 void os::pd_init_container_support() {
   OSContainer::init();
+}
+
+void os::Linux::numa_init() {
+
+  // Java can be invoked as
+  // 1. Without numactl and heap will be allocated/configured on all nodes as
+  //    per the system policy.
+  // 2. With numactl --interleave:
+  //      Use numa_get_interleave_mask(v2) API to get nodes bitmask. The same
+  //      API for membind case bitmask is reset.
+  //      Interleave is only hint and Kernel can fallback to other nodes if
+  //      no memory is available on the target nodes.
+  // 3. With numactl --membind:
+  //      Use numa_get_membind(v2) API to get nodes bitmask. The same API for
+  //      interleave case returns bitmask of all nodes.
+  // numa_all_nodes_ptr holds bitmask of all nodes.
+  // numa_get_interleave_mask(v2) and numa_get_membind(v2) APIs returns correct
+  // bitmask when externally configured to run on all or fewer nodes.
+
+  if (!Linux::libnuma_init()) {
+    UseNUMA = false;
+  } else {
+    if ((Linux::numa_max_node() < 1) || Linux::is_bound_to_single_node()) {
+      // If there's only one node (they start from 0) or if the process
+      // is bound explicitly to a single node using membind, disable NUMA.
+      UseNUMA = false;
+    } else {
+
+      LogTarget(Info,os) log;
+      LogStream ls(log);
+
+      Linux::set_configured_numa_policy(Linux::identify_numa_policy());
+
+      struct bitmask* bmp = Linux::_numa_membind_bitmask;
+      const char* numa_mode = "membind";
+
+      if (Linux::is_running_in_interleave_mode()) {
+        bmp = Linux::_numa_interleave_bitmask;
+        numa_mode = "interleave";
+      }
+
+      ls.print("UseNUMA is enabled and invoked in '%s' mode."
+               " Heap will be configured using NUMA memory nodes:", numa_mode);
+
+      for (int node = 0; node <= Linux::numa_max_node(); node++) {
+        if (Linux::_numa_bitmask_isbitset(bmp, node)) {
+          ls.print(" %d", node);
+        }
+      }
+    }
+  }
+
+  if (UseParallelGC && UseNUMA && UseLargePages && !can_commit_large_page_memory()) {
+    // With SHM and HugeTLBFS large pages we cannot uncommit a page, so there's no way
+    // we can make the adaptive lgrp chunk resizing work. If the user specified both
+    // UseNUMA and UseLargePages (or UseSHM/UseHugeTLBFS) on the command line - warn
+    // and disable adaptive resizing.
+    if (UseAdaptiveSizePolicy || UseAdaptiveNUMAChunkSizing) {
+      warning("UseNUMA is not fully compatible with SHM/HugeTLBFS large pages, "
+              "disabling adaptive resizing (-XX:-UseAdaptiveSizePolicy -XX:-UseAdaptiveNUMAChunkSizing)");
+      UseAdaptiveSizePolicy = false;
+      UseAdaptiveNUMAChunkSizing = false;
+    }
+  }
+
+  if (!UseNUMA && ForceNUMA) {
+    UseNUMA = true;
+  }
 }
 
 // this is called _after_ the global arguments have been parsed
@@ -5004,32 +5173,7 @@ jint os::init_2(void) {
                Linux::glibc_version(), Linux::libpthread_version());
 
   if (UseNUMA) {
-    if (!Linux::libnuma_init()) {
-      UseNUMA = false;
-    } else {
-      if ((Linux::numa_max_node() < 1) || Linux::isbound_to_single_node()) {
-        // If there's only one node (they start from 0) or if the process
-        // is bound explicitly to a single node using membind, disable NUMA.
-        UseNUMA = false;
-      }
-    }
-
-    if (UseParallelGC && UseNUMA && UseLargePages && !can_commit_large_page_memory()) {
-      // With SHM and HugeTLBFS large pages we cannot uncommit a page, so there's no way
-      // we can make the adaptive lgrp chunk resizing work. If the user specified both
-      // UseNUMA and UseLargePages (or UseSHM/UseHugeTLBFS) on the command line - warn
-      // and disable adaptive resizing.
-      if (UseAdaptiveSizePolicy || UseAdaptiveNUMAChunkSizing) {
-        warning("UseNUMA is not fully compatible with SHM/HugeTLBFS large pages, "
-                "disabling adaptive resizing (-XX:-UseAdaptiveSizePolicy -XX:-UseAdaptiveNUMAChunkSizing)");
-        UseAdaptiveSizePolicy = false;
-        UseAdaptiveNUMAChunkSizing = false;
-      }
-    }
-
-    if (!UseNUMA && ForceNUMA) {
-      UseNUMA = true;
-    }
+    Linux::numa_init();
   }
 
   if (MaxFDLimit) {
@@ -5073,15 +5217,17 @@ jint os::init_2(void) {
   // initialize thread priority policy
   prio_init();
 
-  if (!FLAG_IS_DEFAULT(AllocateHeapAt)) {
+  if (!FLAG_IS_DEFAULT(AllocateHeapAt) || !FLAG_IS_DEFAULT(AllocateOldGenAt)) {
     set_coredump_filter(DAX_SHARED_BIT);
   }
 
-#if INCLUDE_CDS
-  if (UseSharedSpaces && DumpPrivateMappingsInCore) {
+  if (DumpPrivateMappingsInCore) {
     set_coredump_filter(FILE_BACKED_PVT_BIT);
   }
-#endif
+
+  if (DumpSharedMappingsInCore) {
+    set_coredump_filter(FILE_BACKED_SHARED_BIT);
+  }
 
   return JNI_OK;
 }

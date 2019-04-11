@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_RESOLVEDMETHOD_HPP
-#define SHARE_VM_PRIMS_RESOLVEDMETHOD_HPP
+#ifndef SHARE_PRIMS_RESOLVEDMETHODTABLE_HPP
+#define SHARE_PRIMS_RESOLVEDMETHODTABLE_HPP
 
 #include "oops/symbol.hpp"
 #include "oops/weakHandle.hpp"
@@ -89,7 +89,7 @@ public:
 
   // Called from java_lang_invoke_ResolvedMethodName
   static oop find_method(Method* method);
-  static oop add_method(Handle rmethod_name);
+  static oop add_method(const methodHandle& method, Handle rmethod_name);
 
   static bool has_work() { return _dead_entries; }
   static void trigger_cleanup();
@@ -110,4 +110,4 @@ public:
   void verify();
 };
 
-#endif // SHARE_VM_PRIMS_RESOLVEDMETHOD_HPP
+#endif // SHARE_PRIMS_RESOLVEDMETHODTABLE_HPP

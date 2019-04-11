@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_GCTASKTHREAD_HPP
-#define SHARE_VM_GC_PARALLEL_GCTASKTHREAD_HPP
+#ifndef SHARE_GC_PARALLEL_GCTASKTHREAD_HPP
+#define SHARE_GC_PARALLEL_GCTASKTHREAD_HPP
 
 #include "runtime/thread.hpp"
 
@@ -46,8 +46,6 @@ private:
 
   GCTaskTimeStamp* time_stamp_at(uint index);
   void add_task_timestamp(const char* name, jlong t_entry, jlong t_exit);
-
-  bool _is_working;                     // True if participating in GC tasks
 
   // Factory create and destroy methods.
   static GCTaskThread* create(GCTaskManager* manager,
@@ -85,7 +83,6 @@ protected:
   uint processor_id() const {
     return _processor_id;
   }
-  void set_is_working(bool v) { _is_working = v; }
 };
 
 class GCTaskTimeStamp : public CHeapObj<mtGC>
@@ -105,4 +102,4 @@ class GCTaskTimeStamp : public CHeapObj<mtGC>
   void set_name(const char* name) { _name = name; }
 };
 
-#endif // SHARE_VM_GC_PARALLEL_GCTASKTHREAD_HPP
+#endif // SHARE_GC_PARALLEL_GCTASKTHREAD_HPP

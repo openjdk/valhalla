@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_HEAPREGION_HPP
-#define SHARE_VM_GC_G1_HEAPREGION_HPP
+#ifndef SHARE_GC_G1_HEAPREGION_HPP
+#define SHARE_GC_G1_HEAPREGION_HPP
 
 #include "gc/g1/g1BlockOffsetTable.hpp"
 #include "gc/g1/g1HeapRegionTraceType.hpp"
@@ -249,6 +249,8 @@ class HeapRegion: public G1ContiguousSpace {
 
   // The calculated GC efficiency of the region.
   double _gc_efficiency;
+
+  static const uint InvalidCSetIndex = UINT_MAX;
 
   // The index in the optional regions array, if this region
   // is considered optional during a mixed collections.
@@ -547,10 +549,15 @@ class HeapRegion: public G1ContiguousSpace {
   }
 
   void calc_gc_efficiency(void);
-  double gc_efficiency() { return _gc_efficiency;}
+  double gc_efficiency() const { return _gc_efficiency;}
 
-  uint index_in_opt_cset() const { return _index_in_opt_cset; }
+  uint index_in_opt_cset() const {
+    assert(has_index_in_opt_cset(), "Opt cset index not set.");
+    return _index_in_opt_cset;
+  }
+  bool has_index_in_opt_cset() const { return _index_in_opt_cset != InvalidCSetIndex; }
   void set_index_in_opt_cset(uint index) { _index_in_opt_cset = index; }
+  void clear_index_in_opt_cset() { _index_in_opt_cset = InvalidCSetIndex; }
 
   int  young_index_in_cset() const { return _young_index_in_cset; }
   void set_young_index_in_cset(int index) {
@@ -705,7 +712,7 @@ class HeapRegion: public G1ContiguousSpace {
 class HeapRegionClosure : public StackObj {
   friend class HeapRegionManager;
   friend class G1CollectionSet;
-  friend class CollectionSetChooser;
+  friend class G1CollectionSetCandidates;
 
   bool _is_complete;
   void set_incomplete() { _is_complete = false; }
@@ -721,4 +728,4 @@ class HeapRegionClosure : public StackObj {
   bool is_complete() { return _is_complete; }
 };
 
-#endif // SHARE_VM_GC_G1_HEAPREGION_HPP
+#endif // SHARE_GC_G1_HEAPREGION_HPP

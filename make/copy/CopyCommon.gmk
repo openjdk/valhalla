@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ ifneq ($(wildcard $(INCLUDE_SOURCE_DIR)/*), )
   $(eval $(call SetupCopyFiles, COPY_EXPORTED_INCLUDE, \
       SRC := $(INCLUDE_SOURCE_DIR), \
       DEST := $(INCLUDE_TARGET_DIR), \
-      FILES := $(filter %.h, $(call CacheFind, $(INCLUDE_SOURCE_DIR))), \
+      FILES := $(filter %.h, $(call FindFiles, $(INCLUDE_SOURCE_DIR))), \
   ))
 
   TARGETS += $(COPY_EXPORTED_INCLUDE)
@@ -56,7 +56,7 @@ ifneq ($(wildcard $(INCLUDE_SOURCE_OS_DIR)/*), )
   $(eval $(call SetupCopyFiles, COPY_EXPORTED_INCLUDE_OS, \
       SRC := $(INCLUDE_SOURCE_OS_DIR), \
       DEST := $(INCLUDE_TARGET_DIR)/$(OPENJDK_TARGET_OS_INCLUDE_SUBDIR), \
-      FILES := $(filter %.h, $(call CacheFind, $(INCLUDE_SOURCE_OS_DIR))), \
+      FILES := $(filter %.h, $(call FindFiles, $(INCLUDE_SOURCE_OS_DIR))), \
   ))
 
   TARGETS += $(COPY_EXPORTED_INCLUDE_OS)
@@ -66,6 +66,8 @@ endif
 # Setup make rules for copying legal files. This is only needed if the files
 # need to be filtered due to optional components being enabled/disabled.
 # Otherwise CreateJmods.gmk will find the legal files in the original src dirs.
+# If multiple license files with the same name are found, only the first one
+# found will get copied.
 #
 # Parameter 1 is the name of the rule.
 #
@@ -75,10 +77,12 @@ SetupCopyLegalFiles = $(NamedParamsMacroTemplate)
 define SetupCopyLegalFilesBody
   $$(foreach f, $$(filter-out $$(addprefix %/, $$($1_EXCLUDES)), \
       $$(wildcard $$(addsuffix /*, $$(call FindModuleLegalSrcDirs, $$(MODULE))))), \
-    $$(eval $$(call SetupCopyFiles, $1_$$(notdir $$f), \
-        DEST := $$(LEGAL_DST_DIR), \
-        FILES := $$f, \
-    )) \
-    $$(eval $1 += $$($1_$$(notdir $$f))) \
+    $$(if $$(filter $$($1_$$(notdir $$f)), $$($1)), , \
+      $$(eval $$(call SetupCopyFiles, $1_$$(notdir $$f), \
+          DEST := $$(LEGAL_DST_DIR), \
+          FILES := $$f, \
+      )) \
+      $$(eval $1 += $$($1_$$(notdir $$f))) \
+    ) \
   )
 endef

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -273,8 +273,9 @@ public final class Class<T> implements java.io.Serializable,
 
             TypeVariable<?>[] typeparms = component.getTypeParameters();
             if (typeparms.length > 0) {
-                sb.append(Stream.of(typeparms).map(Class::typeVarBounds).
-                          collect(Collectors.joining(",", "<", ">")));
+                sb.append(Arrays.stream(typeparms)
+                          .map(Class::typeVarBounds)
+                          .collect(Collectors.joining(",", "<", ">")));
             }
 
             for (int i = 0; i < arrayDepth; i++)
@@ -290,8 +291,9 @@ public final class Class<T> implements java.io.Serializable,
             return typeVar.getName();
         } else {
             return typeVar.getName() + " extends " +
-                Stream.of(bounds).map(Type::getTypeName).
-                collect(Collectors.joining(" & "));
+                Arrays.stream(bounds)
+                .map(Type::getTypeName)
+                .collect(Collectors.joining(" & "));
         }
     }
 
@@ -803,14 +805,13 @@ public final class Class<T> implements java.io.Serializable,
      */
     public String getName() {
         String name = this.name;
-        if (name == null)
-            this.name = name = getName0();
-        return name;
+        return name != null ? name : initClassName();
     }
 
-    // cache the name to reduce the number of calls into the VM
+    // Cache the name to reduce the number of calls into the VM.
+    // This field would be set by VM itself during initClassName call.
     private transient String name;
-    private native String getName0();
+    private native String initClassName();
 
     /**
      * Returns the class loader for the class.  Some implementations may use
@@ -3438,8 +3439,9 @@ public final class Class<T> implements java.io.Serializable,
         StringBuilder sb = new StringBuilder();
         sb.append(getName() + "." + name + "(");
         if (argTypes != null) {
-            Stream.of(argTypes).map(c -> {return (c == null) ? "null" : c.getName();}).
-                collect(Collectors.joining(","));
+            sb.append(Arrays.stream(argTypes)
+                      .map(c -> (c == null) ? "null" : c.getName())
+                      .collect(Collectors.joining(",")));
         }
         sb.append(")");
         return sb.toString();

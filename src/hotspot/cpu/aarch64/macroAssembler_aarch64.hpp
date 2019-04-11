@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
 
 #include "asm/assembler.hpp"
 
@@ -607,6 +607,7 @@ public:
   static int patch_narrow_klass(address insn_addr, narrowKlass n);
 
   address emit_trampoline_stub(int insts_call_instruction_offset, address target);
+  void emit_static_call_stub();
 
   // The following 4 methods return the offset of the appropriate move instruction
 
@@ -1391,4 +1392,4 @@ struct tableswitch {
   Label _branches;
 };
 
-#endif // CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
+#endif // CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP

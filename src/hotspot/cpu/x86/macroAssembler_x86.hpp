@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_MACROASSEMBLER_X86_HPP
-#define CPU_X86_VM_MACROASSEMBLER_X86_HPP
+#ifndef CPU_X86_MACROASSEMBLER_X86_HPP
+#define CPU_X86_MACROASSEMBLER_X86_HPP
 
 #include "asm/assembler.hpp"
 #include "utilities/macros.hpp"
@@ -165,6 +165,7 @@ class MacroAssembler: public Assembler {
 
   // Support optimal SSE move instructions.
   void movflt(XMMRegister dst, XMMRegister src) {
+    if (dst-> encoding() == src->encoding()) return;
     if (UseXmmRegToRegMoveAll) { movaps(dst, src); return; }
     else                       { movss (dst, src); return; }
   }
@@ -173,6 +174,7 @@ class MacroAssembler: public Assembler {
   void movflt(Address dst, XMMRegister src) { movss(dst, src); }
 
   void movdbl(XMMRegister dst, XMMRegister src) {
+    if (dst-> encoding() == src->encoding()) return;
     if (UseXmmRegToRegMoveAll) { movapd(dst, src); return; }
     else                       { movsd (dst, src); return; }
   }
@@ -1779,4 +1781,4 @@ class SkipIfEqual {
    ~SkipIfEqual();
 };
 
-#endif // CPU_X86_VM_MACROASSEMBLER_X86_HPP
+#endif // CPU_X86_MACROASSEMBLER_X86_HPP

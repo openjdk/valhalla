@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -217,7 +218,8 @@ char* os::iso8601_time(char* buffer, size_t buffer_length, bool utc) {
 OSReturn os::set_priority(Thread* thread, ThreadPriority p) {
   debug_only(Thread::check_for_dangling_thread_pointer(thread);)
 
-  if (p >= MinPriority && p <= MaxPriority) {
+  if ((p >= MinPriority && p <= MaxPriority) ||
+      (p == CriticalPriority && thread->is_ConcurrentGC_thread())) {
     int priority = java_to_os_priority[p];
     return set_native_priority(thread, priority);
   } else {
@@ -702,12 +704,15 @@ void* os::malloc(size_t size, MEMFLAGS memflags, const NativeCallStack& stack) {
   // Wrap memory with guard
   GuardedMemory guarded(ptr, size + nmt_header_size);
   ptr = guarded.get_user_ptr();
-#endif
+
   if ((intptr_t)ptr == (intptr_t)MallocCatchPtr) {
     log_warning(malloc, free)("os::malloc caught, " SIZE_FORMAT " bytes --> " PTR_FORMAT, size, p2i(ptr));
     breakpoint();
   }
-  debug_only(if (paranoid) verify_memory(ptr));
+  if (paranoid) {
+    verify_memory(ptr);
+  }
+#endif
 
   // we do not track guard memory
   return MemTracker::record_malloc((address)ptr, size, memflags, stack, level);
@@ -758,10 +763,8 @@ void* os::realloc(void *memblock, size_t size, MEMFLAGS memflags, const NativeCa
     // Guard's user data contains NMT header
     size_t memblock_size = guarded.get_user_size() - MemTracker::malloc_header_size(memblock);
     memcpy(ptr, memblock, MIN2(size, memblock_size));
-    if (paranoid) verify_memory(MemTracker::malloc_base(ptr));
-    if ((intptr_t)ptr == (intptr_t)MallocCatchPtr) {
-      log_warning(malloc, free)("os::realloc caught, " SIZE_FORMAT " bytes --> " PTR_FORMAT, size, p2i(ptr));
-      breakpoint();
+    if (paranoid) {
+      verify_memory(MemTracker::malloc_base(ptr));
     }
     os::free(memblock);
   }
@@ -871,6 +874,8 @@ void os::abort(bool dump_core) {
 void os::print_hex_dump(outputStream* st, address start, address end, int unitsize) {
   assert(unitsize == 1 || unitsize == 2 || unitsize == 4 || unitsize == 8, "just checking");
 
+  start = align_down(start, unitsize);
+
   int cols = 0;
   int cols_per_line = 0;
   switch (unitsize) {
@@ -884,11 +889,15 @@ void os::print_hex_dump(outputStream* st, address start, address end, int unitsi
   address p = start;
   st->print(PTR_FORMAT ":   ", p2i(start));
   while (p < end) {
-    switch (unitsize) {
-      case 1: st->print("%02x", *(u1*)p); break;
-      case 2: st->print("%04x", *(u2*)p); break;
-      case 4: st->print("%08x", *(u4*)p); break;
-      case 8: st->print("%016" FORMAT64_MODIFIER "x", *(u8*)p); break;
+    if (is_readable_pointer(p)) {
+      switch (unitsize) {
+        case 1: st->print("%02x", *(u1*)p); break;
+        case 2: st->print("%04x", *(u2*)p); break;
+        case 4: st->print("%08x", *(u4*)p); break;
+        case 8: st->print("%016" FORMAT64_MODIFIER "x", *(u8*)p); break;
+      }
+    } else {
+      st->print("%*.*s", 2*unitsize, 2*unitsize, "????????????????");
     }
     p += unitsize;
     cols++;
@@ -901,6 +910,11 @@ void os::print_hex_dump(outputStream* st, address start, address end, int unitsi
     }
   }
   st->cr();
+}
+
+void os::print_instructions(outputStream* st, address pc, int unitsize) {
+  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
+  print_hex_dump(st, pc - 256, pc + 256, unitsize);
 }
 
 void os::print_environment_variables(outputStream* st, const char** env_list) {
@@ -1010,8 +1024,9 @@ bool os::is_readable_pointer(const void* p) {
 }
 
 bool os::is_readable_range(const void* from, const void* to) {
-  for (address p = align_down((address)from, min_page_size()); p < to; p += min_page_size()) {
-    if (!is_readable_pointer(p)) {
+  if ((uintptr_t)from >= (uintptr_t)to) return false;
+  for (uintptr_t p = align_down((uintptr_t)from, min_page_size()); p < (uintptr_t)to; p += min_page_size()) {
+    if (!is_readable_pointer((const void*)p)) {
       return false;
     }
   }

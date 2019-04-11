@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_VALUESTACK_HPP
-#define SHARE_VM_C1_C1_VALUESTACK_HPP
+#ifndef SHARE_C1_C1_VALUESTACK_HPP
+#define SHARE_C1_C1_VALUESTACK_HPP
 
 #include "c1/c1_Instruction.hpp"
 
@@ -47,7 +47,7 @@ class ValueStack: public CompilationResourceObj {
 
   Values   _locals;                              // the locals
   Values   _stack;                               // the expression stack
-  Values   _locks;                               // the monitor stack (holding the locked values)
+  Values*  _locks;                               // the monitor stack (holding the locked values)
 
   Value check(ValueTag tag, Value t) {
     assert(tag == t->type()->tag() || tag == objectTag && t->type()->tag() == addressTag, "types must correspond");
@@ -60,7 +60,7 @@ class ValueStack: public CompilationResourceObj {
   }
 
   // helper routine
-  static void apply(Values list, ValueVisitor* f);
+  static void apply(const Values& list, ValueVisitor* f);
 
   // for simplified copying
   ValueStack(ValueStack* copy_from, Kind kind, int bci);
@@ -90,9 +90,9 @@ class ValueStack: public CompilationResourceObj {
 
   int locals_size() const                        { return _locals.length(); }
   int stack_size() const                         { return _stack.length(); }
-  int locks_size() const                         { return _locks.length(); }
+  int locks_size() const                         { return _locks == NULL ? 0 : _locks->length(); }
   bool stack_is_empty() const                    { return _stack.is_empty(); }
-  bool no_active_locks() const                   { return _locks.is_empty(); }
+  bool no_active_locks() const                   { return _locks == NULL || _locks->is_empty(); }
   int total_locks_size() const;
 
   // locals access
@@ -201,7 +201,7 @@ class ValueStack: public CompilationResourceObj {
   // locks access
   int lock  (Value obj);
   int unlock();
-  Value lock_at(int i) const                     { return _locks.at(i); }
+  Value lock_at(int i) const                     { return _locks->at(i); }
 
   // SSA form IR support
   void setup_phi_for_stack(BlockBegin* b, int index);
@@ -331,4 +331,4 @@ class ValueStack: public CompilationResourceObj {
   }                                                                                            \
 }
 
-#endif // SHARE_VM_C1_C1_VALUESTACK_HPP
+#endif // SHARE_C1_C1_VALUESTACK_HPP

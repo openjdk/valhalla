@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_METHODOOP_HPP
-#define SHARE_VM_OOPS_METHODOOP_HPP
+#ifndef SHARE_OOPS_METHOD_HPP
+#define SHARE_OOPS_METHOD_HPP
 
 #include "classfile/vmSymbols.hpp"
 #include "code/compressedStream.hpp"
@@ -66,6 +66,7 @@ class ConstMethod;
 class InlineTableSizes;
 class KlassSizeStats;
 class CompiledMethod;
+class InterpreterOopMap;
 
 class Method : public Metadata {
  friend class VMStructs;
@@ -179,8 +180,8 @@ class Method : public Metadata {
   }
 
   // Helper routine: get klass name + "." + method name + signature as
-  // C string, for the purpose of providing more useful NoSuchMethodErrors
-  // and fatal error handling. The string is allocated in resource
+  // C string, for the purpose of providing more useful
+  // fatal error handling. The string is allocated in resource
   // area if a buffer is not provided by the caller.
   char* name_and_sig_as_C_string() const;
   char* name_and_sig_as_C_string(char* buf, int size) const;
@@ -188,6 +189,18 @@ class Method : public Metadata {
   // Static routine in the situations we don't have a Method*
   static char* name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature);
   static char* name_and_sig_as_C_string(Klass* klass, Symbol* method_name, Symbol* signature, char* buf, int size);
+
+  // Get return type + klass name + "." + method name + ( parameters types )
+  // as a C string or print it to an outputStream.
+  // This is to be used to assemble strings passed to Java, so that
+  // the text more resembles Java code. Used in exception messages.
+  // Memory is allocated in the resource area; the caller needs
+  // a ResourceMark.
+  const char* external_name() const;
+  void  print_external_name(outputStream *os) const;
+
+  static const char* external_name(                  Klass* klass, Symbol* method_name, Symbol* signature);
+  static void  print_external_name(outputStream *os, Klass* klass, Symbol* method_name, Symbol* signature);
 
   Bytecodes::Code java_code_at(int bci) const {
     return Bytecodes::java_code_at(this, bcp_from(bci));
@@ -968,10 +981,19 @@ class Method : public Metadata {
 #endif
 
   // Helper routine used for method sorting
-  static void sort_methods(Array<Method*>* methods, bool idempotent = false, bool set_idnums = true);
+  static void sort_methods(Array<Method*>* methods, bool set_idnums = true);
 
   // Deallocation function for redefine classes or if an error occurs
   void deallocate_contents(ClassLoaderData* loader_data);
+
+  Method* get_new_method() const {
+    InstanceKlass* holder = method_holder();
+    Method* new_method = holder->method_with_idnum(orig_method_idnum());
+
+    assert(new_method != NULL, "method_with_idnum() should not be NULL");
+    assert(this != new_method, "sanity check");
+    return new_method;
+  }
 
   // Printing
 #ifndef PRODUCT
@@ -1012,36 +1034,12 @@ class CompressedLineNumberWriteStream: public CompressedWriteStream {
   // Write (bci, line number) pair to stream
   void write_pair_regular(int bci_delta, int line_delta);
 
-  inline void write_pair_inline(int bci, int line) {
-    int bci_delta = bci - _bci;
-    int line_delta = line - _line;
-    _bci = bci;
-    _line = line;
-    // Skip (0,0) deltas - they do not add information and conflict with terminator.
-    if (bci_delta == 0 && line_delta == 0) return;
-    // Check if bci is 5-bit and line number 3-bit unsigned.
-    if (((bci_delta & ~0x1F) == 0) && ((line_delta & ~0x7) == 0)) {
-      // Compress into single byte.
-      jubyte value = ((jubyte) bci_delta << 3) | (jubyte) line_delta;
-      // Check that value doesn't match escape character.
-      if (value != 0xFF) {
-        write_byte(value);
-        return;
-      }
-    }
-    write_pair_regular(bci_delta, line_delta);
-  }
+  // If (bci delta, line delta) fits in (5-bit unsigned, 3-bit unsigned)
+  // we save it as one byte, otherwise we write a 0xFF escape character
+  // and use regular compression. 0x0 is used as end-of-stream terminator.
+  void write_pair_inline(int bci, int line);
 
-// Windows AMD64 + Apr 2005 PSDK with /O2 generates bad code for write_pair.
-// Disabling optimization doesn't work for methods in header files
-// so we force it to call through the non-optimized version in the .cpp.
-// It's gross, but it's the only way we can ensure that all callers are
-// fixed.  _MSC_VER is defined by the windows compiler
-#if defined(_M_AMD64) && _MSC_VER >= 1400
   void write_pair(int bci, int line);
-#else
-  void write_pair(int bci, int line) { write_pair_inline(bci, line); }
-#endif
 
   // Write end-of-stream marker
   void write_terminator()                        { write_byte(0); }
@@ -1175,4 +1173,4 @@ class ExceptionTable : public StackObj {
   }
 };
 
-#endif // SHARE_VM_OOPS_METHODOOP_HPP
+#endif // SHARE_OOPS_METHOD_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -423,8 +423,6 @@ void nmethod::init_defaults() {
   _oops_do_mark_link       = NULL;
   _jmethod_id              = NULL;
   _osr_link                = NULL;
-  _scavenge_root_link      = NULL;
-  _scavenge_root_state     = 0;
 #if INCLUDE_RTM_OPT
   _rtm_state               = NoRTM;
 #endif
@@ -611,10 +609,10 @@ nmethod::nmethod(
     code_buffer->copy_values_to(this);
 
     clear_unloading_state();
-    if (ScavengeRootsInCode) {
-      Universe::heap()->register_nmethod(this);
-    }
+
+    Universe::heap()->register_nmethod(this);
     debug_only(Universe::heap()->verify_nmethod(this));
+
     CodeCache::commit(this);
   }
 
@@ -771,9 +769,8 @@ nmethod::nmethod(
     debug_info->copy_to(this);
     dependencies->copy_to(this);
     clear_unloading_state();
-    if (ScavengeRootsInCode) {
-      Universe::heap()->register_nmethod(this);
-    }
+
+    Universe::heap()->register_nmethod(this);
     debug_only(Universe::heap()->verify_nmethod(this));
 
     CodeCache::commit(this);
@@ -1092,15 +1089,28 @@ void nmethod::make_unloaded() {
     if (_method->code() == this) {
       _method->clear_code(); // Break a cycle
     }
-    _method = NULL;            // Clear the method of this dead nmethod
   }
 
   // Make the class unloaded - i.e., change state and notify sweeper
   assert(SafepointSynchronize::is_at_safepoint() || Thread::current()->is_ConcurrentGC_thread(),
          "must be at safepoint");
 
+  {
+    // Clear ICStubs and release any CompiledICHolders.
+    CompiledICLocker ml(this);
+    clear_ic_callsites();
+  }
+
   // Unregister must be done before the state change
-  Universe::heap()->unregister_nmethod(this);
+  {
+    MutexLockerEx ml(SafepointSynchronize::is_at_safepoint() ? NULL : CodeCache_lock,
+                     Mutex::_no_safepoint_check_flag);
+    Universe::heap()->unregister_nmethod(this);
+    CodeCache::unregister_old_nmethod(this);
+  }
+
+  // Clear the method of this dead nmethod
+  set_method(NULL);
 
   // Log the unloading.
   log_state_change();
@@ -1156,6 +1166,19 @@ void nmethod::log_state_change() const {
   CompileTask::print_ul(this, state_msg);
   if (PrintCompilation && _state != unloaded) {
     print_on(tty, state_msg);
+  }
+}
+
+void nmethod::unlink_from_method(bool acquire_lock) {
+  // We need to check if both the _code and _from_compiled_code_entry_point
+  // refer to this nmethod because there is a race in setting these two fields
+  // in Method* as seen in bugid 4947125.
+  // If the vep() points to the zombie nmethod, the memory for the nmethod
+  // could be flushed and the compiler and vtable stubs could still call
+  // through it.
+  if (method() != NULL && (method()->code() == this ||
+                           method()->from_compiled_entry() == verified_entry_point())) {
+    method()->clear_code(acquire_lock);
   }
 }
 
@@ -1246,17 +1269,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     JVMCI_ONLY(maybe_invalidate_installed_code());
 
     // Remove nmethod from method.
-    // We need to check if both the _code and _from_compiled_code_entry_point
-    // refer to this nmethod because there is a race in setting these two fields
-    // in Method* as seen in bugid 4947125.
-    // If the vep() points to the zombie nmethod, the memory for the nmethod
-    // could be flushed and the compiler and vtable stubs could still call
-    // through it.
-    if (method() != NULL && (method()->code() == this ||
-                             method()->from_compiled_entry() == verified_entry_point())) {
-      HandleMark hm;
-      method()->clear_code(false /* already owns Patching_lock */);
-    }
+    unlink_from_method(false /* already owns Patching_lock */);
   } // leave critical region under Patching_lock
 
 #ifdef ASSERT
@@ -1279,8 +1292,17 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
       MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       if (nmethod_needs_unregister) {
         Universe::heap()->unregister_nmethod(this);
+        CodeCache::unregister_old_nmethod(this);
       }
       flush_dependencies(/*delete_immediately*/true);
+    }
+
+    // Clear ICStubs to prevent back patching stubs of zombie or flushed
+    // nmethods during the next safepoint (see ICStub::finalize), as well
+    // as to free up CompiledICHolder resources.
+    {
+      CompiledICLocker ml(this);
+      clear_ic_callsites();
     }
 
     // zombie only - if a JVMTI agent has enabled the CompiledMethodUnload
@@ -1312,6 +1334,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
 }
 
 void nmethod::flush() {
+  MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   // Note that there are no valid oops in the nmethod anymore.
   assert(!is_osr_method() || is_unloaded() || is_zombie(),
          "osr nmethod must be unloaded or zombie before flushing");
@@ -1339,14 +1362,12 @@ void nmethod::flush() {
     ec = next;
   }
 
-  if (on_scavenge_root_list()) {
-    CodeCache::drop_scavenge_root_nmethod(this);
-  }
-
 #if INCLUDE_JVMCI
   assert(_jvmci_installed_code == NULL, "should have been nulled out when transitioned to zombie");
   assert(_speculation_log == NULL, "should have been nulled out when transitioned to zombie");
 #endif
+
+  Universe::heap()->flush_nmethod(this);
 
   CodeBlob::flush();
   CodeCache::free(this);
@@ -1482,7 +1503,7 @@ void nmethod::post_compiled_method_unload() {
 }
 
 // Iterate over metadata calling this function.   Used by RedefineClasses
-void nmethod::metadata_do(void f(Metadata*)) {
+void nmethod::metadata_do(MetadataClosure* f) {
   {
     // Visit all immediate references that are embedded in the instruction stream.
     RelocIterator iter(this, oops_reloc_begin());
@@ -1497,7 +1518,7 @@ void nmethod::metadata_do(void f(Metadata*)) {
                "metadata must be found in exactly one place");
         if (r->metadata_is_immediate() && r->metadata_value() != NULL) {
           Metadata* md = r->metadata_value();
-          if (md != _method) f(md);
+          if (md != _method) f->do_metadata(md);
         }
       } else if (iter.type() == relocInfo::virtual_call_type) {
         // Check compiledIC holders associated with this nmethod
@@ -1505,12 +1526,12 @@ void nmethod::metadata_do(void f(Metadata*)) {
         CompiledIC *ic = CompiledIC_at(&iter);
         if (ic->is_icholder_call()) {
           CompiledICHolder* cichk = ic->cached_icholder();
-          f(cichk->holder_metadata());
-          f(cichk->holder_klass());
+          f->do_metadata(cichk->holder_metadata());
+          f->do_metadata(cichk->holder_klass());
         } else {
           Metadata* ic_oop = ic->cached_metadata();
           if (ic_oop != NULL) {
-            f(ic_oop);
+            f->do_metadata(ic_oop);
           }
         }
       }
@@ -1521,11 +1542,11 @@ void nmethod::metadata_do(void f(Metadata*)) {
   for (Metadata** p = metadata_begin(); p < metadata_end(); p++) {
     if (*p == Universe::non_oop_word() || *p == NULL)  continue;  // skip non-oops
     Metadata* md = *p;
-    f(md);
+    f->do_metadata(md);
   }
 
   // Visit metadata not embedded in the other places.
-  if (_method != NULL) f(_method);
+  if (_method != NULL) f->do_metadata(_method);
 }
 
 // The _is_unloading_state encodes a tuple comprising the unloading cycle
@@ -1754,44 +1775,6 @@ void nmethod::oops_do_marking_epilogue() {
   log_trace(gc, nmethod)("oops_do_marking_epilogue");
 }
 
-class DetectScavengeRoot: public OopClosure {
-  bool     _detected_scavenge_root;
-  nmethod* _print_nm;
-public:
-  DetectScavengeRoot(nmethod* nm) : _detected_scavenge_root(false), _print_nm(nm) {}
-
-  bool detected_scavenge_root() { return _detected_scavenge_root; }
-  virtual void do_oop(oop* p) {
-    if ((*p) != NULL && Universe::heap()->is_scavengable(*p)) {
-      NOT_PRODUCT(maybe_print(p));
-      _detected_scavenge_root = true;
-    }
-  }
-  virtual void do_oop(narrowOop* p) { ShouldNotReachHere(); }
-
-#ifndef PRODUCT
-  void maybe_print(oop* p) {
-    LogTarget(Trace, gc, nmethod) lt;
-    if (lt.is_enabled()) {
-      LogStream ls(lt);
-      if (!_detected_scavenge_root) {
-        CompileTask::print(&ls, _print_nm, "new scavenge root", /*short_form:*/ true);
-      }
-      ls.print("" PTR_FORMAT "[offset=%d] detected scavengable oop " PTR_FORMAT " (found at " PTR_FORMAT ") ",
-               p2i(_print_nm), (int)((intptr_t)p - (intptr_t)_print_nm),
-               p2i(*p), p2i(p));
-      ls.cr();
-    }
-  }
-#endif //PRODUCT
-};
-
-bool nmethod::detect_scavenge_root_oops() {
-  DetectScavengeRoot detect_scavenge_root(this);
-  oops_do(&detect_scavenge_root);
-  return detect_scavenge_root.detected_scavenge_root();
-}
-
 inline bool includes(void* p, void* from, void* to) {
   return from <= p && p < to;
 }
@@ -2007,36 +1990,6 @@ bool nmethod::check_dependency_on(DepChange& changes) {
   return found_check;
 }
 
-bool nmethod::is_evol_dependent_on(Klass* dependee) {
-  InstanceKlass *dependee_ik = InstanceKlass::cast(dependee);
-  Array<Method*>* dependee_methods = dependee_ik->methods();
-  for (Dependencies::DepStream deps(this); deps.next(); ) {
-    if (deps.type() == Dependencies::evol_method) {
-      Method* method = deps.method_argument(0);
-      for (int j = 0; j < dependee_methods->length(); j++) {
-        if (dependee_methods->at(j) == method) {
-          if (log_is_enabled(Debug, redefine, class, nmethod)) {
-            ResourceMark rm;
-            log_debug(redefine, class, nmethod)
-              ("Found evol dependency of nmethod %s.%s(%s) compile_id=%d on method %s.%s(%s)",
-               _method->method_holder()->external_name(),
-               _method->name()->as_C_string(),
-               _method->signature()->as_C_string(),
-               compile_id(),
-               method->method_holder()->external_name(),
-               method->name()->as_C_string(),
-               method->signature()->as_C_string());
-          }
-          if (TraceDependencies || LogCompilation)
-            deps.log_dependency(dependee);
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
 // Called from mark_for_deoptimization, when dependee is invalidated.
 bool nmethod::is_dependent_on_method(Method* dependee) {
   for (Dependencies::DepStream deps(this); deps.next(); ) {
@@ -2247,41 +2200,6 @@ void nmethod::verify_scopes() {
 
 
 // -----------------------------------------------------------------------------
-// Non-product code
-#ifndef PRODUCT
-
-class DebugScavengeRoot: public OopClosure {
-  nmethod* _nm;
-  bool     _ok;
-public:
-  DebugScavengeRoot(nmethod* nm) : _nm(nm), _ok(true) { }
-  bool ok() { return _ok; }
-  virtual void do_oop(oop* p) {
-    if ((*p) == NULL || !Universe::heap()->is_scavengable(*p))  return;
-    if (_ok) {
-      _nm->print_nmethod(true);
-      _ok = false;
-    }
-    tty->print_cr("*** scavengable oop " PTR_FORMAT " found at " PTR_FORMAT " (offset %d)",
-                  p2i(*p), p2i(p), (int)((intptr_t)p - (intptr_t)_nm));
-    (*p)->print();
-  }
-  virtual void do_oop(narrowOop* p) { ShouldNotReachHere(); }
-};
-
-void nmethod::verify_scavenge_root_oops() {
-  if (!on_scavenge_root_list()) {
-    // Actually look inside, to verify the claim that it's clean.
-    DebugScavengeRoot debug_scavenge_root(this);
-    oops_do(&debug_scavenge_root);
-    if (!debug_scavenge_root.ok())
-      fatal("found an unadvertised bad scavengable oop in the code cache");
-  }
-  assert(scavenge_root_not_marked(), "");
-}
-
-#endif // PRODUCT
-
 // Printing operations
 
 void nmethod::print() const {
@@ -2307,7 +2225,6 @@ void nmethod::print() const {
     tty->print(" for method " INTPTR_FORMAT , p2i(method()));
     tty->print(" { ");
     tty->print_cr("%s ", state());
-    if (on_scavenge_root_list())  tty->print("scavenge_root ");
     tty->print_cr("}:");
   }
   if (size              () > 0) tty->print_cr(" total in heap  [" INTPTR_FORMAT "," INTPTR_FORMAT "] = %d",
@@ -2533,6 +2450,7 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
         case relocInfo::section_word_type:     return "section_word";
         case relocInfo::poll_type:             return "poll";
         case relocInfo::poll_return_type:      return "poll_return";
+        case relocInfo::trampoline_stub_type:  return "trampoline_stub";
         case relocInfo::type_mask:             return "type_bit_mask";
 
         default:

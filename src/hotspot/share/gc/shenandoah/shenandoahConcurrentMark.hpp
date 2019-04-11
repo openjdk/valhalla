@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHENANDOAH_SHENANDOAHCONCURRENTMARK_HPP
-#define SHARE_VM_GC_SHENANDOAH_SHENANDOAHCONCURRENTMARK_HPP
+#ifndef SHARE_GC_SHENANDOAH_SHENANDOAHCONCURRENTMARK_HPP
+#define SHARE_GC_SHENANDOAH_SHENANDOAHCONCURRENTMARK_HPP
 
 #include "gc/shared/taskqueue.hpp"
 #include "gc/shenandoah/shenandoahOopClosures.hpp"
@@ -86,6 +86,8 @@ private:
   void weak_refs_work(bool full_gc);
   void weak_refs_work_doit(bool full_gc);
 
+  void weak_roots_work();
+
 public:
   void preclean_weak_refs();
 
@@ -108,4 +110,4 @@ public:
 
 };
 
-#endif // SHARE_VM_GC_SHENANDOAH_SHENANDOAHCONCURRENTMARK_HPP
+#endif // SHARE_GC_SHENANDOAH_SHENANDOAHCONCURRENTMARK_HPP

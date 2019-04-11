@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_HPP
-#define SHARE_VM_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_HPP
+#ifndef SHARE_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_HPP
+#define SHARE_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_HPP
 
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
@@ -34,7 +34,7 @@
 
 enum UpdateRefsMode {
   NONE,       // No reference updating
-  RESOLVE,    // Only a read-barrier (no reference updating)
+  RESOLVE,    // Only a resolve (no reference updating)
   SIMPLE,     // Reference updating using simple store
   CONCURRENT  // Reference updating using CAS
 };
@@ -184,24 +184,16 @@ public:
   virtual bool do_metadata()        { return true; }
 };
 
-class ShenandoahUpdateHeapRefsSuperClosure : public BasicOopIterateClosure {
+class ShenandoahUpdateHeapRefsClosure : public BasicOopIterateClosure {
 private:
   ShenandoahHeap* _heap;
+
+  template <class T>
+  void do_oop_work(T* p);
+
 public:
-  ShenandoahUpdateHeapRefsSuperClosure() :
+  ShenandoahUpdateHeapRefsClosure() :
     _heap(ShenandoahHeap::heap()) {}
-
-  template <class T>
-  void work(T *p);
-};
-
-class ShenandoahUpdateHeapRefsClosure : public ShenandoahUpdateHeapRefsSuperClosure {
-private:
-  template <class T>
-  inline  void do_oop_work(T* p)    { work<T>(p); }
-
-public:
-  ShenandoahUpdateHeapRefsClosure() : ShenandoahUpdateHeapRefsSuperClosure() {}
 
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }
@@ -347,4 +339,4 @@ public:
   virtual bool do_metadata()        { return true; }
 };
 
-#endif // SHARE_VM_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_HPP
+#endif // SHARE_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_HPP

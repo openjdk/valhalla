@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,19 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BlockOffsetTable.inline.hpp"
 #include "gc/g1/g1CardTable.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentRefine.hpp"
+#include "gc/g1/g1DirtyCardQueue.hpp"
 #include "gc/g1/g1FromCardCache.hpp"
 #include "gc/g1/g1GCPhaseTimes.hpp"
 #include "gc/g1/g1HotCardCache.hpp"
 #include "gc/g1/g1OopClosures.inline.hpp"
 #include "gc/g1/g1RootClosures.hpp"
 #include "gc/g1/g1RemSet.hpp"
+#include "gc/g1/g1SharedDirtyCardQueue.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
@@ -48,7 +49,6 @@
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "utilities/intHisto.hpp"
 #include "utilities/stack.inline.hpp"
 #include "utilities/ticks.hpp"
 
@@ -115,12 +115,9 @@ private:
   // information. These are also called "dirty". Valid entries are from [0.._cur_dirty_region)
   uint* _dirty_region_buffer;
 
-  typedef jbyte IsDirtyRegionState;
-  static const IsDirtyRegionState Clean = 0;
-  static const IsDirtyRegionState Dirty = 1;
-  // Holds a flag for every region whether it is in the _dirty_region_buffer already
-  // to avoid duplicates. Uses jbyte since there are no atomic instructions for bools.
-  IsDirtyRegionState* _in_dirty_region_buffer;
+  // Flag for every region whether it is in the _dirty_region_buffer already
+  // to avoid duplicates.
+  bool volatile* _in_dirty_region_buffer;
   size_t _cur_dirty_region;
 
   // Creates a snapshot of the current _top values at the start of collection to
@@ -170,7 +167,7 @@ public:
       FREE_C_HEAP_ARRAY(uint, _dirty_region_buffer);
     }
     if (_in_dirty_region_buffer != NULL) {
-      FREE_C_HEAP_ARRAY(IsDirtyRegionState, _in_dirty_region_buffer);
+      FREE_C_HEAP_ARRAY(bool, _in_dirty_region_buffer);
     }
     if (_scan_top != NULL) {
       FREE_C_HEAP_ARRAY(HeapWord*, _scan_top);
@@ -184,7 +181,7 @@ public:
     _iter_states = NEW_C_HEAP_ARRAY(G1RemsetIterState, max_regions, mtGC);
     _iter_claims = NEW_C_HEAP_ARRAY(size_t, max_regions, mtGC);
     _dirty_region_buffer = NEW_C_HEAP_ARRAY(uint, max_regions, mtGC);
-    _in_dirty_region_buffer = NEW_C_HEAP_ARRAY(IsDirtyRegionState, max_regions, mtGC);
+    _in_dirty_region_buffer = NEW_C_HEAP_ARRAY(bool, max_regions, mtGC);
     _scan_top = NEW_C_HEAP_ARRAY(HeapWord*, max_regions, mtGC);
   }
 
@@ -198,7 +195,7 @@ public:
     G1CollectedHeap::heap()->heap_region_iterate(&cl);
 
     memset((void*)_iter_claims, 0, _max_regions * sizeof(size_t));
-    memset(_in_dirty_region_buffer, Clean, _max_regions * sizeof(IsDirtyRegionState));
+    memset((void*)_in_dirty_region_buffer, false, _max_regions * sizeof(bool));
     _cur_dirty_region = 0;
   }
 
@@ -242,12 +239,11 @@ public:
   }
 
   void add_dirty_region(uint region) {
-    if (_in_dirty_region_buffer[region] == Dirty) {
+    if (_in_dirty_region_buffer[region]) {
       return;
     }
 
-    bool marked_as_dirty = Atomic::cmpxchg(Dirty, &_in_dirty_region_buffer[region], Clean) == Clean;
-    if (marked_as_dirty) {
+    if (!Atomic::cmpxchg(true, &_in_dirty_region_buffer[region], false)) {
       size_t allocated = Atomic::add(1u, &_cur_dirty_region) - 1;
       _dirty_region_buffer[allocated] = region;
     }
@@ -289,7 +285,7 @@ G1RemSet::G1RemSet(G1CollectedHeap* g1h,
   _g1h(g1h),
   _num_conc_refined_cards(0),
   _ct(ct),
-  _g1p(_g1h->g1_policy()),
+  _g1p(_g1h->policy()),
   _hot_card_cache(hot_card_cache) {
 }
 
@@ -300,7 +296,7 @@ G1RemSet::~G1RemSet() {
 }
 
 uint G1RemSet::num_par_rem_sets() {
-  return DirtyCardQueueSet::num_par_ids() + G1ConcurrentRefine::max_num_threads() + MAX2(ConcGCThreads, ParallelGCThreads);
+  return G1DirtyCardQueueSet::num_par_ids() + G1ConcurrentRefine::max_num_threads() + MAX2(ConcGCThreads, ParallelGCThreads);
 }
 
 void G1RemSet::initialize(size_t capacity, uint max_regions) {
@@ -320,6 +316,8 @@ G1ScanRSForRegionClosure::G1ScanRSForRegionClosure(G1RemSetScanState* scan_state
   _scan_state(scan_state),
   _phase(phase),
   _worker_i(worker_i),
+  _opt_refs_scanned(0),
+  _opt_refs_memory_used(0),
   _cards_scanned(0),
   _cards_claimed(0),
   _cards_skipped(0),
@@ -340,6 +338,19 @@ void G1ScanRSForRegionClosure::scan_card(MemRegion mr, uint region_idx_for_card)
   card_region->oops_on_card_seq_iterate_careful<true>(mr, _scan_objs_on_card_cl);
   _scan_objs_on_card_cl->trim_queue_partially();
   _cards_scanned++;
+}
+
+void G1ScanRSForRegionClosure::scan_opt_rem_set_roots(HeapRegion* r) {
+  EventGCPhaseParallel event;
+
+  G1OopStarChunkedList* opt_rem_set_list = _pss->oops_into_optional_region(r);
+
+  G1ScanObjsDuringScanRSClosure scan_cl(_g1h, _pss);
+  G1ScanRSForOptionalClosure cl(&scan_cl);
+  _opt_refs_scanned += opt_rem_set_list->oops_do(&cl, _pss->closures()->raw_strong_oops());
+  _opt_refs_memory_used += opt_rem_set_list->used_memory();
+
+  event.commit(GCId::current(), _worker_i, G1GCPhaseTimes::phase_name(_phase));
 }
 
 void G1ScanRSForRegionClosure::scan_rem_set_roots(HeapRegion* r) {
@@ -409,15 +420,24 @@ void G1ScanRSForRegionClosure::scan_rem_set_roots(HeapRegion* r) {
 
 void G1ScanRSForRegionClosure::scan_strong_code_roots(HeapRegion* r) {
   EventGCPhaseParallel event;
+  // We pass a weak code blobs closure to the remembered set scanning because we want to avoid
+  // treating the nmethods visited to act as roots for concurrent marking.
+  // We only want to make sure that the oops in the nmethods are adjusted with regard to the
+  // objects copied by the current evacuation.
   r->strong_code_roots_do(_pss->closures()->weak_codeblobs());
   event.commit(GCId::current(), _worker_i, G1GCPhaseTimes::phase_name(G1GCPhaseTimes::CodeRoots));
 }
 
 bool G1ScanRSForRegionClosure::do_heap_region(HeapRegion* r) {
-  assert(r->in_collection_set(),
-         "Should only be called on elements of the collection set but region %u is not.",
-         r->hrm_index());
+  assert(r->in_collection_set(), "Region %u is not in the collection set.", r->hrm_index());
   uint const region_idx = r->hrm_index();
+
+  // The individual references for the optional remembered set are per-worker, so we
+  // always need to scan them.
+  if (r->has_index_in_opt_cset()) {
+    G1EvacPhaseWithTrimTimeTracker timer(_pss, _rem_set_root_scan_time, _rem_set_trim_partially_time);
+    scan_opt_rem_set_roots(r);
+  }
 
   // Do an early out if we know we are complete.
   if (_scan_state->iter_is_complete(region_idx)) {
@@ -437,26 +457,37 @@ bool G1ScanRSForRegionClosure::do_heap_region(HeapRegion* r) {
   return false;
 }
 
-void G1RemSet::scan_rem_set(G1ParScanThreadState* pss, uint worker_i) {
+void G1RemSet::scan_rem_set(G1ParScanThreadState* pss,
+                            uint worker_i,
+                            G1GCPhaseTimes::GCParPhases scan_phase,
+                            G1GCPhaseTimes::GCParPhases objcopy_phase,
+                            G1GCPhaseTimes::GCParPhases coderoots_phase) {
+  assert(pss->trim_ticks().value() == 0, "Queues must have been trimmed before entering.");
+
   G1ScanObjsDuringScanRSClosure scan_cl(_g1h, pss);
-  G1ScanRSForRegionClosure cl(_scan_state, &scan_cl, pss, G1GCPhaseTimes::ScanRS, worker_i);
-  _g1h->collection_set_iterate_from(&cl, worker_i);
+  G1ScanRSForRegionClosure cl(_scan_state, &scan_cl, pss, scan_phase, worker_i);
+  _g1h->collection_set_iterate_increment_from(&cl, worker_i);
 
   G1GCPhaseTimes* p = _g1p->phase_times();
 
-  p->record_time_secs(G1GCPhaseTimes::ScanRS, worker_i, cl.rem_set_root_scan_time().seconds());
-  p->add_time_secs(G1GCPhaseTimes::ObjCopy, worker_i, cl.rem_set_trim_partially_time().seconds());
+  p->record_or_add_time_secs(objcopy_phase, worker_i, cl.rem_set_trim_partially_time().seconds());
 
-  p->record_thread_work_item(G1GCPhaseTimes::ScanRS, worker_i, cl.cards_scanned(), G1GCPhaseTimes::ScanRSScannedCards);
-  p->record_thread_work_item(G1GCPhaseTimes::ScanRS, worker_i, cl.cards_claimed(), G1GCPhaseTimes::ScanRSClaimedCards);
-  p->record_thread_work_item(G1GCPhaseTimes::ScanRS, worker_i, cl.cards_skipped(), G1GCPhaseTimes::ScanRSSkippedCards);
+  p->record_or_add_time_secs(scan_phase, worker_i, cl.rem_set_root_scan_time().seconds());
+  p->record_or_add_thread_work_item(scan_phase, worker_i, cl.cards_scanned(), G1GCPhaseTimes::ScanRSScannedCards);
+  p->record_or_add_thread_work_item(scan_phase, worker_i, cl.cards_claimed(), G1GCPhaseTimes::ScanRSClaimedCards);
+  p->record_or_add_thread_work_item(scan_phase, worker_i, cl.cards_skipped(), G1GCPhaseTimes::ScanRSSkippedCards);
+  // At this time we only record some metrics for the optional remembered set.
+  if (scan_phase == G1GCPhaseTimes::OptScanRS) {
+    p->record_or_add_thread_work_item(scan_phase, worker_i, cl.opt_refs_scanned(), G1GCPhaseTimes::ScanRSScannedOptRefs);
+    p->record_or_add_thread_work_item(scan_phase, worker_i, cl.opt_refs_memory_used(), G1GCPhaseTimes::ScanRSUsedMemory);
+  }
 
-  p->record_time_secs(G1GCPhaseTimes::CodeRoots, worker_i, cl.strong_code_root_scan_time().seconds());
-  p->add_time_secs(G1GCPhaseTimes::ObjCopy, worker_i, cl.strong_code_root_trim_partially_time().seconds());
+  p->record_or_add_time_secs(coderoots_phase, worker_i, cl.strong_code_root_scan_time().seconds());
+  p->add_time_secs(objcopy_phase, worker_i, cl.strong_code_root_trim_partially_time().seconds());
 }
 
 // Closure used for updating rem sets. Only called during an evacuation pause.
-class G1RefineCardClosure: public CardTableEntryClosure {
+class G1RefineCardClosure: public G1CardTableEntryClosure {
   G1RemSet* _g1rs;
   G1ScanObjsDuringUpdateRSClosure* _update_rs_cl;
 
@@ -464,10 +495,10 @@ class G1RefineCardClosure: public CardTableEntryClosure {
   size_t _cards_skipped;
 public:
   G1RefineCardClosure(G1CollectedHeap* g1h, G1ScanObjsDuringUpdateRSClosure* update_rs_cl) :
-    _g1rs(g1h->g1_rem_set()), _update_rs_cl(update_rs_cl), _cards_scanned(0), _cards_skipped(0)
+    _g1rs(g1h->rem_set()), _update_rs_cl(update_rs_cl), _cards_scanned(0), _cards_skipped(0)
   {}
 
-  bool do_card_ptr(jbyte* card_ptr, uint worker_i) {
+  bool do_card_ptr(CardValue* card_ptr, uint worker_i) {
     // The only time we care about recording cards that
     // contain references that point into the collection set
     // is during RSet updating within an evacuation pause.
@@ -514,20 +545,13 @@ void G1RemSet::update_rem_set(G1ParScanThreadState* pss, uint worker_i) {
   }
 }
 
-void G1RemSet::oops_into_collection_set_do(G1ParScanThreadState* pss, uint worker_i) {
-  update_rem_set(pss, worker_i);
-  scan_rem_set(pss, worker_i);;
-}
-
 void G1RemSet::prepare_for_oops_into_collection_set_do() {
-  DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
-  dcqs.concatenate_logs();
-
+  G1BarrierSet::dirty_card_queue_set().concatenate_logs();
   _scan_state->reset();
 }
 
 void G1RemSet::cleanup_after_oops_into_collection_set_do() {
-  G1GCPhaseTimes* phase_times = _g1h->g1_policy()->phase_times();
+  G1GCPhaseTimes* phase_times = _g1h->phase_times();
 
   // Set all cards back to clean.
   double start = os::elapsedTime();
@@ -535,7 +559,7 @@ void G1RemSet::cleanup_after_oops_into_collection_set_do() {
   phase_times->record_clear_ct_time((os::elapsedTime() - start) * 1000.0);
 }
 
-inline void check_card_ptr(jbyte* card_ptr, G1CardTable* ct) {
+inline void check_card_ptr(CardTable::CardValue* card_ptr, G1CardTable* ct) {
 #ifdef ASSERT
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   assert(g1h->is_in_exact(ct->addr_for(card_ptr)),
@@ -547,7 +571,7 @@ inline void check_card_ptr(jbyte* card_ptr, G1CardTable* ct) {
 #endif
 }
 
-void G1RemSet::refine_card_concurrently(jbyte* card_ptr,
+void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
                                         uint worker_i) {
   assert(!_g1h->is_gc_active(), "Only call concurrently");
 
@@ -603,7 +627,7 @@ void G1RemSet::refine_card_concurrently(jbyte* card_ptr,
   if (_hot_card_cache->use_cache()) {
     assert(!SafepointSynchronize::is_at_safepoint(), "sanity");
 
-    const jbyte* orig_card_ptr = card_ptr;
+    const CardValue* orig_card_ptr = card_ptr;
     card_ptr = _hot_card_cache->insert(card_ptr);
     if (card_ptr == NULL) {
       // There was no eviction. Nothing to do.
@@ -644,7 +668,7 @@ void G1RemSet::refine_card_concurrently(jbyte* card_ptr,
   // Okay to clean and process the card now.  There are still some
   // stale card cases that may be detected by iteration and dealt with
   // as iteration failure.
-  *const_cast<volatile jbyte*>(card_ptr) = G1CardTable::clean_card_val();
+  *const_cast<volatile CardValue*>(card_ptr) = G1CardTable::clean_card_val();
 
   // This fence serves two purposes.  First, the card must be cleaned
   // before processing the contents.  Second, we can't proceed with
@@ -661,32 +685,33 @@ void G1RemSet::refine_card_concurrently(jbyte* card_ptr,
   assert(!dirty_region.is_empty(), "sanity");
 
   G1ConcurrentRefineOopClosure conc_refine_cl(_g1h, worker_i);
-
-  bool card_processed =
-    r->oops_on_card_seq_iterate_careful<false>(dirty_region, &conc_refine_cl);
+  if (r->oops_on_card_seq_iterate_careful<false>(dirty_region, &conc_refine_cl)) {
+    _num_conc_refined_cards++; // Unsynchronized update, only used for logging.
+    return;
+  }
 
   // If unable to process the card then we encountered an unparsable
-  // part of the heap (e.g. a partially allocated object) while
-  // processing a stale card.  Despite the card being stale, redirty
-  // and re-enqueue, because we've already cleaned the card.  Without
-  // this we could incorrectly discard a non-stale card.
-  if (!card_processed) {
-    // The card might have gotten re-dirtied and re-enqueued while we
-    // worked.  (In fact, it's pretty likely.)
-    if (*card_ptr != G1CardTable::dirty_card_val()) {
-      *card_ptr = G1CardTable::dirty_card_val();
-      MutexLockerEx x(Shared_DirtyCardQ_lock,
-                      Mutex::_no_safepoint_check_flag);
-      DirtyCardQueue* sdcq =
-        G1BarrierSet::dirty_card_queue_set().shared_dirty_card_queue();
-      sdcq->enqueue(card_ptr);
-    }
-  } else {
-    _num_conc_refined_cards++; // Unsynchronized update, only used for logging.
+  // part of the heap (e.g. a partially allocated object, so only
+  // temporarily a problem) while processing a stale card.  Despite
+  // the card being stale, we can't simply ignore it, because we've
+  // already marked the card cleaned, so taken responsibility for
+  // ensuring the card gets scanned.
+  //
+  // However, the card might have gotten re-dirtied and re-enqueued
+  // while we worked.  (In fact, it's pretty likely.)
+  if (*card_ptr == G1CardTable::dirty_card_val()) {
+    return;
   }
+
+  // Re-dirty the card and enqueue in the *shared* queue.  Can't use
+  // the thread-local queue, because that might be the queue that is
+  // being processed by us; we could be a Java thread conscripted to
+  // perform refinement on our queue's current buffer.
+  *card_ptr = G1CardTable::dirty_card_val();
+  G1BarrierSet::shared_dirty_card_queue().enqueue(card_ptr);
 }
 
-bool G1RemSet::refine_card_during_gc(jbyte* card_ptr,
+bool G1RemSet::refine_card_during_gc(CardValue* card_ptr,
                                      G1ScanObjsDuringUpdateRSClosure* update_rs_cl) {
   assert(_g1h->is_gc_active(), "Only call during GC");
 

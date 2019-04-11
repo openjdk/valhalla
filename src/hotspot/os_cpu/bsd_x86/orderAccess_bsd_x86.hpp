@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_BSD_X86_VM_ORDERACCESS_BSD_X86_HPP
-#define OS_CPU_BSD_X86_VM_ORDERACCESS_BSD_X86_HPP
+#ifndef OS_CPU_BSD_X86_ORDERACCESS_BSD_X86_HPP
+#define OS_CPU_BSD_X86_ORDERACCESS_BSD_X86_HPP
 
 // Included in orderAccess.hpp header file.
 
@@ -57,6 +57,11 @@ inline void OrderAccess::fence() {
   __asm__ volatile ("lock; addl $0,0(%%esp)" : : : "cc", "memory");
 #endif
   compiler_barrier();
+}
+
+inline void OrderAccess::cross_modify_fence() {
+  int idx = 0;
+  __asm__ volatile ("cpuid " : "+a" (idx) : : "ebx", "ecx", "edx", "memory");
 }
 
 template<>
@@ -109,4 +114,4 @@ struct OrderAccess::PlatformOrderedStore<8, RELEASE_X_FENCE>
 };
 #endif // AMD64
 
-#endif // OS_CPU_BSD_X86_VM_ORDERACCESS_BSD_X86_HPP
+#endif // OS_CPU_BSD_X86_ORDERACCESS_BSD_X86_HPP

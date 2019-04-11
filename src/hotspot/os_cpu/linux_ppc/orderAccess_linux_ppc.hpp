@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2014 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_PPC_VM_ORDERACCESS_LINUX_PPC_HPP
-#define OS_CPU_LINUX_PPC_VM_ORDERACCESS_LINUX_PPC_HPP
+#ifndef OS_CPU_LINUX_PPC_ORDERACCESS_LINUX_PPC_HPP
+#define OS_CPU_LINUX_PPC_ORDERACCESS_LINUX_PPC_HPP
 
 // Included in orderAccess.hpp header file.
 
@@ -79,7 +79,8 @@ inline void   OrderAccess::storeload()  { inlasm_sync();   }
 inline void   OrderAccess::acquire()    { inlasm_lwsync(); }
 inline void   OrderAccess::release()    { inlasm_lwsync(); }
 inline void   OrderAccess::fence()      { inlasm_sync();   }
-
+inline void   OrderAccess::cross_modify_fence()
+                                        { inlasm_isync();  }
 
 template<size_t byte_size>
 struct OrderAccess::PlatformOrderedLoad<byte_size, X_ACQUIRE>
@@ -94,4 +95,4 @@ struct OrderAccess::PlatformOrderedLoad<byte_size, X_ACQUIRE>
 #undef inlasm_isync
 #undef inlasm_acquire_reg
 
-#endif // OS_CPU_LINUX_PPC_VM_ORDERACCESS_LINUX_PPC_HPP
+#endif // OS_CPU_LINUX_PPC_ORDERACCESS_LINUX_PPC_HPP

@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
@@ -158,14 +159,14 @@ public class Log extends AbstractLog {
 
         /** Report all deferred diagnostics. */
         public void reportDeferredDiagnostics() {
-            reportDeferredDiagnostics(EnumSet.allOf(JCDiagnostic.Kind.class));
+            reportDeferredDiagnostics(d -> true);
         }
 
         /** Report selected deferred diagnostics. */
-        public void reportDeferredDiagnostics(Set<JCDiagnostic.Kind> kinds) {
+        public void reportDeferredDiagnostics(Predicate<JCDiagnostic> accepter) {
             JCDiagnostic d;
             while ((d = deferred.poll()) != null) {
-                if (kinds.contains(d.getKind()))
+                if (accepter.test(d))
                     prev.report(d);
             }
             deferred = null; // prevent accidental ongoing use
@@ -417,6 +418,14 @@ public class Log extends AbstractLog {
     /** The number of warnings encountered so far.
      */
     public int nwarnings = 0;
+
+    /** The number of errors encountered after MaxErrors was reached.
+     */
+    public int nsuppressederrors = 0;
+
+    /** The number of warnings encountered after MaxWarnings was reached.
+     */
+    public int nsuppressedwarns = 0;
 
     /** A set of all errors generated so far. This is used to avoid printing an
      *  error message more than once. For each error, a pair consisting of the
@@ -707,16 +716,21 @@ public class Log extends AbstractLog {
                     if (nwarnings < MaxWarnings) {
                         writeDiagnostic(diagnostic);
                         nwarnings++;
+                    } else {
+                        nsuppressedwarns++;
                     }
                 }
                 break;
 
             case ERROR:
-                if (nerrors < MaxErrors &&
-                    (diagnostic.isFlagSet(DiagnosticFlag.MULTIPLE) ||
-                     shouldReport(diagnostic))) {
-                    writeDiagnostic(diagnostic);
-                    nerrors++;
+                if (diagnostic.isFlagSet(DiagnosticFlag.API) ||
+                     shouldReport(diagnostic)) {
+                    if (nerrors < MaxErrors) {
+                        writeDiagnostic(diagnostic);
+                        nerrors++;
+                    } else {
+                        nsuppressederrors++;
+                    }
                 }
                 break;
             }
@@ -843,6 +857,8 @@ public class Log extends AbstractLog {
             printRawDiag(errWriter, "error: ", pos, msg);
             prompt();
             nerrors++;
+        } else {
+            nsuppressederrors++;
         }
         errWriter.flush();
     }
@@ -851,8 +867,12 @@ public class Log extends AbstractLog {
      */
     public void rawWarning(int pos, String msg) {
         PrintWriter warnWriter = writers.get(WriterKind.ERROR);
-        if (nwarnings < MaxWarnings && emitWarnings) {
-            printRawDiag(warnWriter, "warning: ", pos, msg);
+        if (emitWarnings) {
+            if (nwarnings < MaxWarnings) {
+                printRawDiag(warnWriter, "warning: ", pos, msg);
+            } else {
+                nsuppressedwarns++;
+            }
         }
         prompt();
         nwarnings++;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRWRITERHOST_HPP
-#define SHARE_VM_JFR_WRITERS_JFRWRITERHOST_HPP
+#ifndef SHARE_JFR_WRITERS_JFRWRITERHOST_HPP
+#define SHARE_JFR_WRITERS_JFRWRITERHOST_HPP
 
 #include "jni.h"
 #include "utilities/globalDefinitions.hpp"
@@ -91,12 +91,12 @@ class WriterHost : public WriterPolicyImpl {
   void bytes(const void* buf, size_t len);
   void write_utf8_u2_len(const char* value);
   template <typename T>
-  void write_padded_at_offset(T value, intptr_t offset);
+  void write_padded_at_offset(T value, int64_t offset);
   template <typename T>
-  void write_at_offset(T value, intptr_t offset);
+  void write_at_offset(T value, int64_t offset);
   template <typename T>
-  void write_be_at_offset(T value, intptr_t offset);
-  intptr_t reserve(size_t size);
+  void write_be_at_offset(T value, int64_t offset);
+  int64_t reserve(size_t size);
 };
 
-#endif // SHARE_VM_JFR_WRITERS_JFRWRITERHOST_HPP
+#endif // SHARE_JFR_WRITERS_JFRWRITERHOST_HPP

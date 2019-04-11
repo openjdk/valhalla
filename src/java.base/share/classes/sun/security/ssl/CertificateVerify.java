@@ -1,5 +1,5 @@
  /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -196,13 +196,13 @@ final class CertificateVerify {
             Signature signer = null;
             switch (algorithm) {
                 case "RSA":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_RAWRSA);
                     break;
                 case "DSA":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWDSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_RAWDSA);
                     break;
                 case "EC":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWECDSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_RAWECDSA);
                     break;
                 default:
                     throw new SignatureException("Unrecognized algorithm: "
@@ -439,13 +439,13 @@ final class CertificateVerify {
             Signature signer = null;
             switch (algorithm) {
                 case "RSA":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWRSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_RAWRSA);
                     break;
                 case "DSA":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWDSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_RAWDSA);
                     break;
                 case "EC":
-                    signer = JsseJce.getSignature(JsseJce.SIGNATURE_RAWECDSA);
+                    signer = Signature.getInstance(JsseJce.SIGNATURE_RAWECDSA);
                     break;
                 default:
                     throw new SignatureException("Unrecognized algorithm: "
@@ -565,7 +565,7 @@ final class CertificateVerify {
             ClientHandshakeContext chc = (ClientHandshakeContext)context;
             this.signatureScheme = SignatureScheme.getPreferableAlgorithm(
                     chc.peerRequestedSignatureSchemes,
-                    x509Possession.popPrivateKey,
+                    x509Possession,
                     chc.negotiatedProtocol);
             if (signatureScheme == null) {
                 // Unlikely, the credentials generator should have
@@ -866,7 +866,7 @@ final class CertificateVerify {
 
             this.signatureScheme = SignatureScheme.getPreferableAlgorithm(
                     context.peerRequestedSignatureSchemes,
-                    x509Possession.popPrivateKey,
+                    x509Possession,
                     context.negotiatedProtocol);
             if (signatureScheme == null) {
                 // Unlikely, the credentials generator should have

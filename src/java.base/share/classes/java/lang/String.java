@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -163,6 +163,12 @@ public final class String
 
     /** Cache the hash code for the string */
     private int hash; // Default to 0
+
+    /**
+     * Cache if the hash has been calculated as actually being zero, enabling
+     * us to avoid recalculating this.
+     */
+    private boolean hashIsZero; // Default to false;
 
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
     private static final long serialVersionUID = -6849794470754667710L;
@@ -1508,10 +1514,23 @@ public final class String
      * @return  a hash code value for this object.
      */
     public int hashCode() {
+        // The hash or hashIsZero fields are subject to a benign data race,
+        // making it crucial to ensure that any observable result of the
+        // calculation in this method stays correct under any possible read of
+        // these fields. Necessary restrictions to allow this to be correct
+        // without explicit memory fences or similar concurrency primitives is
+        // that we can ever only write to one of these two fields for a given
+        // String instance, and that the computation is idempotent and derived
+        // from immutable state
         int h = hash;
-        if (h == 0 && value.length > 0) {
-            hash = h = isLatin1() ? StringLatin1.hashCode(value)
-                                  : StringUTF16.hashCode(value);
+        if (h == 0 && !hashIsZero) {
+            h = isLatin1() ? StringLatin1.hashCode(value)
+                           : StringUTF16.hashCode(value);
+            if (h == 0) {
+                hashIsZero = true;
+            } else {
+                hash = h;
+            }
         }
         return h;
     }
@@ -2698,7 +2717,7 @@ public final class String
      * <p>
      * Otherwise, returns a substring of this string beginning with the first
      * code point that is not a {@link Character#isWhitespace(int) white space}
-     * up to to and including the last code point of this string.
+     * up to and including the last code point of this string.
      * <p>
      * This method may be used to trim
      * {@link Character#isWhitespace(int) white space} from
@@ -2813,8 +2832,7 @@ public final class String
      * lines are then concatenated and returned.
      * <p>
      * If {@code n > 0} then {@code n} spaces (U+0020) are inserted at the
-     * beginning of each line. {@link String#isBlank() Blank lines} are
-     * unaffected.
+     * beginning of each line.
      * <p>
      * If {@code n < 0} then up to {@code n}
      * {@link Character#isWhitespace(int) white space characters} are removed
@@ -2849,7 +2867,7 @@ public final class String
                                              : lines();
         if (n > 0) {
             final String spaces = " ".repeat(n);
-            stream = stream.map(s -> s.isBlank() ? s : spaces + s);
+            stream = stream.map(s -> spaces + s);
         } else if (n == Integer.MIN_VALUE) {
             stream = stream.map(s -> s.stripLeading());
         } else if (n < 0) {
@@ -2869,119 +2887,12 @@ public final class String
     }
 
     /**
-     * Removes vertical and horizontal white space margins from around the
-     * essential body of a multi-line string, while preserving relative
-     * indentation.
-     * <p>
-     * This string is first conceptually separated into lines as if by
-     * {@link String#lines()}.
-     * <p>
-     * Then, the <i>minimum indentation</i> (min) is determined as follows. For
-     * each non-blank line (as defined by {@link String#isBlank()}), the
-     * leading {@link Character#isWhitespace(int) white space} characters are
-     * counted. The <i>min</i> value is the smallest of these counts.
-     * <p>
-     * For each non-blank line, <i>min</i> leading white space characters are
-     * removed. Each white space character is treated as a single character. In
-     * particular, the tab character {@code "\t"} (U+0009) is considered a
-     * single character; it is not expanded.
-     * <p>
-     * Leading and trailing blank lines, if any, are removed. Trailing spaces are
-     * preserved.
-     * <p>
-     * Each line is suffixed with a line feed character {@code "\n"} (U+000A).
-     * <p>
-     * Finally, the lines are concatenated into a single string and returned.
-     *
-     * @apiNote
-     * This method's primary purpose is to shift a block of lines as far as
-     * possible to the left, while preserving relative indentation. Lines
-     * that were indented the least will thus have no leading white space.
-     *
-     * Example:
-     * <blockquote><pre>
-     * `
-     *      This is the first line
-     *          This is the second line
-     * `.align();
-     *
-     * returns
-     * This is the first line
-     *     This is the second line
-     * </pre></blockquote>
-     *
-     * @return string with margins removed and line terminators normalized
-     *
-     * @see String#lines()
-     * @see String#isBlank()
-     * @see String#indent(int)
-     * @see Character#isWhitespace(int)
-     *
-     * @since 12
-     */
-    public String align() {
-        return align(0);
-    }
-
-    /**
-     * Removes vertical and horizontal white space margins from around the
-     * essential body of a multi-line string, while preserving relative
-     * indentation and with optional indentation adjustment.
-     * <p>
-     * Invoking this method is equivalent to:
-     * <blockquote>
-     *  {@code this.align().indent(n)}
-     * </blockquote>
-     *
-     * @apiNote
-     * Examples:
-     * <blockquote><pre>
-     * `
-     *      This is the first line
-     *          This is the second line
-     * `.align(0);
-     *
-     * returns
-     * This is the first line
-     *     This is the second line
-     *
-     *
-     * `
-     *    This is the first line
-     *       This is the second line
-     * `.align(4);
-     * returns
-     *     This is the first line
-     *         This is the second line
-     * </pre></blockquote>
-     *
-     * @param n  number of leading white space characters
-     *           to add or remove
-     *
-     * @return string with margins removed, indentation adjusted and
-     *         line terminators normalized
-     *
-     * @see String#align()
-     *
-     * @since 12
-     */
-    public String align(int n) {
-        if (isEmpty()) {
-            return "";
-        }
-        int outdent = lines().filter(not(String::isBlank))
-                             .mapToInt(String::indexOfNonWhitespace)
-                             .min()
-                             .orElse(0);
-        // overflow-conscious code
-        int indent = n - outdent;
-        return indent(indent > n ? Integer.MIN_VALUE : indent, true);
-    }
-
-    /**
      * This method allows the application of a function to {@code this}
      * string. The function should expect a single String argument
      * and produce an {@code R} result.
+     * <p>
+     * Any exception thrown by {@code f()} will be propagated to the
+     * caller.
      *
      * @param f    functional interface to a apply
      *

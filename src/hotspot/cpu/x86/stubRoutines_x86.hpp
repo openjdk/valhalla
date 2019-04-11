@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_STUBROUTINES_X86_HPP
-#define CPU_X86_VM_STUBROUTINES_X86_HPP
+#ifndef CPU_X86_STUBROUTINES_X86_HPP
+#define CPU_X86_STUBROUTINES_X86_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
@@ -33,7 +33,7 @@ static bool returns_to_call_stub(address return_pc) { return return_pc == _call_
 
 enum platform_dependent_constants {
   code_size1 = 20000 LP64_ONLY(+10000),         // simply increase if too small (assembler will crash if too small)
-  code_size2 = 35300 LP64_ONLY(+10000)          // simply increase if too small (assembler will crash if too small)
+  code_size2 = 35300 LP64_ONLY(+11000)          // simply increase if too small (assembler will crash if too small)
 };
 
 class x86 {
@@ -248,4 +248,4 @@ class x86 {
 
 };
 
-#endif // CPU_X86_VM_STUBROUTINES_X86_HPP
+#endif // CPU_X86_STUBROUTINES_X86_HPP

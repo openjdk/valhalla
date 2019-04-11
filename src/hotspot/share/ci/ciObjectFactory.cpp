@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -264,6 +264,24 @@ int ciObjectFactory::metadata_compare(Metadata* const& key, ciMetadata* const& e
   else if (key > value) return 1;
   else                  return 0;
 }
+
+// ------------------------------------------------------------------
+// ciObjectFactory::cached_metadata
+//
+// Get the ciMetadata corresponding to some Metadata. If the ciMetadata has
+// already been created, it is returned. Otherwise, null is returned.
+ciMetadata* ciObjectFactory::cached_metadata(Metadata* key) {
+  ASSERT_IN_VM;
+
+  bool found = false;
+  int index = _ci_metadata->find_sorted<Metadata*, ciObjectFactory::metadata_compare>(key, found);
+
+  if (!found) {
+    return NULL;
+  }
+  return _ci_metadata->at(index)->as_metadata();
+}
+
 
 // ------------------------------------------------------------------
 // ciObjectFactory::get_metadata
@@ -671,11 +689,11 @@ ciSymbol* ciObjectFactory::vm_symbol_at(int index) {
 
 // ------------------------------------------------------------------
 // ciObjectFactory::metadata_do
-void ciObjectFactory::metadata_do(void f(Metadata*)) {
+void ciObjectFactory::metadata_do(MetadataClosure* f) {
   if (_ci_metadata == NULL) return;
   for (int j = 0; j< _ci_metadata->length(); j++) {
     Metadata* o = _ci_metadata->at(j)->constant_encoding();
-    f(o);
+    f->do_metadata(o);
   }
 }
 

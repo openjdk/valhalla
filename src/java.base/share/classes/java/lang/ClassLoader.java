@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,7 +126,7 @@ import sun.security.util.SecurityConstants;
  * duration of the class loading process (see {@link #loadClass
  * loadClass} methods).
  *
- * <h3> <a id="builtinLoaders">Run-time Built-in Class Loaders</a></h3>
+ * <h2> <a id="builtinLoaders">Run-time Built-in Class Loaders</a></h2>
  *
  * The Java run-time has the following built-in class loaders:
  *
@@ -1885,12 +1885,12 @@ public abstract class ClassLoader {
      * <p> The default system class loader is an implementation-dependent
      * instance of this class.
      *
-     * <p> If the system property "{@code java.system.class.loader}" is defined
-     * when this method is first invoked then the value of that property is
-     * taken to be the name of a class that will be returned as the system
-     * class loader.  The class is loaded using the default system class loader
-     * and must define a public constructor that takes a single parameter of
-     * type {@code ClassLoader} which is used as the delegation parent.  An
+     * <p> If the system property "{@systemProperty java.system.class.loader}"
+     * is defined when this method is first invoked then the value of that
+     * property is taken to be the name of a class that will be returned as the
+     * system class loader. The class is loaded using the default system class
+     * loader and must define a public constructor that takes a single parameter
+     * of type {@code ClassLoader} which is used as the delegation parent. An
      * instance is then created using this constructor with the default system
      * class loader as the parameter.  The resulting class loader is defined
      * to be the system class loader. During construction, the class loader

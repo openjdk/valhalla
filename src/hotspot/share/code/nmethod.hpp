@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_NMETHOD_HPP
-#define SHARE_VM_CODE_NMETHOD_HPP
+#ifndef SHARE_CODE_NMETHOD_HPP
+#define SHARE_CODE_NMETHOD_HPP
 
 #include "code/compiledMethod.hpp"
 
 class DepChange;
 class DirectiveSet;
+class DebugInformationRecorder;
 
 // nmethods (native methods) are the compiled code versions of Java methods.
 //
@@ -129,8 +130,6 @@ class nmethod : public CompiledMethod {
 #ifdef ASSERT
   bool _oops_are_stale;  // indicates that it's no longer safe to access oops section
 #endif
-
-  jbyte _scavenge_root_state;
 
 #if INCLUDE_RTM_OPT
   // RTM state at compile time. Used during deoptimization to decide
@@ -376,6 +375,8 @@ class nmethod : public CompiledMethod {
 
   int   comp_level() const                        { return _comp_level; }
 
+  void unlink_from_method(bool acquire_lock);
+
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
   oop   oop_at(int index) const;
@@ -406,24 +407,6 @@ private:
 public:
   void fix_oop_relocations(address begin, address end) { fix_oop_relocations(begin, end, false); }
   void fix_oop_relocations()                           { fix_oop_relocations(NULL, NULL, false); }
-
-  // Scavengable oop support
-  bool  on_scavenge_root_list() const                  { return (_scavenge_root_state & 1) != 0; }
- protected:
-  enum { sl_on_list = 0x01, sl_marked = 0x10 };
-  void  set_on_scavenge_root_list()                    { _scavenge_root_state = sl_on_list; }
-  void  clear_on_scavenge_root_list()                  { _scavenge_root_state = 0; }
-  // assertion-checking and pruning logic uses the bits of _scavenge_root_state
-#ifndef PRODUCT
-  void  set_scavenge_root_marked()                     { _scavenge_root_state |= sl_marked; }
-  void  clear_scavenge_root_marked()                   { _scavenge_root_state &= ~sl_marked; }
-  bool  scavenge_root_not_marked()                     { return (_scavenge_root_state &~ sl_on_list) == 0; }
-  // N.B. there is no positive marked query, and we only use the not_marked query for asserts.
-#endif //PRODUCT
-  nmethod* scavenge_root_link() const                  { return _scavenge_root_link; }
-  void     set_scavenge_root_link(nmethod *n)          { _scavenge_root_link = n; }
-
- public:
 
   // Sweeper support
   long  stack_traversal_mark()                    { return _stack_traversal_mark; }
@@ -501,8 +484,6 @@ public:
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
   void oops_do(OopClosure* f, bool allow_zombie);
-  bool detect_scavenge_root_oops();
-  void verify_scavenge_root_oops() PRODUCT_RETURN;
 
   bool test_set_oops_do_mark();
   static void oops_do_marking_prologue();
@@ -584,11 +565,6 @@ public:
   // and the changes have invalidated it
   bool check_dependency_on(DepChange& changes);
 
-  // Evolution support. Tells if this compiled method is dependent on any of
-  // methods m() of class dependee, such that if m() in dependee is replaced,
-  // this compiled method will have to be deoptimized.
-  bool is_evol_dependent_on(Klass* dependee);
-
   // Fast breakpoint support. Tells if this compiled method is
   // dependent on the given method. Returns true if this nmethod
   // corresponds to the given method as well.
@@ -610,7 +586,7 @@ public:
   static int osr_entry_point_offset()             { return offset_of(nmethod, _osr_entry_point); }
   static int state_offset()                       { return offset_of(nmethod, _state); }
 
-  virtual void metadata_do(void f(Metadata*));
+  virtual void metadata_do(MetadataClosure* f);
 
   NativeCallWrapper* call_wrapper_at(address call) const;
   NativeCallWrapper* call_wrapper_before(address return_pc) const;
@@ -667,4 +643,4 @@ class nmethodLocker : public StackObj {
   }
 };
 
-#endif // SHARE_VM_CODE_NMETHOD_HPP
+#endif // SHARE_CODE_NMETHOD_HPP

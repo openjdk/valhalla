@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
-#define SHARE_VM_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
+#ifndef SHARE_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
+#define SHARE_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
 
 #include "jni.h"
 #include "jfr/utilities/jfrAllocation.hpp"
@@ -55,7 +55,7 @@ class JfrRepository : public JfrCHeapObj {
   bool set_path(const char* path);
   void set_chunk_path(const char* path);
   bool open_chunk(bool vm_error = false);
-  size_t close_chunk(jlong metadata_offset);
+  size_t close_chunk(int64_t metadata_offset);
   void on_vm_error();
   static void notify_on_new_chunk_path();
   static JfrChunkWriter& chunkwriter();
@@ -70,4 +70,4 @@ class JfrRepository : public JfrCHeapObj {
   static void set_chunk_path(jstring path, JavaThread* jt);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP
+#endif // SHARE_JFR_RECORDER_REPOSITORY_JFRREPOSITORY_HPP

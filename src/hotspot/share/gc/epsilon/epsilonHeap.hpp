@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_EPSILON_COLLECTEDHEAP_HPP
-#define SHARE_VM_GC_EPSILON_COLLECTEDHEAP_HPP
+#ifndef SHARE_GC_EPSILON_EPSILONHEAP_HPP
+#define SHARE_GC_EPSILON_EPSILONHEAP_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/softRefPolicy.hpp"
@@ -88,11 +88,6 @@ public:
     return _space->is_in(p);
   }
 
-  virtual bool is_scavengable(oop obj) {
-    // No GC is going to happen, therefore no objects ever move.
-    return false;
-  }
-
   virtual bool is_maximal_no_gc() const {
     // No GC is going to happen. Return "we are at max", when we are about to fail.
     return used() == capacity();
@@ -128,12 +123,17 @@ public:
 
   // No support for block parsing.
   virtual HeapWord* block_start(const void* addr) const { return NULL;  }
-  virtual size_t block_size(const HeapWord* addr) const { return 0;     }
   virtual bool block_is_obj(const HeapWord* addr) const { return false; }
 
   // No GC threads
   virtual void print_gc_threads_on(outputStream* st) const {}
   virtual void gc_threads_do(ThreadClosure* tc) const {}
+
+  // No nmethod handling
+  virtual void register_nmethod(nmethod* nm) {}
+  virtual void unregister_nmethod(nmethod* nm) {}
+  virtual void flush_nmethod(nmethod* nm) {}
+  virtual void verify_nmethod(nmethod* nm) {}
 
   // No heap verification
   virtual void prepare_for_verify() {}
@@ -147,6 +147,10 @@ public:
   virtual void print_on(outputStream* st) const;
   virtual void print_tracing_info() const;
 
+private:
+  void print_heap_info(size_t used) const;
+  void print_metaspace_info() const;
+
 };
 
-#endif // SHARE_VM_GC_EPSILON_COLLECTEDHEAP_HPP
+#endif // SHARE_GC_EPSILON_EPSILONHEAP_HPP

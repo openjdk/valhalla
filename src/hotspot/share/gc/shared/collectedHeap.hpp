@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
-#define SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
+#ifndef SHARE_GC_SHARED_COLLECTEDHEAP_HPP
+#define SHARE_GC_SHARED_COLLECTEDHEAP_HPP
 
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcWhen.hpp"
@@ -100,10 +100,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   friend class MemAllocator;
 
  private:
-#ifdef ASSERT
-  static int       _fire_out_of_memory_count;
-#endif
-
   GCHeapLog* _gc_heap_log;
 
   MemRegion _reserved;
@@ -243,37 +239,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   DEBUG_ONLY(bool is_in_or_null(const void* p) const { return p == NULL || is_in(p); })
 
-  // Let's define some terms: a "closed" subset of a heap is one that
-  //
-  // 1) contains all currently-allocated objects, and
-  //
-  // 2) is closed under reference: no object in the closed subset
-  //    references one outside the closed subset.
-  //
-  // Membership in a heap's closed subset is useful for assertions.
-  // Clearly, the entire heap is a closed subset, so the default
-  // implementation is to use "is_in_reserved".  But this may not be too
-  // liberal to perform useful checking.  Also, the "is_in" predicate
-  // defines a closed subset, but may be too expensive, since "is_in"
-  // verifies that its argument points to an object head.  The
-  // "closed_subset" method allows a heap to define an intermediate
-  // predicate, allowing more precise checking than "is_in_reserved" at
-  // lower cost than "is_in."
-
-  // One important case is a heap composed of disjoint contiguous spaces,
-  // such as the Garbage-First collector.  Such heaps have a convenient
-  // closed subset consisting of the allocated portions of those
-  // contiguous spaces.
-
-  // Return "TRUE" iff the given pointer points into the heap's defined
-  // closed subset (which defaults to the entire heap).
-  virtual bool is_in_closed_subset(const void* p) const {
-    return is_in_reserved(p);
-  }
-
-  bool is_in_closed_subset_or_null(const void* p) const {
-    return p == NULL || is_in_closed_subset(p);
-  }
+  virtual uint32_t hash_oop(oop obj) const;
 
   void set_gc_cause(GCCause::Cause v) {
      if (UsePerfData) {
@@ -454,11 +420,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // non-object.
   virtual HeapWord* block_start(const void* addr) const = 0;
 
-  // Requires "addr" to be the start of a chunk, and returns its size.
-  // "addr + size" is required to be the start of a new chunk, or the end
-  // of the active area of the heap.
-  virtual size_t block_size(const HeapWord* addr) const = 0;
-
   // Requires "addr" to be the start of a block, and returns "TRUE" iff
   // the block is an object.
   virtual bool block_is_obj(const HeapWord* addr) const = 0;
@@ -518,14 +479,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   void print_heap_before_gc();
   void print_heap_after_gc();
 
-  // An object is scavengable if its location may move during a scavenge.
-  // (A scavenge is a GC which is not a full GC.)
-  virtual bool is_scavengable(oop obj) = 0;
   // Registering and unregistering an nmethod (compiled code) with the heap.
-  // Override with specific mechanism for each specialized heap type.
-  virtual void register_nmethod(nmethod* nm) {}
-  virtual void unregister_nmethod(nmethod* nm) {}
-  virtual void verify_nmethod(nmethod* nmethod) {}
+  virtual void register_nmethod(nmethod* nm) = 0;
+  virtual void unregister_nmethod(nmethod* nm) = 0;
+  // Callback for when nmethod is about to be deleted.
+  virtual void flush_nmethod(nmethod* nm) = 0;
+  virtual void verify_nmethod(nmethod* nm) = 0;
 
   void trace_heap_before_gc(const GCTracer* gc_tracer);
   void trace_heap_after_gc(const GCTracer* gc_tracer);
@@ -537,12 +496,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // request_concurrent_phase_control) is supported by this collector.
   // The default implementation returns false.
   virtual bool supports_concurrent_phase_control() const;
-
-  // Return a NULL terminated array of concurrent phase names provided
-  // by this collector.  Supports Whitebox testing.  These are the
-  // names recognized by request_concurrent_phase(). The default
-  // implementation returns an array of one NULL element.
-  virtual const char* const* concurrent_phases() const;
 
   // Request the collector enter the indicated concurrent phase, and
   // wait until it does so.  Supports WhiteBox testing.  Only one
@@ -600,12 +553,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   void reset_promotion_should_fail(volatile size_t* count);
   void reset_promotion_should_fail();
 #endif  // #ifndef PRODUCT
-
-#ifdef ASSERT
-  static int fired_fake_oom() {
-    return (CIFireOOMAt > 1 && _fire_out_of_memory_count >= CIFireOOMAt);
-  }
-#endif
 };
 
 // Class to set and reset the GC cause for a CollectedHeap.
@@ -625,4 +572,4 @@ class GCCauseSetter : StackObj {
   }
 };
 
-#endif // SHARE_VM_GC_SHARED_COLLECTEDHEAP_HPP
+#endif // SHARE_GC_SHARED_COLLECTEDHEAP_HPP

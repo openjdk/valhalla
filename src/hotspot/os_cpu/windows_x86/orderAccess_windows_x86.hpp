@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_WINDOWS_X86_VM_ORDERACCESS_WINDOWS_X86_HPP
-#define OS_CPU_WINDOWS_X86_VM_ORDERACCESS_WINDOWS_X86_HPP
+#ifndef OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP
+#define OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP
 
 // Included in orderAccess.hpp header file.
 
@@ -69,6 +69,11 @@ inline void OrderAccess::fence() {
   compiler_barrier();
 }
 
+inline void OrderAccess::cross_modify_fence() {
+  int regs[4];
+  __cpuid(regs, 0);
+}
+
 #ifndef AMD64
 template<>
 struct OrderAccess::PlatformOrderedStore<1, RELEASE_X_FENCE>
@@ -110,4 +115,4 @@ struct OrderAccess::PlatformOrderedStore<4, RELEASE_X_FENCE>
 };
 #endif // AMD64
 
-#endif // OS_CPU_WINDOWS_X86_VM_ORDERACCESS_WINDOWS_X86_HPP
+#endif // OS_CPU_WINDOWS_X86_ORDERACCESS_WINDOWS_X86_HPP

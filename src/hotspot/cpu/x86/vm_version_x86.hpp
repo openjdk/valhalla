@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_VM_VERSION_X86_HPP
-#define CPU_X86_VM_VM_VERSION_X86_HPP
+#ifndef CPU_X86_VM_VERSION_X86_HPP
+#define CPU_X86_VM_VERSION_X86_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
@@ -336,7 +336,7 @@ protected:
 #define CPU_AVX512_VPOPCNTDQ ((uint64_t)UCONST64(0x2000000000)) // Vector popcount
 #define CPU_VPCLMULQDQ ((uint64_t)UCONST64(0x4000000000)) //Vector carryless multiplication
 #define CPU_VAES ((uint64_t)UCONST64(0x8000000000))    // Vector AES instructions
-#define CPU_VNNI ((uint64_t)UCONST64(0x16000000000))   // Vector Neural Network Instructions
+#define CPU_VNNI ((uint64_t)UCONST64(0x10000000000))   // Vector Neural Network Instructions
 
   enum Extended_Family {
     // AMD
@@ -686,6 +686,9 @@ public:
   static void initialize();
 
   // Override Abstract_VM_Version implementation
+  static void print_platform_virtualization_info(outputStream*);
+
+  // Override Abstract_VM_Version implementation
   static bool use_biased_locking();
 
   // Asserts
@@ -930,6 +933,11 @@ public:
   // that can be used for efficient implementation of
   // the intrinsic for java.lang.Thread.onSpinWait()
   static bool supports_on_spin_wait() { return supports_sse2(); }
+
+  // support functions for virtualization detection
+ private:
+  static void check_virt_cpuid(uint32_t idx, uint32_t *regs);
+  static void check_virtualizations();
 };
 
-#endif // CPU_X86_VM_VM_VERSION_X86_HPP
+#endif // CPU_X86_VM_VERSION_X86_HPP

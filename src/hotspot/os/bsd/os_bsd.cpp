@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,12 @@
 #include "compiler/disassembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/filemap.hpp"
 #include "oops/oop.inline.hpp"
 #include "os_bsd.inline.hpp"
+#include "os_posix.inline.hpp"
 #include "os_share_bsd.hpp"
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
@@ -742,6 +744,11 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
     } else {
       log_warning(os, thread)("Failed to start thread - pthread_create failed (%s) for attributes: %s.",
         os::errno_name(ret), os::Posix::describe_pthread_attr(buf, sizeof(buf), &attr));
+      // Log some OS information which might explain why creating the thread failed.
+      log_info(os, thread)("Number of threads approx. running in the VM: %d", Threads::number_of_threads());
+      LogStream st(Log(os, thread)::info());
+      os::Posix::print_rlimit_info(&st);
+      os::print_memory_info(&st);
     }
 
     pthread_attr_destroy(&attr);
@@ -1591,6 +1598,8 @@ void os::get_summary_cpu_info(char* buf, size_t buflen) {
 }
 
 void os::print_memory_info(outputStream* st) {
+  xsw_usage swap_usage;
+  size_t size = sizeof(swap_usage);
 
   st->print("Memory:");
   st->print(" %dk page", os::vm_page_size()>>10);
@@ -1599,6 +1608,16 @@ void os::print_memory_info(outputStream* st) {
             os::physical_memory() >> 10);
   st->print("(" UINT64_FORMAT "k free)",
             os::available_memory() >> 10);
+
+  if((sysctlbyname("vm.swapusage", &swap_usage, &size, NULL, 0) == 0) || (errno == ENOMEM)) {
+    if (size >= offset_of(xsw_usage, xsu_used)) {
+      st->print(", swap " UINT64_FORMAT "k",
+                ((julong) swap_usage.xsu_total) >> 10);
+      st->print("(" UINT64_FORMAT "k free)",
+                ((julong) swap_usage.xsu_avail) >> 10);
+    }
+  }
+
   st->cr();
 }
 
@@ -2217,30 +2236,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
   }
 }
 
-size_t os::read(int fd, void *buf, unsigned int nBytes) {
-  RESTARTABLE_RETURN_INT(::read(fd, buf, nBytes));
-}
-
-size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
-  RESTARTABLE_RETURN_INT(::pread(fd, buf, nBytes, offset));
-}
-
-void os::naked_short_sleep(jlong ms) {
-  struct timespec req;
-
-  assert(ms < 1000, "Un-interruptable sleep, short time use only");
-  req.tv_sec = 0;
-  if (ms > 0) {
-    req.tv_nsec = (ms % 1000) * 1000000;
-  } else {
-    req.tv_nsec = 1;
-  }
-
-  nanosleep(&req, NULL);
-
-  return;
-}
-
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
 void os::infinite_sleep() {
   while (true) {    // sleep forever ...
@@ -2272,7 +2267,8 @@ void os::naked_yield() {
 // not the entire user process, and user level threads are 1:1 mapped to kernel
 // threads. It has always been the case, but could change in the future. For
 // this reason, the code should not be used as default (ThreadPriorityPolicy=0).
-// It is only used when ThreadPriorityPolicy=1 and requires root privilege.
+// It is only used when ThreadPriorityPolicy=1 and may require system level permission
+// (e.g., root privilege or CAP_SYS_NICE capability).
 
 #if !defined(__APPLE__)
 int os::java_to_os_priority[CriticalPriority + 1] = {
@@ -2319,14 +2315,12 @@ int os::java_to_os_priority[CriticalPriority + 1] = {
 
 static int prio_init() {
   if (ThreadPriorityPolicy == 1) {
-    // Only root can raise thread priority. Don't allow ThreadPriorityPolicy=1
-    // if effective uid is not root. Perhaps, a more elegant way of doing
-    // this is to test CAP_SYS_NICE capability, but that will require libcap.so
     if (geteuid() != 0) {
       if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy)) {
-        warning("-XX:ThreadPriorityPolicy requires root privilege on Bsd");
+        warning("-XX:ThreadPriorityPolicy=1 may require system level permission, " \
+                "e.g., being the root user. If the necessary permission is not " \
+                "possessed, changes to priority will be silently ignored.");
       }
-      ThreadPriorityPolicy = 0;
     }
   }
   if (UseCriticalJavaThreadPriority) {
@@ -2343,17 +2337,17 @@ OSReturn os::set_native_priority(Thread* thread, int newpri) {
   return OS_OK;
 #elif defined(__FreeBSD__)
   int ret = pthread_setprio(thread->osthread()->pthread_id(), newpri);
+  return (ret == 0) ? OS_OK : OS_ERR;
 #elif defined(__APPLE__) || defined(__NetBSD__)
   struct sched_param sp;
   int policy;
-  pthread_t self = pthread_self();
 
-  if (pthread_getschedparam(self, &policy, &sp) != 0) {
+  if (pthread_getschedparam(thread->osthread()->pthread_id(), &policy, &sp) != 0) {
     return OS_ERR;
   }
 
   sp.sched_priority = newpri;
-  if (pthread_setschedparam(self, policy, &sp) != 0) {
+  if (pthread_setschedparam(thread->osthread()->pthread_id(), policy, &sp) != 0) {
     return OS_ERR;
   }
 
@@ -2377,8 +2371,14 @@ OSReturn os::get_native_priority(const Thread* const thread, int *priority_ptr) 
   int policy;
   struct sched_param sp;
 
-  pthread_getschedparam(pthread_self(), &policy, &sp);
-  *priority_ptr = sp.sched_priority;
+  int res = pthread_getschedparam(thread->osthread()->pthread_id(), &policy, &sp);
+  if (res != 0) {
+    *priority_ptr = -1;
+    return OS_ERR;
+  } else {
+    *priority_ptr = sp.sched_priority;
+    return OS_OK;
+  }
 #else
   *priority_ptr = getpriority(PRIO_PROCESS, thread->osthread()->thread_id());
 #endif
@@ -2584,7 +2584,7 @@ static bool do_suspend(OSThread* osthread) {
 
   // managed to send the signal and switch to SUSPEND_REQUEST, now wait for SUSPENDED
   while (true) {
-    if (sr_semaphore.timedwait(0, 2 * NANOSECS_PER_MILLISEC)) {
+    if (sr_semaphore.timedwait(2)) {
       break;
     } else {
       // timeout
@@ -2618,7 +2618,7 @@ static void do_resume(OSThread* osthread) {
 
   while (true) {
     if (sr_notify(osthread) == 0) {
-      if (sr_semaphore.timedwait(0, 2 * NANOSECS_PER_MILLISEC)) {
+      if (sr_semaphore.timedwait(2)) {
         if (osthread->sr.is_running()) {
           return;
         }
@@ -2676,11 +2676,6 @@ static void signalHandler(int sig, siginfo_t* info, void* uc) {
 bool os::Bsd::signal_handlers_are_installed = false;
 
 // For signal-chaining
-struct sigaction sigact[NSIG];
-uint32_t sigs = 0;
-#if (32 < NSIG-1)
-#error "Not all signals can be encoded in sigs. Adapt its type!"
-#endif
 bool os::Bsd::libjsig_is_loaded = false;
 typedef struct sigaction *(*get_signal_t)(int);
 get_signal_t os::Bsd::get_signal_action = NULL;
@@ -2694,7 +2689,7 @@ struct sigaction* os::Bsd::get_chained_signal_action(int sig) {
   }
   if (actp == NULL) {
     // Retrieve the preinstalled signal handler from jvm
-    actp = get_preinstalled_handler(sig);
+    actp = os::Posix::get_preinstalled_handler(sig);
   }
 
   return actp;
@@ -2757,19 +2752,6 @@ bool os::Bsd::chained_handler(int sig, siginfo_t* siginfo, void* context) {
   return chained;
 }
 
-struct sigaction* os::Bsd::get_preinstalled_handler(int sig) {
-  if ((((uint32_t)1 << (sig-1)) & sigs) != 0) {
-    return &sigact[sig];
-  }
-  return NULL;
-}
-
-void os::Bsd::save_preinstalled_handler(int sig, struct sigaction& oldAct) {
-  assert(sig > 0 && sig < NSIG, "vm signal out of expected range");
-  sigact[sig] = oldAct;
-  sigs |= (uint32_t)1 << (sig-1);
-}
-
 // for diagnostic
 int sigflags[NSIG];
 
@@ -2801,7 +2783,7 @@ void os::Bsd::set_signal_handler(int sig, bool set_installed) {
       return;
     } else if (UseSignalChaining) {
       // save the old handler in jvm
-      save_preinstalled_handler(sig, oldAct);
+      os::Posix::save_preinstalled_handler(sig, oldAct);
       // libjsig also interposes the sigaction() call below and saves the
       // old sigaction on it own.
     } else {

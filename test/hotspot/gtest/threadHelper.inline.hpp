@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 
 #include "runtime/mutex.hpp"
 #include "runtime/semaphore.hpp"
-#include "runtime/thread.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vmThread.hpp"
 #include "runtime/vmOperations.hpp"
 #include "unittest.hpp"
@@ -50,6 +50,9 @@ public:
   Semaphore _unblock;
   VMThreadBlocker() {}
   virtual ~VMThreadBlocker() {}
+  const char* get_thread_name_string(char* buf, int buflen) const {
+    return "VMThreadBlocker";
+  }
   void run() {
     this->set_thread_state(_thread_in_vm);
     {
@@ -58,9 +61,15 @@ public:
     }
     VM_StopSafepoint ss(&_ready, &_unblock);
     VMThread::execute(&ss);
-    Threads::remove(this);
+  }
+
+  // Override as JavaThread::post_run() calls JavaThread::exit which
+  // expects a valid thread object oop.
+  virtual void post_run() {
+    Threads::remove(this, false);
     this->smr_delete();
   }
+
   void doit() {
     if (os::create_thread(this, os::os_thread)) {
       os::start_thread(this);
@@ -85,7 +94,11 @@ public:
   }
   virtual ~JavaTestThread() {}
 
-  void prerun() {
+  const char* get_thread_name_string(char* buf, int buflen) const {
+    return "JavaTestThread";
+  }
+
+  void pre_run() {
     this->set_thread_state(_thread_in_vm);
     {
       MutexLocker ml(Threads_lock);
@@ -99,13 +112,13 @@ public:
   virtual void main_run() = 0;
 
   void run() {
-    prerun();
     main_run();
-    postrun();
   }
 
-  void postrun() {
-    Threads::remove(this);
+  // Override as JavaThread::post_run() calls JavaThread::exit which
+  // expects a valid thread object oop. And we need to call signal.
+  void post_run() {
+    Threads::remove(this, false);
     _post->signal();
     this->smr_delete();
   }

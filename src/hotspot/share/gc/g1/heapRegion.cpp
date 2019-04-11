@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -117,6 +117,7 @@ void HeapRegion::hr_clear(bool keep_remset, bool clear_space, bool locked) {
          "Should not clear heap region %u in the collection set", hrm_index());
 
   set_young_index_in_cset(-1);
+  clear_index_in_opt_cset();
   uninstall_surv_rate_group();
   set_free();
   reset_pre_dummy_top();
@@ -144,13 +145,13 @@ void HeapRegion::calc_gc_efficiency() {
   // GC efficiency is the ratio of how much space would be
   // reclaimed over how long we predict it would take to reclaim it.
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
-  G1Policy* g1p = g1h->g1_policy();
+  G1Policy* policy = g1h->policy();
 
   // Retrieve a prediction of the elapsed time for this region for
   // a mixed gc because the region will only be evacuated during a
   // mixed gc.
   double region_elapsed_time_ms =
-    g1p->predict_region_elapsed_time_ms(this, false /* for_young_gc */);
+    policy->predict_region_elapsed_time_ms(this, false /* for_young_gc */);
   _gc_efficiency = (double) reclaimable_bytes() / region_elapsed_time_ms;
 }
 
@@ -241,7 +242,7 @@ HeapRegion::HeapRegion(uint hrm_index,
     _containing_set(NULL),
 #endif
     _prev_marked_bytes(0), _next_marked_bytes(0), _gc_efficiency(0.0),
-    _index_in_opt_cset(G1OptionalCSet::InvalidCSetIndex), _young_index_in_cset(-1),
+    _index_in_opt_cset(InvalidCSetIndex), _young_index_in_cset(-1),
     _surv_rate_group(NULL), _age_index(-1),
     _prev_top_at_mark_start(NULL), _next_top_at_mark_start(NULL),
     _recorded_rs_length(0), _predicted_elapsed_time_ms(0)
@@ -336,8 +337,8 @@ class VerifyStrongCodeRootOopClosure: public OopClosure {
         // Object is in the region. Check that its less than top
         if (_hr->top() <= (HeapWord*)obj) {
           // Object is above top
-          log_error(gc, verify)("Object " PTR_FORMAT " in region [" PTR_FORMAT ", " PTR_FORMAT ") is above top " PTR_FORMAT,
-                               p2i(obj), p2i(_hr->bottom()), p2i(_hr->end()), p2i(_hr->top()));
+          log_error(gc, verify)("Object " PTR_FORMAT " in region " HR_FORMAT " is above top ",
+                                p2i(obj), HR_FORMAT_PARAMS(_hr));
           _failures = true;
           return;
         }
@@ -415,8 +416,8 @@ void HeapRegion::verify_strong_code_roots(VerifyOption vo, bool* failures) const
   // on its strong code root list
   if (is_empty()) {
     if (strong_code_roots_length > 0) {
-      log_error(gc, verify)("region [" PTR_FORMAT "," PTR_FORMAT "] is empty but has " SIZE_FORMAT " code root entries",
-                            p2i(bottom()), p2i(end()), strong_code_roots_length);
+      log_error(gc, verify)("region " HR_FORMAT " is empty but has " SIZE_FORMAT " code root entries",
+                            HR_FORMAT_PARAMS(this), strong_code_roots_length);
       *failures = true;
     }
     return;
@@ -514,7 +515,7 @@ public:
     if (!CompressedOops::is_null(heap_oop)) {
       oop obj = CompressedOops::decode_not_null(heap_oop);
       bool failed = false;
-      if (!_g1h->is_in_closed_subset(obj) || _g1h->is_obj_dead_cond(obj, _vo)) {
+      if (!_g1h->is_in(obj) || _g1h->is_obj_dead_cond(obj, _vo)) {
         MutexLockerEx x(ParGCRareEvent_lock,
           Mutex::_no_safepoint_check_flag);
 
@@ -522,23 +523,24 @@ public:
           log.error("----------");
         }
         ResourceMark rm;
-        if (!_g1h->is_in_closed_subset(obj)) {
+        if (!_g1h->is_in(obj)) {
           HeapRegion* from = _g1h->heap_region_containing((HeapWord*)p);
-          log.error("Field " PTR_FORMAT " of live obj " PTR_FORMAT " in region [" PTR_FORMAT ", " PTR_FORMAT ")",
-            p2i(p), p2i(_containing_obj), p2i(from->bottom()), p2i(from->end()));
+          log.error("Field " PTR_FORMAT " of live obj " PTR_FORMAT " in region " HR_FORMAT,
+                    p2i(p), p2i(_containing_obj), HR_FORMAT_PARAMS(from));
           LogStream ls(log.error());
           print_object(&ls, _containing_obj);
           HeapRegion* const to = _g1h->heap_region_containing(obj);
-          log.error("points to obj " PTR_FORMAT " in region " HR_FORMAT " remset %s", p2i(obj), HR_FORMAT_PARAMS(to), to->rem_set()->get_state_str());
+          log.error("points to obj " PTR_FORMAT " in region " HR_FORMAT " remset %s",
+                    p2i(obj), HR_FORMAT_PARAMS(to), to->rem_set()->get_state_str());
         } else {
           HeapRegion* from = _g1h->heap_region_containing((HeapWord*)p);
           HeapRegion* to = _g1h->heap_region_containing((HeapWord*)obj);
-          log.error("Field " PTR_FORMAT " of live obj " PTR_FORMAT " in region [" PTR_FORMAT ", " PTR_FORMAT ")",
-            p2i(p), p2i(_containing_obj), p2i(from->bottom()), p2i(from->end()));
+          log.error("Field " PTR_FORMAT " of live obj " PTR_FORMAT " in region " HR_FORMAT,
+                    p2i(p), p2i(_containing_obj), HR_FORMAT_PARAMS(from));
           LogStream ls(log.error());
           print_object(&ls, _containing_obj);
-          log.error("points to dead obj " PTR_FORMAT " in region [" PTR_FORMAT ", " PTR_FORMAT ")",
-            p2i(obj), p2i(to->bottom()), p2i(to->end()));
+          log.error("points to dead obj " PTR_FORMAT " in region " HR_FORMAT,
+                    p2i(obj), HR_FORMAT_PARAMS(to));
           print_object(&ls, obj);
         }
         log.error("----------");
@@ -593,12 +595,13 @@ public:
             log.error("----------");
           }
           log.error("Missing rem set entry:");
-          log.error("Field " PTR_FORMAT " of obj " PTR_FORMAT ", in region " HR_FORMAT,
-            p2i(p), p2i(_containing_obj), HR_FORMAT_PARAMS(from));
+          log.error("Field " PTR_FORMAT " of obj " PTR_FORMAT " in region " HR_FORMAT,
+                    p2i(p), p2i(_containing_obj), HR_FORMAT_PARAMS(from));
           ResourceMark rm;
           LogStream ls(log.error());
           _containing_obj->print_on(&ls);
-          log.error("points to obj " PTR_FORMAT " in region " HR_FORMAT " remset %s", p2i(obj), HR_FORMAT_PARAMS(to), to->rem_set()->get_state_str());
+          log.error("points to obj " PTR_FORMAT " in region " HR_FORMAT " remset %s",
+                    p2i(obj), HR_FORMAT_PARAMS(to), to->rem_set()->get_state_str());
           if (oopDesc::is_oop(obj)) {
             obj->print_on(&ls);
           }

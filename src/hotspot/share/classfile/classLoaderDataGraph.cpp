@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -163,7 +163,7 @@ void ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces() {
   // TODO: have redefinition clean old methods out of the code cache.  They still exist in some places.
   bool walk_all_metadata = InstanceKlass::has_previous_versions_and_reset();
 
-  MetadataOnStackMark md_on_stack(walk_all_metadata);
+  MetadataOnStackMark md_on_stack(walk_all_metadata, /*redefinition_walk*/false);
   clean_deallocate_lists(walk_all_metadata);
 }
 
@@ -561,11 +561,6 @@ void ClassLoaderDataGraph::clean_module_and_package_info() {
 
   ClassLoaderData* data = _head;
   while (data != NULL) {
-    // Remove entries in the dictionary of live class loader that have
-    // initiated loading classes in a dead class loader.
-    if (data->dictionary() != NULL) {
-      data->dictionary()->do_unloading();
-    }
     // Walk a ModuleEntry's reads, and a PackageEntry's exports
     // lists to determine if there are modules on those lists that are now
     // dead and should be removed.  A module's life cycle is equivalent

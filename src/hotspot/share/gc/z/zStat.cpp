@@ -404,7 +404,7 @@ T* ZStatIterableValue<T>::insert() const {
 // Stat sampler
 //
 ZStatSampler::ZStatSampler(const char* group, const char* name, ZStatUnitPrinter printer) :
-    ZStatIterableValue(group, name, sizeof(ZStatSamplerData)),
+    ZStatIterableValue<ZStatSampler>(group, name, sizeof(ZStatSamplerData)),
     _printer(printer) {}
 
 ZStatSamplerData* ZStatSampler::get() const {
@@ -440,7 +440,7 @@ ZStatUnitPrinter ZStatSampler::printer() const {
 // Stat counter
 //
 ZStatCounter::ZStatCounter(const char* group, const char* name, ZStatUnitPrinter printer) :
-    ZStatIterableValue(group, name, sizeof(ZStatCounterData)),
+    ZStatIterableValue<ZStatCounter>(group, name, sizeof(ZStatCounterData)),
     _sampler(group, name, printer) {}
 
 ZStatCounterData* ZStatCounter::get() const {
@@ -463,7 +463,7 @@ void ZStatCounter::sample_and_reset() const {
 // Stat unsampled counter
 //
 ZStatUnsampledCounter::ZStatUnsampledCounter(const char* name) :
-    ZStatIterableValue("Unsampled", name, sizeof(ZStatCounterData)) {}
+    ZStatIterableValue<ZStatUnsampledCounter>("Unsampled", name, sizeof(ZStatCounterData)) {}
 
 ZStatCounterData* ZStatUnsampledCounter::get() const {
   return get_cpu_local<ZStatCounterData>(ZCPU::id());
@@ -747,6 +747,11 @@ void ZStatCriticalPhase::register_end(const Ticks& start, const Ticks& end) cons
     log_end(log, duration, true /* thread */);
   }
 }
+
+//
+// Stat timer
+//
+__thread uint32_t ZStatTimerDisable::_active = 0;
 
 //
 // Stat sample/inc

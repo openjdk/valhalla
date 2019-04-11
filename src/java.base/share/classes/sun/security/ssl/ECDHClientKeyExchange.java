@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,9 +31,7 @@ import java.security.AlgorithmConstraints;
 import java.security.CryptoPrimitive;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
-import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
@@ -49,6 +47,7 @@ import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.ssl.X509Authentication.X509Credentials;
 import sun.security.ssl.X509Authentication.X509Possession;
+import sun.security.util.ECUtil;
 import sun.security.util.HexDumpEncoder;
 
 /**
@@ -78,7 +77,7 @@ final class ECDHClientKeyExchange {
 
             ECPoint point = publicKey.getW();
             ECParameterSpec params = publicKey.getParams();
-            encodedPoint = JsseJce.encodePoint(point, params.getCurve());
+            encodedPoint = ECUtil.encodePoint(point, params.getCurve());
         }
 
         ECDHClientKeyExchangeMessage(HandshakeContext handshakeContext,
@@ -99,10 +98,10 @@ final class ECDHClientKeyExchange {
             try {
                 ECParameterSpec params = publicKey.getParams();
                 ECPoint point =
-                        JsseJce.decodePoint(encodedPoint, params.getCurve());
+                        ECUtil.decodePoint(encodedPoint, params.getCurve());
                 ECPublicKeySpec spec = new ECPublicKeySpec(point, params);
 
-                KeyFactory kf = JsseJce.getKeyFactory("EC");
+                KeyFactory kf = KeyFactory.getInstance("EC");
                 ECPublicKey peerPublicKey =
                         (ECPublicKey)kf.generatePublic(spec);
 
@@ -284,14 +283,13 @@ final class ECDHClientKeyExchange {
                     "No expected EC server cert for ECDH client key exchange");
             }
 
-            PrivateKey privateKey = x509Possession.popPrivateKey;
-            if (!privateKey.getAlgorithm().equals("EC")) {
+            ECParameterSpec params = x509Possession.getECParameterSpec();
+            if (params == null) {
                 // unlikely, have been checked during cipher suite negotiation.
                 throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Not EC server cert for ECDH client key exchange");
             }
 
-            ECParameterSpec params = ((ECPrivateKey)privateKey).getParams();
             NamedGroup namedGroup = NamedGroup.valueOf(params);
             if (namedGroup == null) {
                 // unlikely, have been checked during cipher suite negotiation.
@@ -319,10 +317,10 @@ final class ECDHClientKeyExchange {
             // create the credentials
             try {
                 ECPoint point =
-                    JsseJce.decodePoint(cke.encodedPoint, params.getCurve());
+                    ECUtil.decodePoint(cke.encodedPoint, params.getCurve());
                 ECPublicKeySpec spec = new ECPublicKeySpec(point, params);
 
-                KeyFactory kf = JsseJce.getKeyFactory("EC");
+                KeyFactory kf = KeyFactory.getInstance("EC");
                 ECPublicKey peerPublicKey =
                         (ECPublicKey)kf.generatePublic(spec);
 
@@ -493,10 +491,10 @@ final class ECDHClientKeyExchange {
             // create the credentials
             try {
                 ECPoint point =
-                    JsseJce.decodePoint(cke.encodedPoint, params.getCurve());
+                    ECUtil.decodePoint(cke.encodedPoint, params.getCurve());
                 ECPublicKeySpec spec = new ECPublicKeySpec(point, params);
 
-                KeyFactory kf = JsseJce.getKeyFactory("EC");
+                KeyFactory kf = KeyFactory.getInstance("EC");
                 ECPublicKey peerPublicKey =
                         (ECPublicKey)kf.generatePublic(spec);
 

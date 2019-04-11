@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_ITERATOR_INLINE_HPP
-#define SHARE_VM_MEMORY_ITERATOR_INLINE_HPP
+#ifndef SHARE_MEMORY_ITERATOR_INLINE_HPP
+#define SHARE_MEMORY_ITERATOR_INLINE_HPP
 
 #include "classfile/classLoaderData.hpp"
 #include "memory/iterator.hpp"
@@ -56,7 +56,7 @@ void OopIterateClosure::verify(T* p) {
     T heap_oop = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(heap_oop)) {
       oop o = CompressedOops::decode_not_null(heap_oop);
-      assert(Universe::heap()->is_in_closed_subset(o),
+      assert(Universe::heap()->is_in(o),
              "should be in closed *p " PTR_FORMAT " " PTR_FORMAT, p2i(p), p2i(o));
     }
   }
@@ -420,4 +420,4 @@ void OopIteratorClosureDispatch::oop_oop_iterate_backwards(OopClosureType* cl, o
   OopOopIterateBackwardsDispatch<OopClosureType>::function(klass)(cl, obj, klass);
 }
 
-#endif // SHARE_VM_MEMORY_ITERATOR_INLINE_HPP
+#endif // SHARE_MEMORY_ITERATOR_INLINE_HPP

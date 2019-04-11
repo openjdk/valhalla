@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_LOOPNODE_HPP
-#define SHARE_VM_OPTO_LOOPNODE_HPP
+#ifndef SHARE_OPTO_LOOPNODE_HPP
+#define SHARE_OPTO_LOOPNODE_HPP
 
 #include "opto/cfgnode.hpp"
 #include "opto/multnode.hpp"
@@ -38,8 +38,6 @@ class IdealLoopTree;
 class LoopNode;
 class Node;
 class OuterStripMinedLoopEndNode;
-class ShenandoahBarrierNode;
-class ShenandoahWriteBarrierNode;
 class PathFrequency;
 class PhaseIdealLoop;
 class CountedLoopReserveKit;
@@ -638,8 +636,7 @@ class PhaseIdealLoop : public PhaseTransform {
   friend class IdealLoopTree;
   friend class SuperWord;
   friend class CountedLoopReserveKit;
-  friend class ShenandoahBarrierNode;
-  friend class ShenandoahWriteBarrierNode;
+  friend class ShenandoahBarrierC2Support;
 
   // Pre-computed def-use info
   PhaseIterGVN &_igvn;
@@ -747,12 +744,14 @@ private:
   }
 
   Node* cast_incr_before_loop(Node* incr, Node* ctrl, Node* loop);
-  void duplicate_predicates_helper(Node* predicate, Node* castii, IdealLoopTree* outer_loop,
+  void duplicate_predicates_helper(Node* predicate, Node* start, Node* end, IdealLoopTree* outer_loop,
                                    LoopNode* outer_main_head, uint dd_main_head);
-  void duplicate_predicates(CountedLoopNode* pre_head, Node* castii, IdealLoopTree* outer_loop,
+  void duplicate_predicates(CountedLoopNode* pre_head, Node* start, Node* end, IdealLoopTree* outer_loop,
                             LoopNode* outer_main_head, uint dd_main_head);
-  Node* update_skeleton_predicate(Node* iff, Node* value, Node* predicate = NULL, Node* uncommon_proj = NULL,
-                                  Node* current_proj = NULL, IdealLoopTree* outer_loop = NULL, Node* prev_proj = NULL);
+  Node* clone_skeleton_predicate(Node* iff, Node* value, Node* predicate, Node* uncommon_proj,
+                                  Node* current_proj, IdealLoopTree* outer_loop, Node* prev_proj);
+  bool skeleton_predicate_has_opaque(IfNode* iff);
+  void update_skeleton_predicates(Node* ctrl, CountedLoopNode* loop_head, Node* init, int stride_con);
   void insert_loop_limit_check(ProjNode* limit_check_proj, Node* cmp_limit, Node* bol);
 
 public:
@@ -878,6 +877,42 @@ private:
   uint *_dom_depth;              // Used for fast LCA test
   GrowableArray<uint>* _dom_stk; // For recomputation of dom depth
 
+  // Perform verification that the graph is valid.
+  PhaseIdealLoop( PhaseIterGVN &igvn) :
+    PhaseTransform(Ideal_Loop),
+    _igvn(igvn),
+    _verify_me(NULL),
+    _verify_only(true),
+    _dom_lca_tags(arena()) { // Thread::resource_area
+    build_and_optimize(LoopOptsVerify);
+  }
+
+  // build the loop tree and perform any requested optimizations
+  void build_and_optimize(LoopOptsMode mode);
+
+  // Dominators for the sea of nodes
+  void Dominators();
+
+  // Compute the Ideal Node to Loop mapping
+  PhaseIdealLoop(PhaseIterGVN &igvn, LoopOptsMode mode) :
+    PhaseTransform(Ideal_Loop),
+    _igvn(igvn),
+    _verify_me(NULL),
+    _verify_only(false),
+    _dom_lca_tags(arena()) { // Thread::resource_area
+    build_and_optimize(mode);
+  }
+
+  // Verify that verify_me made the same decisions as a fresh run.
+  PhaseIdealLoop(PhaseIterGVN &igvn, const PhaseIdealLoop *verify_me) :
+    PhaseTransform(Ideal_Loop),
+    _igvn(igvn),
+    _verify_me(verify_me),
+    _verify_only(false),
+    _dom_lca_tags(arena()) { // Thread::resource_area
+    build_and_optimize(LoopOptsVerify);
+  }
+
 public:
   Node* idom_no_update(Node* d) const {
     return idom_no_update(d->_idx);
@@ -921,52 +956,25 @@ public:
   // Replace parallel induction variable (parallel to trip counter)
   void replace_parallel_iv(IdealLoopTree *loop);
 
-  // Perform verification that the graph is valid.
-  PhaseIdealLoop( PhaseIterGVN &igvn) :
-    PhaseTransform(Ideal_Loop),
-    _igvn(igvn),
-    _verify_me(NULL),
-    _verify_only(true),
-    _dom_lca_tags(arena()) { // Thread::resource_area
-    build_and_optimize(LoopOptsVerify);
-  }
-
-  // build the loop tree and perform any requested optimizations
-  void build_and_optimize(LoopOptsMode mode);
-
-  // Dominators for the sea of nodes
-  void Dominators();
   Node *dom_lca( Node *n1, Node *n2 ) const {
     return find_non_split_ctrl(dom_lca_internal(n1, n2));
   }
   Node *dom_lca_internal( Node *n1, Node *n2 ) const;
 
-  // Compute the Ideal Node to Loop mapping
-  PhaseIdealLoop(PhaseIterGVN &igvn, LoopOptsMode mode) :
-    PhaseTransform(Ideal_Loop),
-    _igvn(igvn),
-    _verify_me(NULL),
-    _verify_only(false),
-    _dom_lca_tags(arena()) { // Thread::resource_area
-    build_and_optimize(mode);
-  }
-
-  // Verify that verify_me made the same decisions as a fresh run.
-  PhaseIdealLoop(PhaseIterGVN &igvn, const PhaseIdealLoop *verify_me) :
-    PhaseTransform(Ideal_Loop),
-    _igvn(igvn),
-    _verify_me(verify_me),
-    _verify_only(false),
-    _dom_lca_tags(arena()) { // Thread::resource_area
-    build_and_optimize(LoopOptsVerify);
-  }
-
   // Build and verify the loop tree without modifying the graph.  This
   // is useful to verify that all inputs properly dominate their uses.
   static void verify(PhaseIterGVN& igvn) {
 #ifdef ASSERT
+    ResourceMark rm;
     PhaseIdealLoop v(igvn);
 #endif
+  }
+
+  // Recommended way to use PhaseIdealLoop.
+  // Run PhaseIdealLoop in some mode and allocates a local scope for memory allocations.
+  static void optimize(PhaseIterGVN &igvn, LoopOptsMode mode) {
+    ResourceMark rm;
+    PhaseIdealLoop v(igvn, mode);
   }
 
   // True if the method has at least 1 irreducible loop
@@ -1128,7 +1136,7 @@ public:
                                       Deoptimization::DeoptReason reason);
   Node* add_range_check_predicate(IdealLoopTree* loop, CountedLoopNode* cl,
                                   Node* predicate_proj, int scale_con, Node* offset,
-                                  Node* limit, jint stride_con);
+                                  Node* limit, jint stride_con, Node* value);
 
   // Helper function to collect predicate for eliminating the useless ones
   void collect_potentially_useful_predicates(IdealLoopTree *loop, Unique_Node_List &predicate_opaque1);
@@ -1190,7 +1198,7 @@ public:
   // loop.  Scale_con, offset and limit are all loop invariant.
   void add_constraint( int stride_con, int scale_con, Node *offset, Node *low_limit, Node *upper_limit, Node *pre_ctrl, Node **pre_limit, Node **main_limit );
   // Helper function for add_constraint().
-  Node* adjust_limit( int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl );
+  Node* adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl, bool round_up);
 
   // Partially peel loop up through last_peel node.
   bool partial_peel( IdealLoopTree *loop, Node_List &old_new );
@@ -1303,6 +1311,14 @@ private:
   void try_move_store_after_loop(Node* n);
   bool identical_backtoback_ifs(Node *n);
   bool can_split_if(Node *n_ctrl);
+
+  // Determine if a method is too big for a/another round of split-if, based on
+  // a magic (approximate) ratio derived from the equally magic constant 35000,
+  // previously used for this purpose (but without relating to the node limit).
+  bool must_throttle_split_if() {
+    uint threshold = C->max_node_limit() * 2 / 5;
+    return C->live_nodes() > threshold;
+  }
 
   bool _created_loop_node;
 public:
@@ -1428,4 +1444,4 @@ public:
   IdealLoopTree* current() { return _curnt; }  // Return current value of iterator.
 };
 
-#endif // SHARE_VM_OPTO_LOOPNODE_HPP
+#endif // SHARE_OPTO_LOOPNODE_HPP

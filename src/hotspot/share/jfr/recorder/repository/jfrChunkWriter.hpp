@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP
-#define SHARE_VM_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP
+#ifndef SHARE_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP
+#define SHARE_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP
 
 #include "jfr/writers/jfrStorageAdapter.hpp"
 #include "jfr/writers/jfrStreamWriterHost.inline.hpp"
@@ -41,17 +41,17 @@ class JfrChunkWriter : public JfrChunkWriterBase {
   JfrChunkState* _chunkstate;
 
   bool open();
-  size_t close(intptr_t metadata_offset);
-  void write_header(intptr_t metadata_offset);
+  size_t close(int64_t metadata_offset);
+  void write_header(int64_t metadata_offset);
   void set_chunk_path(const char* chunk_path);
 
  public:
   JfrChunkWriter();
   bool initialize();
-  intptr_t size_written() const;
-  intptr_t previous_checkpoint_offset() const;
-  void set_previous_checkpoint_offset(intptr_t offset);
+  int64_t size_written() const;
+  int64_t previous_checkpoint_offset() const;
+  void set_previous_checkpoint_offset(int64_t offset);
   void time_stamp_chunk_now();
 };
 
-#endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP
+#endif // SHARE_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP

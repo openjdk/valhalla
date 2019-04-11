@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_VM_VERSION_PPC_HPP
-#define CPU_PPC_VM_VM_VERSION_PPC_HPP
+#ifndef CPU_PPC_VM_VERSION_PPC_HPP
+#define CPU_PPC_VM_VERSION_PPC_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
@@ -89,6 +89,9 @@ public:
   static void initialize();
 
   // Override Abstract_VM_Version implementation
+  static void print_platform_virtualization_info(outputStream*);
+
+  // Override Abstract_VM_Version implementation
   static bool use_biased_locking();
 
   static bool is_determine_features_test_running() { return _is_determine_features_test_running; }
@@ -123,4 +126,4 @@ public:
   static uint64_t _dscr_val;
 };
 
-#endif // CPU_PPC_VM_VM_VERSION_PPC_HPP
+#endif // CPU_PPC_VM_VERSION_PPC_HPP

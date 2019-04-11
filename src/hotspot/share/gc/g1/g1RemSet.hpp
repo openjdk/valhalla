@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1REMSET_HPP
-#define SHARE_VM_GC_G1_G1REMSET_HPP
+#ifndef SHARE_GC_G1_G1REMSET_HPP
+#define SHARE_GC_G1_G1REMSET_HPP
 
-#include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1GCPhaseTimes.hpp"
@@ -61,14 +60,6 @@ private:
 
   G1RemSetSummary _prev_period_summary;
 
-  // Scan all remembered sets of the collection set for references into the collection
-  // set.
-  void scan_rem_set(G1ParScanThreadState* pss, uint worker_i);
-
-  // Flush remaining refinement buffers for cross-region references to either evacuate references
-  // into the collection set or update the remembered set.
-  void update_rem_set(G1ParScanThreadState* pss, uint worker_i);
-
   G1CollectedHeap* _g1h;
   size_t _num_conc_refined_cards; // Number of cards refined concurrently to the mutator.
 
@@ -77,6 +68,8 @@ private:
   G1HotCardCache*        _hot_card_cache;
 
 public:
+
+  typedef CardTable::CardValue CardValue;
   // Gives an approximation on how many threads can be expected to add records to
   // a remembered set in parallel. This can be used for sizing data structures to
   // decrease performance losses due to data structure sharing.
@@ -92,12 +85,19 @@ public:
            G1HotCardCache* hot_card_cache);
   ~G1RemSet();
 
-  // Process all oops in the collection set from the cards in the refinement buffers and
-  // remembered sets using pss.
-  //
+  // Scan all remembered sets of the collection set for references into the collection
+  // set.
   // Further applies heap_region_codeblobs on the oops of the unmarked nmethods on the strong code
   // roots list for each region in the collection set.
-  void oops_into_collection_set_do(G1ParScanThreadState* pss, uint worker_i);
+  void scan_rem_set(G1ParScanThreadState* pss,
+                    uint worker_i,
+                    G1GCPhaseTimes::GCParPhases scan_phase,
+                    G1GCPhaseTimes::GCParPhases objcopy_phase,
+                    G1GCPhaseTimes::GCParPhases coderoots_phase);
+
+  // Flush remaining refinement buffers for cross-region references to either evacuate references
+  // into the collection set or update the remembered set.
+  void update_rem_set(G1ParScanThreadState* pss, uint worker_i);
 
   // Prepare for and cleanup after an oops_into_collection_set_do
   // call.  Must call each of these once before and after (in sequential
@@ -109,13 +109,13 @@ public:
 
   // Refine the card corresponding to "card_ptr". Safe to be called concurrently
   // to the mutator.
-  void refine_card_concurrently(jbyte* card_ptr,
+  void refine_card_concurrently(CardValue* card_ptr,
                                 uint worker_i);
 
   // Refine the card corresponding to "card_ptr", applying the given closure to
   // all references found. Must only be called during gc.
   // Returns whether the card has been scanned.
-  bool refine_card_during_gc(jbyte* card_ptr, G1ScanObjsDuringUpdateRSClosure* update_rs_cl);
+  bool refine_card_during_gc(CardValue* card_ptr, G1ScanObjsDuringUpdateRSClosure* update_rs_cl);
 
   // Print accumulated summary info from the start of the VM.
   void print_summary_info();
@@ -143,6 +143,9 @@ class G1ScanRSForRegionClosure : public HeapRegionClosure {
 
   uint   _worker_i;
 
+  size_t _opt_refs_scanned;
+  size_t _opt_refs_memory_used;
+
   size_t _cards_scanned;
   size_t _cards_claimed;
   size_t _cards_skipped;
@@ -156,6 +159,7 @@ class G1ScanRSForRegionClosure : public HeapRegionClosure {
   void claim_card(size_t card_index, const uint region_idx_for_card);
   void scan_card(MemRegion mr, uint region_idx_for_card);
 
+  void scan_opt_rem_set_roots(HeapRegion* r);
   void scan_rem_set_roots(HeapRegion* r);
   void scan_strong_code_roots(HeapRegion* r);
 public:
@@ -176,6 +180,9 @@ public:
   size_t cards_scanned() const { return _cards_scanned; }
   size_t cards_claimed() const { return _cards_claimed; }
   size_t cards_skipped() const { return _cards_skipped; }
+
+  size_t opt_refs_scanned() const { return _opt_refs_scanned; }
+  size_t opt_refs_memory_used() const { return _opt_refs_memory_used; }
 };
 
-#endif // SHARE_VM_GC_G1_G1REMSET_HPP
+#endif // SHARE_GC_G1_G1REMSET_HPP

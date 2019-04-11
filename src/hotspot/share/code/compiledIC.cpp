@@ -51,7 +51,8 @@
 CompiledICLocker::CompiledICLocker(CompiledMethod* method)
   : _method(method),
     _behaviour(CompiledICProtectionBehaviour::current()),
-    _locked(_behaviour->lock(_method)){
+    _locked(_behaviour->lock(_method)),
+    _nsv(true, !SafepointSynchronize::is_at_safepoint()) {
 }
 
 CompiledICLocker::~CompiledICLocker() {
@@ -482,10 +483,10 @@ bool CompiledIC::set_to_monomorphic(CompiledICInfo& info) {
     if (TraceICs) {
       ResourceMark rm(thread);
       assert(info.cached_metadata() == NULL || info.cached_metadata()->is_klass(), "must be");
-      tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to compiled (rcvr klass) %s: %s",
+      tty->print_cr ("IC@" INTPTR_FORMAT ": monomorphic to compiled (rcvr klass = %s) %s",
         p2i(instruction_address()),
-        ((Klass*)info.cached_metadata())->print_value_string(),
-        (safe) ? "" : "via stub");
+        (info.cached_metadata() != NULL) ? ((Klass*)info.cached_metadata())->print_value_string() : "NULL",
+        (safe) ? "" : " via stub");
     }
   }
   // We can't check this anymore. With lazy deopt we could have already
@@ -581,17 +582,6 @@ bool CompiledIC::is_icholder_call_site(virtual_call_Relocation* call_site, const
   // This call site might have become stale so inspect it carefully.
   address dest = cm->call_wrapper_at(call_site->addr())->destination();
   return is_icholder_entry(dest);
-}
-
-// Release the CompiledICHolder* associated with this call site is there is one.
-void CompiledIC::cleanup_call_site(virtual_call_Relocation* call_site, const CompiledMethod* cm) {
-  assert(cm->is_nmethod(), "must be nmethod");
-  // This call site might have become stale so inspect it carefully.
-  NativeCall* call = nativeCall_at(call_site->addr());
-  if (is_icholder_entry(call->destination())) {
-    NativeMovConstReg* value = nativeMovConstReg_at(call_site->cached_value());
-    InlineCacheBuffer::queue_for_release((CompiledICHolder*)value->data());
-  }
 }
 
 // ----------------------------------------------------------------------------

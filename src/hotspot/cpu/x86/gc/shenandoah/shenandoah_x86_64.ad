@@ -23,47 +23,7 @@
 
 source_hpp %{
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
-%}
-
-instruct shenandoahRB(rRegP dst, rRegP src, rFlagsReg cr) %{
-  match(Set dst (ShenandoahReadBarrier src));
-  effect(DEF dst, USE src);
-  ins_cost(125); // XXX
-  format %{ "shenandoah_rb $dst, $src" %}
-  ins_encode %{
-    Register d = $dst$$Register;
-    Register s = $src$$Register;
-    __ movptr(d, Address(s, ShenandoahBrooksPointer::byte_offset()));
-  %}
-  ins_pipe(ialu_reg_mem);
-%}
-
-instruct shenandoahRBNarrow(rRegP dst, rRegN src) %{
-  predicate(UseCompressedOops && (Universe::narrow_oop_shift() == 0));
-  match(Set dst (ShenandoahReadBarrier (DecodeN src)));
-  effect(DEF dst, USE src);
-  ins_cost(125); // XXX
-  format %{ "shenandoah_rb $dst, $src" %}
-  ins_encode %{
-    Register d = $dst$$Register;
-    Register s = $src$$Register;
-    __ movptr(d, Address(r12, s, Address::times_1, ShenandoahBrooksPointer::byte_offset()));
-  %}
-  ins_pipe(ialu_reg_mem);
-%}
-
-instruct shenandoahRBNarrowShift(rRegP dst, rRegN src) %{
-  predicate(UseCompressedOops && (Universe::narrow_oop_shift() == Address::times_8));
-  match(Set dst (ShenandoahReadBarrier (DecodeN src)));
-  effect(DEF dst, USE src);
-  ins_cost(125); // XXX
-  format %{ "shenandoah_rb $dst, $src" %}
-  ins_encode %{
-    Register d = $dst$$Register;
-    Register s = $src$$Register;
-    __ movptr(d, Address(r12, s, Address::times_8, ShenandoahBrooksPointer::byte_offset()));
-  %}
-  ins_pipe(ialu_reg_mem);
+#include "gc/shenandoah/c2/shenandoahSupport.hpp"
 %}
 
 instruct compareAndSwapP_shenandoah(rRegI res,
@@ -83,7 +43,7 @@ instruct compareAndSwapP_shenandoah(rRegI res,
     ShenandoahBarrierSet::assembler()->cmpxchg_oop(&_masm,
                                                    $res$$Register, $mem_ptr$$Address, $oldval$$Register, $newval$$Register,
                                                    false, // swap
-                                                   false, $tmp1$$Register, $tmp2$$Register
+                                                   $tmp1$$Register, $tmp2$$Register
                                                    );
   %}
   ins_pipe( pipe_cmpxchg );
@@ -104,7 +64,7 @@ instruct compareAndSwapN_shenandoah(rRegI res,
     ShenandoahBarrierSet::assembler()->cmpxchg_oop(&_masm,
                                                    $res$$Register, $mem_ptr$$Address, $oldval$$Register, $newval$$Register,
                                                    false, // swap
-                                                   false, $tmp1$$Register, $tmp2$$Register
+                                                   $tmp1$$Register, $tmp2$$Register
                                                    );
   %}
   ins_pipe( pipe_cmpxchg );
@@ -123,7 +83,7 @@ instruct compareAndExchangeN_shenandoah(memory mem_ptr,
     ShenandoahBarrierSet::assembler()->cmpxchg_oop(&_masm,
                                                    NULL, $mem_ptr$$Address, $oldval$$Register, $newval$$Register,
                                                    true, // exchange
-                                                   false, $tmp1$$Register, $tmp2$$Register
+                                                   $tmp1$$Register, $tmp2$$Register
                                                    );
   %}
   ins_pipe( pipe_cmpxchg );
@@ -145,7 +105,7 @@ instruct compareAndExchangeP_shenandoah(memory mem_ptr,
     ShenandoahBarrierSet::assembler()->cmpxchg_oop(&_masm,
                                                    NULL, $mem_ptr$$Address, $oldval$$Register, $newval$$Register,
                                                    true,  // exchange
-                                                   false, $tmp1$$Register, $tmp2$$Register
+                                                   $tmp1$$Register, $tmp2$$Register
                                                    );
   %}
   ins_pipe( pipe_cmpxchg );

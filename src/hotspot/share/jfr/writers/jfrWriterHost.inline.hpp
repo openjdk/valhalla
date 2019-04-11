@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRWRITERHOST_INLINE_HPP
-#define SHARE_VM_JFR_WRITERS_JFRWRITERHOST_INLINE_HPP
+#ifndef SHARE_JFR_WRITERS_JFRWRITERHOST_INLINE_HPP
+#define SHARE_JFR_WRITERS_JFRWRITERHOST_INLINE_HPP
 
 #include "classfile/javaClasses.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
@@ -196,7 +196,7 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write(float value) {
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 inline void WriterHost<BE, IE, WriterPolicyImpl>::write(double value) {
-  be_write(*(uintptr_t*)&(value));
+  be_write(*(u8*)&(value));
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
@@ -317,9 +317,9 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write_utf8_u2_len(const char* 
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
-inline intptr_t WriterHost<BE, IE, WriterPolicyImpl>::reserve(size_t size) {
+inline int64_t WriterHost<BE, IE, WriterPolicyImpl>::reserve(size_t size) {
   if (ensure_size(size) != NULL) {
-    intptr_t reserved_offset = this->current_offset();
+    const int64_t reserved_offset = this->current_offset();
     this->set_current_pos(size);
     return reserved_offset;
   }
@@ -329,9 +329,9 @@ inline intptr_t WriterHost<BE, IE, WriterPolicyImpl>::reserve(size_t size) {
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 template <typename T>
-inline void WriterHost<BE, IE, WriterPolicyImpl>::write_padded_at_offset(T value, intptr_t offset) {
+inline void WriterHost<BE, IE, WriterPolicyImpl>::write_padded_at_offset(T value, int64_t offset) {
   if (this->is_valid()) {
-    const intptr_t current = this->current_offset();
+    const int64_t current = this->current_offset();
     this->seek(offset);
     write_padded(value);
     this->seek(current); // restore
@@ -340,9 +340,9 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write_padded_at_offset(T value
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 template <typename T>
-inline void WriterHost<BE, IE, WriterPolicyImpl>::write_at_offset(T value, intptr_t offset) {
+inline void WriterHost<BE, IE, WriterPolicyImpl>::write_at_offset(T value, int64_t offset) {
   if (this->is_valid()) {
-    const intptr_t current = this->current_offset();
+    const int64_t current = this->current_offset();
     this->seek(offset);
     write(value);
     this->seek(current); // restore
@@ -351,14 +351,13 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write_at_offset(T value, intpt
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
 template <typename T>
-inline void WriterHost<BE, IE, WriterPolicyImpl>::write_be_at_offset(T value, intptr_t offset) {
+inline void WriterHost<BE, IE, WriterPolicyImpl>::write_be_at_offset(T value, int64_t offset) {
   if (this->is_valid()) {
-    const intptr_t current = this->current_offset();
+    const int64_t current = this->current_offset();
     this->seek(offset);
     be_write(value);
     this->seek(current); // restore
   }
 }
 
-#endif // SHARE_VM_JFR_WRITERS_JFRWRITERHOST_INLINE_HPP
-
+#endif // SHARE_JFR_WRITERS_JFRWRITERHOST_INLINE_HPP

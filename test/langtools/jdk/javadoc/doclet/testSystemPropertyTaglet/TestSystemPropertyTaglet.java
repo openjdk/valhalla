@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,9 @@
  * @test
  * @bug 5076751
  * @summary System properties documentation needed in javadocs
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester toolbox.ToolBox builder.ClassBuilder
+ * @build javadoc.tester.* toolbox.ToolBox builder.ClassBuilder
  * @run main TestSystemPropertyTaglet
  */
 
@@ -38,6 +38,8 @@ import java.nio.file.Paths;
 import builder.ClassBuilder;
 import builder.ClassBuilder.MethodBuilder;
 import toolbox.ToolBox;
+
+import javadoc.tester.JavadocTester;
 
 public class TestSystemPropertyTaglet extends JavadocTester {
 
@@ -53,7 +55,7 @@ public class TestSystemPropertyTaglet extends JavadocTester {
     }
 
     @Test
-    void test(Path base) throws Exception {
+    public void test(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
 
@@ -74,9 +76,9 @@ public class TestSystemPropertyTaglet extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOrder("pkg/A.html",
-                "<h2 title=\"Class A\" class=\"title\">Class A</h2>",
+                "<h1 title=\"Class A\" class=\"title\">Class A</h1>",
                 "test with <code><a id=\"user.name\" class=\"searchTagResult\">user.name</a></code>",
-                "<h3>Method Detail</h3>",
+                "<h2>Method Detail</h2>",
                 "test with <code><a id=\"java.version\" class=\"searchTagResult\">java.version</a></code>");
 
         checkOrder("index-all.html",
@@ -97,7 +99,7 @@ public class TestSystemPropertyTaglet extends JavadocTester {
     }
 
     @Test
-    void testSystemProperytWithinATag(Path base) throws Exception {
+    public void testSystemProperytWithinATag(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         Path outDir = base.resolve("out");
 

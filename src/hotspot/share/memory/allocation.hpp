@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_ALLOCATION_HPP
-#define SHARE_VM_MEMORY_ALLOCATION_HPP
+#ifndef SHARE_MEMORY_ALLOCATION_HPP
+#define SHARE_MEMORY_ALLOCATION_HPP
 
 #include "runtime/globals.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 #include <new>
+
+class Thread;
 
 class AllocFailStrategy {
 public:
@@ -130,6 +132,7 @@ class AllocatedObj {
   f(mtArguments,     "Arguments")                                                   \
   f(mtModule,        "Module")                                                      \
   f(mtSafepoint,     "Safepoint")                                                   \
+  f(mtSynchronizer,  "Synchronization")                                             \
   f(mtNone,          "Unknown")                                                     \
   //end
 
@@ -255,12 +258,19 @@ class MetaspaceObj {
   static void* _shared_metaspace_top;  // (exclusive) high address
 
  public:
-  bool is_metaspace_object() const;
-  bool is_shared() const {
+
+  // Returns true if the pointer points to a valid MetaspaceObj. A valid
+  // MetaspaceObj is MetaWord-aligned and contained within either
+  // non-shared or shared metaspace.
+  static bool is_valid(const MetaspaceObj* p);
+
+  static bool is_shared(const MetaspaceObj* p) {
     // If no shared metaspace regions are mapped, _shared_metaspace_{base,top} will
     // both be NULL and all values of p will be rejected quickly.
-    return (((void*)this) < _shared_metaspace_top && ((void*)this) >= _shared_metaspace_base);
+    return (((void*)p) < _shared_metaspace_top && ((void*)p) >= _shared_metaspace_base);
   }
+  bool is_shared() const { return MetaspaceObj::is_shared(this); }
+
   void print_address_on(outputStream* st) const;  // nonvirtual address printing
 
   static void set_shared_metaspace_range(void* base, void* top) {
@@ -365,12 +375,14 @@ class ResourceObj ALLOCATION_SUPER_CLASS_SPEC {
   // Use second array's element for verification value to distinguish garbage.
   uintptr_t _allocation_t[2];
   bool is_type_set() const;
+  void initialize_allocation_info();
  public:
   allocation_type get_allocation_type() const;
   bool allocated_on_stack()    const { return get_allocation_type() == STACK_OR_EMBEDDED; }
   bool allocated_on_res_area() const { return get_allocation_type() == RESOURCE_AREA; }
   bool allocated_on_C_heap()   const { return get_allocation_type() == C_HEAP; }
   bool allocated_on_arena()    const { return get_allocation_type() == ARENA; }
+protected:
   ResourceObj(); // default constructor
   ResourceObj(const ResourceObj& r); // default copy constructor
   ResourceObj& operator=(const ResourceObj& r); // default copy assignment
@@ -566,4 +578,4 @@ class MallocArrayAllocator : public AllStatic {
   static void free(E* addr);
 };
 
-#endif // SHARE_VM_MEMORY_ALLOCATION_HPP
+#endif // SHARE_MEMORY_ALLOCATION_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,29 @@
 
 /*
  * @test
- * @bug      6492694 8026567 8048351 8162363 8183511 8169819 8074407 8196202
+ * @bug      6492694 8026567 8048351 8162363 8183511 8169819 8074407 8196202 8202626
  * @summary  Test package deprecation.
  * @author   bpatel
- * @library  ../lib/
+ * @library  ../../lib/
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester TestPackageDeprecation
+ * @build    javadoc.tester.* TestPackageDeprecation
  * @run main TestPackageDeprecation
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestPackageDeprecation extends JavadocTester {
 
     public static void main(String... args) throws Exception {
         TestPackageDeprecation tester = new TestPackageDeprecation();
-        tester.setAutomaticCheckLinks(false); // @ignore JDK-8202626
         tester.runTests();
     }
 
     @Test
-    void testDefault() {
+    public void testDefault() {
         javadoc("-d", "out-default",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", testSrc("C2.java"), testSrc("FooDepr.java"));
         checkExit(Exit.OK);
 
@@ -60,19 +60,16 @@ public class TestPackageDeprecation extends JavadocTester {
     }
 
     @Test
-    void testNoDeprecated() {
+    public void testNoDeprecated() {
         javadoc("-d", "out-nodepr",
                 "-sourcepath", testSrc,
                 "-use",
                 "-nodeprecated",
-                "--frames",
                 "pkg", "pkg1", testSrc("C2.java"), testSrc("FooDepr.java"));
         checkExit(Exit.OK);
 
-        checkOutput("overview-summary.html", false,
+        checkOutput("index.html", false,
                 "pkg1");
-        checkOutput("allclasses-frame.html", false,
-                "FooDepr");
         checkOutput("class-use/C2.ModalExclusionType.html", true,
                 "<th class=\"colFirst\" scope=\"row\"><a href=\"#unnamed.package\">&lt;Unnamed&gt;</a></th>");
 

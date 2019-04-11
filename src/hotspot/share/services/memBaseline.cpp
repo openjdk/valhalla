@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ int compare_malloc_site(const MallocSite& s1, const MallocSite& s2) {
 int compare_malloc_site_and_type(const MallocSite& s1, const MallocSite& s2) {
   int res = compare_malloc_site(s1, s2);
   if (res == 0) {
-    res = (int)(s1.flags() - s2.flags());
+    res = (int)(s1.flag() - s2.flag());
   }
 
   return res;
@@ -156,6 +156,11 @@ bool MemBaseline::baseline_allocation_sites() {
     return false;
   }
 
+  // Walk simple thread stacks
+  if (!ThreadStackTracker::walk_simple_thread_stack_site(&malloc_walker)) {
+    return false;
+  }
+
   _malloc_sites.move(malloc_walker.malloc_sites());
   // The malloc sites are collected in size order
   _malloc_sites_order = by_size;
@@ -212,7 +217,7 @@ bool MemBaseline::aggregate_virtual_memory_allocation_sites() {
   const ReservedMemoryRegion* rgn;
   VirtualMemoryAllocationSite* site;
   while ((rgn = itr.next()) != NULL) {
-    VirtualMemoryAllocationSite tmp(*rgn->call_stack());
+    VirtualMemoryAllocationSite tmp(*rgn->call_stack(), rgn->flag());
     site = allocation_sites.find(tmp);
     if (site == NULL) {
       LinkedListNode<VirtualMemoryAllocationSite>* node =

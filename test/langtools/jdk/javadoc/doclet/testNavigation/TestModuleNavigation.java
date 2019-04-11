@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.javadoc/jdk.javadoc.internal.api
  *          jdk.javadoc/jdk.javadoc.internal.tool
- * @library ../lib /tools/lib
- * @build toolbox.ToolBox toolbox.ModuleBuilder JavadocTester
+ * @library ../../lib /tools/lib
+ * @build toolbox.ToolBox toolbox.ModuleBuilder javadoc.tester.*
  * @run main TestModuleNavigation
  */
 
@@ -38,7 +38,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import toolbox.*;
+import javadoc.tester.JavadocTester;
+import toolbox.ModuleBuilder;
+import toolbox.ToolBox;
 
 public class TestModuleNavigation extends JavadocTester {
 
@@ -74,12 +76,11 @@ public class TestModuleNavigation extends JavadocTester {
 
         javadoc("-d", base.resolve("out").toString(), "-use",
                 "-quiet",
-                "--frames",
                 "--module-source-path", src.toString(),
                 "--module", "m,m2");
         checkExit(Exit.OK);
 
-        checkOutput("overview-summary.html", false,
+        checkOutput("index.html", false,
                 "Prev",
                 "Next",
                 "All&nbsp;Classes",

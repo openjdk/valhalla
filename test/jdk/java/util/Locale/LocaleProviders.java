@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,6 +70,10 @@ public class LocaleProviders {
 
             case "bug8027289Test":
                 bug8027289Test(args[1]);
+                break;
+
+            case "bug8220227Test":
+                bug8220227Test();
                 break;
 
             default:
@@ -237,12 +241,27 @@ public class LocaleProviders {
     }
 
     static void bug8027289Test(String expectedCodePoint) {
-        char[] expectedSymbol = Character.toChars(Integer.valueOf(expectedCodePoint, 16));
-        NumberFormat nf = NumberFormat.getCurrencyInstance(Locale.CHINA);
-        char formatted = nf.format(7000).charAt(0);
-        System.out.println("returned: " + formatted + ", expected: " + expectedSymbol[0]);
-        if (formatted != expectedSymbol[0]) {
-            throw new RuntimeException("Unexpected Chinese currency symbol. returned: " + formatted + ", expected: " + expectedSymbol[0]);
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            char[] expectedSymbol = Character.toChars(Integer.valueOf(expectedCodePoint, 16));
+            NumberFormat nf = NumberFormat.getCurrencyInstance(Locale.CHINA);
+            char formatted = nf.format(7000).charAt(0);
+            System.out.println("returned: " + formatted + ", expected: " + expectedSymbol[0]);
+            if (formatted != expectedSymbol[0]) {
+                throw new RuntimeException(
+                        "Unexpected Chinese currency symbol. returned: "
+                                + formatted + ", expected: " + expectedSymbol[0]);
+            }
+        }
+    }
+
+    static void bug8220227Test() {
+        if (System.getProperty("os.name").startsWith("Windows")) {
+            Locale l = new Locale("xx","XX");
+            String country = l.getDisplayCountry();
+            if (country.endsWith("(XX)")) {
+                throw new RuntimeException(
+                        "Unexpected Region name: " + country);
+            }
         }
     }
 }

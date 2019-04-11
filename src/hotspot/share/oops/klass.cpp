@@ -27,6 +27,7 @@
 #include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/javaClasses.hpp"
+#include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -159,11 +160,6 @@ void Klass::initialize(TRAPS) {
   ShouldNotReachHere();
 }
 
-bool Klass::compute_is_subtype_of(Klass* k) {
-  assert(k->is_klass(), "argument must be a class");
-  return is_subclass_of(k);
-}
-
 Klass* Klass::find_field(Symbol* name, Symbol* sig, fieldDescriptor* fd) const {
 #ifdef ASSERT
   tty->print_cr("Error: find_field called on a klass oop."
@@ -236,11 +232,6 @@ bool Klass::can_be_primary_super_slow() const {
 }
 
 void Klass::initialize_supers(Klass* k, Array<InstanceKlass*>* transitive_interfaces, TRAPS) {
-  if (FastSuperclassLimit == 0) {
-    // None of the other machinery matters.
-    set_super(k);
-    return;
-  }
   if (k == NULL) {
     set_super(NULL);
     _primary_supers[0] = this;

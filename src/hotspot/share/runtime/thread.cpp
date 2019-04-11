@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,6 +69,7 @@
 #include "runtime/flags/jvmFlagWriteableList.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/handshake.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -213,8 +214,12 @@ void JavaThread::smr_delete() {
 // Base class for all threads: VMThread, WatcherThread, ConcurrentMarkSweepThread,
 // JavaThread
 
+DEBUG_ONLY(Thread* Thread::_starting_thread = NULL;)
 
 Thread::Thread() {
+
+  DEBUG_ONLY(_run_state = PRE_CALL_RUN;)
+
   // stack and get_thread
   set_stack_base(NULL);
   set_stack_size(0);
@@ -231,10 +236,10 @@ Thread::Thread() {
   set_active_handles(NULL);
   set_free_handle_block(NULL);
   set_last_handle_mark(NULL);
-  DEBUG_ONLY(_missed_ic_stub_refill_mark = NULL);
+  DEBUG_ONLY(_missed_ic_stub_refill_verifier = NULL);
 
-  // This initial value ==> never claimed.
-  _oops_do_parity = 0;
+  // Initial value of zero ==> never claimed.
+  _threads_do_token = 0;
   _threads_hazard_ptr = NULL;
   _threads_list_ptr = NULL;
   _nested_threads_hazard_ptr_cnt = 0;
@@ -289,7 +294,6 @@ Thread::Thread() {
   // and ::Release()
   _ParkEvent   = ParkEvent::Allocate(this);
   _SleepEvent  = ParkEvent::Allocate(this);
-  _MutexEvent  = ParkEvent::Allocate(this);
   _MuxEvent    = ParkEvent::Allocate(this);
 
 #ifdef CHECK_UNHANDLED_OOPS
@@ -314,11 +318,11 @@ Thread::Thread() {
   if (barrier_set != NULL) {
     barrier_set->on_thread_create(this);
   } else {
-#ifdef ASSERT
-    static bool initial_thread_created = false;
-    assert(!initial_thread_created, "creating thread before barrier set");
-    initial_thread_created = true;
-#endif // ASSERT
+    // Only the main thread should be created before the barrier set
+    // and that happens just before Thread::current is set. No other thread
+    // can attach as the VM is not created yet, so they can't execute this code.
+    // If the main thread creates other threads before the barrier set that is an error.
+    assert(Thread::current_or_null() == NULL, "creating thread before barrier set");
   }
 }
 
@@ -368,8 +372,15 @@ void Thread::register_thread_stack_with_NMT() {
 #endif // INCLUDE_NMT
 
 void Thread::call_run() {
+  DEBUG_ONLY(_run_state = CALL_RUN;)
+
   // At this point, Thread object should be fully initialized and
   // Thread::current() should be set.
+
+  assert(Thread::current_or_null() != NULL, "current thread is unset");
+  assert(Thread::current_or_null() == this, "current thread is wrong");
+
+  // Perform common initialization actions
 
   register_thread_stack_with_NMT();
 
@@ -380,25 +391,42 @@ void Thread::call_run() {
     os::current_thread_id(), p2i(stack_base() - stack_size()),
     p2i(stack_base()), stack_size()/1024);
 
+  // Perform <ChildClass> initialization actions
+  DEBUG_ONLY(_run_state = PRE_RUN;)
+  this->pre_run();
+
   // Invoke <ChildClass>::run()
+  DEBUG_ONLY(_run_state = RUN;)
   this->run();
   // Returned from <ChildClass>::run(). Thread finished.
 
-  // Note: at this point the thread object may already have deleted itself.
-  // So from here on do not dereference *this*.
+  // Perform common tear-down actions
 
-  // If a thread has not deleted itself ("delete this") as part of its
-  // termination sequence, we have to ensure thread-local-storage is
-  // cleared before we actually terminate. No threads should ever be
-  // deleted asynchronously with respect to their termination.
-  if (Thread::current_or_null_safe() != NULL) {
-    assert(Thread::current_or_null_safe() == this, "current thread is wrong");
-    Thread::clear_thread_current();
-  }
+  assert(Thread::current_or_null() != NULL, "current thread is unset");
+  assert(Thread::current_or_null() == this, "current thread is wrong");
 
+  // Perform <ChildClass> tear-down actions
+  DEBUG_ONLY(_run_state = POST_RUN;)
+  this->post_run();
+
+  // Note: at this point the thread object may already have deleted itself,
+  // so from here on do not dereference *this*. Not all thread types currently
+  // delete themselves when they terminate. But no thread should ever be deleted
+  // asynchronously with respect to its termination - that is what _run_state can
+  // be used to check.
+
+  assert(Thread::current_or_null() == NULL, "current thread still present");
 }
 
 Thread::~Thread() {
+
+  // Attached threads will remain in PRE_CALL_RUN, as will threads that don't actually
+  // get started due to errors etc. Any active thread should at least reach post_run
+  // before it is deleted (usually in post_run()).
+  assert(_run_state == PRE_CALL_RUN ||
+         _run_state == POST_RUN, "Active Thread deleted before post_run(): "
+         "_run_state=%d", (int)_run_state);
+
   // Notify the barrier set that a thread is being destroyed. Note that a barrier
   // set might not be available if we encountered errors during bootstrapping.
   BarrierSet* const barrier_set = BarrierSet::barrier_set();
@@ -431,7 +459,6 @@ Thread::~Thread() {
   // We NULL out the fields for good hygiene.
   ParkEvent::Release(_ParkEvent); _ParkEvent   = NULL;
   ParkEvent::Release(_SleepEvent); _SleepEvent  = NULL;
-  ParkEvent::Release(_MutexEvent); _MutexEvent  = NULL;
   ParkEvent::Release(_MuxEvent); _MuxEvent    = NULL;
 
   delete handle_area();
@@ -445,9 +472,10 @@ Thread::~Thread() {
   // osthread() can be NULL, if creation of thread failed.
   if (osthread() != NULL) os::free_thread(osthread());
 
-  // clear Thread::current if thread is deleting itself.
+  // Clear Thread::current if thread is deleting itself and it has not
+  // already been done. This must be done before the memory is deallocated.
   // Needed to ensure JNI correctly detects non-attached threads.
-  if (this == Thread::current()) {
+  if (this == Thread::current_or_null()) {
     Thread::clear_thread_current();
   }
 
@@ -857,16 +885,14 @@ bool Thread::is_interrupted(Thread* thread, bool clear_interrupted) {
 
 
 // GC Support
-bool Thread::claim_oops_do_par_case(int strong_roots_parity) {
-  int thread_parity = _oops_do_parity;
-  if (thread_parity != strong_roots_parity) {
-    jint res = Atomic::cmpxchg(strong_roots_parity, &_oops_do_parity, thread_parity);
-    if (res == thread_parity) {
+bool Thread::claim_par_threads_do(uintx claim_token) {
+  uintx token = _threads_do_token;
+  if (token != claim_token) {
+    uintx res = Atomic::cmpxchg(claim_token, &_threads_do_token, token);
+    if (res == token) {
       return true;
-    } else {
-      guarantee(res == strong_roots_parity, "Or else what?");
-      return false;
     }
+    guarantee(res == claim_token, "invariant");
   }
   return false;
 }
@@ -1051,7 +1077,10 @@ bool Thread::is_lock_owned(address adr) const {
 }
 
 bool Thread::set_as_starting_thread() {
+  assert(_starting_thread == NULL, "already initialized: "
+         "_starting_thread=" INTPTR_FORMAT, p2i(_starting_thread));
   // NOTE: this must be called inside the main thread.
+  DEBUG_ONLY(_starting_thread = this;)
   return os::create_main_thread((JavaThread*)this);
 }
 
@@ -1254,25 +1283,54 @@ void NonJavaThread::Iterator::step() {
 }
 
 NonJavaThread::NonJavaThread() : Thread(), _next(NULL) {
-  // Add this thread to _the_list.
-  MutexLockerEx lock(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
-  _next = _the_list._head;
+  assert(BarrierSet::barrier_set() != NULL, "NonJavaThread created too soon!");
+}
+
+NonJavaThread::~NonJavaThread() { }
+
+void NonJavaThread::add_to_the_list() {
+  MutexLockerEx ml(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
+  // Initialize BarrierSet-related data before adding to list.
+  BarrierSet::barrier_set()->on_thread_attach(this);
+  OrderAccess::release_store(&_next, _the_list._head);
   OrderAccess::release_store(&_the_list._head, this);
 }
 
-NonJavaThread::~NonJavaThread() {
-  JFR_ONLY(Jfr::on_thread_exit(this);)
-  // Remove this thread from _the_list.
-  MutexLockerEx lock(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
-  NonJavaThread* volatile* p = &_the_list._head;
-  for (NonJavaThread* t = *p; t != NULL; p = &t->_next, t = *p) {
-    if (t == this) {
-      *p = this->_next;
-      // Wait for any in-progress iterators.
-      _the_list._protect.synchronize();
-      break;
+void NonJavaThread::remove_from_the_list() {
+  {
+    MutexLockerEx ml(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
+    // Cleanup BarrierSet-related data before removing from list.
+    BarrierSet::barrier_set()->on_thread_detach(this);
+    NonJavaThread* volatile* p = &_the_list._head;
+    for (NonJavaThread* t = *p; t != NULL; p = &t->_next, t = *p) {
+      if (t == this) {
+        *p = _next;
+        break;
+      }
     }
   }
+  // Wait for any in-progress iterators.  Concurrent synchronize is not
+  // allowed, so do it while holding a dedicated lock.  Outside and distinct
+  // from NJTList_lock in case an iteration attempts to lock it.
+  MutexLockerEx ml(NonJavaThreadsListSync_lock, Mutex::_no_safepoint_check_flag);
+  _the_list._protect.synchronize();
+  _next = NULL;                 // Safe to drop the link now.
+}
+
+void NonJavaThread::pre_run() {
+  add_to_the_list();
+
+  // This is slightly odd in that NamedThread is a subclass, but
+  // in fact name() is defined in Thread
+  assert(this->name() != NULL, "thread name was not set before it was started");
+  this->set_native_thread_name(this->name());
+}
+
+void NonJavaThread::post_run() {
+  JFR_ONLY(Jfr::on_thread_exit(this);)
+  remove_from_the_list();
+  // Ensure thread-local-storage is cleared before termination.
+  Thread::clear_thread_current();
 }
 
 // NamedThread --  non-JavaThread subclasses with multiple
@@ -1299,10 +1357,6 @@ void NamedThread::set_name(const char* format, ...) {
   va_start(ap, format);
   jio_vsnprintf(_name, max_name_len, format, ap);
   va_end(ap);
-}
-
-void NamedThread::initialize_named_thread() {
-  set_native_thread_name(name());
 }
 
 void NamedThread::print_on(outputStream* st) const {
@@ -1401,7 +1455,6 @@ int WatcherThread::sleep() const {
 void WatcherThread::run() {
   assert(this == watcher_thread(), "just checking");
 
-  this->set_native_thread_name(this->name());
   this->set_active_handles(JNIHandleBlock::allocate_block());
   while (true) {
     assert(watcher_thread() == Thread::current(), "thread consistency check");
@@ -1455,7 +1508,7 @@ void WatcherThread::run() {
   {
     MutexLockerEx mu(Terminator_lock, Mutex::_no_safepoint_check_flag);
     _watcher_thread = NULL;
-    Terminator_lock->notify();
+    Terminator_lock->notify_all();
   }
 }
 
@@ -1623,6 +1676,8 @@ void JavaThread::initialize() {
     SafepointMechanism::initialize_header(this);
   }
 
+  _class_to_be_initialized = NULL;
+
   pd_initialize();
 }
 
@@ -1757,21 +1812,36 @@ JavaThread::~JavaThread() {
 }
 
 
-// The first routine called by a new Java thread
+// First JavaThread specific code executed by a new Java thread.
+void JavaThread::pre_run() {
+  // empty - see comments in run()
+}
+
+// The main routine called by a new Java thread. This isn't overridden
+// by subclasses, instead different subclasses define a different "entry_point"
+// which defines the actual logic for that kind of thread.
 void JavaThread::run() {
   // initialize thread-local alloc buffer related fields
   this->initialize_tlab();
 
-  // used to test validity of stack trace backs
+  // Used to test validity of stack trace backs.
+  // This can't be moved into pre_run() else we invalidate
+  // the requirement that thread_main_inner is lower on
+  // the stack. Consequently all the initialization logic
+  // stays here in run() rather than pre_run().
   this->record_base_of_stack_pointer();
 
   this->create_stack_guard_pages();
 
   this->cache_global_variables();
 
-  // Thread is now sufficient initialized to be handled by the safepoint code as being
+  // Thread is now sufficiently initialized to be handled by the safepoint code as being
   // in the VM. Change thread state from _thread_new to _thread_in_vm
-  ThreadStateTransition::transition_and_fence(this, _thread_new, _thread_in_vm);
+  ThreadStateTransition::transition(this, _thread_new, _thread_in_vm);
+  // Before a thread is on the threads list it is always safe, so after leaving the
+  // _thread_new we should emit a instruction barrier. The distance to modified code
+  // from here is probably far enough, but this is consistent and safe.
+  OrderAccess::cross_modify_fence();
 
   assert(JavaThread::current() == this, "sanity check");
   assert(!Thread::current()->owns_locks(), "sanity check");
@@ -1788,12 +1858,9 @@ void JavaThread::run() {
   }
 
   // We call another function to do the rest so we are sure that the stack addresses used
-  // from there will be lower than the stack base just computed
+  // from there will be lower than the stack base just computed.
   thread_main_inner();
-
-  // Note, thread is no longer valid at this point!
 }
-
 
 void JavaThread::thread_main_inner() {
   assert(JavaThread::current() == this, "sanity check");
@@ -1814,10 +1881,16 @@ void JavaThread::thread_main_inner() {
 
   DTRACE_THREAD_PROBE(stop, this);
 
-  this->exit(false);
-  this->smr_delete();
+  // Cleanup is handled in post_run()
 }
 
+// Shared teardown for all JavaThreads
+void JavaThread::post_run() {
+  this->exit(false);
+  // Defer deletion to here to ensure 'this' is still referenceable in call_run
+  // for any shared tear-down.
+  this->smr_delete();
+}
 
 static void ensure_join(JavaThread* thread) {
   // We do not need to grab the Threads_lock, since we are operating on ourself.
@@ -1948,6 +2021,10 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     _timer_exit_phase1.stop();
     _timer_exit_phase2.start();
   }
+
+  // Capture daemon status before the thread is marked as terminated.
+  bool daemon = is_daemon(threadObj());
+
   // Notify waiters on thread object. This has to be done after exit() is called
   // on the thread (if the thread is the last thread in a daemon ThreadGroup the
   // group should have the destroyed bit set before waiters are notified).
@@ -2016,7 +2093,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     _timer_exit_phase4.start();
   }
   // Remove from list of active threads list, and notify VM thread if we are the last non-daemon thread
-  Threads::remove(this);
+  Threads::remove(this, daemon);
 
   if (log_is_enabled(Debug, os, thread, timer)) {
     _timer_exit_phase4.stop();
@@ -2034,7 +2111,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   }
 }
 
-void JavaThread::cleanup_failed_attach_current_thread() {
+void JavaThread::cleanup_failed_attach_current_thread(bool is_daemon) {
   if (active_handles() != NULL) {
     JNIHandleBlock* block = active_handles();
     set_active_handles(NULL);
@@ -2056,7 +2133,7 @@ void JavaThread::cleanup_failed_attach_current_thread() {
 
   BarrierSet::barrier_set()->on_thread_detach(this);
 
-  Threads::remove(this);
+  Threads::remove(this, is_daemon);
   this->smr_delete();
 }
 
@@ -2197,48 +2274,19 @@ void JavaThread::check_and_handle_async_exceptions(bool check_unsafe_error) {
 
 void JavaThread::handle_special_runtime_exit_condition(bool check_asyncs) {
   //
-  // Check for pending external suspend. Internal suspend requests do
-  // not use handle_special_runtime_exit_condition().
+  // Check for pending external suspend.
   // If JNIEnv proxies are allowed, don't self-suspend if the target
   // thread is not the current thread. In older versions of jdbx, jdbx
   // threads could call into the VM with another thread's JNIEnv so we
   // can be here operating on behalf of a suspended thread (4432884).
   bool do_self_suspend = is_external_suspend_with_lock();
   if (do_self_suspend && (!AllowJNIEnvProxy || this == JavaThread::current())) {
-    //
-    // Because thread is external suspended the safepoint code will count
-    // thread as at a safepoint. This can be odd because we can be here
-    // as _thread_in_Java which would normally transition to _thread_blocked
-    // at a safepoint. We would like to mark the thread as _thread_blocked
-    // before calling java_suspend_self like all other callers of it but
-    // we must then observe proper safepoint protocol. (We can't leave
-    // _thread_blocked with a safepoint in progress). However we can be
-    // here as _thread_in_native_trans so we can't use a normal transition
-    // constructor/destructor pair because they assert on that type of
-    // transition. We could do something like:
-    //
-    // JavaThreadState state = thread_state();
-    // set_thread_state(_thread_in_vm);
-    // {
-    //   ThreadBlockInVM tbivm(this);
-    //   java_suspend_self()
-    // }
-    // set_thread_state(_thread_in_vm_trans);
-    // if (safepoint) block;
-    // set_thread_state(state);
-    //
-    // but that is pretty messy. Instead we just go with the way the
-    // code has worked before and note that this is the only path to
-    // java_suspend_self that doesn't put the thread in _thread_blocked
-    // mode.
-
     frame_anchor()->make_walkable(this);
-    java_suspend_self();
-
-    // We might be here for reasons in addition to the self-suspend request
-    // so check for other async requests.
+    java_suspend_self_with_safepoint_check();
   }
 
+  // We might be here for reasons in addition to the self-suspend request
+  // so check for other async requests.
   if (check_asyncs) {
     check_and_handle_async_exceptions();
   }
@@ -2328,8 +2376,19 @@ void JavaThread::java_suspend() {
     }
   }
 
-  VM_ThreadSuspend vm_suspend;
-  VMThread::execute(&vm_suspend);
+  if (Thread::current() == this) {
+    // Safely self-suspend.
+    // If we don't do this explicitly it will implicitly happen
+    // before we transition back to Java, and on some other thread-state
+    // transition paths, but not as we exit a JVM TI SuspendThread call.
+    // As SuspendThread(current) must not return (until resumed) we must
+    // self-suspend here.
+    ThreadBlockInVM tbivm(this);
+    java_suspend_self();
+  } else {
+    VM_ThreadSuspend vm_suspend;
+    VMThread::execute(&vm_suspend);
+  }
 }
 
 // Part II of external suspension.
@@ -2346,6 +2405,7 @@ void JavaThread::java_suspend() {
 //       to complete an external suspend request.
 //
 int JavaThread::java_suspend_self() {
+  assert(thread_state() == _thread_blocked, "wrong state for java_suspend_self()");
   int ret = 0;
 
   // we are in the process of exiting so don't suspend
@@ -2389,8 +2449,39 @@ int JavaThread::java_suspend_self() {
       this->SR_lock()->wait(Mutex::_no_safepoint_check_flag);
     }
   }
-
   return ret;
+}
+
+// Helper routine to set up the correct thread state before calling java_suspend_self.
+// This is called when regular thread-state transition helpers can't be used because
+// we can be in various states, in particular _thread_in_native_trans.
+// Because this thread is external suspended the safepoint code will count it as at
+// a safepoint, regardless of what its actual current thread-state is. But
+// is_ext_suspend_completed() may be waiting to see a thread transition from
+// _thread_in_native_trans to _thread_blocked. So we set the thread state directly
+// to _thread_blocked. The problem with setting thread state directly is that a
+// safepoint could happen just after java_suspend_self() returns after being resumed,
+// and the VM thread will see the _thread_blocked state. So we must check for a safepoint
+// after restoring the state to make sure we won't leave while a safepoint is in progress.
+// However, not all initial-states are allowed when performing a safepoint check, as we
+// should never be blocking at a safepoint whilst in those states. Of these 'bad' states
+// only _thread_in_native is possible when executing this code (based on our two callers).
+// A thread that is _thread_in_native is already safepoint-safe and so it doesn't matter
+// whether the VMThread sees the _thread_blocked state, or the _thread_in_native state,
+// and so we don't need the explicit safepoint check.
+
+void JavaThread::java_suspend_self_with_safepoint_check() {
+  assert(this == Thread::current(), "invariant");
+  JavaThreadState state = thread_state();
+  set_thread_state(_thread_blocked);
+  java_suspend_self();
+  set_thread_state_fence(state);
+  // Since we are not using a regular thread-state transition helper here,
+  // we must manually emit the instruction barrier after leaving a safe state.
+  OrderAccess::cross_modify_fence();
+  if (state != _thread_in_native) {
+    SafepointMechanism::block_if_requested(this);
+  }
 }
 
 #ifdef ASSERT
@@ -2424,32 +2515,10 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
   // threads could call into the VM with another thread's JNIEnv so we
   // can be here operating on behalf of a suspended thread (4432884).
   if (do_self_suspend && (!AllowJNIEnvProxy || curJT == thread)) {
-    JavaThreadState state = thread->thread_state();
-
-    // We mark this thread_blocked state as a suspend-equivalent so
-    // that a caller to is_ext_suspend_completed() won't be confused.
-    // The suspend-equivalent state is cleared by java_suspend_self().
-    thread->set_suspend_equivalent();
-
-    // If the safepoint code sees the _thread_in_native_trans state, it will
-    // wait until the thread changes to other thread state. There is no
-    // guarantee on how soon we can obtain the SR_lock and complete the
-    // self-suspend request. It would be a bad idea to let safepoint wait for
-    // too long. Temporarily change the state to _thread_blocked to
-    // let the VM thread know that this thread is ready for GC. The problem
-    // of changing thread state is that safepoint could happen just after
-    // java_suspend_self() returns after being resumed, and VM thread will
-    // see the _thread_blocked state. We must check for safepoint
-    // after restoring the state and make sure we won't leave while a safepoint
-    // is in progress.
-    thread->set_thread_state(_thread_blocked);
-    thread->java_suspend_self();
-    thread->set_thread_state(state);
-
-    InterfaceSupport::serialize_thread_state_with_handler(thread);
+    thread->java_suspend_self_with_safepoint_check();
+  } else {
+    SafepointMechanism::block_if_requested(curJT);
   }
-
-  SafepointMechanism::block_if_requested(curJT);
 
   if (thread->is_deopt_suspend()) {
     thread->clear_deopt_suspend();
@@ -2603,8 +2672,7 @@ void JavaThread::remove_stack_guard_pages() {
 }
 
 void JavaThread::enable_stack_reserved_zone() {
-  assert(_stack_guard_state != stack_guard_unused, "must be using guard pages.");
-  assert(_stack_guard_state != stack_guard_enabled, "already enabled");
+  assert(_stack_guard_state == stack_guard_reserved_disabled, "inconsistent state");
 
   // The base notation is from the stack's point of view, growing downward.
   // We need to adjust it to work correctly with guard_memory()
@@ -2622,11 +2690,10 @@ void JavaThread::enable_stack_reserved_zone() {
 }
 
 void JavaThread::disable_stack_reserved_zone() {
-  assert(_stack_guard_state != stack_guard_unused, "must be using guard pages.");
-  assert(_stack_guard_state != stack_guard_reserved_disabled, "already disabled");
+  assert(_stack_guard_state == stack_guard_enabled, "inconsistent state");
 
   // Simply return if called for a thread that does not use guard pages.
-  if (_stack_guard_state == stack_guard_unused) return;
+  if (_stack_guard_state != stack_guard_enabled) return;
 
   // The base notation is from the stack's point of view, growing downward.
   // We need to adjust it to work correctly with guard_memory()
@@ -2872,9 +2939,21 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   }
 }
 
+#ifdef ASSERT
+void JavaThread::verify_states_for_handshake() {
+  // This checks that the thread has a correct frame state during a handshake.
+  assert((!has_last_Java_frame() && java_call_counter() == 0) ||
+         (has_last_Java_frame() && java_call_counter() > 0),
+         "unexpected frame info: has_last_frame=%d, java_call_counter=%d",
+         has_last_Java_frame(), java_call_counter());
+}
+#endif
+
 void JavaThread::nmethods_do(CodeBlobClosure* cf) {
   assert((!has_last_Java_frame() && java_call_counter() == 0) ||
-         (has_last_Java_frame() && java_call_counter() > 0), "wrong java_sp info!");
+         (has_last_Java_frame() && java_call_counter() > 0),
+         "unexpected frame info: has_last_frame=%d, java_call_counter=%d",
+         has_last_Java_frame(), java_call_counter());
 
   if (has_last_Java_frame()) {
     // Traverse the execution stack
@@ -2884,7 +2963,7 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
   }
 }
 
-void JavaThread::metadata_do(void f(Metadata*)) {
+void JavaThread::metadata_do(MetadataClosure* f) {
   if (has_last_Java_frame()) {
     // Traverse the execution stack to call f() on the methods in the stack
     for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
@@ -3394,7 +3473,7 @@ JavaThread* Threads::_thread_list = NULL;
 int         Threads::_number_of_threads = 0;
 int         Threads::_number_of_non_daemon_threads = 0;
 int         Threads::_return_code = 0;
-int         Threads::_thread_claim_parity = 0;
+uintx       Threads::_thread_claim_token = 1; // Never zero.
 size_t      JavaThread::_stack_size_at_create = 0;
 
 #ifdef ASSERT
@@ -3454,14 +3533,14 @@ void Threads::threads_do(ThreadClosure* tc) {
 }
 
 void Threads::possibly_parallel_threads_do(bool is_par, ThreadClosure* tc) {
-  int cp = Threads::thread_claim_parity();
+  uintx claim_token = Threads::thread_claim_token();
   ALL_JAVA_THREADS(p) {
-    if (p->claim_oops_do(is_par, cp)) {
+    if (p->claim_threads_do(is_par, claim_token)) {
       tc->do_thread(p);
     }
   }
   VMThread* vmt = VMThread::vm_thread();
-  if (vmt->claim_oops_do(is_par, cp)) {
+  if (vmt->claim_threads_do(is_par, claim_token)) {
     tc->do_thread(vmt);
   }
 }
@@ -3548,6 +3627,7 @@ void Threads::initialize_java_lang_classes(JavaThread* main_thread, TRAPS) {
   initialize_class(vmSymbols::java_lang_Thread(), CHECK);
   oop thread_object = create_initial_thread(thread_group, main_thread, CHECK);
   main_thread->set_threadObj(thread_object);
+
   // Set thread status to running since main thread has
   // been started and running.
   java_lang_Thread::set_thread_status(thread_object,
@@ -3555,6 +3635,15 @@ void Threads::initialize_java_lang_classes(JavaThread* main_thread, TRAPS) {
 
   // The VM creates objects of this class.
   initialize_class(vmSymbols::java_lang_Module(), CHECK);
+
+#ifdef ASSERT
+  InstanceKlass *k = SystemDictionary::UnsafeConstants_klass();
+  assert(k->is_not_initialized(), "UnsafeConstants should not already be initialized");
+#endif
+
+  // initialize the hardware-specific constants needed by Unsafe
+  initialize_class(vmSymbols::jdk_internal_misc_UnsafeConstants(), CHECK);
+  jdk_internal_misc_UnsafeConstants::set_unsafe_constants();
 
   // The VM preresolves methods to these classes. Make sure that they get initialized
   initialize_class(vmSymbols::java_lang_reflect_Method(), CHECK);
@@ -3656,16 +3745,16 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   // Timing (must come after argument parsing)
   TraceTime timer("Create VM", TRACETIME_LOG(Info, startuptime));
 
+  // Initialize the os module after parsing the args
+  jint os_init_2_result = os::init_2();
+  if (os_init_2_result != JNI_OK) return os_init_2_result;
+
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   // Initialize assert poison page mechanism.
   if (ShowRegistersOnAssert) {
     initialize_assert_poison();
   }
 #endif // CAN_SHOW_REGISTERS_ON_ASSERT
-
-  // Initialize the os module after parsing the args
-  jint os_init_2_result = os::init_2();
-  if (os_init_2_result != JNI_OK) return os_init_2_result;
 
   SafepointMechanism::initialize();
 
@@ -4379,9 +4468,9 @@ void Threads::add(JavaThread* p, bool force_daemon) {
   Events::log(p, "Thread added: " INTPTR_FORMAT, p2i(p));
 }
 
-void Threads::remove(JavaThread* p) {
+void Threads::remove(JavaThread* p, bool is_daemon) {
 
-  // Reclaim the objectmonitors from the omInUseList and omFreeList of the moribund thread.
+  // Reclaim the ObjectMonitors from the omInUseList and omFreeList of the moribund thread.
   ObjectSynchronizer::omFlush(p);
 
   // Extra scope needed for Thread_lock, so we can check
@@ -4408,11 +4497,8 @@ void Threads::remove(JavaThread* p) {
     }
 
     _number_of_threads--;
-    oop threadObj = p->threadObj();
-    bool daemon = true;
-    if (!is_daemon(threadObj)) {
+    if (!is_daemon) {
       _number_of_non_daemon_threads--;
-      daemon = false;
 
       // Only one thread left, do a notify on the Threads_lock so a thread waiting
       // on destroy_vm will wake up.
@@ -4420,7 +4506,7 @@ void Threads::remove(JavaThread* p) {
         Threads_lock->notify_all();
       }
     }
-    ThreadService::remove_thread(p, daemon);
+    ThreadService::remove_thread(p, is_daemon);
 
     // Make sure that safepoint code disregard this thread. This is needed since
     // the thread might mess around with locks after this point. This can cause it
@@ -4447,27 +4533,39 @@ void Threads::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   VMThread::vm_thread()->oops_do(f, cf);
 }
 
-void Threads::change_thread_claim_parity() {
-  // Set the new claim parity.
-  assert(_thread_claim_parity >= 0 && _thread_claim_parity <= 2,
-         "Not in range.");
-  _thread_claim_parity++;
-  if (_thread_claim_parity == 3) _thread_claim_parity = 1;
-  assert(_thread_claim_parity >= 1 && _thread_claim_parity <= 2,
-         "Not in range.");
+void Threads::change_thread_claim_token() {
+  if (++_thread_claim_token == 0) {
+    // On overflow of the token counter, there is a risk of future
+    // collisions between a new global token value and a stale token
+    // for a thread, because not all iterations visit all threads.
+    // (Though it's pretty much a theoretical concern for non-trivial
+    // token counter sizes.)  To deal with the possibility, reset all
+    // the thread tokens to zero on global token overflow.
+    struct ResetClaims : public ThreadClosure {
+      virtual void do_thread(Thread* t) {
+        t->claim_threads_do(false, 0);
+      }
+    } reset_claims;
+    Threads::threads_do(&reset_claims);
+    // On overflow, update the global token to non-zero, to
+    // avoid the special "never claimed" initial thread value.
+    _thread_claim_token = 1;
+  }
 }
 
 #ifdef ASSERT
+void assert_thread_claimed(const char* kind, Thread* t, uintx expected) {
+  const uintx token = t->threads_do_token();
+  assert(token == expected,
+         "%s " PTR_FORMAT " has incorrect value " UINTX_FORMAT " != "
+         UINTX_FORMAT, kind, p2i(t), token, expected);
+}
+
 void Threads::assert_all_threads_claimed() {
   ALL_JAVA_THREADS(p) {
-    const int thread_parity = p->oops_do_parity();
-    assert((thread_parity == _thread_claim_parity),
-           "Thread " PTR_FORMAT " has incorrect parity %d != %d", p2i(p), thread_parity, _thread_claim_parity);
+    assert_thread_claimed("Thread", p, _thread_claim_token);
   }
-  VMThread* vmt = VMThread::vm_thread();
-  const int thread_parity = vmt->oops_do_parity();
-  assert((thread_parity == _thread_claim_parity),
-         "VMThread " PTR_FORMAT " has incorrect parity %d != %d", p2i(vmt), thread_parity, _thread_claim_parity);
+  assert_thread_claimed("VMThread", VMThread::vm_thread(), _thread_claim_token);
 }
 #endif // ASSERT
 
@@ -4498,7 +4596,7 @@ void Threads::nmethods_do(CodeBlobClosure* cf) {
   }
 }
 
-void Threads::metadata_do(void f(Metadata*)) {
+void Threads::metadata_do(MetadataClosure* f) {
   ALL_JAVA_THREADS(p) {
     p->metadata_do(f);
   }
@@ -4697,7 +4795,7 @@ void Threads::print_on_error(outputStream* st, Thread* current, char* buf,
   print_threads_compiling(st, buf, buflen);
 }
 
-void Threads::print_threads_compiling(outputStream* st, char* buf, int buflen) {
+void Threads::print_threads_compiling(outputStream* st, char* buf, int buflen, bool short_form) {
   ALL_JAVA_THREADS(thread) {
     if (thread->is_Compiler_thread()) {
       CompilerThread* ct = (CompilerThread*) thread;
@@ -4710,7 +4808,7 @@ void Threads::print_threads_compiling(outputStream* st, char* buf, int buflen) {
       if (task != NULL) {
         thread->print_name_on_error(st, buf, buflen);
         st->print("  ");
-        task->print(st, NULL, true, true);
+        task->print(st, NULL, short_form, true);
       }
     }
   }

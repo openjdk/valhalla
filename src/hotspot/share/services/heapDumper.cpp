@@ -26,6 +26,7 @@
 #include "jvm.h"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -957,6 +958,11 @@ void DumperSupport::dump_instance_field_descriptors(DumpWriter* writer, Klass* k
 // creates HPROF_GC_INSTANCE_DUMP record for the given object
 void DumperSupport::dump_instance(DumpWriter* writer, oop o) {
   Klass* k = o->klass();
+  if (k->java_mirror() == NULL) {
+    // Ignoring this object since the corresponding java mirror is not loaded.
+    // Might be a dormant archive object.
+    return;
+  }
 
   writer->write_u1(HPROF_GC_INSTANCE_DUMP);
   writer->write_objectID(o);

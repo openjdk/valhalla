@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,17 @@ class Metadebug : AllStatic {
 #endif
 };
 
+#ifdef ASSERT
+#define EVERY_NTH(n)          \
+{ static int counter_ = 0;    \
+  if (n > 0) {                \
+    counter_ ++;              \
+    if (counter_ > n) {       \
+      counter_ = 0;           \
+
+#define END_EVERY_NTH         } } }
+#endif // ASSERT
+
 } // namespace metaspace
 
-#endif /* SHARE_MEMORY_METASPACE_METADEBUG_HPP */
-
+#endif // SHARE_MEMORY_METASPACE_METADEBUG_HPP

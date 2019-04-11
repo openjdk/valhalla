@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -25,7 +25,6 @@
 #include "memory/allocation.hpp"
 #include "gc/shenandoah/shenandoahBrooksPointer.hpp"
 #include "gc/shenandoah/shenandoahHeapRegionSet.inline.hpp"
-#include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
@@ -57,7 +56,6 @@ ShenandoahHeapRegion::PaddedAllocSeqNum ShenandoahHeapRegion::_alloc_seq_num;
 ShenandoahHeapRegion::ShenandoahHeapRegion(ShenandoahHeap* heap, HeapWord* start,
                                            size_t size_words, size_t index, bool committed) :
   _heap(heap),
-  _pacer(ShenandoahPacing ? heap->pacer() : NULL),
   _reserved(MemRegion(start, size_words)),
   _region_number(index),
   _new_top(NULL),
@@ -661,7 +659,7 @@ void ShenandoahHeapRegion::setup_sizes(size_t initial_heap_size, size_t max_heap
 }
 
 void ShenandoahHeapRegion::do_commit() {
-  if (!os::commit_memory((char *) _reserved.start(), _reserved.byte_size(), false)) {
+  if (!_heap->is_heap_region_special() && !os::commit_memory((char *) _reserved.start(), _reserved.byte_size(), false)) {
     report_java_out_of_memory("Unable to commit region");
   }
   if (!_heap->commit_bitmap_slice(this)) {
@@ -671,7 +669,7 @@ void ShenandoahHeapRegion::do_commit() {
 }
 
 void ShenandoahHeapRegion::do_uncommit() {
-  if (!os::uncommit_memory((char *) _reserved.start(), _reserved.byte_size())) {
+  if (!_heap->is_heap_region_special() && !os::uncommit_memory((char *) _reserved.start(), _reserved.byte_size())) {
     report_java_out_of_memory("Unable to uncommit region");
   }
   if (!_heap->uncommit_bitmap_slice(this)) {

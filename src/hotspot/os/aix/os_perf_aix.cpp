@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -336,20 +336,8 @@ static OSReturn get_total_ticks(int which_logical_cpu, CPUPerfTicks* pticks) {
 
   fclose(fh);
   if (n < expected_assign_count || logical_cpu != which_logical_cpu) {
-#ifdef DEBUG_LINUX_PROC_STAT
-    vm_fprintf(stderr, "[stat] read failed");
-#endif
     return OS_ERR;
   }
-
-#ifdef DEBUG_LINUX_PROC_STAT
-  vm_fprintf(stderr, "[stat] read "
-          UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
-          UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " \n",
-          userTicks, niceTicks, systemTicks, idleTicks,
-          iowTicks, irqTicks, sirqTicks);
-#endif
-
   pticks->used       = userTicks + niceTicks;
   pticks->usedKernel = systemTicks + irqTicks + sirqTicks;
   pticks->total      = userTicks + niceTicks + systemTicks + idleTicks +
@@ -859,11 +847,7 @@ char* SystemProcessInterface::SystemProcesses::ProcessIterator::get_exe_path() {
 
 char* SystemProcessInterface::SystemProcesses::ProcessIterator::allocate_string(const char* str) const {
   if (str != NULL) {
-    size_t len = strlen(str);
-    char* tmp = NEW_C_HEAP_ARRAY(char, len+1, mtInternal);
-    strncpy(tmp, str, len);
-    tmp[len] = '\0';
-    return tmp;
+    return os::strdup_check_oom(str, mtInternal);
   }
   return NULL;
 }

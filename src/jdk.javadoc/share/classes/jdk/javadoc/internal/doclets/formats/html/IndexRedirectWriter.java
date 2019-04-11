@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,10 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
+import java.util.Collections;
+
 import jdk.javadoc.internal.doclets.formats.html.markup.Head;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
-import jdk.javadoc.internal.doclets.formats.html.markup.DocType;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlAttr;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlDocument;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
@@ -72,10 +73,12 @@ public class IndexRedirectWriter extends HtmlDocletWriter {
      * @throws DocFileIOException if there is a problem generating the file
      */
     private void generateIndexFile() throws DocFileIOException {
-        DocType htmlDocType = DocType.forVersion(configuration.htmlVersion);
         Content htmlComment = contents.newPage;
-        Head head = new Head(path, configuration.htmlVersion, configuration.docletVersion)
-                .setTimestamp(true)
+        Head head = new Head(path, configuration.docletVersion)
+                .setTimestamp(!configuration.notimestamp)
+                .setDescription("index redirect")
+                .setGenerator(getGenerator(getClass()))
+                .setStylesheets(configuration.getMainStylesheet(), Collections.emptyList()) // avoid reference to default stylesheet
                 .addDefaultScript(false);
 
         String title = (configuration.windowtitle.length() > 0)
@@ -91,28 +94,23 @@ public class IndexRedirectWriter extends HtmlDocletWriter {
                 .appendStringLiteral(targetPath, '\'')
                 .append(")");
         HtmlTree metaRefresh = new HtmlTree(HtmlTag.META)
-                .addAttr(HtmlAttr.HTTP_EQUIV, "Refresh")
-                .addAttr(HtmlAttr.CONTENT, "0;" + targetPath);
-        head.addContent(
-                script.asContent(),
-                configuration.isOutputHtml5() ? HtmlTree.NOSCRIPT(metaRefresh) : metaRefresh);
+                .put(HtmlAttr.HTTP_EQUIV, "Refresh")
+                .put(HtmlAttr.CONTENT, "0;" + targetPath);
+        head.addContent(script.asContent(), HtmlTree.NOSCRIPT(metaRefresh));
 
         ContentBuilder bodyContent = new ContentBuilder();
-        bodyContent.addContent(HtmlTree.NOSCRIPT(
+        bodyContent.add(HtmlTree.NOSCRIPT(
                 HtmlTree.P(contents.getContent("doclet.No_Script_Message"))));
 
-        bodyContent.addContent(HtmlTree.P(HtmlTree.A(targetPath, new StringContent(targetPath))));
+        bodyContent.add(HtmlTree.P(HtmlTree.A(targetPath, new StringContent(targetPath))));
 
-        Content body = new HtmlTree(HtmlTag.BODY);
-        if (configuration.allowTag(HtmlTag.MAIN)) {
-            HtmlTree main = HtmlTree.MAIN(bodyContent);
-            body.addContent(main);
-        } else {
-            body.addContent(bodyContent);
-        }
+        Content body = new HtmlTree(HtmlTag.BODY)
+                .put(HtmlAttr.CLASS, "index-redirect");
+        HtmlTree main = HtmlTree.MAIN(bodyContent);
+        body.add(main);
 
         Content htmlTree = HtmlTree.HTML(configuration.getLocale().getLanguage(), head.toContent(), body);
-        HtmlDocument htmlDocument = new HtmlDocument(htmlDocType, htmlComment, htmlTree);
+        HtmlDocument htmlDocument = new HtmlDocument(htmlComment, htmlTree);
         htmlDocument.write(DocFile.createFileForOutput(configuration, path));
     }
 }

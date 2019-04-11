@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_OSTREAM_HPP
-#define SHARE_VM_UTILITIES_OSTREAM_HPP
+#ifndef SHARE_UTILITIES_OSTREAM_HPP
+#define SHARE_UTILITIES_OSTREAM_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/timer.hpp"
@@ -216,7 +216,6 @@ class fileStream : public outputStream {
   fileStream(FILE* file, bool need_close = false) { _file = file; _need_close = need_close; }
   ~fileStream();
   bool is_open() const { return _file != NULL; }
-  void set_need_close(bool b) { _need_close = b;}
   virtual void write(const char* c, size_t len);
   size_t read(void *data, size_t size, size_t count) { return ::fread(data, size, count, _file); }
   char* readln(char *data, int count);
@@ -235,13 +234,10 @@ CDS_ONLY(extern fileStream*   classlist_file;)
 class fdStream : public outputStream {
  protected:
   int  _fd;
-  bool _need_close;
  public:
-  fdStream(const char* file_name);
-  fdStream(int fd = -1) { _fd = fd; _need_close = false; }
-  ~fdStream();
+  fdStream(int fd = -1) : _fd(fd) { }
   bool is_open() const { return _fd != -1; }
-  void set_fd(int fd) { _fd = fd; _need_close = false; }
+  void set_fd(int fd) { _fd = fd; }
   int fd() const { return _fd; }
   virtual void write(const char* c, size_t len);
   void flush() {};
@@ -294,4 +290,4 @@ class networkStream : public bufferedStream {
 
 #endif
 
-#endif // SHARE_VM_UTILITIES_OSTREAM_HPP
+#endif // SHARE_UTILITIES_OSTREAM_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,6 +89,60 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
             value = StringUTF16.newBytesFor(capacity);
             coder = UTF16;
         }
+    }
+
+    /**
+     * Constructs an AbstractStringBuilder that contains the same characters
+     * as the specified {@code String}. The initial capacity of
+     * the string builder is {@code 16} plus the length of the
+     * {@code String} argument.
+     *
+     * @param      str   the string to copy.
+     */
+    AbstractStringBuilder(String str) {
+        int length = str.length();
+        int capacity = (length < Integer.MAX_VALUE - 16)
+                ? length + 16 : Integer.MAX_VALUE;
+        final byte initCoder = str.coder();
+        coder = initCoder;
+        value = (initCoder == LATIN1)
+                ? new byte[capacity] : StringUTF16.newBytesFor(capacity);
+        append(str);
+    }
+
+    /**
+     * Constructs an AbstractStringBuilder that contains the same characters
+     * as the specified {@code CharSequence}. The initial capacity of
+     * the string builder is {@code 16} plus the length of the
+     * {@code CharSequence} argument.
+     *
+     * @param      seq   the sequence to copy.
+     */
+    AbstractStringBuilder(CharSequence seq) {
+        int length = seq.length();
+        if (length < 0) {
+            throw new NegativeArraySizeException("Negative length: " + length);
+        }
+        int capacity = (length < Integer.MAX_VALUE - 16)
+                ? length + 16 : Integer.MAX_VALUE;
+
+        final byte initCoder;
+        if (COMPACT_STRINGS) {
+            if (seq instanceof AbstractStringBuilder) {
+                initCoder = ((AbstractStringBuilder)seq).getCoder();
+            } else if (seq instanceof String) {
+                initCoder = ((String)seq).coder();
+            } else {
+                initCoder = LATIN1;
+            }
+        } else {
+            initCoder = UTF16;
+        }
+
+        coder = initCoder;
+        value = (initCoder == LATIN1)
+                ? new byte[capacity] : StringUTF16.newBytesFor(capacity);
+        append(seq);
     }
 
     /**

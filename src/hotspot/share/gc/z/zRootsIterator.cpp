@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zBarrierSetNMethod.hpp"
 #include "gc/z/zGlobals.hpp"
-#include "gc/z/zNMethodTable.hpp"
+#include "gc/z/zNMethod.hpp"
 #include "gc/z/zOopClosures.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
@@ -135,29 +135,38 @@ void ZParallelWeakOopsDo<T, F>::weak_oops_do(BoolObjectClosure* is_alive, ZRoots
   }
 }
 
-class ZCodeBlobClosure : public CodeBlobToOopClosure {
+class ZRootsIteratorCodeBlobClosure : public CodeBlobToOopClosure {
 private:
   BarrierSetNMethod* _bs;
 
 public:
-  ZCodeBlobClosure(OopClosure* cl) :
+  ZRootsIteratorCodeBlobClosure(OopClosure* cl) :
     CodeBlobToOopClosure(cl, true /* fix_relocations */),
     _bs(BarrierSet::barrier_set()->barrier_set_nmethod()) {}
 
   virtual void do_code_blob(CodeBlob* cb) {
     nmethod* const nm = cb->as_nmethod_or_null();
-    if (nm == NULL || nm->test_set_oops_do_mark()) {
-      return;
+    if (nm != NULL && !nm->test_set_oops_do_mark()) {
+      CodeBlobToOopClosure::do_code_blob(cb);
+      _bs->disarm(nm);
     }
-    CodeBlobToOopClosure::do_code_blob(cb);
-    _bs->disarm(nm);
   }
 };
 
-void ZRootsIteratorClosure::do_thread(Thread* thread) {
-  ZCodeBlobClosure code_cl(this);
-  thread->oops_do(this, ClassUnloading ? &code_cl : NULL);
-}
+class ZRootsIteratorThreadClosure : public ThreadClosure {
+private:
+  ZRootsIteratorClosure* _cl;
+
+public:
+  ZRootsIteratorThreadClosure(ZRootsIteratorClosure* cl) :
+      _cl(cl) {}
+
+  virtual void do_thread(Thread* thread) {
+    ZRootsIteratorCodeBlobClosure code_cl(_cl);
+    thread->oops_do(_cl, ClassUnloading ? &code_cl : NULL);
+    _cl->do_thread(thread);
+  }
+};
 
 ZRootsIterator::ZRootsIterator() :
     _universe(this),
@@ -170,12 +179,12 @@ ZRootsIterator::ZRootsIterator() :
     _code_cache(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseRootsSetup);
-  Threads::change_thread_claim_parity();
+  Threads::change_thread_claim_token();
   COMPILER2_PRESENT(DerivedPointerTable::clear());
   if (ClassUnloading) {
     nmethod::oops_do_marking_prologue();
   } else {
-    ZNMethodTable::nmethod_entries_do_begin();
+    ZNMethod::oops_do_begin();
   }
 }
 
@@ -185,7 +194,7 @@ ZRootsIterator::~ZRootsIterator() {
   if (ClassUnloading) {
     nmethod::oops_do_marking_epilogue();
   } else {
-    ZNMethodTable::nmethod_entries_do_end();
+    ZNMethod::oops_do_end();
   }
   JvmtiExport::gc_epilogue();
 
@@ -227,12 +236,13 @@ void ZRootsIterator::do_system_dictionary(ZRootsIteratorClosure* cl) {
 void ZRootsIterator::do_threads(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRootsThreads);
   ResourceMark rm;
-  Threads::possibly_parallel_threads_do(true, cl);
+  ZRootsIteratorThreadClosure thread_cl(cl);
+  Threads::possibly_parallel_threads_do(true, &thread_cl);
 }
 
 void ZRootsIterator::do_code_cache(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRootsCodeCache);
-  ZNMethodTable::oops_do(cl);
+  ZNMethod::oops_do(cl);
 }
 
 void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl, bool visit_jvmti_weak_export) {
@@ -394,7 +404,7 @@ ZThreadRootsIterator::ZThreadRootsIterator() :
     _threads(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseRootsSetup);
-  Threads::change_thread_claim_parity();
+  Threads::change_thread_claim_token();
 }
 
 ZThreadRootsIterator::~ZThreadRootsIterator() {

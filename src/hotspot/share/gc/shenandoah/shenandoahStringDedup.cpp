@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -23,12 +23,9 @@
 
 #include "precompiled.hpp"
 
-#include "gc/shared/stringdedup/stringDedup.hpp"
 #include "gc/shared/stringdedup/stringDedup.inline.hpp"
 #include "gc/shared/workgroup.hpp"
-#include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.inline.hpp"
-#include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "gc/shenandoah/shenandoahStringDedup.hpp"
@@ -74,13 +71,13 @@ void ShenandoahStringDedup::deduplicate(oop java_string) {
   StringDedupTable::deduplicate(java_string, &dummy);
 }
 
-void ShenandoahStringDedup::parallel_oops_do(OopClosure* cl, uint worker_id) {
+void ShenandoahStringDedup::parallel_oops_do(BoolObjectClosure* is_alive, OopClosure* cl, uint worker_id) {
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at a safepoint");
   assert(is_enabled(), "String deduplication not enabled");
 
   ShenandoahWorkerTimings* worker_times = ShenandoahHeap::heap()->phase_timings()->worker_times();
 
-  StringDedupUnlinkOrOopsDoClosure sd_cl(NULL, cl);
+  StringDedupUnlinkOrOopsDoClosure sd_cl(is_alive, cl);
 
   {
     ShenandoahWorkerTimingsTracker x(worker_times, ShenandoahPhaseTimings::StringDedupQueueRoots, worker_id);
@@ -112,14 +109,6 @@ public:
     return _mark_context->is_marked(obj);
   }
 };
-
-void ShenandoahStringDedup::parallel_cleanup() {
-  assert(SafepointSynchronize::is_at_safepoint(), "Must be at a safepoint");
-  log_debug(gc, stringdedup)("String dedup cleanup");
-  ShenandoahIsMarkedNextClosure cl;
-
-  unlink_or_oops_do(&cl, NULL, true);
-}
 
 //
 // Task for parallel unlink_or_oops_do() operation on the deduplication queue

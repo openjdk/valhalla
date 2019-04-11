@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,9 +62,8 @@ bool G1YoungRemSetSamplingThread::should_start_periodic_gc() {
   }
 
   // Check if enough time has passed since the last GC.
-  uintx time_since_last_gc;
-  if ((G1PeriodicGCInterval == 0) ||
-      ((time_since_last_gc = (uintx)Universe::heap()->millis_since_last_gc()) < G1PeriodicGCInterval)) {
+  uintx time_since_last_gc = (uintx)Universe::heap()->millis_since_last_gc();
+  if ((time_since_last_gc < G1PeriodicGCInterval)) {
     log_debug(gc, periodic)("Last GC occurred " UINTX_FORMAT "ms before which is below threshold " UINTX_FORMAT "ms. Skipping.",
                             time_since_last_gc, G1PeriodicGCInterval);
     return false;
@@ -72,9 +71,9 @@ bool G1YoungRemSetSamplingThread::should_start_periodic_gc() {
 
   // Check if load is lower than max.
   double recent_load;
-  if ((G1PeriodicGCSystemLoadThreshold > 0) &&
+  if ((G1PeriodicGCSystemLoadThreshold > 0.0f) &&
       (os::loadavg(&recent_load, 1) == -1 || recent_load > G1PeriodicGCSystemLoadThreshold)) {
-    log_debug(gc, periodic)("Load %1.2f is higher than threshold " UINTX_FORMAT ". Skipping.",
+    log_debug(gc, periodic)("Load %1.2f is higher than threshold %1.2f. Skipping.",
                             recent_load, G1PeriodicGCSystemLoadThreshold);
     return false;
   }
@@ -83,10 +82,17 @@ bool G1YoungRemSetSamplingThread::should_start_periodic_gc() {
 }
 
 void G1YoungRemSetSamplingThread::check_for_periodic_gc(){
+  // If disabled, just return.
+  if (G1PeriodicGCInterval == 0) {
+    return;
+  }
   if ((os::elapsedTime() - _last_periodic_gc_attempt_s) > (G1PeriodicGCInterval / 1000.0)) {
     log_debug(gc, periodic)("Checking for periodic GC.");
     if (should_start_periodic_gc()) {
-      Universe::heap()->collect(GCCause::_g1_periodic_collection);
+      if (!G1CollectedHeap::heap()->try_collect(GCCause::_g1_periodic_collection,
+                                                    false /* retry_on_vmop_failure */)) {
+        log_debug(gc, periodic)("GC request denied. Skipping.");
+      }
     }
     _last_periodic_gc_attempt_s = os::elapsedTime();
   }
@@ -94,6 +100,13 @@ void G1YoungRemSetSamplingThread::check_for_periodic_gc(){
 
 void G1YoungRemSetSamplingThread::run_service() {
   double vtime_start = os::elapsedVTime();
+
+  // Print a message about periodic GC configuration.
+  if (G1PeriodicGCInterval != 0) {
+    log_info(gc)("Periodic GC enabled with interval " UINTX_FORMAT "ms", G1PeriodicGCInterval);
+  } else {
+    log_info(gc)("Periodic GC disabled");
+  }
 
   while (!should_terminate()) {
     sample_young_list_rs_lengths();
@@ -150,16 +163,16 @@ public:
 void G1YoungRemSetSamplingThread::sample_young_list_rs_lengths() {
   SuspendibleThreadSetJoiner sts;
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
-  G1Policy* g1p = g1h->g1_policy();
+  G1Policy* policy = g1h->policy();
 
-  if (g1p->adaptive_young_list_length()) {
+  if (policy->use_adaptive_young_list_length()) {
     G1YoungRemSetSamplingClosure cl(&sts);
 
     G1CollectionSet* g1cs = g1h->collection_set();
     g1cs->iterate(&cl);
 
     if (cl.is_complete()) {
-      g1p->revise_young_list_target_length_if_necessary(cl.sampled_rs_lengths());
+      policy->revise_young_list_target_length_if_necessary(cl.sampled_rs_lengths());
     }
   }
 }

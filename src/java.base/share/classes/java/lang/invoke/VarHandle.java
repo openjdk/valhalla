@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,7 +234,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * precise phrasing of the specification of access mode methods and memory fence
  * methods may accompany future updates of the Java Language Specification.
  *
- * <h1>Compiling invocation of access mode methods</h1>
+ * <h2>Compiling invocation of access mode methods</h2>
  * A Java method call expression naming an access mode method can invoke a
  * VarHandle from Java source code.  From the viewpoint of source code, these
  * methods can take any arguments and their polymorphic result (if expressed)
@@ -266,7 +266,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * except the null reference.
  *
  *
- * <h1><a id="invoke">Performing invocation of access mode methods</a></h1>
+ * <h2><a id="invoke">Performing invocation of access mode methods</a></h2>
  * The first time an {@code invokevirtual} instruction is executed it is linked
  * by symbolically resolving the names in the instruction and verifying that
  * the method call is statically legal.  This also holds for calls to access mode
@@ -329,7 +329,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * Where, in this case, the method handle is bound to the VarHandle instance.
  *
  *
- * <h1>Invocation checking</h1>
+ * <h2>Invocation checking</h2>
  * In typical programs, VarHandle access mode type matching will usually
  * succeed.  But if a match fails, the JVM will throw a
  * {@link WrongMethodTypeException}.
@@ -364,7 +364,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * untrusted code unless their use from the untrusted code would be harmless.
  *
  *
- * <h1>VarHandle creation</h1>
+ * <h2>VarHandle creation</h2>
  * Java code can create a VarHandle that directly accesses any field that is
  * accessible to that code.  This is done via a reflective, capability-based
  * API called {@link java.lang.invoke.MethodHandles.Lookup
@@ -383,7 +383,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * class outside the current package, the receiver argument will be narrowed to
  * the type of the accessing class.
  *
- * <h1>Interoperation between VarHandles and the Core Reflection API</h1>
+ * <h2>Interoperation between VarHandles and the Core Reflection API</h2>
  * Using factory methods in the {@link java.lang.invoke.MethodHandles.Lookup
  * Lookup} API, any field represented by a Core Reflection API object
  * can be converted to a behaviorally equivalent VarHandle.
@@ -428,7 +428,7 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * any specified access mode type and is equivalent in behaviour to
  * {@link java.lang.invoke.MethodHandles#varHandleInvoker}.
  *
- * <h1>Interoperation between VarHandles and Java generics</h1>
+ * <h2>Interoperation between VarHandles and Java generics</h2>
  * A VarHandle can be obtained for a variable, such as a field, which is
  * declared with Java generic types.  As with the Core Reflection API, the
  * VarHandle's variable type will be constructed from the erasure of the
@@ -1865,35 +1865,6 @@ public abstract class VarHandle implements Constable {
     }
 
     /**
-     * Compare this {@linkplain VarHandle} with another object for equality.
-     * Two {@linkplain VarHandle}s are considered equal if they both describe the
-     * same instance field, both describe the same static field, both describe
-     * array elements for arrays with the same component type, or both describe
-     * the same component of an off-heap structure.
-     *
-     * @param o the other object
-     * @return Whether this {@linkplain VarHandle} is equal to the other object
-     */
-    @Override
-    public final boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        VarHandle that = (VarHandle) o;
-        return accessModeType(AccessMode.GET).equals(that.accessModeType(AccessMode.GET)) &&
-               internalEquals(that);
-    }
-
-    abstract boolean internalEquals(VarHandle vh);
-
-    @Override
-    public final int hashCode() {
-        return 31 * accessModeType(AccessMode.GET).hashCode() + internalHashCode();
-    }
-
-    abstract int internalHashCode();
-
-    /**
      * Returns a compact textual description of this {@linkplain VarHandle},
      * including the type of variable described, and a description of its coordinates.
      *
@@ -2189,7 +2160,7 @@ public abstract class VarHandle implements Constable {
          * Construct a {@linkplain VarHandleDesc} given a kind, name, and declaring
          * class.
          *
-         * @param kind the kind of of the var handle
+         * @param kind the kind of the var handle
          * @param name the unqualified name of the field, for field var handles; otherwise ignored
          * @param declaringClass a {@link ClassDesc} describing the declaring class,
          *                       for field var handles
@@ -2246,7 +2217,7 @@ public abstract class VarHandle implements Constable {
 
         /**
          * Returns a {@linkplain VarHandleDesc} corresponding to a {@link VarHandle}
-         * for for an array type.
+         * for an array type.
          *
          * @param arrayClass a {@link ClassDesc} describing the type of the array
          * @return the {@linkplain VarHandleDesc}
