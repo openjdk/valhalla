@@ -1839,7 +1839,7 @@ void JavaThread::run() {
 
   // Thread is now sufficiently initialized to be handled by the safepoint code as being
   // in the VM. Change thread state from _thread_new to _thread_in_vm
-  ThreadStateTransition::transition_and_fence(this, _thread_new, _thread_in_vm);
+  ThreadStateTransition::transition(this, _thread_new, _thread_in_vm);
   // Before a thread is on the threads list it is always safe, so after leaving the
   // _thread_new we should emit a instruction barrier. The distance to modified code
   // from here is probably far enough, but this is consistent and safe.
@@ -2477,11 +2477,10 @@ void JavaThread::java_suspend_self_with_safepoint_check() {
   JavaThreadState state = thread_state();
   set_thread_state(_thread_blocked);
   java_suspend_self();
-  set_thread_state(state);
+  set_thread_state_fence(state);
   // Since we are not using a regular thread-state transition helper here,
   // we must manually emit the instruction barrier after leaving a safe state.
   OrderAccess::cross_modify_fence();
-  InterfaceSupport::serialize_thread_state_with_handler(this);
   if (state != _thread_in_native) {
     SafepointMechanism::block_if_requested(this);
   }
@@ -3633,6 +3632,7 @@ void Threads::initialize_java_lang_classes(JavaThread* main_thread, TRAPS) {
   initialize_class(vmSymbols::java_lang_Thread(), CHECK);
   oop thread_object = create_initial_thread(thread_group, main_thread, CHECK);
   main_thread->set_threadObj(thread_object);
+
   // Set thread status to running since main thread has
   // been started and running.
   java_lang_Thread::set_thread_status(thread_object,
@@ -3640,6 +3640,15 @@ void Threads::initialize_java_lang_classes(JavaThread* main_thread, TRAPS) {
 
   // The VM creates objects of this class.
   initialize_class(vmSymbols::java_lang_Module(), CHECK);
+
+#ifdef ASSERT
+  InstanceKlass *k = SystemDictionary::UnsafeConstants_klass();
+  assert(k->is_not_initialized(), "UnsafeConstants should not already be initialized");
+#endif
+
+  // initialize the hardware-specific constants needed by Unsafe
+  initialize_class(vmSymbols::jdk_internal_misc_UnsafeConstants(), CHECK);
+  jdk_internal_misc_UnsafeConstants::set_unsafe_constants();
 
   // The VM preresolves methods to these classes. Make sure that they get initialized
   initialize_class(vmSymbols::java_lang_reflect_Method(), CHECK);

@@ -3237,7 +3237,7 @@ static void print_vtable(address self, intptr_t* start, int len, outputStream* s
       int off = (int) start[from];
       st->print(" (offset %d <= [%d])", off, from);
     }
-    if (e != 0 && ((Metadata*)e)->is_metaspace_object()) {
+    if (MetaspaceObj::is_valid((Metadata*)e)) {
       st->print(" ");
       ((Metadata*)e)->print_value_on(st);
     } else if (self != NULL && e > 0 && e < 0x10000) {
