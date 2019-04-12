@@ -696,4 +696,84 @@ public class TestNullableValueTypes extends ValueTypeTest {
         res = test25(false, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
     }
+
+    // Test that chains of casts are folded and don't trigger an allocation
+    @Test(failOn = ALLOC + STORE)
+    public MyValue3.val test26(MyValue3.val vt) {
+        return ((MyValue3.val)((Object)((MyValue3.box)(MyValue3.val)((MyValue3.box)((Object)vt)))));
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        MyValue3 vt = MyValue3.create();
+        MyValue3.val result = test26(vt);
+        Asserts.assertEquals(result, vt);
+    }
+
+    @Test(failOn = ALLOC + STORE)
+    public MyValue3.box test27(MyValue3.box vt) {
+        return ((MyValue3.box)((Object)((MyValue3.val)(MyValue3.box)((MyValue3.val)((Object)vt)))));
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        MyValue3 vt = MyValue3.create();
+        MyValue3.val result = test27(vt);
+        Asserts.assertEquals(result, vt);
+    }
+
+    // Some more casting tests
+    @Test()
+    public MyValue1.box test28(MyValue1.val vt, MyValue1.box vtBox, int i) {
+        MyValue1.box result = null;
+        if (i == 0) {
+            result = (MyValue1.box)vt;
+            result = null;
+        } else if (i == 1) {
+            result = (MyValue1.box)vt;
+        } else if (i == 2) {
+            result = vtBox;
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test28_verifier(boolean warmup) {
+        MyValue1.box result = test28(testValue1, null, 0);
+        Asserts.assertEquals(result, null);
+        result = test28(testValue1, testValue1, 1);
+        Asserts.assertEquals(result, testValue1);
+        result = test28(testValue1, null, 2);
+        Asserts.assertEquals(result, null);
+        result = test28(testValue1, testValue1, 2);
+        Asserts.assertEquals(result, testValue1);
+    }
+
+    @Test()
+    public long test29(MyValue1.val vt, MyValue1.box vtBox) {
+        long result = 0;
+        for (int i = 0; i < 100; ++i) {
+            MyValue1.box box;
+            if (i == 0) {
+                box = (MyValue1.box)vt;
+                box = null;
+            } else if (i < 99) {
+                box = (MyValue1.box)vt;
+            } else {
+                box = vtBox;
+            }
+            if (box != null) {
+                result += box.hash();
+            }
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test29_verifier(boolean warmup) {
+        long result = test29(testValue1, null);
+        Asserts.assertEquals(result, testValue1.hash()*98);
+        result = test29(testValue1, testValue1);
+        Asserts.assertEquals(result, testValue1.hash()*99);
+    }
 }
