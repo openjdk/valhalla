@@ -2167,7 +2167,7 @@ public class Resolve {
         for (Symbol sym : c.members().getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 return isAccessible(env, site, sym)
-                    ? sym
+                    ? (sym.isValue() && env.info.isQuestioned ? types.loxTypeSymbol((ClassSymbol) sym) : sym)
                     : new AccessError(env, site, sym);
             }
         }
@@ -2176,7 +2176,7 @@ public class Resolve {
             if (name == names.val) {
                 return c;
             }
-            if (name == names.box) {
+            if (name == names.box || env.info.isQuestioned) {
                 return types.loxTypeSymbol((ClassSymbol) c);
             }
         }

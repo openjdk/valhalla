@@ -229,6 +229,7 @@ public class JavacParser implements Parser {
      *     mode = NOPARAMS    : no parameters allowed for type
      *     mode = TYPEARG     : type argument
      *     mode |= NOLAMBDA   : lambdas are not allowed
+     *     mode |= NOQUESTION   : type terminal ? is not allowed
      */
     protected static final int EXPR = 0x1;
     protected static final int TYPE = 0x2;
@@ -236,6 +237,7 @@ public class JavacParser implements Parser {
     protected static final int TYPEARG = 0x8;
     protected static final int DIAMOND = 0x10;
     protected static final int NOLAMBDA = 0x20;
+    protected static final int NOQUESTION = 0x40;
 
     protected void selectExprMode() {
         mode = (mode & NOLAMBDA) | EXPR;
@@ -760,13 +762,24 @@ public class JavacParser implements Parser {
         return parseType(false);
     }
 
+    public JCExpression parseTypeSansQuestion() {
+        List<JCAnnotation> annotations = typeAnnotationsOpt();
+        JCExpression result = unannotatedType(false, TYPE | NOQUESTION);
+        mode &= ~NOQUESTION;
+        if (annotations.nonEmpty()) {
+            result = insertAnnotationsToMostInner(result, annotations, false);
+        }
+
+        return result;
+    }
+
     public JCExpression parseType(boolean allowVar) {
         List<JCAnnotation> annotations = typeAnnotationsOpt();
         return parseType(allowVar, annotations);
     }
 
     public JCExpression parseType(boolean allowVar, List<JCAnnotation> annotations) {
-        JCExpression result = unannotatedType(allowVar);
+        JCExpression result = unannotatedType(allowVar, TYPE);
 
         if (annotations.nonEmpty()) {
             result = insertAnnotationsToMostInner(result, annotations, false);
@@ -775,8 +788,8 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    public JCExpression unannotatedType(boolean allowVar) {
-        JCExpression result = term(TYPE);
+    public JCExpression unannotatedType(boolean allowVar, int termMode) {
+        JCExpression result = term(termMode);
 
         if (!allowVar && isRestrictedLocalVarTypeName(result, true)) {
             syntaxError(result.pos, Errors.VarNotAllowedHere);
@@ -919,7 +932,7 @@ public class JavacParser implements Parser {
             top++;
             topOp = token;
             nextToken();
-            odStack[top] = (topOp.kind == INSTANCEOF) ? parseType() : term3();
+            odStack[top] = (topOp.kind == INSTANCEOF) ? parseTypeSansQuestion() : term3();
             while (top > 0 && prec(topOp.kind) >= prec(token.kind)) {
                 odStack[top-1] = makeOp(topOp.pos, topOp.kind, odStack[top-1],
                                         odStack[top]);
@@ -1239,6 +1252,10 @@ public class JavacParser implements Parser {
                 t = lambdaExpressionOrStatement(false, false, pos);
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
+                if ((mode & NOQUESTION) == 0 && (mode & TYPE) != 0 && token.kind == QUES) {
+                    t.setQuestioned();
+                    nextToken();
+                }
                 loop: while (true) {
                     pos = token.pos;
                     final List<JCAnnotation> annos = typeAnnotationsOpt();
@@ -1330,6 +1347,10 @@ public class JavacParser implements Parser {
                         }
                         // typeArgs saved for next loop iteration.
                         t = toP(F.at(pos).Select(t, ident()));
+                        if ((mode & NOQUESTION) == 0 && (mode & TYPE) != 0 && token.kind == QUES) {
+                            t.setQuestioned();
+                            nextToken();
+                        }
                         if (tyannos != null && tyannos.nonEmpty()) {
                             t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
                         }
@@ -3956,7 +3977,7 @@ public class JavacParser implements Parser {
                     nextToken();
                 } else {
                     // method returns types are un-annotated types
-                    type = unannotatedType(false);
+                    type = unannotatedType(false, TYPE);
                 }
                 if (token.kind == LPAREN && !isInterface && type.hasTag(IDENT)) {
                     if (isInterface || tk.name() != className)

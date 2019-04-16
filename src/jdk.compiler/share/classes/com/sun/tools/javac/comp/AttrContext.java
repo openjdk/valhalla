@@ -84,6 +84,11 @@ public class AttrContext {
      */
     boolean inWithField = false;
 
+    /**
+     *  Is this an attribution environment for a nullable value type (adorned with a ?) ?
+     */
+    boolean isQuestioned = false;
+
     /** Indicate if the type being visited is a service implementation
      */
     boolean visitingServiceImplementation = false;
@@ -142,6 +147,7 @@ public class AttrContext {
         info.isAnonymousDiamond = isAnonymousDiamond;
         info.isNewClass = isNewClass;
         info.inWithField = inWithField;
+        info.isQuestioned = isQuestioned;
         info.preferredTreeForDiagnostics = preferredTreeForDiagnostics;
         info.visitingServiceImplementation = visitingServiceImplementation;
         return info;

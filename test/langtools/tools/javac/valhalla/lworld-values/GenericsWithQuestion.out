@@ -1,0 +1,5 @@
+GenericsWithQuestion.java:18:13: compiler.err.type.found.req: GenericsWithQuestion.V, (compiler.misc.type.req.ref)
+GenericsWithQuestion.java:18:16: compiler.err.type.found.req: GenericsWithQuestion.V, (compiler.misc.type.req.ref)
+GenericsWithQuestion.java:19:17: compiler.err.type.found.req: GenericsWithQuestion.V, (compiler.misc.type.req.ref)
+GenericsWithQuestion.java:20:13: compiler.err.type.found.req: GenericsWithQuestion.V, (compiler.misc.type.req.ref)
+4 errors

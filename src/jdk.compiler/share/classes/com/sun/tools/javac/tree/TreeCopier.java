@@ -231,7 +231,10 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     @DefinedBy(Api.COMPILER_TREE)
     public JCTree visitIdentifier(IdentifierTree node, P p) {
         JCIdent t = (JCIdent) node;
-        return M.at(t.pos).Ident(t.name);
+        JCIdent ident = M.at(t.pos).Ident(t.name);
+        if (t.isQuestioned())
+            ident.setQuestioned();
+        return ident;
     }
 
     @DefinedBy(Api.COMPILER_TREE)
@@ -347,7 +350,11 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     public JCTree visitMemberSelect(MemberSelectTree node, P p) {
         JCFieldAccess t = (JCFieldAccess) node;
         JCExpression selected = copy(t.selected, p);
-        return M.at(t.pos).Select(selected, t.name);
+        JCFieldAccess select = M.at(t.pos).Select(selected, t.name);
+        if (t.isQuestioned()) {
+            select.setQuestioned();
+        }
+        return select;
     }
 
     @DefinedBy(Api.COMPILER_TREE)

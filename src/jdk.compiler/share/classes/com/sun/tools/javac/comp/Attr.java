@@ -3804,7 +3804,13 @@ public class Attr extends JCTree.Visitor {
         } else if (tree.sym != null && tree.sym.kind != VAR) {
             sym = tree.sym;
         } else {
-            sym = rs.resolveIdent(tree.pos(), env, tree.name, pkind());
+            boolean wasQuestioned = env.info.isQuestioned;
+            try {
+                env.info.isQuestioned = tree.isQuestioned();
+                sym = rs.resolveIdent(tree.pos(), env, tree.name, pkind());
+            } finally {
+                env.info.isQuestioned = wasQuestioned;
+            }
         }
         tree.sym = sym;
 
@@ -3924,7 +3930,14 @@ public class Attr extends JCTree.Visitor {
 
         // Determine the symbol represented by the selection.
         env.info.pendingResolutionPhase = null;
-        Symbol sym = selectSym(tree, sitesym, site, env, resultInfo);
+        boolean wasQuestioned = env.info.isQuestioned;
+        Symbol sym;
+        try {
+            env.info.isQuestioned = tree.isQuestioned();
+            sym = selectSym(tree, sitesym, site, env, resultInfo);
+        } finally {
+            env.info.isQuestioned = wasQuestioned;
+        }
         if (sym.kind == VAR && sym.name != names._super && env.info.defaultSuperCallSite != null) {
             log.error(tree.selected.pos(), Errors.NotEnclClass(site.tsym));
             sym = syms.errSymbol;
