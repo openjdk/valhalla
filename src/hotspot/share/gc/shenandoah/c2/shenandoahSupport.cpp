@@ -1163,7 +1163,7 @@ void ShenandoahBarrierC2Support::fix_ctrl(Node* barrier, Node* region, const Mem
   }
 }
 
-static Node* create_phis_on_call_return(Node* ctrl, Node* c, Node* n, Node* n_clone, const CallProjections& projs, PhaseIdealLoop* phase) {
+static Node* create_phis_on_call_return(Node* ctrl, Node* c, Node* n, Node* n_clone, const CallProjections* projs, PhaseIdealLoop* phase) {
   Node* region = NULL;
   while (c != ctrl) {
     if (c->is_Region()) {
@@ -1175,9 +1175,9 @@ static Node* create_phis_on_call_return(Node* ctrl, Node* c, Node* n, Node* n_cl
   Node* phi = new PhiNode(region, n->bottom_type());
   for (uint j = 1; j < region->req(); j++) {
     Node* in = region->in(j);
-    if (phase->is_dominator(projs.fallthrough_catchproj, in)) {
+    if (phase->is_dominator(projs->fallthrough_catchproj, in)) {
       phi->init_req(j, n);
-    } else if (phase->is_dominator(projs.catchall_catchproj, in)) {
+    } else if (phase->is_dominator(projs->catchall_catchproj, in)) {
       phi->init_req(j, n_clone);
     } else {
       phi->init_req(j, create_phis_on_call_return(ctrl, in, n, n_clone, projs, phase));
@@ -1334,12 +1334,11 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     }
     if (ctrl->is_Proj() && ctrl->in(0)->is_CallJava()) {
       CallNode* call = ctrl->in(0)->as_CallJava();
-      CallProjections projs;
-      call->extract_projections(&projs, false, false);
+      CallProjections* projs = call->extract_projections(false, false);
 
       Node* lrb_clone = lrb->clone();
-      phase->register_new_node(lrb_clone, projs.catchall_catchproj);
-      phase->set_ctrl(lrb, projs.fallthrough_catchproj);
+      phase->register_new_node(lrb_clone, projs->catchall_catchproj);
+      phase->set_ctrl(lrb, projs->fallthrough_catchproj);
 
       stack.push(lrb, 0);
       clones.push(lrb_clone);
@@ -1368,30 +1367,30 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
             Node* u_clone = u->clone();
             int nb = u_clone->replace_edge(n, n_clone);
             assert(nb > 0, "should have replaced some uses");
-            phase->register_new_node(u_clone, projs.catchall_catchproj);
+            phase->register_new_node(u_clone, projs->catchall_catchproj);
             clones.push(u_clone);
-            phase->set_ctrl(u, projs.fallthrough_catchproj);
+            phase->set_ctrl(u, projs->fallthrough_catchproj);
           } else {
             bool replaced = false;
             if (u->is_Phi()) {
               for (uint k = 1; k < u->req(); k++) {
                 if (u->in(k) == n) {
-                  if (phase->is_dominator(projs.catchall_catchproj, u->in(0)->in(k))) {
+                  if (phase->is_dominator(projs->catchall_catchproj, u->in(0)->in(k))) {
                     phase->igvn().replace_input_of(u, k, n_clone);
                     replaced = true;
-                  } else if (!phase->is_dominator(projs.fallthrough_catchproj, u->in(0)->in(k))) {
+                  } else if (!phase->is_dominator(projs->fallthrough_catchproj, u->in(0)->in(k))) {
                     phase->igvn().replace_input_of(u, k, create_phis_on_call_return(ctrl, u->in(0)->in(k), n, n_clone, projs, phase));
                     replaced = true;
                   }
                 }
               }
             } else {
-              if (phase->is_dominator(projs.catchall_catchproj, c)) {
+              if (phase->is_dominator(projs->catchall_catchproj, c)) {
                 phase->igvn().rehash_node_delayed(u);
                 int nb = u->replace_edge(n, n_clone);
                 assert(nb > 0, "should have replaced some uses");
                 replaced = true;
-              } else if (!phase->is_dominator(projs.fallthrough_catchproj, c)) {
+              } else if (!phase->is_dominator(projs->fallthrough_catchproj, c)) {
                 phase->igvn().rehash_node_delayed(u);
                 int nb = u->replace_edge(n, create_phis_on_call_return(ctrl, c, n, n_clone, projs, phase));
                 assert(nb > 0, "should have replaced some uses");
@@ -1410,7 +1409,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
         }
       } while (stack.size() > 0);
       assert(stack.size() == 0 && clones.size() == 0, "");
-      ctrl = projs.fallthrough_catchproj;
+      ctrl = projs->fallthrough_catchproj;
     }
   }
 
