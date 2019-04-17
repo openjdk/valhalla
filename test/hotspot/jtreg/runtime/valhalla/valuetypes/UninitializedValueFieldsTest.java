@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,16 +33,16 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 public class UninitializedValueFieldsTest {
-    static Point.box nonFlattenableStaticPoint;
-    static Point.val staticPoint;
+    static Point? nonFlattenableStaticPoint;
+    static Point staticPoint;
 
     Point instancePoint;
 
-    static JumboValue.box sj1;
-    static JumboValue.val sj2;
+    static JumboValue? sj1;
+    static JumboValue sj2;
 
-    JumboValue.box j1;
-    JumboValue.val j2;
+    JumboValue? j1;
+    JumboValue j2;
 
     static Object getNull() {
         return null;

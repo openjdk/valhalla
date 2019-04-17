@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,14 @@
 package runtime.valhalla.valuetypes;
 
 final class ContainerValue1 {
-    static TestValue1.box staticValueField;
-    TestValue1.val nonStaticValueField;
+    static TestValue1? staticValueField;
+    TestValue1 nonStaticValueField;
     TestValue1[] valueArray;
 }
 
 public value final class TestValue1 {
 
-    static TestValue1.box staticValue = getInstance();
+    static TestValue1? staticValue = getInstance();
 
     final int i;
     final String name;

@@ -1,3 +1,26 @@
+/*
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
 /**
  * @test TestFieldNullability
  * @library /test/lib
@@ -30,11 +53,11 @@ public class TestFieldNullability {
     }
 
     static value class TestValue {
-	final MyValue.box nullableField;
-	final MyValue.val nullfreeField;       // flattened
-	final MyValue.box nullField;           // src of null
-	final MyBigValue.val nullfreeBigField; // not flattened
-	final MyBigValue.box nullBigField;     // src of null
+	final MyValue? nullableField;
+	final MyValue nullfreeField;        // flattened
+	final MyValue? nullField;           // src of null
+	final MyBigValue nullfreeBigField;  // not flattened
+	final MyBigValue? nullBigField;     // src of null
 
 	public void test() {
 	    Asserts.assertNull(nullField, "Invalid non null value for for unitialized non flattenable field");
@@ -63,19 +86,19 @@ public class TestFieldNullability {
 	public TestValue() {
 	    nullableField = MyValue.default;
 	    nullfreeField = MyValue.default;
-	    nullField = MyValue.default;         // fake assignment
+	    nullField = MyValue.default;           // fake assignment
 	    nullfreeBigField = MyBigValue.default;
-	    nullBigField = MyBigValue.default;      // fake assignment
-	    
+	    nullBigField = MyBigValue.default;     // fake assignment
+
 	}
     }
 
     static class TestClass {
-	MyValue.box nullableField;
-	MyValue.val nullfreeField;       // flattened
-	MyValue.box nullField;
-	MyBigValue.val nullfreeBigField; // not flattened
-	MyBigValue.box nullBigField;
+	MyValue? nullableField;
+	MyValue nullfreeField;       // flattened
+	MyValue? nullField;
+	MyBigValue nullfreeBigField; // not flattened
+	MyBigValue? nullBigField;
 
 	public void test() {
 	    Asserts.assertNull(nullField, "Invalid non null value for for unitialized non flattenable field");
@@ -91,13 +114,13 @@ public class TestFieldNullability {
 		this.nullfreeField = nullField;
 	    } catch(NullPointerException e) {
 		NPE = true;
-	    }	    
+	    }
 	    Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattened field");
 	    try {
 		this.nullfreeBigField = nullBigField;
 	    } catch(NullPointerException e) {
 		NPE = true;
-	    }	    
+	    }
 	    Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattenable field");
 	}
     }
@@ -109,5 +132,5 @@ public class TestFieldNullability {
 	    TestValue.default;
 	tv.test();
     }
-    
+
 }

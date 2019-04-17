@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import jdk.test.lib.Asserts;
  */
 
 class A {
-    Point.val p;
+    Point p;
 }
 
 class B extends A {
@@ -50,7 +50,7 @@ class D {
 }
 
 class E extends D {
-    Point.val p1;
+    Point p1;
 }
 
 class F extends E {
@@ -58,7 +58,7 @@ class F extends E {
 }
 
 class G extends F {
-    Point.val p2;
+    Point p2;
 }
 
 public class TestInheritedValueTypeFields {

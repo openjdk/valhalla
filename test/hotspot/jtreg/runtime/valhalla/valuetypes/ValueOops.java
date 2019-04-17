@@ -112,13 +112,13 @@ public class ValueOops {
 
 
     static class Couple {
-        public Person.val onePerson;
-        public Person.val otherPerson;
+        public Person onePerson;
+        public Person otherPerson;
     }
 
     static final value class Composition {
-        public final Person.val onePerson;
-        public final Person.val otherPerson;
+        public final Person onePerson;
+        public final Person otherPerson;
 
         private Composition() {
             onePerson   = Person.create(0, null, null);
@@ -637,7 +637,7 @@ public class ValueOops {
     }
 
     static class BarWithValue {
-        FooValue.val foo;
+        FooValue foo;
         long extendedId;
         String moreNotes;
         int count;
@@ -645,7 +645,7 @@ public class ValueOops {
     }
 
     static final value class BarValue {
-        final FooValue.val foo;
+        final FooValue foo;
         final long extendedId;
         final String moreNotes;
         final int count;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,27 +55,27 @@ public class CheckcastTest {
     static void testCastingFromObjectToVal(Object o) {
 	boolean npe = false;
 	try {
-	    Point.val pv = (Point.val)o;
+	    Point pv = (Point)o;
 	} catch(NullPointerException e) {
 	    npe = true;
 	}
 	Asserts.assertTrue(npe == false || o == null, "Casting null to val should throw a NPE");
     }
-    
-    static void testCastingFromValToBox(Point.val p) {
+
+    static void testCastingFromValToBox(Point p) {
 	boolean npe = false;
 	try {
-	    Point.box pb = p;
+	    Point? pb = p;
 	} catch(NullPointerException e) {
 	    npe = true;
 	}
 	Asserts.assertFalse(npe, "Casting from val to box should not throw an NPE");
     }
-    
-    static void testCastingFromBoxToVal(Point.box p) {
+
+    static void testCastingFromBoxToVal(Point? p) {
 	boolean npe = false;
 	try {
-	    Point.val pv = p;
+	    Point pv = p;
 	} catch(NullPointerException e) {
 	    npe = true;
 	}
@@ -84,27 +84,27 @@ public class CheckcastTest {
 	} else {
 	    Asserts.assertNotEquals(p, null, "Casting null to val must thrown a NPE");
 	}
-	
+
     }
 
     public static void main(String[] args) {
 	// Testing casting from box to val
-	// First invocation: casting null to Point.val with an unresolved class entry
+	// First invocation: casting null to Point with an unresolved class entry
 	testCastingFromBoxToVal(null);
 	// Second invocation: casting non-null to val, will trigger resolution of the class entry
 	testCastingFromBoxToVal(new Point(3,4));
-	// Third invocation: casting null to Point.val  with a resolved class entry
+	// Third invocation: casting null to Point with a resolved class entry
 	testCastingFromBoxToVal(null);
 
 	// Testing casting from val to box
 	testCastingFromBoxToVal(new Point(3,4));
 
 	// Testing casting from object to val
-	// First invocation: casting null to Point.val with an unresolved class entry
+	// First invocation: casting null to Point with an unresolved class entry
 	testCastingFromObjectToVal(null);
 	// Second invocation: casting non-null to al, will trigger resolution of the class entry
 	testCastingFromObjectToVal(new Point(3,4));
-	// Third invocation: casting null to Point.val  with a resolved class entry");
+	// Third invocation: casting null to Point with a resolved class entry");
 	testCastingFromObjectToVal(null);
 	// Fourth invocation: with something not the right type
 	boolean cce = false;

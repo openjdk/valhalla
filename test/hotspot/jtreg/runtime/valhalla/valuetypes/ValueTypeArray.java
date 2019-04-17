@@ -216,9 +216,9 @@ public class ValueTypeArray {
             return mi;
         }
 
-        public static final MyInt.box MIN = MyInt.create(Integer.MIN_VALUE);
-        public static final MyInt.box ZERO = MyInt.create(0);
-        public static final MyInt.box MAX = MyInt.create(Integer.MAX_VALUE);
+        public static final MyInt? MIN = MyInt.create(Integer.MIN_VALUE);
+        public static final MyInt? ZERO = MyInt.create(0);
+        public static final MyInt? MAX = MyInt.create(Integer.MAX_VALUE);
     }
 
     static interface SomeSecondaryType {
@@ -368,7 +368,7 @@ public class ValueTypeArray {
     }
 
     static final value class MyPoint {
-        final               MyInt.val x;
+        final               MyInt x;
         final               MyInt y;
 
         private MyPoint() {
@@ -393,7 +393,7 @@ public class ValueTypeArray {
             mp = __WithField(mp.y, MyInt.create(y));
             return mp;
         }
-        static final MyPoint.box ORIGIN = create(0);
+        static final MyPoint? ORIGIN = create(0);
     }
 
     void testComposition() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,17 +42,17 @@ import jdk.test.lib.Asserts;
  */
 public class FlattenableSemanticTest {
 
-    static Point.box nfsp;
-    static Point.val fsp;
+    static Point? nfsp;
+    static Point fsp;
 
-    Point.box nfip;
-    Point.val fip;
+    Point? nfip;
+    Point fip;
 
-    static JumboValue.box nfsj;
-    static JumboValue.val fsj;
+    static JumboValue? nfsj;
+    static JumboValue fsj;
 
-    JumboValue.box nfij;
-    JumboValue.val fij;
+    JumboValue? nfij;
+    JumboValue fij;
 
     static Object getNull() {
         return null;
@@ -80,7 +80,7 @@ public class FlattenableSemanticTest {
         // Assigning null must be allowed for non flattenable value fields
         boolean exception = true;
         try {
-            nfsp = (Point.box)getNull();
+            nfsp = (Point?)getNull();
             nfsp = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -89,7 +89,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            nfsj = (JumboValue.box)getNull();
+            nfsj = (JumboValue?)getNull();
             nfsj = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -98,7 +98,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            test.nfip = (Point.box)getNull();
+            test.nfip = (Point?)getNull();
             test.nfip = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -107,7 +107,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            test.nfij = (JumboValue.box)getNull();
+            test.nfij = (JumboValue?)getNull();
             test.nfij = null;
             exception = false;
         } catch (NullPointerException e) {

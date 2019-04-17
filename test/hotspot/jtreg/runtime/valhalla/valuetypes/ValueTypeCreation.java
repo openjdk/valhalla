@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,7 +75,7 @@ public class ValueTypeCreation {
 
     static final value class StaticSelf {
 
-        static final StaticSelf.box DEFAULT = create(0);
+        static final StaticSelf? DEFAULT = create(0);
         final int f1;
 
         private StaticSelf() { f1 = 0; }
