@@ -603,7 +603,7 @@ public class JavacParser implements Parser {
     }
 
     /**
-     * Qualident = Ident { DOT [Annotations] Ident }
+     * Qualident = Ident { DOT [Annotations] Ident } {?}
      */
     public JCExpression qualident(boolean allowAnnos) {
         JCExpression t = toP(F.at(token.pos).Ident(ident()));
@@ -618,6 +618,13 @@ public class JavacParser implements Parser {
             if (tyannos != null && tyannos.nonEmpty()) {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
             }
+        }
+        /* if the qualified identifier being parsed is for a type name (as indicated by allowAnnos),
+           also process any terminal ? to signal nullable projection for a value type.
+        */
+        if (allowAnnos && token.kind == QUES) {
+            t.setQuestioned();
+            nextToken();
         }
         return t;
     }

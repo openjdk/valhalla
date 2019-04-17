@@ -37,6 +37,7 @@ public value class CheckFieldDescriptors {
 
     int x = 10;
 
+
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckFieldDescriptors.class.getResourceAsStream("CheckFieldDescriptorsAuxilliary.class"));
 
@@ -55,16 +56,38 @@ public value class CheckFieldDescriptors {
                 fCount++;
                 if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors;"))
                     throw new Exception("Bad descriptor for field3");
+            } else if (fld.getName(cls.constant_pool).equals("a1")) {
+                fCount++;
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors;"))
+                    throw new Exception("Bad descriptor for field4");
+            } else if (fld.getName(cls.constant_pool).equals("a2")) {
+                fCount++;
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors;"))
+                    throw new Exception("Bad descriptor for field5");
+            } else if (fld.getName(cls.constant_pool).equals("a3")) {
+                fCount++;
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[QCheckFieldDescriptors;"))
+                    throw new Exception("Bad descriptor for field6");
+            } else if (fld.getName(cls.constant_pool).equals("a4")) {
+                fCount++;
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[QCheckFieldDescriptors;"))
+                    throw new Exception("Bad descriptor for field7");
             }
         }
-        if (fCount != 3) {
+        if (fCount != 7) {
             throw new Exception("Bad descriptor for field3");
         }
     }
 }
 
 class CheckFieldDescriptorsAuxilliary {
+
     CheckFieldDescriptors f1;
     CheckFieldDescriptors.box f2;
     CheckFieldDescriptors? f3;
+
+    CheckFieldDescriptors?[] a1 = new CheckFieldDescriptors?[42];
+    CheckFieldDescriptors.box[] a2 = new CheckFieldDescriptors.box[42];
+    CheckFieldDescriptors[] a3 = new CheckFieldDescriptors[42];
+    CheckFieldDescriptors.val[] a4 = new CheckFieldDescriptors.val[42];
 }
