@@ -2167,7 +2167,7 @@ public class Resolve {
         for (Symbol sym : c.members().getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 return isAccessible(env, site, sym)
-                    ? (sym.isValue() && env.info.isQuestioned ? types.loxTypeSymbol((ClassSymbol) sym) : sym)
+                    ? sym
                     : new AccessError(env, site, sym);
             }
         }
@@ -2176,7 +2176,7 @@ public class Resolve {
             if (name == names.val) {
                 return c;
             }
-            if (name == names.box || env.info.isQuestioned) {
+            if (name == names.box) {
                 return types.loxTypeSymbol((ClassSymbol) c);
             }
         }
@@ -2231,6 +2231,23 @@ public class Resolve {
                           Type site,
                           Name name,
                           TypeSymbol c) {
+        Symbol sym = findMemberTypeInternal(env,site, name, c);
+        return env.info.isQuestioned && sym.isValue() ? types.loxTypeSymbol((ClassSymbol) sym) : sym;
+    }
+
+    /** Find qualified member type.
+     *  @param env       The current environment.
+     *  @param site      The original type from where the selection takes
+     *                   place.
+     *  @param name      The type's name.
+     *  @param c         The class to search for the member type. This is
+     *                   always a superclass or implemented interface of
+     *                   site's class.
+     */
+    Symbol findMemberTypeInternal(Env<AttrContext> env,
+                          Type site,
+                          Name name,
+                          TypeSymbol c) {
         Symbol sym = findImmediateMemberType(env, site, name, c);
 
         if (sym != typeNotFound)
@@ -2276,6 +2293,15 @@ public class Resolve {
      *  @param name      The type's name.
      */
     Symbol findType(Env<AttrContext> env, Name name) {
+        Symbol sym = findTypeInternal(env, name);
+        return env.info.isQuestioned && sym.isValue() ? types.loxTypeSymbol((ClassSymbol) sym) : sym;
+    }
+
+    /** Find an unqualified type symbol.
+     *  @param env       The current environment.
+     *  @param name      The type's name.
+     */
+    Symbol findTypeInternal(Env<AttrContext> env, Name name) {
         if (name == names.empty)
             return typeNotFound; // do not allow inadvertent "lookup" of anonymous types
         Symbol bestSoFar = typeNotFound;
