@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDallowWithFieldOperator TestLWorld.java
+ * @compile TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -1399,12 +1399,12 @@ public class TestLWorld extends ValueTypeTest {
 
     // Value type with some non-flattened fields
     value final class Test51Value {
-        final Object objectField1 = null;
-        final Object objectField2 = null;
-        final Object objectField3 = null;
-        final Object objectField4 = null;
-        final Object objectField5 = null;
-        final Object objectField6 = null;
+        final Object objectField1;
+        final Object objectField2;
+        final Object objectField3;
+        final Object objectField4;
+        final Object objectField5;
+        final Object objectField6;
 
         final MyValue1.val valueField1;
         final MyValue1.val valueField2;
@@ -1412,7 +1412,13 @@ public class TestLWorld extends ValueTypeTest {
         final MyValue1.val valueField4;
         final MyValue1.box valueField5;
 
-        private Test51Value() {
+        public Test51Value() {
+            objectField1 = null;
+            objectField2 = null;
+            objectField3 = null;
+            objectField4 = null;
+            objectField5 = null;
+            objectField6 = null;
             valueField1 = testValue1;
             valueField2 = testValue1;
             valueField3 = testValue1;
@@ -1420,24 +1426,41 @@ public class TestLWorld extends ValueTypeTest {
             valueField5 = MyValue1.createDefaultDontInline();
         }
 
-        public Test51Value init() {
-            Test51Value vt = __WithField(this.valueField1, testValue1);
-            vt = __WithField(vt.valueField2, testValue1);
-            vt = __WithField(vt.valueField3, testValue1);
-            return vt;
+        public Test51Value(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6,
+                           MyValue1.val vt1, MyValue1.val vt2, MyValue1.box vt3, MyValue1.val vt4, MyValue1.box vt5) {
+            objectField1 = o1;
+            objectField2 = o2;
+            objectField3 = o3;
+            objectField4 = o4;
+            objectField5 = o5;
+            objectField6 = o6;
+            valueField1 = vt1;
+            valueField2 = vt2;
+            valueField3 = vt3;
+            valueField4 = vt4;
+            valueField5 = vt5;
         }
 
         @ForceInline
         public long test(Test51Value holder, MyValue1 vt1, Object vt2) {
-            holder = __WithField(holder.objectField1, vt1);
-            holder = __WithField(holder.objectField2, (MyValue1)vt2);
-            holder = __WithField(holder.objectField3, testValue1);
-            holder = __WithField(holder.objectField4, MyValue1.createWithFieldsDontInline(rI, rL));
-            holder = __WithField(holder.objectField5, holder.valueField1);
-            holder = __WithField(holder.objectField6, holder.valueField3);
-            holder = __WithField(holder.valueField1, (MyValue1)holder.objectField1);
-            holder = __WithField(holder.valueField2, (MyValue1)vt2);
-            holder = __WithField(holder.valueField3, (MyValue1)vt2);
+            holder = new Test51Value(vt1, holder.objectField2, holder.objectField3, holder.objectField4, holder.objectField5, holder.objectField6,
+                                     holder.valueField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, (MyValue1)vt2, holder.objectField3, holder.objectField4, holder.objectField5, holder.objectField6,
+                                     holder.valueField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, testValue1, holder.objectField4, holder.objectField5, holder.objectField6,
+                                     holder.valueField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, holder.objectField3, MyValue1.createWithFieldsDontInline(rI, rL), holder.objectField5, holder.objectField6,
+                                     holder.valueField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, holder.objectField3, holder.objectField4, holder.valueField1, holder.objectField6,
+                                     holder.valueField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, holder.objectField3, holder.objectField4, holder.objectField5, holder.valueField3,
+                                     holder.valueField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, holder.objectField3, holder.objectField4, holder.objectField5, holder.objectField6,
+                                     (MyValue1)holder.objectField1, holder.valueField2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, holder.objectField3, holder.objectField4, holder.objectField5, holder.objectField6,
+                                     holder.valueField1, (MyValue1)vt2, holder.valueField3, holder.valueField4, holder.valueField5);
+            holder = new Test51Value(holder.objectField1, holder.objectField2, holder.objectField3, holder.objectField4, holder.objectField5, holder.objectField6,
+                                     holder.valueField1, holder.valueField2, (MyValue1)vt2, holder.valueField4, holder.valueField5);
 
             return ((MyValue1)holder.objectField1).hash() +
                    ((MyValue1)holder.objectField2).hash() +
@@ -1462,9 +1485,8 @@ public class TestLWorld extends ValueTypeTest {
     public void test51_verifier(boolean warmup) {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
-        Test51Value holder = Test51Value.default;
+        Test51Value holder = new Test51Value();
         Asserts.assertEQ(testValue1.hash(), vt.hash());
-        holder = holder.init();
         Asserts.assertEQ(holder.valueField1.hash(), vt.hash());
         long result = test51(holder, vt, vt);
         Asserts.assertEQ(result, 9*vt.hash() + def.hashPrimitive());

@@ -26,7 +26,6 @@
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of Arrays of unloaded value classes.
- * @compile -XDallowWithFieldOperator TestUnloadedValueTypeArray.java
  * @run main/othervm -XX:+EnableValhalla -Xcomp
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test1
  *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test2
@@ -50,55 +49,44 @@ value final class MyValue {
 value final class MyValue2 {
     final int foo;
 
-    private MyValue2() {
-        foo = 0x42;
-    }
-    static MyValue2 make(int n) {
-        return __WithField(MyValue2.default.foo, n);
+    public MyValue2(int n) {
+        foo = n;
     }
 }
 
 value final class MyValue3 {
     final int foo;
 
-    private MyValue3() {
-        foo = 0x42;
-    }
-    static MyValue3 make(int n) {
-        return __WithField(MyValue3.default.foo, n);
+    public MyValue3(int n) {
+        foo = n;
     }
 }
 
 value final class MyValue4 {
     final int foo;
 
-    private MyValue4() {
-        foo = 0x53;
-    }
-    static MyValue4 make(int n) {
-        return __WithField(MyValue4.default.foo, n);
+    public MyValue4(int n) {
+        foo = n;
     }
 }
 
 value final class MyValue5 {
     final int foo;
 
-    private MyValue5() {
-        foo = 0x53;
-    }
-    static MyValue5 make(int n) {
-        return __WithField(MyValue5.default.foo, n);
+    public MyValue5(int n) {
+        foo = n;
     }
 }
 
 value final class MyValue6 {
-    final int foo = 0;
+    final int foo;
 
-    static MyValue6 make(int n) {
-        return __WithField(MyValue6.default.foo, n);
+    public MyValue6(int n) {
+        foo = n;
     }
-    static MyValue6 make2(MyValue6 v, MyValue6[] dummy) {
-        return __WithField(v.foo, v.foo+1);
+
+    public MyValue6(MyValue6 v, MyValue6[] dummy) {
+        foo = v.foo + 1;
     }
 }
 
@@ -130,7 +118,7 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(m, 1234);
 
         MyValue2[] arr = new MyValue2[2];
-        arr[1] = MyValue2.make(5678);
+        arr[1] = new MyValue2(5678);
         m = 9999;
         for (int i=0; i<n; i++) {
             m = test2(arr);
@@ -140,7 +128,7 @@ public class TestUnloadedValueTypeArray {
 
     static void test3(MyValue3[] arr) {
         if (arr != null) {
-            arr[1] = MyValue3.make(2345);
+            arr[1] = new MyValue3(2345);
         }
     }
 
@@ -162,7 +150,7 @@ public class TestUnloadedValueTypeArray {
         // range check elimination
         if (b) {
             MyValue4[] arr = new MyValue4[10];
-            arr[1] = MyValue4.make(2345);
+            arr[1] = new MyValue4(2345);
             return arr;
         } else {
             return null;
@@ -188,11 +176,11 @@ public class TestUnloadedValueTypeArray {
             return null;
         } else if (n == 1) {
             MyValue5[] arr = new MyValue5[10];
-            arr[1] = MyValue5.make(12345);
+            arr[1] = new MyValue5(12345);
             return arr;
         } else {
             MyValue5.box[] arr = new MyValue5.box[10];
-            arr[1] = MyValue5.make(22345);
+            arr[1] = new MyValue5(22345);
             return arr;
         }
     }
@@ -221,7 +209,7 @@ public class TestUnloadedValueTypeArray {
     }
 
     static Object test6() {
-        return MyValue6.make2(MyValue6.make(123), null);
+        return new MyValue6(new MyValue6(123), null);
     }
 
     static void test6_verifier() {

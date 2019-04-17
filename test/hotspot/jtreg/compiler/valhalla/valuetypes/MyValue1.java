@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,16 +36,17 @@ value public final class MyValue1 implements MyInterface {
     static final MyValue2.val v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
     final int c;
 
-    private MyValue1() {
+    @ForceInline
+    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2.val v1, MyValue2.val v2, int c) {
         s = 0;
-        this.x = 0;
-        this.y = 0;
-        this.z = 0;
-        this.o = null;
-        this.oa = null;
-        this.v1 = MyValue2.createDefaultInline();
-        this.v2 = MyValue2.createDefaultInline();
-        this.c = 0;
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.o = o;
+        this.oa = oa;
+        this.v1 = v1;
+        this.v2 = v2;
+        this.c = c;
     }
 
     @DontInline
@@ -114,49 +115,41 @@ value public final class MyValue1 implements MyInterface {
 
     @ForceInline
     static MyValue1 setX(MyValue1 v, int x) {
-        v = __WithField(v.x, x);
-        return v;
+        return new MyValue1(x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.c);
     }
 
     @ForceInline
     static MyValue1 setY(MyValue1 v, long y) {
-        v = __WithField(v.y, y);
-        return v;
+        return new MyValue1(v.x, y, v.z, v.o, v.oa, v.v1, v.v2, v.c);
     }
 
     @ForceInline
     static MyValue1 setZ(MyValue1 v, short z) {
-        v = __WithField(v.z, z);
-        return v;
+        return new MyValue1(v.x, v.y, z, v.o, v.oa, v.v1, v.v2, v.c);
     }
 
     @ForceInline
     static MyValue1 setO(MyValue1 v, Integer o) {
-        v = __WithField(v.o, o);
-        return v;
+        return new MyValue1(v.x, v.y, v.z, o, v.oa, v.v1, v.v2, v.c);
     }
 
     @ForceInline
     static MyValue1 setOA(MyValue1 v, int[] oa) {
-        v = __WithField(v.oa, oa);
-        return v;
+        return new MyValue1(v.x, v.y, v.z, v.o, oa, v.v1, v.v2, v.c);
     }
 
     @ForceInline
     static MyValue1 setC(MyValue1 v, int c) {
-        v = __WithField(v.c, c);
-        return v;
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, c);
     }
 
     @ForceInline
     static MyValue1 setV1(MyValue1 v, MyValue2 v1) {
-        v = __WithField(v.v1, v1);
-        return v;
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v1, v.v2, v.c);
     }
 
     @ForceInline
     static MyValue1 setV2(MyValue1 v, MyValue2 v2) {
-        v = __WithField(v.v2, v2);
-        return v;
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v2, v.c);
     }
 }

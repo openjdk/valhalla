@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,21 +30,20 @@ value final class MyValue3Inline {
     final float f7;
     final double f8;
 
-    private MyValue3Inline() {
-        this.f7 = 0;
-        this.f8 = 0;
+    @ForceInline
+    public MyValue3Inline(float f7, double f8) {
+        this.f7 = f7;
+        this.f8 = f8;
     }
 
     @ForceInline
     static MyValue3Inline setF7(MyValue3Inline v, float f7) {
-        v = __WithField(v.f7, f7);
-        return v;
+        return new MyValue3Inline(f7, v.f8);
     }
 
     @ForceInline
     static MyValue3Inline setF8(MyValue3Inline v, double f8) {
-        v = __WithField(v.f8, f8);
-        return v;
+        return new MyValue3Inline(v.f7, f8);
     }
 
     @ForceInline
@@ -78,98 +77,88 @@ value public final class MyValue3 implements MyInterface {
     final double f6;
     final MyValue3Inline.val v1;
 
-    private MyValue3() {
-        this.c = 0;
-        this.bb = 0;
-        this.s = 0;
-        this.i = 0;
-        this.l = 0;
-        this.o = null;
-        this.f1 = 0;
-        this.f2 = 0;
-        this.f3 = 0;
-        this.f4 = 0;
-        this.f5 = 0;
-        this.f6 = 0;
-        this.v1 = MyValue3Inline.createDefault();
+    @ForceInline
+    public MyValue3(char c, byte bb, short s, int i, long l, Object o,
+                    float f1, double f2, float f3, double f4, float f5, double f6,
+                    MyValue3Inline.val v1) {
+        this.c = c;
+        this.bb = bb;
+        this.s = s;
+        this.i = i;
+        this.l = l;
+        this.o = o;
+        this.f1 = f1;
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
+        this.f5 = f5;
+        this.f6 = f6;
+        this.v1 = v1;
     }
 
     @ForceInline
     static MyValue3 setC(MyValue3 v, char c) {
-        v = __WithField(v.c, c);
-        return v;
+        return new MyValue3(c, v.bb, v.s, v.i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setBB(MyValue3 v, byte bb) {
-        v = __WithField(v.bb, bb);
-        return v;
+        return new MyValue3(v.c, bb, v.s, v.i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setS(MyValue3 v, short s) {
-        v = __WithField(v.s, s);
-        return v;
+        return new MyValue3(v.c, v.bb, s, v.i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setI(MyValue3 v, int i) {
-        v = __WithField(v.i, i);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setL(MyValue3 v, long l) {
-        v = __WithField(v.l, l);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setO(MyValue3 v, Object o) {
-        v = __WithField(v.o, o);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setF1(MyValue3 v, float f1) {
-        v = __WithField(v.f1, f1);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, f1, v.f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setF2(MyValue3 v, double f2) {
-        v = __WithField(v.f2, f2);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, v.f1, f2, v.f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setF3(MyValue3 v, float f3) {
-        v = __WithField(v.f3, f3);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, v.f1, v.f2, f3, v.f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setF4(MyValue3 v, double f4) {
-        v = __WithField(v.f4, f4);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, v.f1, v.f2, v.f3, f4, v.f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setF5(MyValue3 v, float f5) {
-        v = __WithField(v.f5, f5);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, f5, v.f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setF6(MyValue3 v, double f6) {
-        v = __WithField(v.f6, f6);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, f6, v.v1);
     }
 
     @ForceInline
     static MyValue3 setV1(MyValue3 v, MyValue3Inline v1) {
-        v = __WithField(v.v1, v1);
-        return v;
+        return new MyValue3(v.c, v.bb, v.s, v.i, v.l, v.o, v.f1, v.f2, v.f3, v.f4, v.f5, v.f6, v1);
     }
 
     @ForceInline

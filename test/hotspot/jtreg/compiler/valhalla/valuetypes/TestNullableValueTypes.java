@@ -33,7 +33,7 @@ import jdk.test.lib.Asserts;
  * @summary Test correct handling of nullable value types.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @compile -XDallowWithFieldOperator TestNullableValueTypes.java
+ * @compile TestNullableValueTypes.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -475,13 +475,9 @@ public class TestNullableValueTypes extends ValueTypeTest {
     value final class Test17Value {
         public final MyValue1.box valueField;
 
-        public Test17Value() {
-            valueField = MyValue1.createDefaultDontInline();
-        }
-
         @ForceInline
-        public Test17Value setValueField(MyValue1 valueField) {
-            return __WithField(this.valueField, valueField);
+        public Test17Value(MyValue1.box valueField) {
+            this.valueField = valueField;
         }
     }
 
@@ -491,7 +487,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
         if ((Object)vt1.valueField != null) {
             throw new RuntimeException("Should be null");
         }
-        Test17Value vt2 = vt1.setValueField(testValue1);
+        Test17Value vt2 = new Test17Value(testValue1);
         return b ? vt1 : vt2;
     }
 
@@ -586,22 +582,22 @@ public class TestNullableValueTypes extends ValueTypeTest {
     value final class Test21Value {
         final MyValue1.box valueField1;
         final MyValue1.val valueField2;
-        final MyValue1.box alwaysNull;
+        final MyValue1.box alwaysNull = null;
 
-        private Test21Value() {
-            valueField1 = testValue1;
-            valueField2 = testValue1;
-            alwaysNull  = testValue1;
+        @ForceInline
+        public Test21Value(MyValue1.box valueField1, MyValue1.val valueField2) {
+            this.valueField1 = testValue1;
+            this.valueField2 = testValue1;
         }
 
         @ForceInline
         public Test21Value test1() {
-            return __WithField(this.valueField1, alwaysNull); // Should not throw NPE
+            return new Test21Value(alwaysNull, this.valueField2); // Should not throw NPE
         }
 
         @ForceInline
         public Test21Value test2() {
-            return __WithField(this.valueField2, alwaysNull); // Should throw NPE
+            return new Test21Value(this.valueField1, alwaysNull); // Should throw NPE
         }
     }
 

@@ -25,7 +25,7 @@
  * @test TestNewAcmp
  * @summary Verifies correctness of the new acmp bytecode.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile -XDallowWithFieldOperator TestNewAcmp.java
+ * @compile TestNewAcmp.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
@@ -118,26 +118,34 @@ interface MyInterface {
 }
 
 value class MyValue1 implements MyInterface {
-    final int x = 0;
+    final int x;
+
+    MyValue1(int x) {
+        this.x = x;
+    }
 
     static MyValue1 createDefault() {
         return MyValue1.default;
     }
 
     static MyValue1 setX(MyValue1 v, int x) {
-        return __WithField(v.x, x);
+        return new MyValue1(x);
     }
 }
 
 value class MyValue2 implements MyInterface {
-    final int x = 0;
+    final int x;
+
+    MyValue2(int x) {
+        this.x = x;
+    }
 
     static MyValue2 createDefault() {
         return MyValue2.default;
     }
 
     static MyValue2 setX(MyValue2 v, int x) {
-        return __WithField(v.x, x);
+        return new MyValue2(x);
     }
 }
 

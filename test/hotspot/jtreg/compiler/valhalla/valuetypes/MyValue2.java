@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,21 +27,20 @@ value final class MyValue2Inline {
     final boolean b;
     final long c;
 
-    private MyValue2Inline() {
-        this.b = false;
-        this.c = 0;
+    @ForceInline
+    public MyValue2Inline(boolean b, long c) {
+        this.b = b;
+        this.c = c;
     }
 
     @ForceInline
     static MyValue2Inline setB(MyValue2Inline v, boolean b) {
-        v = __WithField(v.b, b);
-        return v;
+        return new MyValue2Inline(b, v.c);
     }
 
     @ForceInline
     static MyValue2Inline setC(MyValue2Inline v, long c) {
-        v = __WithField(v.c, c);
-        return v;
+        return new MyValue2Inline(v.b, c);
     }
 
     @ForceInline
@@ -63,10 +62,11 @@ value public final class MyValue2 implements MyInterface {
     final byte y;
     final MyValue2Inline.val v1;
 
-    private MyValue2() {
-        this.x = 0;
-        this.y = 0;
-        this.v1 = MyValue2Inline.createDefault();
+    @ForceInline
+    public MyValue2(int x, byte y, MyValue2Inline.val v1) {
+        this.x = x;
+        this.y = y;
+        this.v1 = v1;
     }
 
     @ForceInline
@@ -118,19 +118,16 @@ value public final class MyValue2 implements MyInterface {
 
     @ForceInline
     static MyValue2 setX(MyValue2 v, int x) {
-        v = __WithField(v.x, x);
-        return v;
+        return new MyValue2(x, v.y, v.v1);
     }
 
     @ForceInline
     static MyValue2 setY(MyValue2 v, byte y) {
-        v = __WithField(v.y, y);
-        return v;
+        return new MyValue2(v.x, y, v.v1);
     }
 
     @ForceInline
     static MyValue2 setV1(MyValue2 v, MyValue2Inline v1) {
-        v = __WithField(v.v1, v1);
-        return v;
+        return new MyValue2(v.x, v.y, v1);
     }
 }

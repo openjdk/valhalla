@@ -36,7 +36,7 @@ import jdk.internal.misc.Unsafe;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
  * @requires os.simpleArch == "x64"
- * @compile -XDallowWithFieldOperator TestIntrinsics.java
+ * @compile TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla

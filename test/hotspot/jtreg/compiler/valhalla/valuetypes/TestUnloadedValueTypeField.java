@@ -28,8 +28,8 @@ import jdk.test.lib.Asserts;
  * @test
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @summary Test the handling of fields of unloaded value classes.
- * @compile -XDallowWithFieldOperator hack/GetUnresolvedValueFieldWrongSignature.java
- * @compile -XDallowWithFieldOperator TestUnloadedValueTypeField.java
+ * @compile hack/GetUnresolvedValueFieldWrongSignature.java
+ * @compile TestUnloadedValueTypeField.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
@@ -68,10 +68,10 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // MyValue1 has already been loaded, because it's in the ValueType attribute of
     // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test1_precondition().
     static value final class MyValue1 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue1 make() {
-            return __WithField(MyValue1.default.foo, 1234);
+        MyValue1() {
+            foo = 1234;
         }
     }
 
@@ -79,12 +79,12 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
         MyValue1 v;
 
         public MyValue1Holder() {
-            v = MyValue1.make();
+            v = new MyValue1();
         }
     }
 
     static MyValue1 test1_precondition() {
-        return MyValue1.make();
+        return new MyValue1();
     }
 
     @Test
@@ -115,10 +115,10 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // MyValue2 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedValueTypeField.
     static value final class MyValue2 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue2 make(int n) {
-            return __WithField(MyValue2.default.foo, n);
+        public MyValue2(int n) {
+            foo = n;
         }
     }
 
@@ -126,7 +126,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
         MyValue2 v;
 
         public MyValue2Holder() {
-            v = MyValue2.make(1234);
+            v = new MyValue2(1234);
         }
     }
 
@@ -163,10 +163,10 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // MyValue3 has already been loaded, because it's in the ValueType attribute of
     // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test3_precondition().
     static value final class MyValue3 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue3 make() {
-            return __WithField(MyValue3.default.foo, 1234);
+        public MyValue3() {
+            foo = 1234;
         }
     }
 
@@ -174,12 +174,12 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
         MyValue3 v;
 
         public MyValue3Holder() {
-            v = MyValue3.make();
+            v = new MyValue3();
         }
     }
 
     static MyValue3 test3_precondition() {
-        return MyValue3.make();
+        return new MyValue3();
     }
 
     @Test
@@ -204,10 +204,10 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // Test case 4:
     // Same as case 1, except we use putfield instead of getfield.
     static value final class MyValue4 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue4 make(int n) {
-            return __WithField(MyValue4.default.foo, n);
+        MyValue4(int n) {
+            foo = n;
         }
     }
 
@@ -215,12 +215,12 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
         MyValue4 v;
 
         public MyValue4Holder() {
-            v = MyValue4.make(0);
+            v = new MyValue4(0);
         }
     }
 
     static MyValue4 test4_precondition() {
-        return MyValue4.make(0);
+        return new MyValue4(0);
     }
 
     @Test
@@ -231,7 +231,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     }
 
     public void test4_verifier(boolean warmup) {
-        MyValue4 v = MyValue4.make(5678);
+        MyValue4 v = new MyValue4(5678);
         if (warmup) {
             test4(null, v);
         } else {
@@ -244,10 +244,10 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // Test case 5:
     // Same as case 2, except we use putfield instead of getfield.
     static value final class MyValue5 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue5 make(int n) {
-            return __WithField(MyValue5.default.foo, n);
+        MyValue5(int n) {
+            foo = n;
         }
     }
 
@@ -255,10 +255,10 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
         MyValue5 v;
 
         public MyValue5Holder() {
-            v = MyValue5.make(0);
+            v = new MyValue5(0);
         }
         public Object make(int n) {
-            return MyValue5.make(n);
+            return new MyValue5(n);
         }
     }
 
@@ -291,19 +291,19 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // MyValue11 has already been loaded, because it's in the ValueType attribute of
     // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test1_precondition().
     static value final class MyValue11 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue11 make() {
-            return __WithField(MyValue11.default.foo, 1234);
+        MyValue11() {
+            foo = 1234;
         }
     }
 
     static class MyValue11Holder {
-        static MyValue11 v = MyValue11.make();
+        static MyValue11 v = new MyValue11();
     }
 
     static MyValue11 test11_precondition() {
-        return MyValue11.make();
+        return new MyValue11();
     }
 
     @Test
@@ -333,15 +333,15 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     // MyValue12 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedValueTypeField.
     static value final class MyValue12 {
-        final int foo = 0;
+        final int foo;
 
-        static MyValue12 make(int n) {
-            return __WithField(MyValue12.default.foo, n);
+        MyValue12(int n) {
+            foo = n;
         }
     }
 
     static class MyValue12Holder {
-        static MyValue12 v = MyValue12.make(12);
+        static MyValue12 v = new MyValue12(12);
     }
 
     @Test

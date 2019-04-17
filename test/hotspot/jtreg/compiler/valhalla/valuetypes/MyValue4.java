@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,21 +28,20 @@ value final class MyValue4 implements MyInterface {
     final MyValue3.val v1;
     final MyValue3.val v2;
 
-    private MyValue4() {
-        this.v1 = MyValue3.createDefault();
-        this.v2 = MyValue3.createDefault();
+    @ForceInline
+    public MyValue4(MyValue3.val v1, MyValue3.val v2) {
+        this.v1 = v1;
+        this.v2 = v2;
     }
 
     @ForceInline
     static MyValue4 setV1(MyValue4 v, MyValue3 v1) {
-        v = __WithField(v.v1, v1);
-        return v;
+        return new MyValue4(v1, v.v2);
     }
 
     @ForceInline
     static MyValue4 setV2(MyValue4 v, MyValue3 v2) {
-        v = __WithField(v.v2, v2);
-        return v;
+        return new MyValue4(v.v1, v2);
     }
 
     @ForceInline
