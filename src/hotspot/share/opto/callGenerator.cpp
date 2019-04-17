@@ -372,9 +372,20 @@ void LateInlineCallGenerator::do_late_inline() {
     return;
   }
 
-  const TypeTuple *r = call->tf()->domain_cc();
-  for (int i1 = 0; i1 < method()->arg_size(); i1++) {
-    if (call->in(TypeFunc::Parms + i1)->is_top() && r->field_at(TypeFunc::Parms + i1) != Type::HALF) {
+  const GrowableArray<SigEntry>* sig_cc = method()->get_sig_cc();
+  const TypeTuple* r = call->tf()->domain_cc();
+  for (uint i1 = TypeFunc::Parms, i2 = 0; i1 < r->cnt(); i1++) {
+    if (sig_cc != NULL) {
+      // Skip reserved entries
+      while (!SigEntry::skip_value_delimiters(sig_cc, i2)) {
+        i2++;
+      }
+      if (SigEntry::is_reserved_entry(sig_cc, i2++)) {
+        assert(call->in(i1)->is_top(), "should be top");
+        continue;
+      }
+    }
+    if (call->in(i1)->is_top() && r->field_at(i1) != Type::HALF) {
       assert(Compile::current()->inlining_incrementally(), "shouldn't happen during parsing");
       return;
     }
@@ -438,9 +449,8 @@ void LateInlineCallGenerator::do_late_inline() {
     }
 
     // blow away old call arguments
-    Node* top = C->top();
-    for (uint i1 = TypeFunc::Parms; i1 < call->_tf->domain_cc()->cnt(); i1++) {
-      map->set_req(i1, top);
+    for (uint i1 = TypeFunc::Parms; i1 < r->cnt(); i1++) {
+      map->set_req(i1, C->top());
     }
     jvms->set_map(map);
 
