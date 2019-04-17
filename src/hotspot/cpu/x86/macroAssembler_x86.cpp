@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -5649,7 +5649,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
 }
 
 // Move a value between registers/stack slots and update the reg_state
-bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off) {
+bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset) {
   if (reg_state[to->value()] == reg_written) {
     return true; // Already written
   }
@@ -5670,7 +5670,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           movq(to->as_Register(), from->as_Register());
         }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
         assert(st_off != ret_off, "overwriting return address at %d", st_off);
         Address to_addr = Address(rsp, st_off);
         if (from->is_XMMRegister()) {
@@ -5685,7 +5685,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
         }
       }
     } else {
-      Address from_addr = Address(rsp, from->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
+      Address from_addr = Address(rsp, from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset);
       if (to->is_reg()) {
         if (to->is_XMMRegister()) {
           if (bt == T_DOUBLE) {
@@ -5698,7 +5698,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           movq(to->as_Register(), from_addr);
         }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
         assert(st_off != ret_off, "overwriting return address at %d", st_off);
         movq(r13, from_addr);
         movq(Address(rsp, st_off), r13);
@@ -5712,7 +5712,8 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 }
 
 // Read all fields from a value type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index, RegState reg_state[], int ret_off) {
+bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
+                                         int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
 
@@ -5752,7 +5753,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
        }
 
       if (fromReg == noreg) {
-        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
         movq(r10, Address(rsp, st_off));
         fromReg = r10;
       }
@@ -5771,7 +5772,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
           load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
         }
         if (to->is_stack()) {
-          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
           assert(st_off != ret_off, "overwriting return address at %d", st_off);
           movq(Address(rsp, st_off), dst);
         }
@@ -5792,6 +5793,156 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   return done;
 }
 
+class ScalarizedValueArgsStream : public StackObj {
+  const GrowableArray<SigEntry>* _sig_cc;
+  int _sig_cc_index;
+  const VMRegPair* _regs_cc;
+  int _regs_cc_count;
+  int _regs_cc_index;
+  int _vt;
+  DEBUG_ONLY(bool _finished);
+public:
+  ScalarizedValueArgsStream(const GrowableArray<SigEntry>* sig_cc, int sig_cc_index, VMRegPair* regs_cc, int regs_cc_count, int regs_cc_index) :
+    _sig_cc(sig_cc), _sig_cc_index(sig_cc_index), _regs_cc(regs_cc), _regs_cc_count(regs_cc_count), _regs_cc_index(regs_cc_index) {
+    assert(_sig_cc->at(_sig_cc_index)._bt == T_VALUETYPE, "should be at end delimiter");
+    _vt = 1;
+    DEBUG_ONLY(_finished = false);
+  }
+
+  bool next(VMRegPair& pair, BasicType& bt) {
+    assert(!_finished, "sanity");
+    do {
+      _sig_cc_index++;
+      bt = _sig_cc->at(_sig_cc_index)._bt;
+      if (bt == T_VALUETYPE) {
+        _vt++;
+      } else if (bt == T_VOID &&
+                 _sig_cc->at(_sig_cc_index-1)._bt != T_LONG &&
+                 _sig_cc->at(_sig_cc_index-1)._bt != T_DOUBLE) {
+        _vt--;
+      } else if (SigEntry::is_reserved_entry(_sig_cc, _sig_cc_index)) {
+        _regs_cc_index++;
+      } else {
+        assert(_regs_cc_index < _regs_cc_count, "must be");
+        pair = _regs_cc[_regs_cc_index++];
+        VMReg r1 = pair.first();
+        VMReg r2 = pair.second();
+
+        if (!r1->is_valid()) {
+          assert(!r2->is_valid(), "must be invalid");
+        } else {
+          return true;
+        }
+      }
+    } while (_vt != 0);
+
+    DEBUG_ONLY(_finished = true);
+    return false;
+  }
+
+  int sig_cc_index() {return _sig_cc_index;}
+  int regs_cc_index() {return _regs_cc_index;}
+};
+
+static void skip_unpacked_fields(const GrowableArray<SigEntry>* sig, int& sig_index, VMRegPair* regs_from, int regs_from_count, int& from_index) {
+  ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
+  VMRegPair from_pair;
+  BasicType bt;
+  while (stream.next(from_pair, bt)) {}
+  sig_index = stream.sig_cc_index();
+  from_index = stream.regs_cc_index();
+}
+
+static bool is_reg_in_unpacked_fields(const GrowableArray<SigEntry>* sig, int sig_index, VMReg to, VMRegPair* regs_from, int regs_from_count, int from_index) {
+  ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
+  VMRegPair from_pair;
+  BasicType bt;
+  while (stream.next(from_pair, bt)) {
+    if (from_pair.first() == to) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Pack fields back into a value type oop
+bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                                       VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                                       int ret_off, int extra_stack_offset) {
+  assert(sig->at(sig_index)._bt == T_VALUETYPE, "should be at end delimiter");
+  assert(to->is_valid(), "must be");
+
+  if (reg_state[to->value()] == reg_written) {
+    skip_unpacked_fields(sig, sig_index, regs_from, regs_from_count, from_index);
+    return true; // Already written
+  }
+
+  Register val_array = rax;
+  Register val_obj_tmp = r11;
+  Register scratch_reg = r10;
+  Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
+
+  if (reg_state[to->value()] == reg_readonly) {
+    if (!is_reg_in_unpacked_fields(sig, sig_index, to, regs_from, regs_from_count, from_index)) {
+      skip_unpacked_fields(sig, sig_index, regs_from, regs_from_count, from_index);
+      return false; // Not yet writable
+    }
+    val_obj = val_obj_tmp;
+  }
+
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_VALUETYPE);
+  load_heap_oop(val_obj, Address(val_array, index));
+
+  ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
+  VMRegPair from_pair;
+  BasicType bt;
+  while (stream.next(from_pair, bt)) {
+    int off = sig->at(stream.sig_cc_index())._offset;
+    assert(off > 0, "offset in object should be positive");
+    bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+    size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
+
+    // FIXME has_oop_field |= is_oop;
+    VMReg from_r1 = from_pair.first();
+    VMReg from_r2 = from_pair.second();
+
+    // Pack the scalarized field into the value object.
+    Address dst(val_obj, off);
+    if (!from_r1->is_XMMRegister()) {
+      if (is_oop) {
+        assert(0, "FIXME: packing oop fields not implemented");
+      } else {
+        Register from_reg;
+
+        if (from_r1->is_stack()) {
+          from_reg = scratch_reg;
+          int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+          load_sized_value(from_reg, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
+        } else {
+          from_reg = from_r1->as_Register();
+        }
+        store_sized_value(dst, from_reg, size_in_bytes);
+      }
+    } else {
+      if (from_r2->is_valid()) {
+        movdbl(dst, from_r1->as_XMMRegister());
+      } else {
+        movflt(dst, from_r1->as_XMMRegister());
+      }
+    }
+    reg_state[from_r1->value()] = reg_writable;
+  }
+  sig_index = stream.sig_cc_index();
+  from_index = stream.regs_cc_index();
+
+  assert(reg_state[to->value()] == reg_writable, "must have already been read");
+  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state, ret_off, extra_stack_offset);
+  assert(success, "to register must be writeable");
+
+  return true;
+}
+
 // Unpack all value type arguments passed as oops
 void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   assert(C->has_scalarized_args(), "value type argument scalarization is disabled");
@@ -5800,7 +5951,7 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   assert(sig_cc != NULL, "must have scalarized signature");
 
   // Get unscalarized calling convention
-  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
+  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length()); // FIXME - may underflow if we support values with no fields!
   int args_passed = 0;
   if (!method->is_static()) {
     sig_bt[args_passed++] = T_OBJECT;
@@ -5835,8 +5986,20 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length());
   int args_on_stack_cc = SharedRuntime::java_calling_convention(sig_bt, regs_cc, args_passed_cc, false);
 
+  int extra_stack_offset = wordSize; // stack has the returned address
+  int sp_inc = shuffle_value_args(false, receiver_only, extra_stack_offset, sig_bt, sig_cc,
+                                  args_passed, args_on_stack, regs,
+                                  args_passed_cc, args_on_stack_cc, regs_cc);
+  // Emit code for verified entry and save increment for stack repair on return
+  verified_entry(C, sp_inc);
+}
+
+int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                                       BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                       int args_passed, int args_on_stack, VMRegPair* regs,            // from
+                                       int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
   // Check if we need to extend the stack for unpacking
-  int sp_inc = (args_on_stack_cc - args_on_stack) * VMRegImpl::stack_slot_size;
+  int sp_inc = (args_on_stack_to - args_on_stack) * VMRegImpl::stack_slot_size;
   if (sp_inc > 0) {
     // Save the return address, adjust the stack (make sure it is properly
     // 16-byte aligned) and copy the return address to the new top of the stack.
@@ -5851,7 +6014,7 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   }
 
   // Initialize register/stack slot states (make all writable)
-  int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_cc);
+  int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
   int max_reg = VMRegImpl::stack2reg(max_stack)->value();
   RegState* reg_state = NEW_RESOURCE_ARRAY(RegState, max_reg);
   for (int i = 0; i < max_reg; ++i) {
@@ -5870,48 +6033,115 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
     reg_state[reg->value()] = reg_readonly;
   }
 
-  // Emit code for unpacking value type arguments
+  // Emit code for packing/unpacking value type arguments
   // We try multiple times and eventually start spilling to resolve (circular) dependencies
   bool done = false;
-  for (int i = 0; i < 2*args_passed_cc && !done; ++i) {
+  for (int i = 0; i < 2*args_passed_to && !done; ++i) {
     done = true;
-    bool spill = (i > args_passed_cc); // Start spilling?
-    // Iterate over all arguments (in reverse)
-    for (int from_index = args_passed-1, to_index = args_passed_cc-1, sig_index = sig_cc->length()-1; sig_index >= 0; sig_index--) {
+    bool spill = (i > args_passed_to); // Start spilling?
+    // Iterate over all arguments (when unpacking, do in reverse)
+    int step = is_packing ? 1 : -1;
+    int from_index    = is_packing ? 0 : args_passed      - 1;
+    int to_index      = is_packing ? 0 : args_passed_to   - 1;
+    int sig_index     = is_packing ? 0 : sig_cc->length() - 1;
+    int sig_index_end = is_packing ? sig_cc->length() : -1;
+    int vtarg_index = 0;
+    for (; sig_index != sig_index_end; sig_index += step) {
+      assert(0 <= sig_index && sig_index < sig_cc->length(), "index out of bounds");
       if (SigEntry::is_reserved_entry(sig_cc, sig_index)) {
-        to_index--; // Skip reserved entry
+        if (is_packing) {
+          if (i == 0) {
+            // The reserved entries are not used by the packed args, so make them writable
+            VMReg from_reg = regs[from_index].first();
+            if (from_reg->is_valid()) {
+              assert(from_reg->is_stack(), "reserved entries must be stack");
+              reg_state[from_reg->value()] = reg_writable;
+            }
+          }
+          from_index += step;
+        } else {
+          to_index += step;
+        }
       } else {
-        assert(from_index >= 0, "index out of bounds");
-        VMReg reg = regs[from_index].first();
-        if (spill && reg->is_valid() && reg_state[reg->value()] == reg_readonly) {
-          // Spill argument to be able to write the source and resolve circular dependencies
-          VMReg spill_reg = reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
-          bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state, sp_inc);
-          assert(res, "Spilling should not fail");
-          // Set spill_reg as new source and update state
-          reg = spill_reg;
-          regs[from_index].set1(reg);
-          reg_state[reg->value()] = reg_readonly;
-          spill = false; // Do not spill again in this round
+        assert(0 <= from_index && from_index < args_passed, "index out of bounds");
+        assert(0 <= to_index && to_index < args_passed_to, "index out of bounds");
+        if (spill) {
+          // This call returns true IFF we should keep trying to spill in this round.
+          spill = shuffle_value_args_spill(is_packing, sig_cc, sig_index, regs, from_index, args_passed,
+                                           reg_state, sp_inc, extra_stack_offset);
         }
         BasicType bt = sig_cc->at(sig_index)._bt;
         if (SigEntry::skip_value_delimiters(sig_cc, sig_index)) {
-          assert(to_index >= 0, "index out of bounds");
-          done &= move_helper(reg, regs_cc[to_index].first(), bt, reg_state, sp_inc);
-          to_index--;
-        } else if (!receiver_only || (from_index == 0 && bt == T_VOID)) {
-          done &= unpack_value_helper(sig_cc, sig_index, reg, regs_cc, to_index, reg_state, sp_inc);
+          VMReg from_reg = regs[from_index].first();
+          done &= move_helper(from_reg, regs_to[to_index].first(), bt, reg_state, sp_inc, extra_stack_offset);
+          to_index += step;
+        } else if (is_packing || !receiver_only || (from_index == 0 && bt == T_VOID)) {
+          if (is_packing) {
+            VMReg reg_to = regs_to[to_index].first();
+            done &= pack_value_helper(sig_cc, sig_index, vtarg_index, reg_to, regs, args_passed, from_index,
+                                      reg_state, sp_inc, extra_stack_offset);
+            vtarg_index ++;
+            to_index ++;
+            continue; // from_index already adjusted
+          } else {
+            VMReg from_reg = regs[from_index].first();
+            done &= unpack_value_helper(sig_cc, sig_index, from_reg, regs_to, to_index, reg_state, sp_inc, extra_stack_offset);
+          }
         } else {
           continue;
         }
-        from_index--;
+        from_index += step;
       }
     }
   }
-  guarantee(done, "Could not resolve circular dependency when unpacking value type arguments");
+  guarantee(done, "Could not resolve circular dependency when shuffling value type arguments");
+  return sp_inc;
+}
 
-  // Emit code for verified entry and save increment for stack repair on return
-  verified_entry(C, sp_inc);
+bool MacroAssembler::shuffle_value_args_spill(bool is_packing, const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
+                                              VMRegPair* regs_from, int from_index, int regs_from_count,
+                                              RegState* reg_state, int sp_inc, int extra_stack_offset) {
+  VMReg reg;
+
+  if (!is_packing || SigEntry::skip_value_delimiters(sig_cc, sig_cc_index)) {
+    reg = regs_from[from_index].first();
+    if (!reg->is_valid() || reg_state[reg->value()] != reg_readonly) {
+      // Spilling this won't break circles
+      return true;
+    }
+  } else {
+    ScalarizedValueArgsStream stream(sig_cc, sig_cc_index, regs_from, regs_from_count, from_index);
+    VMRegPair from_pair;
+    BasicType bt;
+    bool found = false;
+    while (stream.next(from_pair, bt)) {
+      reg = from_pair.first();
+      assert(reg->is_valid(), "must be");
+      if (reg_state[reg->value()] == reg_readonly) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      // Spilling fields in this value arg won't break circles
+      return true;
+    }
+  }
+
+  // Spill argument to be able to write the source and resolve circular dependencies
+  VMReg spill_reg = reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
+  if (reg_state[spill_reg->value()] == reg_readonly) {
+    // We have already spilled (in previous round). The spilled register should be consumed by this round.
+  } else {
+    bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state, sp_inc, extra_stack_offset);
+    assert(res, "Spilling should not fail");
+    // Set spill_reg as new source and update state
+    reg = spill_reg;
+    regs_from[from_index].set1(reg);
+    reg_state[reg->value()] = reg_readonly;
+  }
+
+  return false; // Do not spill again in this round
 }
 
 // Restores the stack on return

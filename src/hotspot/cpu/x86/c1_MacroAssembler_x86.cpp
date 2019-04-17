@@ -367,16 +367,6 @@ void C1_MacroAssembler::verified_value_entry(Label& verified_value_entry_label) 
   bind(verified_value_entry_label);
 }
 
-Register C1_MacroAssembler::load_arg_if_on_stack(VMReg arg, size_t size_in_bytes, int extra_stack_offset, Register scratch_reg) {
-  if (arg->is_stack()) {
-    int ld_off = arg->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-    load_sized_value(scratch_reg, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
-    return scratch_reg;
-  } else {
-    return arg->as_Register();
-  }
-}
-
 int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
     // Verified Entry first instruction should be 5 bytes long for correct
@@ -407,152 +397,29 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
 
   assert(ValueTypePassFieldsAsArgs, "sanity");
 
-  GrowableArray<SigEntry>& sig_to   = ces->sig();
-  GrowableArray<SigEntry>& sig_from = is_value_ro_entry ? ces->sig_cc_ro() : ces->sig_cc();
-  VMRegPair* regs_to    = ces->regs();
-  VMRegPair* regs_from  = is_value_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
+  GrowableArray<SigEntry>* sig   = &ces->sig();
+  GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
+  VMRegPair* regs      = ces->regs();
+  VMRegPair* regs_cc   = is_value_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
+  int args_on_stack    = ces->args_on_stack();
+  int args_on_stack_cc = is_value_ro_entry ? ces->args_on_stack_cc_ro() : ces->args_on_stack_cc();
 
-  // Shuffle regs_cc -> regs
-  Register val_array = rax;
-  Register val_obj_tmp = r11;
-  Register scratch_reg = r10;
+  assert(sig->length() <= sig_cc->length(), "Zero-sized value class not allowed!");
+  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
+  int args_passed = sig->length();
+  int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
+
   int extra_stack_offset = frame_size_in_bytes + (2 * wordSize); // 2 extra slots for return address, and saved bp.
+  int sp_inc = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+                                  args_passed_cc, args_on_stack_cc, regs_cc, // from
+                                  args_passed, args_on_stack, regs);         // to
 
-  bool has_oop_field = false;
-  for (int from = 0, to = 0, ignored = 0, next_vt_arg = 0;
-       from < sig_from.length(); from++) {
-    assert(ignored <= from, "shouldn't skip over more slots than there are arguments");
-    BasicType bt = sig_from.at(from)._bt;
+  assert(sp_inc == 0, "FIXME: stack repair not implemented");
 
-    if (bt != T_VALUETYPE && SigEntry::is_reserved_entry(&sig_from, from)) {
-      continue; // Ignore reserved entry
-    }
 
-    int regs_from_index = from - ignored;
-    VMRegPair from_reg_pair = regs_from[regs_from_index];
-    assert(to < sig_to.length(), "more arguments for the interpreter than expected?");
-    VMRegPair to_reg_pair = regs_to[to];
-    VMReg to_r1   = to_reg_pair.first();
-    VMReg to_r2   = to_reg_pair.second();
-
-    if (bt == T_VALUETYPE) {
-      ignored++;
-      // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
-      Register val_obj;
-      if (to < regs_from_index && to_r1->is_valid() && !to_r1->is_XMMRegister()) {
-        // to_r1 has already been consumed, so we can wrtie into now and and avoid an extra move later.
-        val_obj = to_r1->as_Register();
-        assert(val_obj != val_obj_tmp, "paramaters cannot be passed in scratch");
-      } else {
-        val_obj = val_obj_tmp;
-      }
-      load_heap_oop(val_obj, Address(val_array, index));
-      next_vt_arg++;
-      int vt = 1;
-      // write fields we get from compiled code in registers/stack
-      // slots to the buffer: we know we are done with that value type
-      // argument when we hit the T_VOID that acts as an end of value
-      // type delimiter for this value type. Value types are flattened
-      // so we might encounter embedded value types. Each entry in
-      // sig_from contains a field offset in the buffer.
-      do {
-        from++;
-        BasicType field_bt = sig_from.at(from)._bt;
-        BasicType prev_bt = sig_from.at(from-1)._bt;
-
-        if (field_bt == T_VALUETYPE) {
-          vt++;
-          ignored++;
-        } else if (field_bt == T_VOID &&
-                   prev_bt != T_LONG &&
-                   prev_bt != T_DOUBLE) {
-          vt--;
-          ignored++;
-        } else if (SigEntry::is_reserved_entry(&sig_from, from)) {
-          // Ignore reserved entry
-        } else {
-          int off = sig_from.at(from)._offset;
-          assert(off > 0, "offset in object should be positive");
-          bool is_oop = (field_bt == T_OBJECT || field_bt == T_ARRAY);
-          size_t size_in_bytes = is_java_primitive(field_bt) ? type2aelembytes(field_bt) : wordSize;
-
-          has_oop_field |= is_oop;
-
-          from_reg_pair = regs_from[from-ignored];
-          VMReg from_r1 = from_reg_pair.first();
-          VMReg from_r2 = from_reg_pair.second();
-
-          if (!from_r1->is_valid()) {
-            assert(!from_r2->is_valid(), "must be invalid");
-          } else {
-            // Pack the scalarized field into the value object.
-            if (!from_r1->is_XMMRegister()) {
-              Register from_reg = load_arg_if_on_stack(from_r1, wordSize, extra_stack_offset, scratch_reg);
-
-              if (is_oop) {
-                assert(0, "FIXME: packing oop fields not implemented");
-              } else {
-                store_sized_value(Address(val_obj, off), from_reg, size_in_bytes);
-              }
-            } else {
-              assert(0, "FIXME: packing floats not implemented");
-            }
-          }
-        }
-      } while (vt != 0);
-
-      assert(sig_to.at(to)._bt == T_OBJECT, "must be");
-      if (val_obj == to_r1->as_Register()) {
-        // No need to copy.
-        to++;
-        continue;
-      } else {
-        from_reg_pair.set1(val_obj->as_VMReg());
-        bt = T_OBJECT;
-      }
-    } else {
-      if (to != 0) {
-        assert(bt != T_OBJECT, "FIXME: GC support for oop params not implemented");
-      }
-    }
-
-    assert(sig_to.at(to)._bt == bt, "must be");
-    VMReg from_r1 = from_reg_pair.first();
-    VMReg from_r2 = from_reg_pair.second();
-
-    if (!from_r1->is_valid()) {
-      assert(!from_r2->is_valid(), "must be invalid");
-      assert(!  to_r2->is_valid(), "must be invalid");
-      assert(!  to_r2->is_valid(), "must be invalid");
-    } else if (!from_r1->is_XMMRegister()) {
-      // Stack arguments are already sign-extended and stored in wordSize.
-      assert(to_r1->is_valid() && !to_r1->is_XMMRegister(), "must be");
-      Register from_reg = load_arg_if_on_stack(from_r1, wordSize, extra_stack_offset, scratch_reg);
-
-      if (to_r1->is_stack()) {
-        // Packing can only reduce the number of registers, so we can copy from stack to
-        // register, or stack to stack, but never register to stack
-        assert(from_r1->is_stack(), "must be");
-        int offset = to_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        store_sized_value(Address(rsp, offset), from_reg, wordSize);
-      } else {
-        Register to_reg = to_r1->as_Register();
-        if (from_reg != to_reg) {
-          mov(to_reg, from_reg);
-        }
-      }
-    } else {
-      assert(to_reg_pair.first()->is_XMMRegister(), "must be");
-      assert(0, "FIXME: not implemented");
-    }
-
-    to++;
-  }
-
+#if 0 // FIXME -- implement this!
   // If a value type was allocated and initialized, apply post barrier to all oop fields
   if (has_oop_field) {
-#if 0
     __ push(r13); // save senderSP
     __ push(rbx); // save callee
     // Allocate argument register save area
@@ -566,12 +433,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     }
     __ pop(rbx); // restore callee
     __ pop(r13); // restore sender SP
-#else
-    assert(0, "FIXME: not implemented");
 #endif
-  }
 
-  //----------------------------------------------------------------------
   pop(rbp);
   addptr(rsp, frame_size_in_bytes);
   jmp(verified_value_entry_label);

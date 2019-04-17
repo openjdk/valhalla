@@ -52,7 +52,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test39_helper"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test36_helper"
                                      };
         // Only C1. Tierd compilation disabled.
         case 1: return new String[] {"-XX:+EnableValhallaC1", "-XX:TieredStopAtLevel=1"
@@ -74,7 +74,8 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                  MyImplPojo1.class,
                  MyImplPojo2.class,
                  MyImplVal.class,
-                 FixedPoints.class);
+                 FixedPoints.class,
+                 FloatPoint.class);
     }
 
     static value class Point {
@@ -214,6 +215,40 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         final long    J  = 0x1234567800abcdefL;
     }
     static FixedPoints fixedPointsField = new FixedPoints();
+
+    static value class FloatPoint {
+        final float x;
+        final float y;
+        public FloatPoint(float x, float y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+    static value class DoublePoint {
+        final double x;
+        final double y;
+        public DoublePoint(double x, double y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+    static FloatPoint floatPointField = new FloatPoint(123.456f, 789.012f);
+    static DoublePoint doublePointField = new DoublePoint(123.456, 789.012);
+
+    static value class EightFloats {
+        float f1, f2, f3, f4, f5, f6, f7, f8;
+        public EightFloats() {
+            f1 = 1.1f;
+            f2 = 2.2f;
+            f3 = 3.3f;
+            f4 = 4.4f;
+            f5 = 5.5f;
+            f6 = 6.6f;
+            f7 = 7.7f;
+            f8 = 8.8f;
+        }
+    }
+    static EightFloats eightFloatsField = new EightFloats();
 
     //**********************************************************************
     // PART 1 - C1 calls interpreted code
@@ -564,6 +599,80 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             long result = test39();
             long n = test39_helper(1, fixedPointsField, 2, fixedPointsField);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, shuffling floating point args
+    @Test(compLevel = C2)
+    public double test40() {
+        return test40_helper(1.1f, 1.2, floatPointField, doublePointField, 1.3f, 1.4, 1.5f, 1.7, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static double test40_helper(float a1, double a2, FloatPoint fp, DoublePoint dp, float a3, double a4, float a5, double a6, double a7, double a8, double a9, double a10, double a11, double a12) {
+        return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11 + a12 + fp.x + fp.y - dp.x - dp.y;
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            double result = test40();
+            double n = test40_helper(1.1f, 1.2, floatPointField, doublePointField, 1.3f, 1.4, 1.5f, 1.7, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, mixing floats and ints
+    @Test(compLevel = C2)
+    public double test41() {
+        return test41_helper(1, 1.2, pointField, floatPointField, doublePointField, 1.3f, 4, 1.5f, 1.7, 1.7, 1.8, 9, 1.10, 1.11, 1.12);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static double test41_helper(int a1, double a2, Point p, FloatPoint fp, DoublePoint dp, float a3, int a4, float a5, double a6, double a7, double a8, long a9, double a10, double a11, double a12) {
+      return a1 + a2  + fp.x + fp.y - dp.x - dp.y + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11 + a12;
+    }
+
+    @DontCompile
+    public void test41_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            double result = test41();
+            double n = test41_helper(1, 1.2, pointField, floatPointField, doublePointField, 1.3f, 4, 1.5f, 1.7, 1.7, 1.8, 9, 1.10, 1.11, 1.12);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, circular dependency (between rdi and first stack slot on x64)
+    @Test(compLevel = C2)
+    public float test42() {
+        return test42_helper(eightFloatsField, pointField, 3, 4, 5, floatPointField, 7);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test42_helper(EightFloats ep1, // (xmm0 ... xmm7) -> rsi
+                                       Point p2,        // (rsi, rdx) -> rdx
+                                       int i3,          // rcx -> rcx
+                                       int i4,          // r8 -> r8
+                                       int i5,          // r9 -> r9
+                                       FloatPoint fp6,  // (stk[0], stk[1]) -> rdi   ** circ depend
+                                       int i7)          // rdi -> stk[0]             ** circ depend
+    {
+        return ep1.f1 + ep1.f2 + ep1.f3 + ep1.f4 + ep1.f5 + ep1.f6 + ep1.f7 + ep1.f8 +
+            p2.x + p2.y + i3 + i4 + i5 + fp6.x + fp6.y + i7;
+    }
+
+    @DontCompile
+    public void test42_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            float result = test42();
+            float n = test42_helper(eightFloatsField, pointField, 3, 4, 5, floatPointField, 7);
             Asserts.assertEQ(result, n);
         }
     }

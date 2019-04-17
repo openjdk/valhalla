@@ -32,8 +32,6 @@
   // initialization
   void pd_init() { _rsp_offset = 0; }
 
-  Register load_arg_if_on_stack(VMReg arg, size_t size_in_bytes, int extra_stack_offset, Register scratch);
-
  public:
   void try_allocate(
     Register obj,                      // result: pointer to object after successful allocation
