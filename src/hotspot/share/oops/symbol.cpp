@@ -258,7 +258,7 @@ static void print_array(outputStream *os, char *array_str, int len) {
   for (int i = 0; i < len; ++i) {
     if (array_str[i] == '[') {
       dimensions++;
-    } else if (array_str[i] == 'L') {
+    } else if (array_str[i] == 'L' || array_str[i] == 'Q') {
       // Expected format: L<type name>;. Skip 'L' and ';' delimiting the type name.
       print_class(os, array_str+i+1, len-i-2);
       break;

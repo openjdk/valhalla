@@ -24,6 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
+import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
@@ -1671,5 +1672,21 @@ public class TestArrays extends ValueTypeTest {
         Asserts.assertEQ(arr[0].hash(), v0.hash());
         Asserts.assertEQ(arr[1].hash(), v1.hash());
         Asserts.assertEQ(arr[2].hash(), v1.hash());
+    }
+
+    public static void test74Callee(MyValue1[] va) { }
+
+    // Tests invoking unloaded method with value array in signature
+    @Test
+    @Warmup(0)
+    public void test74(MethodHandle m, MyValue1[] va) throws Throwable {
+        m.invoke(va);
+    }
+
+    @DontCompile
+    public void test74_verifier(boolean warmup) throws Throwable {
+        MethodHandle m = MethodHandles.lookup().findStatic(TestArrays.class, "test74Callee", MethodType.methodType(void.class, MyValue1[].class));
+        MyValue1[] va = new MyValue1[0];
+        test74(m, va);
     }
 }
