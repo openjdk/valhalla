@@ -31,13 +31,13 @@ value public final class MyValue1 implements MyInterface {
     final short z;
     final Integer o;
     final int[] oa;
-    final MyValue2.val v1;
-    final MyValue2.val v2;
-    static final MyValue2.val v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
+    final MyValue2 v1;
+    final MyValue2 v2;
+    static final MyValue2 v3 = MyValue2.createWithFieldsInline(ValueTypeTest.rI, true);
     final int c;
 
     @ForceInline
-    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2.val v1, MyValue2.val v2, int c) {
+    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2 v1, MyValue2 v2, int c) {
         s = 0;
         this.x = x;
         this.y = y;

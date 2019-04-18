@@ -129,16 +129,16 @@ public class TestLWorld extends ValueTypeTest {
     Object objectField5 = null;
     Object objectField6 = null;
 
-    MyValue1.val valueField1 = testValue1;
-    MyValue1.val valueField2 = testValue1;
-    MyValue1.box valueField3 = testValue1;
-    MyValue1.val valueField4;
-    MyValue1.box valueField5;
+    MyValue1 valueField1 = testValue1;
+    MyValue1 valueField2 = testValue1;
+    MyValue1? valueField3 = testValue1;
+    MyValue1 valueField4;
+    MyValue1? valueField5;
 
-    static MyValue1.box staticValueField1 = testValue1;
-    static MyValue1.val staticValueField2 = testValue1;
-    static MyValue1.val staticValueField3;
-    static MyValue1.box staticValueField4;
+    static MyValue1? staticValueField1 = testValue1;
+    static MyValue1 staticValueField2 = testValue1;
+    static MyValue1 staticValueField3;
+    static MyValue1? staticValueField4;
 
     @DontInline
     public Object readValueField5() {
@@ -1247,8 +1247,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test for bug in Escape Analysis
-    private static final MyValue1.box test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static final MyValue1.box test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+    private static final MyValue1? test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
+    private static final MyValue1? test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
     @Test()
     public void test42() {
@@ -1406,11 +1406,11 @@ public class TestLWorld extends ValueTypeTest {
         final Object objectField5;
         final Object objectField6;
 
-        final MyValue1.val valueField1;
-        final MyValue1.val valueField2;
-        final MyValue1.box valueField3;
-        final MyValue1.val valueField4;
-        final MyValue1.box valueField5;
+        final MyValue1 valueField1;
+        final MyValue1 valueField2;
+        final MyValue1? valueField3;
+        final MyValue1 valueField4;
+        final MyValue1? valueField5;
 
         public Test51Value() {
             objectField1 = null;
@@ -1427,7 +1427,7 @@ public class TestLWorld extends ValueTypeTest {
         }
 
         public Test51Value(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6,
-                           MyValue1.val vt1, MyValue1.val vt2, MyValue1.box vt3, MyValue1.val vt4, MyValue1.box vt5) {
+                           MyValue1 vt1, MyValue1 vt2, MyValue1? vt3, MyValue1 vt4, MyValue1? vt5) {
             objectField1 = o1;
             objectField2 = o2;
             objectField3 = o3;
@@ -1960,12 +1960,12 @@ public class TestLWorld extends ValueTypeTest {
 
     // Casting a null Integer to a nullable value type should not throw
     @ForceInline
-    public MyValue1.box test78_helper(Object o) {
-        return (MyValue1.box)o;
+    public MyValue1? test78_helper(Object o) {
+        return (MyValue1?)o;
     }
 
     @Test
-    public MyValue1.box test78(Integer i) throws Throwable {
+    public MyValue1? test78(Integer i) throws Throwable {
         return test78_helper(i);
     }
 
@@ -1980,12 +1980,12 @@ public class TestLWorld extends ValueTypeTest {
 
     // Casting an Integer to a nullable value type should throw a ClassCastException
     @ForceInline
-    public MyValue1.box test79_helper(Object o) {
-        return (MyValue1.box)o;
+    public MyValue1? test79_helper(Object o) {
+        return (MyValue1?)o;
     }
 
     @Test
-    public MyValue1.box test79(Integer i) throws Throwable {
+    public MyValue1? test79(Integer i) throws Throwable {
         return test79_helper(i);
     }
 
@@ -2004,7 +2004,7 @@ public class TestLWorld extends ValueTypeTest {
     // Test flattened field with non-flattenend (but flattenable) value type field
     static value class Small {
         final int i;
-        final Big.val big; // Too big to be flattened
+        final Big big; // Too big to be flattened
 
         private Small() {
             i = rI;
@@ -2024,10 +2024,10 @@ public class TestLWorld extends ValueTypeTest {
         }
     }
 
-    Small.val small = new Small();
-    Small.val smallDefault;
-    Big.val big = new Big();
-    Big.val bigDefault;
+    Small small = new Small();
+    Small smallDefault;
+    Big big = new Big();
+    Big bigDefault;
 
     @Test
     public long test80() {

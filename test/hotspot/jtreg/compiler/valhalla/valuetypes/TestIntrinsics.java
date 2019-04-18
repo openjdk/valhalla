@@ -363,7 +363,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(res, v.x);
     }
 
-    MyValue1.val test22_vt;
+    MyValue1 test22_vt;
     @Test(failOn=CALL_Unsafe + ALLOC)
     public void test22(MyValue1 v) {
         v = U.makePrivateBuffer(v);
@@ -391,7 +391,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(res, v.x);
     }
 
-    MyValue1.val test24_vt = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
     @Test(failOn=CALL_Unsafe)
     public int test24(long offset) {
@@ -444,7 +444,7 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Load non-flattenable value type field with unsafe
-    MyValue1.box test27_vt = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1? test27_vt = MyValue1.createWithFieldsInline(rI, rL);
     private static final long TEST27_OFFSET;
     static {
         try {
@@ -529,7 +529,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(res.hash(), v.v1.hash());
     }
 
-    MyValue1.val test31_vt;
+    MyValue1 test31_vt;
     private static final long TEST31_VT_OFFSET;
     private static final boolean TEST31_VT_FLATTENED;
     static {

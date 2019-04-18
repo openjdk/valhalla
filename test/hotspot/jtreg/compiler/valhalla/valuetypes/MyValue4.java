@@ -25,11 +25,11 @@ package compiler.valhalla.valuetypes;
 
 // Value type definition with too many fields to return in registers
 value final class MyValue4 implements MyInterface {
-    final MyValue3.val v1;
-    final MyValue3.val v2;
+    final MyValue3 v1;
+    final MyValue3 v2;
 
     @ForceInline
-    public MyValue4(MyValue3.val v1, MyValue3.val v2) {
+    public MyValue4(MyValue3 v1, MyValue3 v2) {
         this.v1 = v1;
         this.v2 = v2;
     }

@@ -179,7 +179,7 @@ public class TestUnloadedValueTypeArray {
             arr[1] = new MyValue5(12345);
             return arr;
         } else {
-            MyValue5.box[] arr = new MyValue5.box[10];
+            MyValue5?[] arr = new MyValue5?[10];
             arr[1] = new MyValue5(22345);
             return arr;
         }
@@ -200,9 +200,9 @@ public class TestUnloadedValueTypeArray {
             Asserts.assertEQ(arr[1].foo, 12345);
         }
         {
-            MyValue5.box[] arr = null;
+            MyValue5?[] arr = null;
             for (int i=0; i<n; i++) {
-                arr = (MyValue5.box[])test5(2);
+                arr = (MyValue5?[])test5(2);
             }
             Asserts.assertEQ(arr[1].foo, 22345);
         }

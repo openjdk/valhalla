@@ -75,12 +75,12 @@ value public final class MyValue3 implements MyInterface {
     final double f4;
     final float f5;
     final double f6;
-    final MyValue3Inline.val v1;
+    final MyValue3Inline v1;
 
     @ForceInline
     public MyValue3(char c, byte bb, short s, int i, long l, Object o,
                     float f1, double f2, float f3, double f4, float f5, double f6,
-                    MyValue3Inline.val v1) {
+                    MyValue3Inline v1) {
         this.c = c;
         this.bb = bb;
         this.s = s;

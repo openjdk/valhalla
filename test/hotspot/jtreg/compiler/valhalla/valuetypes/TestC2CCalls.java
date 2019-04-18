@@ -62,10 +62,10 @@ public class TestC2CCalls {
 
     static interface MyInterface1 {
         public MyInterface1 test1(OtherVal other, int y);
-        public MyInterface1 test2(OtherVal.val other1, OtherVal.box other2, int y);
-        public MyInterface1 test3(OtherVal.val other1, OtherVal.box other2, int y, boolean deopt);
-        public MyInterface1 test4(OtherVal.val other1, OtherVal.box other2, int y);
-        public MyInterface1 test5(OtherVal.val other1, OtherVal.box other2, int y);
+        public MyInterface1 test2(OtherVal other1, OtherVal? other2, int y);
+        public MyInterface1 test3(OtherVal other1, OtherVal? other2, int y, boolean deopt);
+        public MyInterface1 test4(OtherVal other1, OtherVal? other2, int y);
+        public MyInterface1 test5(OtherVal other1, OtherVal? other2, int y);
         public MyInterface1 test6();
         public MyInterface1 test7(int i1, int i2, int i3, int i4, int i5, int i6);
         public MyInterface1 test8(int i1, int i2, int i3, int i4, int i5, int i6, int i7);
@@ -93,12 +93,12 @@ public class TestC2CCalls {
         }
 
         @Override
-        public MyValue1 test2(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyValue1 test2(OtherVal other1, OtherVal? other2, int y) {
             return new MyValue1(x + other1.x + other2.x + y);
         }
 
         @Override
-        public MyValue1 test3(OtherVal.val other1, OtherVal.box other2, int y, boolean deopt) {
+        public MyValue1 test3(OtherVal other1, OtherVal? other2, int y, boolean deopt) {
             if (!deopt) {
               return new MyValue1(x + other1.x + other2.x + y);
             } else {
@@ -108,12 +108,12 @@ public class TestC2CCalls {
         }
 
         @Override
-        public MyValue1 test4(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyValue1 test4(OtherVal other1, OtherVal? other2, int y) {
             return new MyValue1(x + other1.x + other2.x + y);
         }
 
         @Override
-        public MyValue1 test5(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyValue1 test5(OtherVal other1, OtherVal? other2, int y) {
             return new MyValue1(x + other1.x + other2.x + y);
         }
 
@@ -159,12 +159,12 @@ public class TestC2CCalls {
         }
 
         @Override
-        public MyValue2 test2(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyValue2 test2(OtherVal other1, OtherVal? other2, int y) {
             return new MyValue2(x + other1.x + other2.x + y);
         }
 
         @Override
-        public MyValue2 test3(OtherVal.val other1, OtherVal.box other2, int y, boolean deopt) {
+        public MyValue2 test3(OtherVal other1, OtherVal? other2, int y, boolean deopt) {
             if (!deopt) {
               return new MyValue2(x + other1.x + other2.x + y);
             } else {
@@ -174,12 +174,12 @@ public class TestC2CCalls {
         }
 
         @Override
-        public MyValue2 test4(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyValue2 test4(OtherVal other1, OtherVal? other2, int y) {
             return new MyValue2(x + other1.x + other2.x + y);
         }
 
         @Override
-        public MyValue2 test5(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyValue2 test5(OtherVal other1, OtherVal? other2, int y) {
             return new MyValue2(x + other1.x + other2.x + y);
         }
 
@@ -228,13 +228,13 @@ public class TestC2CCalls {
         @Override
         public MyValue3 test1(OtherVal other, int y) { return MyValue3.default; }
         @Override
-        public MyValue3 test2(OtherVal.val other1, OtherVal.box other2, int y)  { return MyValue3.default; }
+        public MyValue3 test2(OtherVal other1, OtherVal? other2, int y)  { return MyValue3.default; }
         @Override
-        public MyValue3 test3(OtherVal.val other1, OtherVal.box other2, int y, boolean deopt)  { return MyValue3.default; }
+        public MyValue3 test3(OtherVal other1, OtherVal? other2, int y, boolean deopt)  { return MyValue3.default; }
         @Override
-        public MyValue3 test4(OtherVal.val other1, OtherVal.box other2, int y)  { return MyValue3.default; }
+        public MyValue3 test4(OtherVal other1, OtherVal? other2, int y)  { return MyValue3.default; }
         @Override
-        public MyValue3 test5(OtherVal.val other1, OtherVal.box other2, int y)  { return MyValue3.default; }
+        public MyValue3 test5(OtherVal other1, OtherVal? other2, int y)  { return MyValue3.default; }
         @Override
         public MyValue3 test6()  { return MyValue3.default; }
 
@@ -278,13 +278,13 @@ public class TestC2CCalls {
         @Override
         public MyValue4 test1(OtherVal other, int y) { return MyValue4.default; }
         @Override
-        public MyValue4 test2(OtherVal.val other1, OtherVal.box other2, int y)  { return MyValue4.default; }
+        public MyValue4 test2(OtherVal other1, OtherVal? other2, int y)  { return MyValue4.default; }
         @Override
-        public MyValue4 test3(OtherVal.val other1, OtherVal.box other2, int y, boolean deopt)  { return MyValue4.default; }
+        public MyValue4 test3(OtherVal other1, OtherVal? other2, int y, boolean deopt)  { return MyValue4.default; }
         @Override
-        public MyValue4 test4(OtherVal.val other1, OtherVal.box other2, int y)  { return MyValue4.default; }
+        public MyValue4 test4(OtherVal other1, OtherVal? other2, int y)  { return MyValue4.default; }
         @Override
-        public MyValue4 test5(OtherVal.val other1, OtherVal.box other2, int y)  { return MyValue4.default; }
+        public MyValue4 test5(OtherVal other1, OtherVal? other2, int y)  { return MyValue4.default; }
         @Override
         public MyValue4 test6()  { return MyValue4.default; }
 
@@ -325,12 +325,12 @@ public class TestC2CCalls {
         }
 
         @Override
-        public MyObject test2(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyObject test2(OtherVal other1, OtherVal? other2, int y) {
             return new MyObject(x + other1.x + other2.x + y);
         }
 
         @Override
-        public MyObject test3(OtherVal.val other1, OtherVal.box other2, int y, boolean deopt) {
+        public MyObject test3(OtherVal other1, OtherVal? other2, int y, boolean deopt) {
             if (!deopt) {
               return new MyObject(x + other1.x + other2.x + y);
             } else {
@@ -340,12 +340,12 @@ public class TestC2CCalls {
         }
 
         @Override
-        public MyObject test4(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyObject test4(OtherVal other1, OtherVal? other2, int y) {
             return new MyObject(x + other1.x + other2.x + y);
         }
 
         @Override
-        public MyObject test5(OtherVal.val other1, OtherVal.box other2, int y) {
+        public MyObject test5(OtherVal other1, OtherVal? other2, int y) {
             return new MyObject(x + other1.x + other2.x + y);
         }
 

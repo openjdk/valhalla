@@ -60,10 +60,10 @@ value final class MyValue2Inline {
 value public final class MyValue2 implements MyInterface {
     final int x;
     final byte y;
-    final MyValue2Inline.val v1;
+    final MyValue2Inline v1;
 
     @ForceInline
-    public MyValue2(int x, byte y, MyValue2Inline.val v1) {
+    public MyValue2(int x, byte y, MyValue2Inline v1) {
         this.x = x;
         this.y = y;
         this.v1 = v1;

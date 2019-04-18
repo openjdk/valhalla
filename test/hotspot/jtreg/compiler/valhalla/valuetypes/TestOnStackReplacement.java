@@ -157,11 +157,11 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     // OSR compilation with null value type local
 
-    MyValue1.box nullField;
+    MyValue1? nullField;
 
     @Test()
     public void test5() {
-        MyValue1.box vt = nullField;
+        MyValue1? vt = nullField;
         for (int i = 0; i < 50_000; i++) {
             if ((Object)vt != null) {
                 throw new RuntimeException("test5 failed: No NPE thrown");
