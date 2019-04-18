@@ -1795,9 +1795,8 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool incremental_
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
     if (call->method()->has_scalarized_args() && t->is_valuetypeptr() && !t->maybe_null()) {
-      // We don't pass value type arguments by reference but instead
-      // pass each field of the value type
-      ValueTypeNode* vt = arg->isa_ValueType();
+      // We don't pass value type arguments by reference but instead pass each field of the value type
+      ValueTypeNode* vt = arg->as_ValueType();
       vt->pass_fields(this, call, sig_cc, idx);
       // If a value type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().

@@ -2039,4 +2039,29 @@ public class TestLWorld extends ValueTypeTest {
         long result = test80();
         Asserts.assertEQ(result, rI + 2*rL);
     }
+
+    // Test scalarization with exceptional control flow
+    public int test81Callee(MyValue1 vt)  {
+        return vt.x;
+    }
+
+    @Test(failOn = ALLOC + LOAD + STORE)
+    public int test81()  {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        int result = 0;
+        for (int i = 0; i < 10; i++) {
+            try {
+                result += test81Callee(vt);
+            } catch (NullPointerException npe) {
+                result += rI;
+            }
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test81_verifier(boolean warmup) {
+        int result = test81();
+        Asserts.assertEQ(result, 10*rI);
+    }
 }

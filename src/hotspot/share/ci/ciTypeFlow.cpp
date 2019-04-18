@@ -272,18 +272,19 @@ void ciTypeFlow::JsrSet::print_on(outputStream* st) const {
 //   different kinds is always java.lang.Object.
 ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTypeFlow* analyzer) {
   assert(t1 != t2, "checked in caller");
+  if (t1->equals(top_type())) {
+    return t2;
+  } else if (t2->equals(top_type())) {
+    return t1;
+  }
 
-  // Unwrap the types after gathering nullness information
+  // Unwrap after saving nullness information and handling top meets
   bool never_null1 = t1->is_never_null();
   bool never_null2 = t2->is_never_null();
   t1 = t1->unwrap();
   t2 = t2->unwrap();
 
-  if (t1->equals(top_type())) {
-    return t2;
-  } else if (t2->equals(top_type())) {
-    return t1;
-  } else if (t1->is_primitive_type() || t2->is_primitive_type()) {
+  if (t1->is_primitive_type() || t2->is_primitive_type()) {
     // Special case null_type.  null_type meet any reference type T
     // is T.  null_type meet null_type is null_type.
     if (t1->equals(null_type())) {
