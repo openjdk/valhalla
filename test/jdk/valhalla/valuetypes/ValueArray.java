@@ -136,13 +136,13 @@ public class ValueArray {
     }
 
     static value class PointArray {
-        public Point.box[] points;
+        public Point?[] points;
         PointArray() {
-            points = new Point.box[0];
+            points = new Point?[0];
         }
         public static PointArray makeArray(Point... points) {
             PointArray a = PointArray.default;
-            Point.box[] boxArray = new Point.box[points.length];
+            Point?[] boxArray = new Point?[points.length];
             for (int i=0; i < points.length; i++) {
                 boxArray[i] = points[i];
             }

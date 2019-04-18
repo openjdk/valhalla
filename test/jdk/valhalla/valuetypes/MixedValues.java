@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,12 @@ import java.util.List;
 
 public class MixedValues {
     static Point staticPoint = Point.makePoint(10, 10);
-    static Line.box staticLine;   // null static value box field
+    static Line? staticLine;   // null static value box field
     Point p;
     Line l;
     MutablePath mutablePath;
     List<String> list;
-    Point.box nfp;
+    Point? nfp;
 
     public MixedValues(Point p, Line l, MutablePath path, String... names) {
         this.p = p;

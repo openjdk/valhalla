@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,19 @@
  */
 
 public value class NonFlattenValue {
-    Point.box nfp;
+    Point? nfp;
 
     NonFlattenValue() {
         Point p = Point.makePoint(0,0);
         this.nfp = p;
     }
-    public Point.box point() {
+    public Point? point() {
         return nfp;
     }
-    public Point.val pointValue() {
+    public Point pointValue() {
         return nfp;
     }
-    public boolean has(Point.val p1, Point.box p2) {
+    public boolean has(Point p1, Point? p2) {
         return nfp.equals(p1) || nfp.equals(p2);
     }
 

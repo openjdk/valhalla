@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,8 +40,8 @@ public class SubstitutabilityTest {
     Object[][] substitutableCases() {
         Point p1 = Point.makePoint(10, 10);
         Point p2 = Point.makePoint(20, 20);
-        Point.box box1 = p1;
-        Point.box box2 = p2;
+        Point? box1 = p1;
+        Point? box2 = p2;
         Line l1 = Line.makeLine(p1, p2);
         var mpath = MutablePath.makePath(10, 20, 30, 40);
         var mixedValues = new MixedValues(p1, l1, mpath, "value");

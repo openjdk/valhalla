@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -181,9 +181,9 @@ public class ObjectMethods {
 
     static value class MyValue1 {
         Point p = Point.default;
-        Point.box box = Point.default;
+        Point? box = Point.default;
 
-        static MyValue1 make(int x, int y, Point.box box) {
+        static MyValue1 make(int x, int y, Point? box) {
             MyValue1 v = MyValue1.default;
             v = __WithField(v.p, Point.makePoint(x, y));
             v = __WithField(v.box, box);
