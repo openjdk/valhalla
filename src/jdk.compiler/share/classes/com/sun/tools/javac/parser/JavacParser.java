@@ -1259,10 +1259,7 @@ public class JavacParser implements Parser {
                 t = lambdaExpressionOrStatement(false, false, pos);
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
-                if ((mode & NOQUESTION) == 0 && (mode & TYPE) != 0 && token.kind == QUES) {
-                    t.setQuestioned();
-                    nextToken();
-                }
+                handleQuestion(t);
                 loop: while (true) {
                     pos = token.pos;
                     final List<JCAnnotation> annos = typeAnnotationsOpt();
@@ -1354,10 +1351,7 @@ public class JavacParser implements Parser {
                         }
                         // typeArgs saved for next loop iteration.
                         t = toP(F.at(pos).Select(t, ident()));
-                        if ((mode & NOQUESTION) == 0 && (mode & TYPE) != 0 && token.kind == QUES) {
-                            t.setQuestioned();
-                            nextToken();
-                        }
+                        handleQuestion(t);
                         if (tyannos != null && tyannos.nonEmpty()) {
                             t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
                         }
@@ -1469,6 +1463,17 @@ public class JavacParser implements Parser {
         }
         return term3Rest(t, typeArgs);
     }
+
+    // where
+        private void handleQuestion(JCExpression t) {
+            if (token.kind == QUES) {
+                if (((mode & NOQUESTION) == 0 && (mode & TYPE) != 0) ||
+                        (peekToken(0, LBRACKET) && peekToken(1, RBRACKET) && peekToken(2, DOT) && peekToken(3, CLASS))) {
+                    t.setQuestioned();
+                    nextToken();
+                }
+            }
+        }
 
     private List<JCCase> switchExpressionStatementGroup() {
         ListBuffer<JCCase> caseExprs = new ListBuffer<>();
