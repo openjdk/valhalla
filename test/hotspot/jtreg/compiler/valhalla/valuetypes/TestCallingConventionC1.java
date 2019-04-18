@@ -52,7 +52,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test36_helper"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test36_helper", "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
         case 1: return new String[] {"-XX:+EnableValhallaC1", "-XX:TieredStopAtLevel=1"

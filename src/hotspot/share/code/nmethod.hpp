@@ -550,6 +550,7 @@ public:
     CodeBlob::print_block_comment(stream, block_begin);
   }
   void print_nmethod_labels(outputStream* stream, address block_begin) const;
+  void print_entry_parameters(outputStream* stream, address block_begin) const;
 
   // Prints a comment for one native instruction (reloc info, pc desc)
   void print_code_comment_on(outputStream* st, int column, address begin, address end);

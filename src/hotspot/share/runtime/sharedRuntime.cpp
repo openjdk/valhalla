@@ -2752,6 +2752,7 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) {
   _num_value_args = 0;
   _has_value_recv = false;
   _has_scalarized_args = false;
+  _needs_stack_repair = false;
   _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
   if (!method->is_static()) {
     if (method->method_holder()->is_value()) {
