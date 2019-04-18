@@ -691,9 +691,6 @@ const char* Klass::external_name() const {
       strcpy(result + name_len, addr_buf);
       assert(strlen(result) == name_len + addr_len, "");
       return result;
-    } else if (ik->is_nonfindable()) {
-      assert(ik->nonf_external_name() != NULL, "Nonfindable klass has null name");
-      return ik->nonf_external_name()->as_klass_external_name();
     }
   }
   if (name() == NULL)  return "<unknown>";

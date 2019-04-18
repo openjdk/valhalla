@@ -182,9 +182,6 @@ class InstanceKlass: public Klass {
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
 
-  // Provided name for nonfindable classes.
-  Symbol*         _nonf_external_name;
-
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
   // it is stored in the instanceklass as a NULL-terminated UTF-8 string
@@ -451,14 +448,6 @@ class InstanceKlass: public Klass {
   void set_nest_host_index(u2 i)  { _nest_host_index = i; }
   // dynamic nest member support
   void set_nest_host(InstanceKlass* host, TRAPS);
-
-  // Store external name for a nonfindable class.
-  void set_nonf_external_name(Symbol* name) {
-    assert(name == NULL || is_nonfindable(), "Must be nonfindable class");
-    _nonf_external_name = name;
-  }
-
-  Symbol* nonf_external_name() const { return _nonf_external_name; }
 
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host

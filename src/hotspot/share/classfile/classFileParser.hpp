@@ -79,7 +79,6 @@ class ClassFileParser {
 
   const ClassFileStream* _stream; // Actual input stream
   Symbol* _class_name;
-  Symbol* _nonf_class_name;
   mutable ClassLoaderData* _loader_data;
   const InstanceKlass* _unsafe_anonymous_host;
   GrowableArray<Handle>* _cp_patches; // overrides for CP entries
@@ -492,8 +491,6 @@ class ClassFileParser {
                      FieldLayoutInfo* info,
                      TRAPS);
 
-   void update_class_name(Symbol* new_name);
-
  public:
   ClassFileParser(ClassFileStream* stream,
                   Symbol* name,
@@ -531,7 +528,6 @@ class ClassFileParser {
   const GrowableArray<Handle>* cp_patches() const { return _cp_patches; }
   ClassLoaderData* loader_data() const { return _loader_data; }
   const Symbol* class_name() const { return _class_name; }
-  const Symbol* nonf_class_name() const { return _nonf_class_name; }
   const InstanceKlass* super_klass() const { return _super_klass; }
 
   ReferenceType reference_type() const { return _rt; }

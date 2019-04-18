@@ -193,8 +193,11 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
   // increment counter
   THREAD->statistical_info().incr_define_class_count();
 
+  assert(!(is_nonfindable && (unsafe_anonymous_host != NULL)),
+         "nonFindable class has an anonymous host");
+
   // Skip this processing for VM nonfindable or anonymous classes
-  if (is_nonfindable || (unsafe_anonymous_host == NULL)) {
+  if (!is_nonfindable && (unsafe_anonymous_host == NULL)) {
     stream = check_class_file_load_hook(stream,
                                         name,
                                         loader_data,

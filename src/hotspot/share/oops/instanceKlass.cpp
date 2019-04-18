@@ -479,7 +479,6 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _nest_members(NULL),
   _nest_host_index(0),
   _nest_host(NULL),
-  _nonf_external_name(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
@@ -2583,7 +2582,6 @@ void InstanceKlass::release_C_heap_structures() {
 
   // Decrement symbol reference counts associated with the unloaded class.
   if (_name != NULL) _name->decrement_refcount();
-  if (_nonf_external_name != NULL) _nonf_external_name->decrement_refcount();
 
   // unreference array name derived from this class name (arrays of an unloaded
   // class can't be referenced anymore).

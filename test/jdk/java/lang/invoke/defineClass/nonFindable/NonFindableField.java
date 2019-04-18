@@ -22,49 +22,19 @@
  */
 
 /*
- *  The classfile for this class will be loaded directly and used to define
- *  either a non-findable or anonymous class.
+ *  The classfile for this class will be used to define a non-findable
+ *  class.  The load of this class will fail because non-findable classes
+ *  cannot user their name in field signatures.
  */
-public class NonFindable implements Test {
+public class NonFindableField implements Test {
 
-    NonFindable other = null;
+    NonFindableField other = null;
 
-    private String realTest() {
-        Object o = other;
-        NonFindable local = this;
-        local = other;
-        local = (NonFindable) o;
-        local = new NonFindable();
-
-        set_other(null);
-
-        local = getThis();
-
-        set_other_maybe(new Object());
-        set_other_maybe(this);
-        return "NonFindable";
-    }
-
-    private NonFindable getThis() {
-        return null;
-    }
-
-    private void set_other(NonFindable t) {
-        other = t;
-    }
-
-    private void set_other_maybe(Object o) {
-        if (o instanceof NonFindable) {
-        }
+    private void realTest() {
+        other = this;  // field signature test
     }
 
     public void test() {
-        String result = realTest();
-        // Make sure that the Utf8 constant pool entry for "NonFindable" is okay.
-        if (!result.substring(0, 7).equals("NonFind") ||
-            !result.substring(7).equals("able")) {
-            throw new RuntimeException("'NonFindable string is bad: " + result);
-        }
-
+        realTest();
     }
 }

@@ -5477,7 +5477,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Set name and CLD before adding to CLD
   ik->set_class_loader_data(_loader_data);
   ik->set_name(_class_name);
-  ik->set_nonf_external_name(_nonf_class_name);
 
   // Add all classes to our internal class loader list here,
   // including classes in the bootstrap (NULL) class loader.
@@ -5704,18 +5703,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   debug_only(ik->verify();)
 }
 
-void ClassFileParser::update_class_name(Symbol* new_class_name) {
-  // Decrement the refcount in the old name, since we're clobbering it.
-  _class_name->decrement_refcount();
-
-  _class_name = new_class_name;
-  // Increment the refcount of the new name.
-  // Now the ClassFileParser owns this name and will decrement in
-  // the destructor.
-  _class_name->increment_refcount();
-}
-
-
 // For an unsafe anonymous class that is in the unnamed package, move it to its host class's
 // package by prepending its host class's package name to its class name and setting
 // its _class_name field.
@@ -5790,7 +5777,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  TRAPS) :
   _stream(stream),
   _class_name(NULL),
-  _nonf_class_name(NULL),
   _loader_data(loader_data),
   _unsafe_anonymous_host(unsafe_anonymous_host),
   _cp_patches(cp_patches),
@@ -6022,10 +6008,15 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     cp_size, CHECK);
 
   _orig_cp_size = cp_size;
-  if (int(cp_size) + _max_num_patched_klasses > 0xffff) {
-    THROW_MSG(vmSymbols::java_lang_InternalError(), "not enough space for patched classes");
+  if (is_nonfindable()) { // Add a slot for nonfindable class name.
+    assert(_max_num_patched_klasses == 0, "Sanity check");
+    cp_size++;
+  } else {
+    if (int(cp_size) + _max_num_patched_klasses > 0xffff) {
+      THROW_MSG(vmSymbols::java_lang_InternalError(), "not enough space for patched classes");
+    }
+    cp_size += _max_num_patched_klasses;
   }
-  cp_size += _max_num_patched_klasses;
 
   _cp = ConstantPool::allocate(_loader_data,
                                cp_size,
@@ -6101,39 +6092,60 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // un-named, nonfindable or unsafe-anonymous class.
 
   if (_is_nonfindable) {
-    // Save the given _class_name before overwriting it with name in constant pool.
-    _nonf_class_name = _class_name;
-    _nonf_class_name->increment_refcount();
-     _class_name = class_name_in_cp;
-  } else {
-    // NOTE: !_is_nonfindable does not imply "findable" as it could be an old-style
-    //       "non-findable" unsafe-anonymous class
+    _class_name->increment_refcount();
 
-    // If this is an anonymous class fix up its name if it is in the unnamed
-    // package.  Otherwise, throw IAE if it is in a different package than
-    // its host class.
-    if (_unsafe_anonymous_host != NULL) {
-      _class_name = class_name_in_cp;
-      fix_unsafe_anonymous_class_name(CHECK);
-    } else {
-      // Check if name in class file matches given name
-      if (_class_name != class_name_in_cp) {
-        if (_class_name != vmSymbols::unknown_class_name()) {
-          ResourceMark rm(THREAD);
-          Exceptions::fthrow(THREAD_AND_LOCATION,
-                             vmSymbols::java_lang_NoClassDefFoundError(),
-                             "%s (wrong name: %s)",
-                             class_name_in_cp->as_C_string(),
-                             _class_name->as_C_string()
-                             );
-          return;
-        } else {
-          // The class name was not known by the caller so we set it from
-          // the value in the CP.
-          _class_name = class_name_in_cp;
-        }
+    // Add a Utf8 entry containing the nonfindable name.
+    assert(_class_name != NULL, "Unexpected null _class_name");
+    int nonfindable_name_index = _orig_cp_size; // this is an extra slot we added
+    cp->symbol_at_put(nonfindable_name_index, _class_name);
+
+    if (_need_verify) {
+      // Since this name was not in the original constant pool, it didn't get
+      // checked during constantpool parsing.  So, check it here.
+      verify_legal_class_name(_class_name, CHECK);
+    }
+
+    // Update this_class_index's slot in the constant pool with the new Utf8 entry.
+    // We have to update the resolved_klass_index and the name_index together
+    // so extract the existing resolved_klass_index first.
+    CPKlassSlot cp_klass_slot = cp->klass_slot_at(_this_class_index);
+    int resolved_klass_index = cp_klass_slot.resolved_klass_index();
+    cp->unresolved_klass_at_put(_this_class_index, nonfindable_name_index, resolved_klass_index);
+    assert(cp->klass_slot_at(_this_class_index).name_index() == _orig_cp_size,
+           "Bad name_index");
+
+  // NOTE: !_is_nonfindable does not imply "findable" as it could be an old-style
+  //       "non-findable" unsafe-anonymous class
+
+  // If this is an anonymous class fix up its name if it is in the unnamed
+  // package.  Otherwise, throw IAE if it is in a different package than
+  // its host class.
+  } else if (_unsafe_anonymous_host != NULL) {
+    Symbol* old_class_name = _class_name;
+    _class_name = class_name_in_cp;
+    _class_name->increment_refcount();
+    fix_unsafe_anonymous_class_name(CHECK);
+    old_class_name->decrement_refcount();
+
+  } else {
+    // Check if name in class file matches given name
+    if (_class_name != class_name_in_cp) {
+      if (_class_name != vmSymbols::unknown_class_name()) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(THREAD_AND_LOCATION,
+                           vmSymbols::java_lang_NoClassDefFoundError(),
+                           "%s (wrong name: %s)",
+                           class_name_in_cp->as_C_string(),
+                           _class_name->as_C_string()
+                           );
+        return;
+      } else {
+        // The class name was not known by the caller so we set it from
+        // the value in the CP.
+        _class_name = class_name_in_cp;
+        _class_name->increment_refcount();
       }
-      // else nothing do: the expected class name matches what is in the CP
+      // else nothing to do: the expected class name matches what is in the CP
     }
   }
 
