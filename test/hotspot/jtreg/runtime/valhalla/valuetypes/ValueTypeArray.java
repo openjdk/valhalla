@@ -34,7 +34,7 @@ import static jdk.test.lib.Asserts.*;
  * @test ValueTypeArray
  * @summary Plain array test for Value Types
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
@@ -196,13 +196,13 @@ public class ValueTypeArray {
         assertEquals(x, 0, "Bad Point Value");
     }
 
-    static final value class MyInt implements Comparable<MyInt> {
+    static final value class MyInt implements Comparable<MyInt?> {
         final int value;
 
         private MyInt() { value = 0; }
         public int getValue() { return value; }
         public String toString() { return "MyInt: " + getValue(); }
-        public int compareTo(MyInt that) { return Integer.compare(this.getValue(), that.getValue()); }
+        public int compareTo(MyInt? that) { return Integer.compare(this.getValue(), that.getValue()); }
         public boolean equals(Object o) {
             if (o instanceof MyInt) {
                 return this.getValue() == ((MyInt) o).getValue();
