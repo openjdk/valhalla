@@ -55,7 +55,7 @@ public value class IntercastTest {
             return new Tuple(index, array[index]);
         }
 
-        Cursor.box next() {
+        Cursor? next() {
             if (index + 1 == array.length) {
                 return null;
             }
@@ -63,7 +63,7 @@ public value class IntercastTest {
         }
     }
 
-    private static Cursor.box indexedElements(int[] array) {
+    private static Cursor? indexedElements(int[] array) {
         if (array.length == 0) {
             return null;
         }
@@ -72,7 +72,7 @@ public value class IntercastTest {
 
     public int sum() {
         int sum = 0;
-        for (Cursor.box cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
+        for (Cursor? cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
             Tuple tuple = cursor.current();
             sum += tuple.index + tuple.element;
         }
@@ -84,7 +84,7 @@ public value class IntercastTest {
         if (x.sum() != 63 || x.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }
-        IntercastTest.box xbox = (IntercastTest.box) x;
+        IntercastTest? xbox = (IntercastTest?) x;
         if (xbox.sum() != 63 || xbox.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }

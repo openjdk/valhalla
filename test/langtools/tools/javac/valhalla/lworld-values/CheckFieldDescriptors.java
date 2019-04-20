@@ -83,11 +83,11 @@ public value class CheckFieldDescriptors {
 class CheckFieldDescriptorsAuxilliary {
 
     CheckFieldDescriptors f1;
-    CheckFieldDescriptors.box f2;
+    CheckFieldDescriptors? f2;
     CheckFieldDescriptors? f3;
 
     CheckFieldDescriptors?[] a1 = new CheckFieldDescriptors?[42];
-    CheckFieldDescriptors.box[] a2 = new CheckFieldDescriptors.box[42];
+    CheckFieldDescriptors?[] a2 = new CheckFieldDescriptors?[42];
     CheckFieldDescriptors[] a3 = new CheckFieldDescriptors[42];
-    CheckFieldDescriptors.val[] a4 = new CheckFieldDescriptors.val[42];
+    CheckFieldDescriptors[] a4 = new CheckFieldDescriptors[42];
 }

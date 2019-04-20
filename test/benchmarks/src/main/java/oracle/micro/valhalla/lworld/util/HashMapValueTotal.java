@@ -94,7 +94,7 @@ public class HashMapValueTotal<K, V> extends AbstractMap<K, V> {
 
     public static final class HEntry<K, V> implements Map.Entry<K, V> {
 
-        Entry.val <K, V> entry;
+        Entry <K, V> entry;
 
         public HEntry(Entry<K, V> e) {
             this.entry = e;

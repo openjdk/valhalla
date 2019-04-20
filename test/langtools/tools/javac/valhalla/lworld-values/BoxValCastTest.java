@@ -39,15 +39,15 @@ public class BoxValCastTest {
 
     static value class VT {
         int f = 0;
-        static final VT.box vtbox = new VT(); // cast
-        static VT.val vtval = vtbox; // cast
+        static final VT? vtbox = new VT(); // cast
+        static VT vtval = vtbox; // cast
         static VT vt = vtbox; // cast
-        static VT.val vtval2 = vtval; // no cast
-        static VT.box box = vtval; // cast
-        static VT.box box2 = box; // no cast
-        static VT.box box3 = id(new VT()); // cast + cast
+        static VT vtval2 = vtval; // no cast
+        static VT? box = vtval; // cast
+        static VT? box2 = box; // no cast
+        static VT? box3 = id(new VT()); // cast + cast
 
-        static VT id(VT.box vtb) {
+        static VT id(VT? vtb) {
             return vtb;
         }
     }

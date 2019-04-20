@@ -10,11 +10,11 @@ final value class CheckFlattenableCycles {
         CheckFlattenableCycles cfc;
     }
     value final class InnerValue {
-        final CheckFlattenableCycles.val cfc = CheckFlattenableCycles.default; // Error.
+        final CheckFlattenableCycles     cfc = CheckFlattenableCycles.default; // Error.
     }
     final CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.
     final int i = 10;
     final String s = "blah";
     final InnerRef ir = new InnerRef(); // OK.
-    final InnerValue.val iv = InnerValue.default; // Error
+    final InnerValue     iv = InnerValue.default; // Error
 }

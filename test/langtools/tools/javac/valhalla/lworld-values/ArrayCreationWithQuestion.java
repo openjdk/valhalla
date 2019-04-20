@@ -39,9 +39,9 @@ public class ArrayCreationWithQuestion {
 
     static value class VT {
         VT?[] a1 = new VT?[42];
-        VT.box[] a2 = new VT.box[42];
+        VT?[] a2 = new VT?[42];
         VT[] a3 = new VT[42];
-        VT.val[] a4 = new VT.val[42];
+        VT[] a4 = new VT[42];
     }
 
     public static void main(String[] args) {

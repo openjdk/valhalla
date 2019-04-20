@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
-import java.util.stream.Collectors;
 
 import javax.tools.JavaFileManager;
 import javax.tools.FileObject;
@@ -1061,8 +1060,8 @@ public class ClassWriter extends ClassFile {
     /** Enter an inner class into the `innerClasses' set/queue.
      */
     void enterInner(ClassSymbol c) {
-        if (types.isLoxSymbol(c))
-            c = types.getValSymbol(c);
+        if (types.isProjectedNullable(c))
+            c = types.getNullFreeValueSymbol(c);
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }

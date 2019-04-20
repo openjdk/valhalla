@@ -606,11 +606,11 @@ public class Types {
         }
 
         if (isValue(t) || isValue(s)) {
-            ClassSymbol lox = loxMap.get(t.tsym);
+            ClassSymbol lox = nullableProjectionsMap.get(t.tsym);
             if (lox != null && s.tsym == lox)
                 return true;
 
-            lox = loxMap.get(s.tsym);
+            lox = nullableProjectionsMap.get(s.tsym);
             if (lox != null && t.tsym == lox)
                 return true;
         }
@@ -1016,12 +1016,12 @@ public class Types {
         return allowValueBasedClasses && t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUEBASED) != 0;
     }
 
-    private final HashMap<ClassSymbol, ClassSymbol> loxMap = new HashMap<>();
+    private final HashMap<ClassSymbol, ClassSymbol> nullableProjectionsMap = new HashMap<>();
 
-    public ClassSymbol loxTypeSymbol(ClassSymbol c) {
+    public ClassSymbol projectedNullableType(ClassSymbol c) {
         if (!c.isValue() || !c.type.hasTag(CLASS))
             return null;
-        ClassSymbol lox = loxMap.get(c);
+        ClassSymbol lox = nullableProjectionsMap.get(c);
         if (lox != null)
             return lox;
 
@@ -1035,18 +1035,18 @@ public class Types {
         lox.members_field = c.members();
         loxType.tsym = lox;
 
-        loxMap.put(c, lox);
-        loxMap.put(lox, c);
+        nullableProjectionsMap.put(c, lox);
+        nullableProjectionsMap.put(lox, c);
         return lox;
     }
 
-    public boolean isLoxSymbol(Symbol s) {
-        return s != null && !s.isValue() && s.type.hasTag(CLASS) && loxMap.get(s) != null;
+    public boolean isProjectedNullable(Symbol s) {
+        return s != null && !s.isValue() && s.type.hasTag(CLASS) && nullableProjectionsMap.get(s) != null;
     }
 
-    public ClassSymbol getValSymbol(Symbol b) {
+    public ClassSymbol getNullFreeValueSymbol(Symbol b) {
         if (b != null && !b.isValue() && b.type.hasTag(CLASS))
-            return loxMap.get(b);
+            return nullableProjectionsMap.get(b);
         return null;
     }
 
@@ -1702,11 +1702,11 @@ public class Types {
         if (t == s)
             return true;
         if (isValue(t) && !isValue(s)) {
-            if (loxMap.get(t.tsym) == s.tsym)
+            if (nullableProjectionsMap.get(t.tsym) == s.tsym)
                 return true;
         }
         if (isValue(s) && !isValue(t)) {
-            if (loxMap.get(s.tsym) == t.tsym)
+            if (nullableProjectionsMap.get(s.tsym) == t.tsym)
                 return true;
         }
         if (t.isPrimitive() != s.isPrimitive()) {

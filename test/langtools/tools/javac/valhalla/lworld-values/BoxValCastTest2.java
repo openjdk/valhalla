@@ -40,9 +40,9 @@ public class BoxValCastTest2 {
     static value class VT {
         int f = 0;
         static final VT? vtbox = new VT(); // cast
-        static VT.val vtval = vtbox; // cast
+        static VT vtval = vtbox; // cast
         static VT vt = vtbox; // cast
-        static VT.val vtval2 = vtval; // no cast
+        static VT vtval2 = vtval; // no cast
         static VT? box = vtval; // cast
         static VT? box2 = box; // no cast
         static VT? box3 = id(new VT()); // cast + cast

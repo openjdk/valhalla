@@ -2171,16 +2171,6 @@ public class Resolve {
                     : new AccessError(env, site, sym);
             }
         }
-
-        if (c.isValue() && site.tsym == c) {
-            if (name == names.val) {
-                return c;
-            }
-            if (name == names.box) {
-                return types.loxTypeSymbol((ClassSymbol) c);
-            }
-        }
-
         return typeNotFound;
     }
 
@@ -2232,7 +2222,7 @@ public class Resolve {
                           Name name,
                           TypeSymbol c) {
         Symbol sym = findMemberTypeInternal(env,site, name, c);
-        return env.info.isQuestioned && sym.isValue() ? types.loxTypeSymbol((ClassSymbol) sym) : sym;
+        return env.info.isQuestioned && sym.isValue() ? types.projectedNullableType((ClassSymbol) sym) : sym;
     }
 
     /** Find qualified member type.
@@ -2294,7 +2284,7 @@ public class Resolve {
      */
     Symbol findType(Env<AttrContext> env, Name name) {
         Symbol sym = findTypeInternal(env, name);
-        return env.info.isQuestioned && sym.isValue() ? types.loxTypeSymbol((ClassSymbol) sym) : sym;
+        return env.info.isQuestioned && sym.isValue() ? types.projectedNullableType((ClassSymbol) sym) : sym;
     }
 
     /** Find an unqualified type symbol.

@@ -30,6 +30,6 @@
  */
 
 public class BogusIncompatibility {
-  MyValue.box field = MyValue.create();
+  MyValue? field = MyValue.create();
   MyValue? field2 = MyValue.create();
 }

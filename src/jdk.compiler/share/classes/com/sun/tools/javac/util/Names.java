@@ -184,8 +184,6 @@ public class Names {
     public final Name module_info;
     public final Name package_info;
     public final Name requireNonNull;
-    public final Name box;
-    public final Name val;
 
     // lambda-related
     public final Name lambda;
@@ -345,8 +343,6 @@ public class Names {
         module_info = fromString("module-info");
         package_info = fromString("package-info");
         requireNonNull = fromString("requireNonNull");
-        box = fromString("box");
-        val = fromString("val");
 
         //lambda-related
         lambda = fromString("lambda$");

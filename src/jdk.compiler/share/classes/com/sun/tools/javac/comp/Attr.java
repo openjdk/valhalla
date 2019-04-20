@@ -27,7 +27,6 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
@@ -3920,8 +3919,8 @@ public class Attr extends JCTree.Visitor {
         /* As we simply attach the members from the value type to its light weight box type
            without reassigning ownership, always perform any lookups on the value type.
          */
-        if (types.isLoxSymbol(site.tsym))
-            site = types.getValSymbol(site.tsym).type;
+        if (types.isProjectedNullable(site.tsym))
+            site = types.getNullFreeValueSymbol(site.tsym).type;
 
         boolean selectSuperPrev = env.info.selectSuper;
         env.info.selectSuper =
