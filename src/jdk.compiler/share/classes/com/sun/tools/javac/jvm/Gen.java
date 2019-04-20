@@ -126,6 +126,7 @@ public class Gen extends JCTree.Visitor {
         debugCode = options.isSet("debug.code");
         disableVirtualizedPrivateInvoke = options.isSet("disableVirtualizedPrivateInvoke");
         pool = new Pool(types);
+        staticInitValueFactory = options.isSet("staticInitValueFactory");
 
         // ignore cldc because we cannot have both stackmap formats
         this.stackMap = StackMapFormat.JSR202;
@@ -139,6 +140,8 @@ public class Gen extends JCTree.Visitor {
     private final boolean genCrt;
     private final boolean debugCode;
     private boolean disableVirtualizedPrivateInvoke;
+
+    private boolean staticInitValueFactory;
 
     /** Code buffer, set by genMethod.
      */
@@ -966,7 +969,7 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isValueFactory()) {
+                    } else if (env.enclMethod.sym.isValueFactory(staticInitValueFactory)) {
                         items.makeLocalItem(env.enclMethod.factoryProduct).load();
                         code.emitop0(areturn);
                     } else {

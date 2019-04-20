@@ -54,10 +54,12 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
+import com.sun.tools.javac.util.Options;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.sun.tools.javac.code.Flags.STATIC;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.tree.JCTree.Tag.APPLY;
@@ -99,6 +101,8 @@ public class TransValues extends TreeTranslator {
     // list of factories synthesized so far.
     private List<JCTree> staticFactories;
 
+    private boolean staticInitValueFactory;
+
     // Map from constructor symbols to factory symbols.
     private Map<MethodSymbol, MethodSymbol> init2factory = new HashMap<>();
 
@@ -115,6 +119,8 @@ public class TransValues extends TreeTranslator {
         make = TreeMaker.instance(context);
         types = Types.instance(context);
         names = Names.instance(context);
+        Options options = Options.instance(context);
+        staticInitValueFactory = options.isSet("staticInitValueFactory");
     }
 
     @SuppressWarnings("unchecked")
@@ -176,6 +182,11 @@ public class TransValues extends TreeTranslator {
         try {
             if (constructingValue()) {
 
+                if (staticInitValueFactory) {
+                    visitMethodDef2(tree);
+                    return;
+                }
+
                 /* Mutate this value constructor into an equivalent static value factory, leaving in place
                    a dummy constructor. (A placeholder constructor is still required so that Attr and
                    other earlier pipeline stages will see the required constructors to bind any reference
@@ -205,7 +216,7 @@ public class TransValues extends TreeTranslator {
                     Assert.check(symbol.owner == syms.objectType.tsym);
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
                     final JCExpression type = make.Type(currentClass.type);
-                    rhs = make.Select(type, new VarSymbol(Flags.STATIC, names._default, currentClass.type, currentClass.sym));
+                    rhs = make.Select(type, new VarSymbol(STATIC, names._default, currentClass.type, currentClass.sym));
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.$makeValue$(args);
                     Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
@@ -233,7 +244,7 @@ public class TransValues extends TreeTranslator {
                    to it, wiping out the ctor body itself.
                 */
                 MethodSymbol factorySym = getValueFactory(tree.sym);
-                JCMethodDecl factoryMethod = make.MethodDef(make.Modifiers(tree.mods.flags | Flags.SYNTHETIC | Flags.STATIC, tree.mods.annotations),
+                JCMethodDecl factoryMethod = make.MethodDef(make.Modifiers(tree.mods.flags | Flags.SYNTHETIC | STATIC, tree.mods.annotations),
                         factorySym.name,
                         make.Type(factorySym.type.getReturnType()),
                         tree.typarams,
@@ -255,6 +266,82 @@ public class TransValues extends TreeTranslator {
 
                 final JCExpressionStatement superCall = make.Exec(make.Apply(null, meth, List.nil()).setType(syms.voidType));
                 tree.body = make.at(tree.body).Block(0, List.of(superCall));
+                result = tree;
+                return;
+            }
+            super.visitMethodDef(tree);
+        } finally {
+            currentMethod = previousMethod;
+        }
+    }
+
+    public void visitMethodDef2(JCMethodDecl tree) {
+        JCMethodDecl previousMethod = currentMethod;
+        currentMethod = tree;
+        try {
+            if (constructingValue()) {
+
+                /* Mutate this value constructor into an equivalent static value factory, leaving in place
+                   a dummy constructor. (A placeholder constructor is still required so that Attr and
+                   other earlier pipeline stages will see the required constructors to bind any reference
+                   style instantiations to.)
+
+                   The verifier ensures that the `new' bytecode can never be used with a value class, so
+                   constructor body can be essentially wiped out except for a call that chains to super
+                   constructor. (The latter is mandated by the verifier.)
+                */
+
+                make.at(tree.pos());
+                JCExpressionStatement exec = chainedConstructorCall(tree);
+                Assert.check(exec != null && TreeInfo.isSelfCall(exec));
+                JCMethodInvocation call = (JCMethodInvocation) exec.expr;
+
+                /* Unlike the reference construction sequence where `this' is allocated ahead of time and
+                   is passed as an argument into the <init> method, a value factory must allocate the value
+                   instance that forms the `product' by itself. We do that by injecting a prologue here.
+                */
+                VarSymbol product = currentMethod.factoryProduct = new VarSymbol(0, names.dollarValue, currentClass.sym.type, currentMethod.sym); // TODO: owner needs rewiring
+                JCExpression rhs;
+
+                final Name name = TreeInfo.name(call.meth);
+                MethodSymbol symbol = (MethodSymbol)TreeInfo.symbol(call.meth);
+                if (names._super.equals(name)) { // "initial" constructor.
+                    // Synthesize code to allocate factory "product" via: V $this = V.default;
+                    Assert.check(symbol.owner == syms.objectType.tsym);
+                    Assert.check(symbol.type.getParameterTypes().size() == 0);
+                    final JCExpression type = make.Type(currentClass.type);
+                    rhs = make.Select(type, new VarSymbol(STATIC, names._default, currentClass.type, currentClass.sym));
+                } else {
+                    // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.$makeValue$(args);
+                    Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
+                    MethodSymbol factory = getValueFactory(symbol);
+                    final JCIdent ident = make.Ident(factory);
+                    rhs = make.App(ident, call.args);
+                    ((JCMethodInvocation)rhs).varargsElement = call.varargsElement;
+                }
+
+                /* The value product allocation prologue must precede any synthetic inits !!!
+                   as these may reference `this' which gets pre-allocated for references but
+                   not for values.
+                */
+                JCStatement prologue = make.VarDef(product, rhs);
+                tree.body.stats = tree.body.stats.prepend(prologue).diff(List.of(exec));
+                tree.body = translate(tree.body);
+
+                MethodSymbol factorySym = getValueFactory(tree.sym);
+                currentMethod.setType(factorySym.type);
+                currentMethod.factoryProduct = product;
+                currentClass.sym.members().remove(tree.sym);
+                tree.sym = factorySym;
+                currentClass.sym.members().enter(factorySym);
+                tree.mods.flags |= STATIC;
+
+                /* We may need an epilogue that returns the value product, but we can't eagerly insert
+                   a return here, since we don't know much about control flow here. Gen#genMethod
+                   will insert a return of the factory product if control does reach the end and would
+                   "fall off the cliff" otherwise.
+                */
+
                 result = tree;
                 return;
             }
@@ -386,8 +473,8 @@ public class TransValues extends TreeTranslator {
                                                 init.owner.type,
                                                 init.type.getThrownTypes(),
                                                 init.owner.type.tsym);
-        factory = new MethodSymbol(init.flags_field | Flags.STATIC | Flags.SYNTHETIC,
-                                        names.makeValue,
+        factory = new MethodSymbol(init.flags_field | STATIC | (staticInitValueFactory ? 0 : Flags.SYNTHETIC),
+                                        staticInitValueFactory ? names.init : names.makeValue,
                                         factoryType,
                                         init.owner);
         factory.setAttributes(init);

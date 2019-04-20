@@ -424,13 +424,14 @@ public abstract class Symbol extends AnnoConstruct implements Element {
     /** Is this symbol a constructor?
      */
     public boolean isConstructor() {
-        return name == name.table.names.init;
+        return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
     /** Is this symbol a value factory?
      */
-    public boolean isValueFactory() {
-        return name == name.table.names.makeValue;
+    public boolean isValueFactory(boolean staticInitValueFactory) {
+        return (name == name.table.names.makeValue ||
+                (staticInitValueFactory && name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 
     /** The fully qualified name of this symbol.

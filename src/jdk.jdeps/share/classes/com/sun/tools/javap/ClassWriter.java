@@ -510,6 +510,11 @@ public class ClassWriter extends BasicWriter {
         }
         switch (getName(m)) {
             case "<init>":
+                String returnType = getJavaReturnType(d);
+                if (!returnType.equals("void")) { // value static factories
+                    print(returnType);
+                    print(" ");
+                }
                 print(getJavaName(classFile));
                 print(getJavaParameterTypes(d, flags));
                 break;
