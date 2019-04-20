@@ -197,7 +197,6 @@ compiler.err.preview.without.source.or.release
 
 # Value types
 compiler.err.cyclic.value.type.membership
-compiler.err.garbled.value.reference.instantiation
 compiler.err.value.does.not.support
 compiler.err.make.default.with.nonvalue
 compiler.err.value.may.not.extend

@@ -26,7 +26,7 @@
  * @bug 8214421
  * @summary Q<->L mixing should be via checkcasts
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDallowWithFieldOperator BoxValCastTest.java
+ * @compile BoxValCastTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla BoxValCastTest
  * @modules jdk.compiler
  */

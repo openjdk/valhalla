@@ -25,7 +25,7 @@
  * @test
  * @bug 8198749
  * @summary Test that qualified this based access to instance fields works ok.
- * @compile -XDallowGenericsOverValues ValueConstructorRef.java
+ * @compile ValueConstructorRef.java
  * @run main/othervm -XX:+EnableValhalla ValueConstructorRef
  */
 
@@ -42,7 +42,7 @@ public value class ValueConstructorRef {
     }
     
     public static void main(String [] args) {   
-    	Supplier<ValueConstructorRef> sx = ValueConstructorRef::new;
+    	Supplier<ValueConstructorRef?> sx = ValueConstructorRef::new;
     	ValueConstructorRef x = sx.get();
         if (!x.toString().equals("[ValueConstructorRef x=1234 y=5678]"))
             throw new AssertionError(x);

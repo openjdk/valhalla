@@ -94,7 +94,6 @@ public class Check {
     private final Target target;
     private final Profile profile;
     private final boolean warnOnAnyAccessToMembers;
-    private final boolean allowGenericsOverValues;
     private final boolean allowValueBasedClasses;
 
     // The set of lint options currently in effect. It is initialized
@@ -136,7 +135,6 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
-        allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
@@ -778,7 +776,7 @@ public class Check {
     List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, allowGenericsOverValues);
+            l.head = checkRefType(tl.head.pos(), l.head, false);
             tl = tl.tail;
         }
         return types;
@@ -815,7 +813,7 @@ public class Check {
     }
 
     void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        if (!allowGenericsOverValues && t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
+        if (t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
             valueParameterizationChecker.visit(t, pos);
         }
     }
@@ -833,7 +831,7 @@ public class Check {
         @Override
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
-                if (types.isValue(targ) && !allowGenericsOverValues) {
+                if (types.isValue(targ)) {
                     log.error(pos, Errors.GenericParameterizationWithValueType(t));
                 }
                 visit(targ, pos);

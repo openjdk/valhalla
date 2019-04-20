@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Value types cannot parameterize generic types (except under experimental mode)
  * @compile/fail/ref=ValueOverGenericsTest.out -XDrawDiagnostics ValueOverGenericsTest.java
- * @compile/fail/ref=ValueOverGenericsTest2.out -XDrawDiagnostics -XDallowGenericsOverValues ValueOverGenericsTest.java
+ *
  */
 
 import java.util.ArrayList;

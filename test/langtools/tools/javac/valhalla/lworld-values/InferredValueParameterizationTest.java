@@ -3,7 +3,7 @@
  * @bug 8210346
  * @summary inferred value typed `type arguments' are allowed by Javac even without -XDallowGenericsOverValues
  * @compile/fail/ref=InferredValueParameterizationTest.out -XDrawDiagnostics -XDdev InferredValueParameterizationTest.java
- * @compile -XDallowGenericsOverValues -XDrawDiagnostics -XDdev InferredValueParameterizationTest.java
+ *
  */
 
 import java.util.List;

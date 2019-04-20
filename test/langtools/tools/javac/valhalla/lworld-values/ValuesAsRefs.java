@@ -24,14 +24,14 @@
 /**
  * @test
  * @summary Test that values code like a class - i.e are accepted in some places where only references used be, when invoked with the experimental mode -XDallowGenericsOverValues
-   @compile  -XDallowGenericsOverValues ValuesAsRefs.java
+   @compile  ValuesAsRefs.java
  * @run main/othervm -XX:+EnableValhalla ValuesAsRefs
  */
 import java.util.ArrayList;
 
 public final value class ValuesAsRefs {
 
-    final ArrayList<? extends ValuesAsRefs> ao = null; // values can be wildcard bounds.
+    final ArrayList<? extends ValuesAsRefs?> ao = null; // values can be wildcard bounds.
 
     final value class I implements java.io.Serializable {
         final int y = 42;
@@ -40,15 +40,15 @@ public final value class ValuesAsRefs {
     void foo() {
         I i = this.new I();  // values can be enclosing instances.
         i = ValuesAsRefs.I.default;
-        Object o = (I & java.io.Serializable) i; // values can be used in intersection casts
+        Object o = (I? & java.io.Serializable) i; // values can be used in intersection casts
     }
     <T> void goo() {
-        this.<ValuesAsRefs>goo(); // values can be type arguments to generic method calls
+        this.<ValuesAsRefs?>goo(); // values can be type arguments to generic method calls
     }
 
     public static void main(String [] args) {
         Object o = null;
-        ArrayList<ValuesAsRefs.I> aloi = new ArrayList<>(); // values can be type arguments.
+        ArrayList<ValuesAsRefs.I?> aloi = new ArrayList<>(); // values can be type arguments.
         boolean OK = false;
         try {
             aloi.add((ValuesAsRefs.I) o);

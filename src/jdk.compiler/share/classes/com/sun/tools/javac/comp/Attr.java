@@ -163,10 +163,8 @@ public class Attr extends JCTree.Visitor {
         allowStaticInterfaceMethods = Feature.STATIC_INTERFACE_METHODS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowEmptyValues = options.isSet("allowEmptyValues");
         allowValueMemberCycles = options.isSet("allowValueMemberCycles");
-        allowValueConstructors = options.isUnset("disallowValueConstructors");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
@@ -204,11 +202,6 @@ public class Attr extends JCTree.Visitor {
     boolean useBeforeDeclarationWarning;
 
     /**
-     * Switch: Allow value types to parameterize generic types?
-     */
-    boolean allowGenericsOverValues;
-
-    /**
      * Switch: Allow value types with no instance state?
      */
     boolean allowEmptyValues;
@@ -217,10 +210,7 @@ public class Attr extends JCTree.Visitor {
      * Switch: Allow value type member cycles?
      */
     boolean allowValueMemberCycles;
-    /**
-     * Switch: Allow value types instantiation via new and classic constructor notation ?
-     */
-    boolean allowValueConstructors;
+
     /**
      * Switch: name of source level; used for error reporting.
      */
@@ -2494,11 +2484,6 @@ public class Attr extends JCTree.Visitor {
                  ((JCVariableDecl) env.tree).init != tree))
                 log.error(tree.pos(), Errors.EnumCantBeInstantiated);
 
-            if (types.isValue(clazztype)) {
-                if (!allowValueConstructors)
-                    log.error(tree.pos(), Errors.GarbledValueReferenceInstantiation);
-            }
-
             boolean isSpeculativeDiamondInferenceRound = TreeInfo.isDiamond(tree) &&
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             boolean skipNonDiamondPath = false;
@@ -4742,7 +4727,7 @@ public class Attr extends JCTree.Visitor {
         Type type = (tree.kind.kind == BoundKind.UNBOUND)
             ? syms.objectType
             : attribType(tree.inner, env);
-        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, allowGenericsOverValues),
+        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, false),
                                               tree.kind.kind,
                                               syms.boundClass),
                 KindSelector.TYP, resultInfo);
