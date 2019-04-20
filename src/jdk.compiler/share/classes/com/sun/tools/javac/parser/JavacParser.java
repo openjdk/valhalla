@@ -3094,7 +3094,7 @@ public class JavacParser implements Parser {
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
                     final Name name = TreeInfo.name(ann.annotationType);
-                    if (name == names.__value__ || name == names.java_lang___value__) {
+                    if (name == names.__value__ || name == names.java_lang___value__ || name == names.__inline__ || name == names.java_lang___inline__) {
                         flag = Flags.VALUE;
                     } else {
                         annotations.append(ann);
@@ -3307,9 +3307,9 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    // Does the given token signal a value modifier ? If yes, suitably reclassify token.
+    // Does the given token signal a value/inline modifier ? If yes, suitably reclassify token.
     Token recastToken(Token token) {
-        if (token.kind != IDENTIFIER || token.name() != names.value) {
+        if (token.kind != IDENTIFIER || (token.name() != names.value && token.name() != names.inline)) {
             return token;
         }
         if (peekToken(t->t == PRIVATE ||

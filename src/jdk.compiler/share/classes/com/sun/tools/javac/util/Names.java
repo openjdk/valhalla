@@ -99,6 +99,7 @@ public class Names {
     public final Name serialVersionUID;
     public final Name toString;
     public final Name value;
+    public final Name inline;
     public final Name valueOf;
     public final Name values;
 
@@ -111,6 +112,8 @@ public class Names {
     public final Name java_lang_System;
     public final Name __value__;
     public final Name java_lang___value__;
+    public final Name __inline__;
+    public final Name java_lang___inline__;
 
     // names of builtin classes
     public final Name Array;
@@ -257,6 +260,7 @@ public class Names {
         serialVersionUID = fromString("serialVersionUID");
         toString = fromString("toString");
         value = fromString("value");
+        inline = fromString("inline");
         valueOf = fromString("valueOf");
         values = fromString("values");
         dollarThis = fromString("$this");
@@ -270,6 +274,8 @@ public class Names {
         java_lang_System = fromString("java.lang.System");
         __value__ = fromString("__value__");
         java_lang___value__ = fromString("java.lang.__value__");
+        __inline__ = fromString("__inline__");
+        java_lang___inline__ = fromString("java.lang.__inline__");
 
         // names of builtin classes
         Array = fromString("Array");
