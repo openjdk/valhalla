@@ -1053,11 +1053,14 @@ public abstract class Type extends AnnoConstruct implements TypeMirror {
                     if (moreInfo)
                         s += String.valueOf(sym.hashCode());
                     return s;
-                } else if (longform) {
-                    return sym.getQualifiedName().toString();
-                } else {
-                    return sym.name.toString();
                 }
+                String s;
+                if (longform) {
+                    s =  sym.getQualifiedName().toString();
+                } else {
+                    s = sym.name.toString();
+                }
+                return sym.isProjectedNullable() ? s + '?' : s;
             }
 
         @DefinedBy(Api.LANGUAGE_MODEL)

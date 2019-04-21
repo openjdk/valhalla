@@ -1308,8 +1308,9 @@ public abstract class Symbol extends AnnoConstruct implements Element {
             if (name.isEmpty())
                 return
                     Log.getLocalizedString("anonymous.class", flatname);
-            else
-                return fullname.toString();
+
+                String s = fullname.toString();
+                return isProjectedNullable() ? s + '?' : s;
         }
 
         @DefinedBy(Api.LANGUAGE_MODEL)
