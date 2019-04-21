@@ -1060,8 +1060,8 @@ public class ClassWriter extends ClassFile {
     /** Enter an inner class into the `innerClasses' set/queue.
      */
     void enterInner(ClassSymbol c) {
-        if (types.isProjectedNullable(c))
-            c = types.getNullFreeValueSymbol(c);
+        if (c.isProjectedNullable())
+            c = c.nullFreeTypeSymbol();
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }

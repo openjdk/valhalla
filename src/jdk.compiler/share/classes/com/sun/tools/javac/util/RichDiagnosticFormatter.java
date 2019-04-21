@@ -388,10 +388,13 @@ public class RichDiagnosticFormatter extends
                     !getConfiguration().isEnabled(RichFormatterFeature.SIMPLE_NAMES)) {
                 return super.className(t, longform, locale);
             }
-            else if (longform)
-                return nameSimplifier.simplify(sym).toString();
+            String s;
+            if (longform)
+                s =  nameSimplifier.simplify(sym).toString();
             else
-                return sym.name.toString();
+                s = sym.name.toString();
+
+            return sym.isProjectedNullable() ? s + '?' : s;
         }
 
         @Override

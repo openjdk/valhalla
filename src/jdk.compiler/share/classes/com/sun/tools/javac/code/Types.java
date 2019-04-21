@@ -1031,23 +1031,23 @@ public class Types {
         loxType.supertype_field = ct.supertype_field;
         loxType.interfaces_field = ct.interfaces_field;
         loxType.all_interfaces_field = ct.all_interfaces_field;
-        lox = new ClassSymbol((c.flags() & ~VALUE), c.name, loxType, c.owner);
+        lox = new ClassSymbol((c.flags() & ~VALUE), c.name, loxType, c.owner) {
+            @Override
+            public boolean isProjectedNullable() {
+                return true;
+            }
+
+            @Override
+            public ClassSymbol nullFreeTypeSymbol() {
+                return c;
+            }
+        };
         lox.members_field = c.members();
         loxType.tsym = lox;
 
         nullableProjectionsMap.put(c, lox);
         nullableProjectionsMap.put(lox, c);
         return lox;
-    }
-
-    public boolean isProjectedNullable(Symbol s) {
-        return s != null && !s.isValue() && s.type.hasTag(CLASS) && nullableProjectionsMap.get(s) != null;
-    }
-
-    public ClassSymbol getNullFreeValueSymbol(Symbol b) {
-        if (b != null && !b.isValue() && b.type.hasTag(CLASS))
-            return nullableProjectionsMap.get(b);
-        return null;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">

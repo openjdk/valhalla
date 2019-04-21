@@ -1,0 +1,3 @@
+CheckQuestionInMessages.java:12:19: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Object, java.util.List<X?>)
+CheckQuestionInMessages.java:13:15: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Object[], X?[])
+2 errors

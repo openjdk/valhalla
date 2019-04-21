@@ -3910,8 +3910,8 @@ public class Attr extends JCTree.Visitor {
         /* As we simply attach the members from the value type to its light weight box type
            without reassigning ownership, always perform any lookups on the value type.
          */
-        if (types.isProjectedNullable(site.tsym))
-            site = types.getNullFreeValueSymbol(site.tsym).type;
+        if (site.tsym.isProjectedNullable())
+            site = site.tsym.nullFreeTypeSymbol().type;
 
         boolean selectSuperPrev = env.info.selectSuper;
         env.info.selectSuper =

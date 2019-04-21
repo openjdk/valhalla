@@ -318,11 +318,15 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
                         visit(norm.supertype_field, locale));
             }
             return s;
-        } else if (longform) {
-            return sym.getQualifiedName().toString();
-        } else {
-            return sym.name.toString();
         }
+        String s;
+        if (longform) {
+             s =  sym.getQualifiedName().toString();
+        } else {
+            s =  sym.name.toString();
+        }
+
+        return sym.isProjectedNullable() ? s + '?' : s;
     }
 
     /**

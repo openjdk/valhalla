@@ -288,6 +288,14 @@ public abstract class Symbol extends AnnoConstruct implements Element {
         throw new AssertionError();
     }
 
+    public boolean isProjectedNullable() {
+        return false;
+    }
+
+    public ClassSymbol nullFreeTypeSymbol() {
+        return this.type.hasTag(CLASS) && ((this.flags() & VALUE) != 0) ? (ClassSymbol) this : null;
+    }
+
     public <R, P> R accept(Symbol.Visitor<R, P> v, P p) {
         return v.visitSymbol(this, p);
     }
