@@ -1252,7 +1252,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @Test()
     public void test42() {
-        MyValue1[] vals = new MyValue1[] {test42VT1, test42VT2};
+        MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
         Asserts.assertEQ(vals[0].hash(), test42VT1.hash());
         Asserts.assertEQ(vals[1].hash(), test42VT2.hash());
     }
@@ -1265,7 +1265,7 @@ public class TestLWorld extends ValueTypeTest {
     // Test for bug in Escape Analysis
     @Test()
     public long test43(boolean deopt) {
-        MyValue1[] vals = new MyValue1[] {test42VT1, test42VT2};
+        MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
 
         if (deopt) {
             // uncommon trap

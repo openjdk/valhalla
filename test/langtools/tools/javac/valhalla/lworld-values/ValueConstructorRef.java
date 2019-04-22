@@ -43,7 +43,7 @@ public value class ValueConstructorRef {
     
     public static void main(String [] args) {   
     	Supplier<ValueConstructorRef?> sx = ValueConstructorRef::new;
-    	ValueConstructorRef x = sx.get();
+    	ValueConstructorRef x = (ValueConstructorRef) sx.get();
         if (!x.toString().equals("[ValueConstructorRef x=1234 y=5678]"))
             throw new AssertionError(x);
     }

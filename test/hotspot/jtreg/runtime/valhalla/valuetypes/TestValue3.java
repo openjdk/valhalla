@@ -55,7 +55,7 @@ public value final class TestValue3 {
     }
 
     public static TestValue3 getNonBufferedInstance() {
-        return staticValue;
+        return (TestValue3) staticValue;
     }
 
     public boolean verify() {

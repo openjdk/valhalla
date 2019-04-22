@@ -82,7 +82,7 @@ public value final class TestValue4 {
     }
 
     public static TestValue4 getNonBufferedInstance() {
-        return staticValue;
+        return (TestValue4) staticValue;
     }
 
     public boolean verify() {

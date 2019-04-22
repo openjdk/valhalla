@@ -605,16 +605,6 @@ public class Types {
             return true;
         }
 
-        if (isValue(t) || isValue(s)) {
-            ClassSymbol lox = nullableProjectionsMap.get(t.tsym);
-            if (lox != null && s.tsym == lox)
-                return true;
-
-            lox = nullableProjectionsMap.get(s.tsym);
-            if (lox != null && t.tsym == lox)
-                return true;
-        }
-
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
@@ -1046,7 +1036,6 @@ public class Types {
         loxType.tsym = lox;
 
         nullableProjectionsMap.put(c, lox);
-        nullableProjectionsMap.put(lox, c);
         return lox;
     }
 
@@ -1701,14 +1690,6 @@ public class Types {
     public boolean isCastable(Type t, Type s, Warner warn) {
         if (t == s)
             return true;
-        if (isValue(t) && !isValue(s)) {
-            if (nullableProjectionsMap.get(t.tsym) == s.tsym)
-                return true;
-        }
-        if (isValue(s) && !isValue(t)) {
-            if (nullableProjectionsMap.get(s.tsym) == t.tsym)
-                return true;
-        }
         if (t.isPrimitive() != s.isPrimitive()) {
             t = skipTypeVars(t, false);
             return (isConvertible(t, s, warn)
@@ -2205,6 +2186,12 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 if (t.tsym == sym)
                     return t;
+
+                /* For inline types, the wired in super type is j.l.O.
+                   So we need a special check for V <: V?
+                */
+                if (t.tsym == sym.nullFreeTypeSymbol())
+                    return sym.type;
 
                 Type st = supertype(t);
                 if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {

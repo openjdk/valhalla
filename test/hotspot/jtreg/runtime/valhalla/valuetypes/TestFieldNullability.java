@@ -70,13 +70,13 @@ public class TestFieldNullability {
 	    }
 	    Asserts.assertFalse(NPE, "Invalid NPE when assigning null to a non flattenable field");
 	    try {
-		TestValue tv = __WithField(this.nullfreeField, nullField);
+		TestValue tv = __WithField(this.nullfreeField, (MyValue) nullField);
 	    } catch(NullPointerException e) {
 		NPE = true;
 	    }
 	    Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattened field");
 	    try {
-		TestValue tv = __WithField(this.nullfreeBigField, nullBigField);
+		TestValue tv = __WithField(this.nullfreeBigField, (MyBigValue) nullBigField);
 	    } catch(NullPointerException e) {
 		NPE = true;
 	    }
@@ -111,13 +111,13 @@ public class TestFieldNullability {
 	    }
 	    Asserts.assertFalse(NPE, "Invalid NPE when assigning null to a non flattenable field");
 	    try {
-		this.nullfreeField = nullField;
+		this.nullfreeField = (MyValue) nullField;
 	    } catch(NullPointerException e) {
 		NPE = true;
 	    }
 	    Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattened field");
 	    try {
-		this.nullfreeBigField = nullBigField;
+		this.nullfreeBigField = (MyBigValue) nullBigField;
 	    } catch(NullPointerException e) {
 		NPE = true;
 	    }

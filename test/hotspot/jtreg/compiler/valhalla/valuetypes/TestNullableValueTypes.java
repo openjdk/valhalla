@@ -145,7 +145,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     public void test4() {
         try {
-            valueField1 = nullField;
+            valueField1 = (MyValue1) nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -222,13 +222,13 @@ public class TestNullableValueTypes extends ValueTypeTest {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
         try {
-            valueField1 = getNullInline();
+            valueField1 = (MyValue1) getNullInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
         try {
-            valueField1 = getNullDontInline();
+            valueField1 = (MyValue1) getNullDontInline();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -243,7 +243,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     public void test8() throws Throwable {
         try {
-            valueField1 = nullField;
+            valueField1 = (MyValue1) nullField;
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -262,7 +262,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
         if (flag1) {
             v = valueField1;
         } else {
-            v = nullField;
+            v = (MyValue1) nullField;
         }
         valueField1 = v;
     }
@@ -282,7 +282,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     public void test10(boolean flag) throws Throwable {
         MyValue1? val = flag ? valueField1 : null;
-        valueField1 = val;
+        valueField1 = (MyValue1) val;
     }
 
     @DontCompile
@@ -300,7 +300,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     public void test11(boolean flag) throws Throwable {
         MyValue1? val = flag ? null : valueField1;
-        valueField1 = val;
+        valueField1 = (MyValue1) val;
     }
 
     @DontCompile
@@ -325,7 +325,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @Test
     public void test12() {
-        valueField1 = test12_helper();
+        valueField1 = (MyValue1) test12_helper();
     }
 
     @DontCompile
@@ -351,7 +351,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     class B extends A {
         public MyValue1 test13_helper() {
-            return nullField;
+            return (MyValue1) nullField;
         }
     }
 
@@ -363,13 +363,13 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     class D extends B {
         public MyValue1? test13_helper() {
-            return nullField;
+            return (MyValue1) nullField;
         }
     }
 
     @Test
     public void test13(A a) {
-        valueField1 = a.test13_helper();
+        valueField1 = (MyValue1) a.test13_helper();
     }
 
     @DontCompile
@@ -427,14 +427,14 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontInline
     MyValue1 getNullField2() {
-        return nullField;
+        return (MyValue1) nullField;
     }
 
     @Test()
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
-            valueField1 = getNullField1();
+            valueField1 = (MyValue1) getNullField1();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
@@ -597,7 +597,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
         @ForceInline
         public Test21Value test2() {
-            return new Test21Value(this.valueField1, alwaysNull); // Should throw NPE
+            return new Test21Value(this.valueField1, (MyValue1) alwaysNull); // Should throw NPE
         }
     }
 
@@ -620,7 +620,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontInline
     public MyValue1 test22_helper() {
-        return nullField;
+        return (MyValue1) nullField;
     }
 
     @Test
@@ -640,7 +640,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @Test
     public void test23(MyValue1[] arr, MyValue1? b) {
-        arr[0] = b;
+        arr[0] = (MyValue1) b;
     }
 
     @DontCompile
@@ -659,7 +659,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @Test
     public MyValue1 test24() {
-        return nullBox;
+        return (MyValue1) nullBox;
     }
 
     @DontCompile
@@ -681,7 +681,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     public int test25(boolean b, MyValue1? vt1, MyValue1 vt2) {
         vt1 = (MyValue1)vt1;
         Object obj = b ? vt1 : vt2; // We should not allocate here
-        test25_callee(vt1);
+        test25_callee((MyValue1) vt1);
         return ((MyValue1)obj).x;
     }
 
@@ -714,7 +714,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @DontCompile
     public void test27_verifier(boolean warmup) {
         MyValue3 vt = MyValue3.create();
-        MyValue3 result = test27(vt);
+        MyValue3 result = (MyValue3) test27(vt);
         Asserts.assertEquals(result, vt);
     }
 

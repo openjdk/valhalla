@@ -335,7 +335,7 @@ public class ValueTypeArray {
     void testMixedLayoutArrays() {
         Object[] objArray = new Object[3];
         Comparable[] compArray = new Comparable[3];
-        MyInt[] valArray = new MyInt[] { MyInt.MIN, MyInt.ZERO, MyInt.MAX };
+        MyInt[] valArray = new MyInt[] { (MyInt) MyInt.MIN, (MyInt) MyInt.ZERO, (MyInt) MyInt.MAX };
 
         arrayCopy(valArray, 0, objArray, 0, 3);
         checkArrayElementsEqual(valArray, objArray);
@@ -348,11 +348,11 @@ public class ValueTypeArray {
         System.arraycopy(valArray, 0, compArray, 0, 3);
         checkArrayElementsEqual(valArray, compArray);
 
-        valArray = new MyInt[] { MyInt.ZERO, MyInt.ZERO, MyInt.ZERO };
+        valArray = new MyInt[] { (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO };
         System.arraycopy(compArray, 0, valArray, 0, 3);
         checkArrayElementsEqual(valArray, compArray);
 
-        valArray = new MyInt[] { MyInt.ZERO, MyInt.ZERO, MyInt.ZERO };
+        valArray = new MyInt[] { (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO, (MyInt) MyInt.ZERO };
         System.arraycopy(objArray, 0, valArray, 0, 3);
         checkArrayElementsEqual(valArray, objArray);
 
@@ -372,7 +372,7 @@ public class ValueTypeArray {
         final               MyInt y;
 
         private MyPoint() {
-            x = MyInt.ZERO;
+            x = (MyInt) MyInt.ZERO;
             y = x;
         }
         public boolean equals(Object that) {

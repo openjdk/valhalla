@@ -422,7 +422,7 @@ public class TestCallingConvention extends ValueTypeTest {
 
     @Test
     public MyValue3 test22() {
-        return test22_vt;
+        return (MyValue3) test22_vt;
     }
 
     @DontCompile

@@ -32,7 +32,7 @@ public value class NonFlattenValue {
         return nfp;
     }
     public Point pointValue() {
-        return nfp;
+        return (Point) nfp;
     }
     public boolean has(Point p1, Point? p2) {
         return nfp.equals(p1) || nfp.equals(p2);

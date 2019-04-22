@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @bug 8214421
- * @summary Q<->L mixing should be via checkcasts
+ * @bug 8214421 8221545 8222792
+ * @summary Q<->L mixing should be OK for upcasts and should use checkcasts for downcasts.
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile BoxValCastTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla BoxValCastTest
@@ -39,16 +39,14 @@ public class BoxValCastTest {
 
     static value class VT {
         int f = 0;
-        static final VT? vtbox = new VT(); // cast
-        static VT vtval = vtbox; // cast
-        static VT vt = vtbox; // cast
-        static VT vtval2 = vtval; // no cast
-        static VT? box = vtval; // cast
-        static VT? box2 = box; // no cast
-        static VT? box3 = id(new VT()); // cast + cast
+        static final VT? vtbox = (VT?) new VT(); // no binary cast
+        static VT vt = (VT) vtbox; // binary cast
+        static VT? box = vt; // no binary cast
+        static VT? box2 = (VT) box; // no binary cast
+        static VT? box3 = id(new VT()); // no binary cast + binary cast
 
         static VT id(VT? vtb) {
-            return vtb;
+            return (VT) vtb; // binary
         }
     }
 
@@ -62,33 +60,7 @@ public class BoxValCastTest {
                                                 "BoxValCastTest$VT.class").toString() };
         runCheck(params, new String [] {
 
-        "static {};", 
-        "    descriptor: ()V",
-        "   flags: (0x0008) ACC_STATIC",
-        "   Code:",
-        "     stack=1, locals=0, args_size=0",
-        "        0: invokestatic  #6                  // Method $makeValue$:()QBoxValCastTest$VT;",
-        "        3: checkcast     #7                  // class BoxValCastTest$VT",
-        "        6: putstatic     #8                  // Field vtbox:LBoxValCastTest$VT;",
-        "        9: getstatic     #8                  // Field vtbox:LBoxValCastTest$VT;",
-        "       12: checkcast     #2                  // class \"QBoxValCastTest$VT;\"",
-        "       15: putstatic     #9                  // Field vtval:QBoxValCastTest$VT;",
-        "       18: getstatic     #8                  // Field vtbox:LBoxValCastTest$VT;",
-        "       21: checkcast     #2                  // class \"QBoxValCastTest$VT;\"",
-        "       24: putstatic     #10                 // Field vt:QBoxValCastTest$VT;",
-        "       27: getstatic     #9                  // Field vtval:QBoxValCastTest$VT;",
-        "       30: putstatic     #11                 // Field vtval2:QBoxValCastTest$VT;",
-        "       33: getstatic     #9                  // Field vtval:QBoxValCastTest$VT;",
-        "       36: checkcast     #7                  // class BoxValCastTest$VT",
-        "       39: putstatic     #12                 // Field box:LBoxValCastTest$VT;",
-        "       42: getstatic     #12                 // Field box:LBoxValCastTest$VT;",
-        "       45: putstatic     #13                 // Field box2:LBoxValCastTest$VT;",
-        "       48: invokestatic  #6                  // Method $makeValue$:()QBoxValCastTest$VT;",
-        "       51: checkcast     #7                  // class BoxValCastTest$VT",
-        "       54: invokestatic  #14                 // Method id:(LBoxValCastTest$VT;)QBoxValCastTest$VT;",
-        "       57: checkcast     #7                  // class BoxValCastTest$VT",
-        "       60: putstatic     #15                 // Field box3:LBoxValCastTest$VT;",
-        "       63: return",
+        "checkcast     #2                  // class \"QBoxValCastTest$VT;\""
            
          });
 
@@ -102,15 +74,23 @@ public class BoxValCastTest {
             com.sun.tools.javap.Main.run(params, pw);
             out = s.toString();
         }
-        int errors = 0;
-        for (String eo: expectedOut) {
-            if (!out.contains(eo)) {
-                System.err.println("Match not found for string: " + eo);
-                errors++;
-            }
-        }
+         int errors = 0;
+         for (String eo: expectedOut) {
+             if (!out.contains(eo)) {
+                 System.err.println("Match not found for string: " + eo);
+                 errors++;
+             }
+         }
          if (errors > 0) {
              throw new AssertionError("Unexpected javap output: " + out);
          }
+        String [] splits = out.split("checkcast     #2", -1);
+        if (splits.length != 4) {
+             throw new AssertionError("Unexpected javap output: " + splits.length);
+        }
+        splits = out.split("checkcast", -1);
+        if (splits.length != 4) {
+             throw new AssertionError("Unexpected javap output: " + splits.length);
+        }
     }
 }

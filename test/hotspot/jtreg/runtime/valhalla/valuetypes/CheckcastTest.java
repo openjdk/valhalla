@@ -75,7 +75,7 @@ public class CheckcastTest {
     static void testCastingFromBoxToVal(Point? p) {
 	boolean npe = false;
 	try {
-	    Point pv = p;
+	    Point pv = (Point) p;
 	} catch(NullPointerException e) {
 	    npe = true;
 	}
