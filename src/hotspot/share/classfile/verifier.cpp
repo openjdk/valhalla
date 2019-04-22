@@ -484,7 +484,7 @@ void ErrorContext::reason_details(outputStream* ss) const {
       _type.details(ss);
       ss->print(" and type ");
       _expected.details(ss);
-      ss->print(" must be identical value types.");
+      ss->print(" must be identical inline types.");
       break;
     case UNKNOWN:
     default:

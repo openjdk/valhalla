@@ -26,7 +26,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
- * @summary Uninitialized value fields test
+ * @summary Uninitialized inline fields test
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java UninitializedValueFieldsTest.java
  * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 -XX:+EnableValhalla runtime.valhalla.valuetypes.UninitializedValueFieldsTest
@@ -52,7 +52,7 @@ public class UninitializedValueFieldsTest {
 
     public static void main(String[] args) {
         checkUninitializedPoint(UninitializedValueFieldsTest.staticPoint, 0, 0);
-        Asserts.assertEquals(nonFlattenableStaticPoint, null, "invalid non flattenable static value field");
+        Asserts.assertEquals(nonFlattenableStaticPoint, null, "invalid non flattenable static inline field");
         UninitializedValueFieldsTest.staticPoint = Point.createPoint(456, 678);
         checkUninitializedPoint(UninitializedValueFieldsTest.staticPoint, 456, 678);
         UninitializedValueFieldsTest test = new UninitializedValueFieldsTest();
@@ -60,8 +60,8 @@ public class UninitializedValueFieldsTest {
         test.instancePoint = Point.createPoint(123, 345);
         checkUninitializedPoint(test.instancePoint, 123, 345);
 
-        Asserts.assertEquals(test.j1, null, "invalid non flattenable instance value field");
-        Asserts.assertEquals(test.j2.l0, 0L, "invalid flattenable instance value field");
+        Asserts.assertEquals(test.j1, null, "invalid non flattenable instance inline field");
+        Asserts.assertEquals(test.j2.l0, 0L, "invalid flattenable instance inline field");
     }
 
     static void checkUninitializedPoint(Point p, int x, int y) {

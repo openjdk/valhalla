@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,16 @@
 /**
  * @test
  * @bug 8210351
- * @summary test nestmate access to a value type's public, protected and private final fields.
+ * @summary test nestmate access to an inline type's public, protected and private final fields.
  * @compile -XDemitQtypes -XDallowWithFieldOperator WithFieldAccessorTest.java
  * @run main/othervm -XX:+EnableValhalla WithFieldAccessorTest
  */
 
 // This test is similar to javac's WithFieldAccessorTest but tests nestmate
-// access to public, protected, and private final fields in a value type.
+// access to public, protected, and private final fields in an inline type.
 public class WithFieldAccessorTest {
 
-    public static final value class V {
+    public static final inline class V {
         public final char c;
         protected final long l;
         private final int i;

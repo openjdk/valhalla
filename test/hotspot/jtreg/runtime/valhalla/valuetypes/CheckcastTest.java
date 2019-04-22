@@ -36,7 +36,7 @@ import jdk.test.lib.Asserts;
 
 public class CheckcastTest {
 
-    static value class Point {
+    static inline class Point {
         int x;
         int y;
 
@@ -53,66 +53,66 @@ public class CheckcastTest {
 
 
     static void testCastingFromObjectToVal(Object o) {
-	boolean npe = false;
-	try {
-	    Point pv = (Point)o;
-	} catch(NullPointerException e) {
-	    npe = true;
-	}
-	Asserts.assertTrue(npe == false || o == null, "Casting null to val should throw a NPE");
+        boolean npe = false;
+        try {
+            Point pv = (Point)o;
+        } catch(NullPointerException e) {
+            npe = true;
+        }
+        Asserts.assertTrue(npe == false || o == null, "Casting null to val should throw a NPE");
     }
 
     static void testCastingFromValToBox(Point p) {
-	boolean npe = false;
-	try {
-	    Point? pb = p;
-	} catch(NullPointerException e) {
-	    npe = true;
-	}
-	Asserts.assertFalse(npe, "Casting from val to box should not throw an NPE");
+        boolean npe = false;
+        try {
+            Point? pb = p;
+        } catch(NullPointerException e) {
+            npe = true;
+        }
+        Asserts.assertFalse(npe, "Casting from val to box should not throw an NPE");
     }
 
     static void testCastingFromBoxToVal(Point? p) {
-	boolean npe = false;
-	try {
-	    Point pv = (Point) p;
-	} catch(NullPointerException e) {
-	    npe = true;
-	}
-	if (npe) {
-	    Asserts.assertEquals(p, null, "NPE must be thrown only if p is null");
-	} else {
-	    Asserts.assertNotEquals(p, null, "Casting null to val must thrown a NPE");
-	}
+        boolean npe = false;
+        try {
+            Point pv = (Point) p;
+        } catch(NullPointerException e) {
+            npe = true;
+        }
+        if (npe) {
+            Asserts.assertEquals(p, null, "NPE must be thrown only if p is null");
+        } else {
+            Asserts.assertNotEquals(p, null, "Casting null to val must thrown a NPE");
+        }
 
     }
 
     public static void main(String[] args) {
-	// Testing casting from box to val
-	// First invocation: casting null to Point with an unresolved class entry
-	testCastingFromBoxToVal(null);
-	// Second invocation: casting non-null to val, will trigger resolution of the class entry
-	testCastingFromBoxToVal(new Point(3,4));
-	// Third invocation: casting null to Point with a resolved class entry
-	testCastingFromBoxToVal(null);
+        // Testing casting from box to val
+        // First invocation: casting null to Point with an unresolved class entry
+        testCastingFromBoxToVal(null);
+        // Second invocation: casting non-null to val, will trigger resolution of the class entry
+        testCastingFromBoxToVal(new Point(3,4));
+        // Third invocation: casting null to Point with a resolved class entry
+        testCastingFromBoxToVal(null);
 
-	// Testing casting from val to box
-	testCastingFromBoxToVal(new Point(3,4));
+        // Testing casting from val to box
+        testCastingFromBoxToVal(new Point(3,4));
 
-	// Testing casting from object to val
-	// First invocation: casting null to Point with an unresolved class entry
-	testCastingFromObjectToVal(null);
-	// Second invocation: casting non-null to al, will trigger resolution of the class entry
-	testCastingFromObjectToVal(new Point(3,4));
-	// Third invocation: casting null to Point with a resolved class entry");
-	testCastingFromObjectToVal(null);
-	// Fourth invocation: with something not the right type
-	boolean cce = false;
-	try {
-	    testCastingFromObjectToVal(new String("NotPoint"));
-	} catch(ClassCastException e) {
-	    cce = true;
-	}
-	Asserts.assertTrue(cce,"casting invalid type to val should throw CCE");
+        // Testing casting from object to val
+        // First invocation: casting null to Point with an unresolved class entry
+        testCastingFromObjectToVal(null);
+        // Second invocation: casting non-null to al, will trigger resolution of the class entry
+        testCastingFromObjectToVal(new Point(3,4));
+        // Third invocation: casting null to Point with a resolved class entry");
+        testCastingFromObjectToVal(null);
+        // Fourth invocation: with something not the right type
+        boolean cce = false;
+        try {
+            testCastingFromObjectToVal(new String("NotPoint"));
+        } catch(ClassCastException e) {
+            cce = true;
+        }
+        Asserts.assertTrue(cce,"casting invalid type to val should throw CCE");
     }
 }

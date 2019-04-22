@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,9 @@
  *
  */
 
-// The jcod classes in this file were derived from this Java value type:
+// The jcod classes in this file were derived from this Java inline type:
 //
-// final value class Value {
+// final inline class Value {
 //     static final Value VT = makeValue(0x01234567);
 //     final int int_v;
 //     Value() {
@@ -929,9 +929,9 @@ class wthFldWrongCPType {
 
 // A new fieldRef was added to the constant pool to point to a field in
 // java/lang/Object.  The withfield opcode (0XCC) was changed to use this new
-// cp entry.  This should cause a VerifyError because even though value types
+// cp entry.  This should cause a VerifyError because even though inline types
 // are assignable to java.lang.Object, withfield requires that the cp field class
-// and the value type on the stack, in this case 'wthFldObject', be identical.
+// and the inline type on the stack, in this case 'wthFldObject', be identical.
 //
 class wthFldObject {
   0xCAFEBABE;
@@ -1051,9 +1051,9 @@ class wthFldObject {
 ///////////////////////////////////////////////////////////
 
 // The astore_1 opcode (0x4C) was changed to a monitorenter (0xC2) opcode but
-// the operand on the stack is a value type.
+// the operand on the stack is an inline type.
 // This should cause a VerifyError because the operand for opcode monitorenter
-// cannot be a value type.
+// cannot be an inline type.
 //
 class monEnterVT {
   0xCAFEBABE;
@@ -1169,9 +1169,9 @@ class monEnterVT {
 ///////////////////////////////////////////////////////////
 
 // The cp entry for the defaultvalue opcode was changed to a reference that
-// is not a value type.
+// is not an inline type.
 // This should cause a VerifyError because the cp entry for opcode defaultvalue
-// must be a value type.
+// must be an inline type.
 //
 class defValueObj {
   0xCAFEBABE;
@@ -1286,10 +1286,10 @@ class defValueObj {
 
 ///////////////////////////////////////////////////////////
 
-// The operand for the value type for the defaultvalue opcode was changed to a
-// reference that is not a value type.
+// The operand for the inline type for the defaultvalue opcode was changed to a
+// reference that is not an inline type.
 // This should cause a VerifyError because the reference operand for a withfield
-// opcode must be a value type.
+// opcode must be an inline type.
 //
 class withfieldObj {
   0xCAFEBABE;

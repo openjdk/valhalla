@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,14 @@
  *
  */
 
-// This file contains multiple illegal value type classes that should cause
+// This file contains multiple illegal inline type classes that should cause
 // ClassFormatError exceptions when attempted to be loaded.
 //
 // The .jcod classes were originally generated from this Java file and then
 // modified to cause ClassFormatError or ClassCircularityError exceptions.  The
 // '(bad)' comments in most of the tests show where the modifications were made.
 //
-// final value class Value {
+// final inline class Value {
 //     static final Value VT = makeValue(0x01234567);
 //     final int int_v;
 //     Value() {
@@ -355,7 +355,7 @@ class ValueEnum {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that value type fields must be final.
+// Test that inline type fields must be final.
 //
 class ValueFieldNotFinal {
   0xCAFEBABE;
@@ -680,7 +680,7 @@ class ValueFlatArray {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that a value type cannot have a method named <init>.
+// Test that an inline type cannot have a method named <init>.
 //
 class ValueInitMethod {
   0xCAFEBABE;
@@ -935,7 +935,7 @@ class ValueInterface {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that value type instance methods cannot be synchronized.
+// Test that inline type instance methods cannot be synchronized.
 //
 class ValueMethodSynch {
   0xCAFEBABE;
@@ -1116,7 +1116,7 @@ class ValueMethodSynch {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that a value type's super class must be java.lang.Object.
+// Test that an inline type's super class must be java.lang.Object.
 //
 class ValueSuperClass {
   0xCAFEBABE;
@@ -1277,9 +1277,9 @@ class ValueSuperClass {
 // Value types Circ and Circ2 have fields of each other's type.  This should
 // cause a ClassCircularityError exception when one of them is being loaded.
 //
-// The value types are based on these two Java classes:
+// The inline types are based on these two Java classes:
 //
-// final value class Circ {
+// final inline class Circ {
 //     static final Circ VT = makeCirc(0x01234567);
 //     final int int_v;
 //     final Circ2 v2;
@@ -1294,7 +1294,7 @@ class ValueSuperClass {
 //     }
 // }
 //----------------------------------------------------------------
-// final value class Circ2 {
+// final inline class Circ2 {
 //     static final Circ2 VT = makeCirc2('\u0123');
 //     final char char_v;
 //     final Circ vv;
@@ -1985,9 +1985,9 @@ class Circ2 {
 // type.  This should cause a ClassCircularityError exception when one of them
 // is being loaded.
 //
-// The value types are based on these two Java classes:
+// The inline types are based on these two Java classes:
 //
-// final value class CircStaticA {
+// final inline class CircStaticA {
 //     static final CircStaticA VT = makeCircStaticA(0x01234567);
 //     final int int_v;
 //     static final CircStaticB v2 = CircStaticB.default;
@@ -2001,7 +2001,7 @@ class Circ2 {
 //     }
 // }
 //----------------------------------------------------------------
-// final value class CircStaticB {
+// final inline class CircStaticB {
 //     static final CircStaticB VT = makeCircStaticB(0x01234567);
 //     final int int_v;
 //     static final CircStaticA v2 = CircStaticA.default;
@@ -2687,9 +2687,9 @@ class CircStaticB {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that a value type cannot be Cloneable.
+// Test that an inline type cannot be Cloneable.
 //
-// final value class ValueCloneable implements Cloneable {
+// final inline class ValueCloneable implements Cloneable {
 //    final int field;
 //    private ValueCloneable() { field = 0; }
 //}

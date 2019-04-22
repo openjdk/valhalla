@@ -22,11 +22,11 @@
  *
  */
 
-// Test that a VerifyError exception is not thrown when trying to pass a value
+// Test that a VerifyError exception is not thrown when trying to pass an inline
 // type array when the formal parameter is an array of java.lang.Object.
 //
 // // Java program emulating the jcod contents.
-// public value final class NoArrayCov {
+// public inline final class NoArrayCov {
 //     final int x;
 //     final int y;
 //

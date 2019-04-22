@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -99,7 +99,7 @@ public class ValueOops {
     }
 
     /**
-     * Test ClassFileParser can load values with reference fields
+     * Test ClassFileParser can load inline types with reference fields
      */
     public static void testClassLoad() {
         String s = Person.class.toString();
@@ -116,7 +116,7 @@ public class ValueOops {
         public Person otherPerson;
     }
 
-    static final value class Composition {
+    static final inline class Composition {
         public final Person onePerson;
         public final Person otherPerson;
 
@@ -134,7 +134,7 @@ public class ValueOops {
     }
 
     /**
-     * Check value type operations with "Valhalla Value Types" (VVT)
+     * Check inline type operations with "Valhalla Inline Types" (VVT)
      */
     public static void testValues() {
         // Exercise creation, getfield, vreturn with null refs
@@ -295,7 +295,7 @@ public class ValueOops {
                 oopMaps[0][4] == note, "Test-R0 incorrect");
 
         /**
-         * TODO: vwithfield from method handle cooked from anonymous class within the value class
+         * TODO: vwithfield from method handle cooked from anonymous class within the inline class
          *       even with "MethodHandles.privateLookupIn()" will fail final putfield rules
          */
     }
@@ -512,7 +512,7 @@ public class ValueOops {
 
     // Various field layouts...sanity testing, see MVTCombo testing for full-set
 
-    static final value class ObjectValue {
+    static final inline class ObjectValue {
         final Object object;
 
         private ObjectValue(Object obj) {
@@ -546,7 +546,7 @@ public class ValueOops {
         String otherStuff;
     }
 
-    public static final value class FooValue {
+    public static final inline class FooValue {
         public final int id;
         public final String name;
         public final String description;
@@ -644,7 +644,7 @@ public class ValueOops {
         String otherStuff;
     }
 
-    static final value class BarValue {
+    static final inline class BarValue {
         final FooValue foo;
         final long extendedId;
         final String moreNotes;

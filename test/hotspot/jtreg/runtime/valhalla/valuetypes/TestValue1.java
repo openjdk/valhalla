@@ -25,10 +25,10 @@ package runtime.valhalla.valuetypes;
 final class ContainerValue1 {
     static TestValue1? staticValueField;
     TestValue1 nonStaticValueField;
-    TestValue1[] valueArray;
+    TestValue1[] inlineArray;
 }
 
-public value final class TestValue1 {
+public inline final class TestValue1 {
 
     static TestValue1? staticValue = getInstance();
 

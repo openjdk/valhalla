@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,12 @@
 package runtime.valhalla.valuetypes;
 
 /* @test
- * @summary test JNI functions with values
+ * @summary test JNI functions with inline types
  * @compile -XDemitQtypes -XDallowWithFieldOperator ValueWithJni.java
  * @run main/othervm/native -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  * @run main/othervm/native -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
  */
-public value final class ValueWithJni {
+public inline final class ValueWithJni {
 
     static {
         System.loadLibrary("ValueWithJni");

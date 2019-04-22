@@ -73,7 +73,7 @@ public class ValueTypeCreation {
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
-    static final value class StaticSelf {
+    static final inline class StaticSelf {
 
         static final StaticSelf? DEFAULT = create(0);
         final int f1;

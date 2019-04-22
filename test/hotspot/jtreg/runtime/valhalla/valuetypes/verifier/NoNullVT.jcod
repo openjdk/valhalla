@@ -23,10 +23,10 @@
  */
 
 // Test that a VerifyError exception is thrown when trying to pass a null
-// when the formal parameter is a value type.
+// when the formal parameter is an inline type.
 //
 // // Java program emulating the jcod contents.
-// public value final class NoNullVT {
+// public inline final class NoNullVT {
 //     final int x;
 //     final int y;
 //

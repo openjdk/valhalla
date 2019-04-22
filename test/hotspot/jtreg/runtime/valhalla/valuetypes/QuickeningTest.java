@@ -27,7 +27,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test QuickeningTest
- * @summary Test quickening of getfield and putfield applied to value fields
+ * @summary Test quickening of getfield and putfield applied to inline fields
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java JumboValue.java QuickeningTest.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.QuickeningTest
@@ -37,9 +37,9 @@ import jdk.test.lib.Asserts;
 public class QuickeningTest {
 
     static class Parent {
-    Point? nfp;       /* Not flattenable value field */
-    Point fp;         /* Flattenable and flattened value field */
-    JumboValue fj;    /* Flattenable not flattened value field */
+    Point? nfp;       /* Not flattenable inline field */
+    Point fp;         /* Flattenable and flattened inline field */
+    JumboValue fj;    /* Flattenable not flattened inline field */
 
         public void setNfp(Point p) { nfp = p; }
         public void setFp(Point p) { fp = p; }
@@ -48,19 +48,19 @@ public class QuickeningTest {
 
     static class Child extends Parent {
         // This class inherited fields from the Parent class
-        Point? nfp2;      /* Not flattenable value field */
-        Point fp2;        /* Flattenable and flattened value field */
-        JumboValue fj2;   /* Flattenable not flattene value field */
+        Point? nfp2;      /* Not flattenable inline field */
+        Point fp2;        /* Flattenable and flattened inline field */
+        JumboValue fj2;   /* Flattenable not flattened inline field */
 
         public void setNfp2(Point p) { nfp2 = p; }
         public void setFp2(Point p)  { fp2 = p; }
         public void setFj2(JumboValue j) { fj2 = j; }
     }
 
-    static final value class Value {
-        final Point? nfp;       /* Not flattenable value field */
-        final Point fp;         /* Flattenable and flattened value field */
-        final JumboValue fj;    /* Flattenable not flattene value field */
+    static final inline class Value {
+        final Point? nfp;       /* Not flattenable inline field */
+        final Point fp;         /* Flattenable and flattened inline field */
+        final JumboValue fj;    /* Flattenable not flattened inline field */
 
         private Value() {
             nfp = Point.createPoint(0, 0);

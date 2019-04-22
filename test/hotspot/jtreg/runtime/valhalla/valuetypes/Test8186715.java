@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@ package runtime.valhalla.valuetypes;
 
 /*
  * @test Test8186715
- * @summary test return of buffered value passed in argument by caller
+ * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
  * @compile -XDemitQtypes -XDallowWithFieldOperator -XDenableValueTypes Test8186715.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
@@ -43,7 +43,7 @@ public class Test8186715 {
     }
 }
 
-value final class MyValueType {
+inline final class MyValueType {
     final int i;
     final int j;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 package runtime.valhalla.valuetypes;
 
-value final class EmptyValue {
+inline final class EmptyValue {
 
     private EmptyValue() {
     }
@@ -36,23 +36,23 @@ value final class EmptyValue {
 
 class EmptyTest {
     public void run() {
-	EmptyValue.createEmptyValue();
-	throw new RuntimeException("Expected class file parse error");
+        EmptyValue.createEmptyValue();
+        throw new RuntimeException("Expected class file parse error");
     }
 }
 
 /**
  * @test Empty
- * @summary Test empty value type
+ * @summary Test empty inline type
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowEmptyValues Empty.java
  * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
  * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
  */
 public class Empty {
     public static void main(String[] args) {
-	try {
-	    EmptyTest test = new EmptyTest();
-	    test.run();
-	} catch (ClassFormatError cfe) {}
+        try {
+            EmptyTest test = new EmptyTest();
+            test.run();
+        } catch (ClassFormatError cfe) {}
     }
 }

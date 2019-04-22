@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@ package runtime.valhalla.valuetypes;
 
 /*
  * @test UnsafeTest
- * @summary unsafe get/put/with value
+ * @summary unsafe get/put/with inline type
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java UnsafeTest.java
@@ -42,7 +42,7 @@ import static jdk.test.lib.Asserts.*;
 public class UnsafeTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    static value class Value1 {
+    static inline class Value1 {
         Point point;
         Point[] array;
         Value1() {
@@ -58,7 +58,7 @@ public class UnsafeTest {
         }
     }
 
-    static value class Value2 {
+    static inline class Value2 {
         int i;
         Value1 v;
 
@@ -75,7 +75,7 @@ public class UnsafeTest {
         }
     }
 
-    static value class Value3 {
+    static inline class Value3 {
         Object o;
         Value2 v;
 

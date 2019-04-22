@@ -28,7 +28,7 @@ final class ContainerValue2 {
     TestValue2[] valueArray;
 }
 
-public value final class TestValue2 {
+public inline final class TestValue2 {
     static TestValue2? staticValue = getInstance();
 
     final long l;

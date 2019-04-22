@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,21 +26,21 @@
  * @test
  * @bug 8210351
  * @summary Check that IllegalAccessError exceptions get thrown if a class that
- *          is not a nestmate of a value type tries to write to the value type's
+ *          is not a nestmate of an inline type tries to write to the inline type's
  *          final fields.
  * @compile -XDemitQtypes WithFieldNoAccessTest.jcod
  * @run main/othervm -XX:+EnableValhalla WithFieldNoAccessTest
  */
 
 // This test is based on the below Java program.  The only difference is that
-// the nestmate attributes have been removed.  So, value type WithFieldNoAccessTest
+// the nestmate attributes have been removed.  So, inline type WithFieldNoAccessTest
 // and WithFieldNoAccessTest$V are no longer nestmates.  This should cause
 // IllegalAccessError exceptions when WithFieldNoAccessTest tries to write, using
-// withfield, to value type WithFieldNoAccessTest$V's final fields.
+// withfield, to inline type WithFieldNoAccessTest$V's final fields.
 //
 // public class WithFieldNoAccessTest {
 //
-//  public static final value class V {
+//  public static final inline class V {
 //      public final char c;
 //      protected final long l;
 //      private final int i;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 /*
  * @test
- * @summary test that the right exceptions get thrown for bad value type
+ * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile cfpTests.jcod
  * @run main/othervm -XX:+EnableValhalla BadValueTypes
@@ -50,21 +50,21 @@ public class BadValueTypes {
         // Test that ACC_VALUE with ACC_ENUM is illegal.
         runTest("ValueEnum", "Illegal class modifiers in class ValueEnum");
 
-        // Test that value type fields must be final.
+        // Test that inline type fields must be final.
         runTest("ValueFieldNotFinal", "Illegal field modifiers in class ValueFieldNotFinal");
 
         // Test that arrays cannot have ACC_FLATTENABLE set.
         runTest("ValueFlatArray", "ACC_FLATTENABLE cannot be specified for an array");
 
-        // Test that a value type cannot have a method named init.
-/* TBD: uncomment when javac stops generating <init>() methods for value types.
+        // Test that an inline type cannot have a method named init.
+/* TBD: uncomment when javac stops generating <init>() methods for inline types.
         runTest("ValueInitMethod", "Value Type cannot have a method named <init>");
 */
 
         // Test that ACC_VALUE with ACC_INTERFACE is illegal.
         runTest("ValueInterface", "Illegal class modifiers in class ValueInterface");
 
-        // Test that value type instance methods cannot be synchronized.
+        // Test that inline type instance methods cannot be synchronized.
         runTest("ValueMethodSynch", "Method instanceMethod in class ValueMethodSynch has illegal modifiers");
 
         runTest("ValueSuperClass", "Value type must have java.lang.Object as superclass");

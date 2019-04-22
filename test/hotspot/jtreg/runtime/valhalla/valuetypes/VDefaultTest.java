@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
 
 public class VDefaultTest {
 
-    static value final class Point {
+    static inline final class Point {
         final int x;
         final int y;
 
@@ -52,7 +52,7 @@ public class VDefaultTest {
         }
     }
 
-    static value final class Value {
+    static inline final class Value {
         final char c;
         final byte b;
         final short s;
@@ -93,8 +93,8 @@ public class VDefaultTest {
         Asserts.assertEquals(v.l, 0L, "invalid long default value");
         Asserts.assertEquals(v.f, 0.0F, "invalid float default value");
         Asserts.assertEquals(v.d, 0.0D, "invalid double default value");
-        Asserts.assertEquals(v.p.x, 0, "invalid embedded value type value");
-        Asserts.assertEquals(v.p.y, 0, "invalid embedded value type value");
+        Asserts.assertEquals(v.p.x, 0, "invalid embedded inline type value");
+        Asserts.assertEquals(v.p.y, 0, "invalid embedded inline type value");
     }
 }
 

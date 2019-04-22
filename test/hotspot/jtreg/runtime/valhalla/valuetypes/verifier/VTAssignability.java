@@ -23,17 +23,17 @@
 
 /*
  * @test
- * @summary Test basic verifier assignability of value types.
+ * @summary Test basic verifier assignability of inline types.
  * @compile -XDallowWithFieldOperator -XDemitQtypes VTAssignability.java
  * @run main/othervm -Xverify:remote -XX:+EnableValhalla VTAssignability
  */
 
-// Test that a value type is assignable to itself, to java.lang.Object,
+// Test that an inline type is assignable to itself, to java.lang.Object,
 // and to an interface,
 //
 interface II { }
 
-public value final class VTAssignability implements II {
+public inline final class VTAssignability implements II {
     final int x;
     final int y;
 
@@ -72,13 +72,13 @@ public value final class VTAssignability implements II {
         VTAssignability a = createVTAssignability(3, 4);
         VTAssignability b = createVTAssignability(2, 4);
 
-        // Test assignability of a value type to itself.
+        // Test assignability of an inline type to itself.
         boolean res = a.isSameVTAssignability(b);
 
-        // Test assignability of a value type to java.lang.Object.
+        // Test assignability of an inline type to java.lang.Object.
         res = b.equals(a);
 
-        // Test assignability of a value type to an interface.
+        // Test assignability of an inline type to an interface.
         a.takesInterface(b);
     }
 }

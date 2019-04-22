@@ -30,7 +30,7 @@ final class ContainerValue4 {
     TestValue4[] valueArray;
 }
 
-public value final class TestValue4 {
+public inline final class TestValue4 {
 
     static TestValue4? staticValue = getInstance();
 

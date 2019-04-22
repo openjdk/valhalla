@@ -67,7 +67,7 @@ public class ValueTypeArray {
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
             // array-of-L-type not supported yet
-            // the component type of a flattened value array is of the value type
+            // the component type of a flattened inline array is of the inline type
             // the component type of a non-flattened array is of the box type
             assertTrue(arrayCls.getComponentType().asBoxType() == Point.class,
                        "Expected component type of Point.class got: " + arrayCls.getComponentType());
@@ -196,7 +196,7 @@ public class ValueTypeArray {
         assertEquals(x, 0, "Bad Point Value");
     }
 
-    static final value class MyInt implements Comparable<MyInt?> {
+    static final inline class MyInt implements Comparable<MyInt?> {
         final int value;
 
         private MyInt() { value = 0; }
@@ -225,14 +225,12 @@ public class ValueTypeArray {
         default String hi() { return "Hi"; }
     }
 
-    static final value class MyOtherInt implements SomeSecondaryType {
+    static final inline class MyOtherInt implements SomeSecondaryType {
         final int value;
         private MyOtherInt() { value = 0; }
     }
 
     void testSanityCheckcasts() {
-// TODO Re-enable if value type arrays become covariant with object arrays
-/*
 
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
@@ -253,11 +251,10 @@ public class ValueTypeArray {
         MyOtherInt[][] matrix = new MyOtherInt[1][1];
         assertTrue(matrix[0] instanceof MyOtherInt[]);
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
-*/
     }
 
 /*
- * Comment out this test because value type arrays are not assignable to the array
+ * Comment out this test because inline type arrays are not assignable to the array
  * parameter types used by the methods in class java.util.Arrays.
  *
     void testUtilArrays() {
@@ -360,14 +357,14 @@ public class ValueTypeArray {
         System.arraycopy(valArray, 0, valArray, 0, 3);
         checkArrayElementsEqual(valArray, objArray);
 
-        objArray[0] = "Not a value object";
+        objArray[0] = "Not an inline object";
         try {
             System.arraycopy(objArray, 0, valArray, 0, 3);
             throw new RuntimeException("Expected ArrayStoreException");
         } catch (ArrayStoreException ase) {}
     }
 
-    static final value class MyPoint {
+    static final inline class MyPoint {
         final               MyInt x;
         final               MyInt y;
 
@@ -397,7 +394,7 @@ public class ValueTypeArray {
     }
 
     void testComposition() {
-        // Test array operations with compostion of values, check element payload is correct...
+        // Test array operations with compostion of inline types, check element payload is correct...
         MyPoint a = MyPoint.create(1, 2);
         MyPoint b = MyPoint.create(7, 21);
         MyPoint c = MyPoint.create(Integer.MAX_VALUE, Integer.MIN_VALUE);

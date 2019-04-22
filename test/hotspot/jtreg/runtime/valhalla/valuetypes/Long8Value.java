@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@ package runtime.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
 
-public final value class Long8Value {
+public final inline class Long8Value {
 
     final long longField1;
     final long longField2;

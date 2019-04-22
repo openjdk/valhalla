@@ -226,8 +226,8 @@ void VerificationType::print_on(outputStream* st) const {
     case Double_2nd:       st->print("double_2nd"); break;
     case Null:             st->print("null"); break;
     case ReferenceQuery:   st->print("reference type"); break;
-    case ValueTypeQuery:   st->print("value type"); break;
-    case NonScalarQuery:   st->print("reference or value type"); break;
+    case ValueTypeQuery:   st->print("inline type"); break;
+    case NonScalarQuery:   st->print("reference or inline type"); break;
     case Category1Query:   st->print("category1 type"); break;
     case Category2Query:   st->print("category2 type"); break;
     case Category2_2ndQuery: st->print("category2_2nd type"); break;

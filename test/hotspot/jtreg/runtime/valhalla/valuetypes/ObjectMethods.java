@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -105,7 +105,7 @@ public class ObjectMethods {
         if (!sawCnse) {
             throw new RuntimeException("clone() did not fail");
         }
-        // Cloneable value type checked by "BadValueTypes" CFP tests
+        // Cloneable inline type checked by "BadValueTypes" CFP tests
     }
 
     static void checkSynchronized(Object val) {
@@ -210,7 +210,7 @@ public class ObjectMethods {
         }
     }
 
-    static final value class MyInt {
+    static final inline class MyInt {
         final int value;
         private MyInt() { value = 0; }
         public static MyInt create(int v) {

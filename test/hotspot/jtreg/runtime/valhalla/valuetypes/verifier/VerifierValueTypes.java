@@ -23,7 +23,7 @@
  */
 /*
  * @test
- * @summary test that the right exceptions get thrown for bad value type
+ * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile verifierTests.jcod NoArrayCov.jcod NoArrayCovIntf.jcod NoNullVT.jcod
  * @run main/othervm -verify -XX:+EnableValhalla VerifierValueTypes
@@ -90,26 +90,26 @@ public class VerifierValueTypes {
         runTestVerifyError("wthFldWrongCPType", "Illegal type at constant pool entry");
 
         // Test that VerifyError is thrown if the class for a withfields's cp fieldref
-        // entry is java.lang.Object and the reference on the stack is a value type.
-        runTestVerifyError("wthFldObject", "must be identical value types");
+        // entry is java.lang.Object and the reference on the stack is an inline type.
+        runTestVerifyError("wthFldObject", "must be identical inline types");
 
-        // Test VerifyError is thrown if a monitorenter's cp entry is a value type.
+        // Test VerifyError is thrown if a monitorenter's cp entry is an inline type.
         runTestVerifyError("monEnterVT", "Bad type on operand stack");
 
-        // Test VerifyError is thrown if a defaultvalue's cp entry is a value type.
+        // Test VerifyError is thrown if a defaultvalue's cp entry is an inline type.
         // TBD!!!
         runTestVerifyError("defValueObj", "Invalid type on operand stack in withfield instruction");
 
-        // Test VerifyError is thrown if a withfield's class operand is not a value type.
+        // Test VerifyError is thrown if a withfield's class operand is not an inline type.
         runTestVerifyError("withfieldObj", "Bad type on operand stack");
 
-        // Test that an array of value types is assignable to [Ljava/lang/Object; (Covariance).
+        // Test that an array of inline types is assignable to [Ljava/lang/Object; (Covariance).
         runTestNoError("NoArrayCov");
 
-        // Test that an array of value types is assignable to an array of interfaces (Covariance).
+        // Test that an array of inline types is assignable to an array of interfaces (Covariance).
         runTestNoError("NoArrayCovIntf");
 
-        // Test that null is not assignable to a value type.
+        // Test that null is not assignable to an inline type.
         runTestVerifyError("NoNullVT",
             "Type null (current frame, stack[1]) is not assignable to 'QNoNullVT;'");
     }

@@ -63,7 +63,7 @@ public class FlattenableSemanticTest {
     public static void main(String[] args) {
         FlattenableSemanticTest test = new FlattenableSemanticTest();
 
-        // Uninitialized value fields must be null for non flattenable fields
+        // Uninitialized inline fields must be null for non flattenable fields
         Asserts.assertNull(nfsp, "Invalid non null value for unitialized non flattenable field");
         Asserts.assertNull(nfsj, "Invalid non null value for unitialized non flattenable field");
         Asserts.assertNull(test.nfip, "Invalid non null value for unitialized non flattenable field");
@@ -71,13 +71,13 @@ public class FlattenableSemanticTest {
 
         // fsp.equals(null);
 
-        // Uninitialized value fields must be non null for flattenable fields
+        // Uninitialized inline fields must be non null for flattenable fields
         Asserts.assertNotNull(fsp, "Invalid null value for unitialized flattenable field");
         Asserts.assertNotNull(fsj, "Invalid null value for unitialized flattenable field");
         Asserts.assertNotNull(test.fip, "Invalid null value for unitialized flattenable field");
         Asserts.assertNotNull(test.fij, "Invalid null value for unitialized flattenable field");
 
-        // Assigning null must be allowed for non flattenable value fields
+        // Assigning null must be allowed for non flattenable inline fields
         boolean exception = true;
         try {
             nfsp = (Point?)getNull();
@@ -115,7 +115,7 @@ public class FlattenableSemanticTest {
         }
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
-        // Assigning null to a flattenable value field must trigger a NPE
+        // Assigning null to a flattenable inline field must trigger a NPE
         exception = false;
         try {
             fsp = (Point)getNull();
