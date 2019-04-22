@@ -1,0 +1,6 @@
+TypeRelationsNegativeTest.java:11:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, TypeRelationsNegativeTest)
+TypeRelationsNegativeTest.java:17:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TypeRelationsNegativeTest?, TypeRelationsNegativeTest)
+TypeRelationsNegativeTest.java:18:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TypeRelationsNegativeTest?, TypeRelationsNegativeTest)
+TypeRelationsNegativeTest.java:21:77: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, TypeRelationsNegativeTest)
+TypeRelationsNegativeTest.java:26:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TypeRelationsNegativeTest?[], TypeRelationsNegativeTest[])
+5 errors
