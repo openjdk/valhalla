@@ -361,8 +361,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
         }
     }
 
-    class D extends B {
-        public MyValue1? test13_helper() {
+    class D extends C {
+        public MyValue1 test13_helper() {
             return (MyValue1) nullField;
         }
     }
@@ -374,9 +374,16 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test13_verifier(boolean warmup) {
+        A a = new A();
         A b = new B();
         A c = new C();
         A d = new D();
+        try {
+            test13(a);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
         try {
             test13(b);
             throw new RuntimeException("NullPointerException expected");
