@@ -67,7 +67,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     //
     // MyValue1 has already been loaded, because it's in the ValueType attribute of
     // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test1_precondition().
-    static value final class MyValue1 {
+    static final inline class MyValue1 {
         final int foo;
 
         MyValue1() {
@@ -114,7 +114,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     //
     // MyValue2 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedValueTypeField.
-    static value final class MyValue2 {
+    static final inline class MyValue2 {
         final int foo;
 
         public MyValue2(int n) {
@@ -162,7 +162,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     //
     // MyValue3 has already been loaded, because it's in the ValueType attribute of
     // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test3_precondition().
-    static value final class MyValue3 {
+    static final inline class MyValue3 {
         final int foo;
 
         public MyValue3() {
@@ -203,7 +203,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
 
     // Test case 4:
     // Same as case 1, except we use putfield instead of getfield.
-    static value final class MyValue4 {
+    static final inline class MyValue4 {
         final int foo;
 
         MyValue4(int n) {
@@ -243,7 +243,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
 
     // Test case 5:
     // Same as case 2, except we use putfield instead of getfield.
-    static value final class MyValue5 {
+    static final inline class MyValue5 {
         final int foo;
 
         MyValue5(int n) {
@@ -290,7 +290,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     //
     // MyValue11 has already been loaded, because it's in the ValueType attribute of
     // TestUnloadedValueTypeField, due to TestUnloadedValueTypeField.test1_precondition().
-    static value final class MyValue11 {
+    static final inline class MyValue11 {
         final int foo;
 
         MyValue11() {
@@ -332,7 +332,7 @@ public class TestUnloadedValueTypeField extends compiler.valhalla.valuetypes.Val
     //
     // MyValue12 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedValueTypeField.
-    static value final class MyValue12 {
+    static final inline class MyValue12 {
         final int foo;
 
         MyValue12(int n) {

@@ -479,7 +479,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // Test scalarization of default value type with non-flattenable field
-    value final class Test17Value {
+    final inline class Test17Value {
         public final MyValue1? valueField;
 
         @ForceInline
@@ -586,7 +586,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // Test writing null to a flattenable/non-flattenable value type field in a value type
-    value final class Test21Value {
+    final inline class Test21Value {
         final MyValue1? valueField1;
         final MyValue1 valueField2;
         final MyValue1? alwaysNull = null;

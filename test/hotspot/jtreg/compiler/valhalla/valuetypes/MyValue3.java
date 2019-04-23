@@ -26,7 +26,7 @@ package compiler.valhalla.valuetypes;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
-value final class MyValue3Inline {
+final inline class MyValue3Inline {
     final float f7;
     final double f8;
 
@@ -62,7 +62,7 @@ value final class MyValue3Inline {
 
 // Value type definition to stress test return of a value in registers
 // (uses all registers of calling convention on x86_64)
-value public final class MyValue3 implements MyInterface {
+public final inline class MyValue3 implements MyInterface {
     final char c;
     final byte bb;
     final short s;

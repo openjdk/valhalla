@@ -405,7 +405,7 @@ public class TestIntrinsics extends ValueTypeTest {
     }
 
     // Test copyOf intrinsic with allocated value type in it's debug information
-    value final class Test25Value {
+    final inline class Test25Value {
         final int x;
         public Test25Value() {
             this.x = 42;

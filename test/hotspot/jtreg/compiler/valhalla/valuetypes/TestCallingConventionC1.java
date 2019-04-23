@@ -78,7 +78,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                  FloatPoint.class);
     }
 
-    static value class Point {
+    static inline class Point {
         final int x;
         final int y;
         public Point(int x, int y) {
@@ -178,7 +178,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
 
-    static value class MyImplVal implements Intf {
+    static inline class MyImplVal implements Intf {
         final int field;
         MyImplVal(int f) {
             field = f;
@@ -205,7 +205,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         return intfs[n];
     }
 
-    static value class FixedPoints {
+    static inline class FixedPoints {
         final boolean Z0 = false;
         final boolean Z1 = true;
         final byte    B  = (byte)2;
@@ -216,7 +216,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     }
     static FixedPoints fixedPointsField = new FixedPoints();
 
-    static value class FloatPoint {
+    static inline class FloatPoint {
         final float x;
         final float y;
         public FloatPoint(float x, float y) {
@@ -224,7 +224,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             this.y = y;
         }
     }
-    static value class DoublePoint {
+    static inline class DoublePoint {
         final double x;
         final double y;
         public DoublePoint(double x, double y) {
@@ -235,7 +235,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     static FloatPoint floatPointField = new FloatPoint(123.456f, 789.012f);
     static DoublePoint doublePointField = new DoublePoint(123.456, 789.012);
 
-    static value class EightFloats {
+    static inline class EightFloats {
         float f1, f2, f3, f4, f5, f6, f7, f8;
         public EightFloats() {
             f1 = 1.1f;

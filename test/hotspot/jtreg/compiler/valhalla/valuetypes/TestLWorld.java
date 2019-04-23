@@ -1398,7 +1398,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Value type with some non-flattened fields
-    value final class Test51Value {
+    final inline class Test51Value {
         final Object objectField1;
         final Object objectField2;
         final Object objectField3;
@@ -1846,7 +1846,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test calling a method on an uninitialized value type
-    value final class Test72Value {
+    final inline class Test72Value {
         final int x = 42;
         public int get() {
             return x;
@@ -2002,7 +2002,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test flattened field with non-flattenend (but flattenable) value type field
-    static value class Small {
+    static inline class Small {
         final int i;
         final Big big; // Too big to be flattened
 
@@ -2012,7 +2012,7 @@ public class TestLWorld extends ValueTypeTest {
         }
     }
 
-    static value class Big {
+    static inline class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
         long l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
         long l20,l21,l22,l23,l24,l25,l26,l27,l28,l29;

@@ -432,7 +432,7 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     // Test calling a method that has circular register/stack dependencies when unpacking value type arguments
-    value class TestValue23 {
+    inline class TestValue23 {
         final double f1;
         TestValue23(double val) {
             f1 = val;
@@ -504,7 +504,7 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     // Test calling convention with deep hierarchy of flattened fields
-    value final class Test27Value1 {
+    final inline class Test27Value1 {
         final Test27Value2 valueField;
 
         private Test27Value1(Test27Value2 val2) {
@@ -517,7 +517,7 @@ public class TestCallingConvention extends ValueTypeTest {
         }
     }
 
-    value final class Test27Value2 {
+    final inline class Test27Value2 {
         final Test27Value3 valueField;
 
         private Test27Value2(Test27Value3 val3) {
@@ -530,7 +530,7 @@ public class TestCallingConvention extends ValueTypeTest {
         }
     }
 
-    value final class Test27Value3 {
+    final inline class Test27Value3 {
         final int x;
 
         private Test27Value3(int x) {

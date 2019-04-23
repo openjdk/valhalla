@@ -117,7 +117,7 @@ interface MyInterface {
 
 }
 
-value class MyValue1 implements MyInterface {
+inline class MyValue1 implements MyInterface {
     final int x;
 
     MyValue1(int x) {
@@ -133,7 +133,7 @@ value class MyValue1 implements MyInterface {
     }
 }
 
-value class MyValue2 implements MyInterface {
+inline class MyValue2 implements MyInterface {
     final int x;
 
     MyValue2(int x) {

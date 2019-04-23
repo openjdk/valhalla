@@ -38,7 +38,7 @@
 
 import jdk.test.lib.Asserts;
 
-value final class MyValue {
+final inline class MyValue {
     final int foo;
 
     private MyValue() {
@@ -46,7 +46,7 @@ value final class MyValue {
     }
 }
 
-value final class MyValue2 {
+final inline class MyValue2 {
     final int foo;
 
     public MyValue2(int n) {
@@ -54,7 +54,7 @@ value final class MyValue2 {
     }
 }
 
-value final class MyValue3 {
+final inline class MyValue3 {
     final int foo;
 
     public MyValue3(int n) {
@@ -62,7 +62,7 @@ value final class MyValue3 {
     }
 }
 
-value final class MyValue4 {
+final inline class MyValue4 {
     final int foo;
 
     public MyValue4(int n) {
@@ -70,7 +70,7 @@ value final class MyValue4 {
     }
 }
 
-value final class MyValue5 {
+final inline class MyValue5 {
     final int foo;
 
     public MyValue5(int n) {
@@ -78,7 +78,7 @@ value final class MyValue5 {
     }
 }
 
-value final class MyValue6 {
+final inline class MyValue6 {
     final int foo;
 
     public MyValue6(int n) {

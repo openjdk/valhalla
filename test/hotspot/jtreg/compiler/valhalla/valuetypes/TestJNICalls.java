@@ -92,7 +92,7 @@ public class TestJNICalls extends ValueTypeTest {
         Asserts.assertEQ(result, vt.hash());
     }
 
-    static value class MyValueWithNative {
+    static inline class MyValueWithNative {
         public final int x;
 
         private MyValueWithNative(int x) {

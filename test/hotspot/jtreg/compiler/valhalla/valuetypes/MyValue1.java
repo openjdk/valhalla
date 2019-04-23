@@ -23,7 +23,7 @@
 
 package compiler.valhalla.valuetypes;
 
-value public final class MyValue1 implements MyInterface {
+public final inline class MyValue1 implements MyInterface {
     static int s;
     static final long sf = ValueTypeTest.rL;
     final int x;

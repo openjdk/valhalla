@@ -24,7 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 // Value type definition with too many fields to return in registers
-value final class MyValue4 implements MyInterface {
+final inline class MyValue4 implements MyInterface {
     final MyValue3 v1;
     final MyValue3 v2;
 
