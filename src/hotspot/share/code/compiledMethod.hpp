@@ -202,6 +202,16 @@ public:
   bool  has_wide_vectors() const                  { return _has_wide_vectors; }
   void  set_has_wide_vectors(bool z)              { _has_wide_vectors = z; }
 
+  bool  needs_stack_repair() const {
+    if (is_compiled_by_c1()) {
+      return method()->c1_needs_stack_repair();
+    } else if (is_compiled_by_c2()) {
+      return method()->c2_needs_stack_repair();
+    } else {
+      return false;
+    }
+  }
+
   enum { not_installed = -1, // in construction, only the owner doing the construction is
                              // allowed to advance state
          in_use        = 0,  // executable nmethod

@@ -724,7 +724,7 @@ class Compile : public Phase {
 
   // Support for scalarized value type calling convention
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
-  bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->needs_stack_repair(); }
+  bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->c2_needs_stack_repair(); }
   int               sp_inc_offset()       const  { return _sp_inc_slot_offset_in_bytes; }
 
   // check the CompilerOracle for special behaviours for this compile

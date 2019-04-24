@@ -2752,7 +2752,8 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) {
   _num_value_args = 0;
   _has_value_recv = false;
   _has_scalarized_args = false;
-  _needs_stack_repair = false;
+  _c1_needs_stack_repair = false;
+  _c2_needs_stack_repair = false;
   _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
   if (!method->is_static()) {
     if (method->method_holder()->is_value()) {
@@ -2882,8 +2883,10 @@ void CompiledEntrySignature::compute_calling_conventions() {
       _regs_cc = _regs;
       _regs_cc_ro = _regs;
       _args_on_stack_cc = _args_on_stack;
+      _args_on_stack_cc_ro = _args_on_stack;
     } else {
-      _needs_stack_repair = (_args_on_stack_cc > _args_on_stack);
+      _c1_needs_stack_repair = (_args_on_stack_cc < _args_on_stack) || (_args_on_stack_cc_ro < _args_on_stack);
+      _c2_needs_stack_repair = (_args_on_stack_cc > _args_on_stack) || (_args_on_stack_cc > _args_on_stack_cc_ro);
       _has_scalarized_args = true;
     }
   }
@@ -2931,7 +2934,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
     if (ces.has_scalarized_args()) {
       method->set_has_scalarized_args(true);
-      method->set_needs_stack_repair(ces.needs_stack_repair());
+      method->set_c1_needs_stack_repair(ces.c1_needs_stack_repair());
+      method->set_c2_needs_stack_repair(ces.c2_needs_stack_repair());
     }
 
     if (method->is_abstract()) {

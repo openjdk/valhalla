@@ -91,6 +91,10 @@ class LIR_Assembler: public CompilationResourceObj {
 
   void emit_stubs(CodeStubList* stub_list);
 
+  bool needs_stack_repair() const {
+    return compilation()->needs_stack_repair();
+  }
+
   // addresses
   Address as_Address(LIR_Address* addr);
   Address as_Address_lo(LIR_Address* addr);

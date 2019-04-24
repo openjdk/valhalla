@@ -52,7 +52,8 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test36_helper", "-XX:CompileCommand=print,*::func_c1"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test50*"
+                                   //, "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
         case 1: return new String[] {"-XX:+EnableValhallaC1", "-XX:TieredStopAtLevel=1"
@@ -674,6 +675,278 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             float result = test42();
             float n = test42_helper(eightFloatsField, pointField, 3, 4, 5, floatPointField, 7);
             Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, packing causes stack growth (1 extra stack word)
+    @Test(compLevel = C2)
+    public float test43() {
+        return test43_helper(floatPointField, 1, 2, 3, 4, 5, 6);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test43_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5, int a6) {
+        // On x64:
+        //    Scalarized entry -- all parameters are passed in registers
+        //    Non-scalarized entry -- a6 is passed on stack[0]
+        return fp.x + fp.y + a1 + a2 + a3 + a4 + a5 + a6;
+    }
+
+    @DontCompile
+    public void test43_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            float result = test43();
+            float n = test43_helper(floatPointField, 1, 2, 3, 4, 5, 6);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, packing causes stack growth (2 extra stack words)
+    @Test(compLevel = C2)
+    public float test44() {
+      return test44_helper(floatPointField, floatPointField, 1, 2, 3, 4, 5, 6);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+      private static float test44_helper(FloatPoint fp1, FloatPoint fp2, int a1, int a2, int a3, int a4, int a5, int a6) {
+        // On x64:
+        //    Scalarized entry -- all parameters are passed in registers
+        //    Non-scalarized entry -- a5 is passed on stack[0]
+        //    Non-scalarized entry -- a6 is passed on stack[1]
+        return fp1.x + fp1.y +
+               fp2.x + fp2.y +
+               a1 + a2 + a3 + a4 + a5 + a6;
+    }
+
+    @DontCompile
+    public void test44_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            float result = test44();
+            float n = test44_helper(floatPointField, floatPointField, 1, 2, 3, 4, 5, 6);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, packing causes stack growth (5 extra stack words)
+    @Test(compLevel = C2)
+    public float test45() {
+      return test45_helper(floatPointField, floatPointField, floatPointField, floatPointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test45_helper(FloatPoint fp1, FloatPoint fp2, FloatPoint fp3, FloatPoint fp4, FloatPoint fp5, int a1, int a2, int a3, int a4, int a5, int a6, int a7) {
+        return fp1.x + fp1.y +
+               fp2.x + fp2.y +
+               fp3.x + fp3.y +
+               fp4.x + fp4.y +
+               fp5.x + fp5.y +
+               a1 + a2 + a3 + a4 + a5 + a6 + a7;
+    }
+
+    @DontCompile
+    public void test45_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            float result = test45();
+            float n = test45_helper(floatPointField, floatPointField, floatPointField, floatPointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, packing causes stack growth (1 extra stack word -- mixing Point and FloatPoint)
+    @Test(compLevel = C2)
+    public float test46() {
+      return test46_helper(floatPointField, floatPointField, pointField, floatPointField, floatPointField, pointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+      private static float test46_helper(FloatPoint fp1, FloatPoint fp2, Point p1, FloatPoint fp3, FloatPoint fp4, Point p2, FloatPoint fp5, int a1, int a2, int a3, int a4, int a5, int a6, int a7) {
+        return p1.x + p1.y +
+               p2.x + p2.y +
+               fp1.x + fp1.y +
+               fp2.x + fp2.y +
+               fp3.x + fp3.y +
+               fp4.x + fp4.y +
+               fp5.x + fp5.y +
+               a1 + a2 + a3 + a4 + a5 + a6 + a7;
+    }
+
+    @DontCompile
+    public void test46_verifier(boolean warmup) {
+        int count = warmup ? 1 : 2;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            float result = test46();
+            float n = test46_helper(floatPointField, floatPointField, pointField, floatPointField, floatPointField, pointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    static class MyRuntimeException extends RuntimeException {
+        MyRuntimeException(String s) {
+            super(s);
+        }
+    }
+
+    static void checkStackTrace(Throwable t, String... methodNames) {
+        StackTraceElement[] trace = t.getStackTrace();
+        for (int i=0; i<methodNames.length; i++) {
+            if (!methodNames[i].equals(trace[i].getMethodName())) {
+                String error = "Unexpected stack trace: level " + i + " should be " + methodNames[i];
+                System.out.println(error);
+                t.printStackTrace(System.out);
+                throw new RuntimeException(error, t);
+            }
+        }
+    }
+    /*
+
+    // C2->C1 invokestatic, make sure stack walking works (with static variable)
+    @Test(compLevel = C2)
+    public void test47(int n) {
+        try {
+            test47_helper(floatPointField, 1, 2, 3, 4, 5);
+            test47_value = 666;
+        } catch (MyRuntimeException e) {
+            // expected;
+        }
+        test47_value = n;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test47_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5) {
+        test47_thrower();
+        return 0.0f;
+    }
+
+    @DontInline @DontCompile
+    private static void test47_thrower() {
+        MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
+        checkStackTrace(e, "test47_thrower", "test47_helper", "test47", "test47_verifier");
+        throw e;
+    }
+
+    static int test47_value = 999;
+
+    @DontCompile
+    public void test47_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            test47_value = 777 + i;
+            test47(i);
+            // FIXME JDK-8222908  Asserts.assertEQ(test47_value, i);
+        }
+    }
+    */
+
+    // C2->C1 invokestatic, make sure stack walking works (with returned value)
+    @Test(compLevel = C2)
+    public int test48(int n) {
+        try {
+            test48_helper(floatPointField, 1, 2, 3, 4, 5);
+            return 666;
+        } catch (MyRuntimeException e) {
+            // expected;
+        }
+        return n;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test48_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5) {
+        test48_thrower();
+        return 0.0f;
+    }
+
+    @DontInline @DontCompile
+    private static void test48_thrower() {
+        MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
+        checkStackTrace(e, "test48_thrower", "test48_helper", "test48", "test48_verifier");
+        throw e;
+    }
+
+    @DontCompile
+    public void test48_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int n = test48(i);
+            // FIXME JDK-8222908  Asserts.assertEQ(n, i);
+        }
+    }
+
+    // C2->interpreter invokestatic, make sure stack walking works (same as test 48, but with stack extension/repair)
+    // (this is the baseline for test50).
+    @Test(compLevel = C2)
+    public int test49(int n) {
+        try {
+            test49_helper(floatPointField, 1, 2, 3, 4, 5, 6);
+            return 666;
+        } catch (MyRuntimeException e) {
+            // expected;
+        }
+        return n;
+    }
+
+    @DontInline @DontCompile
+    private static float test49_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5, int a6) {
+        test49_thrower();
+        return 0.0f;
+    }
+
+    @DontInline @DontCompile
+    private static void test49_thrower() {
+        MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
+        checkStackTrace(e, "test49_thrower", "test49_helper", "test49", "test49_verifier");
+        throw e;
+    }
+
+    @DontCompile
+    public void test49_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int n = test49(i);
+            // FIXME JDK-8222908  Asserts.assertEQ(n, i);
+        }
+    }
+
+    // C2->C1 invokestatic, make sure stack walking works (same as test 48, but with stack extension/repair)
+    @Test(compLevel = C2)
+    public int test50(int n) {
+        try {
+            test50_helper(floatPointField, 1, 2, 3, 4, 5, 6);
+            return 666;
+        } catch (MyRuntimeException e) {
+            // expected;
+        }
+        return n;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test50_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5, int a6) {
+        test50_thrower();
+        return 0.0f;
+    }
+
+    @DontInline @DontCompile
+    private static void test50_thrower() {
+        MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
+        checkStackTrace(e, "test50_thrower", "test50_helper", "test50", "test50_verifier");
+        throw e;
+    }
+
+    @DontCompile
+    public void test50_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int n = test50(i);
+            // FIXME JDK-8222908  Asserts.assertEQ(n, i);
         }
     }
 }

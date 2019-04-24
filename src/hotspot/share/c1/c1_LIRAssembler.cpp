@@ -614,29 +614,25 @@ void LIR_Assembler::add_std_entry_info(int pc_offset, bool no_receiver) {
 void LIR_Assembler::emit_std_entries() {
   offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
 
-  CompiledEntrySignature ces(method()->get_Method());
-  {
-    ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
-    ces.compute_calling_conventions();
-  }
-  if (ces.has_scalarized_args()) {
+  const CompiledEntrySignature* ces = compilation()->compiled_entry_signature();
+  if (ces->has_scalarized_args()) {
     assert(ValueTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
-    add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Entry, &ces), false);
+    add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Entry, ces), false);
 
     bool has_value_ro_entry = false;
-    if (ces.has_value_recv() && ces.num_value_args() > 1) {
+    if (ces->has_value_recv() && ces->num_value_args() > 1) {
       // We need a separate entry for value_ro
       has_value_ro_entry = true;
-      add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, &ces), true);
+      add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, ces), true);
     }
     emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
     if (!has_value_ro_entry) {
-      if (ces.has_value_recv()) {
-        assert(ces.num_value_args() == 1, "must be");
+      if (ces->has_value_recv()) {
+        assert(ces->num_value_args() == 1, "must be");
         offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
                              offsets()->value(CodeOffsets::Verified_Value_Entry));
       } else {
-        assert(ces.num_value_args() > 0, "must be");
+        assert(ces->num_value_args() > 0, "must be");
         offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
                              offsets()->value(CodeOffsets::Verified_Entry));
       }
@@ -657,14 +653,14 @@ int LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEntr
   offsets()->set_value(entry, _masm->offset());
   switch (entry) {
   case CodeOffsets::Verified_Entry:
-    return _masm->verified_entry(ces, initial_frame_size_in_bytes(), _verified_value_entry);
+    return _masm->verified_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), _verified_value_entry);
   case CodeOffsets::Verified_Value_Entry_RO:
-    return _masm->verified_value_ro_entry(ces, initial_frame_size_in_bytes(), _verified_value_entry);
+    return _masm->verified_value_ro_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), _verified_value_entry);
   default:
     {
       int offset = _masm->offset();
       assert(entry == CodeOffsets::Verified_Value_Entry, "must be");
-      _masm->verified_value_entry(_verified_value_entry);
+      _masm->verified_value_entry();
       build_frame();
       offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
       return offset;
@@ -846,7 +842,9 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
 
 
 void LIR_Assembler::build_frame() {
-  _masm->build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes());
+  _masm->build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes(),
+                     compilation()->compiled_entry_signature()->c1_needs_stack_repair(),
+                     &_verified_value_entry);
 }
 
 

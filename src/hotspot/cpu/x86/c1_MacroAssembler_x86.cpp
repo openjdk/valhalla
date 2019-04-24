@@ -318,7 +318,7 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 }
 
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes) {
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, bool needs_stack_repair, Label* verified_value_entry_label) {
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter(). This matches the
@@ -327,6 +327,9 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   // between the two compilers.
   generate_stack_overflow_check(bang_size_in_bytes);
 
+  if (!needs_stack_repair && verified_value_entry_label != NULL) {
+    bind(*verified_value_entry_label);
+  }
   push(rbp);
   if (PreserveFramePointer) {
     mov(rbp, rsp);
@@ -338,19 +341,34 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   }
 #endif // TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
+  if (needs_stack_repair) {
+    movptr(Address(rsp, frame_size_in_bytes - wordSize), frame_size_in_bytes
+           + wordSize     // skip over pushed rbp
+           + wordSize);   // skip over RA pushed by caller
+    if (verified_value_entry_label != NULL) {
+      bind(*verified_value_entry_label);
+    }
+  }
 
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
 }
 
 
-void C1_MacroAssembler::remove_frame(int frame_size_in_bytes) {
-  increment(rsp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
-  pop(rbp);
+void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair) {
+  if (!needs_stack_repair) {
+    increment(rsp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
+    pop(rbp);
+  } else {
+    movq(r13, Address(rsp, frame_size_in_bytes + wordSize)); // return address
+    movq(rbp, Address(rsp, frame_size_in_bytes));
+    addq(rsp, Address(rsp, frame_size_in_bytes - wordSize)); // now we are back to caller frame, without the outgoing returned address
+    push(r13);                  // restore the returned address, as pushed by caller
+  }
 }
 
 
-void C1_MacroAssembler::verified_value_entry(Label& verified_value_entry_label) {
+void C1_MacroAssembler::verified_value_entry() {
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
     // Verified Entry first instruction should be 5 bytes long for correct
     // patching by patch_verified_entry().
@@ -364,10 +382,9 @@ void C1_MacroAssembler::verified_value_entry(Label& verified_value_entry_label) 
   if (C1Breakpoint)int3();
   // build frame
   verify_FPU(0, "method_entry");
-  bind(verified_value_entry_label);
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
     // Verified Entry first instruction should be 5 bytes long for correct
     // patching by patch_verified_entry().
@@ -382,7 +399,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   verify_FPU(0, "method_entry");
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
-  push(rbp); // Create a temp frame so we can call
+  push(rbp); // Create a temp frame so we can call into runtime // FIXME: need to be able to handle GC during the call
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
@@ -394,6 +411,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_id)));
   }
   int rt_call_offset = offset();
+
+  pop(rbp);
+  addptr(rsp, frame_size_in_bytes);
 
   assert(ValueTypePassFieldsAsArgs, "sanity");
 
@@ -409,13 +429,10 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
 
-  int extra_stack_offset = frame_size_in_bytes + (2 * wordSize); // 2 extra slots for return address, and saved bp.
+  int extra_stack_offset = wordSize; // tos is return address.
   int sp_inc = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
                                   args_passed_cc, args_on_stack_cc, regs_cc, // from
                                   args_passed, args_on_stack, regs);         // to
-
-  assert(sp_inc == 0, "FIXME: stack repair not implemented");
-
 
 #if 0 // FIXME -- implement this!
   // If a value type was allocated and initialized, apply post barrier to all oop fields
@@ -433,10 +450,29 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     }
     __ pop(rbx); // restore callee
     __ pop(r13); // restore sender SP
+  }
 #endif
 
-  pop(rbp);
-  addptr(rsp, frame_size_in_bytes);
+  if (sp_inc != 0) {
+    assert(sp_inc > 0, "stack should not shrink");
+    generate_stack_overflow_check(bang_size_in_bytes);
+    push(rbp);
+    if (PreserveFramePointer) {
+      mov(rbp, rsp);
+    }
+#ifdef TIERED
+    // c2 leaves fpu stack dirty. Clean it on entry
+    if (UseSSE < 2 ) {
+      empty_FPU_stack();
+    }
+#endif // TIERED
+    decrement(rsp, frame_size_in_bytes);
+    movptr(Address(rsp, frame_size_in_bytes - wordSize), frame_size_in_bytes +
+           + wordSize  // pushed rbp
+           + wordSize  // returned address pushed by the stack extension code
+           + sp_inc);  // stack extension
+  }
+
   jmp(verified_value_entry_label);
   return rt_call_offset;
 }

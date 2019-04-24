@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -564,6 +564,7 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
 , _code(buffer_blob)
 , _has_access_indexed(false)
 , _interpreter_frame_size(0)
+, _compiled_entry_signature(method->get_Method())
 , _current_instruction(NULL)
 #ifndef PRODUCT
 , _last_instruction_printed(NULL)
@@ -580,6 +581,10 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
     _cfg_printer_output = new CFGPrinterOutput(this);
   }
 #endif
+  {
+    ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
+    _compiled_entry_signature.compute_calling_conventions();
+  }
   compile_method();
   if (bailed_out()) {
     _env->record_method_not_compilable(bailout_msg(), !TieredCompilation);

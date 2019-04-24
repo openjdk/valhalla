@@ -794,7 +794,8 @@ class CompiledEntrySignature : public StackObj {
   int _args_on_stack_cc;
   int _args_on_stack_cc_ro;
 
-  bool _needs_stack_repair;
+  bool _c1_needs_stack_repair;
+  bool _c2_needs_stack_repair;
   bool _has_scalarized_args;
 
 public:
@@ -822,7 +823,8 @@ public:
   bool has_value_recv()                const { return _has_value_recv; }
 
   bool has_scalarized_args()           const { return _has_scalarized_args; }
-  bool needs_stack_repair()            const { return _needs_stack_repair; }
+  bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
+  bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
 
   CompiledEntrySignature(Method* method);
   void compute_calling_conventions();

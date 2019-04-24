@@ -31,6 +31,7 @@
 #include "compiler/compilerDirectives.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 class CompilationResourceObj;
 class XHandlers;
@@ -90,6 +91,7 @@ class Compilation: public StackObj {
   CodeBuffer         _code;
   bool               _has_access_indexed;
   int                _interpreter_frame_size; // Stack space needed in case of a deoptimization
+  CompiledEntrySignature _compiled_entry_signature;
 
   // compilation helpers
   void initialize();
@@ -283,6 +285,13 @@ class Compilation: public StackObj {
 
   int interpreter_frame_size() const {
     return _interpreter_frame_size;
+  }
+
+  const CompiledEntrySignature* compiled_entry_signature() const {
+    return &_compiled_entry_signature;
+  }
+  bool needs_stack_repair() const {
+    return compiled_entry_signature()->c1_needs_stack_repair();
   }
 };
 

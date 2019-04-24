@@ -93,7 +93,8 @@ class Method : public Metadata {
     _intrinsic_candidate   = 1 << 6,
     _reserved_stack_access = 1 << 7,
     _scalarized_args       = 1 << 8,
-    _needs_stack_repair    = 1 << 9
+    _c1_needs_stack_repair = 1 << 9,
+    _c2_needs_stack_repair = 1 << 10
   };
   mutable u2 _flags;
 
@@ -920,12 +921,20 @@ class Method : public Metadata {
     _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
   }
 
-  bool needs_stack_repair() {
-    return (_flags & _needs_stack_repair) != 0;
+  bool c1_needs_stack_repair() {
+    return (_flags & _c1_needs_stack_repair) != 0;
   }
 
-  void set_needs_stack_repair(bool x) {
-    _flags = x ? (_flags | _needs_stack_repair) : (_flags & ~_needs_stack_repair);
+  bool c2_needs_stack_repair() {
+    return (_flags & _c2_needs_stack_repair) != 0;
+  }
+
+  void set_c1_needs_stack_repair(bool x) {
+    _flags = x ? (_flags | _c1_needs_stack_repair) : (_flags & ~_c1_needs_stack_repair);
+  }
+
+  void set_c2_needs_stack_repair(bool x) {
+    _flags = x ? (_flags | _c2_needs_stack_repair) : (_flags & ~_c2_needs_stack_repair);
   }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)

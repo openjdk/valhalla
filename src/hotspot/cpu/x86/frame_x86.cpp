@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -696,12 +696,16 @@ void frame::pd_ps() {}
 // a stack repair and return the repaired sender stack pointer.
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
   CompiledMethod* cm = _cb->as_compiled_method_or_null();
-  if (cm != NULL && cm->method()->needs_stack_repair()) {
+  if (cm != NULL && cm->needs_stack_repair()) {
     // The stack increment resides just below the saved rbp on the stack
     // and does not account for the return address.
     intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
     int sp_inc = (*sp_inc_addr) / wordSize;
-    int real_frame_size = sp_inc + 1; // Add size of return address
+    int real_frame_size = sp_inc;
+    if (!cm->is_compiled_by_c1()) {
+      // Add size of return address (C1 already includes the RA size)
+      real_frame_size += 1;
+    }
     assert(real_frame_size >= _cb->frame_size(), "invalid frame size");
     sender_sp = unextended_sp() + real_frame_size;
   }

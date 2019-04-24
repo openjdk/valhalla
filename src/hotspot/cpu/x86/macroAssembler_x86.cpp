@@ -6013,6 +6013,16 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
     sp_inc = 0;
   }
 
+  int ret_off; // make sure we don't overwrite the return address
+  if (is_packing) {
+    // For C1 code, the VVEP doesn't have reserved slots, so we store the returned address at
+    // rsp[0] during shuffling.
+    ret_off = 0;
+  } else {
+    // C2 code ensures that sp_inc is a reserved slot.
+    ret_off = sp_inc;
+  }
+
   // Initialize register/stack slot states (make all writable)
   int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
   int max_reg = VMRegImpl::stack2reg(max_stack)->value();
@@ -6068,24 +6078,24 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
         if (spill) {
           // This call returns true IFF we should keep trying to spill in this round.
           spill = shuffle_value_args_spill(is_packing, sig_cc, sig_index, regs, from_index, args_passed,
-                                           reg_state, sp_inc, extra_stack_offset);
+                                           reg_state, ret_off, extra_stack_offset);
         }
         BasicType bt = sig_cc->at(sig_index)._bt;
         if (SigEntry::skip_value_delimiters(sig_cc, sig_index)) {
           VMReg from_reg = regs[from_index].first();
-          done &= move_helper(from_reg, regs_to[to_index].first(), bt, reg_state, sp_inc, extra_stack_offset);
+          done &= move_helper(from_reg, regs_to[to_index].first(), bt, reg_state, ret_off, extra_stack_offset);
           to_index += step;
         } else if (is_packing || !receiver_only || (from_index == 0 && bt == T_VOID)) {
           if (is_packing) {
             VMReg reg_to = regs_to[to_index].first();
             done &= pack_value_helper(sig_cc, sig_index, vtarg_index, reg_to, regs, args_passed, from_index,
-                                      reg_state, sp_inc, extra_stack_offset);
+                                      reg_state, ret_off, extra_stack_offset);
             vtarg_index ++;
             to_index ++;
             continue; // from_index already adjusted
           } else {
             VMReg from_reg = regs[from_index].first();
-            done &= unpack_value_helper(sig_cc, sig_index, from_reg, regs_to, to_index, reg_state, sp_inc, extra_stack_offset);
+            done &= unpack_value_helper(sig_cc, sig_index, from_reg, regs_to, to_index, reg_state, ret_off, extra_stack_offset);
           }
         } else {
           continue;
@@ -6100,7 +6110,7 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
 
 bool MacroAssembler::shuffle_value_args_spill(bool is_packing, const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
                                               VMRegPair* regs_from, int from_index, int regs_from_count,
-                                              RegState* reg_state, int sp_inc, int extra_stack_offset) {
+                                              RegState* reg_state, int ret_off, int extra_stack_offset) {
   VMReg reg;
 
   if (!is_packing || SigEntry::skip_value_delimiters(sig_cc, sig_cc_index)) {
@@ -6133,7 +6143,7 @@ bool MacroAssembler::shuffle_value_args_spill(bool is_packing, const GrowableArr
   if (reg_state[spill_reg->value()] == reg_readonly) {
     // We have already spilled (in previous round). The spilled register should be consumed by this round.
   } else {
-    bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state, sp_inc, extra_stack_offset);
+    bool res = move_helper(reg, spill_reg, T_DOUBLE, reg_state, ret_off, extra_stack_offset);
     assert(res, "Spilling should not fail");
     // Set spill_reg as new source and update state
     reg = spill_reg;
