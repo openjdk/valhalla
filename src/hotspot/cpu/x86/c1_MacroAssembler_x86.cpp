@@ -412,8 +412,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   }
   int rt_call_offset = offset();
 
-  pop(rbp);
   addptr(rsp, frame_size_in_bytes);
+  pop(rbp);
 
   assert(ValueTypePassFieldsAsArgs, "sanity");
 

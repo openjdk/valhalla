@@ -52,7 +52,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test50*"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test47*"
                                    //, "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
@@ -364,7 +364,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         Asserts.assertEQ(result, n);
     }
 
-    // Interpreter passes value to C1 (instance method in value class)
+    // Interpreter passes value to C1 (instance method in inline class)
     @Test
     public int test21(Point p) {
         return test21_helper(p);
@@ -804,7 +804,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             }
         }
     }
-    /*
+    //*
 
     // C2->C1 invokestatic, make sure stack walking works (with static variable)
     @Test(compLevel = C2)
@@ -840,10 +840,9 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             test47_value = 777 + i;
             test47(i);
-            // FIXME JDK-8222908  Asserts.assertEQ(test47_value, i);
+            Asserts.assertEQ(test47_value, i);
         }
     }
-    */
 
     // C2->C1 invokestatic, make sure stack walking works (with returned value)
     @Test(compLevel = C2)
@@ -876,12 +875,13 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         int count = warmup ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test48(i);
-            // FIXME JDK-8222908  Asserts.assertEQ(n, i);
+            Asserts.assertEQ(n, i);
         }
     }
 
     // C2->interpreter invokestatic, make sure stack walking works (same as test 48, but with stack extension/repair)
-    // (this is the baseline for test50).
+    // (this is the baseline for test50 --
+    // the only difference is: test49_helper is interpreted but test50_helper is compiled by C1).
     @Test(compLevel = C2)
     public int test49(int n) {
         try {
@@ -911,7 +911,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         int count = warmup ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test49(i);
-            // FIXME JDK-8222908  Asserts.assertEQ(n, i);
+            Asserts.assertEQ(n, i);
         }
     }
 
@@ -946,7 +946,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         int count = warmup ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test50(i);
-            // FIXME JDK-8222908  Asserts.assertEQ(n, i);
+            Asserts.assertEQ(n, i);
         }
     }
 }
