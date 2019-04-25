@@ -434,12 +434,14 @@ public class TransValues extends TreeTranslator {
     @Override
     public void visitNewClass(JCNewClass tree) {
         if (types.isValue(tree.clazz.type)) {
-            tree.encl = translate(tree.encl);
+            // Enclosing instances or anonymous classes should have been eliminated by now.
+            Assert.check(tree.encl == null && tree.def == null);
             tree.args = translate(tree.args);
             Assert.check(tree.def == null);
             MethodSymbol sFactory = getValueFactory((MethodSymbol) tree.constructor);
             make.at(tree.pos());
-            JCExpression meth = tree.encl == null ? make.Ident(sFactory): make.Select(tree.encl, sFactory); // TODO: tree.encl must have been folded already into a synth argument and nullified
+            JCExpression declClass = make.Type(tree.constructor.owner.type);
+            JCExpression meth = make.Select(declClass, sFactory);
             meth.type = types.erasure(meth.type);
             final JCMethodInvocation apply = make.Apply(tree.typeargs, meth, tree.args);
             apply.varargsElement = tree.varargsElement;
