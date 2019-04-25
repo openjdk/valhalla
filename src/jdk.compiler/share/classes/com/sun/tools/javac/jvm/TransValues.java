@@ -468,9 +468,6 @@ public class TransValues extends TreeTranslator {
         if (factory != null)
             return factory;
 
-        final WriteableScope classScope = init.owner.members();
-        Assert.check(classScope.includes(init, LookupKind.NON_RECURSIVE));
-
         MethodType factoryType = new MethodType(init.externalType(types).getParameterTypes(), // init.externalType to account for synthetics.
                                                 init.owner.type,
                                                 init.type.getThrownTypes(),
