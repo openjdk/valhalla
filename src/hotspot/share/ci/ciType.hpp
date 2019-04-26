@@ -138,12 +138,6 @@ private:
   void print_impl(outputStream* st) { _type->print_impl(st); }
 
 public:
-  bool equals(ciMetadata* obj) const {
-    return obj->is_wrapper() &&
-           obj->as_wrapper()->unwrap()->equals(_type) &&
-           obj->as_wrapper()->is_never_null() == _never_null;
-  }
-
   bool    is_wrapper() const { return true; }
 
   ciType*     unwrap()       { return _type; }

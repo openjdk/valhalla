@@ -111,6 +111,7 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
   int element_len = element_name->utf8_length();
 
   Symbol* base_name_sym = element_name->get_symbol();
+  assert(base_name_sym->char_at(0) != 'Q', "unloaded array klass element should not have Q-type");
   char* name;
 
   if (base_name_sym->char_at(0) == '[' ||
@@ -148,12 +149,16 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
-
+ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool never_null) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
-    Klass* array = element_klass->get_Klass()->array_klass(THREAD);
+    ArrayStorageProperties props = never_null ? ArrayStorageProperties::flattened_and_null_free : ArrayStorageProperties::empty;
+    Klass* array = element_klass->get_Klass()->array_klass(props, THREAD);
+    if (element_klass->is_valuetype()) {
+      assert(!ObjArrayKlass::cast(array)->storage_properties().is_flattened(), "should not be flattened");
+      assert(ObjArrayKlass::cast(array)->storage_properties().is_null_free() == never_null, "wrong nullability storage property");
+    }
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
@@ -162,8 +167,7 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
     return CURRENT_THREAD_ENV->get_obj_array_klass(array);
   }
 
-  // The array klass was unable to be made or the element klass was
-  // not loaded.
+  // The array klass was unable to be made or the element klass was not loaded.
   ciSymbol* array_name = construct_array_name(element_klass->name(), 1);
   if (array_name == ciEnv::unloaded_cisymbol()) {
     return ciEnv::unloaded_ciobjarrayklass();
@@ -177,8 +181,8 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
-  GUARDED_VM_ENTRY(return make_impl(element_klass);)
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool never_null) {
+  GUARDED_VM_ENTRY(return make_impl(element_klass, never_null);)
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {

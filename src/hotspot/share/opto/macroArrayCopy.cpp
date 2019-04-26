@@ -338,7 +338,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     transform_later(slow_region);
   }
 
-  Node* original_dest      = dest;
   bool  dest_uninitialized = false;
   Node* default_value = NULL;
   Node* raw_default_value = NULL;
@@ -367,8 +366,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
   } else {
     // No zeroing elimination here.
     alloc             = NULL;
-    //original_dest   = dest;
-    //dest_uninitialized = false;
   }
 
   uint alias_idx = C->get_alias_index(adr_type);

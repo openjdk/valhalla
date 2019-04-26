@@ -135,9 +135,6 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(ValueArrayKlass::header_size());
   ValueArrayKlass* vak = new (loader_data, size, THREAD) ValueArrayKlass(element_klass, name);
-  if (vak == NULL) {
-    return NULL;
-  }
   loader_data->add_class(vak);
 
   ModuleEntry* module = vak->module();
@@ -332,7 +329,6 @@ Klass* ValueArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, b
     if (or_null)  return NULL;
 
     ResourceMark rm;
-    JavaThread *jt = (JavaThread *)THREAD;
     {
       // Ensure atomic creation of higher dimensions
       MutexLocker mu(MultiArray_lock, THREAD);

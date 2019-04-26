@@ -182,7 +182,6 @@ Klass* TypeArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bo
     if (or_null)  return NULL;
 
     ResourceMark rm;
-    JavaThread *jt = (JavaThread *)THREAD;
     {
       // Atomic create higher dimension and link into list
       MutexLocker mu(MultiArray_lock, THREAD);

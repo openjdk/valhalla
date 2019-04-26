@@ -146,7 +146,9 @@ ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
   {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
-    Klass* array = element_klass->get_Klass()->array_klass(THREAD);
+    Klass* array = element_klass->get_Klass()->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, THREAD);
+    assert(ValueArrayKlass::cast(array)->storage_properties().is_flattened(), "should be flattened");
+    assert(ValueArrayKlass::cast(array)->storage_properties().is_null_free(), "should be null free");
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();

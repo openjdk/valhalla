@@ -145,9 +145,8 @@ class ValueKlass: public InstanceKlass {
   // Type testing
   bool is_value_slow() const        { return true; }
 
-  oop value_mirror() const {
-    return java_lang_Class::value_mirror(java_mirror());
-  }
+  oop value_mirror() const { return java_lang_Class::value_mirror(java_mirror()); }
+  oop   box_mirror() const { return java_lang_Class::box_mirror(java_mirror()); }
 
   // Casting from Klass*
   static ValueKlass* cast(Klass* k) {

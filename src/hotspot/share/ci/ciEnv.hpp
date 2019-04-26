@@ -153,8 +153,6 @@ private:
   ciMethod*  get_method_by_index_impl(const constantPoolHandle& cpool,
                                       int method_index, Bytecodes::Code bc,
                                       ciInstanceKlass* loading_klass);
-  bool       is_klass_never_null_impl(const constantPoolHandle& cpool,
-                                      int klass_index);
 
   // Helper methods
   bool       check_klass_accessibility(ciKlass* accessing_klass,

@@ -280,6 +280,7 @@ class LibraryCallKit : public GraphKit {
 #endif
   bool inline_native_isInterrupted();
   bool inline_native_Class_query(vmIntrinsics::ID id);
+  bool inline_value_Class_conversion(vmIntrinsics::ID id);
   bool inline_native_subtype_check();
   bool inline_native_getLength();
   bool inline_array_copyOf(bool is_copyOfRange);
@@ -793,6 +794,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isPrimitive:
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
+
+  case vmIntrinsics::_asValueType:
+  case vmIntrinsics::_asBoxType:                return inline_value_Class_conversion(intrinsic_id());
 
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
@@ -3488,6 +3492,31 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   return true;
 }
 
+//-------------------------inline_value_Class_conversion-------------------
+// public Class<T> java.lang.Class.asBoxType();
+// public Class<T> java.lang.Class.asValueType()
+bool LibraryCallKit::inline_value_Class_conversion(vmIntrinsics::ID id) {
+  Node* mirror = argument(0); // Receiver Class
+  const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
+  if (mirror_con == NULL) {
+    return false;
+  }
+
+  bool is_val_type = false;
+  ciType* tm = mirror_con->java_mirror_type(&is_val_type);
+  if (tm != NULL && tm->is_valuetype()) {
+    Node* result = mirror;
+    if (id == vmIntrinsics::_asValueType && !is_val_type) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->value_mirror_instance()));
+    } else if (id == vmIntrinsics::_asBoxType && is_val_type) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->box_mirror_instance()));
+    }
+    set_result(result);
+    return true;
+  }
+  return false;
+}
+
 //-------------------------inline_Class_cast-------------------
 bool LibraryCallKit::inline_Class_cast() {
   Node* mirror = argument(0); // Class
@@ -3513,9 +3542,12 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  ciType* tm = mirror_con->java_mirror_type();
-  if (tm != NULL && tm->is_klass() &&
-      obj_klass != NULL) {
+  bool is_val_type = false;
+  ciType* tm = mirror_con->java_mirror_type(&is_val_type);
+  if (!obj->is_ValueType() && is_val_type) {
+    obj = null_check(obj);
+  }
+  if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
@@ -3550,7 +3582,7 @@ bool LibraryCallKit::inline_Class_cast() {
   }
 
   // Not-subtype or the mirror's klass ptr is NULL (in case it is a primitive).
-  enum { _bad_type_path = 1, _prim_path = 2, PATH_LIMIT };
+  enum { _bad_type_path = 1, _prim_path = 2, _npe_path = 3, PATH_LIMIT };
   RegionNode* region = new RegionNode(PATH_LIMIT);
   record_for_igvn(region);
 
@@ -3561,13 +3593,34 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
+    // TODO move this into do_checkcast?
+    if (EnableValhalla && !obj->is_ValueType() && !is_val_type) {
+      // Check if (mirror == value_mirror && obj == null)
+      RegionNode* r = new RegionNode(3);
+      Node* p = basic_plus_adr(mirror, java_lang_Class::value_mirror_offset_in_bytes());
+      Node* value_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
+      Node* cmp = _gvn.transform(new CmpPNode(mirror, value_mirror));
+      Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+      Node* if_ne = generate_fair_guard(bol, NULL);
+      r->init_req(1, if_ne);
+
+      // Casting to .val, check for null
+      Node* null_ctr = top();
+      null_check_oop(obj, &null_ctr);
+      region->init_req(_npe_path, null_ctr);
+      r->init_req(2, control());
+
+      set_control(_gvn.transform(r));
+    }
+
     Node* bad_type_ctrl = top();
     // Do checkcast optimizations.
     res = gen_checkcast(obj, kls, &bad_type_ctrl);
     region->init_req(_bad_type_path, bad_type_ctrl);
   }
   if (region->in(_prim_path) != top() ||
-      region->in(_bad_type_path) != top()) {
+      region->in(_bad_type_path) != top() ||
+      region->in(_npe_path) != top()) {
     // Let Interpreter throw ClassCastException.
     PreserveJVMState pjvms(this);
     set_control(_gvn.transform(region));
@@ -3806,7 +3859,7 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
     // Normal case:  The array type has been cached in the java.lang.Class.
     // The following call works fine even if the array type is polymorphic.
     // It could be a dynamic mix of int[], boolean[], Object[], etc.
-    Node* obj = new_array(klass_node, count_val, 0);  // no arguments to push
+    Node* obj = new_array(klass_node, count_val, 0, NULL, false, mirror);  // no arguments to push
     result_reg->init_req(_normal_path, control());
     result_val->init_req(_normal_path, obj);
     result_io ->init_req(_normal_path, i_o());
@@ -4013,7 +4066,11 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
 
       if (!stopped()) {
-        newcopy = new_array(klass_node, length, 0);  // no arguments to push
+        // Load element mirror
+        Node* p = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
+        Node* elem_mirror = access_load_at(array_type_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
+
+        newcopy = new_array(klass_node, length, 0, NULL, false, elem_mirror);
 
         ArrayCopyNode* ac = ArrayCopyNode::make(this, true, original, start, newcopy, intcon(0), moved, true, false,
                                                 original_kls, klass_node);
@@ -4630,10 +4687,6 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     }
 
     Node* obj_klass = load_object_klass(obj);
-    const TypeKlassPtr* tklass = _gvn.type(obj_klass)->isa_klassptr();
-    const TypeOopPtr*   toop   = ((tklass != NULL)
-                                ? tklass->as_instance_type()
-                                : TypeInstPtr::NOTNULL);
 
     // Conservatively insert a memory barrier on all memory slices.
     // Do not let writes into the original float below the clone.
@@ -4666,7 +4719,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
-        // Value type array may have object field that would require a
+        // Flattened value type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_valueArray_guard(obj_klass, slow_region);
       }
@@ -4674,7 +4727,12 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       if (!stopped()) {
         Node* obj_length = load_array_length(obj);
         Node* obj_size  = NULL;
-        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
+        // Load element mirror
+        Node* array_type_mirror = load_mirror_from_klass(obj_klass);
+        Node* p = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
+        Node* elem_mirror = access_load_at(array_type_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
+
+        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size, false, elem_mirror);
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {

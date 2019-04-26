@@ -70,13 +70,12 @@ void Parse::array_load(BasicType bt) {
     Node* vt = ValueTypeNode::make_from_flattened(this, vk, ary, adr);
     push(vt);
     return;
-  } else if (elemptr != NULL && elemptr->is_valuetypeptr()) {
+  } else if (elemptr != NULL && elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
     // Load from non-flattened value type array (elements can never be null)
     bt = T_VALUETYPE;
-    assert(elemptr->meet(TypePtr::NULL_PTR) != elemptr, "value type array elements should never be null");
-  } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
-             !ary_t->klass_is_exact()) {
+  } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() && !ary_t->klass_is_exact()) {
     // Cannot statically determine if array is flattened, emit runtime check
+    assert(!elemptr->is_valuetypeptr(), "we know the exact type");
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -193,7 +192,7 @@ void Parse::array_store(BasicType bt) {
       }
       cast_val->as_ValueType()->store_flattened(this, ary, adr);
       return;
-    } else if (elemptr->is_valuetypeptr()) {
+    } else if (elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
       // Store to non-flattened value type array
       if (!cast_val->is_ValueType()) {
         // Can not store null into a value type array
@@ -226,7 +225,7 @@ void Parse::array_store(BasicType bt) {
           if (val->is_ValueType()) {
             sync_kit(ideal);
             const TypeValueType* vt = _gvn.type(val)->is_valuetype();
-            ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass());
+            ciArrayKlass* array_klass = ciArrayKlass::make(vt->value_klass(), true);
             const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
             ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
             adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());

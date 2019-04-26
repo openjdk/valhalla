@@ -847,7 +847,6 @@ class GraphKit : public Phase {
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool never_null = false);
 
   Node* is_always_locked(Node* obj);
-  Node* gen_value_type_test(Node* kls);
   void gen_value_type_guard(Node* obj, int nargs = 0);
   void gen_value_type_array_guard(Node* ary, Node* obj, int nargs);
   Node* load_lh_array_tag(Node* kls);
@@ -884,7 +883,8 @@ class GraphKit : public Phase {
                      ValueTypeBaseNode* value_node = NULL);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
-                  bool deoptimize_on_exception = false);
+                  bool deoptimize_on_exception = false,
+                  Node* elem_mirror = NULL);
 
   // java.lang.String helpers
   Node* load_String_length(Node* str, bool set_ctrl);

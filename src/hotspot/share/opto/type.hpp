@@ -129,7 +129,7 @@ public:
 
   class Offset {
   private:
-    const int _offset;
+    int _offset;
 
   public:
     explicit Offset(int offset) : _offset(offset) {}
@@ -746,8 +746,6 @@ public:
   virtual const Type* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
 
-  bool is_value_type_array() const { return _elem->isa_valuetype() != NULL; }
-
 #ifdef ASSERT
   // One type is interface, the other is oop
   virtual bool interface_vs_oop(const Type *t) const;
@@ -1183,7 +1181,7 @@ class TypeInstPtr : public TypeOopPtr {
   // If this is a java.lang.Class constant, return the type for it or NULL.
   // Pass to Type::get_const_type to turn it to a type, which will usually
   // be a TypeInstPtr, but may also be a TypeInt::INT for int.class, etc.
-  ciType* java_mirror_type() const;
+  ciType* java_mirror_type(bool* is_val_type = NULL) const;
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 

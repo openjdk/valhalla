@@ -2220,10 +2220,6 @@ inline const TypeInt* normalize_array_size(const TypeInt* size) {
 
 //------------------------------make-------------------------------------------
 const TypeAry* TypeAry::make(const Type* elem, const TypeInt* size, bool stable) {
-  if (elem->is_valuetypeptr()) {
-    // Value type array elements cannot be NULL
-    elem = elem->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-  }
   if (UseCompressedOops && elem->isa_oopptr()) {
     elem = elem->make_narrowoop();
   }
@@ -3449,6 +3445,10 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or value array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), false, try_for_exact);
+    bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
+    if (null_free && etype->is_valuetypeptr()) {
+      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    }
     bool xk = etype->klass_is_exact();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS);
     // We used to pass NotNull in here, asserting that the sub-arrays
@@ -3492,8 +3492,11 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     }
   } else if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
-    const TypeOopPtr *etype =
-      TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass());
+    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass());
+    bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
+    if (null_free && etype->is_valuetypeptr()) {
+      etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    }
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()));
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -4200,7 +4203,6 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
   case ValueType: {
     const TypeValueType *tv = t->is_valuetype();
-
     if (above_centerline(ptr())) {
       if (tv->value_klass()->is_subtype_of(_klass)) {
         return t;
@@ -4222,14 +4224,14 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type() const {
+ciType* TypeInstPtr::java_mirror_type(bool* is_val_type) const {
   // must be a singleton type
   if( const_oop() == NULL )  return NULL;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return NULL;
 
-  return const_oop()->as_instance()->java_mirror_type();
+  return const_oop()->as_instance()->java_mirror_type(is_val_type);
 }
 
 
@@ -4612,15 +4614,28 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         instance_id = InstanceBot;
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable);
       }
+    } else if (klass() != NULL && tap->klass() != NULL &&
+               klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
+      // Meeting value type arrays with conflicting storage properties
+      if (tary->_elem->isa_valuetype()) {
+        // Result is flattened
+        off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
+        field_off = elem()->isa_valuetype() ? field_offset() : tap->field_offset();
+      } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
+        // Result is non-flattened (fall back to object)
+        off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
+        field_off = Offset::bottom;
+        tary = TypeAry::make(TypeInstPtr::BOTTOM, tary->_size, tary->_stable);
+      }
     } else // Non integral arrays.
       // Must fall to bottom if exact klasses in upper lattice
       // are not equal or super klass is exact.
       if ((above_centerline(ptr) || ptr == Constant) && klass() != tap->klass() &&
           // meet with top[] and bottom[] are processed further down:
-          tap->_klass != NULL  && this->_klass != NULL   &&
+          tap->_klass != NULL && this->_klass != NULL &&
           // both are exact and not equal:
           ((tap->_klass_is_exact && this->_klass_is_exact) ||
-           // 'tap'  is exact and super or unrelated:
+           // 'tap' is exact and super or unrelated:
            (tap->_klass_is_exact && !tap->klass()->is_subtype_of(klass())) ||
            // 'this' is exact and super or unrelated:
            (this->_klass_is_exact && !klass()->is_subtype_of(tap->klass())))) {
@@ -4716,7 +4731,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
       if( ptr == Constant )
          ptr = NotNull;
       instance_id = InstanceBot;
-      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, NULL,offset, instance_id, speculative, depth);
+      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass(), false, NULL, offset, instance_id, speculative, depth);
     default: typerr(t);
     }
   }
@@ -5312,9 +5327,10 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
   // Get element klass
   if (el->isa_instptr()) {
     // Compute object array klass from element klass
-    k_ary = ciArrayKlass::make(el->is_oopptr()->klass());
+    bool null_free = el->is_valuetypeptr() && el->isa_instptr()->ptr() != TypePtr::TopPTR && !el->isa_instptr()->maybe_null();
+    k_ary = ciArrayKlass::make(el->is_oopptr()->klass(), null_free);
   } else if (el->isa_valuetype()) {
-    k_ary = ciArrayKlass::make(el->is_valuetype()->value_klass());
+    k_ary = ciArrayKlass::make(el->is_valuetype()->value_klass(), /* null_free */ true);
   } else if ((tary = el->isa_aryptr()) != NULL) {
     // Compute array klass from element klass
     ciKlass* k_elem = tary->klass();

@@ -158,6 +158,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   if (type->isa_valuetype() != NULL) {
     // The interpreter passes value types as oops
     tp = TypeOopPtr::make_from_klass(type->isa_valuetype()->value_klass());
+    tp = tp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
   }
 
   // TypeFlow may assert null-ness if a type appears unloaded.
@@ -181,7 +182,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   if (tp != NULL && tp->klass() != C->env()->Object_klass()) {
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = NULL;
-    if (tp->is_valuetypeptr()) {
+    if (tp->is_valuetypeptr() && !tp->maybe_null()) {
       // Check value types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);
@@ -190,9 +191,6 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
     l = gen_checkcast(l, makecon(TypeKlassPtr::make(tp->klass())), &bad_type_ctrl);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
-
-  BasicType bt_l = _gvn.type(l)->basic_type();
-  BasicType bt_t = type->basic_type();
   assert(_gvn.type(l)->higher_equal(type), "must constrain OSR typestate");
   return l;
 }

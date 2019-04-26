@@ -90,7 +90,6 @@ RuntimeStub*        SharedRuntime::_ic_miss_blob;
 RuntimeStub*        SharedRuntime::_resolve_opt_virtual_call_blob;
 RuntimeStub*        SharedRuntime::_resolve_virtual_call_blob;
 RuntimeStub*        SharedRuntime::_resolve_static_call_blob;
-address             SharedRuntime::_resolve_static_call_entry;
 
 DeoptimizationBlob* SharedRuntime::_deopt_blob;
 SafepointBlob*      SharedRuntime::_polling_page_vectors_safepoint_handler_blob;
@@ -110,7 +109,6 @@ void SharedRuntime::generate_stubs() {
   _resolve_opt_virtual_call_blob       = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_opt_virtual_call_C),   "resolve_opt_virtual_call");
   _resolve_virtual_call_blob           = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_virtual_call_C),       "resolve_virtual_call");
   _resolve_static_call_blob            = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_static_call_C),        "resolve_static_call");
-  _resolve_static_call_entry           = _resolve_static_call_blob->entry_point();
 
 #if COMPILER2_OR_JVMCI
   // Vectors are generated only by C2 and JVMCI.

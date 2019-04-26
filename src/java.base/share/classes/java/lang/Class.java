@@ -543,6 +543,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the box type of this class if this class is a value class;
      *         otherwise, this class.
      */
+    @HotSpotIntrinsicCandidate
     public Class<T> asBoxType() {
         return isValue() ? boxType : this;
     }
@@ -560,6 +561,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the unbox value type of this class if this class is a value class;
      *         otherwise, {@code null}.
      */
+    @HotSpotIntrinsicCandidate
     public Class<T> asValueType() {
         return isValue() ? valueType : null;
     }

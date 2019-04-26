@@ -59,9 +59,10 @@ public:
   // The one-level type of the array elements.
   virtual ciKlass* element_klass() { return NULL; }
 
-  static ciArrayKlass* make(ciType* element_type);
+  static ciArrayKlass* make(ciType* element_type, bool never_null = false);
 
   int array_header_in_bytes();
+  ArrayStorageProperties storage_properties();
 };
 
 #endif // SHARE_CI_CIARRAYKLASS_HPP

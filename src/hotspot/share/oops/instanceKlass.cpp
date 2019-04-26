@@ -1405,7 +1405,6 @@ Klass* InstanceKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
     if (or_null) return NULL;
 
     ResourceMark rm;
-    JavaThread *jt = (JavaThread *)THREAD;
     {
       // Atomic creation of array_klasses
       MutexLocker ma(MultiArray_lock, THREAD);

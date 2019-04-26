@@ -168,8 +168,6 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   return array;
 }
 
-static int multi_alloc_counter = 0;
-
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be valueArray, check if we have any special storage requirements
@@ -360,7 +358,6 @@ Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
     if (or_null)  return NULL;
 
     ResourceMark rm;
-    JavaThread *jt = (JavaThread *)THREAD;
     {
       // Ensure atomic creation of higher dimensions
       MutexLocker mu(MultiArray_lock, THREAD);
@@ -369,8 +366,7 @@ Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
       if (higher_dimension() == NULL) {
 
         // Create multi-dim klass object and link them together
-        Klass* k =
-          ObjArrayKlass::allocate_objArray_klass(storage_props, dim + 1, this, CHECK_NULL);
+        Klass* k = ObjArrayKlass::allocate_objArray_klass(storage_props, dim + 1, this, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load

@@ -253,11 +253,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
     BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
     result = oopFactory::new_typeArray(elem_type, len, THREAD);
   } else {
-    // Although the oopFactory likes to work with the elem_type,
-    // the compiler prefers the array_type, since it must already have
-    // that latter value in hand for the fast path.
     Handle holder(THREAD, array_type->klass_holder()); // keep the array klass alive
-    Klass* elem_type = ObjArrayKlass::cast(array_type)->element_klass();
     result = ObjArrayKlass::cast(array_type)->allocate(len, THREAD);
   }
 

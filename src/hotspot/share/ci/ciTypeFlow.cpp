@@ -281,6 +281,9 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
   // Unwrap after saving nullness information and handling top meets
   bool never_null1 = t1->is_never_null();
   bool never_null2 = t2->is_never_null();
+  if (t1->unwrap() == t2->unwrap() && never_null1 == never_null2) {
+    return t1;
+  }
   t1 = t1->unwrap();
   t2 = t2->unwrap();
 
@@ -318,29 +321,33 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return object_klass;
   } else if (k1->is_array_klass() || k2->is_array_klass()) {
     // When an array meets a non-array, we get Object.
-    // When objArray meets typeArray, we also get Object.
+    // When (obj/value)Array meets typeArray, we also get Object.
     // And when typeArray meets different typeArray, we again get Object.
-    // But when objArray meets objArray, we look carefully at element types.
-    if (k1->is_obj_array_klass() && k2->is_obj_array_klass()) {
-      // Meet the element types, then construct the corresponding array type.
-      ciKlass* elem1 = k1->as_obj_array_klass()->element_klass();
-      ciKlass* elem2 = k2->as_obj_array_klass()->element_klass();
-      ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
+    // But when (obj/value)Array meets (obj/value)Array, we look carefully at element types and storage properties.
+    if ((k1->is_obj_array_klass() || k1->is_value_array_klass()) &&
+        (k2->is_obj_array_klass() || k2->is_value_array_klass())) {
+      bool prop_mismatch = k1->as_array_klass()->storage_properties().value() !=
+                           k2->as_array_klass()->storage_properties().value();
+      bool never_null = k1->as_array_klass()->storage_properties().is_null_free() &&
+                        k2->as_array_klass()->storage_properties().is_null_free();
+      ciType* elem1 = k1->as_array_klass()->element_klass();
+      ciType* elem2 = k2->as_array_klass()->element_klass();
+      ciType* elem = elem1;
+      if (elem->is_valuetype() && prop_mismatch) {
+        elem = object_klass;
+      } else if (elem1 != elem2) {
+        elem = type_meet_internal(elem1, elem2, analyzer)->as_klass();
+      }
       // Do an easy shortcut if one type is a super of the other.
       if (elem == elem1) {
-        assert(k1 == ciObjArrayKlass::make(elem), "shortcut is OK");
+        assert(k1 == ciArrayKlass::make(elem, never_null), "shortcut is OK");
         return k1;
       } else if (elem == elem2) {
-        assert(k2 == ciObjArrayKlass::make(elem), "shortcut is OK");
+        assert(k2 == ciArrayKlass::make(elem, never_null), "shortcut is OK");
         return k2;
       } else {
-        return ciObjArrayKlass::make(elem);
+        return ciArrayKlass::make(elem, never_null);
       }
-    } else if (k1->is_value_array_klass() || k2->is_value_array_klass()) {
-      ciKlass* elem1 = k1->as_array_klass()->element_klass();
-      ciKlass* elem2 = k2->as_array_klass()->element_klass();
-      ciKlass* elem  = type_meet_internal(elem1, elem2, analyzer)->as_klass();
-      return ciArrayKlass::make(elem);
     } else {
       return object_klass;
     }
@@ -988,7 +995,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       if (!will_link) {
         trap(str, element_klass, str->get_klass_index());
       } else {
-        push_object(ciArrayKlass::make(element_klass));
+        bool never_null = str->is_klass_never_null();
+        push_object(ciArrayKlass::make(element_klass, never_null));
       }
       break;
     }

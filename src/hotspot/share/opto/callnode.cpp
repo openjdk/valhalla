@@ -1449,6 +1449,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   init_req( ValueNode          , value_node);
   // DefaultValue defaults to NULL
   // RawDefaultValue defaults to NULL
+  // StorageProperties defaults to NULL
   C->add_macro_node(this);
 }
 

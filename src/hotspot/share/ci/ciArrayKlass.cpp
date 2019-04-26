@@ -100,16 +100,21 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::base_element_type
 //
 // What type is obtained when this array is indexed as many times as possible?
-ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool never_null) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
-  } else if (element_type->is_valuetype() && element_type->as_value_klass()->flatten_array()) {
+  } else if (element_type->is_valuetype() && element_type->as_value_klass()->flatten_array() && never_null) {
     return ciValueArrayKlass::make(element_type->as_klass());
   } else {
-    return ciObjArrayKlass::make(element_type->as_klass());
+    return ciObjArrayKlass::make(element_type->as_klass(), never_null);
   }
 }
 
 int ciArrayKlass::array_header_in_bytes() {
   return get_ArrayKlass()->array_header_in_bytes();
 }
+
+ArrayStorageProperties ciArrayKlass::storage_properties() {
+  return get_ArrayKlass()->storage_properties();
+}
+

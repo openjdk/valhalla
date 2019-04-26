@@ -27,21 +27,31 @@
  * @library /test/lib
  * @summary Test the handling of Arrays of unloaded value classes.
  * @run main/othervm -XX:+EnableValhalla -Xcomp
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test1
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test2
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test3
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test4
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test5
- *        -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test6
- *      TestUnloadedValueTypeArray
+ *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:ValueArrayElemMaxFlatSize=0
+ *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -XX:+EnableValhalla -Xcomp
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:ValueArrayElemMaxFlatSize=0
+ *                   TestUnloadedValueTypeArray
  */
 
 import jdk.test.lib.Asserts;
 
-final inline class MyValue {
+final inline class MyValue1 {
     final int foo;
 
-    private MyValue() {
+    private MyValue1() {
+        foo = 0x42;
+    }
+}
+
+final inline class MyValue1Box {
+    final int foo;
+
+    private MyValue1Box() {
         foo = 0x42;
     }
 }
@@ -54,6 +64,14 @@ final inline class MyValue2 {
     }
 }
 
+final inline class MyValue2Box {
+    final int foo;
+
+    public MyValue2Box(int n) {
+        foo = n;
+    }
+}
+
 final inline class MyValue3 {
     final int foo;
 
@@ -62,10 +80,26 @@ final inline class MyValue3 {
     }
 }
 
+final inline class MyValue3Box {
+    final int foo;
+
+    public MyValue3Box(int n) {
+        foo = n;
+    }
+}
+
 final inline class MyValue4 {
     final int foo;
 
     public MyValue4(int n) {
+        foo = n;
+    }
+}
+
+final inline class MyValue4Box {
+    final int foo;
+
+    public MyValue4Box(int n) {
         foo = n;
     }
 }
@@ -90,14 +124,50 @@ final inline class MyValue6 {
     }
 }
 
+final inline class MyValue6Box {
+    final int foo;
+
+    public MyValue6Box(int n) {
+        foo = n;
+    }
+
+    public MyValue6Box(MyValue6Box v, MyValue6Box?[] dummy) {
+        foo = v.foo + 1;
+    }
+}
+
+final inline class MyValue7 {
+    final int foo;
+
+    public MyValue7(int n) {
+        foo = n;
+    }
+}
+
+final inline class MyValue7Box {
+    final int foo;
+
+    public MyValue7Box(int n) {
+        foo = n;
+    }
+}
+
 public class TestUnloadedValueTypeArray {
 
-    static MyValue[] target() {
-        return new MyValue[10];
+    static MyValue1[] target1() {
+        return new MyValue1[10];
     }
 
     static void test1() {
-        target();
+        target1();
+    }
+
+    static MyValue1Box?[] target1Box() {
+        return new MyValue1Box?[10];
+    }
+
+    static void test1Box() {
+        target1Box();
     }
 
     static int test2(MyValue2[] arr) {
@@ -108,7 +178,7 @@ public class TestUnloadedValueTypeArray {
         }
     }
 
-    static void test2_verifier() {
+    static void verifyTest2() {
         int n = 50000;
 
         int m = 9999;
@@ -126,13 +196,39 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(m, 5678);
     }
 
+    static int test2Box(MyValue2Box?[] arr) {
+        if (arr != null) {
+            return arr[1].foo;
+        } else {
+            return 1234;
+        }
+    }
+
+    static void verifyTest2Box() {
+        int n = 50000;
+
+        int m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test2Box(null);
+        }
+        Asserts.assertEQ(m, 1234);
+
+        MyValue2Box?[] arr = new MyValue2Box?[2];
+        arr[1] = new MyValue2Box(5678);
+        m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test2Box(arr);
+        }
+        Asserts.assertEQ(m, 5678);
+    }
+
     static void test3(MyValue3[] arr) {
         if (arr != null) {
             arr[1] = new MyValue3(2345);
         }
     }
 
-    static void test3_verifier() {
+    static void verifyTest3() {
         int n = 50000;
 
         for (int i=0; i<n; i++) {
@@ -143,6 +239,28 @@ public class TestUnloadedValueTypeArray {
         for (int i=0; i<n; i++) {
             test3(arr);
         }
+        Asserts.assertEQ(arr[1].foo, 2345);
+    }
+
+    static void test3Box(MyValue3Box?[] arr) {
+        if (arr != null) {
+            arr[0] = null;
+            arr[1] = new MyValue3Box(2345);
+        }
+    }
+
+    static void verifyTest3Box() {
+        int n = 50000;
+
+        for (int i=0; i<n; i++) {
+            test3Box(null);
+        }
+
+        MyValue3Box?[] arr = new MyValue3Box?[2];
+        for (int i=0; i<n; i++) {
+            test3Box(arr);
+        }
+        Asserts.assertEQ(arr[0], null);
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
@@ -157,7 +275,7 @@ public class TestUnloadedValueTypeArray {
         }
     }
 
-    static void test4_verifier() {
+    static void verifyTest4() {
         int n = 50000;
 
         for (int i=0; i<n; i++) {
@@ -166,9 +284,37 @@ public class TestUnloadedValueTypeArray {
 
         MyValue4[] arr = null;
         for (int i=0; i<n; i++) {
-          arr = test4(true);
+            arr = test4(true);
         }
         Asserts.assertEQ(arr[1].foo, 2345);
+    }
+
+    static MyValue4Box?[] test4Box(boolean b) {
+        // range check elimination
+        if (b) {
+            MyValue4Box?[] arr = new MyValue4Box?[10];
+            arr[0] = null;
+            arr[1] = new MyValue4Box(2345);
+            return arr;
+        } else {
+            return null;
+        }
+    }
+
+    static void verifyTest4Box() {
+        int n = 50000;
+
+        for (int i=0; i<n; i++) {
+            test4Box(false);
+        }
+
+        MyValue4Box?[] arr = null;
+        for (int i=0; i<n; i++) {
+            arr = test4Box(true);
+        }
+        Asserts.assertEQ(arr[0], null);
+        Asserts.assertEQ(arr[1].foo, 2345);
+        arr[3] = null;
     }
 
     static Object[] test5(int n) {
@@ -185,7 +331,7 @@ public class TestUnloadedValueTypeArray {
         }
     }
 
-    static void test5_verifier() {
+    static void verifyTest5() {
         int n = 50000;
 
         for (int i=0; i<n; i++) {
@@ -212,17 +358,87 @@ public class TestUnloadedValueTypeArray {
         return new MyValue6(new MyValue6(123), null);
     }
 
-    static void test6_verifier() {
+    static void verifyTest6() {
         Object n = test6();
         Asserts.assertEQ(n.toString(), "[MyValue6 foo=124]");
     }
 
+    static Object test6Box() {
+        return new MyValue6Box(new MyValue6Box(123), null);
+    }
+
+    static void verifyTest6Box() {
+        Object n = test6Box();
+        Asserts.assertEQ(n.toString(), "[MyValue6Box foo=124]");
+    }
+
+    static int test7(MyValue7[][] arr) {
+        if (arr != null) {
+            return arr[0][1].foo;
+        } else {
+            return 1234;
+        }
+    }
+
+    static void verifyTest7() {
+        int n = 50000;
+
+        int m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test7(null);
+        }
+        Asserts.assertEQ(m, 1234);
+
+        MyValue7[][] arr = new MyValue7[2][2];
+        arr[0][1] = new MyValue7(5678);
+        m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test7(arr);
+        }
+        Asserts.assertEQ(m, 5678);
+    }
+
+    static int test7Box(MyValue7Box?[][] arr) {
+        if (arr != null) {
+            arr[0][0] = null;
+            return arr[0][1].foo;
+        } else {
+            return 1234;
+        }
+    }
+
+    static void verifyTest7Box() {
+        int n = 50000;
+
+        int m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test7Box(null);
+        }
+        Asserts.assertEQ(m, 1234);
+
+        MyValue7Box?[][] arr = new MyValue7Box?[2][2];
+        arr[0][1] = new MyValue7Box(5678);
+        m = 9999;
+        for (int i=0; i<n; i++) {
+            m = test7Box(arr);
+        }
+        Asserts.assertEQ(m, 5678);
+        Asserts.assertEQ(arr[0][0], null);
+    }
+
     static public void main(String[] args) {
         test1();
-        test2_verifier();
-        test3_verifier();
-        test4_verifier();
-        test5_verifier();
-        test6_verifier();
+        test1Box();
+        verifyTest2();
+        verifyTest2Box();
+        verifyTest3();
+        verifyTest3Box();
+        verifyTest4();
+        verifyTest4Box();
+        verifyTest5();
+        verifyTest6();
+        verifyTest6Box();
+        verifyTest7();
+        verifyTest7Box();
     }
 }

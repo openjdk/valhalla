@@ -66,7 +66,6 @@ class SharedRuntime: AllStatic {
   static RuntimeStub*        _resolve_opt_virtual_call_blob;
   static RuntimeStub*        _resolve_virtual_call_blob;
   static RuntimeStub*        _resolve_static_call_blob;
-  static address             _resolve_static_call_entry;
 
   static DeoptimizationBlob* _deopt_blob;
 
@@ -87,7 +86,6 @@ class SharedRuntime: AllStatic {
   enum { POLL_AT_RETURN,  POLL_AT_LOOP, POLL_AT_VECTOR_LOOP };
   static SafepointBlob* generate_handler_blob(address call_ptr, int poll_type);
   static RuntimeStub*   generate_resolve_blob(address destination, const char* name);
-  static RuntimeStub*   generate_return_value_blob(address destination, const char* name);
  public:
   static void generate_stubs(void);
 
@@ -372,10 +370,6 @@ class SharedRuntime: AllStatic {
                                         CallInfo& callinfo, TRAPS);
 
   static methodHandle extract_attached_method(vframeStream& vfst);
-
-  static address clean_virtual_call_entry();
-  static address clean_opt_virtual_call_entry();
-  static address clean_static_call_entry();
 
 #if defined(X86) && defined(COMPILER1)
   // For Object.hashCode, System.identityHashCode try to pull hashCode from object header if available.

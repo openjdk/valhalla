@@ -545,6 +545,8 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   }
 
   switch (id) {
+  case vmIntrinsics::_asValueType:
+  case vmIntrinsics::_asBoxType:
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_isAssignableFrom:
   case vmIntrinsics::_getModifiers:

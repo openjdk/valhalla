@@ -163,8 +163,8 @@ public class TestOnStackReplacement extends ValueTypeTest {
     public void test5() {
         MyValue1? vt = nullField;
         for (int i = 0; i < 50_000; i++) {
-            if ((Object)vt != null) {
-                throw new RuntimeException("test5 failed: No NPE thrown");
+            if (vt != null) {
+                throw new RuntimeException("test5 failed: vt should be null");
             }
         }
     }

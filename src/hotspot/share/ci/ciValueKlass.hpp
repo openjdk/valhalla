@@ -79,6 +79,8 @@ public:
   int value_arg_slots();
   int default_value_offset() const;
   ciInstance* default_value_instance() const;
+  ciInstance* value_mirror_instance() const;
+  ciInstance* box_mirror_instance() const;
   bool contains_oops() const;
   Array<SigEntry>* extended_sig() const;
 };

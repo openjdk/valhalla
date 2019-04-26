@@ -470,11 +470,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      if (elem_klass->is_valuetype() && elem_klass->as_value_klass()->flatten_array()) {
-        return ciValueArrayKlass::make_impl(elem_klass);
-      } else {
-        return ciObjArrayKlass::make_impl(elem_klass);
-      }
+      return ciArrayKlass::make(elem_klass, sym->char_at(1) == 'Q');
     }
   }
 
@@ -598,20 +594,11 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 }
 
 // ------------------------------------------------------------------
-// ciEnv::is_klass_never_null_impl
-//
-// Implementation of is_klass_never_null.
-bool ciEnv::is_klass_never_null_impl(const constantPoolHandle& cpool, int index) {
-  Symbol* klass_name = cpool->klass_name_at(index);
-  return klass_name->is_Q_signature();
-}
-
-// ------------------------------------------------------------------
 // ciEnv::is_klass_never_null
 //
 // Get information about nullability from the constant pool.
 bool ciEnv::is_klass_never_null(const constantPoolHandle& cpool, int index) {
-  GUARDED_VM_ENTRY(return is_klass_never_null_impl(cpool, index);)
+  GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 
 // ------------------------------------------------------------------

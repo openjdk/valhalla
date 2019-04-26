@@ -150,11 +150,6 @@ Node* Parse::array_store_check() {
   Node *idx = peek(1);
   Node *ary = peek(2);
 
-  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
-  const Type* elemtype = ary_t->elem();
-  const TypeOopPtr* elemptr = elemtype->make_oopptr();
-  bool is_value_array = elemtype->isa_valuetype() != NULL || (elemptr != NULL && elemptr->is_valuetypeptr());
-
   if (_gvn.type(obj) == TypePtr::NULL_PTR) {
     // There's never a type check on null values.
     // This cutout lets us avoid the uncommon_trap(Reason_array_check)
@@ -239,10 +234,10 @@ Node* Parse::array_store_check() {
                                                        immutable_memory(), p2, tak));
 
   // Handle value type arrays
-  if (is_value_array) {
+  const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
+  if (elemtype->isa_valuetype() != NULL || elemtype->is_valuetypeptr()) {
     // We statically know that this is a value type array, use precise klass ptr
-    ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() :
-                                                   elemptr->value_klass();
+    ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() : elemtype->value_klass();
     a_e_klass = makecon(TypeKlassPtr::make(vk));
   }
 

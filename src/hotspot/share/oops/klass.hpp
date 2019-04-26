@@ -487,6 +487,7 @@ protected:
   Klass* array_klass(int rank, TRAPS) {
     return array_klass_impl(ArrayStorageProperties::empty, false, rank, THREAD);
   }
+
   Klass* array_klass(ArrayStorageProperties storage_props, int rank, TRAPS) {
     return array_klass_impl(storage_props, false, rank, THREAD);
   }
@@ -494,6 +495,10 @@ protected:
   // array class with this klass as element type
   Klass* array_klass(TRAPS) {
     return array_klass_impl(ArrayStorageProperties::empty, false, THREAD);
+  }
+
+  Klass* array_klass(ArrayStorageProperties storage_props, TRAPS) {
+    return array_klass_impl(storage_props, false, THREAD);
   }
 
   // These will return NULL instead of allocating on the heap:

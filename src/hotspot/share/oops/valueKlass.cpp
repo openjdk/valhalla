@@ -160,7 +160,6 @@ Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool 
   if (vak == NULL) {
     if (or_null) return NULL;
     ResourceMark rm;
-    JavaThread *jt = (JavaThread *)THREAD;
     {
       // Atomic creation of array_klasses
       MutexLocker ma(MultiArray_lock, THREAD);

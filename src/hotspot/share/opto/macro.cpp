@@ -492,7 +492,6 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   int alias_idx = C->get_alias_index(adr_t);
   int offset = adr_t->flattened_offset();
   Node *start_mem = C->start()->proj_out_or_null(TypeFunc::Memory);
-  Node *alloc_ctrl = alloc->in(TypeFunc::Control);
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
   Arena *a = Thread::current()->resource_area();
   VectorSet visited(a);
@@ -796,12 +795,9 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       assert(klass->is_array_klass() && nfields >= 0, "must be an array klass.");
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
-      if (elem_type->is_valuetype()) {
-        ciValueKlass* vk = elem_type->as_value_klass();
-        if (!vk->flatten_array()) {
-          assert(basic_elem_type == T_VALUETYPE, "unexpected element basic type");
-          basic_elem_type = T_OBJECT;
-        }
+      if (elem_type->is_valuetype() && !klass->is_value_array_klass()) {
+        assert(basic_elem_type == T_VALUETYPE, "unexpected element basic type");
+        basic_elem_type = T_OBJECT;
       }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
@@ -1659,7 +1655,6 @@ void PhaseMacroExpand::expand_allocate_common(
     return;
   }
 
-
   if (_fallthroughcatchproj != NULL) {
     ctrl = _fallthroughcatchproj->clone();
     transform_later(ctrl);
@@ -1703,7 +1698,26 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
   }
   rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
 
-  rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+  BasicType bt = T_METADATA;
+  Node* metadata = klass_node;
+  Node* properties = alloc->in(AllocateNode::StorageProperties);
+  if (properties != NULL) {
+    // Encode array storage properties into klass pointer
+    assert(EnableValhalla, "array storage properties not supported");
+    if (UseCompressedClassPointers) {
+      // Compress the klass pointer before inserting the storage properties value
+      metadata = transform_later(new EncodePKlassNode(metadata, metadata->bottom_type()->make_narrowklass()));
+    }
+    metadata = transform_later(new CastP2XNode(NULL, metadata));
+    metadata = transform_later(new OrXNode(metadata, properties));
+    bt = T_LONG;
+    if (UseCompressedClassPointers) {
+      bt = T_INT;
+      metadata = transform_later(new ConvL2INode(metadata));
+    }
+  }
+  rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), metadata, bt);
+
   int header_size = alloc->minimum_header_size();  // conservatively small
 
   // Array length
