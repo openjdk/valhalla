@@ -1025,7 +1025,7 @@ void DumperSupport::dump_class_and_array_classes(DumpWriter* writer, Klass* k) {
   dump_instance_field_descriptors(writer, k);
 
   // array classes
-  k = k->array_klass_or_null();
+  k = k->array_klass_or_null(ArrayStorageProperties::empty);
   while (k != NULL) {
     Klass* klass = k;
     assert(klass->is_objArray_klass(), "not an ObjArrayKlass");
@@ -1051,7 +1051,7 @@ void DumperSupport::dump_class_and_array_classes(DumpWriter* writer, Klass* k) {
     writer->write_u2(0);             // instance fields
 
     // get the array class for the next rank
-    k = klass->array_klass_or_null();
+    k = klass->array_klass_or_null(ArrayStorageProperties::empty);
   }
 }
 
@@ -1083,7 +1083,7 @@ void DumperSupport::dump_basic_type_array_class(DumpWriter* writer, Klass* k) {
     writer->write_u2(0);             // instance fields
 
     // get the array class for the next rank
-    k = klass->array_klass_or_null();
+    k = klass->array_klass_or_null(ArrayStorageProperties::empty);
   }
 }
 
@@ -1638,7 +1638,7 @@ void VM_HeapDumper::do_load_class(Klass* k) {
     writer()->write_symbolID(name);
 
     // write a LOAD_CLASS record for the array type (if it exists)
-    k = klass->array_klass_or_null();
+    k = klass->array_klass_or_null(ArrayStorageProperties::empty);
   } while (k != NULL);
 }
 

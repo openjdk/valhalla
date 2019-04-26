@@ -3454,19 +3454,17 @@ void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, 
   jcc(Assembler::notZero, is_flattened);
 }
 
-void MacroAssembler::test_flat_array_klass(Register klass, Register temp_reg,
-                                           Label& is_flat_array) {
-  movl(temp_reg, Address(klass, Klass::layout_helper_offset()));
-  sarl(temp_reg, Klass::_lh_array_tag_shift);
-  cmpl(temp_reg, Klass::_lh_array_tag_vt_value);
-  jcc(Assembler::equal, is_flat_array);
+void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
+                                              Label&is_flattened_array) {
+  load_storage_props(temp_reg, oop);
+  testb(temp_reg, ArrayStorageProperties::flattened_value);
+  jcc(Assembler::notZero, is_flattened_array);
 }
 
-
-void MacroAssembler::test_flat_array_oop(Register oop, Register temp_reg,
-                                         Label& is_flat_array) {
-  load_klass(temp_reg, oop);
-  test_flat_array_klass(temp_reg, temp_reg, is_flat_array);
+void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
+  load_storage_props(temp_reg, oop);
+  testb(temp_reg, ArrayStorageProperties::null_free_value);
+  jcc(Assembler::notZero, is_null_free_array);
 }
 
 void MacroAssembler::os_breakpoint() {
@@ -5088,14 +5086,39 @@ void MacroAssembler::load_mirror(Register mirror, Register method, Register tmp)
   resolve_oop_handle(mirror, tmp);
 }
 
-void MacroAssembler::load_klass(Register dst, Register src) {
-#ifdef _LP64
+void MacroAssembler::load_metadata(Register dst, Register src) {
   if (UseCompressedClassPointers) {
     movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  } else {
+    movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
+void MacroAssembler::load_storage_props(Register dst, Register src) {
+  load_metadata(dst, src);
+  if (UseCompressedClassPointers) {
+    shrl(dst, oopDesc::narrow_storage_props_shift);
+  } else {
+    shrq(dst, oopDesc::wide_storage_props_shift);
+  }
+}
+
+void MacroAssembler::load_klass(Register dst, Register src) {
+  load_metadata(dst, src);
+#ifdef _LP64
+  if (UseCompressedClassPointers) {
+    andl(dst, oopDesc::compressed_klass_mask());
     decode_klass_not_null(dst);
   } else
 #endif
-    movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  {
+#ifdef _LP64
+    shlq(dst, oopDesc::storage_props_nof_bits);
+    shrq(dst, oopDesc::storage_props_nof_bits);
+#else
+    andl(dst, oopDesc::wide_klass_mask());
+#endif
+  }
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src) {

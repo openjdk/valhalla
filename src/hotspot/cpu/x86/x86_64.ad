@@ -5369,9 +5369,14 @@ instruct loadKlass(rRegP dst, memory mem)
   match(Set dst (LoadKlass mem));
 
   ins_cost(125); // XXX
-  format %{ "movq    $dst, $mem\t# class" %}
-  opcode(0x8B);
-  ins_encode(REX_reg_mem_wide(dst, mem), OpcP, reg_mem(dst, mem));
+  format %{ "movq    $dst, $mem\t# class\n\t"
+            "shlq    $dst, oopDesc::storage_props_nof_bits\n\t"
+            "shrq    $dst, oopDesc::storage_props_nof_bits" %}
+  ins_encode %{
+    __ movptr($dst$$Register, $mem$$Address);
+    __ shlq($dst$$Register, oopDesc::storage_props_nof_bits);
+    __ shrq($dst$$Register, oopDesc::storage_props_nof_bits);
+  %}
   ins_pipe(ialu_reg_mem); // XXX
 %}
 
@@ -5381,9 +5386,11 @@ instruct loadNKlass(rRegN dst, memory mem)
   match(Set dst (LoadNKlass mem));
 
   ins_cost(125); // XXX
-  format %{ "movl    $dst, $mem\t# compressed klass ptr" %}
+  format %{ "movl    $dst, $mem\t# compressed klass ptr\n\t"
+            "andl    $dst, oopDesc::compressed_klass_mask()" %}
   ins_encode %{
     __ movl($dst$$Register, $mem$$Address);
+    __ andl($dst$$Register, oopDesc::compressed_klass_mask());
   %}
   ins_pipe(ialu_reg_mem); // XXX
 %}

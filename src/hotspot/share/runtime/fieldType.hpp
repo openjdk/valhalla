@@ -26,6 +26,7 @@
 #define SHARE_RUNTIME_FIELDTYPE_HPP
 
 #include "memory/allocation.hpp"
+#include "oops/arrayStorageProperties.hpp"
 #include "oops/symbol.hpp"
 
 // Note: FieldType should be based on the SignatureIterator (or vice versa).
@@ -39,11 +40,13 @@ class FieldArrayInfo : public StackObj {
   friend class FieldType;  // field type can set these fields.
   int       _dimension;
   Symbol*   _object_key;
+  ArrayStorageProperties _storage_props;
  public:
   int       dimension()    { return _dimension; }
   Symbol*   object_key()   { return _object_key; }
+  ArrayStorageProperties storage_props() { return _storage_props; }
   // basic constructor
-  FieldArrayInfo() : _dimension(0), _object_key(NULL) {}
+  FieldArrayInfo() : _dimension(0), _object_key(NULL), _storage_props(ArrayStorageProperties::empty) {}
   // destructor decrements object key's refcount if created
   ~FieldArrayInfo() { if (_object_key != NULL) _object_key->decrement_refcount(); }
 };
@@ -70,10 +73,13 @@ class FieldType: public AllStatic {
 
   static bool is_valuetype(Symbol* signature) {
     return signature->is_Q_signature();
-    }
+  }
 
   // Parse field and extract array information. Works for T_ARRAY only.
   static BasicType get_array_info(Symbol* signature, FieldArrayInfo& ai, TRAPS);
+
+  // LWorld (LW2) Q-type array descriptors require null-free, and preferably flat if possible
+  static ArrayStorageProperties get_array_storage_properties(Symbol* signature);
 };
 
 #endif // SHARE_RUNTIME_FIELDTYPE_HPP

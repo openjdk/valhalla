@@ -92,6 +92,23 @@ bool Symbol::is_Q_signature() const {
   return utf8_length() > 2 && char_at(0) == 'Q' && char_at(utf8_length() - 1) == ';';
 }
 
+bool Symbol::is_Q_array_signature() const {
+  int l = utf8_length();
+  if (l < 2 || char_at(0) != '[' || char_at(l - 1) != ';') {
+    return false;
+  }
+  for (int i = 1; i < (l - 2); i++) {
+    char c = char_at(i);
+    if (c == 'Q') {
+      return true;
+    }
+    if (c != '[') {
+      return false;
+    }
+  }
+  return false;
+}
+
 Symbol* Symbol::fundamental_name(TRAPS) {
   if ((char_at(0) == 'Q' || char_at(0) == 'L') && char_at(utf8_length() - 1) == ';') {
     return SymbolTable::lookup(this, 1, utf8_length() - 1, CHECK_NULL);

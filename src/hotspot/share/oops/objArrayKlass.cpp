@@ -55,23 +55,22 @@ ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n, Klas
   return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name);
 }
 
-Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
-                                                int n, Klass* element_klass, TRAPS) {
-
+Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_props,
+                                              int n, Klass* element_klass, TRAPS) {
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = NULL;
   if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
     Klass* element_super = element_klass->super();
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
-      super_klass = element_super->array_klass_or_null();
+      super_klass = element_super->array_klass_or_null(ArrayStorageProperties::empty);
       bool supers_exist = super_klass != NULL;
       // Also, see if the element has secondary supertypes.
       // We need an array type for each.
       const Array<Klass*>* element_supers = element_klass->secondary_supers();
       for( int i = element_supers->length()-1; i >= 0; i-- ) {
         Klass* elem_super = element_supers->at(i);
-        if (elem_super->array_klass_or_null() == NULL) {
+        if (elem_super->array_klass_or_null(ArrayStorageProperties::empty) == NULL) {
           supers_exist = false;
           break;
         }
@@ -87,7 +86,7 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
             elem_super->array_klass(CHECK_0);
           }
           // Now retry from the beginning
-          ek = element_klass->array_klass(n, CHECK_0);
+          ek = element_klass->array_klass(storage_props, n, CHECK_0);
         }  // re-lock
         return ek;
       }
@@ -98,9 +97,10 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
   }
 
   // Create type name for klass.
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(storage_props.is_null_free(), element_klass, CHECK_NULL);
 
   // Initialize instance variables
+  ClassLoaderData* loader_data = element_klass->class_loader_data();
   ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_0);
 
   // Add all classes to our internal class loader list here,
@@ -151,16 +151,33 @@ int ObjArrayKlass::oop_size(oop obj) const {
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_0);
   int size = objArrayOopDesc::object_size(length);
-  return (objArrayOop)Universe::heap()->array_allocate(this, size, length,
+  bool populate_null_free = storage_properties().is_null_free() && (dimension() == 1);
+  objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
                                                        /* do_zero */ true, THREAD);
+  if (populate_null_free) {
+    assert(element_klass()->is_value(), "Unexpected");
+    assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
+    element_klass()->initialize(CHECK_NULL);
+    // Populate default values...
+    objArrayHandle array_h(THREAD, array);
+    instanceOop value = (instanceOop) ValueKlass::cast(element_klass())->default_value();
+    for (int i = 0; i < length; i++) {
+      array_h->obj_at_put(i, value);
+    }
+  }
+  return array;
 }
 
 static int multi_alloc_counter = 0;
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
-  if (rank == 1) { // last dim may be valueArray
-    return oopFactory::new_array(element_klass(), length, CHECK_NULL);
+  if (rank == 1) { // last dim may be valueArray, check if we have any special storage requirements
+    if ((!element_klass()->is_array_klass()) && storage_properties().is_null_free()) {
+      return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
+    } else {
+      return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
+    }
   }
   guarantee(rank > 1, "Rank below 1");
   // Call to lower_dimension uses this pointer, so most be called before a
@@ -187,6 +204,10 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
     }
   }
   return h_array();
+}
+
+ArrayStorageProperties ObjArrayKlass::storage_properties() {
+  return name()->is_Q_array_signature() ? ArrayStorageProperties::null_free : ArrayStorageProperties::empty;
 }
 
 // Either oop or narrowOop depending on UseCompressedOops.
@@ -293,13 +314,15 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
     objArrayOop da = objArrayOop(d);
     objArrayOop sa = objArrayOop(s);
     int src_end = src_pos + length;
+    bool null_free = ArrayKlass::cast(s->klass())->storage_properties().is_null_free() ||
+                     ArrayKlass::cast(d->klass())->storage_properties().is_null_free();
     while (src_pos < src_end) {
       oop se = sa->obj_at(src_pos);
-      if (se == NULL) {
+      if (null_free && se == NULL) {
         THROW(vmSymbols::java_lang_NullPointerException());
       }
       // Check exact type per element
-      if (se->klass() != d_elem_vklass) {
+      if (se != NULL && se->klass() != d_elem_vklass) {
         THROW(vmSymbols::java_lang_ArrayStoreException());
       }
       da->obj_at_put(dst_pos, se);  // TODO: review with ValueArrayKlass::copy_array and Access API
@@ -326,8 +349,8 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
 }
 
 
-Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
-
+Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS) {
+  assert(!storage_props.is_flattened() || n > 1, "Cannot flatten");
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
   if (dim == n) return this;
@@ -347,7 +370,7 @@ Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
 
         // Create multi-dim klass object and link them together
         Klass* k =
-          ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+          ObjArrayKlass::allocate_objArray_klass(storage_props, dim + 1, this, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
@@ -361,13 +384,13 @@ Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
-    return ak->array_klass_or_null(n);
+    return ak->array_klass_or_null(storage_props, n);
   }
-  return ak->array_klass(n, THREAD);
+  return ak->array_klass(storage_props, n, THREAD);
 }
 
-Klass* ObjArrayKlass::array_klass_impl(bool or_null, TRAPS) {
-  return array_klass_impl(or_null, dimension() +  1, THREAD);
+Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
+  return array_klass_impl(storage_props, or_null, dimension() +  1, THREAD);
 }
 
 bool ObjArrayKlass::can_be_primary_super_slow() const {
@@ -395,7 +418,7 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
     secondaries->push(SystemDictionary::Serializable_klass());
     for (int i = 0; i < num_elem_supers; i++) {
       Klass* elem_super = elem_supers->at(i);
-      Klass* array_super = elem_super->array_klass_or_null();
+      Klass* array_super = elem_super->array_klass_or_null(ArrayStorageProperties::empty);
       assert(array_super != NULL, "must already have been created");
       secondaries->push(array_super);
     }

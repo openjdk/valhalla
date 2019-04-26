@@ -344,7 +344,11 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    return oopFactory::new_array(k, length, THREAD);
+    if (java_lang_Class::is_box_type(element_mirror)) {
+      return oopFactory::new_objArray(k, length, THREAD);
+    } else {
+      return oopFactory::new_valueArray(k, length, THREAD);
+    }
   }
 }
 
@@ -385,7 +389,8 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
       dim += k_dim;
     }
   }
-  klass = klass->array_klass(dim, CHECK_NULL);
+  ArrayStorageProperties storage_props = FieldType::get_array_storage_properties(klass->name());
+  klass = klass->array_klass(storage_props, dim, CHECK_NULL);
   oop obj = ArrayKlass::cast(klass)->multi_allocate(len, dimensions, CHECK_NULL);
   assert(obj->is_array(), "just checking");
   return arrayOop(obj);

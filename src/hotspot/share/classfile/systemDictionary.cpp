@@ -297,11 +297,11 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
                                                          protection_domain,
                                                          CHECK_NULL);
     if (k != NULL) {
-      k = k->array_klass(fd.dimension(), CHECK_NULL);
+      k = k->array_klass(fd.storage_props(), fd.dimension(), CHECK_NULL);
     }
   } else {
     k = Universe::typeArrayKlassObj(t);
-    k = TypeArrayKlass::cast(k)->array_klass(fd.dimension(), CHECK_NULL);
+    k = TypeArrayKlass::cast(k)->array_klass(fd.storage_props(), fd.dimension(), CHECK_NULL);
   }
   return k;
 }
@@ -1028,7 +1028,7 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
       k = SystemDictionary::find(fd.object_key(), class_loader, protection_domain, THREAD);
     }
     if (k != NULL) {
-      k = k->array_klass_or_null(fd.dimension());
+      k = k->array_klass_or_null(fd.storage_props(), fd.dimension());
     }
   } else {
     k = find(class_name, class_loader, protection_domain, THREAD);
@@ -2265,7 +2265,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     }
     // If element class already loaded, allocate array klass
     if (klass != NULL) {
-      klass = klass->array_klass_or_null(fd.dimension());
+      klass = klass->array_klass_or_null(fd.storage_props(), fd.dimension());
     }
   } else {
     MutexLocker mu(SystemDictionary_lock, THREAD);

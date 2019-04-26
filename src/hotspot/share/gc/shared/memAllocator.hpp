@@ -61,7 +61,10 @@ protected:
   // This finish constructing an oop by installing the mark word and the Klass* pointer
   // last. At the point when the Klass pointer is initialized, this is a constructed object
   // that must be parseable as an oop by concurrent collectors.
+  inline void finish_mark(HeapWord* mem) const;
   oop finish(HeapWord* mem) const;
+  // Encode any extra metadata properties for arrays
+  oop finish_with_properties(HeapWord* mem, ArrayStorageProperties storage_props) const;
 
   // Raw memory allocation. This may or may not use TLAB allocations to satisfy the
   // allocation. A GC implementation may override this function to satisfy the allocation

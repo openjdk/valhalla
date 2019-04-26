@@ -925,12 +925,9 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     if (k->is_array_klass()) {
       if (k->is_valueArray_klass()) {
         Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
-        if (element_klass->is_value()) {
-          ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
-          comp_mirror = Handle(THREAD, vk->value_mirror());
-        } else {
-          comp_mirror = Handle(THREAD, element_klass->java_mirror());
-        }
+        assert(element_klass->is_value(), "Must be value type component");
+        ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
+        comp_mirror = Handle(THREAD, vk->value_mirror());
       }
       else if (k->is_typeArray_klass()) {
         BasicType type = TypeArrayKlass::cast(k)->element_type();
@@ -939,7 +936,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
         assert(k->is_objArray_klass(), "Must be");
         Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
         assert(element_klass != NULL, "Must have an element klass");
-        if (element_klass->is_value()) {
+        if (element_klass->is_value() && k->name()->is_Q_array_signature()) {
           ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
           comp_mirror = Handle(THREAD, vk->value_mirror());
         } else {

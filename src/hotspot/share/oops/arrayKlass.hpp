@@ -57,7 +57,7 @@ class ArrayKlass: public Klass {
   ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
   // Create array_name for element klass, creates a permanent symbol, returns result
-  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
+  static Symbol* create_element_klass_array_name(bool is_qtype, Klass* element_klass, TRAPS);
 
  public:
   // Instance variables
@@ -66,6 +66,9 @@ class ArrayKlass: public Klass {
 
   // Compiler/Interpreter offset
   static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ArrayKlass, _element_klass)); }
+
+  // Presented with an ArrayKlass, which storage_properties should be encoded into arrayOop
+  virtual ArrayStorageProperties storage_properties() { return ArrayStorageProperties::empty; }
 
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
@@ -132,7 +135,6 @@ class ArrayKlass: public Klass {
 
   // Iterators
   void array_klasses_do(void f(Klass* k));
-  void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
 
   // Return a handle.
   static void     complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module, TRAPS);

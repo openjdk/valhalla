@@ -142,6 +142,7 @@ class ValueKlassFixedBlock {
   address* _pack_handler;
   address* _unpack_handler;
   int* _default_value_offset;
+  Klass** _value_array_klass;
 
   friend class ValueKlass;
 };
@@ -1080,8 +1081,7 @@ public:
   void do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle, TRAPS);
 
   void methods_do(void f(Method* method));
-  void array_klasses_do(void f(Klass* k));
-  void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
+  virtual void array_klasses_do(void f(Klass* k));
 
   static InstanceKlass* cast(Klass* k) {
     return const_cast<InstanceKlass*>(cast(const_cast<const Klass*>(k)));
@@ -1375,10 +1375,10 @@ private:
   JNIid* jni_id_for_impl                         (int offset);
 protected:
   // Returns the array class for the n'th dimension
-  virtual Klass* array_klass_impl(bool or_null, int n, TRAPS);
+  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS);
 
   // Returns the array class with this class as element type
-  virtual Klass* array_klass_impl(bool or_null, TRAPS);
+  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
 
 private:
 

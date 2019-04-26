@@ -235,7 +235,7 @@ void ConstantPool::klass_at_put(int class_index, int name_index, int resolved_kl
 
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-NULL, so we need hardware store ordering here.
-  jbyte qdesc_bit = name->is_Q_signature() ? (jbyte)JVM_CONSTANT_QDESC_BIT : 0;
+  jbyte qdesc_bit = (name->is_Q_signature() || name->is_Q_array_signature()) ? (jbyte)JVM_CONSTANT_QDESC_BIT : 0;
   if (k != NULL) {
     release_tag_at_put(class_index, JVM_CONSTANT_Class | qdesc_bit);
   } else {
@@ -253,6 +253,7 @@ void ConstantPool::klass_at_put(int class_index, Klass* k) {
 
   // The interpreter assumes when the tag is stored, the klass is resolved
   // and the Klass* non-NULL, so we need hardware store ordering here.
+  assert(!(k->name()->is_Q_signature() || k->name()->is_Q_array_signature()), "Q-type without JVM_CONSTANT_QDESC_BIT");
   release_tag_at_put(class_index, JVM_CONSTANT_Class);
 }
 
@@ -1988,6 +1989,12 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
         ent_size = 2;
         break;
       }
+      case (JVM_CONSTANT_Class | JVM_CONSTANT_QDESC_BIT): {
+        idx1 = Bytes::get_Java_u2(bytes);
+        printf("qclass        #%03d", idx1);
+        ent_size = 2;
+        break;
+      }
       case JVM_CONSTANT_String: {
         idx1 = Bytes::get_Java_u2(bytes);
         printf("String       #%03d", idx1);
@@ -2028,6 +2035,10 @@ static void print_cpool_bytes(jint cnt, u1 *bytes) {
       }
       case JVM_CONSTANT_UnresolvedClass: {
         printf("UnresolvedClass: %s", WARN_MSG);
+        break;
+      }
+      case (JVM_CONSTANT_UnresolvedClass | JVM_CONSTANT_QDESC_BIT): {
+        printf("UnresolvedQClass: %s", WARN_MSG);
         break;
       }
       case JVM_CONSTANT_UnresolvedClassInError: {
@@ -2201,6 +2212,7 @@ int ConstantPool::copy_cpool_bytes(int cpool_size,
       case JVM_CONSTANT_Class:
       case JVM_CONSTANT_UnresolvedClass:
       case JVM_CONSTANT_UnresolvedClassInError: {
+        assert(!tag_at(idx).is_Qdescriptor_klass(), "Failed to encode QDesc");
         *bytes = JVM_CONSTANT_Class;
         Symbol* sym = klass_name_at(idx);
         idx1 = tbl->symbol_to_value(sym);

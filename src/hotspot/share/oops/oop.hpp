@@ -28,6 +28,7 @@
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "oops/access.hpp"
+#include "oops/arrayStorageProperties.hpp"
 #include "oops/metadata.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/macros.hpp"
@@ -38,6 +39,42 @@
 // (see oopHierarchy for complete oop class hierarchy)
 //
 // no virtual functions allowed
+//
+// oopDesc::_mark - the "oop mark word" encoding to be found separately in markOop.hpp
+//
+// oopDesc::_metadata - encodes both the object's klass pointer and potentially
+//                      "storage properties" (currently confined to arrays in the form of
+//                      ArrayStorageProperties). Storage properties are peculiar to the
+//                      *instance*, and not necessarily the "type".
+//
+// The overall size of the _metadata field is dependent on "UseCompressedClassPointers",
+// hence the terms "narrow" (32 bits) vs "wide" (64 bits).
+//
+// "Wide" encoding of _metadata:
+// bit number          |63             0|
+// bit length          |--3|-----61-----|
+// --------------------------------------
+// _klass              [xxx| Klass*     ]
+// _wide_storage_props [ sp|            ]
+// --------------------------------------
+// with:
+//    xxx = klass_mask(), Klass* = Klass pointer to be masked
+//    sp = storage properties, bit number: wide_storage_props_shift
+//
+// "Narrow" encoding of _metadata:
+// bit number            |31             0|
+// bit length            |--3|-----29-----|
+// ----------------------------------------
+// _compressed_klass     [xxx| narrowKlass]
+// _narrow_storage_props [ sp|            ]
+// ----------------------------------------
+// with:
+//   xxx = compressed_klass_mask(), narrowKlass = compressed Klass pointer to be masked
+//         narrowKlass may be further decoded (Klass::decode_klass()) to produce Klass*
+//   sp = storage properties, bit number: narrow_storage_props_shift
+//
+// Storage properties encodings are current confined to arrayStorageProperties.hpp
+
 
 extern bool always_do_update_barrier;
 
@@ -59,6 +96,8 @@ class oopDesc {
   union _metadata {
     Klass*      _klass;
     narrowKlass _compressed_klass;
+    uintptr_t   _wide_storage_props;
+    uint32_t   _narrow_storage_props;
   } _metadata;
 
  public:
@@ -79,6 +118,17 @@ class oopDesc {
   inline void init_mark();
   inline void init_mark_raw();
 
+  enum {
+    storage_props_nof_bits     = LogKlassAlignmentInBytes, // This alignment gives us some "free bits"
+    narrow_storage_props_shift = (sizeof(narrowKlass) << 3) - storage_props_nof_bits,
+    wide_storage_props_shift   = (sizeof(Klass*) << 3) - storage_props_nof_bits,
+  };
+
+  static inline narrowKlass compressed_klass_mask();
+  static inline narrowKlass compressed_klass_masked(narrowKlass raw);
+  static inline uintptr_t   klass_mask();
+  static inline Klass*      klass_masked(uintptr_t raw);
+
   inline Klass* klass() const;
   inline Klass* klass_or_null() const volatile;
   inline Klass* klass_or_null_acquire() const volatile;
@@ -89,6 +139,13 @@ class oopDesc {
 
   inline void set_klass(Klass* k);
   static inline void release_set_klass(HeapWord* mem, Klass* klass);
+
+  // Extra container metadata specific to arrays (encoded into high bits of _metadata)
+  static inline uintptr_t* wide_metadata_addr(HeapWord* mem);
+  inline ArrayStorageProperties array_storage_properties() const;
+  inline void set_metadata(ArrayStorageProperties storage_props, Klass* k);
+  static inline void release_set_metadata(HeapWord* mem, ArrayStorageProperties storage_props, Klass* klass);
+
 
   // For klass field compression
   inline int klass_gap() const;

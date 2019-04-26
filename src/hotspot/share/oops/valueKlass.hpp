@@ -50,6 +50,7 @@ class ValueKlass: public InstanceKlass {
     *((address*)adr_unpack_handler()) = NULL;
     assert(pack_handler() == NULL, "pack handler not null");
     *((int*)adr_default_value_offset()) = 0;
+    *((Klass**)adr_value_array_klass()) = NULL;
     set_prototype_header(markOopDesc::always_locked_prototype());
   }
 
@@ -111,16 +112,34 @@ class ValueKlass: public InstanceKlass {
     return ((address)_adr_valueklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
+  address adr_value_array_klass() const {
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _value_array_klass));
+  }
+
+  Klass* get_value_array_klass() const {
+    return *(Klass**)adr_value_array_klass();
+  }
+
+  Klass* acquire_value_array_klass() const {
+    return OrderAccess::load_acquire((Klass**)adr_value_array_klass());
+  }
+
+  Klass* allocate_value_array_klass(TRAPS);
+
   int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0) const;
 
   void cleanup_blobs();
 
  protected:
   // Returns the array class for the n'th dimension
-  Klass* array_klass_impl(bool or_null, int n, TRAPS);
+  Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS);
 
   // Returns the array class with this class as element type
-  Klass* array_klass_impl(bool or_null, TRAPS);
+  Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
+
+  // Specifically flat array klass
+  Klass* value_array_klass(ArrayStorageProperties storage_props, bool or_null, int rank, TRAPS);
 
  public:
   // Type testing
@@ -142,6 +161,9 @@ class ValueKlass: public InstanceKlass {
   virtual int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
+
+  // Metadata iterators
+  void array_klasses_do(void f(Klass* k));
 
   // allocate_instance() allocates a stand alone value in the Java heap
   instanceOop allocate_instance(TRAPS);
@@ -182,7 +204,6 @@ class ValueKlass: public InstanceKlass {
   void value_store(void* src, void* dst, size_t raw_byte_size, bool dst_is_heap, bool dst_uninitialized);
 
   // GC support...
-
   void iterate_over_inside_oops(OopClosure* f, oop value);
 
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)

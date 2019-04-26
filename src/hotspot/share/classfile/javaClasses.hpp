@@ -326,6 +326,10 @@ class java_lang_Class : AllStatic {
 
   static void set_box_mirror(oop java_class, oop mirror);
   static oop box_mirror(oop java_class);
+  static bool is_box_type(oop java_class) { // Must match "Class.isBoxType()"
+    return box_mirror(java_class) == NULL || oopDesc::equals(box_mirror(java_class), java_class);
+  }
+
   static void set_value_mirror(oop java_class, oop mirror);
   static oop value_mirror(oop java_class);
 

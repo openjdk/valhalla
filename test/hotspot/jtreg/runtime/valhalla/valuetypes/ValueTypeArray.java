@@ -32,9 +32,9 @@ import static jdk.test.lib.Asserts.*;
 
 /*
  * @test ValueTypeArray
- * @summary Plain array test for Value Types
+ * @summary Plain array test for Inline Types
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
@@ -58,22 +58,35 @@ public class ValueTypeArray {
         testObjectArrayOfValues();
 
         testReflectArray();
-        // testUtilArrays();
+        testUtilArrays();
     }
 
     void testClassForName() {
         String arrayClsName = "[Lruntime.valhalla.valuetypes.Point;";
+        String qarrayClsName = "[Qruntime.valhalla.valuetypes.Point;";
         try {
+            // L-type..
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
-            // array-of-L-type not supported yet
-            // the component type of a flattened inline array is of the inline type
-            // the component type of a non-flattened array is of the box type
-            assertTrue(arrayCls.getComponentType().asBoxType() == Point.class,
+
+            assertTrue(arrayCls.getComponentType() == Point.class.asBoxType(),
                        "Expected component type of Point.class got: " + arrayCls.getComponentType());
 
             arrayClsName = "[" + arrayClsName;
             Class<?> mulArrayCls = Class.forName(arrayClsName);
+            assertTrue(mulArrayCls.isArray());
+            assertTrue(mulArrayCls.getComponentType() == arrayCls);
+
+            // Q-type...
+            arrayCls = Class.forName(qarrayClsName);
+            assertTrue(arrayCls.isArray(), "Expected an array class");
+
+            assertTrue(arrayCls.getComponentType() == Point.class.asValueType(),
+                       arrayCls +
+                       " Expected component type of Point.class got: " + arrayCls.getComponentType());
+
+            qarrayClsName = "[" + qarrayClsName;
+            mulArrayCls = Class.forName(qarrayClsName);
             assertTrue(mulArrayCls.isArray());
             assertTrue(mulArrayCls.getComponentType() == arrayCls);
         }
@@ -187,13 +200,14 @@ public class ValueTypeArray {
         assertTrue(array3[0][0] == null, "Expected NULL");
 
         // Now create ObjArrays of ValueArray...
-        cls = (Class<?>) Point.class;
-        array = (Point[][]) Array.newInstance(cls, 1, 2);
-        assertEquals(array.length, 1, "Incorrect length");
-        assertEquals(array[0].length, 2, "Incorrect length");
-        Point p = array[0][1];
-        int x = p.x;
-        assertEquals(x, 0, "Bad Point Value");
+        cls = (Class<?>) Point.class.asBoxType();
+        Point?[][] barray = (Point?[][]) Array.newInstance(cls, 1, 2);
+        assertEquals(barray.length, 1, "Incorrect length");
+        assertEquals(barray[0].length, 2, "Incorrect length");
+        barray[0][1] = Point.createPoint(1, 2);
+        Point? pb = barray[0][1];
+        int x = pb.getX();
+        assertEquals(x, 1, "Bad Point Value");
     }
 
     static final inline class MyInt implements Comparable<MyInt?> {
@@ -216,10 +230,15 @@ public class ValueTypeArray {
             return mi;
         }
 
+        // Null-able fields here are a temp hack to avoid ClassCircularityError
         public static final MyInt? MIN = MyInt.create(Integer.MIN_VALUE);
         public static final MyInt? ZERO = MyInt.create(0);
         public static final MyInt? MAX = MyInt.create(Integer.MAX_VALUE);
     }
+
+    static MyInt staticMyInt = MyInt.create(-1);
+    static MyInt[] staticMyIntArray = new MyInt[] { staticMyInt };
+    static MyInt[][] staticMyIntArrayArray = new MyInt[][] { staticMyIntArray, staticMyIntArray };
 
     static interface SomeSecondaryType {
         default String hi() { return "Hi"; }
@@ -231,12 +250,13 @@ public class ValueTypeArray {
     }
 
     void testSanityCheckcasts() {
-
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
 
-        Object arrObj = Array.newInstance(MyInt.class, 1);
+        Class<?> cls = MyInt.class.asValueType();
+        assertTrue(cls.isValue());
+        Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");
         assertTrue(arrObj instanceof Comparable[], "Not Comparable array");
         assertTrue(arrObj instanceof MyInt[], "Not MyInt array");
@@ -251,21 +271,29 @@ public class ValueTypeArray {
         MyOtherInt[][] matrix = new MyOtherInt[1][1];
         assertTrue(matrix[0] instanceof MyOtherInt[]);
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
+
+        // Box types vs Inline...
+        MyInt?[] myValueRefs = new MyInt?[1];
+        // JDK-8222974
+        //assertTrue(myValueRefs instanceof MyInt?[]);
+        assertFalse(myValueRefs instanceof MyInt[]);
+        assertTrue(myValueRefs instanceof Object[]);
+        assertTrue(myValueRefs instanceof Comparable[]);
+        assertFalse(myValueRefs instanceof MyInt[]);
     }
 
-/*
- * Comment out this test because inline type arrays are not assignable to the array
- * parameter types used by the methods in class java.util.Arrays.
- *
+
     void testUtilArrays() {
         // Sanity check j.u.Arrays
-        MyInt[] myInts = new MyInt[] { MyInt.MAX, MyInt.MIN };
+
+        // cast to q-type temp effect of avoiding circularity error (decl static MyInt?)
+        MyInt[] myInts = new MyInt[] { (MyInt) MyInt.MAX, (MyInt) MyInt.MIN };
         // Sanity sort another copy
         MyInt[] copyMyInts = Arrays.copyOf(myInts, myInts.length + 1);
-        checkArrayElementsEqual(copyMyInts, new MyInt[] { myInts[0], myInts[1], MyInt.ZERO});
+        checkArrayElementsEqual(copyMyInts, new MyInt[] { myInts[0], myInts[1], (MyInt) MyInt.ZERO});
 
         Arrays.sort(copyMyInts);
-        checkArrayElementsEqual(copyMyInts, new MyInt[] { MyInt.MIN, MyInt.ZERO, MyInt.MAX });
+        checkArrayElementsEqual(copyMyInts, new MyInt[] { (MyInt) MyInt.MIN, (MyInt) MyInt.ZERO, (MyInt) MyInt.MAX });
 
         List myIntList = Arrays.asList(copyMyInts);
         checkArrayElementsEqual(copyMyInts, myIntList.toArray(new MyInt[copyMyInts.length]));
@@ -280,16 +308,8 @@ public class ValueTypeArray {
 
         aList.remove(2);
         aList.add(MyInt.create(5));
-
-        // Interesting:
-        //aList.add((MyInt)getNull());
-
-        // javac currently generating "java/util/Objects.requireNonNull
-        // should checkcast treat null against Value class as CCE ?
-        // Then in the end, ArrayList.elementData is Object[], (that's why remove works)
-        // why can't I write add(null) then ?
     }
-*/
+
 
     void testObjectArrayOfValues() {
         testSanityObjectArrays();
@@ -327,6 +347,18 @@ public class ValueTypeArray {
         comparables[0] = null;
         comparables[1] = null;
         assertTrue(comparables[0] == null && comparables[1] == null, "Not null ?");
+
+        MyInt?[] myIntRefArray = new MyInt?[1];
+        assertTrue(myIntRefArray[0] == null, "Got: " + myIntRefArray[0]);
+        myIntRefArray[0] = null;
+
+        MyInt?[] srcNulls = new MyInt?[2];
+        MyInt?[] dstNulls = new MyInt?[2];
+        System.arraycopy(srcNulls, 0, dstNulls, 0, 2);
+        checkArrayElementsEqual(srcNulls, dstNulls);
+        srcNulls[1] = MyInt.create(1);
+        System.arraycopy(srcNulls, 0, dstNulls, 0, 2);
+        checkArrayElementsEqual(srcNulls, dstNulls);
     }
 
     void testMixedLayoutArrays() {
@@ -362,6 +394,16 @@ public class ValueTypeArray {
             System.arraycopy(objArray, 0, valArray, 0, 3);
             throw new RuntimeException("Expected ArrayStoreException");
         } catch (ArrayStoreException ase) {}
+
+        MyInt?[] myIntRefArray = new MyInt?[3];
+        System.arraycopy(valArray, 0, myIntRefArray, 0, 3);
+        checkArrayElementsEqual(valArray, myIntRefArray);
+
+        myIntRefArray[0] = null;
+        try {
+            System.arraycopy(myIntRefArray, 0, valArray, 0, 3);
+            throw new RuntimeException("Expected NullPointerException");
+        } catch (NullPointerException npe) {}
     }
 
     static final inline class MyPoint {

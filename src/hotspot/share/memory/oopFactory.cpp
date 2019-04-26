@@ -85,8 +85,6 @@ typeArrayOop oopFactory::new_typeArray_nozero(BasicType type, int length, TRAPS)
 
 objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
   assert(klass->is_klass(), "must be instance class");
-  assert(!klass->is_value() || (!ValueKlass::cast(klass)->flatten_array()),
-           "Did not expect flatten array of value klass");
   if (klass->is_array_klass()) {
     return ArrayKlass::cast(klass)->allocate_arrayArray(1, length, THREAD);
   } else {
@@ -96,32 +94,18 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 
 arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
   assert(klass->is_value(), "Klass must be value type");
-  Klass* array_klass = klass->array_klass(CHECK_NULL); // Flat value array or object array ?
-  assert(array_klass->is_valueArray_klass() || array_klass->is_objArray_klass(),
-         "Expect an array class here");
+  // Request flattened, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
+  Klass* array_klass = klass->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK_NULL);
+  assert(ArrayKlass::cast(array_klass)->storage_properties().is_null_free(), "Expect a null-free array class here");
 
+  arrayOop oop;
   if (array_klass->is_valueArray_klass()) {
-    return (arrayOop) ValueArrayKlass::cast(array_klass)->allocate(length, THREAD);
+    oop = (arrayOop) ValueArrayKlass::cast(array_klass)->allocate(length, THREAD);
+  } else {
+    oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
-
-  ValueKlass* vklass = ValueKlass::cast(klass);
-  objArrayOop array = oopFactory::new_objArray(klass, length, CHECK_NULL);
-  if (length == 0) {
-    return array;
-  }
-
-  // Populate default values...
-  objArrayHandle array_h(THREAD, array);
-  instanceOop value = (instanceOop)vklass->default_value();
-  for (int i = 0; i < length; i++) {
-    array_h->obj_at_put(i, value);
-  }
-  return array_h();
-}
-
-arrayOop oopFactory::new_array(Klass* klass, int length, TRAPS) {
-  return (klass->is_value()) ? new_valueArray(klass, length, THREAD) :
-      (arrayOop)new_objArray(klass, length, THREAD);
+  assert(oop->array_storage_properties().is_null_free(), "Bad array storage encoding");
+  return oop;
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {

@@ -828,7 +828,7 @@ void TemplateTable::aaload() {
   index_check(array, index); // kills rbx
   if (ValueArrayFlatten) {
     Label is_flat_array, done;
-    __ test_flat_array_oop(array, rbx, is_flat_array);
+    __ test_flattened_array_oop(array, rbx, is_flat_array);
     do_oop_load(_masm,
                 Address(array, index,
                         UseCompressedOops ? Address::times_4 : Address::times_ptr,
@@ -1151,7 +1151,7 @@ void TemplateTable::aastore() {
   // Move array class to rdi
   __ load_klass(rdi, rdx);
   if (ValueArrayFlatten) {
-    __ test_flat_array_klass(rdi, rbx, is_flat_array);
+    __ test_flattened_array_oop(rdx, rbx, is_flat_array);
   }
 
   // Move subklass into rbx
@@ -1185,15 +1185,8 @@ void TemplateTable::aastore() {
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
-    __ load_klass(rdi, rdx);
-    // No way to store null in flat array
-    __ test_flat_array_klass(rdi, rbx, is_null_into_value_array_npe);
-
-    // Use case for storing values in objArray where element_klass is specifically
-    // a value type because they could not be flattened "for reasons",
-    // these need to have the same semantics as flat arrays, i.e. NPE
-    __ movptr(rdi, Address(rdi, ObjArrayKlass::element_klass_offset()));
-    __ test_klass_is_value(rdi, rdi, is_null_into_value_array_npe);
+    // No way to store null in null-free array
+    __ test_null_free_array_oop(rdx, rbx, is_null_into_value_array_npe);
     __ jmp(store_null);
 
     __ bind(is_null_into_value_array_npe);

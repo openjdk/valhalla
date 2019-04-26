@@ -967,7 +967,8 @@ void Metaspace::set_narrow_klass_base_and_shift(address metaspace_base, address 
     higher_address = metaspace_base + compressed_class_space_size();
     lower_base = metaspace_base;
 
-    uint64_t klass_encoding_max = UnscaledClassSpaceMax << LogKlassAlignmentInBytes;
+    // Using oopDesc::_metadata high bits so LogKlassAlignmentInBytes shift is no longer possible
+    uint64_t klass_encoding_max = UnscaledClassSpaceMax;
     // If compressed class space fits in lower 32G, we don't need a base.
     if (higher_address <= (address)klass_encoding_max) {
       lower_base = 0; // Effectively lower base is zero.

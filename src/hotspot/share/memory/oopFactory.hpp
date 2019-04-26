@@ -67,11 +67,14 @@ class oopFactory: AllStatic {
   // Regular object arrays
   static objArrayOop     new_objArray(Klass* klass, int length, TRAPS);
 
-  // Value arrays
+  // Value arrays...
+  // LWorld:
+  //    - Q-type signature allocation should use this path.
+  //    - L-type signature allocation should use new_objArray (even with value type elements)
+  //
+  // Method specifically creates ArrayStorageProperties::null_free and possibly flattened if possible
+  // i.e. valueArrayOop if flattening can be done, else objArrayOop with "null free" storage properties
   static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
-
-  // Object/Value array for klass
-  static arrayOop        new_array(Klass* klass, int length, TRAPS);
 
   // Helpers that return handles
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);

@@ -374,13 +374,23 @@ void MemAllocator::mem_clear(HeapWord* mem) const {
   Copy::fill_to_aligned_words(mem + hs, _word_size - hs);
 }
 
-oop MemAllocator::finish(HeapWord* mem) const {
+inline void MemAllocator::finish_mark(HeapWord* mem) const {
   assert(mem != NULL, "NULL object pointer");
   oopDesc::set_mark_raw(mem, Klass::default_prototype_header(_klass));
+}
+
+oop MemAllocator::finish(HeapWord* mem) const {
+  finish_mark(mem);
   // Need a release store to ensure array/class length, mark word, and
   // object zeroing are visible before setting the klass non-NULL, for
   // concurrent collectors.
   oopDesc::release_set_klass(mem, _klass);
+  return oop(mem);
+}
+
+oop MemAllocator::finish_with_properties(HeapWord* mem, ArrayStorageProperties storage_props) const {
+  finish_mark(mem);
+  oopDesc::release_set_metadata(mem, storage_props, _klass);
   return oop(mem);
 }
 
@@ -407,7 +417,7 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
     mem_clear(mem);
   }
   arrayOopDesc::set_length(mem, _length);
-  return finish(mem);
+  return finish_with_properties(mem, ArrayKlass::cast(_klass)->storage_properties());
 }
 
 oop ClassAllocator::initialize(HeapWord* mem) const {

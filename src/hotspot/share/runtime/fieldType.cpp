@@ -85,5 +85,10 @@ BasicType FieldType::get_array_info(Symbol* signature, FieldArrayInfo& fd, TRAPS
   }
   // Pass dimension back to caller
   fd._dimension = dim;
+  fd._storage_props = get_array_storage_properties(signature);
   return element_type;
+}
+
+ArrayStorageProperties FieldType::get_array_storage_properties(Symbol* signature) {
+  return (signature->is_Q_array_signature() || signature->is_Q_signature()) ? ArrayStorageProperties::flattened_and_null_free : ArrayStorageProperties::empty;
 }

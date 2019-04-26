@@ -32,7 +32,7 @@
 #include "oops/access.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/fieldStreams.hpp"
-#include "oops/instanceKlass.hpp"
+#include "oops/instanceKlass.inline.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -143,43 +143,53 @@ bool ValueKlass::flatten_array() {
 }
 
 
-Klass* ValueKlass::array_klass_impl(bool or_null, int n, TRAPS) {
-  if (!flatten_array()) {
-    return InstanceKlass::array_klass_impl(or_null, n, THREAD);
+Klass* ValueKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS) {
+  if (storage_props.is_null_free()) {
+    return value_array_klass(storage_props, or_null, n, THREAD);
+  } else {
+    return InstanceKlass::array_klass_impl(storage_props, or_null, n, THREAD);
   }
+}
 
-  // Basically the same as instanceKlass, but using "ValueArrayKlass::allocate_klass"
-  if (array_klasses() == NULL) {
+Klass* ValueKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
+  return array_klass_impl(storage_props, or_null, 1, THREAD);
+}
+
+Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool or_null, int rank, TRAPS) {
+  Klass* vak = acquire_value_array_klass();
+  if (vak == NULL) {
     if (or_null) return NULL;
-
     ResourceMark rm;
     JavaThread *jt = (JavaThread *)THREAD;
     {
       // Atomic creation of array_klasses
       MutexLocker ma(MultiArray_lock, THREAD);
-
-      // Check if update has already taken place
-      if (array_klasses() == NULL) {
-        Klass* ak;
-        if (is_atomic() || (!ValueArrayAtomicAccess)) {
-          ak = ValueArrayKlass::allocate_klass(this, CHECK_NULL);
-        } else {
-          ak = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
-        }
-        set_array_klasses(ak);
+      if (get_value_array_klass() == NULL) {
+        vak = allocate_value_array_klass(CHECK_NULL);
+        OrderAccess::release_store((Klass**)adr_value_array_klass(), vak);
       }
     }
   }
-  // _this will always be set at this point
-  ArrayKlass* ak = ArrayKlass::cast(array_klasses());
-  if (or_null) {
-    return ak->array_klass_or_null(n);
+  if (!vak->is_valueArray_klass()) {
+    storage_props.clear_flattened();
   }
-  return ak->array_klass(n, THREAD);
+  if (or_null) {
+    return vak->array_klass_or_null(storage_props, rank);
+  }
+  return vak->array_klass(storage_props, rank, THREAD);
 }
 
-Klass* ValueKlass::array_klass_impl(bool or_null, TRAPS) {
-  return array_klass_impl(or_null, 1, THREAD);
+Klass* ValueKlass::allocate_value_array_klass(TRAPS) {
+  if (flatten_array() && (is_atomic() || (!ValueArrayAtomicAccess))) {
+    return ValueArrayKlass::allocate_klass(ArrayStorageProperties::flattened_and_null_free, this, THREAD);
+  }
+  return ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties::null_free, 1, this, THREAD);
+}
+
+void ValueKlass::array_klasses_do(void f(Klass* k)) {
+  InstanceKlass::array_klasses_do(f);
+  if (get_value_array_klass() != NULL)
+    ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f);
 }
 
 void ValueKlass::raw_field_copy(void* src, void* dst, size_t raw_byte_size) {

@@ -105,9 +105,9 @@ class MacroAssembler: public Assembler {
   void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
   void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
 
-  // Check klass/oops is flat value type array (oop->_klass->_layout_helper & vt_bit)
-  void test_flat_array_klass(Register klass, Register temp_reg, Label& is_flat_array);
-  void test_flat_array_oop(Register oop, Register temp_reg, Label& is_flat_array);
+  // Check oops array storage properties, i.e. flattened and/or null-free
+  void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);
+  void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
@@ -327,6 +327,8 @@ class MacroAssembler: public Assembler {
   void load_mirror(Register mirror, Register method, Register tmp = rscratch2);
 
   // oop manipulations
+  void load_metadata(Register dst, Register src);
+  void load_storage_props(Register dst, Register src);
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ public class CompressedClassPointers {
             "-Xlog:cds=trace",
             "-XX:+VerifyBeforeGC", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("Narrow klass base: 0x0000000000000000");
+        output.shouldContain("Narrow klass shift: 0");
         output.shouldHaveExitValue(0);
     }
 
@@ -63,7 +63,7 @@ public class CompressedClassPointers {
             "-Xlog:cds=trace",
             "-XX:+VerifyBeforeGC", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("Narrow klass base: 0x0000000000000000, Narrow klass shift: 3");
+        output.shouldContain("Narrow klass shift: 0");
         output.shouldHaveExitValue(0);
     }
 

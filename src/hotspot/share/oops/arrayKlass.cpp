@@ -99,9 +99,9 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
     JFR_ONLY(INIT_ID(this);)
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
+Symbol* ArrayKlass::create_element_klass_array_name(bool is_qtype, Klass* element_klass, TRAPS) {
   Symbol* name = NULL;
-  if (!element_klass->is_instance_klass() ||
+  if (!element_klass->is_instance_klass() || is_qtype ||
       (name = InstanceKlass::cast(element_klass)->array_name()) == NULL) {
 
     ResourceMark rm(THREAD);
@@ -111,15 +111,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS)
     int idx = 0;
     new_str[idx++] = '[';
     if (element_klass->is_instance_klass()) { // it could be an array or simple type
-      // Temporary hack, for arrays of value types, this code should be removed
-      // once value types have their own array types
-      // With Q-descriptors, the code below needs to be reworked.
-      // It is still correct today because the only kind of value array supported
-      // is array of null-free values which map to the Q-signature.
-      // As soon as both arrays of null-free values and arrays of nullable values
-      // are supported, this code has to be rewritten to consider the kind of the
-      // array instead of the kind of the elements.
-      if (element_klass->is_value()) {
+      if (is_qtype) {
         new_str[idx++] = 'Q';
       } else {
         new_str[idx++] = 'L';
@@ -132,9 +124,9 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS)
     }
     new_str[idx++] = '\0';
     name = SymbolTable::new_permanent_symbol(new_str, CHECK_NULL);
-    if (element_klass->is_instance_klass() || element_klass->is_value()) {
+    if (element_klass->is_instance_klass() && (!is_qtype)) {
       InstanceKlass* ik = InstanceKlass::cast(element_klass);
-      ik->set_array_name(name);
+      ik->set_array_name(name); // CMH: only cache and deref array_name for L-type...missing for Q-type
     }
   }
 
@@ -169,21 +161,12 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_0);
   int size = objArrayOopDesc::object_size(length);
-  Klass* k = array_klass(n+dimension(), CHECK_0);
+  Klass* k = array_klass(FieldType::get_array_storage_properties(name()), n+dimension(), CHECK_0);
   ArrayKlass* ak = ArrayKlass::cast(k);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_0);
   // initialization to NULL not necessary, area already cleared
   return o;
-}
-
-void ArrayKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
-  Klass* k = this;
-  // Iterate over this array klass and all higher dimensions
-  while (k != NULL) {
-    f(k, CHECK);
-    k = ArrayKlass::cast(k)->higher_dimension();
-  }
 }
 
 void ArrayKlass::array_klasses_do(void f(Klass* k)) {

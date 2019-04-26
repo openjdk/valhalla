@@ -203,6 +203,7 @@ class Symbol : public MetaspaceObj {
     return starts_with(prefix, (int) strlen(prefix));
   }
   bool is_Q_signature() const;
+  bool is_Q_array_signature() const;
   Symbol* fundamental_name(TRAPS);
   bool is_same_fundamental_type(Symbol*) const;
 

@@ -437,10 +437,14 @@ IRT_END
 
 IRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* thread, ConstantPool* pool, int index, jint size))
   Klass*    klass = pool->klass_at(index, CHECK);
-  if (klass->is_value()) { // Logically creates elements, ensure klass init
+  bool      is_qtype_desc = pool->tag_at(index).is_Qdescriptor_klass();
+  arrayOop obj;
+  if ((!klass->is_array_klass()) && is_qtype_desc) { // Logically creates elements, ensure klass init
     klass->initialize(CHECK);
+    obj = oopFactory::new_valueArray(klass, size, CHECK);
+  } else {
+    obj = oopFactory::new_objArray(klass, size, CHECK);
   }
-  arrayOop obj = oopFactory::new_array(klass, size, CHECK);
   thread->set_vm_result(obj);
 IRT_END
 
@@ -476,13 +480,14 @@ IRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* fir
   // We may want to pass in more arguments - could make this slightly faster
   LastFrameAccessor last_frame(thread);
   ConstantPool* constants = last_frame.method()->constants();
-  int          i = last_frame.get_index_u2(Bytecodes::_multianewarray);
-  Klass* klass   = constants->klass_at(i, CHECK);
+  int i = last_frame.get_index_u2(Bytecodes::_multianewarray);
+  Klass* klass = constants->klass_at(i, CHECK);
+  bool is_qtype = constants->tag_at(i).is_Qdescriptor_klass();
   int   nof_dims = last_frame.number_of_dimensions();
   assert(klass->is_klass(), "not a class");
   assert(nof_dims >= 1, "multianewarray rank must be nonzero");
 
-  if (klass->is_value()) { // Logically creates elements, ensure klass init
+  if (is_qtype) { // Logically creates elements, ensure klass init
     klass->initialize(CHECK);
   }
 
