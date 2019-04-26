@@ -1367,10 +1367,6 @@ void Compile::print_missing_nodes() {
   }
 }
 void Compile::record_modified_node(Node* n) {
-  if (n->isa_SafePoint() && n->_idx == 46870 && n->outcnt() == 0) {
-    n->dump(2);
-    assert(false, "FAIL");
-  }
   if (_modified_nodes != NULL && !_inlining_incrementally &&
       n->outcnt() != 0 && !n->is_Con()) {
     _modified_nodes->push(n);
