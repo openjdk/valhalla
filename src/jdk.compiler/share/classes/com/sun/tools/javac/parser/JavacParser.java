@@ -771,7 +771,8 @@ public class JavacParser implements Parser {
 
     public JCExpression parseTypeSansQuestion() {
         List<JCAnnotation> annotations = typeAnnotationsOpt();
-        JCExpression result = unannotatedType(false, TYPE | NOQUESTION);
+        boolean questionOK = peekToken(0, QUES) && peekToken(1, LBRACKET)  && peekToken(2, RBRACKET);
+        JCExpression result = unannotatedType(false, TYPE | (questionOK ? 0 : NOQUESTION));
         mode &= ~NOQUESTION;
         if (annotations.nonEmpty()) {
             result = insertAnnotationsToMostInner(result, annotations, false);
