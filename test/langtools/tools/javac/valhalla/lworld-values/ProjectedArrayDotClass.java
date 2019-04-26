@@ -26,7 +26,7 @@
  * @bug 8222722
  * @summary  Javac fails to compile V?[].class
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile ProjectedArrayDotClass.java
+ * @compile -XDnoStaticInitValueFactory ProjectedArrayDotClass.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla ProjectedArrayDotClass
  * @modules jdk.compiler
  */

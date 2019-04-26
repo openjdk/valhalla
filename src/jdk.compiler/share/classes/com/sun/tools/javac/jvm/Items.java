@@ -453,7 +453,7 @@ public class Items {
         }
 
         Item invoke() {
-            MethodType mtype = (MethodType)member.erasure(types);
+            MethodType mtype = (MethodType)member.externalType(types); // static factories
             int rescode = Code.typecode(mtype.restype);
             code.emitInvokestatic(pool.put(member), mtype);
             return stackItem[rescode];

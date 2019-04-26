@@ -26,7 +26,7 @@
  * @bug 8222634
  * @summary Check array creation with V and V?
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile ArrayCreationWithQuestion.java
+ * @compile -XDnoStaticInitValueFactory ArrayCreationWithQuestion.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla ArrayCreationWithQuestion
  * @modules jdk.compiler
  */

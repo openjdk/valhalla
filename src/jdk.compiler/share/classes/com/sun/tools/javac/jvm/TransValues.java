@@ -468,7 +468,7 @@ public class TransValues extends TreeTranslator {
         if (factory != null)
             return factory;
 
-        MethodType factoryType = new MethodType(init.externalType(types).getParameterTypes(), // init.externalType to account for synthetics.
+        MethodType factoryType = new MethodType(staticInitValueFactory ? init.erasure(types).getParameterTypes() : init.externalType(types).getParameterTypes(), // init.externalType to account for synthetics.
                                                 init.owner.type,
                                                 init.type.getThrownTypes(),
                                                 init.owner.type.tsym);

@@ -26,7 +26,7 @@
  * bug 8212563
  * @summary Check that javac emits Q types for values as needed
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile QTypedValue.java
+ * @compile -XDnoStaticInitValueFactory QTypedValue.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla QTypeTest
  * @modules jdk.compiler
  */
