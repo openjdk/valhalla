@@ -1412,3 +1412,144 @@ class withfieldObj {
     } // end ValueTypes
   } // Attributes
 } // end class withfieldObj
+
+
+// Test that the verifier does not crash when it sees "[Qjava/lang/Object;"
+// in a signature.
+//
+// This .jcod program is based on this .java program with the signature of
+// method qInSign() changed to "([Qjava/lang/Object;)V".
+//
+// public class QObject {
+//     public static void qInSig(Object[] x) { }
+//     public static void main(String argv[]) throws Throwable {
+//         qInSig(argv);
+//     }
+// }
+
+class QObject {
+  0xCAFEBABE;
+  0; // minor version
+  57; // version
+  [22] { // Constant Pool
+    ; // first element is empty
+    Method #4 #17; // #1     at 0x0A
+    Method #3 #18; // #2     at 0x0F
+    class #19; // #3     at 0x14
+    class #20; // #4     at 0x17
+    Utf8 "<init>"; // #5     at 0x1A
+    Utf8 "()V"; // #6     at 0x23
+    Utf8 "Code"; // #7     at 0x29
+    Utf8 "LineNumberTable"; // #8     at 0x30
+    Utf8 "qInSig"; // #9     at 0x42
+    Utf8 "([Qjava/lang/Object;)V"; // #10     at 0x4B // Changed L to Q !!!!
+    Utf8 "main"; // #11     at 0x64
+    Utf8 "([Ljava/lang/String;)V"; // #12     at 0x6B
+    Utf8 "Exceptions"; // #13     at 0x84
+    class #21; // #14     at 0x91
+    Utf8 "SourceFile"; // #15     at 0x94
+    Utf8 "QObject.java"; // #16     at 0xA1
+    NameAndType #5 #6; // #17     at 0xB0
+    NameAndType #9 #10; // #18     at 0xB5
+    Utf8 "QObject"; // #19     at 0xBA
+    Utf8 "java/lang/Object"; // #20     at 0xC4
+    Utf8 "java/lang/Throwable"; // #21     at 0xD7
+  } // Constant Pool
+
+  0x0021; // access [ ACC_PUBLIC ACC_SUPER ]
+  #3;// this_cpx
+  #4;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [0] { // fields
+  } // fields
+
+  [3] { // methods
+    { // Member at 0xF9
+      0x0001; // access
+      #5; // name_cpx
+      #6; // sig_cpx
+      [1] { // Attributes
+        Attr(#7, 29) { // Code at 0x0101
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB70001B1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#8, 6) { // LineNumberTable at 0x0118
+              [1] { // LineNumberTable
+                0  2; //  at 0x0124
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0124
+      0x0009; // access
+      #9; // name_cpx
+      #10; // sig_cpx
+      [1] { // Attributes
+        Attr(#7, 25) { // Code at 0x012C
+          0; // max_stack
+          1; // max_locals
+          Bytes[1]{
+            0xB1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#8, 6) { // LineNumberTable at 0x013F
+              [1] { // LineNumberTable
+                0  4; //  at 0x014B
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x014B
+      0x0009; // access
+      #11; // name_cpx
+      #12; // sig_cpx
+      [2] { // Attributes
+        Attr(#7, 33) { // Code at 0x0153
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB80002B1;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#8, 10) { // LineNumberTable at 0x016A
+              [2] { // LineNumberTable
+                0  7; //  at 0x0176
+                4  8; //  at 0x017A
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+        ;
+        Attr(#13, 4) { // Exceptions at 0x017A
+          [1] { // Exceptions
+            #14; //  at 0x0184
+          }
+        } // end Exceptions
+      } // Attributes
+    } // Member
+  } // methods
+
+  [1] { // Attributes
+    Attr(#15, 2) { // SourceFile at 0x0186
+      #16;
+    } // end SourceFile
+  } // Attributes
+} // end class QObject

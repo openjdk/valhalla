@@ -23,6 +23,7 @@
  */
 /*
  * @test
+ * @bug 8223028
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile verifierTests.jcod NoArrayCov.jcod NoArrayCovIntf.jcod NoNullVT.jcod
@@ -112,5 +113,9 @@ public class VerifierValueTypes {
         // Test that null is not assignable to an inline type.
         runTestVerifyError("NoNullVT",
             "Type null (current frame, stack[1]) is not assignable to 'QNoNullVT;'");
+
+        // Test that a [Qjava/lang/Object; signature does not crash the verifier.
+        runTestVerifyError("QObject",
+            "'[Ljava/lang/String;' (current frame, stack[0]) is not assignable to '[Qjava/lang/Object;'");
     }
 }

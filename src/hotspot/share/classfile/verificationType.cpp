@@ -149,7 +149,6 @@ bool VerificationType::is_valuetype_assignable_from(const VerificationType& from
   // Check that 'from' is not null, is a value type, and is the same value type.
   assert(is_valuetype(), "called with a non-valuetype type");
   assert(!is_null(), "valuetype is not null");
-  assert(name() != vmSymbols::java_lang_Object(), "java.lang.Object is a value type?");
   return (!from.is_null() && from.is_valuetype() && name() == from.name());
 }
 
