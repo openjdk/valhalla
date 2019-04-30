@@ -434,25 +434,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
                                   args_passed_cc, args_on_stack_cc, regs_cc, // from
                                   args_passed, args_on_stack, regs);         // to
 
-#if 0 // FIXME -- implement this!
-  // If a value type was allocated and initialized, apply post barrier to all oop fields
-  if (has_oop_field) {
-    __ push(r13); // save senderSP
-    __ push(rbx); // save callee
-    // Allocate argument register save area
-    if (frame::arg_reg_save_area_bytes != 0) {
-      __ subptr(rsp, frame::arg_reg_save_area_bytes);
-    }
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::apply_post_barriers), r15_thread, r10);
-    // De-allocate argument register save area
-    if (frame::arg_reg_save_area_bytes != 0) {
-      __ addptr(rsp, frame::arg_reg_save_area_bytes);
-    }
-    __ pop(rbx); // restore callee
-    __ pop(r13); // restore sender SP
-  }
-#endif
-
   if (sp_inc != 0) {
     assert(sp_inc > 0, "stack should not shrink");
     generate_stack_overflow_check(bang_size_in_bytes);

@@ -154,7 +154,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register val,
                          DecoratorSet decorators = 0) {
   assert(val == noreg || val == rax, "parameter is just for looks");
-  __ store_heap_oop(dst, val, rdx, rbx, decorators);
+  __ store_heap_oop(dst, val, rdx, rbx, noreg, decorators);
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,

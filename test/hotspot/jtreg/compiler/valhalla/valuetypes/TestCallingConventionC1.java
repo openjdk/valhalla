@@ -52,7 +52,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test47*"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test52_helper"
                                    //, "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
@@ -250,6 +250,27 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         }
     }
     static EightFloats eightFloatsField = new EightFloats();
+
+    static class Number {
+        int n;
+        Number(int v) {
+            n = v;
+        }
+        void set(int v) {
+            n = v;
+        }
+    }
+    static inline class RefPoint {
+        final Number x;
+        final Number y;
+        public RefPoint(int x, int y) {
+            this.x = new Number(x);
+            this.y = new Number(y);
+        }
+    }
+
+    static RefPoint refPointField1 = new RefPoint(12, 34);
+    static RefPoint refPointField2 = new RefPoint(56789, 0x12345678);
 
     //**********************************************************************
     // PART 1 - C1 calls interpreted code
@@ -947,6 +968,102 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test50(i);
             Asserts.assertEQ(n, i);
+        }
+    }
+
+
+    // C2->C1 invokestatic, inline class with ref fields (RefPoint)
+    @Test(compLevel = C2)
+    public int test51() {
+        return test51_helper(refPointField1);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test51_helper(RefPoint rp1) {
+        return rp1.x.n + rp1.y.n;
+    }
+
+    @DontCompile
+    public void test51_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int result = test51();
+            int n = test51_helper(refPointField1);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, inline class with ref fields (Point, RefPoint)
+    @Test(compLevel = C2)
+    public int test52() {
+        return test52_helper(pointField, refPointField1);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test52_helper(Point p1, RefPoint rp1) {
+        return p1.x + p1.y + rp1.x.n + rp1.y.n;
+    }
+
+    @DontCompile
+    public void test52_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int result = test52();
+            int n = test52_helper(pointField, refPointField1);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, inline class with ref fields (RefPoint, RefPoint, RefPoint, RefPoint)
+    @Test(compLevel = C2)
+    public int test53() {
+        return test53_helper(refPointField1, refPointField2, refPointField1, refPointField2);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test53_helper(RefPoint rp1, RefPoint rp2, RefPoint rp3, RefPoint rp4) {
+        return rp1.x.n + rp1.y.n +
+               rp2.x.n + rp2.y.n +
+               rp3.x.n + rp3.y.n +
+               rp4.x.n + rp4.y.n;
+    }
+
+    @DontCompile
+    public void test53_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int result = test53();
+            int n = test53_helper(refPointField1, refPointField2, refPointField1, refPointField2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, inline class with ref fields (RefPoint, RefPoint, float, int, RefPoint, RefPoint)
+    @Test(compLevel = C2)
+    public int test54() {
+        return test54_helper(refPointField1, refPointField2, 1.0f, 2, refPointField1, refPointField2);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test54_helper(RefPoint rp1, RefPoint rp2, float f, int i, RefPoint rp3, RefPoint rp4) {
+        return rp1.x.n + rp1.y.n +
+               rp2.x.n + rp2.y.n +
+               (int)(f) + i +
+               rp3.x.n + rp3.y.n +
+               rp4.x.n + rp4.y.n;
+    }
+
+    @DontCompile
+    public void test54_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            int result = test54();
+            int n = test54_helper(refPointField1, refPointField2, 1.0f, 2, refPointField1, refPointField2);
+            Asserts.assertEQ(result, n);
         }
     }
 }

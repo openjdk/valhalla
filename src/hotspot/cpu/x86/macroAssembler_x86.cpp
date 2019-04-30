@@ -5149,14 +5149,14 @@ void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators, Reg
 }
 
 void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
-                                     Register tmp1, Register tmp2) {
+                                     Register tmp1, Register tmp2, Register tmp3) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
-    bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, tmp2);
+    bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
   } else {
-    bs->store_at(this, decorators, type, dst, src, tmp1, tmp2);
+    bs->store_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
   }
 }
 
@@ -5181,13 +5181,13 @@ void MacroAssembler::load_heap_oop_not_null(Register dst, Address src, Register 
 }
 
 void MacroAssembler::store_heap_oop(Address dst, Register src, Register tmp1,
-                                    Register tmp2, DecoratorSet decorators) {
-  access_store_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, tmp2);
+                                    Register tmp2, Register tmp3, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, tmp2, tmp3);
 }
 
 // Used for storing NULLs.
 void MacroAssembler::store_heap_oop_null(Address dst) {
-  access_store_at(T_OBJECT, IN_HEAP, dst, noreg, noreg, noreg);
+  access_store_at(T_OBJECT, IN_HEAP, dst, noreg, noreg, noreg, noreg);
 }
 
 #ifdef _LP64
@@ -5903,7 +5903,10 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
 
   Register val_array = rax;
   Register val_obj_tmp = r11;
-  Register scratch_reg = r10;
+  Register from_reg_tmp = r10;
+  Register tmp1 = r14;
+  Register tmp2 = r13;
+  Register tmp3 = rbx;
   Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
 
   if (reg_state[to->value()] == reg_readonly) {
@@ -5926,25 +5929,26 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
     bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
-    // FIXME has_oop_field |= is_oop;
     VMReg from_r1 = from_pair.first();
     VMReg from_r2 = from_pair.second();
 
     // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
     if (!from_r1->is_XMMRegister()) {
-      if (is_oop) {
-        assert(0, "FIXME: packing oop fields not implemented");
-      } else {
-        Register from_reg;
+      Register from_reg;
 
-        if (from_r1->is_stack()) {
-          from_reg = scratch_reg;
-          int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-          load_sized_value(from_reg, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
-        } else {
-          from_reg = from_r1->as_Register();
-        }
+      if (from_r1->is_stack()) {
+        from_reg = from_reg_tmp;
+        int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        load_sized_value(from_reg, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
+      } else {
+        from_reg = from_r1->as_Register();
+      }
+
+      if (is_oop) {
+        DecoratorSet decorators = IN_HEAP | ACCESS_WRITE;
+        store_heap_oop(dst, from_reg, tmp1, tmp2, tmp3, decorators);
+      } else {
         store_sized_value(dst, from_reg, size_in_bytes);
       }
     } else {
