@@ -23,6 +23,7 @@
 
 package compiler.valhalla.valuetypes;
 
+import sun.hotspot.WhiteBox;
 import jdk.test.lib.Asserts;
 
 /*
@@ -52,18 +53,19 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test52_helper"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test60*"
                                    //, "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
         case 1: return new String[] {"-XX:+EnableValhallaC1", "-XX:TieredStopAtLevel=1"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test32*"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test76*"
                                      };
         }
         return null;
     }
 
     public static void main(String[] args) throws Throwable {
+        System.gc(); // Resolve this call, to avoid C1 code patching in the test cases.
         TestCallingConventionC1 test = new TestCallingConventionC1();
         test.run(args,
                  Point.class,
@@ -76,7 +78,8 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                  MyImplPojo2.class,
                  MyImplVal.class,
                  FixedPoints.class,
-                 FloatPoint.class);
+                 FloatPoint.class,
+                 RefPoint.class);
     }
 
     static inline class Point {
@@ -260,13 +263,88 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             n = v;
         }
     }
-    static inline class RefPoint {
+
+    static interface RefPoint_Access {
+        public int func1(RefPoint rp2);
+        public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2);
+    }
+
+    static inline class RefPoint implements RefPoint_Access {
         final Number x;
         final Number y;
         public RefPoint(int x, int y) {
             this.x = new Number(x);
             this.y = new Number(y);
         }
+
+        @DontInline
+        @ForceCompile(compLevel = C1)
+        public final int test76_helper(RefPoint rp2) { // opt_virtual_call
+            return this.x.n + this.y.n + rp2.x.n + rp2.y.n;
+        }
+
+        @DontInline
+        @ForceCompile(compLevel = C1)
+        public int func1(RefPoint rp2) {
+            return this.x.n + this.y.n + rp2.x.n + rp2.y.n;
+        }
+
+        @DontInline
+        @ForceCompile(compLevel = C1)
+        public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+            return x.n + y.n +
+                   rp1.x.n + rp1.y.n +
+                   rp2.x.n + rp2.y.n +
+                   n1.n +
+                   rp3.x.n + rp3.y.n +
+                   rp4.x.n + rp4.y.n +
+                   n2.n;
+        }
+    }
+
+    static class RefPoint_Access_Impl1 implements RefPoint_Access {
+        @DontInline @DontCompile
+        public int func1(RefPoint rp2) {
+            return rp2.x.n + rp2.y.n + 1111111;
+        }
+        @DontInline @DontCompile
+        public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+            return 111111 +
+                   rp1.x.n + rp1.y.n +
+                   rp2.x.n + rp2.y.n +
+                   n1.n +
+                   rp3.x.n + rp3.y.n +
+                   rp4.x.n + rp4.y.n +
+                   n2.n;
+        }
+    }
+    static class RefPoint_Access_Impl2 implements RefPoint_Access {
+        @DontInline @DontCompile
+        public int func1(RefPoint rp2) {
+            return rp2.x.n + rp2.y.n + 2222222;
+        }
+        @DontInline @DontCompile
+        public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+            return 222222 +
+                   rp1.x.n + rp1.y.n +
+                   rp2.x.n + rp2.y.n +
+                   n1.n +
+                   rp3.x.n + rp3.y.n +
+                   rp4.x.n + rp4.y.n +
+                   n2.n;
+        }
+    }
+
+    static RefPoint_Access refPoint_Access_impls[] = {
+        new RefPoint_Access_Impl1(),
+        new RefPoint_Access_Impl2(),
+        new RefPoint(0x12345, 0x6789a)
+    };
+
+    static int next_RefPoint_Access = 0;
+    static RefPoint_Access get_RefPoint_Access() {
+        int i = next_RefPoint_Access ++;
+        return refPoint_Access_impls[i % refPoint_Access_impls.length];
     }
 
     static RefPoint refPointField1 = new RefPoint(12, 34);
@@ -1066,4 +1144,325 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(result, n);
         }
     }
+
+    static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    static final String ScavengeALot = "ScavengeALot";
+
+
+    /**
+     * Each allocation with a "try" block like this will cause a GC
+     *
+     *       try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+     *           result = test55(p1);
+     *       }
+     */
+    static class ForceGCMarker implements java.io.Closeable {
+        static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+
+        ForceGCMarker() {
+            WHITE_BOX.setBooleanVMFlag(ScavengeALot, true);
+        }
+        public void close() {
+            WHITE_BOX.setBooleanVMFlag(ScavengeALot, false);
+        }
+
+        static ForceGCMarker mark(boolean warmup) {
+            return warmup ? null : new ForceGCMarker();
+        }
+    }
+
+    // C2->C1 invokestatic, force GC for every allocation when entering a C1 VEP (Point)
+    @Test(compLevel = C2)
+    public int test55(Point p1) {
+        return test55_helper(p1);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test55_helper(Point p1) {
+        return p1.x + p1.y;
+    }
+
+    @DontCompile
+    public void test55_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            Point p1 = new Point(1, 2);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test55(p1);
+            }
+            int n = test55_helper(p1);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, force GC for every allocation when entering a C1 VEP (RefPoint)
+    @Test(compLevel = C2)
+    public int test56(RefPoint rp1) {
+        return test56_helper(rp1);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test56_helper(RefPoint rp1) {
+        return rp1.x.n + rp1.y.n;
+    }
+
+    @DontCompile
+    public void test56_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = new RefPoint(1, 2);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test56(rp1);
+            }
+            int n = test56_helper(rp1);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->Interpreter (same as test56, but test c2i entry instead of C1)
+    @Test(compLevel = C2)
+    public int test57(RefPoint rp1) {
+        return test57_helper(rp1);
+    }
+
+    @DontInline @DontCompile
+    private static int test57_helper(RefPoint rp1) {
+        return rp1.x.n + rp1.y.n;
+    }
+
+    @DontCompile
+    public void test57_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = new RefPoint(1, 2);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test57(rp1);
+            }
+            int n = test57_helper(rp1);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, force GC for every allocation when entering a C1 VEP (a bunch of RefPoints and Numbers);
+    @Test(compLevel = C2)
+    public int test58(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+        return test58_helper(rp1, rp2, n1, rp3, rp4, n2);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test58_helper(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+        return rp1.x.n + rp1.y.n +
+               rp2.x.n + rp2.y.n +
+               n1.n +
+               rp3.x.n + rp3.y.n +
+               rp4.x.n + rp4.y.n +
+               n2.n;
+    }
+
+    @DontCompile
+    public void test58_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = new RefPoint(1, 2);
+            RefPoint rp2 = refPointField1;
+            RefPoint rp3 = new RefPoint(222, 777);
+            RefPoint rp4 = refPointField2;
+            Number n1 = new Number(5878);
+            Number n2 = new Number(1234);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test58(rp1, rp2, n1, rp3, rp4, n2);
+            }
+            int n = test58_helper(rp1, rp2, n1, rp3, rp4, n2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, GC inside main body of C1-compiled method (caller's args should not be GC'ed).
+    @Test(compLevel = C2)
+    public int test59(RefPoint rp1, boolean doGC) {
+      return test59_helper(rp1, 11, 222, 3333, 4444, doGC);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test59_helper(RefPoint rp1, int a1, int a2, int a3, int a4, boolean doGC) {
+        if (doGC) {
+            System.gc();
+        }
+        return rp1.x.n + rp1.y.n + a1 + a2 + a3 + a4;
+    }
+
+    @DontCompile
+    public void test59_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        boolean doGC = !warmup;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = new RefPoint(1, 2);
+            int result = test59(rp1, doGC);
+            int n = test59_helper(rp1, 11, 222, 3333, 4444, doGC);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokestatic, GC inside main body of C1-compiled method (caller's args should not be GC'ed).
+    // same as test59, but the incoming (scalarized) oops are passed in both registers and stack.
+    @Test(compLevel = C2)
+    public int test60(RefPoint rp1, RefPoint rp2, boolean doGC) {
+        return test60_helper(555, 6666, 77777, rp1, rp2, 11, 222, 3333, 4444, doGC);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static int test60_helper(int x0, int x1, int x2, RefPoint rp1, RefPoint rp2,int a1, int a2, int a3, int a4, boolean doGC) {
+        // On x64, C2 passes:   reg0=x1, reg1=x1, reg2=x2, reg3=rp1.x, reg4=rp1.y, reg5=rp2.x stack0=rp2.y ....
+        //         C1 expects:  reg0=x1, reg1=x1, reg2=x2, reg3=rp1,   reg4=rp2,   reg5=a1    stack0=a2 ...
+        // When GC happens, make sure it does not treat reg5 and stack0 as oops!
+        if (doGC) {
+            System.gc();
+        }
+        return x0 + x1 + x2 + rp1.x.n + rp1.y.n + rp2.x.n + rp2.y.n + a1 + a2 + a3 + a4;
+    }
+
+    @DontCompile
+    public void test60_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        boolean doGC = !warmup;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = new RefPoint(1, 2);
+            RefPoint rp2 = new RefPoint(33, 44);
+            int result = test60(rp1, rp2, doGC);
+            int n = test60_helper(555, 6666, 77777, rp1, rp2, 11, 222, 3333, 4444, doGC);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokeinterface via VVEP(RO)
+    @Test(compLevel = C2)
+    public int test61(RefPoint_Access rpa, RefPoint rp2) {
+        return rpa.func1(rp2);
+    }
+
+    @DontCompile
+    public void test61_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPoint rp2 = refPointField2;
+            int result = test61(rpa, rp2);
+            int n = rpa.func1(rp2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (RefPoint)
+    @Test(compLevel = C2)
+    public int test62(RefPoint_Access rpa, RefPoint rp2) {
+        return rpa.func1(rp2);
+    }
+
+    @DontCompile
+    public void test62_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPoint rp2 = new RefPoint(111, 2222);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test62(rpa, rp2);
+            }
+            int n = rpa.func1(rp2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+
+    /*
+
+    // FIXME: C1 fails with "Could not resolve circular dependency when shuffling value type arguments" when compiling test63()
+
+    // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (a bunch of RefPoints and Numbers)
+    @Test(compLevel = C2)
+    public int test63(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+        return rpa.func2(rp1, rp2, n1, rp3, rp4, n2);
+    }
+
+    @DontCompile
+    public void test63_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPoint rp1 = new RefPoint(1, 2);
+            RefPoint rp2 = refPointField1;
+            RefPoint rp3 = new RefPoint(222, 777);
+            RefPoint rp4 = refPointField2;
+            Number n1 = new Number(5878);
+            Number n2 = new Number(1234);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test63(rpa, rp1, rp2, n1, rp3, rp4, n2);
+            }
+            int n = rpa.func2(rp1, rp2, n1, rp3, rp4, n2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+    /**/
+
+    /*
+
+
+    // FIXME: when C1 makes opt_virtual_call to RefPoint::test76_helper, method resolution fails with an assert
+
+    // C2->C1 invokevirtual via VVEP(RO) (opt_virtual_call)
+    @Test(compLevel = C2)
+    public int test76(RefPoint rp1, RefPoint rp2) {
+        return rp1.test76_helper(rp2);
+    }
+
+    @DontCompile
+    public void test76_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = refPointField1;
+            RefPoint rp2 = refPointField2;
+            int result = test76(rp1, rp2);
+            int n = rp1.test76_helper(rp2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+    /**/
+
+    /*
+
+    // C2->C1 invokevirtual, force GC for every allocation when entering a C1 VEP (RefPoint)
+    // Same as test56, except we call the VVEP(RO) instead of VEP.
+    @Test(compLevel = C2)
+    public int test77(RefPoint rp1, RefPoint rp2) {
+        return rp1.test76_helper(rp2);
+    }
+
+    @DontCompile
+    public void test77_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint rp1 = new RefPoint(1, 2);
+            RefPoint rp2 = new RefPoint(22, 33);
+            int result;
+            if (!warmup) {
+                System.out.println("Hello: " + i);
+            }
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test77(rp1, rp2);
+            }
+            int n = rp1.test77_helper(rp2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+    /**/
 }

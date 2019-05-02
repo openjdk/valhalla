@@ -472,7 +472,24 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
     // For C1, the runtime stub might not have oop maps, so set this flag
     // outside of update_register_map.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+    bool caller_args = _cb->caller_must_gc_arguments(map->thread());
+    if (!caller_args) {
+      nmethod* nm = _cb->as_nmethod_or_null();
+      if (nm != NULL && nm->is_compiled_by_c1() &&
+          nm->method()->has_scalarized_args() &&
+          pc() < nm->verified_value_entry_point()) {
+        // The VEP and VVEP(RO) of C1-compiled methods call buffer_value_args_xxx
+        // before doing any argument shuffling, so we need to scan the oops
+        // as the caller passes them.
+        NativeCall* call = nativeCall_before(pc());
+        address dest = call->destination();
+        if (dest == Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id) ||
+            dest == Runtime1::entry_for(Runtime1::buffer_value_args_id)) {
+          caller_args = true;
+        }
+      }
+    }
+    map->set_include_argument_oops(caller_args);
     if (_cb->oop_maps() != NULL) {
       OopMapSet::update_register_map(this, map);
     }
@@ -491,7 +508,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 //------------------------------------------------------------------------------
 // frame::sender
 frame frame::sender(RegisterMap* map) const {
-  // Default is we done have to follow them. The sender_for_xxx will
+  // Default is we don't have to follow them. The sender_for_xxx will
   // update it accordingly
   map->set_include_argument_oops(false);
 
