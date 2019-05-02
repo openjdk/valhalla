@@ -23,7 +23,7 @@
 
 /*
  *  The classfile for this class will be loaded directly and used to define
- *  either a non-findable or anonymous class.
+ *  a non-findable class.
  */
 public class NonFindable implements Test {
 

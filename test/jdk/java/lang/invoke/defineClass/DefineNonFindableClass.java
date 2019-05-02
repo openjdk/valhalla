@@ -30,15 +30,6 @@
  *        jdk.test.lib.Utils
  * @run main/othervm -Xverify:remote DefineNonFindableClass
  */
-/*
- * @test
- * @modules java.base/jdk.internal.misc
- * @library /test/lib
- * @build jdk.test.lib.JDKToolLauncher
- *        jdk.test.lib.process.ProcessTools
- *        jdk.test.lib.Utils
- * @run main DefineNonFindableClass useUnsafe
- */
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -99,49 +90,40 @@ public class DefineNonFindableClass {
         compileSources("NonFindable.java");
         Lookup lookup = MethodHandles.lookup();
         byte[] bytes = readClassFile("NonFindable.class");
-        Class<?> c;
-        if (args.length > 0) {
-            System.out.println("Defining an anonymous class");
-            c = Unsafe.getUnsafe().defineAnonymousClass(klass, bytes, null);
-        } else {
-            System.out.println("Creating a nonfindable class");
-            c = lookup.defineClass(bytes, NESTMATE, HIDDEN);
-        }
+        Class<?> c = lookup.defineClass(bytes, NESTMATE, HIDDEN);
         Test t = (Test) c.newInstance();
         t.test();
 
 
-        if (args.length == 0) {
-            // Test that a nonFindable class cannot use its own name in a field
-            // signature.
-            compileSources("NonFindableField.java");
-            Lookup lookup2 = MethodHandles.lookup();
-            byte[] bytes2 = readClassFile("NonFindableField.class");
-            try {
-                Class<?> c2 = lookup2.defineClass(bytes2, NESTMATE, HIDDEN);
+        // Test that a nonFindable class cannot use its own name in a field
+        // signature.
+        compileSources("NonFindableField.java");
+        Lookup lookup2 = MethodHandles.lookup();
+        byte[] bytes2 = readClassFile("NonFindableField.class");
+        try {
+            Class<?> c2 = lookup2.defineClass(bytes2, NESTMATE, HIDDEN);
+            throw new RuntimeException(
+                "Expected NoClassDefFoundError exception not thrown");
+        } catch (java.lang.NoClassDefFoundError e) {
+            if (!e.getMessage().contains("NonFindableField")) {
                 throw new RuntimeException(
-                    "Expected NoClassDefFoundError exception not thrown");
-            } catch (java.lang.NoClassDefFoundError e) {
-                if (!e.getMessage().contains("NonFindableField")) {
-                    throw new RuntimeException(
-                        "Unexpected NoClassDefFoundError: " + e.getMessage());
-                }
+                    "Unexpected NoClassDefFoundError: " + e.getMessage());
             }
+        }
 
-            // Test that a nonFindable class cannot use its own name in a method
-            // signature.
-            compileSources("NonFindableMethod.java");
-            Lookup lookup3 = MethodHandles.lookup();
-            byte[] bytes3 = readClassFile("NonFindableMethod.class");
-            try {
-		Class<?> c3 = lookup3.defineClass(bytes3, NESTMATE, HIDDEN);
+        // Test that a nonFindable class cannot use its own name in a method
+        // signature.
+        compileSources("NonFindableMethod.java");
+        Lookup lookup3 = MethodHandles.lookup();
+        byte[] bytes3 = readClassFile("NonFindableMethod.class");
+        try {
+	    Class<?> c3 = lookup3.defineClass(bytes3, NESTMATE, HIDDEN);
+            throw new RuntimeException(
+                "Expected NoClassDefFoundError exception not thrown");
+        } catch (java.lang.NoClassDefFoundError e) {
+            if (!e.getMessage().contains("NonFindableMethod")) {
                 throw new RuntimeException(
-                    "Expected NoClassDefFoundError exception not thrown");
-            } catch (java.lang.NoClassDefFoundError e) {
-                if (!e.getMessage().contains("NonFindableMethod")) {
-                    throw new RuntimeException(
-                        "Unexpected NoClassDefFoundError: " + e.getMessage());
-                }
+                    "Unexpected NoClassDefFoundError: " + e.getMessage());
             }
         }
     }
