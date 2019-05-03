@@ -279,7 +279,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         @DontInline
         @ForceCompile(compLevel = C1)
-        public final int test76_helper(RefPoint rp2) { // opt_virtual_call
+        public final int final_func(RefPoint rp2) { // opt_virtual_call
             return this.x.n + this.y.n + rp2.x.n + rp2.y.n;
         }
 
@@ -1414,15 +1414,10 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     }
     /**/
 
-    /*
-
-
-    // FIXME: when C1 makes opt_virtual_call to RefPoint::test76_helper, method resolution fails with an assert
-
     // C2->C1 invokevirtual via VVEP(RO) (opt_virtual_call)
     @Test(compLevel = C2)
     public int test76(RefPoint rp1, RefPoint rp2) {
-        return rp1.test76_helper(rp2);
+        return rp1.final_func(rp2);
     }
 
     @DontCompile
@@ -1432,19 +1427,16 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             RefPoint rp1 = refPointField1;
             RefPoint rp2 = refPointField2;
             int result = test76(rp1, rp2);
-            int n = rp1.test76_helper(rp2);
+            int n = rp1.final_func(rp2);
             Asserts.assertEQ(result, n);
         }
     }
-    /**/
-
-    /*
 
     // C2->C1 invokevirtual, force GC for every allocation when entering a C1 VEP (RefPoint)
     // Same as test56, except we call the VVEP(RO) instead of VEP.
     @Test(compLevel = C2)
     public int test77(RefPoint rp1, RefPoint rp2) {
-        return rp1.test76_helper(rp2);
+        return rp1.final_func(rp2);
     }
 
     @DontCompile
@@ -1460,9 +1452,8 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
                 result = test77(rp1, rp2);
             }
-            int n = rp1.test77_helper(rp2);
+            int n = rp1.final_func(rp2);
             Asserts.assertEQ(result, n);
         }
     }
-    /**/
 }

@@ -1142,6 +1142,11 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
     frame stubFrame   = thread->last_frame();
     // Caller-frame is a compiled frame
     frame callerFrame = stubFrame.sender(&reg_map2);
+    bool caller_is_c1 = false;
+
+    if (callerFrame.is_compiled_frame() && !callerFrame.is_deoptimized_frame()) {
+      caller_is_c1 = callerFrame.cb()->is_compiled_by_c1();
+    }
 
     methodHandle callee = attached_method;
     if (callee.is_null()) {
@@ -1150,7 +1155,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    if (callee->has_scalarized_args() && callee->method_holder()->is_value()) {
+    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_value()) {
       // If the receiver is a value type that is passed as fields, no oop is available.
       // Resolve the call without receiver null checking.
       assert(!attached_method.is_null(), "must have attached method");
@@ -1296,7 +1301,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 #endif
 
   bool is_nmethod = caller_nm->is_nmethod();
-  bool caller_is_c1 = caller_nm->is_c1();
+  bool caller_is_c1 = caller_nm->is_compiled_by_c1();
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
@@ -1368,7 +1373,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   CodeBlob* caller_cb = caller_frame.cb();
   guarantee(caller_cb != NULL && caller_cb->is_compiled(), "must be called from compiled method");
   CompiledMethod* caller_nm = caller_cb->as_compiled_method_or_null();
-  *caller_is_c1 = caller_nm->is_c1();
+  *caller_is_c1 = caller_nm->is_compiled_by_c1();
 
   // make sure caller is not getting deoptimized
   // and removed before we are done with it.
@@ -1665,7 +1670,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
                                             receiver_klass,
                                             inline_cache->is_optimized(),
                                             false, caller_nm->is_nmethod(),
-                                            caller_nm->is_c1(),
+                                            caller_nm->is_compiled_by_c1(),
                                             info, CHECK_false);
     if (!inline_cache->set_to_monomorphic(info)) {
       needs_ic_stub_refill = true;
@@ -1760,7 +1765,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_o
   frame caller_frame = thread->last_frame().sender(&reg_map);
   CodeBlob* cb = caller_frame.cb();
   CompiledMethod* caller_nm = cb->as_compiled_method();
-  caller_is_c1 = caller_nm->is_c1();
+  caller_is_c1 = caller_nm->is_compiled_by_c1();
 
   for (;;) {
     ICRefillVerifier ic_refill_verifier;
@@ -1816,7 +1821,7 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_opt
     // Check for static or virtual call
     bool is_static_call = false;
     CompiledMethod* caller_nm = CodeCache::find_compiled(pc);
-    caller_is_c1 = caller_nm->is_c1();
+    caller_is_c1 = caller_nm->is_compiled_by_c1();
 
     // Default call_addr is the location of the "basic" call.
     // Determine the address of the call we a reresolving. With

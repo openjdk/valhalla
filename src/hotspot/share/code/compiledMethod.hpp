@@ -225,7 +225,6 @@ public:
 
   virtual bool  is_in_use() const = 0;
   virtual int   comp_level() const = 0;
-  virtual bool  is_c1() const { return false; }
   virtual int   compile_id() const = 0;
 
   virtual address verified_entry_point() const = 0;

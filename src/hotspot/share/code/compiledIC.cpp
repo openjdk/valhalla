@@ -536,8 +536,9 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
     //     it looks vanilla but is optimized. Code in is_call_to_interpreted
     //     is aware of this and weakens its asserts.
     if (is_optimized) {
-      entry      = method_code->verified_entry_point();
+      entry      = caller_is_c1 ? method_code->verified_value_entry_point() : method_code->verified_entry_point();
     } else {
+    //assert(!(caller_is_c1 && method->has_scalarized_args()), "FIXME - what to do with c1 caller??");
       entry      = method_code->entry_point();
     }
   }
@@ -559,6 +560,7 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
       // Use icholder entry
       assert(method_code == NULL || method_code->is_compiled(), "must be compiled");
       CompiledICHolder* holder = new CompiledICHolder(method(), receiver_klass);
+    //assert(!(caller_is_c1 && method->has_scalarized_args()), "FIXME - what to do with c1 caller??");
       info.set_icholder_entry(method()->get_c2i_unverified_entry(), holder);
     }
   }
@@ -670,7 +672,7 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
       info._to_aot = false;
     }
     info._to_interpreter = false;
-    if (caller_nm->is_c1()) {
+    if (caller_nm->is_compiled_by_c1()) {
       info._entry = m_code->verified_value_entry_point();
     } else {
       info._entry = m_code->verified_entry_point();
@@ -681,7 +683,7 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
     assert(!m->is_method_handle_intrinsic(), "Compiled code should never call interpreter MH intrinsics");
     info._to_interpreter = true;
 
-    if (caller_nm->is_c1()) {
+    if (caller_nm->is_compiled_by_c1()) {
       // C1 -> interp: values passed as oops
       info._entry = m()->get_c2i_value_entry();
     } else {
