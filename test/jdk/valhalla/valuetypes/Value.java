@@ -21,7 +21,7 @@
  * questions.
  */
 
-public value class Value {
+public inline class Value {
     char char_v;
     byte byte_v;
     boolean boolean_v;
@@ -147,7 +147,7 @@ public value class Value {
         }
     }
 
-    static value class IntValue implements Number {
+    static inline class IntValue implements Number {
         int i;
         IntValue() {
             i = 0;
@@ -157,7 +157,7 @@ public value class Value {
         }
     }
 
-    static value class ShortValue implements Number {
+    static inline class ShortValue implements Number {
         short s;
         ShortValue() {
             s = 0;

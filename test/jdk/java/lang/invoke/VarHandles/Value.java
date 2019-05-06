@@ -21,7 +21,7 @@
  * questions.
  */
 
-final value class Value {
+final inline class Value {
     final char char_v;
     final byte byte_v;
     final boolean boolean_v;

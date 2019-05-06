@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test Object methods on value types
+ * @summary test Object methods on inline types
  * @compile -XDallowWithFieldOperator ObjectMethods.java
  * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
@@ -78,7 +78,7 @@ public class ObjectMethods {
                               .setNumber(Value.Number.intValue(10)).build(), true},
             { new Value.Builder().setNumber(new Value.IntNumber(10)).build(),
               new Value.Builder().setNumber(new Value.IntNumber(10)).build(), false},
-            // reference classes containing value fields
+            // reference classes containing fields of inline type
             { MUTABLE_PATH, MutablePath.makePath(10, 20, 30, 40), false},
             { MIXED_VALUES, MIXED_VALUES, true},
             { MIXED_VALUES, new MixedValues(P1, LINE1, MUTABLE_PATH, "value"), false},
@@ -179,7 +179,7 @@ public class ObjectMethods {
         return hc;
     }
 
-    static value class MyValue1 {
+    static inline class MyValue1 {
         Point p = Point.default;
         Point? box = Point.default;
 

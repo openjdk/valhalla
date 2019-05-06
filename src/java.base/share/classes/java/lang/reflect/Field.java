@@ -168,12 +168,11 @@ class Field extends AccessibleObject implements Member {
     public void setAccessible(boolean flag) {
         AccessibleObject.checkPermission();
 
+        if (clazz.isValue()) {
+            throw new InaccessibleObjectException("cannot make a field accessible of inline class "
+                    + clazz.getName());
+        }
         if (flag) {
-            if (clazz.isValue()) {
-                throw new InaccessibleObjectException(
-                    "Unable to make a value class field \"" + this + "\" accessible");
-            }
-
             checkCanSetAccessible(Reflection.getCallerClass());
         }
         setAccessible0(flag);
@@ -1105,11 +1104,11 @@ class Field extends AccessibleObject implements Member {
     }
 
     /*
-     * Ensure the declaring class is not a value class.
+     * Ensure the declaring class is not an inline class.
      */
     private void ensureNotValueClass() throws IllegalAccessException {
         if (clazz.isValue()) {
-            throw new IllegalAccessException("cannot set this field of a value class "
+            throw new IllegalAccessException("cannot set field \"" + this + "\" of inline class "
                 + clazz.getName());
         }
     }

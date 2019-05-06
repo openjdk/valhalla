@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test VarHandle on value array
+ * @summary test VarHandle on inline class array
  * @compile -XDallowWithFieldOperator Point.java
  * @compile -XDallowWithFieldOperator Line.java
  * @compile -XDallowWithFieldOperator MutablePath.java

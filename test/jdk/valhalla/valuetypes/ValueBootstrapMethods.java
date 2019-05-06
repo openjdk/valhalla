@@ -76,7 +76,7 @@ public class ValueBootstrapMethods {
         }
     }
 
-    public static final value class Value {
+    public static final inline class Value {
         private final int i;
         private final double d;
         private final String s;

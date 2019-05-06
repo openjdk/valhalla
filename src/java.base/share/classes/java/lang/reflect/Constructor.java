@@ -182,7 +182,7 @@ public final class Constructor<T> extends Executable {
         if (flag) {
             if (clazz.isValue()) {
                 throw new InaccessibleObjectException(
-                    "Unable to make a value class constructor \"" + this + "\" accessible");
+                    "Unable to make an inline class constructor \"" + this + "\" accessible");
             }
             checkCanSetAccessible(Reflection.getCallerClass());
         }
@@ -485,7 +485,7 @@ public final class Constructor<T> extends Executable {
     {
         if (clazz.isValue()) {
             throw new IllegalAccessException(
-                "cannot create new instance of value class " + clazz.getName());
+                "cannot create new instance of an inline class " + clazz.getName());
         }
         Class<?> caller = override ? null : Reflection.getCallerClass();
         return newInstanceWithCaller(initargs, !override, caller);

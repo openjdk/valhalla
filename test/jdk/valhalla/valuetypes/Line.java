@@ -21,7 +21,7 @@
  * questions.
  */
 
-public final value class Line {
+public final inline class Line {
     public Point p1;
     public Point p2;
     Line () {

@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Basic test for Array::get, Array::set, Arrays::setAll on value array
+ * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
  * @compile -XDallowWithFieldOperator Point.java NonFlattenValue.java
  * @compile -XDallowWithFieldOperator ValueArray.java
  * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1 ValueArray
@@ -135,7 +135,7 @@ public class ValueArray {
         }
     }
 
-    static value class PointArray {
+    static inline class PointArray {
         public Point?[] points;
         PointArray() {
             points = new Point?[0];

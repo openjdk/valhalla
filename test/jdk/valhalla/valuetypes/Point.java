@@ -21,7 +21,7 @@
  * questions.
  */
 
-public value class Point {
+public inline class Point {
     static final Object STATIC_FIELD = new Object();
     public int x;
     public int y;

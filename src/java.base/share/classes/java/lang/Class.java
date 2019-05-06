@@ -197,9 +197,9 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this class object.
      */
     public String toString() {
-        return (isValue() ? "value " : "")
+        return (isValue() ? "inline " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName() + (isValue() && isBoxType() ? "/box" : "");
+               + getName() + (isValue() && isBoxType() ? "?" : "");
     }
 
     /**
@@ -520,10 +520,10 @@ public final class Class<T> implements java.io.Serializable,
         int mods = this.getModifiers();
         if ((mods & VALUE_TYPE) != 0) {
             if ((mods & (Modifier.INTERFACE | Modifier.ABSTRACT)) != 0) {
-                throw new InternalError("value class can't have ACC_INTERFACE or ACC_ABSTRACT set");
+                throw new InternalError("inline class can't have ACC_INTERFACE or ACC_ABSTRACT set");
             }
             if (getSuperclass() != Object.class) {
-                throw new InternalError("Super class of a value class must be java.lang.Object");
+                throw new InternalError("Super class of an inline class must be java.lang.Object");
             }
             return true;
         }
@@ -637,7 +637,7 @@ public final class Class<T> implements java.io.Serializable,
     {
         if (this.isValue()) {
             throw new IllegalAccessException(
-                "cannot create new instance of value class " + this.getName());
+                "cannot create new instance of an inline class " + this.getName());
         }
 
         SecurityManager sm = System.getSecurityManager();

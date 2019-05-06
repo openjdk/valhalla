@@ -21,7 +21,7 @@
  * questions.
  */
 
-public value class NonFlattenValue {
+public inline class NonFlattenValue {
     Point? nfp;
 
     NonFlattenValue() {

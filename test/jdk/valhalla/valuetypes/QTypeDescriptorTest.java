@@ -80,7 +80,7 @@ public class QTypeDescriptorTest {
 
     @Test
     public static void testStaticMethod() throws Throwable {
-        // static method in a value type with no parameter and void return type
+        // static method in an inline type with no parameter and void return type
         Runnable r = () -> ValueTest.run();
         r.run();
 
@@ -207,7 +207,7 @@ public class QTypeDescriptorTest {
         Line toLine(Point p, NonFlattenValue nfv);
     }
 
-    static value class ValueTest {
+    static inline class ValueTest {
         private final int value;
         public ValueTest() { this.value = 0; }
 

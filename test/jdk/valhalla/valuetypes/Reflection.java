@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test reflection on value types
+ * @summary test reflection on inline types
  * @compile -XDallowWithFieldOperator Point.java Line.java NonFlattenValue.java
  * @run main/othervm -XX:+EnableValhalla Reflection
  */
@@ -75,7 +75,7 @@ public class Reflection {
     Reflection(Class<?> type, String cn, Object o) throws Exception {
         this.c = Class.forName(cn);
         if (!c.isValue() || c != type) {
-            throw new RuntimeException(cn + " is not a value class");
+            throw new RuntimeException(cn + " is not an inline class");
         }
 
         // the box type is the primary mirror
@@ -133,7 +133,7 @@ public class Reflection {
     void newInstance() throws Exception {
         try {
             Object o = c.newInstance();
-            throw new RuntimeException("newInstance expected to be unsupported on value class");
+            throw new RuntimeException("newInstance expected to be unsupported on inline class");
         } catch (IllegalAccessException e) {}
     }
 

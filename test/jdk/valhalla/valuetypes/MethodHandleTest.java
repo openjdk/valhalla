@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test MethodHandle/VarHandle on value types
+ * @summary test MethodHandle/VarHandle on inline types
  * @compile -XDallowWithFieldOperator Point.java Line.java MutablePath.java MixedValues.java
  * @run testng/othervm -XX:+EnableValhalla MethodHandleTest
  */
@@ -71,7 +71,7 @@ public class MethodHandleTest {
     @Test
     public static void testValueFields() throws Throwable {
         MutablePath path = MutablePath.makePath(1, 2, 3, 4);
-        // p1 and p2 are a non-final field of value type in a reference
+        // p1 and p2 are a non-final field of inline type in a reference
         MethodHandleTest test1 = new MethodHandleTest("Point", path.p1, "x", "y");
         test1.run();
 
@@ -122,11 +122,11 @@ public class MethodHandleTest {
         // set an array element to null
         Class<?> elementType = c.getComponentType();
         try {
-            // value array element is flattenable
+            // inline array element is flattenable
             Object v = (Object)setter.invoke(array, 0, null);
-            assertFalse(elementType.isValue(), "should fail to set a value array element to null");
+            assertFalse(elementType.isValue(), "should fail to set an inline class array element to null");
         } catch (NullPointerException e) {
-            assertTrue(elementType.isValue(), "should only fail to set a value array element to null");
+            assertTrue(elementType.isValue(), "should only fail to set an inline class array element to null");
         }
     }
 
@@ -172,7 +172,7 @@ public class MethodHandleTest {
     }
 
     /*
-     * Test setting value field to a new value.
+     * Test setting a field of an inline type to a new value.
      * The field must be flattenable but may or may not be flattened.
      */
     void setValueField(String name, Object obj, Object value) throws Throwable {
