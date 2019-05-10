@@ -81,9 +81,7 @@ void ValueArrayKlass::set_element_klass(Klass* k) {
   _element_klass = k;
 }
 
-ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
-                                                 Symbol* name,
-                                                 TRAPS) {
+ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   assert(ValueArrayFlatten, "Flatten array required");
   assert(ValueKlass::cast(element_klass)->is_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
 
@@ -93,45 +91,18 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
    *  TODO refactor any remaining commonality
    */
 
-  // Eagerly allocate the direct array supertype.
-  Klass* super_klass = NULL;
-  if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
-    Klass* element_super = element_klass->super();
-    if (element_super != NULL) {
-      // The element type has a direct super.  E.g., String[] has direct super of Object[].
-      super_klass = element_super->array_klass_or_null(ArrayStorageProperties::empty);
-      bool supers_exist = super_klass != NULL;
-      // Also, see if the element has secondary supertypes.
-      // We need an array type for each.
-      Array<Klass*>* element_supers = element_klass->secondary_supers();
-      for( int i = element_supers->length()-1; i >= 0; i-- ) {
-        Klass* elem_super = element_supers->at(i);
-        if (elem_super->array_klass_or_null(ArrayStorageProperties::empty) == NULL) {
-          supers_exist = false;
-          break;
-        }
-      }
-      if (!supers_exist) {
-        // Oops.  Not allocated yet.  Back out, allocate it, and retry.
-        Klass* ek = NULL;
-        {
-          MutexUnlocker mu(MultiArray_lock);
-          super_klass = element_super->array_klass(CHECK_0);
-          for( int i = element_supers->length()-1; i >= 0; i-- ) {
-            Klass* elem_super = element_supers->at(i);
-            elem_super->array_klass(CHECK_0);
-          }
-          // Now retry from the beginning
-          ek = element_klass->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK_0);
-        }  // re-lock
-        return ValueArrayKlass::cast(ek);
-      }
-    } else {
-      ShouldNotReachHere(); // Value array klass cannot be the object array klass
-    }
+  // Eagerly allocate the direct array supertype, which would be "[L<vt>;" for this "[Q<vt>;"
+  Klass* super_klass = element_klass->array_klass_or_null(ArrayStorageProperties::empty);
+  if (super_klass == NULL) {
+    MutexUnlocker mu(MultiArray_lock);
+    // allocate super...need to drop the lock
+    element_klass->array_klass(ArrayStorageProperties::empty, 1, CHECK_NULL);
+    // retry, start from the beginning since lock dropped...
+    Klass* ak = element_klass->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK_NULL);
+    return ValueArrayKlass::cast(ak);
   }
 
-
+  Symbol* name = ArrayKlass::create_element_klass_array_name(true, element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(ValueArrayKlass::header_size());
   ValueArrayKlass* vak = new (loader_data, size, THREAD) ValueArrayKlass(element_klass, name);
@@ -145,8 +116,7 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass*  element_klass,
 
 ValueArrayKlass* ValueArrayKlass::allocate_klass(ArrayStorageProperties storage_props, Klass* element_klass, TRAPS) {
   assert(storage_props.is_flattened(), "Expected flat storage");
-  Symbol* name = ArrayKlass::create_element_klass_array_name(true, element_klass, CHECK_NULL);
-  return allocate_klass(element_klass, name, THREAD);
+  return allocate_klass(element_klass, THREAD);
 }
 
 void ValueArrayKlass::initialize(TRAPS) {

@@ -370,7 +370,7 @@ void TemplateTable::ldc(bool wide) {
 
   // get type
   __ movzbl(rdx, Address(rax, rbx, Address::times_1, tags_offset));
-  __ andl(rdx, ~JVM_CONSTANT_QDESC_BIT);
+  __ andl(rdx, ~JVM_CONSTANT_QDescBit);
 
   // unresolved class - get the resolved class
   __ cmpl(rdx, JVM_CONSTANT_UnresolvedClass);
@@ -4469,7 +4469,7 @@ void TemplateTable::checkcast() {
   __ movzbl(rdx, Address(rdx, rbx,
       Address::times_1,
       Array<u1>::base_offset_in_bytes()));
-  __ andl (rdx, ~JVM_CONSTANT_QDESC_BIT);
+  __ andl (rdx, ~JVM_CONSTANT_QDescBit);
   __ cmpl(rdx, JVM_CONSTANT_Class);
   __ jcc(Assembler::equal, quicked);
   __ push(atos); // save receiver for result, and for GC
@@ -4525,8 +4525,8 @@ void TemplateTable::checkcast() {
     __ movzbl(rcx, Address(rdx, rbx,
         Address::times_1,
         Array<u1>::base_offset_in_bytes()));
-    __ andl (rcx, JVM_CONSTANT_QDESC_BIT);
-    __ cmpl(rcx, JVM_CONSTANT_QDESC_BIT);
+    __ andl (rcx, JVM_CONSTANT_QDescBit);
+    __ cmpl(rcx, JVM_CONSTANT_QDescBit);
     __ jcc(Assembler::notEqual, done);
     __ jump(ExternalAddress(Interpreter::_throw_NullPointerException_entry));
   }
@@ -4547,7 +4547,7 @@ void TemplateTable::instanceof() {
   __ movzbl(rdx, Address(rdx, rbx,
         Address::times_1,
         Array<u1>::base_offset_in_bytes()));
-  __ andl (rdx, ~JVM_CONSTANT_QDESC_BIT);
+  __ andl (rdx, ~JVM_CONSTANT_QDescBit);
   __ cmpl(rdx, JVM_CONSTANT_Class);
   __ jcc(Assembler::equal, quicked);
 

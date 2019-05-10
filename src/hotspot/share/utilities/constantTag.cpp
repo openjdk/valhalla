@@ -106,7 +106,7 @@ const char* constantTag::internal_name() const {
       return "Invalid index";
     case JVM_CONSTANT_Class :
       return "Class";
-    case (JVM_CONSTANT_Class | (jbyte)JVM_CONSTANT_QDESC_BIT):
+    case (JVM_CONSTANT_Class | (jbyte)JVM_CONSTANT_QDescBit):
       return "Q-Descriptor";
     case JVM_CONSTANT_Fieldref :
       return "Field";

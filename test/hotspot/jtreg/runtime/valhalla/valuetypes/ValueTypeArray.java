@@ -253,6 +253,7 @@ public class ValueTypeArray {
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
+        assertTrue(myInts instanceof MyInt?[]);
 
         Class<?> cls = MyInt.class.asValueType();
         assertTrue(cls.isValue());
@@ -271,15 +272,30 @@ public class ValueTypeArray {
         MyOtherInt[][] matrix = new MyOtherInt[1][1];
         assertTrue(matrix[0] instanceof MyOtherInt[]);
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
+        assertTrue(matrix[0] instanceof MyOtherInt?[]);
 
         // Box types vs Inline...
         MyInt?[] myValueRefs = new MyInt?[1];
-        // JDK-8222974
-        //assertTrue(myValueRefs instanceof MyInt?[]);
-        assertFalse(myValueRefs instanceof MyInt[]);
+        assertTrue(myValueRefs instanceof MyInt?[]);
         assertTrue(myValueRefs instanceof Object[]);
         assertTrue(myValueRefs instanceof Comparable[]);
         assertFalse(myValueRefs instanceof MyInt[]);
+
+        MyInt?[][] myMdValueRefs = new MyInt?[1][1];
+        assertTrue(myMdValueRefs[0] instanceof MyInt?[]);
+        assertTrue(myMdValueRefs[0] instanceof Object[]);
+        assertTrue(myMdValueRefs[0] instanceof Comparable[]);
+        assertFalse(myMdValueRefs[0] instanceof MyInt[]);
+
+        // Did we break checkcast...
+        MyInt?[]     va1 = (MyInt?[])null;
+        MyInt?[]     va2 = null;
+        MyInt?[][]   va3 = (MyInt?[][])null;
+        MyInt?[][][] va4 = (MyInt?[][][])null;
+        MyInt[]      va5 = null;
+        MyInt[]      va6 = (MyInt[])null;
+        MyInt[][]    va7 = (MyInt[][])null;
+        MyInt[][][]  va8 = (MyInt[][][])null;
     }
 
 

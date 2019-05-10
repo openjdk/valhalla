@@ -482,7 +482,7 @@ IRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* fir
   ConstantPool* constants = last_frame.method()->constants();
   int i = last_frame.get_index_u2(Bytecodes::_multianewarray);
   Klass* klass = constants->klass_at(i, CHECK);
-  bool is_qtype = constants->tag_at(i).is_Qdescriptor_klass();
+  bool is_qtype = klass->name()->is_Q_array_signature();
   int   nof_dims = last_frame.number_of_dimensions();
   assert(klass->is_klass(), "not a class");
   assert(nof_dims >= 1, "multianewarray rank must be nonzero");

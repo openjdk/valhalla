@@ -282,7 +282,7 @@ class ConstantPool : public Metadata {
   void klass_at_put(int class_index, Klass* k);
 
   void unresolved_qdescriptor_at_put(int which, int name_index, int resolved_klass_index) {
-      release_tag_at_put(which, JVM_CONSTANT_UnresolvedClass | (jbyte)JVM_CONSTANT_QDESC_BIT);
+      release_tag_at_put(which, JVM_CONSTANT_UnresolvedClass | (jbyte) JVM_CONSTANT_QDescBit);
 
       assert((name_index & 0xffff0000) == 0, "must be");
       assert((resolved_klass_index & 0xffff0000) == 0, "must be");

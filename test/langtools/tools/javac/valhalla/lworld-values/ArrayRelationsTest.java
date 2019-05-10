@@ -86,15 +86,13 @@ public value class ArrayRelationsTest {
 
         la = new ArrayRelationsTest? [10];
 
-        // NOTE: The following line should trigger a CCE, but doesn't ATM - this will
-        // start failing when the VM is fixed. Flip the condition then.
         cce = false;
         try {
             qa = (ArrayRelationsTest[]) la;
         } catch (ClassCastException c) {
             cce = true;
         }
-        if (cce) {  // <----- Flip this condition.
+        if (!cce) {
             throw new AssertionError("Unexpected CCE behavior");
         }
     }

@@ -501,7 +501,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
 
         Symbol* const name = cp->symbol_at(class_index);
         const unsigned int name_len = name->utf8_length();
-        if (name->is_Q_signature() || name->is_Q_array_signature()) {
+        if (name->is_Q_signature()) {
           cp->unresolved_qdescriptor_at_put(index, class_index, num_klasses++);
         } else {
           cp->unresolved_klass_at_put(index, class_index, num_klasses++);

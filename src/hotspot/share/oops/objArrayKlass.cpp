@@ -59,7 +59,17 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_pro
                                               int n, Klass* element_klass, TRAPS) {
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = NULL;
-  if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
+  if (storage_props.is_null_free()) {
+    assert(!Universe::is_bootstrapping(), "Need bootstrap");
+    // Arrange null ok as direct super
+    super_klass = element_klass->array_klass_or_null(ArrayStorageProperties::empty, n);
+    if (super_klass == NULL) { // allocate super...need to drop the lock
+      MutexUnlocker mu(MultiArray_lock);
+      element_klass->array_klass(ArrayStorageProperties::empty, n, CHECK_NULL);
+      // retry, start from the beginning since lock dropped...
+      return element_klass->array_klass(storage_props, n, CHECK_NULL);
+    }
+  } else if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
     Klass* element_super = element_klass->super();
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
