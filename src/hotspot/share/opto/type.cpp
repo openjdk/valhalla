@@ -4622,10 +4622,9 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
         field_off = elem()->isa_valuetype() ? field_offset() : tap->field_offset();
       } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
-        // Result is non-flattened (fall back to object)
+        // Result is non-flattened
         off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
         field_off = Offset::bottom;
-        tary = TypeAry::make(TypeInstPtr::BOTTOM, tary->_size, tary->_stable);
       }
     } else // Non integral arrays.
       // Must fall to bottom if exact klasses in upper lattice
@@ -5330,7 +5329,7 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
     bool null_free = el->is_valuetypeptr() && el->isa_instptr()->ptr() != TypePtr::TopPTR && !el->isa_instptr()->maybe_null();
     k_ary = ciArrayKlass::make(el->is_oopptr()->klass(), null_free);
   } else if (el->isa_valuetype()) {
-    k_ary = ciArrayKlass::make(el->is_valuetype()->value_klass(), /* null_free */ true);
+    k_ary = ciArrayKlass::make(el->value_klass(), /* null_free */ true);
   } else if ((tary = el->isa_aryptr()) != NULL) {
     // Compute array klass from element klass
     ciKlass* k_elem = tary->klass();

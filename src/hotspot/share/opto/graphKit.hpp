@@ -592,7 +592,8 @@ class GraphKit : public Phase {
                         const Type* val_type,
                         BasicType bt,
                         DecoratorSet decorators,
-                        bool deoptimize_on_exception = false);
+                        bool deoptimize_on_exception = false,
+                        bool safe_for_replace = true);
 
   Node* access_load_at(Node* obj,   // containing obj
                        Node* adr,   // actual adress to load val at
@@ -848,7 +849,7 @@ class GraphKit : public Phase {
 
   Node* is_always_locked(Node* obj);
   void gen_value_type_guard(Node* obj, int nargs = 0);
-  void gen_value_type_array_guard(Node* ary, Node* obj, int nargs);
+  void gen_value_array_null_guard(Node* ary, Node* val, int nargs);
   Node* load_lh_array_tag(Node* kls);
   Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
 

@@ -345,7 +345,7 @@ public:
   virtual bool      is_nan()    const;           // Is not a number (NaN)
 
   bool is_valuetypeptr() const;
-  ciValueKlass* value_klass() const;
+  virtual ciValueKlass* value_klass() const;
 
   // Returns this ptr type or the equivalent ptr type for this compressed pointer.
   const TypePtr* make_ptr() const;
@@ -771,7 +771,7 @@ protected:
 
 public:
   static const TypeValueType* make(ciValueKlass* vk, bool larval = false);
-  ciValueKlass* value_klass() const { return _vk; }
+  virtual ciValueKlass* value_klass() const { return _vk; }
   bool larval() const { return _larval; }
 
   virtual bool eq(const Type* t) const;

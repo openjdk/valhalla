@@ -359,7 +359,7 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
   }
 }
 
-ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on_exception) {
+ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on_exception, bool safe_for_replace) {
   // Check if value type is already allocated
   Node* null_ctl = kit->top();
   Node* not_null_oop = kit->null_check_oop(get_oop(), &null_ctl);
@@ -405,7 +405,9 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on
   ValueTypeBaseNode* vt = clone()->as_ValueTypeBase();
   vt->set_oop(res_oop);
   vt = kit->gvn().transform(vt)->as_ValueTypeBase();
-  kit->replace_in_map(this, vt);
+  if (safe_for_replace) {
+    kit->replace_in_map(this, vt);
+  }
   return vt;
 }
 

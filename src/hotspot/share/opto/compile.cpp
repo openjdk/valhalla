@@ -1839,7 +1839,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
       if (elemtype->isa_valuetype() && field_offset != Type::OffsetBot) {
-        ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
+        ciValueKlass* vk = elemtype->value_klass();
         field_offset += vk->first_field_offset();
         field = vk->get_field_by_offset(field_offset, false);
       }
@@ -4302,8 +4302,15 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
   }
 
   ciType* superelem = superk;
-  if (superelem->is_array_klass())
+  if (superelem->is_array_klass()) {
+    ciArrayKlass* ak = superelem->as_array_klass();
+    // Do not perform the subtype check on the element klasses for [V? arrays. The runtime type might
+    // be [V due to [V <: [V? and the klass for [V? and [V is the same but the component mirror is not.
+    if (ak->is_obj_array_klass() && !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
+      return SSC_full_test;
+    }
     superelem = superelem->as_array_klass()->base_element_type();
+  }
 
   if (!subk->is_interface()) {  // cannot trust static interface types yet
     if (subk->is_subtype_of(superk)) {

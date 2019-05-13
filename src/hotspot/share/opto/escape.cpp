@@ -993,7 +993,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                                (aat->isa_aryptr() && aat->isa_aryptr()->klass()->is_obj_array_klass()) ||
                                (aat->isa_aryptr() && aat->isa_aryptr()->elem() != NULL &&
                                 aat->isa_aryptr()->elem()->isa_valuetype() &&
-                                aat->isa_aryptr()->elem()->isa_valuetype()->value_klass()->contains_oops()));
+                                aat->isa_aryptr()->elem()->value_klass()->contains_oops()));
           if (i == TypeFunc::Parms) {
             src_has_oops = arg_has_oops;
           }
@@ -2131,7 +2131,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       } else {
         const Type* elemtype = adr_type->isa_aryptr()->elem();
         if (elemtype->isa_valuetype() && field_offset != Type::OffsetBot) {
-          ciValueKlass* vk = elemtype->is_valuetype()->value_klass();
+          ciValueKlass* vk = elemtype->value_klass();
           field_offset += vk->first_field_offset();
           bt = vk->get_field_by_offset(field_offset, false)->layout_type();
         } else {

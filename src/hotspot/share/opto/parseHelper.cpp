@@ -237,8 +237,7 @@ Node* Parse::array_store_check() {
   const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
   if (elemtype->isa_valuetype() != NULL || elemtype->is_valuetypeptr()) {
     // We statically know that this is a value type array, use precise klass ptr
-    ciValueKlass* vk = elemtype->isa_valuetype() ? elemtype->is_valuetype()->value_klass() : elemtype->value_klass();
-    a_e_klass = makecon(TypeKlassPtr::make(vk));
+    a_e_klass = makecon(TypeKlassPtr::make(elemtype->value_klass()));
   }
 
   // Check (the hard way) and throw if not a subklass.

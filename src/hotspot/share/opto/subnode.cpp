@@ -1068,6 +1068,15 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return NULL;                // Might be element-klass loading from array klass
 
+  // Do not normalize comparisons between Java mirror loads from [V? to klass comparisons. The runtime type
+  // might be [V due to [V <: [V? and the klass for [V? and [V is the same but the component mirror is not.
+  if (superklass->is_obj_array_klass()) {
+    ciObjArrayKlass* ak = superklass->as_obj_array_klass();
+    if (!ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
+      return NULL;
+    }
+  }
+
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is
   // 'superklass' itself.

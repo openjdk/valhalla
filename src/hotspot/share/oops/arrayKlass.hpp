@@ -120,6 +120,8 @@ class ArrayKlass: public Klass {
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
                                                   Array<InstanceKlass*>* transitive_interfaces);
 
+  oop component_mirror() const;
+
   // Sizing
   static int static_size(int header_size);
 

@@ -46,7 +46,7 @@ protected:
 
   virtual const TypeInstPtr* value_ptr() const = 0;
   // Get the klass defining the field layout of the value type
-  virtual ciValueKlass* value_klass() const = 0;
+  ciValueKlass* value_klass() const { return type()->value_klass(); }
 
   int make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
@@ -86,7 +86,7 @@ public:
   void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
 
   // Allocates the value type (if not yet allocated)
-  ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false);
+  ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, Node* call, Compile* C);
@@ -111,7 +111,6 @@ private:
   bool is_default(PhaseGVN& gvn) const;
 
   const TypeInstPtr* value_ptr() const { return TypeInstPtr::make(TypePtr::BotPTR, value_klass()); }
-  ciValueKlass* value_klass() const { return type()->is_valuetype()->value_klass(); }
 
 public:
   // Create uninitialized
@@ -155,7 +154,6 @@ public:
 class ValueTypePtrNode : public ValueTypeBaseNode {
 private:
   const TypeInstPtr* value_ptr() const { return type()->isa_instptr(); }
-  ciValueKlass* value_klass() const { return value_ptr()->value_klass(); }
 
   ValueTypePtrNode(ciValueKlass* vk, Node* oop)
     : ValueTypeBaseNode(TypeInstPtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields()) {

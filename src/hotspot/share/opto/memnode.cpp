@@ -1848,11 +1848,28 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
             "Field accesses must be precise" );
     // For oop loads, we expect the _type to be precise.
 
-    // Optimize loads from constant fields.
     const TypeInstPtr* tinst = tp->is_instptr();
+    BasicType bt = memory_type();
+
+    // Fold component and value mirror loads
+    ciInstanceKlass* ik = tinst->klass()->as_instance_klass();
+    if (ik == phase->C->env()->Class_klass() && (off == java_lang_Class::component_mirror_offset_in_bytes() ||
+                                                 off == java_lang_Class::value_mirror_offset_in_bytes())) {
+      ciType* mirror_type = tinst->java_mirror_type();
+      if (mirror_type != NULL) {
+        const Type* const_oop = TypePtr::NULL_PTR;
+        if (mirror_type->is_array_klass()) {
+          const_oop = TypeInstPtr::make(mirror_type->as_array_klass()->component_mirror_instance());
+        } else if (mirror_type->is_valuetype()) {
+          const_oop = TypeInstPtr::make(mirror_type->as_value_klass()->value_mirror_instance());
+        }
+        return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
+      }
+    }
+
+    // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != NULL && const_oop->is_instance()) {
-      BasicType bt = memory_type();
       ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
       if (mirror_type != NULL && mirror_type->is_valuetype()) {
         ciValueKlass* vk = mirror_type->as_value_klass();
@@ -2236,21 +2253,25 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
   // Check for loading klass from an array
   const TypeAryPtr *tary = tp->isa_aryptr();
-  if( tary != NULL ) {
+  if (tary != NULL) {
     ciKlass *tary_klass = tary->klass();
     if (tary_klass != NULL   // can be NULL when at BOTTOM or TOP
         && tary->offset() == oopDesc::klass_offset_in_bytes()) {
-      if (tary->klass_is_exact()) {
+      ciArrayKlass* ak = tary_klass->as_array_klass();
+      // Do not fold klass loads from [V? because the runtime type might be [V due to [V <: [V?
+      bool can_be_null_free = !tary->is_known_instance() && ak->is_obj_array_klass() && !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype();
+
+      if (tary->klass_is_exact() && !can_be_null_free) {
         return TypeKlassPtr::make(tary_klass);
       }
-      ciArrayKlass *ak = tary->klass()->as_array_klass();
+
       // If the klass is an object array, we defer the question to the
       // array component klass.
-      if( ak->is_obj_array_klass() ) {
-        assert( ak->is_loaded(), "" );
+      if (ak->is_obj_array_klass() && !can_be_null_free) {
+        assert(ak->is_loaded(), "");
         ciKlass *base_k = ak->as_obj_array_klass()->base_element_klass();
-        if( base_k->is_loaded() && base_k->is_instance_klass() ) {
-          ciInstanceKlass* ik = base_k->as_instance_klass();
+        if (base_k->is_loaded() && base_k->is_instance_klass()) {
+          ciInstanceKlass *ik = base_k->as_instance_klass();
           // See if we can become precise: no subklasses and no interface
           if (!ik->is_interface() && !ik->has_subklass()) {
             //assert(!UseExactTypes, "this code should be useless with exact types");
@@ -2263,9 +2284,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
           }
         }
         return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
-      } else {                  // Found a type-array?
+      } else if (ak->is_type_array_klass()) {
         //assert(!UseExactTypes, "this code should be useless with exact types");
-        assert( ak->is_type_array_klass(), "" );
         return TypeKlassPtr::make(ak); // These are always precise
       }
     }
@@ -2287,6 +2307,10 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0));
+    } else if (klass->is_value_array_klass() &&
+               tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
+      ciKlass* elem = klass->as_value_array_klass()->element_klass();
       return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0));
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&

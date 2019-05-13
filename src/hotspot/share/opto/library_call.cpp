@@ -2457,7 +2457,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     } else {
       if (offset->is_Con()) {
         long off = find_long_con(offset, 0);
-        ciValueKlass* vk = _gvn.type(vt)->is_valuetype()->value_klass();
+        ciValueKlass* vk = vt->type()->value_klass();
         if ((long)(int)off != off || !vk->contains_field_offset(off)) {
           return false;
         }
@@ -2567,14 +2567,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       const Type* elem = adr_type->is_aryptr()->elem();
       if (!elem->isa_valuetype()) {
         mismatched = true;
-      } else if (elem->is_valuetype()->value_klass() != value_klass) {
+      } else if (elem->value_klass() != value_klass) {
         mismatched = true;
       }
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
-      if (!val_t->isa_valuetype() ||
-          val_t->is_valuetype()->value_klass() != value_klass) {
+      if (!val_t->isa_valuetype() || val_t->value_klass() != value_klass) {
         return false;
       }
     }
@@ -3531,8 +3530,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   ciKlass* obj_klass = NULL;
   if (obj->is_ValueType()) {
-    const TypeValueType* tvt = _gvn.type(obj)->is_valuetype();
-    obj_klass = tvt->value_klass();
+    obj_klass = _gvn.type(obj)->value_klass();
   } else {
     const TypeOopPtr* tp = _gvn.type(obj)->isa_oopptr();
     if (tp != NULL) {
@@ -3598,7 +3596,7 @@ bool LibraryCallKit::inline_Class_cast() {
       // Check if (mirror == value_mirror && obj == null)
       RegionNode* r = new RegionNode(3);
       Node* p = basic_plus_adr(mirror, java_lang_Class::value_mirror_offset_in_bytes());
-      Node* value_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
+      Node* value_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
       Node* cmp = _gvn.transform(new CmpPNode(mirror, value_mirror));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
       Node* if_ne = generate_fair_guard(bol, NULL);
@@ -4326,7 +4324,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 bool LibraryCallKit::inline_native_getClass() {
   Node* obj = argument(0);
   if (obj->is_ValueType()) {
-    ciKlass* vk = _gvn.type(obj)->is_valuetype()->value_klass();
+    ciKlass* vk = _gvn.type(obj)->value_klass();
     set_result(makecon(TypeInstPtr::make(vk->java_mirror())));
     return true;
   }
@@ -5207,13 +5205,13 @@ bool LibraryCallKit::inline_arraycopy() {
     if (top_dest != NULL &&
         top_dest->elem()->make_oopptr() != NULL &&
         top_dest->elem()->make_oopptr()->can_be_value_type()) {
-      generate_valueArray_guard(load_object_klass(dest), slow_region);
+      generate_valueArray_guard(dest_klass, slow_region);
     }
 
     if (top_src != NULL &&
         top_src->elem()->make_oopptr() != NULL &&
         top_src->elem()->make_oopptr()->can_be_value_type()) {
-      generate_valueArray_guard(load_object_klass(src), slow_region);
+      generate_valueArray_guard(src_klass, slow_region);
     }
 
     {

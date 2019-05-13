@@ -63,6 +63,7 @@ public:
 
   int array_header_in_bytes();
   ArrayStorageProperties storage_properties();
+  ciInstance* component_mirror_instance() const;
 };
 
 #endif // SHARE_CI_CIARRAYKLASS_HPP

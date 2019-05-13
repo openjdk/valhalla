@@ -178,6 +178,10 @@ void ArrayKlass::array_klasses_do(void f(Klass* k)) {
   }
 }
 
+oop ArrayKlass::component_mirror() const {
+  return java_lang_Class::component_mirror(java_mirror());
+}
+
 // JVM support
 
 jint ArrayKlass::compute_modifier_flags(TRAPS) const {

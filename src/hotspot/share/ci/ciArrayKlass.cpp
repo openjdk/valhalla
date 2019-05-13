@@ -27,6 +27,7 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
+#include "ci/ciUtilities.inline.hpp"
 #include "ci/ciValueArrayKlass.hpp"
 #include "ci/ciValueKlass.hpp"
 
@@ -118,3 +119,9 @@ ArrayStorageProperties ciArrayKlass::storage_properties() {
   return get_ArrayKlass()->storage_properties();
 }
 
+ciInstance* ciArrayKlass::component_mirror_instance() const {
+  GUARDED_VM_ENTRY(
+    oop component_mirror = ArrayKlass::cast(get_Klass())->component_mirror();
+    return CURRENT_ENV->get_instance(component_mirror);
+  )
+}

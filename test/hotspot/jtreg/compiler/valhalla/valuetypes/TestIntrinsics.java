@@ -897,15 +897,12 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertEQ(result, va);
         result = test50(MyValue1?[].class, vba);
         Asserts.assertEQ(result, vba);
+        result = test50(MyValue1?[].class, va);
+        Asserts.assertEQ(result, va);
         try {
             test50(MyValue1.class.asValueType(), null);
             throw new RuntimeException("should have thrown");
         } catch (NullPointerException npe) {
-        }
-        try {
-            test50(MyValue1?[].class, va);
-            throw new RuntimeException("should have thrown");
-        } catch (ClassCastException cce) {
         }
         try {
             test50(MyValue1[].class, vba);

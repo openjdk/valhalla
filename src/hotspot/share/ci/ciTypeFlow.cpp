@@ -333,16 +333,14 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
-      if (elem->is_valuetype() && prop_mismatch) {
-        elem = object_klass;
-      } else if (elem1 != elem2) {
+      if (elem1 != elem2) {
         elem = type_meet_internal(elem1, elem2, analyzer)->as_klass();
       }
       // Do an easy shortcut if one type is a super of the other.
-      if (elem == elem1) {
+      if (elem == elem1 && !prop_mismatch) {
         assert(k1 == ciArrayKlass::make(elem, never_null), "shortcut is OK");
         return k1;
-      } else if (elem == elem2) {
+      } else if (elem == elem2 && !prop_mismatch) {
         assert(k2 == ciArrayKlass::make(elem, never_null), "shortcut is OK");
         return k2;
       } else {

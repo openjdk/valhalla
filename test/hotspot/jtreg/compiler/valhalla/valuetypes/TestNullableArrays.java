@@ -80,6 +80,8 @@ public class TestNullableArrays extends ValueTypeTest {
         return MyValue1.createWithFieldsInline(x, y).hash();
     }
 
+    private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
+
     // Test nullable value type array creation and initialization
     @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
     @Test(valid = ValueTypeArrayFlattenOn)
@@ -270,7 +272,7 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test9_verifier(boolean warmup) {
         test9_va = new MyValue1?[1];
-        test9_va[0] = MyValue1.createWithFieldsInline(rI, rL);
+        test9_va[0] = testValue1;
         long result = test9();
         Asserts.assertEQ(result, hash());
     }
@@ -351,7 +353,7 @@ public class TestNullableArrays extends ValueTypeTest {
     // Array load out of bounds (upper bound) at compile time
     @Test
     public int test12() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[arraySize];
 
         for (int i = 0; i < arraySize; i++) {
@@ -372,7 +374,7 @@ public class TestNullableArrays extends ValueTypeTest {
     // Array load  out of bounds (lower bound) at compile time
     @Test
     public int test13() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[arraySize];
 
         for (int i = 0; i < arraySize; i++) {
@@ -418,7 +420,7 @@ public class TestNullableArrays extends ValueTypeTest {
     // Array store out of bounds (upper bound) at compile time
     @Test
     public int test15() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[arraySize];
 
         try {
@@ -438,7 +440,7 @@ public class TestNullableArrays extends ValueTypeTest {
     // Array store out of bounds (lower bound) at compile time
     @Test
     public int test16() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[arraySize];
 
         try {
@@ -496,16 +498,21 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test18_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue1?[] va = new MyValue1?[len];
+        MyValue1?[] va1 = new MyValue1?[len];
+        MyValue1[]  va2 = new MyValue1[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va1[i] = testValue1;
+            va2[i] = testValue1;
         }
-        MyValue1?[] result = test18(va);
+        MyValue1?[] result1 = test18(va1);
+        MyValue1?[] result2 = test18(va2);
         if (len > 0) {
-            Asserts.assertEQ(result[0], null);
+            Asserts.assertEQ(result1[0], null);
+            Asserts.assertEQ(result2[0].hash(), va2[0].hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(result[i].hash(), va[i].hash());
+            Asserts.assertEQ(result1[i].hash(), va1[i].hash());
+            Asserts.assertEQ(result2[i].hash(), va2[i].hash());
         }
     }
 
@@ -541,17 +548,38 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test20_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue1?[] src = new MyValue1?[len];
-        MyValue1?[] dst = new MyValue1?[len];
-        for (int i = 1; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test20(src, dst);
+        MyValue1?[] src1 = new MyValue1?[len];
+        MyValue1?[] src2 = new MyValue1?[len];
+        MyValue1[]  src3 = new MyValue1[len];
+        MyValue1[]  src4 = new MyValue1[len];
+        MyValue1?[] dst1 = new MyValue1?[len];
+        MyValue1[]  dst2 = new MyValue1[len];
+        MyValue1?[] dst3 = new MyValue1?[len];
+        MyValue1[]  dst4 = new MyValue1[len];
         if (len > 0) {
-            Asserts.assertEQ(dst[0], null);
+            src2[0] = testValue1;
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            src1[i] = testValue1;
+            src2[i] = testValue1;
+            src3[i] = testValue1;
+            src4[i] = testValue1;
+        }
+        test20(src1, dst1);
+        test20(src2, dst2);
+        test20(src3, dst3);
+        test20(src4, dst4);
+        if (len > 0) {
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+            Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+            Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
+        }
+        for (int i = 1; i < len; ++i) {
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -564,17 +592,38 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test21_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue2?[] src = new MyValue2?[len];
-        MyValue2?[] dst = new MyValue2?[len];
-        for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-        }
-        test21(src, dst);
+        MyValue2?[] src1 = new MyValue2?[len];
+        MyValue2?[] src2 = new MyValue2?[len];
+        MyValue2[]  src3 = new MyValue2[len];
+        MyValue2[]  src4 = new MyValue2[len];
+        MyValue2?[] dst1 = new MyValue2?[len];
+        MyValue2[]  dst2 = new MyValue2[len];
+        MyValue2?[] dst3 = new MyValue2?[len];
+        MyValue2[]  dst4 = new MyValue2[len];
         if (len > 0) {
-            Asserts.assertEQ(dst[0], null);
+            src2[0] = MyValue2.createWithFieldsInline(rI, true);
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src3[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src4[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+        }
+        test21(src1, dst1);
+        test21(src2, dst2);
+        test21(src3, dst3);
+        test21(src4, dst4);
+        if (len > 0) {
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+            Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+            Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
+        }
+        for (int i = 1; i < len; ++i) {
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -590,16 +639,21 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test22_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue1?[] src = new MyValue1?[len];
+        MyValue1?[] src1 = new MyValue1?[len];
+        MyValue1[]  src2 = new MyValue1[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+            src1[i] = testValue1;
+            src2[i] = testValue1;
         }
-        MyValue1?[] dst = test22(src);
+        MyValue1?[] dst1 = test22(src1);
+        MyValue1?[] dst2 = test22(src2);
         if (len > 0) {
-            Asserts.assertEQ(dst[0], null);
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), MyValue1.default.hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
         }
     }
 
@@ -615,16 +669,21 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test23_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue1?[] src = new MyValue1?[len];
+        MyValue1?[] src1 = new MyValue1?[len];
+        MyValue1[] src2 = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+            src1[i] = testValue1;
+            src2[i] = testValue1;
         }
-        MyValue1?[] dst = test23(src);
+        MyValue1?[] dst1 = test23(src1);
+        MyValue1?[] dst2 = test23(src2);
         for (int i = 0; i < 5; ++i) {
-            Asserts.assertEQ(dst[i], null);
+            Asserts.assertEQ(dst1[i], null);
+            Asserts.assertEQ(dst2[i], null);
         }
         for (int i = 5; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
         }
     }
 
@@ -637,17 +696,38 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test24_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue1?[] src = new MyValue1?[len];
-        MyValue1?[] dst = new MyValue1?[len];
-        for (int i = 1; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test24(src, dst);
+        MyValue1?[] src1 = new MyValue1?[len];
+        MyValue1?[] src2 = new MyValue1?[len];
+        MyValue1[]  src3 = new MyValue1[len];
+        MyValue1[]  src4 = new MyValue1[len];
+        MyValue1?[] dst1 = new MyValue1?[len];
+        MyValue1[]  dst2 = new MyValue1[len];
+        MyValue1?[] dst3 = new MyValue1?[len];
+        MyValue1[]  dst4 = new MyValue1[len];
         if (len > 0) {
-            Asserts.assertEQ(dst[0], null);
+            src2[0] = testValue1;
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            src1[i] = testValue1;
+            src2[i] = testValue1;
+            src3[i] = testValue1;
+            src4[i] = testValue1;
+        }
+        test24(src1, dst1);
+        test24(src2, dst2);
+        test24(src3, dst3);
+        test24(src4, dst4);
+        if (len > 0) {
+            Asserts.assertEQ(dst1[0], null);
+            Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+            Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+            Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
+        }
+        for (int i = 1; i < len; ++i) {
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -659,15 +739,34 @@ public class TestNullableArrays extends ValueTypeTest {
 
     @DontCompile
     public void test25_verifier(boolean warmup) {
-        MyValue2?[] src = new MyValue2?[8];
-        MyValue2?[] dst = new MyValue2?[8];
+        MyValue2?[] src1 = new MyValue2?[8];
+        MyValue2?[] src2 = new MyValue2?[8];
+        MyValue2[]  src3 = new MyValue2[8];
+        MyValue2[]  src4 = new MyValue2[8];
+        MyValue2?[] dst1 = new MyValue2?[8];
+        MyValue2[]  dst2 = new MyValue2[8];
+        MyValue2?[] dst3 = new MyValue2?[8];
+        MyValue2[]  dst4 = new MyValue2[8];
+        src2[0] = MyValue2.createWithFieldsInline(rI, true);
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src3[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src4[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
-        test25(src, dst);
-        Asserts.assertEQ(dst[0], null);
+        test25(src1, dst1);
+        test25(src2, dst2);
+        test25(src3, dst3);
+        test25(src4, dst4);
+        Asserts.assertEQ(dst1[0], null);
+        Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+        Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+        Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         for (int i = 1; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -679,15 +778,34 @@ public class TestNullableArrays extends ValueTypeTest {
 
     @DontCompile
     public void test26_verifier(boolean warmup) {
-        MyValue1?[] src = new MyValue1?[8];
-        MyValue1?[] dst = new MyValue1?[8];
-        for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1?[] src1 = new MyValue1?[8];
+        MyValue1?[] src2 = new MyValue1?[8];
+        MyValue1[]  src3 = new MyValue1[8];
+        MyValue1[]  src4 = new MyValue1[8];
+        MyValue1?[] dst1 = new MyValue1?[8];
+        MyValue1[]  dst2 = new MyValue1[8];
+        MyValue1?[] dst3 = new MyValue1?[8];
+        MyValue1[]  dst4 = new MyValue1[8];
+        src2[0] = testValue1;
+        for (int i = 1; i < 8 ; ++i) {
+            src1[i] = testValue1;
+            src2[i] = testValue1;
+            src3[i] = testValue1;
+            src4[i] = testValue1;
         }
-        test26(src, dst);
-        Asserts.assertEQ(dst[0], null);
+        test26(src1, dst1);
+        test26(src2, dst2);
+        test26(src3, dst3);
+        test26(src4, dst4);
+        Asserts.assertEQ(dst1[0], null);
+        Asserts.assertEQ(dst2[0].hash(), src2[0].hash());
+        Asserts.assertEQ(dst3[0].hash(), src3[0].hash());
+        Asserts.assertEQ(dst4[0].hash(), src4[0].hash());
         for (int i = 1; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
@@ -699,22 +817,41 @@ public class TestNullableArrays extends ValueTypeTest {
 
     @DontCompile
     public void test27_verifier(boolean warmup) {
-        MyValue1?[] src = new MyValue1?[8];
-        MyValue1?[] dst = new MyValue1?[8];
-        for (int i = 0; i < 8; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1?[] src1 = new MyValue1?[8];
+        MyValue1?[] src2 = new MyValue1?[8];
+        MyValue1[]  src3 = new MyValue1[8];
+        MyValue1[]  src4 = new MyValue1[8];
+        MyValue1?[] dst1 = new MyValue1?[8];
+        MyValue1[]  dst2 = new MyValue1[8];
+        MyValue1?[] dst3 = new MyValue1?[8];
+        MyValue1[]  dst4 = new MyValue1[8];
+        for (int i = 1; i < 8; ++i) {
+            src1[i] = testValue1;
+            src2[i] = testValue1;
+            src3[i] = testValue1;
+            src4[i] = testValue1;
         }
-        test27(src, dst);
+        test27(src1, dst1);
+        test27(src2, dst2);
+        test27(src3, dst3);
+        test27(src4, dst4);
         for (int i = 0; i < 2; ++i) {
-            Asserts.assertEQ(dst[i], null);
+            Asserts.assertEQ(dst1[i], null);
+            Asserts.assertEQ(dst2[i].hash(), MyValue1.default.hash());
+            Asserts.assertEQ(dst3[i], null);
+            Asserts.assertEQ(dst4[i].hash(), MyValue1.default.hash());
         }
         for (int i = 2; i < 8; ++i) {
-            Asserts.assertEQ(src[i-1].hash(), dst[i].hash());
+            Asserts.assertEQ(src1[i].hash(), dst1[i].hash());
+            Asserts.assertEQ(src2[i].hash(), dst2[i].hash());
+            Asserts.assertEQ(src3[i].hash(), dst3[i].hash());
+            Asserts.assertEQ(src4[i].hash(), dst4[i].hash());
         }
     }
 
     // non escaping allocations
-    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
+// TODO fix
+//    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
     public MyValue2? test28() {
         MyValue2?[] src = new MyValue2?[10];
         src[0] = null;
@@ -806,16 +943,21 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test32_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
-        MyValue1?[] va = new MyValue1?[len];
+        MyValue1?[] va1 = new MyValue1?[len];
+        MyValue1[] va2 = new MyValue1[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va1[i] = testValue1;
+            va2[i] = testValue1;
         }
-        MyValue1?[] result = (MyValue1?[])test32(va);
+        MyValue1?[] result1 = (MyValue1?[])test32(va1);
+        MyValue1?[] result2 = (MyValue1?[])test32(va2);
         if (len > 0) {
-            Asserts.assertEQ(result[0], null);
+            Asserts.assertEQ(result1[0], null);
+            Asserts.assertEQ(result2[0].hash(), MyValue1.default.hash());
         }
         for (int i = 1; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            Asserts.assertEQ(((MyValue1)result1[i]).hash(), ((MyValue1)va1[i]).hash());
+            Asserts.assertEQ(((MyValue1)result2[i]).hash(), ((MyValue1)va2[i]).hash());
         }
     }
 
@@ -829,7 +971,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         Object[] va = new Object[len];
         for (int i = 0; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         Object[] result = test33(va);
         for (int i = 0; i < len; ++i) {
@@ -950,7 +1092,7 @@ public class TestNullableArrays extends ValueTypeTest {
         MyValue1?[] src = new MyValue1?[len];
         MyValue1?[] dst = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+            src[i] = testValue1;
         }
         test35(src, dst, src.length);
         verify(src, dst);
@@ -1134,7 +1276,7 @@ public class TestNullableArrays extends ValueTypeTest {
         MyValue1?[] src = new MyValue1?[8];
         MyValue1?[] dst = new MyValue1?[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+            src[i] = testValue1;
         }
         test43(src, dst);
         verify(src, dst);
@@ -1310,7 +1452,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         MyValue1?[] result = test51(va);
         verify(va, result);
@@ -1326,7 +1468,7 @@ public class TestNullableArrays extends ValueTypeTest {
     @DontCompile
     public void test52_verifier(boolean warmup) {
         for (int i = 1; i < 8; ++i) {
-            test52_va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            test52_va[i] = testValue1;
         }
         MyValue1?[] result = test52();
         verify(test52_va, result);
@@ -1342,7 +1484,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         MyValue1?[] result = test53(va);
         verify(result, va);
@@ -1358,7 +1500,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         Object[] result = test54(va);
         verify(va, result);
@@ -1374,7 +1516,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         Object[] result = test55(va);
         verify(va, result);
@@ -1390,7 +1532,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         Object[] va = new Object[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         MyValue1?[] result = test56(va);
         verify(result, va);
@@ -1406,7 +1548,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         Object[] va = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         Object[] result = test57(va, MyValue1?[].class);
         verify(va, result);
@@ -1422,7 +1564,7 @@ public class TestNullableArrays extends ValueTypeTest {
         int len = Math.abs(rI) % 10;
         MyValue1?[] va = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
         }
         for (int i = 1; i < 10; i++) {
             Object[] result = test58(va, MyValue1?[].class);
@@ -1445,7 +1587,7 @@ public class TestNullableArrays extends ValueTypeTest {
         MyValue1?[] va = new MyValue1?[len];
         MyValue1?[] verif = new MyValue1?[len+1];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
             verif[i] = va[i];
         }
         Object[] result = test59(va);
@@ -1463,7 +1605,7 @@ public class TestNullableArrays extends ValueTypeTest {
         MyValue1?[] va = new MyValue1?[len];
         MyValue1?[] verif = new MyValue1?[len+1];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
             verif[i] = (MyValue1)va[i];
         }
         Object[] result = test60(va, MyValue1?[].class);
@@ -1551,7 +1693,7 @@ public class TestNullableArrays extends ValueTypeTest {
         MyValue1?[] va = new MyValue1?[len];
         MyValue1?[] verif = new MyValue1?[len+1];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
             verif[i] = va[i];
         }
         Integer[] oa = new Integer[len];
@@ -1813,7 +1955,7 @@ public class TestNullableArrays extends ValueTypeTest {
         MyValue1?[] va = new MyValue1?[len];
         MyValue1?[] verif = new MyValue1?[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            va[i] = testValue1;
             verif[i] = va[i];
         }
         Integer[] oa = new Integer[len];
@@ -1846,7 +1988,7 @@ public class TestNullableArrays extends ValueTypeTest {
 
     @DontCompile
     public void test76_verifier(boolean warmup) {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 vt = testValue1;
         Object[] out = new Object[1];
         MyValue1[] vva = new MyValue1[42];
         MyValue1[] vva_r = new MyValue1[42];
@@ -1874,7 +2016,7 @@ public class TestNullableArrays extends ValueTypeTest {
         if (b) {
             va = new MyValue1?[5];
             for (int i = 0; i < 5; ++i) {
-                va[i] = MyValue1.createWithFieldsInline(rI, rL);
+                va[i] = testValue1;
             }
         } else {
             va = new MyValue1[10];
@@ -1929,7 +2071,7 @@ public class TestNullableArrays extends ValueTypeTest {
 
     @DontCompile
     public void test78_verifier(boolean warmup) {
-        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 vt = testValue1;
         Integer i = new Integer(42);
         Object[] out = new Object[1];
         MyValue1[] vva = new MyValue1[42];
@@ -1953,5 +2095,312 @@ public class TestNullableArrays extends ValueTypeTest {
         result = test78(vva, vba, i, out, 4);
         Asserts.assertEQ(result[0], i);
         Asserts.assertEQ(out[0], null);
+    }
+
+    // Test widening conversions from [Q to [L
+    @Test(failOn = ALLOC + ALLOCA + STORE)
+    public static MyValue1?[] test79(MyValue1[] va) {
+        return va;
+    }
+
+    @DontCompile
+    public void test79_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = testValue1;
+        MyValue1?[] res = test79(va);
+        Asserts.assertEquals(res[0].hash(), testValue1.hash());
+        try {
+            res[0] = null;
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
+        res[0] = testValue1;
+        test79(null); // Should not throw NPE
+    }
+
+    // Same as test79 but with explicit cast and Object return
+    @Test(failOn = ALLOC + ALLOCA + STORE)
+    public static Object[] test80(MyValue1[] va) {
+        return (MyValue1?[])va;
+    }
+
+    @DontCompile
+    public void test80_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = testValue1;
+        Object[] res = test80(va);
+        Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
+        try {
+            res[0] = null;
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
+        res[0] = testValue1;
+        test80(null); // Should not throw NPE
+    }
+
+    // Test mixing widened and boxed array type
+    @Test()
+    public static long test81(MyValue1[] va1, MyValue1?[] va2, MyValue1 vt, boolean b, boolean shouldThrow) {
+        MyValue1?[] result = b ? va1 : va2;
+        try {
+            result[0] = vt;
+        } catch (NullPointerException npe) {
+            // Ignored
+        }
+        return result[1].hash();
+    }
+
+    @DontCompile
+    public void test81_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1?[] vaB = new MyValue1?[2];
+        va[1] = testValue1;
+        vaB[1] = testValue1;
+        long res = test81(va, vaB, testValue1, true, true);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+        res = test81(va, vaB, testValue1, false, false);
+        Asserts.assertEquals(vaB[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+        res = test81(va, va, testValue1, false, true);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+    }
+
+    // Same as test81 but more cases and null writes
+    @Test()
+    public static long test82(MyValue1[] va1, MyValue1?[] va2, MyValue1 vt1, MyValue1? vt2, int i, boolean shouldThrow) {
+        MyValue1?[] result = null;
+        if (i == 0) {
+            result = va1;
+        } else if (i == 1) {
+            result = va2;
+        } else if (i == 2) {
+            result = new MyValue1?[2];
+            result[1] = vt1;
+        } else if (i == 3) {
+            result = new MyValue1[2];
+            result[1] = vt1;
+        }
+        try {
+            result[0] = (i <= 1) ? null : vt2;
+            if (shouldThrow) {
+                throw new RuntimeException("NullPointerException expected");
+            }
+        } catch (NullPointerException npe) {
+            Asserts.assertTrue(shouldThrow, "NullPointerException thrown");
+        }
+        result[0] = vt1;
+        return result[1].hash();
+    }
+
+    @DontCompile
+    public void test82_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1?[] vaB = new MyValue1?[2];
+        va[1] = testValue1;
+        vaB[1] = testValue1;
+        long res = test82(va, vaB, testValue1, testValue1, 0, true);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+        res = test82(va, vaB, testValue1, testValue1, 1, false);
+        Asserts.assertEquals(vaB[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+        res = test82(va, va, testValue1, testValue1, 1, true);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+        res = test82(va, va, testValue1, null, 2, false);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+        res = test82(va, va, testValue1, null, 3, true);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res, testValue1.hash());
+    }
+
+    @Test(failOn = ALLOC + ALLOCA + STORE)
+    public static long test83(MyValue1[] va) {
+        MyValue1?[] result = va;
+        return result[0].hash();
+    }
+
+    @DontCompile
+    public void test83_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[42];
+        va[0] = testValue1;
+        long res = test83(va);
+        Asserts.assertEquals(res, testValue1.hash());
+    }
+
+    @Test(failOn = ALLOC + ALLOCA + STORE)
+    public static MyValue1?[] test84(MyValue1 vt1, MyValue1? vt2) {
+        MyValue1?[] result = new MyValue1[2];
+        result[0] = vt1;
+        result[1] = vt2;
+        return result;
+    }
+
+    @DontCompile
+    public void test84_verifier(boolean warmup) {
+        MyValue1?[] res = test84(testValue1, testValue1);
+        Asserts.assertEquals(res[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res[1].hash(), testValue1.hash());
+        try {
+            test84(testValue1, null);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public static long test85(MyValue1?[] va, MyValue1 val) {
+        va[0] = val;
+        return va[1].hash();
+    }
+
+    @DontCompile
+    public void test85_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1?[] vab = new MyValue1?[2];
+        va[1] = testValue1;
+        vab[1] = testValue1;
+        long res = test85(va, testValue1);
+        Asserts.assertEquals(res, testValue1.hash());
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        res = test85(vab, testValue1);
+        Asserts.assertEquals(res, testValue1.hash());
+        Asserts.assertEquals(vab[0].hash(), testValue1.hash());
+    }
+
+    // Same as test85 but with box value
+    @Test()
+    public static long test86(MyValue1?[] va, MyValue1? val) {
+        va[0] = val;
+        return va[1].hash();
+    }
+
+    @DontCompile
+    public void test86_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1?[] vab = new MyValue1?[2];
+        va[1] = testValue1;
+        vab[1] = testValue1;
+        long res = test86(va, testValue1);
+        Asserts.assertEquals(res, testValue1.hash());
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        try {
+            test86(va, null);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
+        res = test86(vab, testValue1);
+        Asserts.assertEquals(res, testValue1.hash());
+        Asserts.assertEquals(vab[0].hash(), testValue1.hash());
+        res = test86(vab, null);
+        Asserts.assertEquals(res, testValue1.hash());
+        Asserts.assertEquals(vab[0], null);
+    }
+
+    // Test initialization of nullable array with constant
+    @Test()
+    public long test87() {
+        MyValue1?[] va = new MyValue1?[1];
+        va[0] = testValue1;
+        return va[0].hash();
+    }
+
+    @DontCompile
+    public void test87_verifier(boolean warmup) {
+        long result = test87();
+        Asserts.assertEQ(result, hash());
+    }
+
+    // Test narrowing conversion from [L to [Q
+    @Test(failOn = ALLOC + ALLOCA + STORE)
+    public static MyValue1[] test88(MyValue1?[] va) {
+        return (MyValue1[])va;
+    }
+
+    @DontCompile
+    public void test88_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = testValue1;
+        MyValue1[] res = test88(va);
+        Asserts.assertEquals(res[0].hash(), testValue1.hash());
+        res[0] = testValue1;
+        test88(null); // Should not throw NPE
+        try {
+            test88(new MyValue1?[1]);
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException cce) {
+            // Expected
+        }
+    }
+
+    // Same as test88 but with explicit cast and Object argument
+    @Test(failOn = ALLOC + ALLOCA + STORE)
+    public static MyValue1[] test89(Object[] va) {
+        return (MyValue1[])va;
+    }
+
+    @DontCompile
+    public void test89_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = testValue1;
+        MyValue1[] res = test89(va);
+        Asserts.assertEquals(((MyValue1)res[0]).hash(), testValue1.hash());
+        res[0] = testValue1;
+        test89(null); // Should not throw NPE
+        try {
+            test89(new MyValue1?[1]);
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException cce) {
+            // Expected
+        }
+    }
+
+    // More cast tests
+    @Test()
+    public static MyValue1?[] test90(Object va) {
+        return (MyValue1?[])va;
+    }
+
+    @DontCompile
+    public void test90_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        MyValue1?[] vab = new MyValue1?[1];
+        try {
+          // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
+          test90(new Integer[0]);
+        } catch (ClassCastException cce) {
+          // Expected
+        }
+        test90(va);
+        test90(vab);
+        test90(null);
+    }
+
+    @Test()
+    public static MyValue1?[] test91(Object[] va) {
+        return (MyValue1?[])va;
+    }
+
+    @DontCompile
+    public void test91_verifier(boolean warmup) {
+        MyValue1[] va = new MyValue1[1];
+        MyValue1?[] vab = new MyValue1?[1];
+        try {
+          // Trigger some ClassCastExceptions so C2 does not add an uncommon trap
+          test91(new Integer[0]);
+        } catch (ClassCastException cce) {
+          // Expected
+        }
+        test91(va);
+        test91(vab);
+        test91(null);
     }
 }

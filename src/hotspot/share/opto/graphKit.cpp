@@ -1597,7 +1597,8 @@ Node* GraphKit::access_store_at(Node* obj,
                                 const Type* val_type,
                                 BasicType bt,
                                 DecoratorSet decorators,
-                                bool deoptimize_on_exception) {
+                                bool deoptimize_on_exception,
+                                bool safe_for_replace) {
   // Transformation of a value which could be NULL pointer (CastPP #NULL)
   // could be delayed during Parse (for example, in adjust_map_after_if()).
   // Execute transformation here to avoid barrier generation in such case.
@@ -1612,7 +1613,7 @@ Node* GraphKit::access_store_at(Node* obj,
   assert(val != NULL, "not dead path");
   if (val->is_ValueType()) {
     // Allocate value type and get oop
-    val = val->as_ValueType()->allocate(this, deoptimize_on_exception)->get_oop();
+    val = val->as_ValueType()->allocate(this, deoptimize_on_exception, safe_for_replace)->get_oop();
   }
 
   C2AccessValuePtr addr(adr, adr_type);
@@ -3131,7 +3132,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   // Load the object's klass
   Node* obj_klass = NULL;
   if (is_value) {
-    obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->is_valuetype()->value_klass()));
+    obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->value_klass()));
   } else {
     obj_klass = load_object_klass(not_null_obj);
   }
@@ -3185,7 +3186,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (tk->singleton()) {
     ciKlass* klass = NULL;
     if (is_value) {
-      klass = _gvn.type(obj)->is_valuetype()->value_klass();
+      klass = _gvn.type(obj)->value_klass();
     } else {
       const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
       if (objtp != NULL) {
@@ -3238,6 +3239,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   enum { _obj_path = 1, _null_path, PATH_LIMIT };
   RegionNode* region = new RegionNode(PATH_LIMIT);
   Node*       phi    = new PhiNode(region, toop);
+  _gvn.set_type(region, Type::CONTROL);
+  _gvn.set_type(phi, toop);
+
   C->set_has_split_ifs(true); // Has chance for split-if optimization
 
   // Use null-cast information if it is available
@@ -3303,7 +3307,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     // Load the object's klass
     Node* obj_klass = NULL;
     if (is_value) {
-      obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->is_valuetype()->value_klass()));
+      obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->value_klass()));
     } else {
       obj_klass = load_object_klass(not_null_obj);
     }
@@ -3380,45 +3384,38 @@ void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
   }
 }
 
-// Deoptimize if 'ary' is flattened or if 'obj' is null and 'ary' is a value type array
-void GraphKit::gen_value_type_array_guard(Node* ary, Node* obj, int nargs) {
+// Deoptimize if 'ary' is a null-free value type array and 'val' is null
+void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
   assert(EnableValhalla, "should only be used if value types are enabled");
-  // Load array element klass
-  Node* kls = load_object_klass(ary);
-  Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
-  Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
-  // Check if element is a value type
-  Node* flags_addr = basic_plus_adr(elem_klass, in_bytes(Klass::access_flags_offset()));
-  Node* flags = make_load(NULL, flags_addr, TypeInt::INT, T_INT, MemNode::unordered);
-  Node* is_value_elem = _gvn.transform(new AndINode(flags, intcon(JVM_ACC_VALUE)));
-
-  const Type* objtype = _gvn.type(obj);
-  if (objtype == TypePtr::NULL_PTR) {
-    // Object is always null, check if array is a value type array
-    Node* cmp = _gvn.transform(new CmpINode(is_value_elem, intcon(0)));
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
-    { BuildCutout unless(this, bol, PROB_MAX);
-      // TODO just deoptimize for now if we store null to a value type array
-      inc_sp(nargs);
-      uncommon_trap(Deoptimization::Reason_array_check,
-                    Deoptimization::Action_none);
-    }
-  } else {
-    // Check if (is_value_elem && obj_is_null) <=> (!is_value_elem | !obj_is_null == 0)
-    // TODO what if we later figure out that obj is never null?
-    Node* not_value = _gvn.transform(new XorINode(is_value_elem, intcon(JVM_ACC_VALUE)));
-    not_value = _gvn.transform(new ConvI2LNode(not_value));
-    Node* not_null = _gvn.transform(new CastP2XNode(NULL, obj));
-    Node* both = _gvn.transform(new OrLNode(not_null, not_value));
-    Node* cmp  = _gvn.transform(new CmpLNode(both, longcon(0)));
-    Node* bol  = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
-    { BuildCutout unless(this, bol, PROB_MAX);
-      // TODO just deoptimize for now if we store null to a value type array
-      inc_sp(nargs);
-      uncommon_trap(Deoptimization::Reason_array_check,
-                    Deoptimization::Action_none);
-    }
+  const Type* val_t = _gvn.type(val);
+  if (val->is_ValueType() || !TypePtr::NULL_PTR->higher_equal(val_t)) {
+    return; // Never null
   }
+  RegionNode* region = new RegionNode(3);
+  Node* null_ctl = top();
+  null_check_oop(val, &null_ctl);
+  if (null_ctl != top()) {
+    PreserveJVMState pjvms(this);
+    set_control(null_ctl);
+    // Get array element mirror and corresponding value mirror
+    Node* array_type_mirror = load_mirror_from_klass(load_object_klass(ary));
+    Node* elem_mirror_adr = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
+    Node* elem_mirror = access_load_at(array_type_mirror, elem_mirror_adr, _gvn.type(elem_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
+    Node* value_mirror_adr = basic_plus_adr(elem_mirror, java_lang_Class::value_mirror_offset_in_bytes());
+    Node* value_mirror = access_load_at(elem_mirror, value_mirror_adr, _gvn.type(value_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+    // Deoptimize if elem_mirror == value_mirror => null-free array
+    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, value_mirror));
+    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+    { BuildCutout unless(this, bol, PROB_MAX);
+      inc_sp(nargs);
+      uncommon_trap(Deoptimization::Reason_null_check,
+                    Deoptimization::Action_none);
+    }
+    region->init_req(1, control());
+  }
+  region->init_req(2, control());
+  set_control(_gvn.transform(region));
+  record_for_igvn(region);
 }
 
 Node* GraphKit::load_lh_array_tag(Node* kls) {
@@ -3624,12 +3621,12 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     ciKlass* klass = inst_klass->klass();
     assert(klass != NULL, "klass should not be NULL");
     bool    xklass = inst_klass->klass_is_exact();
-    bool can_be_value_array = false;
-    if (klass->is_array_klass() && EnableValhalla && ValueArrayFlatten) {
-      ciKlass* elem = klass->as_array_klass()->element_klass();
-      can_be_value_array = elem != NULL && (elem->is_java_lang_Object() || elem->is_interface());
+    bool can_be_flattened = false;
+    if (ValueArrayFlatten && klass->is_obj_array_klass()) {
+      ciKlass* elem = klass->as_obj_array_klass()->element_klass();
+      can_be_flattened = elem->is_java_lang_Object() || elem->is_interface();
     }
-    if (xklass || (klass->is_array_klass() && !can_be_value_array)) {
+    if (xklass || (klass->is_array_klass() && !can_be_flattened)) {
       jint lhelper = klass->layout_helper();
       if (lhelper != Klass::_lh_neutral_value) {
         constant_value = lhelper;
@@ -4053,7 +4050,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
     // Check if element mirror is a value mirror
     Node* p = basic_plus_adr(elem_mirror, java_lang_Class::value_mirror_offset_in_bytes());
-    Node* value_mirror = access_load_at(elem_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
+    Node* value_mirror = access_load_at(elem_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
     Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, value_mirror));
     Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
     IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);

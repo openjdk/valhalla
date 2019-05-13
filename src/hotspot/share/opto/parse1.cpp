@@ -157,7 +157,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   const TypeOopPtr* tp = type->isa_oopptr();
   if (type->isa_valuetype() != NULL) {
     // The interpreter passes value types as oops
-    tp = TypeOopPtr::make_from_klass(type->isa_valuetype()->value_klass());
+    tp = TypeOopPtr::make_from_klass(type->value_klass());
     tp = tp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
   }
 
@@ -927,7 +927,7 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
       }
-      const Array<SigEntry>* sig_array = vt->type()->is_valuetype()->value_klass()->extended_sig();
+      const Array<SigEntry>* sig_array = vt->type()->value_klass()->extended_sig();
       GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
       sig.appendAll(sig_array);
       ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
@@ -2327,7 +2327,7 @@ void Parse::return_current(Node* value) {
     if (return_type->isa_valuetype()) {
       // Value type is returned as fields, make sure it is scalarized
       if (!value->is_ValueType()) {
-        value = ValueTypeNode::make_from_oop(this, value, return_type->is_valuetype()->value_klass());
+        value = ValueTypeNode::make_from_oop(this, value, return_type->value_klass());
       }
       if (!_caller->has_method()) {
         // Value type is returned as fields from root method, make
