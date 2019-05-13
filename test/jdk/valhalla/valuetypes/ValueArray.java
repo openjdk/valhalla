@@ -30,7 +30,7 @@
  * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=0  ValueArray
  */
 
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
 import java.util.Arrays;
 
 import org.testng.annotations.BeforeTest;
@@ -39,6 +39,11 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class ValueArray {
+    private static Class<?> nullablePointArrayClass() {
+        Object a = new Point?[0];
+        return a.getClass();
+    }
+
     @DataProvider(name="arrayTypes")
     static Object[][] arrayTypes() {
         return new Object[][] {
@@ -51,7 +56,10 @@ public class ValueArray {
             new Object[] { Point[][].class,
                            new Point[][] { new Point[] { Point.makePoint(1, 2),
                                                          Point.makePoint(10, 20)}}},
-
+            new Object[] { nullablePointArrayClass(),
+                           new Point?[] { Point.makePoint(11, 22),
+                                          Point.makePoint(110, 220),
+                                          null}},
             new Object[] { NonFlattenValue[].class,
                            new NonFlattenValue[] { NonFlattenValue.make(1, 2),
                                                    NonFlattenValue.make(10, 20),
@@ -59,12 +67,14 @@ public class ValueArray {
         };
     }
 
+
     @Test(dataProvider="arrayTypes")
     public static void test(Class<?> c, Object[] elements) {
         ValueArray test = new ValueArray(c, elements.length);
         test.run(elements);
-        if (c.getComponentType().isValue()) {
-            test.ensureNonNullable();
+        Class<?> compType = c.getComponentType();
+        if (compType.isValue()) {
+            test.testSetNullElement(compType == compType.asBoxType());
         }
      }
 
@@ -73,6 +83,17 @@ public class ValueArray {
         PointArray array = PointArray.makeArray(Point.makePoint(1, 2), Point.makePoint(10, 20));
         ValueArray test = new ValueArray(array.points);
         test.run(Point.makePoint(3, 4), Point.makePoint(30, 40));
+    }
+
+    @Test
+    public static void testNullablePointArray() {
+        Point ?[]array = new Point ?[3];
+        array[0] = Point.makePoint(1, 2);
+        array[1] = null;
+        array[2] = Point.makePoint(3, 4);
+
+        ValueArray test = new ValueArray(array);
+        test.run(null, Point.makePoint(3, 4), null);
     }
 
     @Test
@@ -103,11 +124,53 @@ public class ValueArray {
         } catch (IllegalArgumentException e) {}
 
     }
+
+    @Test()
+    static void testArrayCovariance() {
+        Point[] qArray = new Point[0];
+        Point?[] lArray = new Point?[0];
+
+        // language instanceof
+        assertTrue(qArray instanceof Point[]);
+        assertTrue(lArray instanceof Point?[]);
+
+        // Class.instanceOf (self)
+        assertTrue(qArray.getClass().isInstance(qArray));
+        assertTrue(lArray.getClass().isInstance(lArray));
+
+        // Class.instanceof inline vs indirect
+        assertFalse(qArray.getClass().isInstance(lArray));
+        assertTrue(lArray.getClass().isInstance(qArray));
+
+        // Class.isAssignableFrom (self)
+        assertTrue(qArray.getClass().isAssignableFrom(qArray.getClass()));
+        assertTrue(lArray.getClass().isAssignableFrom(lArray.getClass()));
+
+        // Class.isAssignableFrom inline vs indirect
+        assertTrue(lArray.getClass().isAssignableFrom(qArray.getClass()));
+        assertFalse(qArray.getClass().isAssignableFrom(lArray.getClass()));
+
+        // Class.cast (self)
+        qArray.getClass().cast(qArray);
+        lArray.getClass().cast(lArray);
+
+        // Class.cast inline vs indirect
+        lArray.getClass().cast(qArray);
+        try {
+            qArray.getClass().cast(lArray);
+            fail("cast of Point? to Point should not succeed");
+        } catch (ClassCastException cce) {
+            // expected
+        }
+    }
+
     private final Object[] array;
+
     ValueArray(Class<?> arrayClass, int len) {
         this((Object[])Array.newInstance(arrayClass.getComponentType(), len));
         assertTrue(array.getClass() == arrayClass);
     }
+
     ValueArray(Object[] array) {
         this.array = array;
     }
@@ -125,28 +188,31 @@ public class ValueArray {
         Arrays.setAll(array, i -> elements[i]);
     }
 
-    void ensureNonNullable() {
+    void testSetNullElement(boolean nullable) {
         assert(array.getClass().getComponentType().isValue());
         for (int i=0; i < array.length; i++) {
             try {
                 Array.set(array, i, null);
-                throw new AssertionError("NPE not thrown");
-            } catch (NullPointerException e) {}
+                if (!nullable)
+                    throw new AssertionError("NPE not thrown");
+            } catch (NullPointerException e) {
+                assertFalse(nullable);
+            }
         }
     }
 
-    static inline class PointArray {
-        public Point?[] points;
+  static inline class PointArray {
+        public Point[] points;
         PointArray() {
-            points = new Point?[0];
+            points = new Point[0];
         }
         public static PointArray makeArray(Point... points) {
             PointArray a = PointArray.default;
-            Point?[] boxArray = new Point?[points.length];
+            Point[] array = new Point[points.length];
             for (int i=0; i < points.length; i++) {
-                boxArray[i] = points[i];
+                array[i] = points[i];
             }
-            a = __WithField(a.points, boxArray);
+            a = __WithField(a.points, array);
             return a;
         }
     }

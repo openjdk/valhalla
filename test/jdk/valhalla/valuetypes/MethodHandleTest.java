@@ -119,15 +119,33 @@ public class MethodHandleTest {
             assertEquals(v, o);
         }
 
-        // set an array element to null
         Class<?> elementType = c.getComponentType();
+        if (elementType.isValue()) {
+            assertTrue(elementType == elementType.asValueType());
+        }
+        // set an array element to null
         try {
-            // inline array element is flattenable
             Object v = (Object)setter.invoke(array, 0, null);
             assertFalse(elementType.isValue(), "should fail to set an inline class array element to null");
         } catch (NullPointerException e) {
             assertTrue(elementType.isValue(), "should only fail to set an inline class array element to null");
         }
+    }
+
+    @Test
+    public static void testNullableArray() throws Throwable {
+        Class<?> arrayClass = (new Point?[0]).getClass();
+        Class<?> elementType = arrayClass.getComponentType();
+        assertTrue(elementType == Point.class.asBoxType());
+
+        MethodHandle setter = MethodHandles.arrayElementSetter(arrayClass);
+        MethodHandle getter = MethodHandles.arrayElementGetter(arrayClass);
+        MethodHandle ctor = MethodHandles.arrayConstructor(arrayClass);
+        Object[] array = (Object[]) ctor.invoke(2);
+        setter.invoke(array, 0, P);
+        setter.invoke(array, 1, null);
+        assertEquals((Point)getter.invoke(array, 0), P);
+        assertNull((Object)getter.invoke(array, 1));
     }
 
     private final Class<?> c;

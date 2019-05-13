@@ -44,6 +44,11 @@ public class ArrayElementVarHandleTest {
     private static final Line L = Line.makeLine(10, 20, 30, 40);
     private static final MutablePath PATH = MutablePath.makePath(10, 20, 30, 40);
 
+    private static Class<?> nullablePointArrayClass() {
+        Object a = new Point?[0];
+        return a.getClass();
+    }
+
     @DataProvider(name="arrayTests")
     static Object[][] arrayTests() {
         return new Object[][]{
@@ -54,6 +59,10 @@ public class ArrayElementVarHandleTest {
             new Object[] { Point[][].class,
                            new Point[][] { new Point[] { Point.makePoint(1, 2),
                                                          Point.makePoint(10, 20)}}},
+            new Object[] { nullablePointArrayClass(),
+                           new Point?[] { Point.makePoint(11, 22),
+                                          Point.makePoint(110, 220),
+                                          null}},
             new Object[] { Line[].class,
                            new Line[] { Line.makeLine(1, 2, 3, 4),
                                         Line.makeLine(10, 20, 30, 40),
