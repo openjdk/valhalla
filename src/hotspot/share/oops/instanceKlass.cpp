@@ -1434,7 +1434,7 @@ static int call_class_initializer_counter = 0;   // for debugging
 Method* InstanceKlass::class_initializer() const {
   Method* clinit = find_method(
       vmSymbols::class_initializer_name(), vmSymbols::void_method_signature());
-  if (clinit != NULL && clinit->has_valid_initializer_flags()) {
+  if (clinit != NULL && clinit->is_class_initializer()) {
     return clinit;
   }
   return NULL;
@@ -1907,6 +1907,9 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
                                                                         private_mode);
     if (method != NULL) {
       return method;
+    }
+    if (name == vmSymbols::object_initializer_name()) {
+      break;  // <init> is never inherited, not even as a static factory
     }
     klass = klass->super();
     overpass_local_mode = skip_overpass;   // Always ignore overpass methods in superclasses

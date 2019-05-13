@@ -989,8 +989,8 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
     // (1) by methods declared in the class declaring the field and
     // (2) by the <clinit> method (in case of a static field)
     //     or by the <init> method (in case of an instance field).
-  // (3) by withfield when field is in a value type and the
-  //     selected class and current class are nest mates.
+    // (3) by withfield when field is in a value type and the
+    //     selected class and current class are nest mates.
     if (is_put && fd.access_flags().is_final()) {
       ResourceMark rm(THREAD);
       stringStream ss;
@@ -1017,10 +1017,10 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
         assert(!m.is_null(), "information about the current method must be available for 'put' bytecodes");
         bool is_initialized_static_final_update = (byte == Bytecodes::_putstatic &&
                                                    fd.is_static() &&
-                                                   !m()->is_static_initializer());
+                                                   !m()->is_class_initializer());
         bool is_initialized_instance_final_update = ((byte == Bytecodes::_putfield || byte == Bytecodes::_nofast_putfield) &&
                                                      !fd.is_static() &&
-                                                     !m->is_object_initializer());
+                                                     !m->is_object_constructor());
 
         if (is_initialized_static_final_update || is_initialized_instance_final_update) {
           ss.print("Update to %s final field %s.%s attempted from a different method (%s) than the initializer method %s ",
@@ -1138,6 +1138,8 @@ methodHandle LinkResolver::linktime_resolve_special_method(const LinkInfo& link_
   }
 
   // check if method name is <init>, that it is found in same klass as static type
+  // Since this method is never inherited from a super, any appearance here under
+  // the wrong class would be an error.
   if (resolved_method->name() == vmSymbols::object_initializer_name() &&
       resolved_method->method_holder() != resolved_klass) {
     ResourceMark rm(THREAD);
@@ -1211,7 +1213,7 @@ void LinkResolver::runtime_resolve_special_method(CallInfo& result,
   methodHandle sel_method(THREAD, resolved_method());
 
   if (link_info.check_access() &&
-      // check if the method is not <init>
+      // check if the method is not <init>, which is never inherited
       resolved_method->name() != vmSymbols::object_initializer_name()) {
 
     Klass* current_klass = link_info.current_klass();

@@ -53,19 +53,12 @@ public class BadValueTypes {
         // Test that inline type fields must be final.
         runTest("ValueFieldNotFinal", "Illegal field modifiers in class ValueFieldNotFinal");
 
-        // Test that arrays cannot have ACC_FLATTENABLE set.
-        runTest("ValueFlatArray", "ACC_FLATTENABLE cannot be specified for an array");
-
-        // Test that an inline type cannot have a method named init.
-/* TBD: uncomment when javac stops generating <init>() methods for inline types.
-        runTest("ValueInitMethod", "Value Type cannot have a method named <init>");
-*/
-
         // Test that ACC_VALUE with ACC_INTERFACE is illegal.
         runTest("ValueInterface", "Illegal class modifiers in class ValueInterface");
 
         // Test that inline type instance methods cannot be synchronized.
-        runTest("ValueMethodSynch", "Method instanceMethod in class ValueMethodSynch has illegal modifiers");
+        runTest("ValueMethodSynch",
+                "Method getInt in class ValueMethodSynch (an inline class) has illegal modifiers");
 
         runTest("ValueSuperClass", "Value type must have java.lang.Object as superclass");
 

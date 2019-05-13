@@ -83,6 +83,11 @@ public:
 
   // Tests if the symbol starts with the given prefix.
   bool starts_with(const char* prefix, int len) const;
+  bool starts_with(char prefix_char) const;
+
+  // Tests if the symbol ends with the given suffix.
+  bool ends_with(const char* suffix, int len) const;
+  bool ends_with(char suffix_char) const;
 
   bool        is_Q_signature();
 

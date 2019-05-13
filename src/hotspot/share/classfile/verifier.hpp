@@ -352,7 +352,7 @@ class ClassVerifier : public StackObj {
 
   void verify_invoke_instructions(
     RawBytecodeStream* bcs, u4 code_length, StackMapFrame* current_frame,
-    bool in_try_block, bool* this_uninit, VerificationType return_type,
+    bool in_try_block, bool* this_uninit,
     const constantPoolHandle& cp, StackMapTable* stackmap_table, TRAPS);
 
   VerificationType get_newarray_type(u2 index, u2 bci, TRAPS);

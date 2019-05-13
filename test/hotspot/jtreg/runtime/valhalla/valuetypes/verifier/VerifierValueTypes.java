@@ -26,7 +26,7 @@
  * @bug 8223028
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
- * @compile verifierTests.jcod NoArrayCov.jcod NoArrayCovIntf.jcod NoNullVT.jcod
+ * @compile verifierTests.jcod NoNullVT.jcod
  * @run main/othervm -verify -XX:+EnableValhalla VerifierValueTypes
  */
 
@@ -73,6 +73,7 @@ public class VerifierValueTypes {
         // Test VerifyError is thrown if a defaultvalue's cp entry is not a class.
         runTestVerifyError("defValWrongCPType", "Illegal type at constant pool entry");
 
+/*
         // Test that a withfield opcode with an out of bounds cp index causes a VerifyError.
         runTestVerifyError("wthFldBadCP", "Illegal constant pool index");
 
@@ -93,22 +94,15 @@ public class VerifierValueTypes {
         // Test that VerifyError is thrown if the class for a withfields's cp fieldref
         // entry is java.lang.Object and the reference on the stack is an inline type.
         runTestVerifyError("wthFldObject", "must be identical inline types");
-
+*/
         // Test VerifyError is thrown if a monitorenter's cp entry is an inline type.
         runTestVerifyError("monEnterVT", "Bad type on operand stack");
 
         // Test VerifyError is thrown if a defaultvalue's cp entry is an inline type.
-        // TBD!!!
-        runTestVerifyError("defValueObj", "Invalid type on operand stack in withfield instruction");
+        runTestVerifyError("defValueObj", "Illegal type at constant pool entry 4");
 
         // Test VerifyError is thrown if a withfield's class operand is not an inline type.
-        runTestVerifyError("withfieldObj", "Bad type on operand stack");
-
-        // Test that an array of inline types is assignable to [Ljava/lang/Object; (Covariance).
-        runTestNoError("NoArrayCov");
-
-        // Test that an array of inline types is assignable to an array of interfaces (Covariance).
-        runTestNoError("NoArrayCovIntf");
+//        runTestVerifyError("withfieldObj", "Bad type on operand stack");
 
         // Test that null is not assignable to an inline type.
         runTestVerifyError("NoNullVT",

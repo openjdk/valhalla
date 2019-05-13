@@ -697,25 +697,27 @@ bool Method::is_constant_getter() const {
           Bytecodes::is_return(java_code_at(last_index)));
 }
 
-bool Method::is_initializer() const {
-  return is_object_initializer() || is_static_initializer();
+bool Method::is_object_constructor_or_class_initializer() const {
+  return (is_object_constructor() || is_class_initializer());
 }
 
-bool Method::has_valid_initializer_flags() const {
-  return (is_static() ||
-          method_holder()->major_version() < 51);
-}
-
-bool Method::is_static_initializer() const {
+bool Method::is_class_initializer() const {
   // For classfiles version 51 or greater, ensure that the clinit method is
   // static.  Non-static methods with the name "<clinit>" are not static
   // initializers. (older classfiles exempted for backward compatibility)
-  return name() == vmSymbols::class_initializer_name() &&
-         has_valid_initializer_flags();
+  return (name() == vmSymbols::class_initializer_name() &&
+          (is_static() ||
+           method_holder()->major_version() < 51));
 }
 
-bool Method::is_object_initializer() const {
-   return name() == vmSymbols::object_initializer_name();
+// A method named <init>, if non-static, is a classic object constructor.
+bool Method::is_object_constructor() const {
+   return name() == vmSymbols::object_initializer_name() && !is_static();
+}
+
+// A static method named <init> is a factory for an inline class.
+bool Method::is_static_init_factory() const {
+   return name() == vmSymbols::object_initializer_name() && is_static();
 }
 
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {

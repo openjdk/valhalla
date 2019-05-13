@@ -195,7 +195,7 @@ class ciMethod : public ciMetadata {
   bool force_inline()          const { return get_Method()->force_inline();          }
   bool dont_inline()           const { return get_Method()->dont_inline();           }
   bool intrinsic_candidate()   const { return get_Method()->intrinsic_candidate();   }
-  bool is_static_initializer() const { return get_Method()->is_static_initializer(); }
+  bool is_class_initializer()  const { return get_Method()->is_class_initializer(); }
 
   int comp_level();
   int highest_osr_comp_level();
@@ -345,12 +345,13 @@ class ciMethod : public ciMetadata {
   bool is_getter      () const;
   bool is_setter      () const;
   bool is_accessor    () const;
-  bool is_initializer () const;
   bool can_be_statically_bound() const           { return _can_be_statically_bound; }
   bool has_reserved_stack_access() const         { return _has_reserved_stack_access; }
   bool is_boxing_method() const;
   bool is_unboxing_method() const;
-  bool is_object_initializer() const;
+  bool is_object_constructor() const;
+  bool is_static_init_factory() const;
+  bool is_object_constructor_or_class_initializer() const;
 
   // Replay data methods
   void dump_name_as_ascii(outputStream* st);

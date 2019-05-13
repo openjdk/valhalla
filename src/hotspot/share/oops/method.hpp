@@ -670,18 +670,19 @@ class Method : public Metadata {
   // returns true if the method does nothing but return a constant of primitive type
   bool is_constant_getter() const;
 
-  // returns true if the method is an initializer (<init> or <clinit>).
-  bool is_initializer() const;
-
-  // returns true if the method is static OR if the classfile version < 51
-  bool has_valid_initializer_flags() const;
-
   // returns true if the method name is <clinit> and the method has
   // valid static initializer flags.
-  bool is_static_initializer() const;
+  bool is_class_initializer() const;
 
-  // returns true if the method name is <init>
-  bool is_object_initializer() const;
+  // returns true if the method name is <init> and the method is not a static factory
+  bool is_object_constructor() const;
+
+  // returns true if the method is an object constructor or class initializer
+  // (non-static <init> or <clinit>), but false for factories (static <init>).
+  bool is_object_constructor_or_class_initializer() const;
+
+  // returns true if the method name is <init> and the method is static
+  bool is_static_init_factory() const;
 
   // compiled code support
   // NOTE: code() is inherently racy as deopt can be clearing code

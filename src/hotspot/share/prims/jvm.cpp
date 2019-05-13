@@ -1666,10 +1666,14 @@ JVM_ENTRY(jobjectArray, JVM_GetClassDeclaredFields(JNIEnv *env, jclass ofClass, 
 JVM_END
 
 static bool select_method(const methodHandle& method, bool want_constructor) {
+  bool is_ctor = (method->is_object_constructor() ||
+                  method->is_static_init_factory());
   if (want_constructor) {
-    return (method->is_initializer() && !method->is_static());
+    return is_ctor;
   } else {
-    return  (!method->is_initializer() && !method->is_overpass());
+    return (!is_ctor &&
+            !method->is_class_initializer() &&
+            !method->is_overpass());
   }
 }
 
@@ -1731,6 +1735,8 @@ static jobjectArray get_class_declared_methods_helper(
     } else {
       oop m;
       if (want_constructor) {
+        assert(method->is_object_constructor() ||
+               method->is_static_init_factory(), "must be");
         m = Reflection::new_constructor(method, CHECK_NULL);
       } else {
         m = Reflection::new_method(method, false, CHECK_NULL);
@@ -1947,10 +1953,10 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
     THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
-  if (!m->is_initializer() || m->is_static()) {
-    method = Reflection::new_method(m, true, CHECK_NULL);
-  } else {
+  if (m->is_object_constructor()) {
     method = Reflection::new_constructor(m, CHECK_NULL);
+  } else {
+    method = Reflection::new_method(m, true, CHECK_NULL);
   }
   return JNIHandles::make_local(method);
 }
@@ -2459,7 +2465,7 @@ JVM_QUICK_ENTRY(jboolean, JVM_IsConstructorIx(JNIEnv *env, jclass cls, int metho
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(cls));
   k = JvmtiThreadState::class_to_verify_considering_redefinition(k, thread);
   Method* method = InstanceKlass::cast(k)->methods()->at(method_index);
-  return method->name() == vmSymbols::object_initializer_name();
+  return method->is_object_constructor();
 JVM_END
 
 

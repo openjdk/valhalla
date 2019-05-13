@@ -58,10 +58,10 @@ bool Parse::static_field_ok_in_clinit(ciField *field, ciMethod *method) {
   ciInstanceKlass *field_holder = field->holder();
 
   if (method->holder()->is_subclass_of(field_holder)) {
-    if (method->is_static_initializer()) {
+    if (method->is_class_initializer()) {
       // OK to access static fields inside initializer
       return true;
-    } else if (method->is_object_initializer()) {
+    } else if (method->is_object_constructor()) {
       // It's also OK to access static fields inside a constructor,
       // because any thread calling the constructor must first have
       // synchronized on the class by executing a '_new' bytecode.

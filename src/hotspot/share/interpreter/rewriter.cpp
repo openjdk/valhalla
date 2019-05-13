@@ -449,11 +449,11 @@ void Rewriter::scan_method(Method* method, bool reverse, bool* invokespecial_err
             if (klass->find_field(field_name, field_sig, &fd) != NULL) {
               if (fd.access_flags().is_final()) {
                 if (fd.access_flags().is_static()) {
-                  if (!method->is_static_initializer()) {
+                  if (!method->is_class_initializer()) {
                     fd.set_has_initialized_final_update(true);
                   }
                 } else {
-                  if (!method->is_object_initializer()) {
+                  if (!method->is_object_constructor()) {
                     fd.set_has_initialized_final_update(true);
                   }
                 }

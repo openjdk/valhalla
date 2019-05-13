@@ -2524,8 +2524,8 @@ void java_lang_Throwable::fill_in_stack_trace(Handle throwable, const methodHand
       assert(skip_fillInStackTrace_check, "logic error in backtrace filtering");
 
       // skip <init> methods of the exception class and superclasses
-      // This is simlar to classic VM.
-      if (method->name() == vmSymbols::object_initializer_name() &&
+      // This is similar to classic VM (before HotSpot).
+      if (method->is_object_constructor() &&
           throwable->is_a(method->method_holder())) {
         continue;
       } else {

@@ -1679,7 +1679,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           }
           // Make sure "this" has been initialized if current method is an
           // <init>.
-          if (_method->name() == vmSymbols::object_initializer_name() &&
+          if (_method->is_object_constructor() &&
               current_frame.flag_this_uninit()) {
             verify_error(ErrorContext::bad_code(bci),
                          "Constructor must call super() or this() "
@@ -1713,15 +1713,11 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_invokevirtual :
         case Bytecodes::_invokespecial :
         case Bytecodes::_invokestatic :
-          verify_invoke_instructions(
-            &bcs, code_length, &current_frame, (bci >= ex_min && bci < ex_max),
-            &this_uninit, return_type, cp, &stackmap_table, CHECK_VERIFY(this));
-          no_control_flow = false; break;
         case Bytecodes::_invokeinterface :
         case Bytecodes::_invokedynamic :
           verify_invoke_instructions(
             &bcs, code_length, &current_frame, (bci >= ex_min && bci < ex_max),
-            &this_uninit, return_type, cp, &stackmap_table, CHECK_VERIFY(this));
+            &this_uninit, cp, &stackmap_table, CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_new :
         {
@@ -2819,7 +2815,7 @@ bool ClassVerifier::is_same_or_direct_interface(
 
 void ClassVerifier::verify_invoke_instructions(
     RawBytecodeStream* bcs, u4 code_length, StackMapFrame* current_frame,
-    bool in_try_block, bool *this_uninit, VerificationType return_type,
+    bool in_try_block, bool *this_uninit,
     const constantPoolHandle& cp, StackMapTable* stackmap_table, TRAPS) {
   // Make sure the constant pool item is the right type
   u2 index = bcs->get_index_u2();
@@ -2917,8 +2913,10 @@ void ClassVerifier::verify_invoke_instructions(
   }
 
   if (method_name->char_at(0) == '<') {
-    // Make sure <init> can only be invoked by invokespecial
-    if (opcode != Bytecodes::_invokespecial ||
+    // Make sure <init> can only be invoked by invokespecial or invokestatic.
+    // The allowed invocation mode of <init> depends on its signature.
+    if ((opcode != Bytecodes::_invokespecial &&
+         opcode != Bytecodes::_invokestatic) ||
         method_name != vmSymbols::object_initializer_name()) {
       verify_error(ErrorContext::bad_code(bci),
           "Illegal call to internal method");
@@ -2972,6 +2970,7 @@ void ClassVerifier::verify_invoke_instructions(
   if (opcode != Bytecodes::_invokestatic &&
       opcode != Bytecodes::_invokedynamic) {
     if (method_name == vmSymbols::object_initializer_name()) {  // <init> method
+      // (use of <init> as a static factory is handled under invokestatic)
       verify_invoke_init(bcs, index, ref_class_type, current_frame,
         code_length, in_try_block, this_uninit, cp, stackmap_table,
         CHECK_VERIFY(this));
@@ -3042,10 +3041,9 @@ void ClassVerifier::verify_invoke_instructions(
   // Push the result type.
   int sig_verif_types_len = sig_verif_types->length();
   if (sig_verif_types_len > nargs) {  // There's a return type
-    if (method_name == vmSymbols::object_initializer_name()) {
-      // <init> method must have a void return type
-      /* Unreachable?  Class file parser verifies that methods with '<' have
-       * void return */
+    if (method_name == vmSymbols::object_initializer_name() &&
+        opcode != Bytecodes::_invokestatic) {
+      // an <init> method must have a void return type, unless it's a static factory
       verify_error(ErrorContext::bad_code(bci),
           "Return type must be void in <init> method");
       return;
@@ -3057,6 +3055,14 @@ void ClassVerifier::verify_invoke_instructions(
       assert(i == nargs || sig_verif_types->at(i).is_long2() ||
              sig_verif_types->at(i).is_double2(), "Unexpected return verificationType");
       current_frame->push_stack(sig_verif_types->at(i), CHECK_VERIFY(this));
+    }
+  } else {
+    // an <init> method may not have a void return type, if it's a static factory
+    if (method_name == vmSymbols::object_initializer_name() &&
+        opcode != Bytecodes::_invokespecial) {
+      verify_error(ErrorContext::bad_code(bci),
+          "Return type must be non-void in <init> static factory method");
+      return;
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,6 +121,7 @@ public class TransValues extends TreeTranslator {
         names = Names.instance(context);
         Options options = Options.instance(context);
         staticInitValueFactory = options.isSet("staticInitValueFactory");
+        staticInitValueFactory |= !options.isSet("noStaticInitValueFactory");
     }
 
     @SuppressWarnings("unchecked")

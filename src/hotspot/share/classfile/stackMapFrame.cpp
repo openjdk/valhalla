@@ -80,7 +80,7 @@ VerificationType StackMapFrame::set_locals_from_arg(
   if (!m->is_static()) {
     init_local_num++;
     // add one extra argument for instance method
-    if (m->name() == vmSymbols::object_initializer_name() &&
+    if (m->is_object_constructor() &&
        thisKlass.name() != vmSymbols::java_lang_Object()) {
       _locals[0] = VerificationType::uninitialized_this_type();
       _flags |= FLAG_THIS_UNINIT;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3964,7 +3964,7 @@ void Compile::set_allowed_deopt_reasons() {
 
 bool Compile::is_compiling_clinit_for(ciKlass* k) {
   ciMethod* root = method(); // the root method of compilation
-  return root->is_static_initializer() && root->holder() == k; // access in the context of clinit
+  return root->is_class_initializer() && root->holder() == k; // access in the context of clinit
 }
 
 #ifndef PRODUCT

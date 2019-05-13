@@ -121,6 +121,7 @@ public abstract class ValueTypeTest {
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",
         "-XX:CompileCommand=compileonly,java.lang.Object::<init>",
+        "-XX:CompileCommand=inline,compiler.valhalla.valuetypes.MyValue*::<init>",
         "-XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.*::*"};
     private static final String[] printFlags = {
         "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintOptoAssembly"};

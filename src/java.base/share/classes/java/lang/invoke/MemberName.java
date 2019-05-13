@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -685,8 +685,14 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         MethodHandleNatives.init(this, ctor);
         assert(isResolved() && this.clazz != null);
         this.name = CONSTRUCTOR_NAME;
-        if (this.type == null)
-            this.type = new Object[] { void.class, ctor.getParameterTypes() };
+        if (this.type == null) {
+            Class<?> rtype = void.class;
+            if (isStatic()) {  // a static init factory, not a true constructor
+                rtype = getDeclaringClass();
+                // FIXME: If it's a hidden class, this sig won't work.
+            }
+            this.type = new Object[] { rtype, ctor.getParameterTypes() };
+        }
     }
     /** Create a name for the given reflected field.  The resulting name will be in a resolved state.
      */
@@ -827,7 +833,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
      *  The resulting name will in an unresolved state.
      */
     public MemberName(Class<?> defClass, String name, MethodType type, byte refKind) {
-        int initFlags = (name != null && name.equals(CONSTRUCTOR_NAME) ? IS_CONSTRUCTOR : IS_METHOD);
+        int initFlags = (name != null && name.equals(CONSTRUCTOR_NAME) && type.returnType() == void.class ? IS_CONSTRUCTOR : IS_METHOD);
         init(defClass, name, type, flagsMods(initFlags, 0, refKind));
         initResolved(false);
     }

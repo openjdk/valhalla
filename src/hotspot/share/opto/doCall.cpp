@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -559,7 +559,7 @@ void Parse::do_call() {
 
   // Additional receiver subtype checks for interface calls via invokespecial or invokeinterface.
   ciKlass* receiver_constraint = NULL;
-  if (iter().cur_bc_raw() == Bytecodes::_invokespecial && !orig_callee->is_object_initializer()) {
+  if (iter().cur_bc_raw() == Bytecodes::_invokespecial && !orig_callee->is_object_constructor()) {
     ciInstanceKlass* calling_klass = method()->holder();
     ciInstanceKlass* sender_klass =
         calling_klass->is_unsafe_anonymous() ? calling_klass->unsafe_anonymous_host() :

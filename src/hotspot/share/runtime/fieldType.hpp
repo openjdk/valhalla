@@ -68,7 +68,7 @@ class FieldType: public AllStatic {
      // Must start with 'L' and end with ';'
      return (sig_length >= 2 &&
              (signature->char_at(0) == 'L') &&
-             (signature->char_at(sig_length - 1) == ';'));
+             (signature->ends_with(';')));
   }
 
   static bool is_valuetype(Symbol* signature) {

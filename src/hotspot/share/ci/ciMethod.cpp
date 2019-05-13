@@ -952,10 +952,23 @@ bool ciMethod::is_compiled_lambda_form() const {
 }
 
 // ------------------------------------------------------------------
-// ciMethod::is_object_initializer
+// ciMethod::is_object_constructor
 //
-bool ciMethod::is_object_initializer() const {
-   return name() == ciSymbol::object_initializer_name();
+bool ciMethod::is_object_constructor() const {
+   return (name() == ciSymbol::object_initializer_name()
+           && signature()->return_type()->is_void());
+   // Note:  We can't test is_static, because that would
+   // require the method to be loaded.  Sometimes it isn't.
+}
+
+// ------------------------------------------------------------------
+// ciMethod::is_static_init_factory
+//
+bool ciMethod::is_static_init_factory() const {
+   return (name() == ciSymbol::object_initializer_name()
+           && !signature()->return_type()->is_void());
+   // Note:  We can't test is_static, because that would
+   // require the method to be loaded.  Sometimes it isn't.
 }
 
 // ------------------------------------------------------------------
@@ -1275,7 +1288,7 @@ bool ciMethod::has_jsrs       () const {         FETCH_FLAG_FROM_VM(has_jsrs);  
 bool ciMethod::is_getter      () const {         FETCH_FLAG_FROM_VM(is_getter); }
 bool ciMethod::is_setter      () const {         FETCH_FLAG_FROM_VM(is_setter); }
 bool ciMethod::is_accessor    () const {         FETCH_FLAG_FROM_VM(is_accessor); }
-bool ciMethod::is_initializer () const {         FETCH_FLAG_FROM_VM(is_initializer); }
+bool ciMethod::is_object_constructor_or_class_initializer() const { FETCH_FLAG_FROM_VM(is_object_constructor_or_class_initializer); }
 
 bool ciMethod::is_boxing_method() const {
   if (holder()->is_box_klass()) {

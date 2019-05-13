@@ -1059,67 +1059,93 @@ class monEnterVT {
   0xCAFEBABE;
   0; // minor version
   57; // version
-  [20] { // Constant Pool
+  [46] { // Constant Pool
     ; // first element is empty
-    Method #4 #17; // #1     at 0x0A
-    Field #3 #18; // #2     at 0x0F
-    class #12; // #3     at 0x14
-    class #19; // #4     at 0x17
-    Utf8 "int_v"; // #5     at 0x1A
-    Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
-    Utf8 "()V"; // #8     at 0x2F
-    Utf8 "Code"; // #9     at 0x35
-    Utf8 "LineNumberTable"; // #10     at 0x3C
-    Utf8 "makemonEnterVT"; // #11     at 0x4E
-    Utf8 "monEnterVT"; // #12     at 0x5F
-    Utf8 "ValueTypes"; // #13     at 0x6C
-    Utf8 "(I)LmonEnterVT;"; // #14     at 0x79
-    Utf8 "SourceFile"; // #15     at 0x8B
-    Utf8 "monEnterVT.java"; // #16     at 0x98
-    NameAndType #7 #8; // #17     at 0xAA
-    NameAndType #5 #6; // #18     at 0xAF
-    Utf8 "java/lang/Object"; // #19     at 0xB4
+    class #23; // #1     at 0x0A
+    Field #1 #24; // #2     at 0x0D
+    InvokeDynamic 0s #27; // #3     at 0x12
+    InvokeDynamic 0s #28; // #4     at 0x17
+    InvokeDynamic 0s #29; // #5     at 0x1C
+    class #30; // #6     at 0x21
+    Utf8 "int_v"; // #7     at 0x24
+    Utf8 "I"; // #8     at 0x2C
+    Utf8 "makemonEnterVT"; // #9     at 0x30
+    Utf8 "(I)QmonEnterVT;"; // #10     at 0x41
+    Utf8 "Code"; // #11     at 0x53
+    Utf8 "LineNumberTable"; // #12     at 0x5A
+    Utf8 "hashCode"; // #13     at 0x6C
+    Utf8 "()I"; // #14     at 0x77
+    Utf8 "equals"; // #15     at 0x7D
+    Utf8 "(Ljava/lang/Object;)Z"; // #16     at 0x86
+    Utf8 "toString"; // #17     at 0x9E
+    Utf8 "()Ljava/lang/String;"; // #18     at 0xA9
+    Utf8 "<init>"; // #19     at 0xC0
+    Utf8 "()QmonEnterVT;"; // #20     at 0xC9
+    Utf8 "SourceFile"; // #21     at 0xDA
+    Utf8 "monEnterVT.java"; // #22     at 0xE7
+    Utf8 "monEnterVT"; // #23     at 0xF9
+    NameAndType #7 #8; // #24     at 0x0106
+    Utf8 "BootstrapMethods"; // #25     at 0x010B
+    MethodHandle 6b #31; // #26     at 0x011E
+    NameAndType #13 #32; // #27     at 0x0122
+    NameAndType #15 #33; // #28     at 0x0127
+    NameAndType #17 #34; // #29     at 0x012C
+    Utf8 "java/lang/Object"; // #30     at 0x0131
+    Method #35 #36; // #31     at 0x0144
+    Utf8 "(QmonEnterVT;)I"; // #32     at 0x0149
+    Utf8 "(QmonEnterVT;Ljava/lang/Object;)Z"; // #33     at 0x015B
+    Utf8 "(QmonEnterVT;)Ljava/lang/String;"; // #34     at 0x017F
+    class #37; // #35     at 0x01A2
+    NameAndType #38 #42; // #36     at 0x01A5
+    Utf8 "java/lang/invoke/ValueBootstrapMethods"; // #37     at 0x01AA
+    Utf8 "makeBootstrapMethod"; // #38     at 0x01D3
+    class #44; // #39     at 0x01E9
+    Utf8 "Lookup"; // #40     at 0x01EC
+    Utf8 "InnerClasses"; // #41     at 0x01F5
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"; // #42     at 0x0204
+    class #45; // #43     at 0x027A
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #44     at 0x027D
+    Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02A5
   } // Constant Pool
 
   0x0130; // access [ ACC_SUPER ACC_FINAL ]
-  #3;// this_cpx
-  #4;// super_cpx
+  #1;// this_cpx
+  #6;// super_cpx
 
   [0] { // Interfaces
   } // Interfaces
 
   [1] { // fields
-    { // Member at 0xD1
+    { // Member at 0x02D0
       0x0010; // access
-      #5; // name_cpx
-      #6; // sig_cpx
+      #7; // name_cpx
+      #8; // sig_cpx
       [0] { // Attributes
       } // Attributes
     } // Member
   } // fields
 
-  [2] { // methods
-    { // Member at 0xDB
-      0x0000; // access
-      #7; // name_cpx
-      #8; // sig_cpx
+  [5] { // methods
+    { // Member at 0x02DA
+      0x0008; // access
+      #9; // name_cpx
+      #10; // sig_cpx
       [1] { // Attributes
-        Attr(#9, 42) { // Code at 0xE3
+        Attr(#11, 45) { // Code at 0x02E2
           2; // max_stack
-          1; // max_locals
-          Bytes[10]{
-            0x2AB700012A04B500;
-            0x02B1;
+          2; // max_locals
+          Bytes[13]{
+            0xCB0001C21A2B5FCC; // Changed bytecode at byte 3 from astore_1 to monitorenter.
+            0x00024C2BB0;
           };
           [0] { // Traps
           } // end Traps
           [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0xFF
+            Attr(#12, 14) { // LineNumberTable at 0x0301
               [3] { // LineNumberTable
-                0  3; //  at 0x010B
-                4  4; //  at 0x010F
-                9  5; //  at 0x0113
+                0  8; //  at 0x030D
+                4  9; //  at 0x0311
+                11  10; //  at 0x0315
               }
             } // end LineNumberTable
           } // Attributes
@@ -1127,26 +1153,98 @@ class monEnterVT {
       } // Attributes
     } // Member
     ;
-    { // Member at 0x0113
-      0x0008; // access
-      #11; // name_cpx
+    { // Member at 0x0315
+      0x0011; // access
+      #13; // name_cpx
       #14; // sig_cpx
       [1] { // Attributes
-        Attr(#9, 44) { // Code at 0x011B
-          2; // max_stack
-          2; // max_locals
-          Bytes[12]{
-            0xCB0003C22B1ACC00; // Changed bytecode at byte 3 from astore_1 to monitorenter.
-            0x024C2BB0;
+        Attr(#11, 31) { // Code at 0x031D
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00030000AC;
           };
           [0] { // Traps
           } // end Traps
           [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0x0139
+            Attr(#12, 6) { // LineNumberTable at 0x0336
+              [1] { // LineNumberTable
+                0  1; //  at 0x0342
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0342
+      0x0011; // access
+      #15; // name_cpx
+      #16; // sig_cpx
+      [1] { // Attributes
+        Attr(#11, 32) { // Code at 0x034A
+          2; // max_stack
+          2; // max_locals
+          Bytes[8]{
+            0x2A2BBA00040000AC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 6) { // LineNumberTable at 0x0364
+              [1] { // LineNumberTable
+                0  1; //  at 0x0370
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0370
+      0x0011; // access
+      #17; // name_cpx
+      #18; // sig_cpx
+      [1] { // Attributes
+        Attr(#11, 31) { // Code at 0x0378
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00050000B0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 6) { // LineNumberTable at 0x0391
+              [1] { // LineNumberTable
+                0  1; //  at 0x039D
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x039D
+      0x0008; // access
+      #19; // name_cpx
+      #20; // sig_cpx
+      [1] { // Attributes
+        Attr(#11, 45) { // Code at 0x03A5
+          2; // max_stack
+          1; // max_locals
+          Bytes[13]{
+            0xCB00014B042A5FCC;
+            0x00024B2AB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 14) { // LineNumberTable at 0x03C4
               [3] { // LineNumberTable
-                0  7; //  at 0x0145
-                4  8; //  at 0x0149
-                10  9; //  at 0x014D
+                0  4; //  at 0x03D0
+                4  5; //  at 0x03D4
+                11  6; //  at 0x03D8
               }
             } // end LineNumberTable
           } // Attributes
@@ -1155,14 +1253,26 @@ class monEnterVT {
     } // Member
   } // methods
 
-  [2] { // Attributes
-    Attr(#15, 2) { // SourceFile at 0x014F
-      #16;
+  [3] { // Attributes
+    Attr(#21, 2) { // SourceFile at 0x03DA
+      #22;
     } // end SourceFile
     ;
-    Attr(#13, 4) { // ValueTypes at 0x0157
-      0x00010003;
-    } // end ValueTypes
+    Attr(#41, 10) { // InnerClasses at 0x03E2
+      [1] { // InnerClasses
+        #39 #43 #40 25; //  at 0x03F2
+      }
+    } // end InnerClasses
+    ;
+    Attr(#25, 6) { // BootstrapMethods at 0x03F2
+      [1] { // bootstrap_methods
+        {  //  bootstrap_method
+          #26; // bootstrap_method_ref
+          [0] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+      }
+    } // end BootstrapMethods
   } // Attributes
 } // end class monEnterVT
 
@@ -1177,67 +1287,93 @@ class defValueObj {
   0xCAFEBABE;
   0; // minor version
   57; // version
-  [20] { // Constant Pool
+  [46] { // Constant Pool
     ; // first element is empty
-    Method #4 #17; // #1     at 0x0A
-    Field #3 #18; // #2     at 0x0F
-    class #12; // #3     at 0x14
-    class #19; // #4     at 0x17
-    Utf8 "int_v"; // #5     at 0x1A
-    Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
-    Utf8 "()V"; // #8     at 0x2F
-    Utf8 "Code"; // #9     at 0x35
-    Utf8 "LineNumberTable"; // #10     at 0x3C
-    Utf8 "makedefValueObj"; // #11     at 0x4E
-    Utf8 "defValueObj"; // #12     at 0x60
-    Utf8 "ValueTypes"; // #13     at 0x6E
-    Utf8 "(I)LdefValueObj;"; // #14     at 0x7B
-    Utf8 "SourceFile"; // #15     at 0x8E
-    Utf8 "defValueObj.java"; // #16     at 0x9B
-    NameAndType #7 #8; // #17     at 0xAE
-    NameAndType #5 #6; // #18     at 0xB3
-    Utf8 "java/lang/Object"; // #19     at 0xB8
+    class #23; // #1     at 0x0A
+    Field #1 #24; // #2     at 0x0D
+    InvokeDynamic 0s #27; // #3     at 0x12
+    InvokeDynamic 0s #28; // #4     at 0x17
+    InvokeDynamic 0s #29; // #5     at 0x1C
+    class #30; // #6     at 0x21
+    Utf8 "int_v"; // #7     at 0x24
+    Utf8 "I"; // #8     at 0x2C
+    Utf8 "makedefValueObj"; // #9     at 0x30
+    Utf8 "(I)QdefValueObj;"; // #10     at 0x41
+    Utf8 "Code"; // #11     at 0x53
+    Utf8 "LineNumberTable"; // #12     at 0x5A
+    Utf8 "hashCode"; // #13     at 0x6C
+    Utf8 "()I"; // #14     at 0x77
+    Utf8 "equals"; // #15     at 0x7D
+    Utf8 "(Ljava/lang/Object;)Z"; // #16     at 0x86
+    Utf8 "toString"; // #17     at 0x9E
+    Utf8 "()Ljava/lang/String;"; // #18     at 0xA9
+    Utf8 "<init>"; // #19     at 0xC0
+    Utf8 "()QdefValueObj;"; // #20     at 0xC9
+    Utf8 "SourceFile"; // #21     at 0xDA
+    Utf8 "defValueObj.java"; // #22     at 0xE7
+    Utf8 "defValueObj"; // #23     at 0xF9
+    NameAndType #7 #8; // #24     at 0x0106
+    Utf8 "BootstrapMethods"; // #25     at 0x010B
+    MethodHandle 6b #31; // #26     at 0x011E
+    NameAndType #13 #32; // #27     at 0x0122
+    NameAndType #15 #33; // #28     at 0x0127
+    NameAndType #17 #34; // #29     at 0x012C
+    Utf8 "java/lang/Object"; // #30     at 0x0131
+    Method #35 #36; // #31     at 0x0144
+    Utf8 "(QdefValueObj;)I"; // #32     at 0x0149
+    Utf8 "(QdefValueObj;Ljava/lang/Object;)Z"; // #33     at 0x015B
+    Utf8 "(QdefValueObj;)Ljava/lang/String;"; // #34     at 0x017F
+    class #37; // #35     at 0x01A2
+    NameAndType #38 #42; // #36     at 0x01A5
+    Utf8 "java/lang/invoke/ValueBootstrapMethods"; // #37     at 0x01AA
+    Utf8 "makeBootstrapMethod"; // #38     at 0x01D3
+    class #44; // #39     at 0x01E9
+    Utf8 "Lookup"; // #40     at 0x01EC
+    Utf8 "InnerClasses"; // #41     at 0x01F5
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"; // #42     at 0x0204
+    class #45; // #43     at 0x027A
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #44     at 0x027D
+    Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02A5
   } // Constant Pool
 
   0x0130; // access [ ACC_SUPER ACC_FINAL ]
-  #3;// this_cpx
-  #4;// super_cpx
+  #1;// this_cpx
+  #6;// super_cpx
 
   [0] { // Interfaces
   } // Interfaces
 
   [1] { // fields
-    { // Member at 0xD5
+    { // Member at 0x02D0
       0x0010; // access
-      #5; // name_cpx
-      #6; // sig_cpx
+      #7; // name_cpx
+      #8; // sig_cpx
       [0] { // Attributes
       } // Attributes
     } // Member
   } // fields
 
-  [2] { // methods
-    { // Member at 0xDF
-      0x0000; // access
-      #7; // name_cpx
-      #8; // sig_cpx
+  [5] { // methods
+    { // Member at 0x02DA
+      0x0008; // access
+      #9; // name_cpx
+      #10; // sig_cpx
       [1] { // Attributes
-        Attr(#9, 42) { // Code at 0xE7
+        Attr(#11, 45) { // Code at 0x02E2
           2; // max_stack
-          1; // max_locals
-          Bytes[10]{
-            0x2AB700012A04B500;
-            0x02B1;
+          2; // max_locals
+          Bytes[13]{
+            0xCB00044C1A2B5FCC; // Changed defaultvalue's cp index at byte 3 from 3 to 4.
+            0x00024C2BB0;
           };
           [0] { // Traps
           } // end Traps
           [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0x0103
+            Attr(#12, 14) { // LineNumberTable at 0x0301
               [3] { // LineNumberTable
-                0  3; //  at 0x010F
-                4  4; //  at 0x0113
-                9  5; //  at 0x0117
+                0  8; //  at 0x030D
+                4  9; //  at 0x0311
+                11  10; //  at 0x0315
               }
             } // end LineNumberTable
           } // Attributes
@@ -1245,26 +1381,98 @@ class defValueObj {
       } // Attributes
     } // Member
     ;
-    { // Member at 0x0117
-      0x0008; // access
-      #11; // name_cpx
+    { // Member at 0x0315
+      0x0011; // access
+      #13; // name_cpx
       #14; // sig_cpx
       [1] { // Attributes
-        Attr(#9, 44) { // Code at 0x011F
-          2; // max_stack
-          2; // max_locals
-          Bytes[12]{
-            0xCB00044C2B1ACC00; // Changed defaultvalue's cp index at byte 3 from 3 to 4.
-            0x024C2BB0;
+        Attr(#11, 31) { // Code at 0x031D
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00030000AC;
           };
           [0] { // Traps
           } // end Traps
           [1] { // Attributes
-            Attr(#10, 14) { // LineNumberTable at 0x013D
+            Attr(#12, 6) { // LineNumberTable at 0x0336
+              [1] { // LineNumberTable
+                0  1; //  at 0x0342
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0342
+      0x0011; // access
+      #15; // name_cpx
+      #16; // sig_cpx
+      [1] { // Attributes
+        Attr(#11, 32) { // Code at 0x034A
+          2; // max_stack
+          2; // max_locals
+          Bytes[8]{
+            0x2A2BBA00040000AC;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 6) { // LineNumberTable at 0x0364
+              [1] { // LineNumberTable
+                0  1; //  at 0x0370
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x0370
+      0x0011; // access
+      #17; // name_cpx
+      #18; // sig_cpx
+      [1] { // Attributes
+        Attr(#11, 31) { // Code at 0x0378
+          1; // max_stack
+          1; // max_locals
+          Bytes[7]{
+            0x2ABA00050000B0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 6) { // LineNumberTable at 0x0391
+              [1] { // LineNumberTable
+                0  1; //  at 0x039D
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    } // Member
+    ;
+    { // Member at 0x039D
+      0x0008; // access
+      #19; // name_cpx
+      #20; // sig_cpx
+      [1] { // Attributes
+        Attr(#11, 45) { // Code at 0x03A5
+          2; // max_stack
+          1; // max_locals
+          Bytes[13]{
+            0xCB00014B042A5FCC;
+            0x00024B2AB0;
+          };
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 14) { // LineNumberTable at 0x03C4
               [3] { // LineNumberTable
-                0  7; //  at 0x0149
-                4  8; //  at 0x014D
-                10  9; //  at 0x0151
+                0  4; //  at 0x03D0
+                4  5; //  at 0x03D4
+                11  6; //  at 0x03D8
               }
             } // end LineNumberTable
           } // Attributes
@@ -1273,14 +1481,26 @@ class defValueObj {
     } // Member
   } // methods
 
-  [2] { // Attributes
-    Attr(#15, 2) { // SourceFile at 0x0153
-      #16;
+  [3] { // Attributes
+    Attr(#21, 2) { // SourceFile at 0x03DA
+      #22;
     } // end SourceFile
     ;
-    Attr(#13, 4) { // ValueTypes at 0x015B
-      0x00010003;
-    } // end ValueTypes
+    Attr(#41, 10) { // InnerClasses at 0x03E2
+      [1] { // InnerClasses
+        #39 #43 #40 25; //  at 0x03F2
+      }
+    } // end InnerClasses
+    ;
+    Attr(#25, 6) { // BootstrapMethods at 0x03F2
+      [1] { // bootstrap_methods
+        {  //  bootstrap_method
+          #26; // bootstrap_method_ref
+          [0] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+      }
+    } // end BootstrapMethods
   } // Attributes
 } // end class defValueObj
 

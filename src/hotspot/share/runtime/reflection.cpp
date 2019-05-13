@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -848,8 +848,7 @@ static Handle new_type(Symbol* signature, Klass* k, TRAPS) {
 
 oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_access, TRAPS) {
   // Allow sun.reflect.ConstantPool to refer to <clinit> methods as java.lang.reflect.Methods.
-  assert(!method()->is_initializer() ||
-         (for_constant_pool_access && method()->is_static()),
+  assert(!method()->name()->starts_with('<') || for_constant_pool_access,
          "should call new_constructor instead");
   InstanceKlass* holder = method->method_holder();
   int slot = method->method_idnum();
@@ -899,7 +898,9 @@ oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_ac
 
 
 oop Reflection::new_constructor(const methodHandle& method, TRAPS) {
-  assert(method()->is_initializer(), "should call new_method instead");
+  assert(method()->is_object_constructor() ||
+         method()->is_static_init_factory(),
+         "should call new_method instead");
 
   InstanceKlass* holder = method->method_holder();
   int slot = method->method_idnum();
@@ -1267,6 +1268,16 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
 
   // Create new instance (the receiver)
   klass->check_valid_for_instantiation(false, CHECK_NULL);
+
+  // Special case for factory methods
+  if (!method->signature()->is_void_method_signature()) {
+    assert(klass->is_value(), "inline classes must use factory methods");
+    Handle no_receiver; // null instead of receiver
+    return invoke(klass, method, no_receiver, override, ptypes, T_OBJECT, args, false, CHECK_NULL);
+  }
+
+  // main branch of code creates a non-inline object:
+  assert(!klass->is_value(), "classic constructors are only for non-inline classes");
   Handle receiver = klass->allocate_instance_handle(CHECK_NULL);
 
   // Ignore result from call and return receiver

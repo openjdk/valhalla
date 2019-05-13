@@ -74,14 +74,28 @@ void Symbol::operator delete(void *p) {
 }
 
 // ------------------------------------------------------------------
-// Symbol::starts_with
+// Symbol::contains_byte_at
 //
-// Tests if the symbol starts with the specified prefix of the given
-// length.
-bool Symbol::starts_with(const char* prefix, int len) const {
-  if (len > utf8_length()) return false;
+// Tests if the symbol contains the given byte at the given position.
+bool Symbol::contains_byte_at(int position, char code_byte) const {
+  if (position < 0)  return false;  // can happen with ends_with
+  if (position >= utf8_length()) return false;
+  return code_byte == char_at(position);
+}
+
+// ------------------------------------------------------------------
+// Symbol::contains_utf8_at
+//
+// Tests if the symbol contains the given utf8 substring
+// at the given byte position.
+bool Symbol::contains_utf8_at(int position, const char* substring, int len) const {
+  assert(len > 0 && substring != NULL && (int) strlen(substring) >= len,
+         "substring must be valid");
+  if (len == 1)  return contains_byte_at(position, substring[0]);
+  if (position < 0)  return false;  // can happen with ends_with
+  if (position + len > utf8_length()) return false;
   while (len-- > 0) {
-    if (prefix[len] != char_at(len))
+    if (substring[len] != char_at(position + len))
       return false;
   }
   assert(len == -1, "we should be at the beginning");
@@ -89,7 +103,7 @@ bool Symbol::starts_with(const char* prefix, int len) const {
 }
 
 bool Symbol::is_Q_signature() const {
-  return utf8_length() > 2 && char_at(0) == 'Q' && char_at(utf8_length() - 1) == ';';
+  return utf8_length() > 2 && char_at(0) == 'Q' && ends_with(';');
 }
 
 bool Symbol::is_Q_array_signature() const {
@@ -110,7 +124,7 @@ bool Symbol::is_Q_array_signature() const {
 }
 
 Symbol* Symbol::fundamental_name(TRAPS) {
-  if ((char_at(0) == 'Q' || char_at(0) == 'L') && char_at(utf8_length() - 1) == ';') {
+  if ((char_at(0) == 'Q' || char_at(0) == 'L') && ends_with(';')) {
     return SymbolTable::lookup(this, 1, utf8_length() - 1, CHECK_NULL);
   } else {
     // reference count is incremented to be consistent with the behavior with
@@ -124,7 +138,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
   if (this == s) return true;
   if (utf8_length() < 3) return false;
   int offset1, offset2, len;
-  if (char_at(utf8_length() - 1) == ';') {
+  if (ends_with(';')) {
     if (char_at(0) != 'Q' && char_at(0) != 'L') return false;
     offset1 = 1;
     len = utf8_length() - 2;
@@ -132,7 +146,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
     offset1 = 0;
     len = utf8_length();
   }
-  if (s->char_at(s->utf8_length() - 1) == ';') {
+  if (ends_with(';')) {
     if (s->char_at(0) != 'Q' && s->char_at(0) != 'L') return false;
     offset2 = 1;
   } else {

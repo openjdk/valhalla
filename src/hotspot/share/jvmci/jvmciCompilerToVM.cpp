@@ -437,7 +437,7 @@ C2V_VMENTRY(jobject, lookupType, (JNIEnv*, jobject, jstring jname, jclass access
     resolved_klass = SystemDictionary::resolve_or_null(class_name, class_loader, protection_domain, CHECK_0);
   } else {
     if ((class_name->char_at(0) == 'L' || class_name->char_at(0) == 'Q' ) &&
-      class_name->char_at(class_name->utf8_length()-1) == ';') {
+        class_name->ends_with(';')) {
       // This is a name from a signature.  Strip off the trimmings.
       // Call recursive to keep scope of strippedsym.
       TempNewSymbol strippedsym = SymbolTable::new_symbol(class_name->as_utf8()+1,
@@ -1513,11 +1513,10 @@ C2V_END
 C2V_VMENTRY(jobject, asReflectionExecutable, (JNIEnv* env, jobject, jobject jvmci_method))
   methodHandle m = CompilerToVM::asMethod(jvmci_method);
   oop executable;
-  if (m->is_initializer()) {
-    if (m->is_static_initializer()) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
+  if (m->is_class_initializer()) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
         "Cannot create java.lang.reflect.Method for class initializer");
-    }
+  } else if (m->is_object_constructor()) {
     executable = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     executable = Reflection::new_method(m, false, CHECK_NULL);

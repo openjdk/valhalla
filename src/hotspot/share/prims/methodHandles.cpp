@@ -297,7 +297,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
     vmindex = Method::nonvirtual_vtable_index;
     if (m->is_static()) {
       flags |= IS_METHOD      | (JVM_REF_invokeStatic  << REFERENCE_KIND_SHIFT);
-    } else if (m->is_initializer()) {
+    } else if (m->is_object_constructor()) {
       flags |= IS_CONSTRUCTOR | (JVM_REF_invokeSpecial << REFERENCE_KIND_SHIFT);
     } else {
       // "special" reflects that this is a direct call, not that it
@@ -839,10 +839,13 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
       LinkInfo link_info(defc, name, type, caller, access_check);
       {
         assert(!HAS_PENDING_EXCEPTION, "");
-        if (name == vmSymbols::object_initializer_name()) {
+        if (name != vmSymbols::object_initializer_name()) {
+          break;                // will throw after end of switch
+        } else if (type->is_void_method_signature()) {
           LinkResolver::resolve_special_call(result, Handle(), link_info, THREAD);
         } else {
-          break;                // will throw after end of switch
+          // LinkageError unless it returns something reasonable
+          LinkResolver::resolve_static_call(result, link_info, false, THREAD);
         }
         if (HAS_PENDING_EXCEPTION) {
           if (speculative_resolve) {
@@ -1019,7 +1022,7 @@ int MethodHandles::find_MemberNames(Klass* k,
     Symbol* init_name   = vmSymbols::object_initializer_name();
     Symbol* clinit_name = vmSymbols::class_initializer_name();
     if (name == clinit_name)  clinit_name = NULL; // hack for exposing <clinit>
-    bool negate_name_test = false;
+    bool ctor_ok = true, sfac_ok = true;
     // fix name so that it captures the intention of IS_CONSTRUCTOR
     if (!(match_flags & IS_METHOD)) {
       // constructors only
@@ -1028,14 +1031,10 @@ int MethodHandles::find_MemberNames(Klass* k,
       } else if (name != init_name) {
         return 0;               // no constructors of this method name
       }
+      sfac_ok = false;
     } else if (!(match_flags & IS_CONSTRUCTOR)) {
       // methods only
-      if (name == NULL) {
-        name = init_name;
-        negate_name_test = true; // if we see the name, we *omit* the entry
-      } else if (name == init_name) {
-        return 0;               // no methods of this constructor name
-      }
+      ctor_ok = false;  // but sfac_ok is true, so we might find <init>
     } else {
       // caller will accept either sort; no need to adjust name
     }
@@ -1045,10 +1044,14 @@ int MethodHandles::find_MemberNames(Klass* k,
       Symbol* m_name = m->name();
       if (m_name == clinit_name)
         continue;
-      if (name != NULL && ((m_name != name) ^ negate_name_test))
+      if (name != NULL && m_name != name)
           continue;
       if (sig != NULL && m->signature() != sig)
         continue;
+      if (m_name == init_name) {  // might be either ctor or sfac
+        if (m->is_object_constructor()  && !ctor_ok)  continue;
+        if (m->is_static_init_factory() && !sfac_ok)  continue;
+      }
       // passed the filters
       if (rskip > 0) {
         --rskip;

@@ -400,8 +400,8 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
 
   // Now we need to check the SystemDictionary
   Symbol* sym = name->get_symbol();
-  if ((sym->char_at(0) == 'L' || sym->char_at(0) == 'Q') &&
-      sym->char_at(sym->utf8_length()-1) == ';') {
+  if ((sym->starts_with('L') || sym->starts_with('Q')) &&
+      sym->ends_with(';')) {
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
     TempNewSymbol strippedsym = SymbolTable::new_symbol(sym->as_utf8()+1,

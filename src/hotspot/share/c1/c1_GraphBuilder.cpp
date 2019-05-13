@@ -1493,7 +1493,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
   }
 
   bool need_mem_bar = false;
-  if (method()->name() == ciSymbol::object_initializer_name() &&
+  if (method()->is_object_constructor() &&
       (scope()->wrote_final() || (AlwaysSafeConstructors && scope()->wrote_fields())
                               || (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile())
      )){
@@ -1969,7 +1969,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
                 Bytecodes::name(code));
 
   // invoke-special-super
-  if (bc_raw == Bytecodes::_invokespecial && !target->is_object_initializer()) {
+  if (bc_raw == Bytecodes::_invokespecial && !target->is_object_constructor()) {
     ciInstanceKlass* sender_klass =
           calling_klass->is_unsafe_anonymous() ? calling_klass->unsafe_anonymous_host() :
                                                  calling_klass;

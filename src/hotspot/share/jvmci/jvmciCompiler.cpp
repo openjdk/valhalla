@@ -74,7 +74,10 @@ void JVMCICompiler::bootstrap(TRAPS) {
   int len = objectMethods->length();
   for (int i = 0; i < len; i++) {
     methodHandle mh = objectMethods->at(i);
-    if (!mh->is_native() && !mh->is_static() && !mh->is_initializer()) {
+    if (!mh->is_native() &&
+        !mh->is_static() &&
+        !mh->is_object_constructor() &&
+        !mh->is_class_initializer()) {
       ResourceMark rm;
       int hot_count = 10; // TODO: what's the appropriate value?
       CompileBroker::compile_method(mh, InvocationEntryBci, CompLevel_full_optimization, mh, hot_count, CompileTask::Reason_Bootstrap, THREAD);

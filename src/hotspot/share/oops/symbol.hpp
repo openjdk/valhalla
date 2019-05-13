@@ -198,10 +198,36 @@ class Symbol : public MetaspaceObj {
   bool equals(const char* str) const { return equals(str, (int) strlen(str)); }
 
   // Tests if the symbol starts with the given prefix.
-  bool starts_with(const char* prefix, int len) const;
+  bool starts_with(const char* prefix, int len) const {
+    return contains_utf8_at(0, prefix, len);
+  }
   bool starts_with(const char* prefix) const {
     return starts_with(prefix, (int) strlen(prefix));
   }
+  bool starts_with(char prefix_char) const {
+    return contains_byte_at(0, prefix_char);
+  }
+  // Tests if the symbol ends with the given suffix.
+  bool ends_with(const char* suffix, int len) const {
+    return contains_utf8_at(utf8_length() - len, suffix, len);
+  }
+  bool ends_with(const char* suffix) const {
+    return ends_with(suffix, (int) strlen(suffix));
+  }
+  bool ends_with(char suffix_char) const {
+    return contains_byte_at(utf8_length()-1, suffix_char);
+  }
+  // Tests if the symbol contains the given utf8 substring
+  // or byte at the given byte position.
+  bool contains_utf8_at(int position, const char* substring, int len) const;
+  bool contains_byte_at(int position, char code_byte) const;
+
+  // True if this is a descriptor for a method with void return.
+  // (Assumes it is a valid descriptor.)
+  bool is_void_method_signature() const {
+    return starts_with('(') && ends_with('V');
+  }
+
   bool is_Q_signature() const;
   bool is_Q_array_signature() const;
   Symbol* fundamental_name(TRAPS);
