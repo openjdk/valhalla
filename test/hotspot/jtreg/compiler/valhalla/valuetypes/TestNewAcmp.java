@@ -27,91 +27,26 @@
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile TestNewAcmp.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 0
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+AlwaysIncrementalInline
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 0
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 1
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+AlwaysIncrementalInline
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 1
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 2
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+AlwaysIncrementalInline
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 2
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 0
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
- *                   -XX:+AlwaysIncrementalInline
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 0
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 1
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
- *                   -XX:+AlwaysIncrementalInline
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 1
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
- *                   -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 2
- * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                   -XX:+WhiteBoxAPI -Xbatch -XX:+EnableValhalla -XX:TypeProfileLevel=222
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
- *                   -XX:+AlwaysIncrementalInline
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*
- *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*
- *                   compiler.valhalla.valuetypes.TestNewAcmp 2
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
+ *             compiler.valhalla.valuetypes.TestNewAcmp
  */
 
 package compiler.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import sun.hotspot.WhiteBox;
+
 
 interface MyInterface {
 
@@ -1594,12 +1529,81 @@ public class TestNewAcmp {
 
     public static void main(String[] args) throws Exception {
         if (Boolean.getBoolean("test.c1")) {
-            System.out.println("new acmp is not implemented for C1");
+            System.out.println("new acmp is not implemented for C1"); // TMP
             return;
         }
 
-        int nullMode = Integer.valueOf(args[0]);
-        TestNewAcmp t = new TestNewAcmp();
-        t.run(nullMode);
+        if (args.length == 0) {
+            enumerateVMOptions();
+        } else {
+            int nullMode = Integer.valueOf(args[0]);
+            TestNewAcmp t = new TestNewAcmp();
+            t.run(nullMode);
+        }
+    }
+
+    private static String[] addOptions(String prefix[], String... extra) {
+        ArrayList<String> list = new ArrayList<String>();
+        if (prefix != null) {
+            for (String s : prefix) {
+                list.add(s);
+            }
+        }
+        if (extra != null) {
+            for (String s : extra) {
+                System.out.println("    " + s);
+                list.add(s);
+            }
+        }
+
+        return list.toArray(new String[list.size()]);
+    }
+
+    private static void enumerateVMOptions() throws Exception {
+        String[] baseOptions = {
+            "-Xbootclasspath/a:.",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+WhiteBoxAPI",
+            "-Xbatch",
+            "-XX:+EnableValhalla",
+            "-XX:TypeProfileLevel=222",
+            "-XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*",
+            "-XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*"};
+
+        String SCENARIOS = System.getProperty("Scenarios", "");
+        List<String> scenarios = null;
+        if (!SCENARIOS.isEmpty()) {
+           scenarios = Arrays.asList(SCENARIOS.split(","));
+        }
+
+        int scenario = -1;
+        for (int nullMode = 0; nullMode <= 2; nullMode++) {              // null mode
+            for (int onVal = 0; onVal < 2; onVal++) {                    // 0 = default, 1 = -XX:ACmpOnValues=3
+                for (int incrInline = 0; incrInline < 2; incrInline++) { // 0 = default, 1 = -XX:+AlwaysIncrementalInline
+                    scenario++;
+                    if (scenarios != null && !scenarios.contains(Integer.toString(scenario))) {
+                        System.out.println("Scenario #" + scenario + " is skipped due to -Dscenarios=" + SCENARIOS);
+                        continue;
+                    } else {
+                        System.out.println("Scenario #" + scenario + " -------------------");
+                    }
+
+                    String[] cmds = baseOptions;
+                    if (incrInline != 0) {
+                        cmds = addOptions(cmds, "-XX:+AlwaysIncrementalInline");
+                    }
+                    if (onVal != 0) {
+                        cmds = addOptions(cmds, "-XX:+UnlockExperimentalVMOptions", "-XX:ACmpOnValues=3");
+                    }
+                    cmds = addOptions(cmds, "compiler.valhalla.valuetypes.TestNewAcmp");
+                    cmds = addOptions(cmds, Integer.toString(nullMode));
+
+                    OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
+                    String output = oa.getOutput();
+                    oa.shouldHaveExitValue(0);
+                    System.out.println(output);
+                }
+            }
+        }
     }
 }
