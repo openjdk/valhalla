@@ -624,7 +624,7 @@ Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* 
       return NULL;
     }
   }
-  return vt;
+  return transform_later(vt);
 }
 
 // Check the possibility of scalar replacement.
