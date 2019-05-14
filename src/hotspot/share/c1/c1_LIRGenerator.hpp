@@ -270,6 +270,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
   bool needs_flattened_array_store_check(StoreIndexed* x);
   void check_flattened_array(LIRItem& array, CodeStub* slow_path);
+  void substitutability_check(IfOp* x, LIRItem& left, LIRItem& right, LIRItem& t_val, LIRItem& f_val);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);
@@ -327,7 +328,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   LIRItemList* invoke_visit_arguments(Invoke* x);
   void invoke_load_arguments(Invoke* x, LIRItemList* args, const LIR_OprList* arg_list);
-
+  void invoke_load_one_argument(LIRItem* param, LIR_Opr loc);
   void trace_block_entry(BlockBegin* block);
 
   // volatile field operations are never patchable because a klass

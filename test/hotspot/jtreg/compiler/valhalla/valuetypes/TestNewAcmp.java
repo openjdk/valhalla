@@ -1388,9 +1388,20 @@ public class TestNewAcmp {
         return a != a;
     }
 
+    static int get_full_opt_level() {
+        int n = (int)TieredStopAtLevel;
+        if (n >= 4) {
+            n = 4;
+        }
+        return n;
+    }
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
-    protected static final int COMP_LEVEL_FULL_OPTIMIZATION = 4;
+    protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
+    protected static final int COMP_LEVEL_FULL_OPTIMIZATION = get_full_opt_level();
     protected static final long ACmpOnValues = (Long)WHITE_BOX.getVMFlag("ACmpOnValues");
+
+    // FIXME: temp -- special handling for C1 testing.
+    protected static final boolean EnableValhallaC1 = (Boolean)WHITE_BOX.getVMFlag("EnableValhallaC1");
 
     public void runTest(Method m, Object[] args, int warmup, int nullMode, boolean[][] equalities) throws Exception {
         Class<?>[] parameterTypes = m.getParameterTypes();
@@ -1528,11 +1539,6 @@ public class TestNewAcmp {
     }
 
     public static void main(String[] args) throws Exception {
-        if (Boolean.getBoolean("test.c1")) {
-            System.out.println("new acmp is not implemented for C1"); // TMP
-            return;
-        }
-
         if (args.length == 0) {
             enumerateVMOptions();
         } else {
@@ -1581,13 +1587,7 @@ public class TestNewAcmp {
             for (int onVal = 0; onVal < 2; onVal++) {                    // 0 = default, 1 = -XX:ACmpOnValues=3
                 for (int incrInline = 0; incrInline < 2; incrInline++) { // 0 = default, 1 = -XX:+AlwaysIncrementalInline
                     scenario++;
-                    if (scenarios != null && !scenarios.contains(Integer.toString(scenario))) {
-                        System.out.println("Scenario #" + scenario + " is skipped due to -Dscenarios=" + SCENARIOS);
-                        continue;
-                    } else {
-                        System.out.println("Scenario #" + scenario + " -------------------");
-                    }
-
+                    System.out.println("Scenario #" + scenario + " -------------------");
                     String[] cmds = baseOptions;
                     if (incrInline != 0) {
                         cmds = addOptions(cmds, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+AlwaysIncrementalInline");
@@ -1595,8 +1595,22 @@ public class TestNewAcmp {
                     if (onVal != 0) {
                         cmds = addOptions(cmds, "-XX:+UnlockExperimentalVMOptions", "-XX:ACmpOnValues=3");
                     }
+
+                    if (EnableValhallaC1) {
+                        // FIXME: C1 runs into problems when these methods are compiled
+                        cmds = addOptions(cmds, "-XX:CompileCommand=exclude,java.lang.ClassValue::*");
+                    }
+
                     cmds = addOptions(cmds, "compiler.valhalla.valuetypes.TestNewAcmp");
                     cmds = addOptions(cmds, Integer.toString(nullMode));
+
+                    if (scenarios != null && !scenarios.contains(Integer.toString(scenario))) {
+                        System.out.println("Scenario #" + scenario + " is skipped due to -Dscenarios=" + SCENARIOS);
+                        continue;
+                    } else if (EnableValhallaC1 && onVal == 0) {
+                        System.out.println("Scenario #" + scenario + " is skipped because C1 requires -XX:ACmpOnValues=3");
+                        continue;
+                    }
 
                     OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
                     String output = oa.getOutput();

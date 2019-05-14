@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1847,7 +1847,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   }
 
   if (ACmpOnValues == 3) {
-    // Substituability test
+    // Substitutability test
     if (a->is_ValueType()) {
       inc_sp(2);
       a = a->as_ValueType()->allocate(this, true)->get_oop();

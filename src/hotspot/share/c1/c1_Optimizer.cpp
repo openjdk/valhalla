@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -89,7 +89,8 @@ class CE_Eliminator: public BlockClosure {
   virtual void block_do(BlockBegin* block);
 
  private:
-  Value make_ifop(Value x, Instruction::Condition cond, Value y, Value tval, Value fval);
+  Value make_ifop(Value x, Instruction::Condition cond, Value y, Value tval, Value fval,
+                  ValueStack* state_before, bool substitutability_check);
 };
 
 void CE_Eliminator::block_do(BlockBegin* block) {
@@ -199,7 +200,8 @@ void CE_Eliminator::block_do(BlockBegin* block) {
     cur_end = cur_end->set_next(f_value);
   }
 
-  Value result = make_ifop(if_->x(), if_->cond(), if_->y(), t_value, f_value);
+  Value result = make_ifop(if_->x(), if_->cond(), if_->y(), t_value, f_value,
+                           if_->state_before(), if_->substitutability_check());
   assert(result != NULL, "make_ifop must return a non-null instruction");
   if (!result->is_linked() && result->can_be_linked()) {
     NOT_PRODUCT(result->set_printable_bci(if_->printable_bci()));
@@ -251,9 +253,10 @@ void CE_Eliminator::block_do(BlockBegin* block) {
   _hir->verify();
 }
 
-Value CE_Eliminator::make_ifop(Value x, Instruction::Condition cond, Value y, Value tval, Value fval) {
+Value CE_Eliminator::make_ifop(Value x, Instruction::Condition cond, Value y, Value tval, Value fval,
+                               ValueStack* state_before, bool substitutability_check) {
   if (!OptimizeIfOps) {
-    return new IfOp(x, cond, y, tval, fval);
+    return new IfOp(x, cond, y, tval, fval, state_before, substitutability_check);
   }
 
   tval = tval->subst();
@@ -288,7 +291,7 @@ Value CE_Eliminator::make_ifop(Value x, Instruction::Condition cond, Value y, Va
           if (new_tval == new_fval) {
             return new_tval;
           } else {
-            return new IfOp(x_ifop->x(), x_ifop_cond, x_ifop->y(), new_tval, new_fval);
+            return new IfOp(x_ifop->x(), x_ifop_cond, x_ifop->y(), new_tval, new_fval, state_before, substitutability_check);
           }
         }
       }
@@ -304,7 +307,7 @@ Value CE_Eliminator::make_ifop(Value x, Instruction::Condition cond, Value y, Va
       }
     }
   }
-  return new IfOp(x, cond, y, tval, fval);
+  return new IfOp(x, cond, y, tval, fval, state_before, substitutability_check);
 }
 
 void Optimizer::eliminate_conditional_expressions() {
@@ -436,7 +439,7 @@ class BlockMerger: public BlockClosure {
                 BlockBegin* fblock = fval->compare(cond, con, tsux, fsux);
                 if (tblock != fblock && !if_->is_safepoint()) {
                   If* newif = new If(ifop->x(), ifop->cond(), false, ifop->y(),
-                                     tblock, fblock, if_->state_before(), if_->is_safepoint());
+                                     tblock, fblock, if_->state_before(), if_->is_safepoint(), if_->substitutability_check());
                   newif->set_state(if_->state()->copy());
 
                   assert(prev->next() == if_, "must be guaranteed by above search");

@@ -464,6 +464,7 @@ class Instruction: public CompilationResourceObj {
   ValueStack* exception_state() const            { return _exception_state; }
   virtual bool needs_exception_state() const     { return true; }
   XHandlers* exception_handlers() const          { return _exception_handlers; }
+  ciKlass* as_loaded_klass_or_null() const;
 
   // manipulation
   void pin(PinReason reason)                     { _pin_state |= reason; }
@@ -1145,16 +1146,19 @@ LEAF(IfOp, Op2)
  private:
   Value _tval;
   Value _fval;
+  bool _substitutability_check;
 
  public:
   // creation
-  IfOp(Value x, Condition cond, Value y, Value tval, Value fval)
+  IfOp(Value x, Condition cond, Value y, Value tval, Value fval, ValueStack* state_before, bool substitutability_check)
   : Op2(tval->type()->meet(fval->type()), (Bytecodes::Code)cond, x, y)
   , _tval(tval)
   , _fval(fval)
+  , _substitutability_check(substitutability_check)
   {
     ASSERT_VALUES
     assert(tval->type()->tag() == fval->type()->tag(), "types must match");
+    set_state_before(state_before);
   }
 
   // accessors
@@ -1163,7 +1167,7 @@ LEAF(IfOp, Op2)
   Condition cond() const                         { return (Condition)Op2::op(); }
   Value tval() const                             { return _tval; }
   Value fval() const                             { return _fval; }
-
+  bool substitutability_check() const             { return _substitutability_check; }
   // generic
   virtual void input_values_do(ValueVisitor* f)   { Op2::input_values_do(f); f->visit(&_tval); f->visit(&_fval); }
 };
@@ -2054,10 +2058,11 @@ LEAF(If, BlockEnd)
   int         _profiled_bci; // Canonicalizer may alter bci of If node
   bool        _swapped;      // Is the order reversed with respect to the original If in the
                              // bytecode stream?
+  bool        _substitutability_check;
  public:
   // creation
   // unordered_is_true is valid for float/double compares only
-  If(Value x, Condition cond, bool unordered_is_true, Value y, BlockBegin* tsux, BlockBegin* fsux, ValueStack* state_before, bool is_safepoint)
+  If(Value x, Condition cond, bool unordered_is_true, Value y, BlockBegin* tsux, BlockBegin* fsux, ValueStack* state_before, bool is_safepoint, bool substitutability_check=false)
     : BlockEnd(illegalType, state_before, is_safepoint)
   , _x(x)
   , _cond(cond)
@@ -2065,6 +2070,7 @@ LEAF(If, BlockEnd)
   , _profiled_method(NULL)
   , _profiled_bci(0)
   , _swapped(false)
+  , _substitutability_check(substitutability_check)
   {
     ASSERT_VALUES
     set_flag(UnorderedIsTrueFlag, unordered_is_true);
@@ -2107,6 +2113,7 @@ LEAF(If, BlockEnd)
   void set_profiled_method(ciMethod* method)      { _profiled_method = method; }
   void set_profiled_bci(int bci)                  { _profiled_bci = bci;       }
   void set_swapped(bool value)                    { _swapped = value;         }
+  bool substitutability_check() const              { return _substitutability_check; }
   // generic
   virtual void input_values_do(ValueVisitor* f)   { BlockEnd::input_values_do(f); f->visit(&_x); f->visit(&_y); }
 };

@@ -1241,9 +1241,39 @@ void GraphBuilder::if_node(Value x, If::Condition cond, Value y, ValueStack* sta
   BlockBegin* tsux = block_at(stream()->get_dest());
   BlockBegin* fsux = block_at(stream()->next_bci());
   bool is_bb = tsux->bci() < stream()->cur_bci() || fsux->bci() < stream()->cur_bci();
+
+  bool subst_check = false;
+  if (EnableValhalla && ACmpOnValues == 3 &&
+      (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne) &&
+      method() != ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature())) {
+    // If current method is ValueBootstrapMethods::isSubstitutable(),
+    // compile the acmp as a regular pointer comparison otherwise we
+    // could call ValueBootstrapMethods::isSubstitutable() back
+    ValueType* left_vt = x->type();
+    ValueType* right_vt = y->type();
+    if (left_vt->is_object()) {
+      assert(right_vt->is_object(), "must be");
+      ciKlass* left_klass = x->as_loaded_klass_or_null();
+      ciKlass* right_klass = y->as_loaded_klass_or_null();
+
+      if (left_klass == NULL || right_klass == NULL) {
+        // The klass is still unloaded, or came from a Phi node. Go slow case;
+        subst_check = true;
+      } else if (left_klass->is_java_lang_Object() || left_klass->is_interface() ||
+                 right_klass->is_java_lang_Object() || right_klass->is_interface()) {
+        // Either operand may be a value object, but we're not sure.  Go slow case;
+        subst_check = true;
+      } else if (left_klass->is_valuetype() || right_klass->is_valuetype()) {
+        subst_check = true;
+      } else {
+        // No need to do substitutability check
+      }
+    }
+  }
+
   // In case of loop invariant code motion or predicate insertion
   // before the body of a loop the state is needed
-  Instruction *i = append(new If(x, cond, false, y, tsux, fsux, (is_bb || compilation()->is_optimistic()) ? state_before : NULL, is_bb));
+  Instruction *i = append(new If(x, cond, false, y, tsux, fsux, (is_bb || compilation()->is_optimistic() || subst_check) ? state_before : NULL, is_bb, subst_check));
 
   assert(i->as_Goto() == NULL ||
          (i->as_Goto()->sux_at(0) == tsux  && i->as_Goto()->is_safepoint() == tsux->bci() < stream()->cur_bci()) ||

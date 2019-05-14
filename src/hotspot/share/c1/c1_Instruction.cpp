@@ -114,6 +114,16 @@ ciType* Instruction::exact_type() const {
   return NULL;
 }
 
+ciKlass* Instruction::as_loaded_klass_or_null() const {
+  ciType* type = declared_type();
+  if (type != NULL && type->is_klass()) {
+    ciKlass* klass = type->as_klass();
+    if (klass->is_loaded()) {
+      return klass;
+    }
+  }
+  return NULL;
+}
 
 // FIXME -- this is used by ValueStack::merge_types only. We should remove this function
 // and use a better way for handling phi nodes.
