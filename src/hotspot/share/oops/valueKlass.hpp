@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,14 +97,6 @@ class ValueKlass: public InstanceKlass {
   address adr_unpack_handler() const {
     assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
     return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _unpack_handler));
-  }
-
-  address pack_handler() const {
-    return *(address*)adr_pack_handler();
-  }
-
-  address unpack_handler() const {
-    return *(address*)adr_unpack_handler();
   }
 
   address adr_default_value_offset() const {
@@ -225,6 +217,14 @@ class ValueKlass: public InstanceKlass {
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
   static ValueKlass* returned_value_klass(const RegisterMap& reg_map);
+
+  address pack_handler() const {
+    return *(address*)adr_pack_handler();
+  }
+
+  address unpack_handler() const {
+    return *(address*)adr_unpack_handler();
+  }
 
   // pack and unpack handlers. Need to be loadable from generated code
   // so at a fixed offset from the base of the klass pointer.

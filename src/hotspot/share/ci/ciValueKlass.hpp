@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,10 @@ private:
   // Fields declared in the bytecode (without flattened value type fields)
   GrowableArray<ciField*>* _declared_nonstatic_fields;
 
+  ValueKlass* to_ValueKlass() const {
+    return ValueKlass::cast(get_Klass());
+  }
+
 protected:
   ciValueKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(NULL) {
     assert(is_final(), "ValueKlass must be final");
@@ -83,6 +87,9 @@ public:
   ciInstance* box_mirror_instance() const;
   bool contains_oops() const;
   Array<SigEntry>* extended_sig() const;
+  address pack_handler() const;
+  address unpack_handler() const;
+  ValueKlass* get_ValueKlass() const;
 };
 
 #endif // SHARE_VM_CI_CIVALUEKLASS_HPP

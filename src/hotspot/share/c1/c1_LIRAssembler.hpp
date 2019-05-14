@@ -237,6 +237,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void call(        LIR_OpJavaCall* op, relocInfo::relocType rtype);
   void ic_call(     LIR_OpJavaCall* op);
   void vtable_call( LIR_OpJavaCall* op);
+  void store_value_type_fields_to_buf(ciValueKlass* vk);
 
   void osr_entry();
 

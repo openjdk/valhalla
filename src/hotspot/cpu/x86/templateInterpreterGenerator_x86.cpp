@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -207,53 +207,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
 
   if (state == atos && ValueTypeReturnedAsFields) {
-#ifndef _LP64
-    __ super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
-#else
-    // A value type might be returned. If fields are in registers we
-    // need to allocate a value type instance and initialize it with
-    // the value of the fields.
-    Label skip, slow_case;
-    // We only need a new buffered value if a new one is not returned
-    __ testptr(rax, 1);
-    __ jcc(Assembler::zero, skip);
-
-    // Try to allocate a new buffered value (from the heap)
-    if (UseTLAB) {
-      __ mov(rbx, rax);
-      __ andptr(rbx, -2);
-
-      __ movl(r14, Address(rbx, Klass::layout_helper_offset()));
-
-      __ movptr(r13, Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())));
-      __ lea(r14, Address(r13, r14, Address::times_1));
-      __ cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
-      __ jcc(Assembler::above, slow_case);
-      __ movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
-      __ movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markOopDesc::always_locked_prototype());
-
-      __ xorl(rax, rax); // use zero reg to clear memory (shorter code)
-      __ store_klass_gap(r13, rax);  // zero klass gap for compressed oops
-      __ mov(rax, rbx);
-      __ store_klass(r13, rbx);  // klass
-
-      // We have our new buffered value, initialize its fields with a
-      // value class specific handler
-      __ movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
-      __ mov(rax, r13);
-      __ call(rbx);
-      __ jmp(skip);
-    }
-
-    __ bind(slow_case);
-    // We failed to allocate a new value, fall back to a runtime
-    // call. Some oop field may be live in some registers but we can't
-    // tell. That runtime call will take care of preserving them
-    // across a GC if there's one.
-    __ super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
-    __ bind(skip);
-#endif
+    __ store_value_type_fields_to_buf(NULL);
   }
 
   __ restore_bcp();

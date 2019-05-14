@@ -53,7 +53,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test60*"
+                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test78*"
                                    //, "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
@@ -349,6 +349,23 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     static RefPoint refPointField1 = new RefPoint(12, 34);
     static RefPoint refPointField2 = new RefPoint(56789, 0x12345678);
+
+    // This inline class has too many fields to fit in registers on x64 for
+    // ValueTypeReturnedAsFields.
+    static inline class TooBigToReturnAsFields {
+        int a0 = 0;
+        int a1 = 1;
+        int a2 = 2;
+        int a3 = 3;
+        int a4 = 4;
+        int a5 = 5;
+        int a6 = 6;
+        int a7 = 7;
+        int a8 = 8;
+        int a9 = 9;
+    }
+
+    static TooBigToReturnAsFields tooBig = new TooBigToReturnAsFields();
 
     //**********************************************************************
     // PART 1 - C1 calls interpreted code
@@ -1455,5 +1472,179 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             int n = rp1.final_func(rp2);
             Asserts.assertEQ(result, n);
         }
+    }
+
+    //-------------------------------------------------------------------------------
+    // Tests for how C1 handles ValueTypeReturnedAsFields in both calls and returns
+    //-------------------------------------------------------------------------------
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (Point)
+    @Test(compLevel = C2)
+    public int test78(Point p) {
+        Point np = test78_helper(p);
+        return np.x + np.y;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static Point test78_helper(Point p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test78_verifier(boolean warmup) {
+        int result = test78(pointField1);
+        int n = pointField1.x + pointField1.y;
+        Asserts.assertEQ(result, n);
+    }
+
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint)
+    @Test(compLevel = C2)
+    public int test79(RefPoint p) {
+        RefPoint np = test79_helper(p);
+        return np.x.n + np.y.n;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static RefPoint test79_helper(RefPoint p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test79_verifier(boolean warmup) {
+        int result = test79(refPointField1);
+        int n = refPointField1.x.n + refPointField1.y.n;
+        Asserts.assertEQ(result, n);
+    }
+
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (RefPoint)
+    @Test(compLevel = C1)
+    public int test80(RefPoint p) {
+        RefPoint np = test80_helper(p);
+        return np.x.n + np.y.n;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C2)
+    private static RefPoint test80_helper(RefPoint p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test80_verifier(boolean warmup) {
+        int result = test80(refPointField1);
+        int n = refPointField1.x.n + refPointField1.y.n;
+        Asserts.assertEQ(result, n);
+    }
+
+    // Interpreter->C1 invokestatic with ValueTypeReturnedAsFields (Point)
+    @Test(compLevel = C1)
+    public Point test81(Point p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test81_verifier(boolean warmup) {
+        Point p = test81(pointField1);
+        Asserts.assertEQ(p.x, pointField1.x);
+        Asserts.assertEQ(p.y, pointField1.y);
+        p = test81(pointField2);
+        Asserts.assertEQ(p.x, pointField2.x);
+        Asserts.assertEQ(p.y, pointField2.y);
+    }
+
+    // C1->Interpreter invokestatic with ValueTypeReturnedAsFields (RefPoint)
+    @Test(compLevel = C1)
+    public int test82(RefPoint p) {
+        RefPoint np = test82_helper(p);
+        return np.x.n + np.y.n;
+    }
+
+    @DontInline @DontCompile
+    private static RefPoint test82_helper(RefPoint p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test82_verifier(boolean warmup) {
+        int result = test82(refPointField1);
+        int n = refPointField1.x.n + refPointField1.y.n;
+        Asserts.assertEQ(result, n);
+    }
+
+    //-------------------------------------------------------------------------------
+    // Tests for ValueTypeReturnedAsFields vs the inline class TooBigToReturnAsFields
+    //-------------------------------------------------------------------------------
+
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
+    @Test(compLevel = C2)
+    public int test83(TooBigToReturnAsFields p) {
+        TooBigToReturnAsFields np = test83_helper(p);
+        return p.a0 + p.a5;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static TooBigToReturnAsFields test83_helper(TooBigToReturnAsFields p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test83_verifier(boolean warmup) {
+        int result = test83(tooBig);
+        int n = tooBig.a0 + tooBig.a5;
+        Asserts.assertEQ(result, n);
+    }
+
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
+    @Test(compLevel = C1)
+    public int test84(TooBigToReturnAsFields p) {
+        TooBigToReturnAsFields np = test84_helper(p);
+        return p.a0 + p.a5;
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C2)
+    private static TooBigToReturnAsFields test84_helper(TooBigToReturnAsFields p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test84_verifier(boolean warmup) {
+        int result = test84(tooBig);
+        int n = tooBig.a0 + tooBig.a5;
+        Asserts.assertEQ(result, n);
+    }
+
+    // Interpreter->C1 invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
+    @Test(compLevel = C1)
+    public TooBigToReturnAsFields test85(TooBigToReturnAsFields p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test85_verifier(boolean warmup) {
+        TooBigToReturnAsFields p = test85(tooBig);
+        Asserts.assertEQ(p.a0, tooBig.a0);
+        Asserts.assertEQ(p.a2, tooBig.a2);
+    }
+
+    // C1->Interpreter invokestatic with ValueTypeReturnedAsFields (TooBigToReturnAsFields)
+    @Test(compLevel = C1)
+    public int test86(TooBigToReturnAsFields p) {
+        TooBigToReturnAsFields np = test86_helper(p);
+        return p.a0 + p.a5;
+    }
+
+    @DontInline @DontCompile
+    private static TooBigToReturnAsFields test86_helper(TooBigToReturnAsFields p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test86_verifier(boolean warmup) {
+        int result = test86(tooBig);
+        int n = tooBig.a0 + tooBig.a5;
+        Asserts.assertEQ(result, n);
     }
 }

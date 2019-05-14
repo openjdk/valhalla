@@ -32,6 +32,7 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
@@ -517,6 +518,24 @@ void LIR_Assembler::return_op(LIR_Opr result) {
     assert(result->fpu() == 0, "result must already be on TOS");
   }
 
+  if (ValueTypeReturnedAsFields) {
+    ciType* return_type = compilation()->method()->return_type();
+    if (return_type->is_valuetype()) {
+      ciValueKlass* vk = return_type->as_value_klass();
+      if (vk->can_be_returned_as_fields()) {
+#ifndef _LP64
+        Unimplemented();
+#else
+        address unpack_handler = vk->unpack_handler();
+        assert(unpack_handler != NULL, "must be");
+        __ call(RuntimeAddress(unpack_handler));
+        // At this point, rax points to the value object (for interpreter or C1 caller).
+        // The fields of the object are copied into registers (for C2 caller).
+#endif
+      }
+    }
+  }
+
   // Pop the stack before the safepoint code
   __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
 
@@ -555,6 +574,10 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   __ ret(0);
 }
 
+
+void LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
+  __ store_value_type_fields_to_buf(vk);
+}
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
   guarantee(info != NULL, "Shouldn't be NULL");

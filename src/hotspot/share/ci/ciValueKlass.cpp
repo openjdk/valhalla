@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ int ciValueKlass::compute_nonstatic_fields() {
 
 // Offset of the first field in the value type
 int ciValueKlass::first_field_offset() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->first_field_offset();)
+  GUARDED_VM_ENTRY(return to_ValueKlass()->first_field_offset();)
 }
 
 // Returns the index of the field with the given offset. If the field at 'offset'
@@ -73,12 +73,12 @@ int ciValueKlass::field_index_by_offset(int offset) {
 
 // Are arrays containing this value type flattened?
 bool ciValueKlass::flatten_array() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->flatten_array();)
+  GUARDED_VM_ENTRY(return to_ValueKlass()->flatten_array();)
 }
 
 // Can this value type be returned as multiple values?
 bool ciValueKlass::can_be_returned_as_fields() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->can_be_returned_as_fields();)
+  GUARDED_VM_ENTRY(return to_ValueKlass()->can_be_returned_as_fields();)
 }
 
 // TODO
@@ -99,34 +99,46 @@ int ciValueKlass::value_arg_slots() {
 
 // Offset of the default oop in the mirror
 int ciValueKlass::default_value_offset() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->default_value_offset();)
+  GUARDED_VM_ENTRY(return to_ValueKlass()->default_value_offset();)
 }
 
 ciInstance* ciValueKlass::default_value_instance() const {
   GUARDED_VM_ENTRY(
-    oop default_value = ValueKlass::cast(get_Klass())->default_value();
+    oop default_value = to_ValueKlass()->default_value();
     return CURRENT_ENV->get_instance(default_value);
   )
 }
 
 ciInstance* ciValueKlass::value_mirror_instance() const {
   GUARDED_VM_ENTRY(
-    oop value_mirror = ValueKlass::cast(get_Klass())->value_mirror();
+    oop value_mirror = to_ValueKlass()->value_mirror();
     return CURRENT_ENV->get_instance(value_mirror);
   )
 }
 
 ciInstance* ciValueKlass::box_mirror_instance() const {
   GUARDED_VM_ENTRY(
-    oop box_mirror = ValueKlass::cast(get_Klass())->box_mirror();
+    oop box_mirror = to_ValueKlass()->box_mirror();
     return CURRENT_ENV->get_instance(box_mirror);
   )
 }
 
 bool ciValueKlass::contains_oops() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->contains_oops();)
+  GUARDED_VM_ENTRY(return get_ValueKlass()->contains_oops();)
 }
 
 Array<SigEntry>* ciValueKlass::extended_sig() const {
-  GUARDED_VM_ENTRY(return ValueKlass::cast(get_Klass())->extended_sig();)
+  GUARDED_VM_ENTRY(return get_ValueKlass()->extended_sig();)
+}
+
+address ciValueKlass::pack_handler() const {
+  GUARDED_VM_ENTRY(return get_ValueKlass()->pack_handler();)
+}
+
+address ciValueKlass::unpack_handler() const {
+  GUARDED_VM_ENTRY(return get_ValueKlass()->unpack_handler();)
+}
+
+ValueKlass* ciValueKlass::get_ValueKlass() const {
+  GUARDED_VM_ENTRY(return to_ValueKlass();)
 }

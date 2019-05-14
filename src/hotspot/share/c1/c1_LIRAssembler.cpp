@@ -31,6 +31,7 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -479,6 +480,16 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
   // Record if this method has MethodHandle invokes.
   if (op->is_method_handle_invoke()) {
     compilation()->set_has_method_handle_invokes(true);
+  }
+
+  if (ValueTypeReturnedAsFields) {
+    ciType* return_type = op->method()->return_type();
+    if (return_type->is_valuetype()) {
+      ciValueKlass* vk = return_type->as_value_klass();
+      if (vk->can_be_returned_as_fields()) {
+        store_value_type_fields_to_buf(vk);
+      }
+    }
   }
 
 #if defined(X86) && defined(TIERED)

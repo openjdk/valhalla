@@ -30,6 +30,8 @@
 #include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
 
+class ciValueKlass;
+
 // MacroAssembler extends Assembler by frequently used macros.
 //
 // Instructions for which a 'better' code sequence exists depending
@@ -1622,6 +1624,8 @@ public:
     reg_writable,
     reg_written
   };
+
+  void store_value_type_fields_to_buf(ciValueKlass* vk);
 
   // Unpack all value type arguments passed as oops
   void unpack_value_args(Compile* C, bool receiver_only);

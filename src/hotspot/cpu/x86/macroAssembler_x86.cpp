@@ -5671,6 +5671,76 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   BIND(L_end);
 }
 
+void MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
+#ifndef _LP64
+  super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+#else
+  // A value type might be returned. If fields are in registers we
+  // need to allocate a value type instance and initialize it with
+  // the value of the fields.
+  Label skip, slow_case;
+  // We only need a new buffered value if a new one is not returned
+  testptr(rax, 1);
+  jcc(Assembler::zero, skip);
+
+  // Try to allocate a new buffered value (from the heap)
+  if (UseTLAB) {
+    // FIXME -- for smaller code, the inline allocation (and the slow case) should be moved inside the pack handler.
+    if (vk != NULL) {
+      // Called from C1, where the return type is statically known.
+      movptr(rbx, (intptr_t)vk->get_ValueKlass());
+      jint lh = vk->layout_helper();
+      assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+      movl(r14, lh);
+    } else {
+      // Call from interpreter. RAX contains ((the ValueKlass* of the return type) | 0x01)
+      mov(rbx, rax);
+      andptr(rbx, -2);
+      movl(r14, Address(rbx, Klass::layout_helper_offset()));
+    }
+
+    movptr(r13, Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())));
+    lea(r14, Address(r13, r14, Address::times_1));
+    cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
+    jcc(Assembler::above, slow_case);
+    movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
+    movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markOopDesc::always_locked_prototype());
+
+    xorl(rax, rax); // use zero reg to clear memory (shorter code)
+    store_klass_gap(r13, rax);  // zero klass gap for compressed oops
+
+    if (vk == NULL) {
+      // store_klass corrupts rbx, so save it in rax for later use (interpreter case only).
+      mov(rax, rbx);
+    }
+    store_klass(r13, rbx);  // klass
+
+    // We have our new buffered value, initialize its fields with a
+    // value class specific handler
+    if (vk != NULL) {
+      // FIXME -- do the packing in-line to avoid the runtime call
+      mov(rax, r13);
+      call(RuntimeAddress(vk->pack_handler()));
+    } else {
+      movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
+      movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
+      mov(rax, r13);
+      call(rbx);
+    }
+    jmp(skip);
+  }
+
+  bind(slow_case);
+  // We failed to allocate a new value, fall back to a runtime
+  // call. Some oop field may be live in some registers but we can't
+  // tell. That runtime call will take care of preserving them
+  // across a GC if there's one.
+  super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+  bind(skip);
+#endif
+}
+
+
 // Move a value between registers/stack slots and update the reg_state
 bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset) {
   if (reg_state[to->value()] == reg_written) {
