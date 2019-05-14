@@ -697,7 +697,10 @@ class GraphKit : public Phase {
     if (recv_type->is_valuetypeptr() && recv_type->value_klass()->is_scalarizable()) {
       assert(!recv_type->maybe_null(), "should never be null");
       ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, n, recv_type->value_klass());
-      if (replace_value) {
+      set_argument(0, vt);
+      if (replace_value && !Compile::current()->inlining_incrementally()) {
+        // Only replace in map if we are not incrementally inlining because we
+        // share a map with the caller which might expect the value type as oop.
         replace_in_map(n, vt);
       }
       n = vt;

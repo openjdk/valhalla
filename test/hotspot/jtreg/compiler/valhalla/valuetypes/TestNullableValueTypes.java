@@ -779,4 +779,27 @@ public class TestNullableValueTypes extends ValueTypeTest {
         result = test29(testValue1, testValue1);
         Asserts.assertEquals(result, testValue1.hash()*99);
     }
+
+    // Test null check of value type receiver with incremental inlining
+    public long test30_callee(MyValue1? vt) {
+        long result = 0;
+        try {
+            result = vt.hashInterpreted();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        return result;
+    }
+
+    @Test
+    public long test30() {
+        return test30_callee(nullField);
+    }
+
+    @DontCompile
+    public void test30_verifier(boolean warmup) {
+        long result = test30();
+        Asserts.assertEquals(result, 0L);
+    }
 }
