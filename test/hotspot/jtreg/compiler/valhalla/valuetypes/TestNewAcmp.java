@@ -1590,7 +1590,7 @@ public class TestNewAcmp {
 
                     String[] cmds = baseOptions;
                     if (incrInline != 0) {
-                        cmds = addOptions(cmds, "-XX:+AlwaysIncrementalInline");
+                        cmds = addOptions(cmds, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+AlwaysIncrementalInline");
                     }
                     if (onVal != 0) {
                         cmds = addOptions(cmds, "-XX:+UnlockExperimentalVMOptions", "-XX:ACmpOnValues=3");
