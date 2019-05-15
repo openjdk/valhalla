@@ -802,4 +802,24 @@ public class TestNullableValueTypes extends ValueTypeTest {
         long result = test30();
         Asserts.assertEquals(result, 0L);
     }
+
+    // Test casting null to unloaded value type
+    final inline class Test31Value {
+        private final int i = 0;
+    }
+
+    @Test
+    public void test31(Object o) {
+        try {
+            o = (Test31Value)o;
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @DontCompile
+    public void test31_verifier(boolean warmup) {
+        test31(null);
+    }
 }

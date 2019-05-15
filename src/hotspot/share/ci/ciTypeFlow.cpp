@@ -626,16 +626,24 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
+  bool never_null = str->is_klass_never_null();
   if (!will_link) {
-    // VM's interpreter will not load 'klass' if object is NULL.
-    // Type flow after this block may still be needed in two situations:
-    // 1) C2 uses do_null_assert() and continues compilation for later blocks
-    // 2) C2 does an OSR compile in a later block (see bug 4778368).
-    pop_object();
-    do_null_assert(klass);
+    if (never_null) {
+      trap(str, klass,
+           Deoptimization::make_trap_request
+           (Deoptimization::Reason_unloaded,
+            Deoptimization::Action_reinterpret));
+    } else {
+      // VM's interpreter will not load 'klass' if object is NULL.
+      // Type flow after this block may still be needed in two situations:
+      // 1) C2 uses do_null_assert() and continues compilation for later blocks
+      // 2) C2 does an OSR compile in a later block (see bug 4778368).
+      pop_object();
+      do_null_assert(klass);
+    }
   } else {
     ciType* type = pop_value();
-    if (klass->is_valuetype() && (str->is_klass_never_null() || type->is_never_null())) {
+    if (klass->is_valuetype() && (never_null || type->is_never_null())) {
       // Casting to a Q-Type contains a NULL check
       push(outer()->mark_as_never_null(klass));
     } else {
