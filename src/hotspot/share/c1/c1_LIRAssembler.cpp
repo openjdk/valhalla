@@ -482,8 +482,9 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     compilation()->set_has_method_handle_invokes(true);
   }
 
-  if (ValueTypeReturnedAsFields) {
-    ciType* return_type = op->method()->return_type();
+  ciMethod* method = op->method();
+  if (ValueTypeReturnedAsFields && method->signature()->returns_never_null()) {
+    ciType* return_type = method->return_type();
     if (return_type->is_valuetype()) {
       ciValueKlass* vk = return_type->as_value_klass();
       if (vk->can_be_returned_as_fields()) {

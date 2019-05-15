@@ -53,12 +53,12 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
         // Default: both C1 and C2 are enabled, tierd compilation enabled
         case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test78*"
+                                   //  , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test78*"
                                    //, "-XX:CompileCommand=print,*::func_c1"
                                      };
         // Only C1. Tierd compilation disabled.
         case 1: return new String[] {"-XX:+EnableValhallaC1", "-XX:TieredStopAtLevel=1"
-                                     , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test76*"
+                                   //  , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test76*"
                                      };
         }
         return null;
@@ -1647,4 +1647,63 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         int n = tooBig.a0 + tooBig.a5;
         Asserts.assertEQ(result, n);
     }
+
+    //-------------------------------------------------------------------------------
+    // Tests for how C1 handles ValueTypeReturnedAsFields in both calls and returns (RefPoint?)
+    //-------------------------------------------------------------------------------
+
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint?)
+    @Test(compLevel = C2)
+    public RefPoint? test87(RefPoint? p) {
+        return test87_helper(p);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static RefPoint? test87_helper(RefPoint? p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test87_verifier(boolean warmup) {
+        Object result = test87(null);
+        Asserts.assertEQ(result, null);
+    }
+
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint? with constant null)
+    @Test(compLevel = C2)
+    public RefPoint? test88() {
+        return test88_helper();
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static RefPoint? test88_helper() {
+        return null;
+    }
+
+    @DontCompile
+    public void test88_verifier(boolean warmup) {
+        Object result = test88();
+        Asserts.assertEQ(result, null);
+    }
+
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (RefPoint?)
+    @Test(compLevel = C1)
+    public RefPoint? test89(RefPoint? p) {
+        return test89_helper(p);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C2)
+    private static RefPoint? test89_helper(RefPoint? p) {
+        return p;
+    }
+
+    @DontCompile
+    public void test89_verifier(boolean warmup) {
+        Object result = test89(null);
+        Asserts.assertEQ(result, null);
+    }
+
 }
