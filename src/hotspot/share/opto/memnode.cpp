@@ -2258,7 +2258,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
     if (tary_klass != NULL   // can be NULL when at BOTTOM or TOP
         && tary->offset() == oopDesc::klass_offset_in_bytes()) {
       ciArrayKlass* ak = tary_klass->as_array_klass();
-      // Do not fold klass loads from [V? because the runtime type might be [V due to [V <: [V?
+      // Do not fold klass loads from [V?. The runtime type might be [V due to [V <: [V?
+      // and the klass for [V is not equal to the klass for [V?.
       bool can_be_null_free = !tary->is_known_instance() && ak->is_obj_array_klass() && !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype();
 
       if (tary->klass_is_exact() && !can_be_null_free) {

@@ -4304,8 +4304,8 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
   ciType* superelem = superk;
   if (superelem->is_array_klass()) {
     ciArrayKlass* ak = superelem->as_array_klass();
-    // Do not perform the subtype check on the element klasses for [V? arrays. The runtime type might
-    // be [V due to [V <: [V? and the klass for [V? and [V is the same but the component mirror is not.
+    // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
+    // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
     if (ak->is_obj_array_klass() && !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
       return SSC_full_test;
     }
