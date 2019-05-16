@@ -2403,4 +2403,37 @@ public class TestNullableArrays extends ValueTypeTest {
         test91(vab);
         test91(null);
     }
+
+    // Test if arraycopy intrinsic correctly checks for flattened source array
+    @Test()
+    public static void test92(MyValue1?[] src, MyValue1?[] dst) {
+        System.arraycopy(src, 0, dst, 0, 2);
+    }
+
+    @DontCompile
+    public void test92_verifier(boolean warmup) {
+        MyValue1[]  va = new MyValue1[2];
+        MyValue1?[] vab = new MyValue1?[2];
+        va[0] = testValue1;
+        vab[0] = testValue1;
+        test92(va, vab);
+        Asserts.assertEquals(va[0], vab[0]);
+        Asserts.assertEquals(va[1], vab[1]);
+    }
+
+    @Test()
+    public static void test93(Object src, MyValue1?[] dst) {
+        System.arraycopy(src, 0, dst, 0, 2);
+    }
+
+    @DontCompile
+    public void test93_verifier(boolean warmup) {
+        MyValue1[]  va = new MyValue1[2];
+        MyValue1?[] vab = new MyValue1?[2];
+        va[0] = testValue1;
+        vab[0] = testValue1;
+        test93(va, vab);
+        Asserts.assertEquals(va[0], vab[0]);
+        Asserts.assertEquals(va[1], vab[1]);
+    }
 }
