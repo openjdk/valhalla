@@ -3544,6 +3544,9 @@ bool LibraryCallKit::inline_Class_cast() {
   ciType* tm = mirror_con->java_mirror_type(&is_val_type);
   if (!obj->is_ValueType() && is_val_type) {
     obj = null_check(obj);
+    if (stopped()) {
+      return true;
+    }
   }
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
