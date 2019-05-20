@@ -572,6 +572,8 @@ public class TestCallingConvention extends ValueTypeTest {
         String result = test28();
     }
 
+// TODO enable once JDK-8224110 and JDK-8224211 are fixed
+/* 
     // Test calling a method returning a value type as fields via reflection
     MyValue3 test29_vt = MyValue3.create();
 
@@ -586,8 +588,6 @@ public class TestCallingConvention extends ValueTypeTest {
         test29_vt.verify(vt);
     }
 
-// TODO enable once JDK-8224110 is fixed
-/*
     @Test
     public MyValue3 test30(MyValue3[] array) {
         MyValue3 result = MyValue3.create();
@@ -601,7 +601,6 @@ public class TestCallingConvention extends ValueTypeTest {
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, array);
         array[0].verify(vt);
     }
-*/
 
     MyValue3 test31_vt;
 
@@ -617,4 +616,5 @@ public class TestCallingConvention extends ValueTypeTest {
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test31").invoke(this);
         test31_vt.verify(vt);
     }
+*/
 }
