@@ -44,6 +44,8 @@ public class TestCallingConvention extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
+        case 0: return new String[] {"-Dsun.reflect.inflationThreshold=10000"}; // Don't generate bytecodes but call through runtime for reflective calls
+        case 1: return new String[] {"-Dsun.reflect.inflationThreshold=10000"};
         case 3: return new String[] {"-XX:ValueArrayElemMaxFlatSize=0"};
         }
         return null;
@@ -568,5 +570,51 @@ public class TestCallingConvention extends ValueTypeTest {
     @DontCompile
     public void test28_verifier(boolean warmup) {
         String result = test28();
+    }
+
+    // Test calling a method returning a value type as fields via reflection
+    MyValue3 test29_vt = MyValue3.create();
+
+    @Test
+    public MyValue3 test29() {
+        return test29_vt;
+    }
+
+    @DontCompile
+    public void test29_verifier(boolean warmup) throws Exception {
+        MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test29").invoke(this);
+        test29_vt.verify(vt);
+    }
+
+// TODO enable once JDK-8224110 is fixed
+/*
+    @Test
+    public MyValue3 test30(MyValue3[] array) {
+        MyValue3 result = MyValue3.create();
+        array[0] = result;
+        return result;
+    }
+
+    @DontCompile
+    public void test30_verifier(boolean warmup) throws Exception {
+        MyValue3[] array = new MyValue3[1];
+        MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, array);
+        array[0].verify(vt);
+    }
+*/
+
+    MyValue3 test31_vt;
+
+    @Test
+    public MyValue3 test31() {
+        MyValue3 result = MyValue3.create();
+        test31_vt = result;
+        return result;
+    }
+
+    @DontCompile
+    public void test31_verifier(boolean warmup) throws Exception {
+        MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test31").invoke(this);
+        test31_vt.verify(vt);
     }
 }

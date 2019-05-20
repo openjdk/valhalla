@@ -336,22 +336,22 @@ class StubGenerator: public StubCodeGenerator {
 
     // store result depending on type (everything that is not
     // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
-    __ movptr(c_rarg0, result);
-    Label is_long, is_float, is_double, exit;
-    __ movl(c_rarg1, result_type);
-    __ cmpl(c_rarg1, T_OBJECT);
+    __ movptr(r13, result);
+    Label is_long, is_float, is_double, is_value, exit;
+    __ movl(rbx, result_type);
+    __ cmpl(rbx, T_OBJECT);
     __ jcc(Assembler::equal, is_long);
-    __ cmpl(c_rarg1, T_VALUETYPE);
+    __ cmpl(rbx, T_VALUETYPE);
+    __ jcc(Assembler::equal, is_value);
+    __ cmpl(rbx, T_LONG);
     __ jcc(Assembler::equal, is_long);
-    __ cmpl(c_rarg1, T_LONG);
-    __ jcc(Assembler::equal, is_long);
-    __ cmpl(c_rarg1, T_FLOAT);
+    __ cmpl(rbx, T_FLOAT);
     __ jcc(Assembler::equal, is_float);
-    __ cmpl(c_rarg1, T_DOUBLE);
+    __ cmpl(rbx, T_DOUBLE);
     __ jcc(Assembler::equal, is_double);
 
     // handle T_INT case
-    __ movl(Address(c_rarg0, 0), rax);
+    __ movl(Address(r13, 0), rax);
 
     __ BIND(exit);
 
@@ -413,16 +413,22 @@ class StubGenerator: public StubCodeGenerator {
     __ ret(0);
 
     // handle return types different from T_INT
+    __ BIND(is_value);
+    if (ValueTypeReturnedAsFields) {
+      // Handle value type returned as fields
+      __ store_value_type_fields_to_buf(NULL);
+      __ movptr(r13, result);
+    }
     __ BIND(is_long);
-    __ movq(Address(c_rarg0, 0), rax);
+    __ movq(Address(r13, 0), rax);
     __ jmp(exit);
 
     __ BIND(is_float);
-    __ movflt(Address(c_rarg0, 0), xmm0);
+    __ movflt(Address(r13, 0), xmm0);
     __ jmp(exit);
 
     __ BIND(is_double);
-    __ movdbl(Address(c_rarg0, 0), xmm0);
+    __ movdbl(Address(r13, 0), xmm0);
     __ jmp(exit);
 
     return start;
@@ -5898,8 +5904,11 @@ address generate_avx_ghash_processBlocks() {
 
     StubRoutines::_forward_exception_entry = generate_forward_exception();
 
-    StubRoutines::_call_stub_entry =
-      generate_call_stub(StubRoutines::_call_stub_return_address);
+    // Generate these first because they are called from other stubs
+    StubRoutines::_load_value_type_fields_in_regs = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
+    StubRoutines::_store_value_type_fields_to_buf = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
+
+    StubRoutines::_call_stub_entry = generate_call_stub(StubRoutines::_call_stub_return_address);
 
     // is referenced by megamorphic call
     StubRoutines::_catch_exception_entry = generate_catch_exception();
@@ -5984,9 +5993,6 @@ address generate_avx_ghash_processBlocks() {
         StubRoutines::_dtan = generate_libmTan();
       }
     }
-
-    StubRoutines::_load_value_type_fields_in_regs = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
-    StubRoutines::_store_value_type_fields_to_buf = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
   }
 
   void generate_all() {

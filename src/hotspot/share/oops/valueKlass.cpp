@@ -549,40 +549,6 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
   return NULL;
 }
 
-void ValueKlass::iterate_over_inside_oops(OopClosure* f, oop value) {
-  assert(!Universe::heap()->is_in_reserved(value), "This method is used on buffered values");
-
-  oop* addr_mirror = (oop*)(value)->mark_addr_raw();
-  f->do_oop_no_buffering(addr_mirror);
-
-  if (!contains_oops()) return;
-
-  OopMapBlock* map = start_of_nonstatic_oop_maps();
-  OopMapBlock* const end_map = map + nonstatic_oop_map_count();
-
-  if (!UseCompressedOops) {
-    for (; map < end_map; map++) {
-      oop* p = (oop*) (((char*)(oopDesc*)value) + map->offset());
-      oop* const end = p + map->count();
-      for (; p < end; ++p) {
-        assert(oopDesc::is_oop_or_null(*p), "Sanity check");
-        f->do_oop(p);
-      }
-    }
-  } else {
-    for (; map < end_map; map++) {
-      narrowOop* p = (narrowOop*) (((char*)(oopDesc*)value) + map->offset());
-      narrowOop* const end = p + map->count();
-      for (; p < end; ++p) {
-        oop o = CompressedOops::decode(*p);
-        assert(Universe::heap()->is_in_reserved_or_null(o), "Sanity check");
-        assert(oopDesc::is_oop_or_null(o), "Sanity check");
-        f->do_oop(p);
-      }
-    }
-  }
-}
-
 void ValueKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
   guarantee(prototype_header()->is_always_locked(), "Prototype header is not always locked");

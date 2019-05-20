@@ -194,9 +194,6 @@ class ValueKlass: public InstanceKlass {
   // store the value of this klass contained with src into dst, raw data ptr
   void value_store(void* src, void* dst, size_t raw_byte_size, bool dst_is_heap, bool dst_uninitialized);
 
-  // GC support...
-  void iterate_over_inside_oops(OopClosure* f, oop value);
-
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
