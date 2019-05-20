@@ -69,7 +69,6 @@
 #include "oops/typeArrayKlass.hpp"
 #include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
-#include "prims/resolvedMethodTable.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/biasedLocking.hpp"
@@ -1882,8 +1881,6 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer) {
   }
 
   GCTraceTime(Debug, gc, phases) t("Trigger cleanups", gc_timer);
-  // Trigger cleaning the ResolvedMethodTable even if no unloading occurred.
-  ResolvedMethodTable::trigger_cleanup();
 
   if (unloading_occurred) {
     SymbolTable::trigger_cleanup();

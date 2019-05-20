@@ -555,7 +555,7 @@ public class WhiteBox {
   public native void disableElfSectionCache();
 
   // Resolved Method Table
-  public native int resolvedMethodRemovedCount();
+  public native long resolvedMethodItemsCount();
 
   // Protection Domain Table
   public native int protectionDomainRemovedCount();
