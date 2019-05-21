@@ -427,7 +427,13 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
         // hit a sentinel, return appropriate 0 value
-        values.at_put(j, _igvn.zerocon(ft));
+        Node* default_value = alloc->in(AllocateNode::DefaultValue);
+        if (default_value != NULL) {
+          values.at_put(j, default_value);
+        } else {
+          assert(alloc->in(AllocateNode::RawDefaultValue) == NULL, "default value may not be null");
+          values.at_put(j, _igvn.zerocon(ft));
+        }
         continue;
       }
       if (val->is_Initialize()) {
@@ -444,7 +450,13 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
         n = bs->step_over_gc_barrier(n);
         values.at_put(j, n);
       } else if(val->is_Proj() && val->in(0) == alloc) {
-        values.at_put(j, _igvn.zerocon(ft));
+        Node* default_value = alloc->in(AllocateNode::DefaultValue);
+        if (default_value != NULL) {
+          values.at_put(j, default_value);
+        } else {
+          assert(alloc->in(AllocateNode::RawDefaultValue) == NULL, "default value may not be null");
+          values.at_put(j, _igvn.zerocon(ft));
+        }
       } else if (val->is_Phi()) {
         val = value_from_mem_phi(val, ft, phi_type, adr_t, alloc, value_phis, level-1);
         if (val == NULL) {

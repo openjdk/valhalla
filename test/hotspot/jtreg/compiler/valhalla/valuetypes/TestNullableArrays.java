@@ -2436,4 +2436,23 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEquals(va[0], vab[0]);
         Asserts.assertEquals(va[1], vab[1]);
     }
+
+    // Test non-escaping allocation with arraycopy
+    // that does not modify loaded array element.
+    @Test()
+    public static long test94() {
+        MyValue1?[] src = new MyValue1?[8];
+        MyValue1[]  dst = new MyValue1[8];
+        for (int i = 1; i < 8; ++i) {
+            src[i] = testValue1;
+        }
+        System.arraycopy(src, 1, dst, 2, 6);
+        return dst[0].hash();
+    }
+
+    @DontCompile
+    public static void test94_verifier(boolean warmup) {
+        long result = test94();
+        Asserts.assertEquals(result, MyValue1.default.hash());
+    }
 }
