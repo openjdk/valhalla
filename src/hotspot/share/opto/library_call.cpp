@@ -5199,7 +5199,8 @@ bool LibraryCallKit::inline_arraycopy() {
       assert(stopped(), "Should be stopped");
     }
 
-    src = _gvn.transform(new CheckCastPPNode(control(), src, dest_type));
+    const Type* toop = TypeOopPtr::make_from_klass(dest_type->make_oopptr()->klass());
+    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
 
