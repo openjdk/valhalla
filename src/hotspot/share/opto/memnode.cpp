@@ -2260,15 +2260,17 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       ciArrayKlass* ak = tary_klass->as_array_klass();
       // Do not fold klass loads from [V?. The runtime type might be [V due to [V <: [V?
       // and the klass for [V is not equal to the klass for [V?.
-      bool can_be_null_free = !tary->is_known_instance() && ak->is_obj_array_klass() && !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype();
-
-      if (tary->klass_is_exact() && !can_be_null_free) {
+      if (!tary->is_known_instance() && ak->is_obj_array_klass() &&
+          !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
+        // Fall back to Object array
+        ak = ciArrayKlass::make(phase->C->env()->Object_klass());
+      } else if (tary->klass_is_exact()) {
         return TypeKlassPtr::make(tary_klass);
       }
 
       // If the klass is an object array, we defer the question to the
       // array component klass.
-      if (ak->is_obj_array_klass() && !can_be_null_free) {
+      if (ak->is_obj_array_klass()) {
         assert(ak->is_loaded(), "");
         ciKlass *base_k = ak->as_obj_array_klass()->base_element_klass();
         if (base_k->is_loaded() && base_k->is_instance_klass()) {

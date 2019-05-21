@@ -5130,7 +5130,6 @@ bool LibraryCallKit::inline_arraycopy() {
         }
         if (could_have_dest && !dest_spec) {
           dest = maybe_cast_profiled_obj(dest, dest_k, true);
-          dest_type = _gvn.type(dest);
         }
       }
     }
@@ -5199,7 +5198,8 @@ bool LibraryCallKit::inline_arraycopy() {
       assert(stopped(), "Should be stopped");
     }
 
-    const Type* toop = TypeOopPtr::make_from_klass(dest_type->make_oopptr()->klass());
+    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
+    const Type* toop = TypeOopPtr::make_from_klass(dest_klass_t->klass());
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
