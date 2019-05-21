@@ -26,6 +26,7 @@
 package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.Types.UniqueType;
+import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.tree.TreeInfo.PosKind;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -91,9 +92,9 @@ public class Gen extends JCTree.Visitor {
         return instance;
     }
 
-    /** Constant pool, reset by genClass.
+    /** Constant pool writer, set by genClass.
      */
-    private final Pool pool;
+    final PoolWriter poolWriter;
 
     protected Gen(Context context) {
         context.put(genKey, this);
@@ -125,7 +126,7 @@ public class Gen extends JCTree.Visitor {
         genCrt = options.isSet(XJCOV);
         debugCode = options.isSet("debug.code");
         disableVirtualizedPrivateInvoke = options.isSet("disableVirtualizedPrivateInvoke");
-        pool = new Pool(types);
+        poolWriter = new PoolWriter(types, names);
         staticInitValueFactory = options.isSet("staticInitValueFactory");
         staticInitValueFactory |= !options.isSet("noStaticInitValueFactory");
 
@@ -261,10 +262,10 @@ public class Gen extends JCTree.Visitor {
      */
     int makeRef(DiagnosticPosition pos, Type type, boolean emitQtype) {
         checkDimension(pos, type);
-        if (type.isAnnotated()) {
-            return pool.put(emitQtype ? new UniqueType(type, types, false) : type);
+        if (emitQtype) {
+            return poolWriter.putClass(new ConstantPoolQType(type, types));
         } else {
-            return pool.put(type.hasTag(CLASS) ? emitQtype ? new UniqueType(type, types, false) : type.tsym : (Object)type);
+            return poolWriter.putClass(type);
         }
     }
 
@@ -279,7 +280,12 @@ public class Gen extends JCTree.Visitor {
 
     /** Check if the given type is an array with too many dimensions.
      */
-    private void checkDimension(DiagnosticPosition pos, Type t) {
+    private Type checkDimension(DiagnosticPosition pos, Type t) {
+        checkDimensionInternal(pos, t);
+        return t;
+    }
+
+    private void checkDimensionInternal(DiagnosticPosition pos, Type t) {
         switch (t.getTag()) {
         case METHOD:
             checkDimension(pos, t.getReturnType());
@@ -533,7 +539,7 @@ public class Gen extends JCTree.Visitor {
         if (nerrs != 0 || // only complain about a long string once
             constValue == null ||
             !(constValue instanceof String) ||
-            ((String)constValue).length() < Pool.MAX_STRING_LENGTH)
+            ((String)constValue).length() < PoolWriter.MAX_STRING_LENGTH)
             return;
         log.error(pos, Errors.LimitString);
         nerrs++;
@@ -823,7 +829,7 @@ public class Gen extends JCTree.Visitor {
         @Override
         public void visitIdent(JCIdent tree) {
             if (tree.sym.owner instanceof ClassSymbol) {
-                pool.put(tree.sym.owner);
+                poolWriter.putClass((ClassSymbol)tree.sym.owner);
             }
         }
 
@@ -1027,8 +1033,8 @@ public class Gen extends JCTree.Visitor {
                                                : null,
                                         syms,
                                         types,
-                                        pool);
-            items = new Items(pool, code, syms, types);
+                                        poolWriter);
+            items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
             }
@@ -1103,10 +1109,9 @@ public class Gen extends JCTree.Visitor {
 
             Symbol.DynamicMethodSymbol dynSym = new Symbol.DynamicMethodSymbol(name,
                     syms.noSymbol,
-                    ClassFile.REF_invokeStatic,
-                    (Symbol.MethodSymbol)bsm,
+                    ((MethodSymbol)bsm).asHandle(),
                     indyType,
-                    NO_STATIC_ARGS);
+                    List.nil().toArray(new LoadableConstant[0]));
 
 
             switch (methodDecl.name.toString()) {
@@ -1180,7 +1185,7 @@ public class Gen extends JCTree.Visitor {
                 items.makeThisItem().load();
                 genExpr(tree.value, tree.field.type).load();
                 sym = binaryQualifier(sym, env.enclClass.type);
-                code.emitop2(withfield, pool.put(sym));
+                code.emitop2(withfield, sym, PoolWriter::putMember);
                 result = items.makeStackItem(tree.type);
                 break;
             case SELECT:
@@ -1196,7 +1201,7 @@ public class Gen extends JCTree.Visitor {
                     code.emitop0(swap);
                 }
                 sym = binaryQualifier(sym, fieldAccess.selected.type);
-                code.emitop2(withfield, pool.put(sym));
+                code.emitop2(withfield, sym, PoolWriter::putMember);
                 result = items.makeStackItem(tree.type);
                 break;
             default:
@@ -2009,7 +2014,7 @@ public class Gen extends JCTree.Visitor {
         Assert.check(tree.encl == null && tree.def == null);
         setTypeAnnotationPositions(tree.pos);
 
-        code.emitop2(new_, makeRef(tree.pos(), tree.type));
+        code.emitop2(new_, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
         code.emitop0(dup);
 
         // Generate code for all arguments, where the expected types are
@@ -2286,7 +2291,13 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
-            code.emitop2(checkcast, makeRef(tree.pos(), tree.clazz.type, types.isValue(tree.clazz.type)));
+            checkDimension(tree.pos(), tree.clazz.type);
+            if (types.isValue(tree.clazz.type)) {
+                code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
+            } else {
+                code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
+            }
+
         }
     }
 
@@ -2345,11 +2356,11 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc(makeRef(tree.pos(), tree.selected.type));
+            code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
         } else if (tree.name == names._default) {
-            code.emitop2(defaultvalue, makeRef(tree.pos(), tree.type));
+            code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
             result = items.makeStackItem(tree.type);
             return;
         }
@@ -2433,7 +2444,7 @@ public class Gen extends JCTree.Visitor {
         code.endScopes(limit);
     }
 
-    private void generateReferencesToPrunedTree(ClassSymbol classSymbol, Pool pool) {
+    private void generateReferencesToPrunedTree(ClassSymbol classSymbol) {
         List<JCTree> prunedInfo = lower.prunedTree.get(classSymbol);
         if (prunedInfo != null) {
             for (JCTree prunedTree: prunedInfo) {
@@ -2459,13 +2470,11 @@ public class Gen extends JCTree.Visitor {
             ClassSymbol c = cdef.sym;
             this.toplevel = env.toplevel;
             this.endPosTable = toplevel.endPositions;
-            c.pool = pool;
-            pool.reset();
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
             cdef = transValues.translateTopLevelClass(cdef, make);
-            generateReferencesToPrunedTree(c, pool);
+            generateReferencesToPrunedTree(c);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;
             localEnv.enclClass = cdef;
@@ -2473,7 +2482,7 @@ public class Gen extends JCTree.Visitor {
             for (List<JCTree> l = cdef.defs; l.nonEmpty(); l = l.tail) {
                 genDef(l.head, localEnv);
             }
-            if (pool.numEntries() > Pool.MAX_ENTRIES) {
+            if (poolWriter.size() > PoolWriter.MAX_ENTRIES) {
                 log.error(cdef.pos(), Errors.LimitPool);
                 nerrs++;
             }

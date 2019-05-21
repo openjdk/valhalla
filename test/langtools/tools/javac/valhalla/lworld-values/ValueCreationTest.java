@@ -68,17 +68,17 @@ public class ValueCreationTest {
                                                 "ValueCreationTest$Point.class").toString() };
         runCheck(params, new String [] {
 
-         "0: defaultvalue  #2                  // class ValueCreationTest$Point",
+         "0: defaultvalue  #7                  // class ValueCreationTest$Point",
          "3: astore_2",
          "4: iload_0",
          "5: aload_2",
          "6: swap",
-         "7: withfield     #3                  // Field x:I",
+         "7: withfield     #9                  // Field x:I",
         "10: astore_2",
         "11: iload_1",
         "12: aload_2",
         "13: swap",
-        "14: withfield     #4                  // Field y:I",
+        "14: withfield     #13                 // Field y:I",
         "17: areturn"
            
          });

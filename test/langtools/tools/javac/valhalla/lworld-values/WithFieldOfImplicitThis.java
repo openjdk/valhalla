@@ -62,16 +62,16 @@ public class WithFieldOfImplicitThis {
                                                 "WithFieldOfImplicitThis$X.class").toString() };
         runCheck(params, new String [] {
 
-         "0: defaultvalue  #2                  // class WithFieldOfImplicitThis$X",
+         "0: defaultvalue  #7                  // class WithFieldOfImplicitThis$X",
          "3: astore_3",
          "4: aload_0",
          "5: iload_2",
-         "6: withfield     #3                  // Field x:I",
+         "6: withfield     #9                  // Field x:I",
          "9: astore_3",
         "10: aload_0",
         "11: aload_1",
-        "12: invokevirtual #4                  // Method java/lang/Integer.intValue:()I",
-        "15: withfield     #3                  // Field x:I",
+        "12: invokevirtual #13                 // Method java/lang/Integer.intValue:()I",
+        "15: withfield     #9                  // Field x:I",
         "18: astore_3",
         "19: aload_3",
         "20: areturn"
