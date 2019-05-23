@@ -1891,7 +1891,7 @@ C2V_VMENTRY_NULL(jobjectArray, getDeclaredMethods, (JNIEnv* env, jobject, jobjec
   GrowableArray<Method*> methods_array;
   for (int i = 0; i < iklass->methods()->length(); i++) {
     Method* m = iklass->methods()->at(i);
-    if (!m->is_object_constructor() && !m->is_overpass()) {
+    if (!(m->is_object_constructor() || m->is_class_initializer()) && !m->is_overpass()) {
       methods_array.append(m);
     }
   }
