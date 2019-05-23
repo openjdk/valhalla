@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,35 +21,37 @@
  * questions.
  */
 
-import java.io.Serializable;
-import java.lang.invoke.*;
-import java.util.concurrent.Callable;
-
 /**
  * @test
- * @summary StringConcatFactory exactness check produces bad bytecode when a non-arg concat is requested
- * @bug 8148787
- *
- * @compile StringConcatFactoryEmptyMethods.java
- *
- * @run main/othervm -Xverify:all -Djava.lang.invoke.stringConcat=BC_SB_SIZED_EXACT  -Djava.lang.invoke.stringConcat.debug=true StringConcatFactoryEmptyMethods
- *
-*/
-public class StringConcatFactoryEmptyMethods {
+ * @bug 8219807
+ * @summary Test IfNode::up_one_dom() with dead regions.
+ * @compile -XDstringConcat=inline TestIfWithDeadRegion.java
+ * @run main/othervm -XX:CompileCommand=compileonly,compiler.c2.TestIfWithDeadRegion::test
+ *                   compiler.c2.TestIfWithDeadRegion
+ */
 
-    public static void main(String[] args) throws Throwable {
-        StringConcatFactory.makeConcat(
-            MethodHandles.lookup(),
-            "foo",
-            MethodType.methodType(String.class)
-        );
+package compiler.c2;
 
-        StringConcatFactory.makeConcatWithConstants(
-            MethodHandles.lookup(),
-            "foo",
-            MethodType.methodType(String.class),
-            ""
-        );
+import java.util.function.Supplier;
+
+public class TestIfWithDeadRegion {
+
+    static String msg;
+
+    static String getString(String s, int i) {
+        String current = s + String.valueOf(i);
+        System.nanoTime();
+        return current;
     }
 
+    static void test(Supplier<String> supplier) {
+        msg = supplier.get();
+    }
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 20_000; ++i) {
+            test(() -> getString("Test1", 42));
+            test(() -> getString("Test2", 42));
+        }
+    }
 }

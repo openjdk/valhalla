@@ -324,9 +324,6 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Maximum number of pages to include in the page scan procedure")  \
           range(0, max_uintx)                                               \
                                                                             \
-  product_pd(bool, NeedsDeoptSuspend,                                       \
-          "True for register window machines (sparc/ia64)")                 \
-                                                                            \
   product(intx, UseSSE, 99,                                                 \
           "Highest supported SSE instructions set on x86/x64")              \
           range(0, 99)                                                      \
@@ -997,8 +994,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Verify bytecodes after RedefineClasses constant pool merging")   \
                                                                             \
   product(bool, AllowRedefinitionToAddDeleteMethods, false,                 \
-          "Allow redefinition to add and delete private static or "         \
-          "final methods for compatibility with old releases")              \
+          "(Deprecated) Allow redefinition to add and delete private "      \
+          "static or final methods for compatibility with old releases")    \
                                                                             \
   develop(bool, TraceBytecodes, false,                                      \
           "Trace bytecode execution")                                       \

@@ -286,7 +286,6 @@ class Thread: public ThreadShadow {
 
     _external_suspend       = 0x20000000U, // thread is asked to self suspend
     _ext_suspended          = 0x40000000U, // thread has self-suspended
-    _deopt_suspend          = 0x10000000U, // thread needs to self suspend for deopt
 
     _has_async_exception    = 0x00000001U, // there is a pending async exception
     _critical_native_unlock = 0x00000002U, // Must call back to unlock JNI critical lock
@@ -1130,9 +1129,6 @@ class JavaThread: public Thread {
   // Specifies if the DeoptReason for the last uncommon trap was Reason_transfer_to_interpreter
   bool      _pending_transfer_to_interpreter;
 
-  // Guard for re-entrant call to JVMCIRuntime::adjust_comp_level
-  bool      _adjusting_comp_level;
-
   // True if in a runtime call from compiled code that will deoptimize
   // and re-execute a failed heap allocation in the interpreter.
   bool      _in_retryable_allocation;
@@ -1408,17 +1404,13 @@ class JavaThread: public Thread {
   inline void set_external_suspend();
   inline void clear_external_suspend();
 
-  inline void set_deopt_suspend();
-  inline void clear_deopt_suspend();
-  bool is_deopt_suspend()         { return (_suspend_flags & _deopt_suspend) != 0; }
-
   bool is_external_suspend() const {
     return (_suspend_flags & _external_suspend) != 0;
   }
   // Whenever a thread transitions from native to vm/java it must suspend
   // if external|deopt suspend is present.
   bool is_suspend_after_native() const {
-    return (_suspend_flags & (_external_suspend | _deopt_suspend JFR_ONLY(| _trace_flag))) != 0;
+    return (_suspend_flags & (_external_suspend JFR_ONLY(| _trace_flag))) != 0;
   }
 
   // external suspend request is completed
@@ -1547,8 +1539,6 @@ class JavaThread: public Thread {
 #if INCLUDE_JVMCI
   int  pending_deoptimization() const             { return _pending_deoptimization; }
   long pending_failed_speculation() const         { return _pending_failed_speculation; }
-  bool adjusting_comp_level() const               { return _adjusting_comp_level; }
-  void set_adjusting_comp_level(bool b)           { _adjusting_comp_level = b; }
   bool has_pending_monitorenter() const           { return _pending_monitorenter; }
   void set_pending_monitorenter(bool b)           { _pending_monitorenter = b; }
   void set_pending_deoptimization(int reason)     { _pending_deoptimization = reason; }
