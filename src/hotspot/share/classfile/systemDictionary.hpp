@@ -26,7 +26,6 @@
 #define SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
 
 #include "classfile/classLoaderData.hpp"
-#include "jvmci/systemDictionary_jvmci.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/symbol.hpp"
@@ -218,9 +217,6 @@ class OopStorage;
   do_klass(Long_klass,                                  java_lang_Long                                        ) \
                                                                                                                 \
                                                                                                                          \
-  /* JVMCI classes. These are loaded on-demand. */                                                              \
-  JVMCI_WK_KLASSES_DO(do_klass)                                                                                 \
-                                                                                                                \
   /*end*/
 
 
@@ -238,11 +234,6 @@ class SystemDictionary : AllStatic {
     #undef WK_KLASS_ENUM
 
     WKID_LIMIT,
-
-#if INCLUDE_JVMCI
-    FIRST_JVMCI_WKID = WK_KLASS_ENUM_NAME(JVMCI_klass),
-    LAST_JVMCI_WKID  = WK_KLASS_ENUM_NAME(Value_klass),
-#endif
 
     FIRST_WKID = NO_WKID + 1
   };
