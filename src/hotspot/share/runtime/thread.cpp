@@ -719,7 +719,11 @@ bool JavaThread::is_ext_suspend_completed(bool called_by_wait, int delay,
         // temporarily drops SR_lock while doing wait with safepoint check
         // (if we're a JavaThread - the WatcherThread can also call this)
         // and increase delay with each retry
-        SR_lock()->wait(!Thread::current()->is_Java_thread(), i * delay);
+        if (Thread::current()->is_Java_thread()) {
+          SR_lock()->wait(i * delay);
+        } else {
+          SR_lock()->wait_without_safepoint_check(i * delay);
+        }
 
         // check the actual thread state instead of what we saved above
         if (thread_state() != _thread_in_native_trans) {
@@ -760,7 +764,7 @@ bool JavaThread::wait_for_ext_suspend_completion(int retries, int delay,
   reset_bits = *bits;
 
   {
-    MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
     is_suspended = is_ext_suspend_completed(true /* called_by_wait */,
                                             delay, bits);
     pending = is_external_suspend();
@@ -794,7 +798,11 @@ bool JavaThread::wait_for_ext_suspend_completion(int retries, int delay,
       MutexLocker ml(SR_lock());
       // wait with safepoint check (if we're a JavaThread - the WatcherThread
       // can also call this)  and increase delay with each retry
-      SR_lock()->wait(!Thread::current()->is_Java_thread(), i * delay);
+      if (Thread::current()->is_Java_thread()) {
+        SR_lock()->wait(i * delay);
+      } else {
+        SR_lock()->wait_without_safepoint_check(i * delay);
+      }
 
       is_suspended = is_ext_suspend_completed(true /* called_by_wait */,
                                               delay, bits);
@@ -1290,7 +1298,7 @@ NonJavaThread::NonJavaThread() : Thread(), _next(NULL) {
 NonJavaThread::~NonJavaThread() { }
 
 void NonJavaThread::add_to_the_list() {
-  MutexLockerEx ml(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
   // Initialize BarrierSet-related data before adding to list.
   BarrierSet::barrier_set()->on_thread_attach(this);
   OrderAccess::release_store(&_next, _the_list._head);
@@ -1299,7 +1307,7 @@ void NonJavaThread::add_to_the_list() {
 
 void NonJavaThread::remove_from_the_list() {
   {
-    MutexLockerEx ml(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(NonJavaThreadsList_lock, Mutex::_no_safepoint_check_flag);
     // Cleanup BarrierSet-related data before removing from list.
     BarrierSet::barrier_set()->on_thread_detach(this);
     NonJavaThread* volatile* p = &_the_list._head;
@@ -1313,7 +1321,7 @@ void NonJavaThread::remove_from_the_list() {
   // Wait for any in-progress iterators.  Concurrent synchronize is not
   // allowed, so do it while holding a dedicated lock.  Outside and distinct
   // from NJTList_lock in case an iteration attempts to lock it.
-  MutexLockerEx ml(NonJavaThreadsListSync_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(NonJavaThreadsListSync_lock, Mutex::_no_safepoint_check_flag);
   _the_list._protect.synchronize();
   _next = NULL;                 // Safe to drop the link now.
 }
@@ -1398,7 +1406,7 @@ WatcherThread::WatcherThread() : NonJavaThread() {
 int WatcherThread::sleep() const {
   // The WatcherThread does not participate in the safepoint protocol
   // for the PeriodicTask_lock because it is not a JavaThread.
-  MutexLockerEx ml(PeriodicTask_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(PeriodicTask_lock, Mutex::_no_safepoint_check_flag);
 
   if (_should_terminate) {
     // check for termination before we do any housekeeping or wait
@@ -1418,8 +1426,7 @@ int WatcherThread::sleep() const {
   jlong time_before_loop = os::javaTimeNanos();
 
   while (true) {
-    bool timedout = PeriodicTask_lock->wait(Mutex::_no_safepoint_check_flag,
-                                            remaining);
+    bool timedout = PeriodicTask_lock->wait_without_safepoint_check(remaining);
     jlong now = os::javaTimeNanos();
 
     if (remaining == 0) {
@@ -1507,7 +1514,7 @@ void WatcherThread::run() {
 
   // Signal that it is terminated
   {
-    MutexLockerEx mu(Terminator_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker mu(Terminator_lock, Mutex::_no_safepoint_check_flag);
     _watcher_thread = NULL;
     Terminator_lock->notify_all();
   }
@@ -1547,8 +1554,7 @@ void WatcherThread::stop() {
   while (watcher_thread() != NULL) {
     // This wait should make safepoint checks, wait without a timeout,
     // and wait as a suspend-equivalent condition.
-    Terminator_lock->wait(!Mutex::_no_safepoint_check_flag, 0,
-                          Mutex::_as_suspend_equivalent_flag);
+    Terminator_lock->wait(0, Mutex::_as_suspend_equivalent_flag);
   }
 }
 
@@ -1992,7 +1998,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     // in order to not surprise the thread that made the suspend request.
     while (true) {
       {
-        MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+        MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
         if (!is_external_suspend()) {
           set_terminated(_thread_exiting);
           ThreadService::current_thread_exiting(this, is_daemon(threadObj()));
@@ -2361,7 +2367,7 @@ void JavaThread::java_suspend() {
     return;
   }
 
-  { MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+  { MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
     if (!is_external_suspend()) {
       // a racing resume has cancelled us; bail out now
       return;
@@ -2420,7 +2426,7 @@ int JavaThread::java_suspend_self() {
          (is_Java_thread() && !((JavaThread*)this)->has_last_Java_frame()),
          "must have walkable stack");
 
-  MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
 
   assert(!this->is_ext_suspended(),
          "a thread trying to self-suspend should not already be suspended");
@@ -2448,7 +2454,7 @@ int JavaThread::java_suspend_self() {
 
     // _ext_suspended flag is cleared by java_resume()
     while (is_ext_suspended()) {
-      this->SR_lock()->wait(Mutex::_no_safepoint_check_flag);
+      this->SR_lock()->wait_without_safepoint_check();
     }
   }
   return ret;
@@ -2590,7 +2596,7 @@ void JavaThread::java_resume() {
     return;
   }
 
-  MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
 
   clear_external_suspend();
 
@@ -4343,8 +4349,7 @@ bool Threads::destroy_vm() {
     while (Threads::number_of_non_daemon_threads() > 1)
       // This wait should make safepoint checks, wait without a timeout,
       // and wait as a suspend-equivalent condition.
-      Threads_lock->wait(!Mutex::_no_safepoint_check_flag, 0,
-                         Mutex::_as_suspend_equivalent_flag);
+      Threads_lock->wait(0, Mutex::_as_suspend_equivalent_flag);
   }
 
   EventShutdown e;
@@ -4375,7 +4380,7 @@ bool Threads::destroy_vm() {
     // queue until after the vm thread is dead. After this point,
     // we'll never emerge out of the safepoint before the VM exits.
 
-    MutexLockerEx ml(Heap_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(Heap_lock, Mutex::_no_safepoint_check_flag);
 
     VMThread::wait_for_vm_thread_exit();
     assert(SafepointSynchronize::is_at_safepoint(), "VM thread should exit at Safepoint");

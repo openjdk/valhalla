@@ -125,7 +125,7 @@ int VtableStubs::_itab_stub_size = 0;
 void VtableStubs::initialize() {
   VtableStub::_receiver_location = SharedRuntime::name_for_receiver();
   {
-    MutexLockerEx ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
     assert(_number_of_vtable_stubs == 0, "potential performance bug: VtableStubs initialized more than once");
     assert(is_power_of_2(N), "N must be a power of 2");
     for (int i = 0; i < N; i++) {
@@ -211,7 +211,7 @@ address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index, bool calle
 
   VtableStub* s;
   {
-    MutexLockerEx ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
     s = ShareVtableStubs ? lookup(is_vtable_stub, vtable_index, caller_is_c1) : NULL;
     if (s == NULL) {
       if (is_vtable_stub) {
@@ -274,7 +274,7 @@ void VtableStubs::enter(bool is_vtable_stub, int vtable_index, bool caller_is_c1
 }
 
 VtableStub* VtableStubs::entry_point(address pc) {
-  MutexLockerEx ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
   VtableStub* stub = (VtableStub*)(pc - VtableStub::entry_offset());
   uint hash = VtableStubs::hash(stub->is_vtable_stub(), stub->index(), stub->caller_is_c1());
   VtableStub* s;

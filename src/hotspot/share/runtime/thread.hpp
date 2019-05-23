@@ -1386,7 +1386,7 @@ class JavaThread: public Thread {
 
   bool is_ext_suspend_completed(bool called_by_wait, int delay, uint32_t *bits);
   bool is_ext_suspend_completed_with_lock(uint32_t *bits) {
-    MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
     // Warning: is_ext_suspend_completed() may temporarily drop the
     // SR_lock to allow the thread to reach a stable thread state if
     // it is currently in a transient thread state.
@@ -1427,7 +1427,7 @@ class JavaThread: public Thread {
   }
 
   bool is_external_suspend_with_lock() const {
-    MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
     return is_external_suspend();
   }
 
@@ -1436,7 +1436,7 @@ class JavaThread: public Thread {
   bool handle_special_suspend_equivalent_condition() {
     assert(is_suspend_equivalent(),
            "should only be called in a suspend equivalence condition");
-    MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
     bool ret = is_external_suspend();
     if (!ret) {
       // not about to self-suspend so clear suspend equivalence
@@ -1453,7 +1453,7 @@ class JavaThread: public Thread {
 
   // utility methods to see if we are doing some kind of suspension
   bool is_being_ext_suspended() const            {
-    MutexLockerEx ml(SR_lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(SR_lock(), Mutex::_no_safepoint_check_flag);
     return is_ext_suspended() || is_external_suspend();
   }
 
