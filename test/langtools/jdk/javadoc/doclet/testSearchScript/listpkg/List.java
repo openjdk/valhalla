@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,39 @@
  * questions.
  */
 
-#ifndef OS_CPU_LINUX_X86_GC_Z_ZADDRESS_LINUX_X86_INLINE_HPP
-#define OS_CPU_LINUX_X86_GC_Z_ZADDRESS_LINUX_X86_INLINE_HPP
+package listpkg;
 
-inline uintptr_t ZAddress::address(uintptr_t value) {
-  return value;
+
+/**
+ * Example class containing "list" matching full name.
+ */
+public interface List<E> {
+
+    List add(E e);
+
+    void remove(int i);
+
+    int size();
+
+    static <E> List<E> of() {
+        return null;
+    }
+    static <E> List<E> of(E e1) {
+        return null;
+    }
+    static <E> List<E> of(E e1, E e2) {
+        return null;
+    }
+    static <E> List<E> of(E e1, E e2, E e3) {
+        return null;
+    }
+    static <E> List<E> of(E e1, E e2, E e3, E e4) {
+        return null;
+    }
+    static <E> List<E> of(E e1, E e2, E e3, E e4, E e5) {
+        return null;
+    }
+    static <E> List<E> of(E... elements) {
+        return null;
+    }
 }
-
-#endif // OS_CPU_LINUX_X86_GC_Z_ZADDRESS_LINUX_X86_INLINE_HPP

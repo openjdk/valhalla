@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,33 +21,42 @@
  * questions.
  */
 
-#include "precompiled.hpp"
-#include "gc/z/zAddress.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zCPU.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zInitialize.hpp"
-#include "gc/z/zLargePages.hpp"
-#include "gc/z/zNUMA.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zThreadLocalAllocBuffer.hpp"
-#include "gc/z/zTracer.hpp"
-#include "logging/log.hpp"
-#include "runtime/vm_version.hpp"
+package mappkg.impl;
 
-ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
-  log_info(gc, init)("Initializing %s", ZName);
-  log_info(gc, init)("Version: %s (%s)",
-                     VM_Version::vm_release(),
-                     VM_Version::jdk_debug_level());
+import mappkg.Map;
+import java.util.Iterator;
 
-  // Early initialization
-  ZAddress::initialize();
-  ZNUMA::initialize();
-  ZCPU::initialize();
-  ZStatValue::initialize();
-  ZThreadLocalAllocBuffer::initialize();
-  ZTracer::initialize();
-  ZLargePages::initialize();
-  ZBarrierSet::set_barrier_set(barrier_set);
+/**
+ * {@index "search tag"}
+ */
+public class MyMap implements Map {
+
+    /** {@systemProperty mappkg.system.property} */
+    public int some_value;
+    public int OTHER_VALUE;
+
+    public MyMap() {}
+
+    public MyMap(Map map) {}
+
+    @Override
+    public void put(Object key, Object value) {}
+
+    @Override
+    public boolean contains(Object key) {
+        return false;
+    }
+
+    @Override
+    public Object get(Object key) {
+        return null;
+    }
+
+    @Override
+    public void remove(Object key) {}
+
+    @Override
+    public Iterator<Object> iterate() {
+        return null;
+    }
 }
