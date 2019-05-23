@@ -1472,7 +1472,7 @@ void InstanceKlass::mask_for(const methodHandle& method, int bci,
   // Lock-free access requires load_acquire.
   OopMapCache* oop_map_cache = OrderAccess::load_acquire(&_oop_map_cache);
   if (oop_map_cache == NULL) {
-    MutexLockerEx x(OopMapCacheAlloc_lock,  Mutex::_no_safepoint_check_flag);
+    MutexLocker x(OopMapCacheAlloc_lock,  Mutex::_no_safepoint_check_flag);
     // Check if _oop_map_cache was allocated while we were waiting for this lock
     if ((oop_map_cache = _oop_map_cache) == NULL) {
       oop_map_cache = new OopMapCache();

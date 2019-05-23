@@ -362,7 +362,7 @@ BufferedValueTypeBlob* BufferedValueTypeBlob::create(CodeBuffer* cb, int pack_fi
   BufferedValueTypeBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(BufferedValueTypeBlob));
   {
-    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     blob = new (size) BufferedValueTypeBlob(size, cb, pack_fields_off, unpack_fields_off);
   }
   // Track memory usage statistic after releasing CodeCache_lock
