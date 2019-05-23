@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,31 @@
  * questions.
  */
 
-#include "precompiled.hpp"
-#include "gc/z/zCollectorPolicy.hpp"
-#include "gc/z/zGlobals.hpp"
 
-void ZCollectorPolicy::initialize_alignments() {
-  _space_alignment = ZGranuleSize;
-  _heap_alignment = _space_alignment;
+package micro.benchmarks;
+
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Threads;
+import org.openjdk.jmh.annotations.Warmup;
+
+/**
+ * Benchmarks cost of ArrayList.
+ */
+public class ArrayAllocationBenchmark extends BenchmarkBase {
+
+    @State(Scope.Benchmark)
+    public static class ThreadState {
+        @Param({"128", "256", "512", "1024", "2048", "4096", "8192", "16384", "32768", "65536", "131072"}) int size;
+        byte[] result;
+    }
+
+    @Benchmark
+    @Threads(8)
+    @Warmup(iterations = 10)
+    public void arrayAllocate(ThreadState state) {
+        state.result = new byte[state.size];
+    }
 }

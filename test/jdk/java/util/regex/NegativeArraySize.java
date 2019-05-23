@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,16 +19,24 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-#include "gc/shared/gcArguments.hpp"
+/*
+ * @test
+ * @bug 8223174
+ * @summary Pattern.compile() can throw confusing NegativeArraySizeException
+ * @requires os.maxMemory >= 5g
+ * @run main/othervm NegativeArraySize -Xms5G -Xmx5G
+ */
 
-class CollectedHeap;
+import java.util.regex.Pattern;
 
-template <class Heap, class Policy>
-CollectedHeap* GCArguments::create_heap_with_policy() {
-  Policy* policy = new Policy();
-  policy->initialize_all();
-  return new Heap(policy);
+public class NegativeArraySize {
+    public static void main(String[] args) {
+        try {
+            Pattern.compile("\\Q" + "a".repeat(42 + Integer.MAX_VALUE / 3));
+            throw new AssertionError("expected to throw");
+        } catch (OutOfMemoryError expected) {
+        }
+    }
 }

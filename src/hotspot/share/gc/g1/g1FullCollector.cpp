@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
-#include "gc/g1/g1CollectorPolicy.hpp"
 #include "gc/g1/g1FullCollector.hpp"
 #include "gc/g1/g1FullGCAdjustTask.hpp"
 #include "gc/g1/g1FullGCCompactTask.hpp"
@@ -290,6 +289,6 @@ void G1FullCollector::verify_after_marking() {
   // fail. At the end of the GC, the original mark word values
   // (including hash values) are restored to the appropriate
   // objects.
-  GCTraceTime(Info, gc, verify)("Verifying During GC (full)");
+  GCTraceTime(Info, gc, verify) tm("Verifying During GC (full)");
   _heap->verify(VerifyOption_G1UseFullMarking);
 }
