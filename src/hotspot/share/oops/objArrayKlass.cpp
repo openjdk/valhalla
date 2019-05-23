@@ -113,16 +113,18 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_pro
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_0);
 
-  // Add all classes to our internal class loader list here,
-  // including classes in the bootstrap (NULL) class loader.
-  // GC walks these as strong roots.
-  loader_data->add_class(oak);
-
   ModuleEntry* module = oak->module();
   assert(module != NULL, "No module entry for array");
 
   // Call complete_create_array_klass after all instance variables has been initialized.
   ArrayKlass::complete_create_array_klass(oak, super_klass, module, CHECK_0);
+
+  // Add all classes to our internal class loader list here,
+  // including classes in the bootstrap (NULL) class loader.
+  // Do this step after creating the mirror so that if the
+  // mirror creation fails, loaded_classes_do() doesn't find
+  // an array class without a mirror.
+  loader_data->add_class(oak);
 
   return oak;
 }
