@@ -274,7 +274,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test comparing value types with objects
-    @Test(failOn = ALLOC + LOAD + STORE + LOOP)
+    @Test(failOn = LOAD + LOOP)
     public boolean test6(Object arg) {
         Object vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (Object)valueField1 || vt == objectField1 || vt == null ||
@@ -547,7 +547,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test comparing value types with interfaces
-    @Test(failOn = ALLOC + LOAD + STORE + LOOP)
+    @Test(failOn = LOAD + LOOP)
     public boolean test16(Object arg) {
         MyInterface vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (MyInterface)valueField1 || vt == interfaceField1 || vt == null ||
