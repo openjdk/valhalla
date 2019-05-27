@@ -4202,7 +4202,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
   } // End of case InstPtr
 
   case ValueType: {
-    const TypeValueType *tv = t->is_valuetype();
+    const TypeValueType* tv = t->is_valuetype();
     if (above_centerline(ptr())) {
       if (tv->value_klass()->is_subtype_of(_klass)) {
         return t;
@@ -4210,10 +4210,14 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
         return TypeInstPtr::make(NotNull, _klass);
       }
     } else {
+      PTR ptr = this->_ptr;
+      if (ptr == Constant) {
+        ptr = NotNull;
+      }
       if (tv->value_klass()->is_subtype_of(_klass)) {
-        return TypeInstPtr::make(ptr(), _klass);
+        return TypeInstPtr::make(ptr, _klass);
       } else {
-        return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
       }
     }
   }
@@ -4737,7 +4741,11 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
 
   case ValueType: {
     // All value types inherit from Object
-    return TypeInstPtr::make(ptr(), ciEnv::current()->Object_klass());
+    PTR ptr = this->_ptr;
+    if (ptr == Constant) {
+      ptr = NotNull;
+    }
+    return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
   }
 
   }

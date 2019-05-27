@@ -2455,4 +2455,24 @@ public class TestNullableArrays extends ValueTypeTest {
         long result = test94();
         Asserts.assertEquals(result, MyValue1.default.hash());
     }
+
+    // Test meeting constant TypeInstPtr with ValueTypeNode
+    @ForceInline
+    public long test95_callee() {
+        MyValue1?[] va = new MyValue1?[1];
+        va[0] = testValue1;
+        return va[0].hashInterpreted();
+    }
+
+    @Test()
+    @Warmup(0)
+    public long test95() {
+        return test95_callee();
+    }
+
+    @DontCompile
+    public void test95_verifier(boolean warmup) {
+        long result = test95();
+        Asserts.assertEQ(result, hash());
+    }
 }
