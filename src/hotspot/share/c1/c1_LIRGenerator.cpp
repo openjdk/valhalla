@@ -791,10 +791,10 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     flags &= ~LIR_OpArrayCopy::always_slow_path;
   }
   if (!src->maybe_flattened_array()) {
-    flags &= ~LIR_OpArrayCopy::src_flat_check;
+    flags &= ~LIR_OpArrayCopy::src_valuetype_check;
   }
-  if (!dst->maybe_flattened_array()) {
-    flags &= ~LIR_OpArrayCopy::dst_flat_check;
+  if (!dst->maybe_flattened_array() && !dst->maybe_null_free_array()) {
+    flags &= ~LIR_OpArrayCopy::dst_valuetype_check;
   }
 
   if (!src_objarray)
@@ -1646,25 +1646,28 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
                       obj_item, LIR_OprFact::intConst(obj_offset), temp,
                       NULL, NULL);
     } else {
-    access_load_at(decorators, field_type,
-                   obj_item, LIR_OprFact::intConst(obj_offset), temp,
-                   NULL, NULL);
-    access_store_at(decorators, field_type,
-                    elm_item, LIR_OprFact::intConst(elm_offset), temp,
-                    NULL, NULL);
+      access_load_at(decorators, field_type,
+                     obj_item, LIR_OprFact::intConst(obj_offset), temp,
+                     NULL, NULL);
+      access_store_at(decorators, field_type,
+                      elm_item, LIR_OprFact::intConst(elm_offset), temp,
+                      NULL, NULL);
     }
   }
 }
 
-void LIRGenerator::check_flattened_array(LIRItem& array, CodeStub* slow_path) {
-  LIR_Opr array_klass_reg = new_register(T_METADATA);
+void LIRGenerator::check_flattened_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path) {
+  LIR_Opr tmp = new_register(T_METADATA);
+  __ check_flattened_array(array, value, tmp, slow_path);
+}
 
-  __ move(new LIR_Address(array.result(), oopDesc::klass_offset_in_bytes(), T_ADDRESS), array_klass_reg);
-  LIR_Opr layout = new_register(T_INT);
-  __ move(new LIR_Address(array_klass_reg, in_bytes(Klass::layout_helper_offset()), T_INT), layout);
-  __ shift_right(layout, Klass::_lh_array_tag_shift, layout);
-  __ cmp(lir_cond_equal, layout, LIR_OprFact::intConst(Klass::_lh_array_tag_vt_value));
-  __ branch(lir_cond_equal, T_ILLEGAL, slow_path);
+void LIRGenerator::check_null_free_array(LIRItem& array, LIRItem& value, CodeEmitInfo* info) {
+  LabelObj* L_end = new LabelObj();
+  LIR_Opr tmp = new_register(T_METADATA);
+  __ check_null_free_array(array.result(), tmp);
+  __ branch(lir_cond_equal, T_ILLEGAL, L_end->label());
+  __ null_check(value.result(), info);
+  __ branch_destination(L_end->label());
 }
 
 bool LIRGenerator::needs_flattened_array_store_check(StoreIndexed* x) {
@@ -1687,6 +1690,10 @@ bool LIRGenerator::needs_flattened_array_store_check(StoreIndexed* x) {
   return false;
 }
 
+bool LIRGenerator::needs_null_free_array_store_check(StoreIndexed* x) {
+  return x->elt_type() == T_OBJECT && x->array()->maybe_null_free_array();
+}
+
 void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   assert(x->is_pinned(),"");
   assert(x->elt_type() != T_ARRAY, "never used");
@@ -1694,7 +1701,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   bool needs_range_check = x->compute_needs_range_check();
   bool use_length = x->length() != NULL;
   bool obj_store = x->elt_type() == T_OBJECT;
-  bool needs_store_check = obj_store && !is_loaded_flattened_array &&
+  bool needs_store_check = obj_store && !(is_loaded_flattened_array && x->is_exact_flattened_array_store()) &&
                                         (x->value()->as_Constant() == NULL ||
                                          !get_jobject_constant(x->value())->is_null_object() ||
                                          x->should_profile());
@@ -1713,7 +1720,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (needs_store_check || x->check_boolean()
-      || is_loaded_flattened_array || needs_flattened_array_store_check(x)) {
+      || is_loaded_flattened_array || needs_flattened_array_store_check(x) || needs_null_free_array_store_check(x)) {
     value.load_item();
   } else {
     value.load_for_store(x->elt_type());
@@ -1747,11 +1754,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flattened_array) {
-    if (!x->is_exact_flattened_array_store()) {
-      CodeEmitInfo* info = new CodeEmitInfo(range_check_info);
-      ciKlass* element_klass = x->array()->declared_type()->as_value_array_klass()->element_klass();
-      flattened_array_store_check(value.result(), element_klass, info);
-    } else if (!x->value()->is_never_null()) {
+    if (!x->value()->is_never_null()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
     access_flattened_array(false, array, index, value);
@@ -1762,7 +1765,10 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       // Check if we indeed have a flattened array
       index.load_item();
       slow_path = new StoreFlattenedArrayStub(array.result(), index.result(), value.result(), state_for(x));
-      check_flattened_array(array, slow_path);
+      check_flattened_array(array.result(), value.result(), slow_path);
+    } else if (needs_null_free_array_store_check(x)) {
+      CodeEmitInfo* info = new CodeEmitInfo(range_check_info);
+      check_null_free_array(array, value, info);
     }
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY;
@@ -2142,7 +2148,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       index.load_item();
       // if we are loading from flattened array, load it using a runtime call
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x));
-      check_flattened_array(array, slow_path);
+      check_flattened_array(array.result(), LIR_OprFact::illegalOpr, slow_path);
     }
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY;

@@ -1463,9 +1463,6 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = new RefPoint(22, 33);
             int result;
-            if (!warmup) {
-                System.out.println("Hello: " + i);
-            }
             try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
                 result = test77(rp1, rp2);
             }

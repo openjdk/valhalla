@@ -146,11 +146,9 @@ bool Instruction::is_loaded_flattened_array() const {
   if (ValueArrayFlatten) {
     ciType* type = declared_type();
     if (type != NULL && type->is_value_array_klass()) {
-      ciValueKlass* element_klass = type->as_value_array_klass()->element_klass()->as_value_klass();
-      assert(element_klass->is_loaded(), "ciValueKlasses are always loaded");
-      if (element_klass->flatten_array()) {
-        return true;
-      }
+      ciValueArrayKlass* vak = type->as_value_array_klass();
+      ArrayStorageProperties props = vak->storage_properties();
+      return (!props.is_empty() && props.is_null_free() && props.is_flattened());
     }
   }
 
@@ -161,18 +159,13 @@ bool Instruction::maybe_flattened_array() {
   if (ValueArrayFlatten) {
     ciType* type = declared_type();
     if (type != NULL) {
-      if (type->is_value_array_klass()) {
-        ciValueKlass* element_klass = type->as_value_array_klass()->element_klass()->as_value_klass();
-        assert(element_klass->is_loaded(), "ciValueKlasses are always loaded");
-        if (element_klass->flatten_array()) {
-          return true;
-        }
-      } else if (type->is_obj_array_klass()) {
+      if (type->is_obj_array_klass()) {
+        // Check for array covariance. One of the following declared types may be a flattened array:
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (!element_klass->is_loaded() || element_klass->is_java_lang_Object() || element_klass->is_interface()) {
-          // Array covariance:
-          //    (ValueType[] <: Object[])
-          //    (ValueType[] <: <any interface>[])
+        if (!element_klass->is_loaded() ||
+            element_klass->is_java_lang_Object() ||                                                // (ValueType[] <: Object[])
+            element_klass->is_interface() ||                                                       // (ValueType[] <: <any interface>[])
+            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) { // (ValueType[] <: ValueType?[])
           // We will add a runtime check for flat-ness.
           return true;
         }
@@ -180,11 +173,34 @@ bool Instruction::maybe_flattened_array() {
         // This can happen as a parameter to System.arraycopy()
         return true;
       }
-    } else if (as_Phi() != NULL) {
-      // Type info gets lost during Phi merging, but we might be storing into a
+    } else {
+      // Type info gets lost during Phi merging (Phi, IfOp, etc), but we might be storing into a
       // flattened array, so we should do a runtime check.
       return true;
     }
+  }
+
+  return false;
+}
+
+bool Instruction::maybe_null_free_array() {
+  ciType* type = declared_type();
+  if (type != NULL) {
+    if (type->is_obj_array_klass()) {
+      // Check for array covariance. One of the following declared types may be a null-free array:
+      ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
+      if (!element_klass->is_loaded() ||
+          element_klass->is_java_lang_Object() ||   // (ValueType[] <: Object[])
+          element_klass->is_interface() ||          // (ValueType[] <: <any interface>[])
+          element_klass->is_valuetype()) {          // (ValueType[] <: ValueType?[])
+          // We will add a runtime check for flat-ness.
+          return true;
+      }
+    }
+  } else {
+    // Type info gets lost during Phi merging (Phi, IfOp, etc), but we might be storing into a
+    // flattened array, so we should do a runtime check.
+    return true;
   }
 
   return false;
@@ -278,6 +294,10 @@ bool StoreIndexed::is_exact_flattened_array_store() const {
   if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL) {
     ciKlass* element_klass = array()->declared_type()->as_value_array_klass()->element_klass();
     ciKlass* actual_klass = value()->declared_type()->as_klass();
+
+    // The following check can fail with inlining:
+    //     void test45_inline(Object[] oa, Object o, int index) { oa[index] = o; }
+    //     void test45(MyValue1[] va, int index, MyValue2 v) { test45_inline(va, v, index); }
     if (element_klass == actual_klass) {
       return true;
     }
@@ -296,7 +316,7 @@ ciType* NewTypeArray::exact_type() const {
 
 ciType* NewObjectArray::exact_type() const {
   ciKlass* element_klass = klass();
-  if (element_klass->is_valuetype()) {
+  if (is_never_null() && element_klass->is_valuetype()) {
     return ciValueArrayKlass::make(element_klass);
   } else {
     return ciObjArrayKlass::make(element_klass);

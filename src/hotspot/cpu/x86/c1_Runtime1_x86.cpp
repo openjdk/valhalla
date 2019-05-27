@@ -1131,16 +1131,17 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             __ stop("assert(is a type array klass)");
             break;
           case new_object_array_id:
-          case new_value_array_id: // <-- needs to be renamed to new_non_null_array_id!
-            // FIXME:
-            // The VM currently does not distinguish between anewarray of
-            // "[QV;" (elements are non-nullable) vs "[LV;" (elements may be null).
-            // Instead, both are treated essentially as "[QV;". This code needs
-            // to be reimplemented after proper support of "[LV;" is implemented in the VM.
-            //
-            __ cmpl(t0, Klass::_lh_array_tag_obj_value);
+            __ cmpl(t0, Klass::_lh_array_tag_obj_value); // new "[Ljava/lang/Object;"
             __ jcc(Assembler::equal, ok);
-            __ cmpl(t0, Klass::_lh_array_tag_vt_value);
+            __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // new "[LVT;"
+            __ jcc(Assembler::equal, ok);
+            __ stop("assert(is an object or value array klass)");
+            break;
+          case new_value_array_id:
+            // new "[QVT;"
+            __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // the array can be flattened.
+            __ jcc(Assembler::equal, ok);
+            __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be flattened (due to ValueArrayElemMaxFlatSize, etc)
             __ jcc(Assembler::equal, ok);
             __ stop("assert(is an object or value array klass)");
             break;
@@ -1197,10 +1198,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         int call_offset;
         if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
-        } else {
-          // Runtime1::new_object_array handles both object and value arrays.
-          // See comments in the ASSERT block above.
+        } else if (id == new_object_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
+        } else {
+          assert(id == new_value_array_id, "must be");
+          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_value_array), klass, length);
         }
 
         oop_maps = new OopMapSet();

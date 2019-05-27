@@ -110,6 +110,7 @@ class Runtime1: public AllStatic {
   static int _arraycopy_checkcast_attempt_cnt;
   static int _new_type_array_slowcase_cnt;
   static int _new_object_array_slowcase_cnt;
+  static int _new_value_array_slowcase_cnt;
   static int _new_instance_slowcase_cnt;
   static int _new_multi_array_slowcase_cnt;
   static int _load_flattened_array_slowcase_cnt;
@@ -153,6 +154,7 @@ class Runtime1: public AllStatic {
   static void new_instance    (JavaThread* thread, Klass* klass);
   static void new_type_array  (JavaThread* thread, Klass* klass, jint length);
   static void new_object_array(JavaThread* thread, Klass* klass, jint length);
+  static void new_value_array (JavaThread* thread, Klass* klass, jint length);
   static void new_multi_array (JavaThread* thread, Klass* klass, int rank, jint* dims);
   static void load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index);
   static void store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value);

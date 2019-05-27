@@ -55,7 +55,7 @@
     _deopt_handler_size = NOT_LP64(10) LP64_ONLY(17)
   };
 
-  void arraycopy_flat_check(Register obj, Register tmp, CodeStub* slow_path);
+void arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest);
 
 public:
 

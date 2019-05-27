@@ -105,6 +105,7 @@ public abstract class ValueTypeTest {
     // User defined settings
     protected static final boolean XCOMP = Platform.isComp();
     private static final boolean PRINT_GRAPH = true;
+    private static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !TEST_C1 && !XCOMP;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
@@ -566,6 +567,9 @@ public abstract class ValueTypeTest {
         // Execute tests
         TreeMap<Long, String> durations = PRINT_TIMES ? new TreeMap<Long, String>() : null;
         for (Method test : tests.values()) {
+            if (VERBOSE) {
+                System.out.println("Starting " + test.getName());
+            }
             long startTime = System.nanoTime();
             Method verifier = getClass().getMethod(test.getName() + "_verifier", boolean.class);
             // Warmup using verifier method
@@ -580,10 +584,13 @@ public abstract class ValueTypeTest {
             Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             // Check result
             verifier.invoke(this, false);
-            if (PRINT_TIMES) {
+            if (PRINT_TIMES || VERBOSE) {
                 long endTime = System.nanoTime();
                 long duration = (endTime - startTime);
                 durations.put(duration, test.getName());
+                if (VERBOSE) {
+                    System.out.println("Done " + test.getName() + ": " + duration + "ms");
+                }
             }
         }
 

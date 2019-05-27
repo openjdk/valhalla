@@ -390,6 +390,9 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(m, 1234);
 
         MyValue7[][] arr = new MyValue7[2][2];
+        Object[] oa = arr[1];
+        Asserts.assertNE(oa[0], null);
+
         arr[0][1] = new MyValue7(5678);
         m = 9999;
         for (int i=0; i<n; i++) {
@@ -417,6 +420,9 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(m, 1234);
 
         MyValue7Box?[][] arr = new MyValue7Box?[2][2];
+        Object[] oa = arr[1];
+        Asserts.assertEQ(oa[0], null);
+
         arr[0][1] = new MyValue7Box(5678);
         m = 9999;
         for (int i=0; i<n; i++) {

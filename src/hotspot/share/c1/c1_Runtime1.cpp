@@ -119,6 +119,7 @@ int Runtime1::_arraycopy_checkcast_cnt = 0;
 int Runtime1::_arraycopy_checkcast_attempt_cnt = 0;
 int Runtime1::_new_type_array_slowcase_cnt = 0;
 int Runtime1::_new_object_array_slowcase_cnt = 0;
+int Runtime1::_new_value_array_slowcase_cnt = 0;
 int Runtime1::_new_instance_slowcase_cnt = 0;
 int Runtime1::_new_multi_array_slowcase_cnt = 0;
 int Runtime1::_load_flattened_array_slowcase_cnt = 0;
@@ -393,13 +394,28 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* thread, Klass* array_klas
   assert(array_klass->is_klass(), "not a class");
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
-  if (elem_klass->is_value()) {
-    arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
-    thread->set_vm_result(obj);
-  } else {
-    objArrayOop obj = oopFactory::new_objArray(elem_klass, length, CHECK);
-    thread->set_vm_result(obj);
+  objArrayOop obj = oopFactory::new_objArray(elem_klass, length, CHECK);
+  thread->set_vm_result(obj);
+  // This is pretty rare but this runtime patch is stressful to deoptimization
+  // if we deoptimize here so force a deopt to stress the path.
+  if (DeoptimizeALot) {
+    deopt_caller();
   }
+JRT_END
+
+
+JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass, jint length))
+  NOT_PRODUCT(_new_value_array_slowcase_cnt++;)
+
+  // Note: no handle for klass needed since they are not used
+  //       anymore after new_objArray() and no GC can happen before.
+  //       (This may have to change if this code changes!)
+  assert(array_klass->is_klass(), "not a class");
+  Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
+  Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
+  assert(elem_klass->is_value(), "must be");
+  arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
+  thread->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
   if (DeoptimizeALot) {
@@ -1042,6 +1058,10 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       case Bytecodes::_multianewarray:
         { Bytecode_multianewarray mna(caller_method(), caller_method->bcp_from(bci));
           k = caller_method->constants()->klass_at(mna.index(), CHECK);
+          if (k->name()->is_Q_array_signature()) {
+            // Logically creates elements, ensure klass init
+            k->initialize(CHECK);
+          }
         }
         break;
       case Bytecodes::_instanceof:
@@ -1057,7 +1077,12 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       case Bytecodes::_anewarray:
         { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
-          k = ek->array_klass(CHECK);
+          if (ek->is_value() && caller_method->constants()->klass_at_noresolve(anew.index())->is_Q_signature()) {
+            k = ek->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK);
+            assert(ArrayKlass::cast(k)->storage_properties().is_null_free(), "Expect a null-free array class here");
+          } else {
+            k = ek->array_klass(CHECK);
+          }
         }
         break;
       case Bytecodes::_ldc:
@@ -1563,6 +1588,7 @@ void Runtime1::print_statistics() {
 
   tty->print_cr(" _new_type_array_slowcase_cnt:    %d", _new_type_array_slowcase_cnt);
   tty->print_cr(" _new_object_array_slowcase_cnt:  %d", _new_object_array_slowcase_cnt);
+  tty->print_cr(" _new_value_array_slowcase_cnt:   %d", _new_value_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
   tty->print_cr(" _load_flattened_array_slowcase_cnt: %d", _load_flattened_array_slowcase_cnt);

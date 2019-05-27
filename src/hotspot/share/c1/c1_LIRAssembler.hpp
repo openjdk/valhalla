@@ -204,7 +204,8 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_alloc_obj(LIR_OpAllocObj* op);
   void emit_alloc_array(LIR_OpAllocArray* op);
   void emit_opTypeCheck(LIR_OpTypeCheck* op);
-  void emit_opFlattenedStoreCheck(LIR_OpFlattenedStoreCheck* op);
+  void emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op);
+  void emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op);
   void emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, Label* failure, Label* obj_is_null);
   void emit_compare_and_swap(LIR_OpCompareAndSwap* op);
   void emit_lock(LIR_OpLock* op);

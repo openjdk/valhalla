@@ -1383,6 +1383,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {
+      __ andl(dest->as_register(), oopDesc::compressed_klass_mask());
       __ decode_klass_not_null(dest->as_register());
     }
 #endif
@@ -1930,25 +1931,33 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
 
 }
 
-void LIR_Assembler::emit_opFlattenedStoreCheck(LIR_OpFlattenedStoreCheck* op) {
-  Klass* k = (Klass*)(op->element_klass()->constant_encoding());
-  assert(k->is_klass(), "must be a loaded klass");
-  add_debug_info_for_null_check_here(op->info_for_exception());
+void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
+  // We are loading/storing an array that *may* be a flattened array (the declared type
+  // Object[], interface[], or VT?[]). If this array is flattened, take slow path.
 
-#ifdef _LP64
-  if (UseCompressedClassPointers) {
-    __ movl(op->tmp1()->as_register(), Address(op->object()->as_register(), oopDesc::klass_offset_in_bytes()));
-    __ cmp_narrow_klass(op->tmp1()->as_register(), k);
-  } else {
-    __ movq(op->tmp1()->as_register(), Address(op->object()->as_register(), oopDesc::klass_offset_in_bytes()));
-    __ cmpq(op->tmp1()->as_register(), op->tmp2()->as_register());
+  __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());
+  __ testb(op->tmp()->as_register(), ArrayStorageProperties::flattened_value);
+  __ jcc(Assembler::notZero, *op->stub()->entry());
+  if (!op->value()->is_illegal()) {
+    // We are storing into the array.
+    Label skip;
+    __ testb(op->tmp()->as_register(), ArrayStorageProperties::null_free_value);
+    __ jcc(Assembler::zero, skip);
+    // The array is not flattened, but it is null_free. If we are storing
+    // a null, take the slow path (which will throw NPE).
+    __ cmpptr(op->value()->as_register(), (int32_t)NULL_WORD);
+    __ jcc(Assembler::zero, *op->stub()->entry());
+    __ bind(skip);
   }
-#else
-  Unimplemented(); // FIXME
-#endif
+}
 
-  __ jcc(Assembler::notEqual, *op->stub()->entry());
-  __ bind(*op->stub()->continuation());
+void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
+  // This is called when we use aastore into a an array declared as "[LVT;",
+  // where we know VT is not flattenable (due to ValueArrayElemMaxFlatOops, etc).
+  // However, we need to do a NULL check if the actual array is a "[QVT;".
+
+  __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());
+  __ testb(op->tmp()->as_register(), ArrayStorageProperties::null_free_value);
 }
 
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
@@ -3070,18 +3079,16 @@ void LIR_Assembler::store_parameter(Metadata* m,  int offset_from_rsp_in_words) 
 }
 
 
-void LIR_Assembler::arraycopy_flat_check(Register obj, Register tmp, CodeStub* slow_path) {
-  Address klass_addr = Address(obj, oopDesc::klass_offset_in_bytes());
-  if (UseCompressedClassPointers) {
-    __ movl(tmp, klass_addr);
-    LP64_ONLY(__ decode_klass_not_null(tmp));
+void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest) {
+  __ load_storage_props(tmp, obj);
+  if (is_dest) {
+    // We also take slow path if it's a null_free destination array, just in case the source array
+    // contains NULLs.
+    __ testb(tmp, ArrayStorageProperties::flattened_value | ArrayStorageProperties::null_free_value);
   } else {
-    __ movptr(tmp, klass_addr);
+    __ testb(tmp, ArrayStorageProperties::flattened_value);
   }
-  __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
-  __ sarl(tmp, Klass::_lh_array_tag_shift);
-  __ cmpl(tmp, Klass::_lh_array_tag_vt_value);
-  __ jcc(Assembler::equal, *slow_path->entry());
+  __ jcc(Assembler::notEqual, *slow_path->entry());
 }
 
 
@@ -3103,7 +3110,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
-  if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+  if (basic_type == T_ARRAY || basic_type == T_VALUETYPE) basic_type = T_OBJECT;
 
   if (flags & LIR_OpArrayCopy::always_slow_path) {
     __ jmp(*stub->entry());
@@ -3111,22 +3118,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     return;
   }
 
-  if (flags & LIR_OpArrayCopy::src_flat_check) {
-    arraycopy_flat_check(src, tmp, stub);
+  if (flags & LIR_OpArrayCopy::src_valuetype_check) {
+    arraycopy_valuetype_check(src, tmp, stub, false);
   }
 
-  if (flags & LIR_OpArrayCopy::dst_flat_check) {
-    arraycopy_flat_check(dst, tmp, stub);
-  }
-
-  if (basic_type == T_VALUETYPE) {
-    assert(flags & (LIR_OpArrayCopy::always_slow_path |
-                    LIR_OpArrayCopy::src_flat_check |
-                    LIR_OpArrayCopy::dst_flat_check), "must have checked");
-    // If either src or dst is (or maybe) a flattened array, one of the 3 checks
-    // above would have caught it, and taken the slow path. So when we come here,
-    // the array must be a (non-flat) object array.
-    basic_type = T_OBJECT;
+  if (flags & LIR_OpArrayCopy::dst_valuetype_check) {
+    arraycopy_valuetype_check(dst, tmp, stub, true);
   }
 
   // if we don't know anything, just go through the generic arraycopy

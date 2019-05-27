@@ -269,7 +269,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   Value flattenable_load_field_prolog(LoadField* x, CodeEmitInfo* info);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
   bool needs_flattened_array_store_check(StoreIndexed* x);
-  void check_flattened_array(LIRItem& array, CodeStub* slow_path);
+  void check_flattened_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
+  bool needs_null_free_array_store_check(StoreIndexed* x);
+  void check_null_free_array(LIRItem& array, LIRItem& value,  CodeEmitInfo* info);
   void substitutability_check(IfOp* x, LIRItem& left, LIRItem& right, LIRItem& t_val, LIRItem& f_val);
 
  public:
@@ -320,7 +322,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   // specific implementations
   void array_store_check(LIR_Opr value, LIR_Opr array, CodeEmitInfo* store_check_info, ciMethod* profiled_method, int profiled_bci);
-  void flattened_array_store_check(LIR_Opr value, ciKlass* element_klass, CodeEmitInfo* store_check_info);
 
   static LIR_Opr result_register_for(ValueType* type, bool callee = false);
 

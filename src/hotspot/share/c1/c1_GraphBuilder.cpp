@@ -2321,11 +2321,9 @@ void GraphBuilder::new_type_array() {
 void GraphBuilder::new_object_array() {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
+  bool never_null = stream()->is_klass_never_null();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
-  NewArray* n = new NewObjectArray(klass, ipop(), state_before);
-  if (stream()->is_klass_never_null()) {
-    n->set_never_null(true);
-  }
+  NewArray* n = new NewObjectArray(klass, ipop(), state_before, never_null);
   apush(append_split(n));
 }
 

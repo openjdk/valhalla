@@ -271,20 +271,6 @@ void LIRGenerator::array_store_check(LIR_Opr value, LIR_Opr array, CodeEmitInfo*
   __ store_check(value, array, tmp1, tmp2, tmp3, store_check_info, profiled_method, profiled_bci);
 }
 
-void LIRGenerator::flattened_array_store_check(LIR_Opr value, ciKlass* element_klass, CodeEmitInfo* store_check_info) {
-  LIR_Opr tmp1 = new_register(T_METADATA);
-  LIR_Opr tmp2 = LIR_OprFact::illegalOpr;
-
-#ifdef _LP64
-  if (!UseCompressedClassPointers) {
-    tmp2 = new_register(T_METADATA);
-    __ metadata2reg(element_klass->constant_encoding(), tmp2);
-  }
-#endif
-
-  __ flattened_store_check(value, element_klass, tmp1, tmp2, store_check_info);
-}
-
 //----------------------------------------------------------------------
 //             visitor functions
 //----------------------------------------------------------------------

@@ -873,7 +873,8 @@ class    LIR_OpArrayCopy;
 class    LIR_OpUpdateCRC32;
 class    LIR_OpLock;
 class    LIR_OpTypeCheck;
-class    LIR_OpFlattenedStoreCheck;
+class    LIR_OpFlattenedArrayCheck;
+class    LIR_OpNullFreeArrayCheck;
 class    LIR_OpCompareAndSwap;
 class    LIR_OpProfileCall;
 class    LIR_OpProfileType;
@@ -988,9 +989,12 @@ enum LIR_Code {
     , lir_checkcast
     , lir_store_check
   , end_opTypeCheck
-  , begin_opFlattenedStoreCheck
-    , lir_flattened_store_check
-  , end_opFlattenedStoreCheck
+  , begin_opFlattenedArrayCheck
+    , lir_flattened_array_check
+  , end_opFlattenedArrayCheck
+  , begin_opNullFreeArrayCheck
+    , lir_null_free_array_check
+  , end_opNullFreeArrayCheck
   , begin_opCompareAndSwap
     , lir_cas_long
     , lir_cas_obj
@@ -1141,7 +1145,8 @@ class LIR_Op: public CompilationResourceObj {
   virtual LIR_OpArrayCopy* as_OpArrayCopy() { return NULL; }
   virtual LIR_OpUpdateCRC32* as_OpUpdateCRC32() { return NULL; }
   virtual LIR_OpTypeCheck* as_OpTypeCheck() { return NULL; }
-  virtual LIR_OpFlattenedStoreCheck* as_OpFlattenedStoreCheck() { return NULL; }
+  virtual LIR_OpFlattenedArrayCheck* as_OpFlattenedArrayCheck() { return NULL; }
+  virtual LIR_OpNullFreeArrayCheck* as_OpNullFreeArrayCheck() { return NULL; }
   virtual LIR_OpCompareAndSwap* as_OpCompareAndSwap() { return NULL; }
   virtual LIR_OpProfileCall* as_OpProfileCall() { return NULL; }
   virtual LIR_OpProfileType* as_OpProfileType() { return NULL; }
@@ -1274,8 +1279,8 @@ public:
     src_objarray           = 1 << 10,
     dst_objarray           = 1 << 11,
     always_slow_path       = 1 << 12,
-    src_flat_check         = 1 << 13,
-    dst_flat_check         = 1 << 14,
+    src_valuetype_check    = 1 << 13,
+    dst_valuetype_check    = 1 << 14,
     all_flags              = (1 << 15) - 1
   };
 
@@ -1603,31 +1608,41 @@ public:
   void print_instr(outputStream* out) const PRODUCT_RETURN;
 };
 
-// LIR_OpFlattenedStoreCheck
-class LIR_OpFlattenedStoreCheck: public LIR_Op {
+// LIR_OpFlattenedArrayCheck
+class LIR_OpFlattenedArrayCheck: public LIR_Op {
  friend class LIR_OpVisitState;
 
  private:
-  LIR_Opr       _object;
-  ciKlass*      _element_klass;
-  LIR_Opr       _tmp1;
-  LIR_Opr       _tmp2;
-  CodeEmitInfo* _info_for_exception;
+  LIR_Opr       _array;
+  LIR_Opr       _value;
+  LIR_Opr       _tmp;
   CodeStub*     _stub;
-
 public:
-  LIR_OpFlattenedStoreCheck(LIR_Opr object, ciKlass* element_klass, LIR_Opr tmp1, LIR_Opr tmp2,
-                            CodeEmitInfo* info_for_exception);
-
-  LIR_Opr object() const                         { return _object;         }
-  LIR_Opr tmp1() const                           { return _tmp1;           }
-  LIR_Opr tmp2() const                           { return _tmp2;           }
-  ciKlass* element_klass() const                 { return _element_klass;  }
-  CodeEmitInfo* info_for_exception() const       { return _info_for_exception; }
-  CodeStub* stub() const                         { return _stub;           }
+  LIR_OpFlattenedArrayCheck(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub);
+  LIR_Opr array() const                          { return _array;         }
+  LIR_Opr value() const                          { return _value;         }
+  LIR_Opr tmp() const                            { return _tmp;           }
+  CodeStub* stub() const                         { return _stub;          }
 
   virtual void emit_code(LIR_Assembler* masm);
-  virtual LIR_OpFlattenedStoreCheck* as_OpFlattenedStoreCheck() { return this; }
+  virtual LIR_OpFlattenedArrayCheck* as_OpFlattenedArrayCheck() { return this; }
+  virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
+};
+
+// LIR_OpNullFreeArrayCheck
+class LIR_OpNullFreeArrayCheck: public LIR_Op {
+ friend class LIR_OpVisitState;
+
+ private:
+  LIR_Opr       _array;
+  LIR_Opr       _tmp;
+public:
+  LIR_OpNullFreeArrayCheck(LIR_Opr array, LIR_Opr tmp);
+  LIR_Opr array() const                          { return _array;         }
+  LIR_Opr tmp() const                            { return _tmp;           }
+
+  virtual void emit_code(LIR_Assembler* masm);
+  virtual LIR_OpNullFreeArrayCheck* as_OpNullFreeArrayCheck() { return this; }
   virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
 };
 
@@ -2288,7 +2303,8 @@ class LIR_List: public CompilationResourceObj {
 
   void instanceof(LIR_Opr result, LIR_Opr object, ciKlass* klass, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check, CodeEmitInfo* info_for_patch, ciMethod* profiled_method, int profiled_bci);
   void store_check(LIR_Opr object, LIR_Opr array, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, CodeEmitInfo* info_for_exception, ciMethod* profiled_method, int profiled_bci);
-  void flattened_store_check(LIR_Opr object, ciKlass* element_klass, LIR_Opr tmp1, LIR_Opr tmp2, CodeEmitInfo* info_for_exception);
+  void check_flattened_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub);
+  void check_null_free_array(LIR_Opr array, LIR_Opr tmp);
 
   void checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
                   LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,

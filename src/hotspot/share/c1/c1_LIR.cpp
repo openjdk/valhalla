@@ -367,18 +367,19 @@ LIR_OpTypeCheck::LIR_OpTypeCheck(LIR_Code code, LIR_Opr object, LIR_Opr array, L
   }
 }
 
-LIR_OpFlattenedStoreCheck::LIR_OpFlattenedStoreCheck(LIR_Opr object, ciKlass* element_klass,
-                                                     LIR_Opr tmp1, LIR_Opr tmp2,
-                                                     CodeEmitInfo* info_for_exception)
-  : LIR_Op(lir_flattened_store_check, LIR_OprFact::illegalOpr, NULL)
-  , _object(object)
-  , _element_klass(element_klass)
-  , _tmp1(tmp1)
-  , _tmp2(tmp2)
-  , _info_for_exception(info_for_exception)
-{
-  _stub = new ArrayStoreExceptionStub(object, info_for_exception);
-}
+LIR_OpFlattenedArrayCheck::LIR_OpFlattenedArrayCheck(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub)
+  : LIR_Op(lir_flattened_array_check, LIR_OprFact::illegalOpr, NULL)
+  , _array(array)
+  , _value(value)
+  , _tmp(tmp)
+  , _stub(stub) {}
+
+
+LIR_OpNullFreeArrayCheck::LIR_OpNullFreeArrayCheck(LIR_Opr array, LIR_Opr tmp)
+  : LIR_Op(lir_null_free_array_check, LIR_OprFact::illegalOpr, NULL)
+  , _array(array)
+  , _tmp(tmp) {}
+
 
 LIR_OpArrayCopy::LIR_OpArrayCopy(LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_Opr dst_pos, LIR_Opr length,
                                  LIR_Opr tmp, ciArrayKlass* expected_type, int flags, CodeEmitInfo* info)
@@ -870,16 +871,26 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       break;
     }
 
-// LIR_OpFlattenedStoreCheck
-    case lir_flattened_store_check: {
-      assert(op->as_OpFlattenedStoreCheck() != NULL, "must be");
-      LIR_OpFlattenedStoreCheck* opFlattenedStoreCheck = (LIR_OpFlattenedStoreCheck*)op;
+// LIR_OpFlattenedArrayCheck
+    case lir_flattened_array_check: {
+      assert(op->as_OpFlattenedArrayCheck() != NULL, "must be");
+      LIR_OpFlattenedArrayCheck* opFlattenedArrayCheck = (LIR_OpFlattenedArrayCheck*)op;
 
-      if (opFlattenedStoreCheck->_info_for_exception)   do_info(opFlattenedStoreCheck->_info_for_exception);
-      if (opFlattenedStoreCheck->_object->is_valid())   do_temp(opFlattenedStoreCheck->_object);
-      if (opFlattenedStoreCheck->_tmp1->is_valid())     do_temp(opFlattenedStoreCheck->_tmp1);
-      if (opFlattenedStoreCheck->_tmp2->is_valid())     do_temp(opFlattenedStoreCheck->_tmp2);
-                                                        do_stub(opFlattenedStoreCheck->_stub);
+      if (opFlattenedArrayCheck->_array->is_valid()) do_input(opFlattenedArrayCheck->_array);
+      if (opFlattenedArrayCheck->_value->is_valid()) do_input(opFlattenedArrayCheck->_value);
+      if (opFlattenedArrayCheck->_tmp->is_valid())   do_temp(opFlattenedArrayCheck->_tmp);
+                                                     do_stub(opFlattenedArrayCheck->_stub);
+
+      break;
+    }
+
+// LIR_OpNullFreeArrayCheck
+    case lir_null_free_array_check: {
+      assert(op->as_OpNullFreeArrayCheck() != NULL, "must be");
+      LIR_OpNullFreeArrayCheck* opNullFreeArrayCheck = (LIR_OpNullFreeArrayCheck*)op;
+
+      if (opNullFreeArrayCheck->_array->is_valid()) do_input(opNullFreeArrayCheck->_array);
+      if (opNullFreeArrayCheck->_tmp->is_valid())   do_temp(opNullFreeArrayCheck->_tmp);
       break;
     }
 
@@ -1070,11 +1081,15 @@ void LIR_OpTypeCheck::emit_code(LIR_Assembler* masm) {
   }
 }
 
-void LIR_OpFlattenedStoreCheck::emit_code(LIR_Assembler* masm) {
-  masm->emit_opFlattenedStoreCheck(this);
-  if (stub()) {
+void LIR_OpFlattenedArrayCheck::emit_code(LIR_Assembler* masm) {
+  masm->emit_opFlattenedArrayCheck(this);
+  if (stub() != NULL) {
     masm->append_code_stub(stub());
   }
+}
+
+void LIR_OpNullFreeArrayCheck::emit_code(LIR_Assembler* masm) {
+  masm->emit_opNullFreeArrayCheck(this);
 }
 
 void LIR_OpCompareAndSwap::emit_code(LIR_Assembler* masm) {
@@ -1456,6 +1471,7 @@ void LIR_List::instanceof(LIR_Opr result, LIR_Opr object, ciKlass* klass, LIR_Op
 
 void LIR_List::store_check(LIR_Opr object, LIR_Opr array, LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3,
                            CodeEmitInfo* info_for_exception, ciMethod* profiled_method, int profiled_bci) {
+  // FIXME -- if the types of the array and/or the object are known statically, we can avoid loading the klass
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_store_check, object, array, tmp1, tmp2, tmp3, info_for_exception);
   if (profiled_method != NULL) {
     c->set_profiled_method(profiled_method);
@@ -1477,10 +1493,13 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
   }
 }
 
-void LIR_List::flattened_store_check(LIR_Opr object, ciKlass* element_klass,
-                                     LIR_Opr tmp1, LIR_Opr tmp2,
-                                     CodeEmitInfo* info_for_exception) {
-  LIR_OpFlattenedStoreCheck* c = new LIR_OpFlattenedStoreCheck(object, element_klass, tmp1, tmp2, info_for_exception);
+void LIR_List::check_flattened_array(LIR_Opr array, LIR_Opr value, LIR_Opr tmp, CodeStub* stub) {
+  LIR_OpFlattenedArrayCheck* c = new LIR_OpFlattenedArrayCheck(array, value, tmp, stub);
+  append(c);
+}
+
+void LIR_List::check_null_free_array(LIR_Opr array, LIR_Opr tmp) {
+  LIR_OpNullFreeArrayCheck* c = new LIR_OpNullFreeArrayCheck(array, tmp);
   append(c);
 }
 
@@ -1776,8 +1795,10 @@ const char * LIR_Op::name() const {
      case lir_instanceof:            s = "instanceof";    break;
      case lir_checkcast:             s = "checkcast";     break;
      case lir_store_check:           s = "store_check";   break;
-     // LIR_OpFlattenedStoreCheck
-     case lir_flattened_store_check: s = "flattened_store_check"; break;
+     // LIR_OpFlattenedArrayCheck
+     case lir_flattened_array_check: s = "flattened_array_check"; break;
+     // LIR_OpNullFreeArrayCheck
+     case lir_null_free_array_check: s = "null_free_array_check"; break;
      // LIR_OpCompareAndSwap
      case lir_cas_long:              s = "cas_long";      break;
      case lir_cas_obj:               s = "cas_obj";      break;
@@ -2023,14 +2044,19 @@ void LIR_OpTypeCheck::print_instr(outputStream* out) const {
   if (info_for_exception() != NULL) out->print(" [bci:%d]", info_for_exception()->stack()->bci());
 }
 
-void LIR_OpFlattenedStoreCheck::print_instr(outputStream* out) const {
-  object()->print(out);                  out->print(" ");
-  element_klass()->print_name_on(out);   out->print(" ");
-  tmp1()->print(out);                    out->print(" ");
-  tmp2()->print(out);                    out->print(" ");
-  if (info_for_exception() != NULL) out->print(" [bci:%d]", info_for_exception()->stack()->bci());
+void LIR_OpFlattenedArrayCheck::print_instr(outputStream* out) const {
+  array()->print(out);                   out->print(" ");
+  value()->print(out);                   out->print(" ");
+  tmp()->print(out);                     out->print(" ");
+  if (stub() != NULL) {
+    out->print("[label:" INTPTR_FORMAT "]", p2i(stub()->entry()));
+  }
 }
 
+void LIR_OpNullFreeArrayCheck::print_instr(outputStream* out) const {
+  array()->print(out);                   out->print(" ");
+  tmp()->print(out);                     out->print(" ");
+}
 
 // LIR_Op3
 void LIR_Op3::print_instr(outputStream* out) const {

@@ -513,6 +513,7 @@ class Instruction: public CompilationResourceObj {
 
   bool is_loaded_flattened_array() const;
   bool maybe_flattened_array();
+  bool maybe_null_free_array();
 
   Instruction *insert_after_same_bci(Instruction *i) {
 #ifndef PRODUCT
@@ -1436,7 +1437,10 @@ LEAF(NewObjectArray, NewArray)
 
  public:
   // creation
-  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before) : NewArray(length, state_before), _klass(klass) {}
+  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before, bool never_null)
+  : NewArray(length, state_before), _klass(klass) {
+    set_never_null(never_null);
+  }
 
   // accessors
   ciKlass* klass() const                         { return _klass; }
