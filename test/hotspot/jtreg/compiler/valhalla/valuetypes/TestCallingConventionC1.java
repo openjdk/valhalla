@@ -31,6 +31,7 @@ import jdk.test.lib.Asserts;
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
+ * @requires vm.compMode != "Xcomp"
  * @compile TestCallingConventionC1.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
