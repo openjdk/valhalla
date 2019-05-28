@@ -1171,6 +1171,8 @@ public class ObjectOutputStream
             // remaining cases
             if (obj instanceof String) {
                 writeString((String) obj, unshared);
+            } else if (cl.isValue()) {
+                throw new NotSerializableException(cl.getName());
             } else if (cl.isArray()) {
                 writeArray(obj, desc, unshared);
             } else if (obj instanceof Enum) {
