@@ -426,6 +426,8 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
     mem_clear(mem);
   }
   arrayOopDesc::set_length(mem, _length);
+  assert(ArrayKlass::cast(_klass)->storage_properties().is_empty() ||
+      ArrayKlass::cast(_klass)->dimension() == 1, "Multidim should have no storage props");
   return finish_with_properties(mem, ArrayKlass::cast(_klass)->storage_properties());
 }
 

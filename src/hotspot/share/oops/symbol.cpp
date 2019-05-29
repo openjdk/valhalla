@@ -123,6 +123,10 @@ bool Symbol::is_Q_array_signature() const {
   return false;
 }
 
+bool Symbol::is_Q_singledim_array_signature() const {
+  return utf8_length() > 3 && char_at(0) == '[' && char_at(1) == 'Q' && ends_with(';');
+}
+
 Symbol* Symbol::fundamental_name(TRAPS) {
   if ((char_at(0) == 'Q' || char_at(0) == 'L') && ends_with(';')) {
     return SymbolTable::lookup(this, 1, utf8_length() - 1, CHECK_NULL);
