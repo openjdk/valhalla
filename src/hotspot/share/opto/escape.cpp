@@ -1730,7 +1730,7 @@ void ConnectionGraph::adjust_scalar_replaceable_state(JavaObjectNode* jobj) {
       if (ptn->is_JavaObject() && ptn != jobj) {
         // Mark all objects.
         jobj->set_scalar_replaceable(false);
-         ptn->set_scalar_replaceable(false);
+        ptn->set_scalar_replaceable(false);
       }
     }
     if (!jobj->scalar_replaceable()) {

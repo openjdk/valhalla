@@ -2261,11 +2261,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       ciArrayKlass* ak = tary_klass->as_array_klass();
       // Do not fold klass loads from [V?. The runtime type might be [V due to [V <: [V?
       // and the klass for [V is not equal to the klass for [V?.
-      if (!tary->is_known_instance() && ak->is_obj_array_klass() &&
-          !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
-        // Fall back to Object array
-        ak = ciArrayKlass::make(phase->C->env()->Object_klass());
-      } else if (tary->klass_is_exact()) {
+      if (tary->klass_is_exact()) {
         return TypeKlassPtr::make(tary_klass);
       }
 
@@ -2277,7 +2273,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
         if (base_k->is_loaded() && base_k->is_instance_klass()) {
           ciInstanceKlass *ik = base_k->as_instance_klass();
           // See if we can become precise: no subklasses and no interface
-          if (!ik->is_interface() && !ik->has_subklass()) {
+          if (!ik->is_interface() && !ik->has_subklass() && (!ik->is_valuetype() || ak->storage_properties().is_null_free())) {
             //assert(!UseExactTypes, "this code should be useless with exact types");
             // Add a dependence; if any subclass added we need to recompile
             if (!ik->is_final()) {

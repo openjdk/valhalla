@@ -3624,7 +3624,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool can_be_flattened = false;
     if (ValueArrayFlatten && klass->is_obj_array_klass()) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
-      can_be_flattened = elem->is_java_lang_Object() || elem->is_interface();
+      can_be_flattened = elem->is_java_lang_Object() || elem->is_interface() || (elem->is_valuetype() && !klass->as_array_klass()->storage_properties().is_null_free());
     }
     if (xklass || (klass->is_array_klass() && !can_be_flattened)) {
       jint lhelper = klass->layout_helper();
@@ -4014,7 +4014,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   Node* default_value = NULL;
   Node* raw_default_value = NULL;
   int props_shift = UseCompressedClassPointers ? oopDesc::narrow_storage_props_shift : oopDesc::wide_storage_props_shift;
-  if (ary_ptr != NULL) {
+  if (ary_ptr != NULL && ary_ptr->klass_is_exact()) {
     // Array type is known
     elem = ary_ptr->elem();
     ciArrayKlass* ary_klass = ary_ptr->klass()->as_array_klass();
@@ -4035,7 +4035,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     }
   }
 
-  if (EnableValhalla && (elem == NULL || (elem_klass != NULL && elem_klass->is_java_lang_Object() && !ary_type->klass_is_exact()))) {
+  if (EnableValhalla && (elem == NULL || (elem_klass != NULL && (elem_klass->is_java_lang_Object() || elem_klass->is_valuetype()) &&
+                                          !ary_type->klass_is_exact()))) {
     // Array type is not known, compute default value and storage properties for initialization.
     assert(raw_default_value == NULL && storage_properties == NULL, "shouldn't be set yet");
     assert(elem_mirror != NULL, "should not be null");

@@ -73,7 +73,7 @@ void Parse::array_load(BasicType bt) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
     bt = T_VALUETYPE;
   } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
-             (!ary_t->klass_is_exact() || (elemptr->is_valuetypeptr() && elemptr->value_klass()->flatten_array()))) {
+             !ary_t->klass_is_exact() && (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array())) {
     // Cannot statically determine if array is flattened, emit runtime check
     IdealKit ideal(this);
     IdealVariable res(ideal);

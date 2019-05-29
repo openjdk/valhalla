@@ -1360,7 +1360,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
         if (idx < n->outcnt()) {
           Node* u = n->raw_out(idx);
           Node* c = phase->ctrl_or_self(u);
-          if (phase->is_dominator(call, c) && phase->is_dominator(c, projs.fallthrough_proj)) {
+          if (phase->is_dominator(call, c) && phase->is_dominator(c, projs->fallthrough_proj)) {
             stack.set_index(idx+1);
             assert(!u->is_CFG(), "");
             stack.push(u, 0);

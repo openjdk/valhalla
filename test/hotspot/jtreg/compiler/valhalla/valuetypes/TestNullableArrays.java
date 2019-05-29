@@ -505,14 +505,26 @@ public class TestNullableArrays extends ValueTypeTest {
             va2[i] = testValue1;
         }
         MyValue1?[] result1 = test18(va1);
-        MyValue1?[] result2 = test18(va2);
         if (len > 0) {
             Asserts.assertEQ(result1[0], null);
-            Asserts.assertEQ(result2[0].hash(), va2[0].hash());
         }
         for (int i = 1; i < len; ++i) {
             Asserts.assertEQ(result1[i].hash(), va1[i].hash());
-            Asserts.assertEQ(result2[i].hash(), va2[i].hash());
+        }
+        // make sure we do deopt: GraphKit::new_array assumes an
+        // array of references
+        for (int j = 0; j < 10; j++) {
+            MyValue1?[] result2 = test18(va2);
+
+            for (int i = 0; i < len; ++i) {
+                Asserts.assertEQ(result2[i].hash(), va2[i].hash());
+            }
+        }
+        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test18")) {
+            MyValue1?[] result2 = test18(va2);
+            for (int i = 0; i < len; ++i) {
+                Asserts.assertEQ(result2[i].hash(), va2[i].hash());
+            }
         }
     }
 

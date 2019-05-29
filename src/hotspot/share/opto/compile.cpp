@@ -4304,11 +4304,6 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
   ciType* superelem = superk;
   if (superelem->is_array_klass()) {
     ciArrayKlass* ak = superelem->as_array_klass();
-    // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-    // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
-    if (ak->is_obj_array_klass() && !ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
-      return SSC_full_test;
-    }
     superelem = superelem->as_array_klass()->base_element_type();
   }
 
@@ -4322,6 +4317,11 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
     }
   }
 
+  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
+  // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
+  if (superk->is_obj_array_klass() && !superk->as_array_klass()->storage_properties().is_null_free() && superk->as_array_klass()->element_klass()->is_valuetype()) {
+    return SSC_full_test;
+  }
   // If casting to an instance klass, it must have no subtypes
   if (superk->is_interface()) {
     // Cannot trust interfaces yet.

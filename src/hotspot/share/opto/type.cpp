@@ -2364,8 +2364,16 @@ bool TypeAry::ary_must_be_exact() const {
     tinst = _elem->make_ptr()->isa_instptr();
   else
     tinst = _elem->isa_instptr();
-  if (tinst)
-    return tklass->as_instance_klass()->is_final();
+  if (tinst) {
+    // [V? has a subtype: [V. So eventhough V is final, [V? is not exact.
+    if (tklass->as_instance_klass()->is_final()) {
+      if (tinst->is_valuetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
   const TypeAryPtr*  tap;
   if (_elem->isa_narrowoop())
     tap = _elem->make_ptr()->isa_aryptr();
@@ -3449,7 +3457,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     if (null_free && etype->is_valuetypeptr()) {
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
-    bool xk = etype->klass_is_exact();
+    // [V? has a subtype: [V. So eventhough V is final, [V? is not exact.
+    bool xk = etype->klass_is_exact() && (!etype->is_valuetypeptr() || null_free);
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -4348,7 +4357,7 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, const TypeAry *ary, ciKlass* k, bool
                                    int instance_id, const TypePtr* speculative, int inline_depth) {
   assert(!(k == NULL && ary->_elem->isa_int()),
          "integral arrays must be pre-equipped with a class");
-  if (!xk)  xk = ary->ary_must_be_exact();
+  if (!xk) xk = ary->ary_must_be_exact();
   assert(instance_id <= 0 || xk || !UseExactTypes, "instances are always exactly typed");
   if (!UseExactTypes)  xk = (ptr == Constant);
   return (TypeAryPtr*)(new TypeAryPtr(ptr, NULL, ary, k, xk, offset, field_offset, instance_id, false, speculative, inline_depth))->hashcons();
