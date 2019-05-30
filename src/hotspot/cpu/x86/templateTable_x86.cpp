@@ -4663,6 +4663,17 @@ void TemplateTable::monitorenter() {
 
   __ resolve(IS_NOT_NULL, rax);
 
+  const int is_value_mask = markOopDesc::always_locked_pattern;
+  Label has_identity;
+  __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
+  __ andptr(rbx, is_value_mask);
+  __ cmpl(rbx, is_value_mask);
+  __ jcc(Assembler::notEqual, has_identity);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                     InterpreterRuntime::throw_illegal_monitor_state_exception));
+  __ should_not_reach_here();
+  __ bind(has_identity);
+
   const Address monitor_block_top(
         rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
@@ -4761,6 +4772,17 @@ void TemplateTable::monitorexit() {
   __ null_check(rax);
 
   __ resolve(IS_NOT_NULL, rax);
+
+  const int is_value_mask = markOopDesc::always_locked_pattern;
+  Label has_identity;
+  __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
+  __ andptr(rbx, is_value_mask);
+  __ cmpl(rbx, is_value_mask);
+  __ jcc(Assembler::notEqual, has_identity);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                     InterpreterRuntime::throw_illegal_monitor_state_exception));
+  __ should_not_reach_here();
+  __ bind(has_identity);
 
   const Address monitor_block_top(
         rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
