@@ -38,17 +38,7 @@ public class Sum1 extends SizedBase {
     }
 
     @Benchmark
-    public int boxedV() {
-        Val1?[] v = this.boxed;
-        Val1 sum = new Val1(0);
-        for (int i = 0; i < size; i++) {
-            sum = sum.add((Val1)v[i]);
-        }
-        return sum.reduce();
-    }
-
-    @Benchmark
-    public int boxedB() {
+    public int boxed() {
         Val1?[] v = this.boxed;
         Val1? sum = new Val1(0);
         for (int i = 0; i < size; i++) {

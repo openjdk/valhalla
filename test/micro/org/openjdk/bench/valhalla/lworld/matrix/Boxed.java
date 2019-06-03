@@ -47,22 +47,6 @@ public class Boxed extends MatrixBase {
     }
 
     @Benchmark
-    public Complex?[][] multiply1() {
-        int size = A.length;
-        Complex?[][] R = new Complex?[size][size];
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                Complex? s = Complex.H.ZERO;
-                for (int k = 0; k < size; k++) {
-                    s = s.add(A[i][k].mul((Complex)B[k][j]));
-                }
-                R[i][j] = s;
-            }
-        }
-        return R;
-    }
-
-    @Benchmark
     public Complex?[][] multiplyCacheFriendly() {
         int size = A.length;
         Complex?[][] R = new Complex?[size][size];
@@ -79,5 +63,27 @@ public class Boxed extends MatrixBase {
         }
         return R;
     }
+
+    @Benchmark
+    public Complex?[][] multiplyCacheFriendly1() {
+        int size = A.length;
+        Complex?[][] R = new Complex?[size][size];
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                R[i][j] = Complex.H.ZERO;
+            }
+        }
+        for (int i = 0; i < size; i++) {
+            for (int k = 0; k < size; k++) {
+                Complex? aik = A[i][k];
+                for (int j = 0; j < size; j++) {
+                    R[i][j] = R[i][j].add(aik.mul((Complex)B[k][j]));
+                }
+            }
+        }
+        return R;
+    }
+
+
 }
 
