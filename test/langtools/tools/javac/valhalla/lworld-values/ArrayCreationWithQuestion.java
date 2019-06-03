@@ -26,7 +26,7 @@
  * @bug 8222634
  * @summary Check array creation with V and V?
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDnoStaticInitValueFactory ArrayCreationWithQuestion.java
+ * @compile ArrayCreationWithQuestion.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla ArrayCreationWithQuestion
  * @modules jdk.compiler
  */
@@ -53,10 +53,10 @@ public class ArrayCreationWithQuestion {
                                             Paths.get(System.getProperty("test.classes"),
                                                 "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
-        "         6: anewarray     #21                 // class ArrayCreationWithQuestion$VT",
-        "        17: anewarray     #21                 // class ArrayCreationWithQuestion$VT",
-        "        28: anewarray     #29                 // class \"QArrayCreationWithQuestion$VT;\"",
-        "        39: anewarray     #29                 // class \"QArrayCreationWithQuestion$VT;\"",
+        "         6: anewarray     #3                  // class ArrayCreationWithQuestion$VT",
+        "        17: anewarray     #3                  // class ArrayCreationWithQuestion$VT",
+        "        28: anewarray     #11                 // class \"QArrayCreationWithQuestion$VT;\"",
+        "        39: anewarray     #11                 // class \"QArrayCreationWithQuestion$VT;\"",
          });
 
      }

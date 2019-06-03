@@ -26,7 +26,7 @@
  * @bug 8214421 8221545 8222792
  * @summary Q<->L mixing should be OK for upcasts and should use checkcasts for downcasts.
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDnoStaticInitValueFactory BoxValCastTest.java
+ * @compile BoxValCastTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla BoxValCastTest
  * @modules jdk.compiler
  */

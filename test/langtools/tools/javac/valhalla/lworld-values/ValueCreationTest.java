@@ -25,7 +25,7 @@
  * @test
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDnoStaticInitValueFactory -XDallowWithFieldOperator ValueCreationTest.java
+ * @compile ValueCreationTest.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla ValueCreationTest
  * @modules jdk.compiler
  */
@@ -42,19 +42,13 @@ public class ValueCreationTest {
         final int x;
         final int y;
 
-        Point () {
-            x = 10;
-            y = 10;
-        }
-
-        static Point makePoint(int x, int y) {
-           Point p = Point.default;
-           p = __WithField(p.x, x);
-           return __WithField(p.y, y);
+        Point (int x, int y) {
+            this.x = x;
+            this.y = y;
         }
 
         public static void main(String [] args) {
-            Point p = makePoint(10, 20);
+            Point p = new Point(10, 20);
         }
     }
 
@@ -68,19 +62,20 @@ public class ValueCreationTest {
                                                 "ValueCreationTest$Point.class").toString() };
         runCheck(params, new String [] {
 
-         "0: defaultvalue  #7                  // class ValueCreationTest$Point",
+         "0: defaultvalue  #1                  // class ValueCreationTest$Point",
          "3: astore_2",
          "4: iload_0",
          "5: aload_2",
          "6: swap",
-         "7: withfield     #9                  // Field x:I",
+         "7: withfield     #3                  // Field x:I",
         "10: astore_2",
         "11: iload_1",
         "12: aload_2",
         "13: swap",
-        "14: withfield     #13                 // Field y:I",
-        "17: areturn"
-           
+        "14: withfield     #7                  // Field y:I",
+        "17: astore_2",
+        "18: aload_2",
+        "19: areturn"
          });
 
      }

@@ -25,7 +25,7 @@
  * @test
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDnoStaticInitValueFactory -XDallowWithFieldOperator WithFieldOfExplicitSelector.java
+ * @compile -XDallowWithFieldOperator WithFieldOfExplicitSelector.java
  * @run main/othervm -Xverify:none -XX:+EnableValhalla WithFieldOfExplicitSelector
  * @modules jdk.compiler
  */
@@ -67,7 +67,7 @@ public class WithFieldOfExplicitSelector {
          "3: withfield     #7                  // Field i:I",
          "6: astore_3",
          "7: aload_2",
-         "8: invokevirtual #13                 // Method java/lang/Integer.intValue:()I",
+         "8: invokevirtual #11                 // Method java/lang/Integer.intValue:()I",
         "11: aload_3",
         "12: swap",
         "13: withfield     #7                  // Field i:I",

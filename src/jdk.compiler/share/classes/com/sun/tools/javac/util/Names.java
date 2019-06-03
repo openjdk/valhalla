@@ -199,7 +199,6 @@ public class Names {
     public final Name makeConcatWithConstants;
 
     // values
-    public final Name makeValue;
     public final Name dollarValue;
 
     public final Name.Table table;
@@ -360,7 +359,6 @@ public class Names {
         makeConcatWithConstants = fromString("makeConcatWithConstants");
 
         // value types
-        makeValue = fromString("$makeValue$");
         dollarValue = fromString("$value");
 
     }

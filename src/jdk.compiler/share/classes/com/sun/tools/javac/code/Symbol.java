@@ -447,9 +447,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     /** Is this symbol a value factory?
      */
-    public boolean isValueFactory(boolean staticInitValueFactory) {
-        return (name == name.table.names.makeValue ||
-                (staticInitValueFactory && name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
+    public boolean isValueFactory() {
+        return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 
     public boolean isDynamic() {

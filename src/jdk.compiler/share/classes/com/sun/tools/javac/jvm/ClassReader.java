@@ -2172,6 +2172,13 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
+        if (name == names.init && ((flags & STATIC) != 0)) {
+            flags &= ~STATIC;
+            type = new MethodType(type.getParameterTypes(),
+                    syms.voidType,
+                    type.getThrownTypes(),
+                    syms.methodClass);
+        }
         if (name == names.init && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
