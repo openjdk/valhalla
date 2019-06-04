@@ -2363,7 +2363,8 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   /* Shared spaces */                                                       \
                                                                             \
-  product(bool, UseSharedSpaces, true,                                      \
+  /* Disabled UseSharedSpaces for Valhalla, just for now */                 \
+  product(bool, UseSharedSpaces, false,                                     \
           "Use shared spaces for metadata")                                 \
                                                                             \
   product(bool, VerifySharedSpaces, false,                                  \
