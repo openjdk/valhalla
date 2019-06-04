@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla ParameterizedDefault
  */
 
-public value class ParameterizedDefault<E> {
+public inline class ParameterizedDefault<E> {
     E value;
     ParameterizedDefault(E value) { this.value = value; }
     static String foo (Object p) {

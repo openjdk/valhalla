@@ -30,7 +30,7 @@
  * @run main/othervm -XX:+EnableValhalla ArrayRelationsTest
  */
 
-public value class ArrayRelationsTest {
+public inline class ArrayRelationsTest {
 
     int x = 42;
 

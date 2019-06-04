@@ -31,7 +31,7 @@
 
 public class AnonymousValueType {
     public static void main(String[] args) {
-        Object o = new value Comparable<String>() {
+        Object o = new inline Comparable<String>() {
             int x = 10;
             @Override
             public int compareTo(String o) {

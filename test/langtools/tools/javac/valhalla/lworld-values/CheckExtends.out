@@ -1,2 +1,2 @@
-CheckExtends.java:8:13: compiler.err.value.may.not.extend
+CheckExtends.java:8:14: compiler.err.value.may.not.extend
 1 error

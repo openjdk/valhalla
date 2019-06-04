@@ -8,7 +8,7 @@
 
 import java.util.List;
 
-value class X {
+inline class X {
     List<X?> ls = new Object();    
     X?[] xa = new Object?[10];
 }

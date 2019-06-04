@@ -30,7 +30,7 @@
  * @run main/othervm -XX:+EnableValhalla TypeRelationsTest
  */
 
-public value class TypeRelationsTest {
+public inline class TypeRelationsTest {
 
     int x = 42;
 

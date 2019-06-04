@@ -5,7 +5,7 @@
  * @compile/fail/ref=TypeRelationsNegativeTest.out -XDrawDiagnostics TypeRelationsNegativeTest.java
  */
 
-final value class TypeRelationsNegativeTest {
+final inline class TypeRelationsNegativeTest {
 
     void foo() {
         TypeRelationsNegativeTest x = null; // error

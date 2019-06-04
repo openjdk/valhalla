@@ -9,7 +9,7 @@ import java.util.HashMap;
 
 public class GenericsWithQuestion {
 
-    value class V {
+    inline class V {
         int x = 10;
     }
 

@@ -31,7 +31,7 @@
 
 public class GenericArrayRegression {
 
-   static value class Entry<E> {
+   static inline class Entry<E> {
      private final int value;
 
      public Entry(int value) {

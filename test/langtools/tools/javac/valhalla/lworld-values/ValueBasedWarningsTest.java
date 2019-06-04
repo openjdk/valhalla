@@ -7,7 +7,7 @@
 
 public class ValueBasedWarningsTest {
     @ValueBased
-    final value class X {
+    final inline class X {
         final int x = 10;
         void foo(X x1, X x2) {
             x1 = null;

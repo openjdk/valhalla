@@ -7,7 +7,7 @@
 
 import static java.lang.System.*;
 
-final value class CheckIdentityHash01 {
+final inline class CheckIdentityHash01 {
     void test(CheckIdentityHash01 v) {
 
         identityHashCode(v);      // <- error

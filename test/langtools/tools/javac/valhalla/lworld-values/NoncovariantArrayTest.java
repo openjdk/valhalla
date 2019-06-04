@@ -6,7 +6,7 @@
  * @compile/fail/ref=NoncovariantArrayTest2.out -XDrawDiagnostics -XDdev NoncovariantArrayTest.java
  */
 public class NoncovariantArrayTest { 
-    static final value class V { 
+    static final inline class V { 
         public final int v1; 
         private V () {v1 = 0;} 
     } 

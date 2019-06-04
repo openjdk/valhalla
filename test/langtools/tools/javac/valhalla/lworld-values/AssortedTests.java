@@ -30,14 +30,14 @@
  * @compile AssortedTests.java
  */
 
-value class MyValue1 {
+inline class MyValue1 {
     final int x = 0;
 }
 
 class X {
     static final MyValue1 vField = new MyValue1();
 
-    value class MyValue2 {
+    inline class MyValue2 {
         final MyValue1? vBoxField;
 
         public MyValue2() {
@@ -48,14 +48,14 @@ class X {
     public static void main(String[] args) { }
 }
 
-value class MyValue3 {
+inline class MyValue3 {
     final int x = 0;
     public int hash() { return 0; }
 }
 
 class Y {
 
-    value class MyValue4 {
+    inline class MyValue4 {
         final MyValue3? vBoxField = null;
 
         public int test() {
@@ -70,7 +70,7 @@ interface MyInterface {
     public void test(MyValue5? vt);
 }
 
-value class MyValue5 implements MyInterface {
+inline class MyValue5 implements MyInterface {
     final int x = 0;
 
     @Override

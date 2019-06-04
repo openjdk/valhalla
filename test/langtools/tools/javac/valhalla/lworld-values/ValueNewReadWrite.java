@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla ValueNewReadWrite
  */
 
-public value class ValueNewReadWrite {
+public inline class ValueNewReadWrite {
 
     int y = 10;
     int twice_x_plus_y;

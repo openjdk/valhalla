@@ -110,8 +110,6 @@ public class Names {
     public final Name java_lang_Enum;
     public final Name java_lang_Object;
     public final Name java_lang_System;
-    public final Name __value__;
-    public final Name java_lang___value__;
     public final Name __inline__;
     public final Name java_lang___inline__;
 
@@ -271,8 +269,6 @@ public class Names {
         java_lang_Enum = fromString("java.lang.Enum");
         java_lang_Object = fromString("java.lang.Object");
         java_lang_System = fromString("java.lang.System");
-        __value__ = fromString("__value__");
-        java_lang___value__ = fromString("java.lang.__value__");
         __inline__ = fromString("__inline__");
         java_lang___inline__ = fromString("java.lang.__inline__");
 

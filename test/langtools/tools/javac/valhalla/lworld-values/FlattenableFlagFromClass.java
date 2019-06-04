@@ -23,7 +23,7 @@
 
 public class FlattenableFlagFromClass {
 
-    public value final class V {
+    public inline final class V {
         final int x = 10;
     }
 

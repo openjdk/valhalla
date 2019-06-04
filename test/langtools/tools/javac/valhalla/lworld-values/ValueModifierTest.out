@@ -1,6 +1,6 @@
-ValueModifierTest.java:11:27: compiler.err.empty.value.not.yet
-ValueModifierTest.java:14:15: compiler.err.empty.value.not.yet
+ValueModifierTest.java:11:28: compiler.err.empty.value.not.yet
+ValueModifierTest.java:14:16: compiler.err.empty.value.not.yet
 ValueModifierTest.java:15:13: compiler.err.cant.inherit.from.final: value
-ValueModifierTest.java:16:27: compiler.err.value.may.not.extend
-ValueModifierTest.java:16:19: compiler.err.cant.inherit.from.final: value
+ValueModifierTest.java:16:28: compiler.err.value.may.not.extend
+ValueModifierTest.java:16:20: compiler.err.cant.inherit.from.final: value
 5 errors

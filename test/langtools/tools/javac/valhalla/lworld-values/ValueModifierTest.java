@@ -8,12 +8,12 @@
 public class ValueModifierTest {
     interface value {}
     void foo() {
-        new value value() {};
+        new inline value() {};
     }
     void goo() {
-        value class value {}
+        inline class value {}
         new value() {};
-        new value value() {};
+        new inline value() {};
         new value();
     }
 }

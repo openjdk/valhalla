@@ -9,9 +9,9 @@
    cannot synchronize using the methods declared on jlO.
 */
 
-public final value class CheckSync {
+public final inline class CheckSync {
 
-    final value class Val {
+    final inline class Val {
         int x = 10;
         void foo() {
             // All calls below are bad.

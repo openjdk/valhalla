@@ -30,7 +30,7 @@
 
 
 public class InnerValueNew {
-    final value class Y {
+    final inline class Y {
         final int x;
         final int p = 123456;
         Y() {

@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckFinal.out -XDrawDiagnostics CheckFinal.java
  */
 
-value class CheckFinal { // implicitly final
+inline class CheckFinal { // implicitly final
     int fi;  // implicitly final
     final int fe; // explicitly final
     void f(int x) {

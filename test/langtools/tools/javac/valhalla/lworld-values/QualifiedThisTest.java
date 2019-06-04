@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla QualifiedThisTest
  */
 
-public value  class QualifiedThisTest {
+public inline  class QualifiedThisTest {
 
     final int x;
     final int y;

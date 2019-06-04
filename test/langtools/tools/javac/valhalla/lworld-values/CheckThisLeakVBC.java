@@ -6,7 +6,7 @@
  */
 
 @ValueBased
-value class V {
+inline class V {
 
 	private final int x, ymx;
 

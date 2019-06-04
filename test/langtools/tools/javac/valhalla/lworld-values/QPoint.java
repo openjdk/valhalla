@@ -21,7 +21,7 @@
  * questions.
  */
 
-value class QPoint {
+inline class QPoint {
     int x = 0;
     int y = 0;
 }

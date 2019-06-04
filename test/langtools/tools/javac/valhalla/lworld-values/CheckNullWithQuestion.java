@@ -30,7 +30,7 @@
  * @compile CheckNullWithQuestion.java
  */
 
-value class CheckNullWithQuestion {
+inline class CheckNullWithQuestion {
     final int x = 0;
     void foo(boolean flag) {
         CheckNullWithQuestion? vBox = null;

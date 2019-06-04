@@ -8,9 +8,9 @@ public class WithFieldOperatorTest {
     static int xs;
     int ifld;
     class Y {}
-    public final value class V { int x = 10; }
+    public final inline class V { int x = 10; }
 
-    public final value class X {
+    public final inline class X {
 
         final int x;
         final V v;

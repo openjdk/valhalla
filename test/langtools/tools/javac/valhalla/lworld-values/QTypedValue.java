@@ -21,7 +21,7 @@
  * questions.
  */
 
-value class QTypedValue {
+inline class QTypedValue {
 
     QTypedValue [] f1 = new QTypedValue[10];
     QTypedValue [] f2 = new QTypedValue[10];

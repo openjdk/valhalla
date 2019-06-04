@@ -32,7 +32,7 @@ import java.util.function.Function;
 
 public class AnonymousValue {
 	 static Function<String, String> capitalizer() {
-        return new value Function<>() {
+        return new inline Function<>() {
             int x = 10;
 			@Override
 			public String apply(String t) {

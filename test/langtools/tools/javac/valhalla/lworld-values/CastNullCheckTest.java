@@ -36,7 +36,7 @@
 public class CastNullCheckTest {
 
     @ValueBased
-    final value class XX {
+    final inline class XX {
         final int x = 10;
     }
 

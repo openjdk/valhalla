@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla CtorChain
  */
 
-public value class CtorChain {
+public inline class CtorChain {
     int x1, x2, x3, x4, x5;
     CtorChain() {
         this(10);

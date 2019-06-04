@@ -36,7 +36,7 @@ import java.nio.file.Paths;
 
 public class ConstantPropagationTest {
 
-    static final value class X {
+    static final inline class X {
         static final int sfif = 8888;
         final int ifif = 9999;
         static void foo(X x) {

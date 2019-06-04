@@ -32,7 +32,7 @@
 
 import java.util.function.Consumer;
 
-  @__value__ class CaptureBug {
+  @__inline__ class CaptureBug {
     final int value;
   
     public CaptureBug(int value) {

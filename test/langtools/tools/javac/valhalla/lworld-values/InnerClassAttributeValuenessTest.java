@@ -33,7 +33,7 @@ import com.sun.tools.classfile.AccessFlags;
 
 public class InnerClassAttributeValuenessTest {
 
-    static value class Inner {
+    static inline class Inner {
         int f;
         private Inner() { f=0; }
         private Inner(int v) { f=v; }

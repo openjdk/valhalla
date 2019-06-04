@@ -7,9 +7,9 @@
 
 class ValueAnnotationOnAnonymousClass {
     interface I {}
-    @__value__
+    @__inline__
     public static void main(String args []) {
-        new @__value__ I() {
+        new @__inline__ I() {
         };
     }
 }

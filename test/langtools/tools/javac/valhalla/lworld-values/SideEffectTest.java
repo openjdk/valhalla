@@ -31,7 +31,7 @@
 
 public class SideEffectTest {
 
-	static value class V {
+	static inline class V {
 
         static String output = "";
 

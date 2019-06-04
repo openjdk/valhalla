@@ -28,11 +28,11 @@
  * @run main/othervm -Xverify:none -XX:+EnableValhalla  IntercastTest2
  */
 
-public value class IntercastTest2 {
+public inline class IntercastTest2 {
 
     int ARRAY[] = { 10, 20, 30 };
 
-    static value class Tuple {
+    static inline class Tuple {
         private final int index;
         private final int element;
 
@@ -42,7 +42,7 @@ public value class IntercastTest2 {
         }
     }
 
-    static value class Cursor {
+    static inline class Cursor {
         private final int[] array;
         private final int index;
 

@@ -37,7 +37,7 @@ import java.nio.file.Paths;
 
 public class ProjectedArrayDotClass {
 
-    static value class VT {
+    static inline class VT {
         int x = 42;
         public static void main(String[] args) {
             System.out.println(VT?[].class);

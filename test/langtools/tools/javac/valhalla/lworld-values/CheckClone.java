@@ -5,8 +5,8 @@
  * @compile/fail/ref=CheckClone.out -XDrawDiagnostics CheckClone.java
  */
 
-final value class CheckClone {
-    final value class InnerValue {
+final inline class CheckClone {
+    final inline class InnerValue {
         void foo(InnerValue iv) {
             iv.clone();
             clone();

@@ -4,6 +4,6 @@
  * @compile/fail/ref=EmptyValueTest.out -XDrawDiagnostics -XDdev EmptyValueTest.java
  * @compile -XDrawDiagnostics -XDdev -XDallowEmptyValues EmptyValueTest.java
  */
-public final value class EmptyValueTest {
+public final inline class EmptyValueTest {
     static int x;
 }

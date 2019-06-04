@@ -30,7 +30,7 @@
  * @compile -XDallowGenericsOverValues GenericsAndValues1.java
  */
 
- @__value__ class Foo implements Comparable<Foo>{
+ @__inline__ class Foo implements Comparable<Foo>{
     final int value;
   
     public Foo(int value) {

@@ -33,7 +33,7 @@ public class LocalValueNew {
     int xf = 1234;
     void foo() {
         int xl = 10; int yl = 20;
-        final value class Y {
+        final inline class Y {
             final int x;
             final int p = 123456;
             Y() {

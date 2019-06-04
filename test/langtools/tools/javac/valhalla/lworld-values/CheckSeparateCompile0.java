@@ -31,7 +31,7 @@ public class CheckSeparateCompile0 {
 		int o = 456;
 		public class M {
 			int m = 789;
-			public value class I {
+			public inline class I {
 				int i = 0;
 				I() {
 					

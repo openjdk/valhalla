@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckNullCastable.out -XDrawDiagnostics CheckNullCastable.java
  */
 
-value final class CheckNullCastable {
+inline final class CheckNullCastable {
     void foo(CheckNullCastable cnc) {
         CheckNullCastable cncl = (CheckNullCastable) null;
         if (cnc != null) {};

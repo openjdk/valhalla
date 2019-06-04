@@ -28,7 +28,7 @@
  * @run main/othervm -XX:+EnableValhalla QualifiedSuperCtor
  */
 
-value class A {
+inline class A {
     int x = 1000000;
     class Inner { 
         String aDotThis;

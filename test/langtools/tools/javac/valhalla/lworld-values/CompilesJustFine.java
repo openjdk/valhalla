@@ -38,7 +38,7 @@ class CompilesFine {
         nfspQm = null;
     }
 }
-value final class Point {
+inline final class Point {
     final int x;
     final int y;
 
@@ -50,7 +50,7 @@ value final class Point {
 
 class CompilesJustFine {
 
-    static final value class Value {
+    static final inline class Value {
         final PointBug2? nfpQm;
 
         private Value() {
@@ -58,7 +58,7 @@ class CompilesJustFine {
         }
     }
 }
-value final class PointBug2 {
+inline final class PointBug2 {
     final int x;
     final int y;
 

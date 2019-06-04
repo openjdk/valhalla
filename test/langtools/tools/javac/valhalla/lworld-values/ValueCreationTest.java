@@ -36,7 +36,7 @@ import java.nio.file.Paths;
 
 public class ValueCreationTest {
 
-    value
+    inline
     static final class Point {
 
         final int x;
