@@ -1,7 +1,7 @@
 
 package org.openjdk.bench.valhalla.lworld.matrix;
 
-value public class Complex {
+inline public class Complex {
 
     static class H {
         public static Complex ZERO = new Complex(0, 0);
