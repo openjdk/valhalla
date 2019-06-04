@@ -27,7 +27,7 @@
 
 import java.util.List;
 
-value class X {
+inline class X {
 
     int x = 10;
     

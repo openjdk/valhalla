@@ -26,4 +26,4 @@
 // key: compiler.warn.source.no.bootclasspath
 // options: -source 10
 
-value final class ValuesNotSupported {}
+inline final class ValuesNotSupported {}
